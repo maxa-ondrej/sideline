@@ -7,7 +7,10 @@ This is an **Effect-TS monorepo** built with TypeScript, utilizing a modern func
 ### Architecture
 
 ```
+applications/
+└── web/       - TanStack Start frontend (Vite, React 19)
 packages/
+├── bot/       - Discord bot (dfx, Effect-native)
 ├── cli/       - Command-line interface application
 ├── domain/    - Core domain logic and business rules
 └── server/    - Server application and API endpoints
@@ -188,6 +191,7 @@ import * as Domain from "@sideline/domain/models"
 Internal packages use scoped aliases:
 
 ```typescript
+@sideline/bot        → ./packages/bot/src
 @sideline/cli        → ./packages/cli/src
 @sideline/domain     → ./packages/domain/src
 @sideline/server     → ./packages/server/src
@@ -242,7 +246,13 @@ TEST_DIST=1 pnpm test        # Test built artifacts
 
 ```
 /
+├── applications/
+│   └── web/               - TanStack Start frontend (own Vite build)
 ├── packages/
+│   ├── bot/
+│   │   ├── src/           - Discord bot source (dfx)
+│   │   ├── test/          - Bot tests
+│   │   └── package.json
 │   ├── cli/
 │   │   ├── src/           - CLI source code
 │   │   ├── test/          - CLI tests
@@ -255,6 +265,7 @@ TEST_DIST=1 pnpm test        # Test built artifacts
 │       ├── src/           - Server source code
 │       ├── test/          - Server tests
 │       └── package.json
+├── .github/workflows/     - CI workflows (check, release, snapshot)
 ├── scripts/               - Build and utility scripts
 ├── patches/               - pnpm patches for dependencies
 ├── .changeset/            - Changeset configurations
@@ -419,6 +430,28 @@ pnpm biome check src/
 
 # Format only (no linting)
 pnpm format:write
+```
+
+## CI Pipeline
+
+The `check.yml` workflow runs on pushes to `main` and on pull requests. It has four parallel jobs:
+
+| Job             | Command           | Purpose                                          |
+|-----------------|-------------------|--------------------------------------------------|
+| **Lint & Format** | `pnpm biome:check` | Enforces formatting and lint rules via Biome     |
+| **Build**       | `pnpm codegen`    | Verifies codegen output is committed and current |
+| **Types**       | `pnpm check`      | Type-checks all packages with `tsc -b`           |
+| **Test**        | `pnpm vitest`     | Runs all Vitest tests across the workspace       |
+
+All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js install with caching).
+
+### Running CI checks locally
+
+```bash
+pnpm biome:check           # Lint & format check
+pnpm codegen && git diff --exit-code  # Verify codegen is up to date
+pnpm check                 # Type check
+pnpm test                  # Run tests
 ```
 
 ## Best Practices
