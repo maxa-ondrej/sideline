@@ -27,6 +27,7 @@ const config: UserConfig = {
     },
     include: ["test/**/*.test.ts"],
     alias: {
+      ...alias("bot"),
       ...alias("cli"),
       ...alias("domain"),
       ...alias("server")

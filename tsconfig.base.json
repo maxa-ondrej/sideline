@@ -37,6 +37,9 @@
     "removeComments": false,
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
+      "@sideline/bot": ["./packages/bot/src/index.js"],
+      "@sideline/bot/*": ["./packages/bot/src/*.js"],
+      "@sideline/bot/test/*": ["./packages/bot/test/*.js"],
       "@sideline/cli": ["./packages/cli/src/index.js"],
       "@sideline/cli/*": ["./packages/cli/src/*.js"],
       "@sideline/cli/test/*": ["./packages/cli/test/*.js"],
