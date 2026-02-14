@@ -15,10 +15,13 @@ Sports team management system with a Discord-first architecture. Built as a bach
 An Effect-TS monorepo with schema-driven API design:
 
 ```
+applications/
+  web/       TanStack Start frontend (Vite, React 19)
 packages/
+  bot/       Discord bot (dfx, Effect-native)
+  cli/       Command-line client using @effect/cli
   domain/    Schema definitions, typed errors, HttpApi spec
   server/    HTTP API handlers, repositories, service layer
-  cli/       Command-line client using @effect/cli
 ```
 
 The **domain** package defines the API contract (`HttpApiGroup` + `Schema`), **server** implements it via `HttpApiBuilder`, and **cli** consumes it via `HttpApiClient` — all sharing the same type-safe spec.
