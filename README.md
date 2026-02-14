@@ -27,6 +27,16 @@ The **domain** package defines the API contract (`HttpApiGroup` + `Schema`), **s
 
 ### Prerequisites
 
+**Nix + direnv (recommended):**
+
+```sh
+direnv allow
+```
+
+This provisions Node.js, pnpm, and configures git hooks automatically.
+
+**Manual:**
+
 - [Node.js](https://nodejs.org/) 24+
 - [pnpm](https://pnpm.io/) 10.14+
 
@@ -71,6 +81,14 @@ pnpm build
 | Testing        | Vitest + [@effect/vitest](https://effect.website)          |
 | Linting        | [Biome](https://biomejs.dev)                               |
 | CI/CD          | GitHub Actions + [Changesets](https://github.com/changesets/changesets) |
+
+## Pre-commit Hooks
+
+[husky](https://typicode.github.io/husky/) + [lint-staged](https://github.com/lint-staged/lint-staged) automatically run `biome check --write` on staged files before each commit.
+
+## Further Reading
+
+See [`AGENTS.md`](./AGENTS.md) for architecture details, Effect-TS patterns, coding conventions, CI pipeline, and version management.
 
 ## License
 
