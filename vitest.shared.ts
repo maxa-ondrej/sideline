@@ -30,6 +30,7 @@ const config: UserConfig = {
       ...alias("bot"),
       ...alias("cli"),
       ...alias("domain"),
+      ...alias("migrations"),
       ...alias("server"),
     },
   },

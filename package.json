@@ -18,6 +18,9 @@
     "coverage": "vitest --coverage",
     "changeset-version": "changeset version && node scripts/version.mjs",
     "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm tsx packages/migrations/src/run.ts",
     "prepare": "husky"
   },
   "lint-staged": {

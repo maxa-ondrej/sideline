@@ -46,6 +46,8 @@
       "@sideline/domain": ["./packages/domain/src/index.js"],
       "@sideline/domain/*": ["./packages/domain/src/*.js"],
       "@sideline/domain/test/*": ["./packages/domain/test/*.js"],
+      "@sideline/migrations": ["./packages/migrations/src/index.js"],
+      "@sideline/migrations/*": ["./packages/migrations/src/*.js"],
       "@sideline/server": ["./packages/server/src/index.js"],
       "@sideline/server/*": ["./packages/server/src/*.js"],
       "@sideline/server/test/*": ["./packages/server/test/*.js"]

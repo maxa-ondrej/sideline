@@ -1,13 +1,13 @@
 {
-  "name": "@sideline/server",
+  "name": "@sideline/migrations",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "The server template",
+  "description": "Database migrations for sideline",
   "repository": {
     "type": "git",
     "url": "<PLACEHOLDER>",
-    "directory": "packages/server"
+    "directory": "packages/migrations"
   },
   "publishConfig": {
     "access": "public",
@@ -28,8 +28,6 @@
     "@effect/platform-node": "latest",
     "@effect/sql": "latest",
     "@effect/sql-pg": "latest",
-    "@sideline/domain": "workspace:^",
-    "@sideline/migrations": "workspace:^",
     "effect": "latest"
   },
   "effect": {
