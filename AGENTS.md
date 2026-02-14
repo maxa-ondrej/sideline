@@ -616,6 +616,10 @@ Use the Notion MCP tools to query and update tasks:
 
 When starting work on a task, update its status to `In Progress`. When done, move it to `In Review` or `In Test` as appropriate.
 
+## Git Conventions
+
+- Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers to commit messages.
+
 ---
 
 **Last Updated**: 2026-02-14
