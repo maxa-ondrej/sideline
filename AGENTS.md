@@ -300,6 +300,10 @@ packages/{name}/
 
 ## Common Tasks
 
+### pnpm Usage
+
+Always use `npx pnpm@10.14.0` instead of bare `pnpm` to ensure the correct version is used.
+
 ### Running Code
 
 Execute TypeScript files directly:
