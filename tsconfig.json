@@ -3,7 +3,6 @@
   "include": [],
   "references": [
     { "path": "packages/bot" },
-    { "path": "packages/cli" },
     { "path": "packages/domain" },
     { "path": "packages/migrations" },
     { "path": "packages/server" }

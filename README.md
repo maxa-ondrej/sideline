@@ -19,12 +19,11 @@ applications/
   web/       TanStack Start frontend (Vite, React 19)
 packages/
   bot/       Discord bot (dfx, Effect-native)
-  cli/       Command-line client using @effect/cli
   domain/    Schema definitions, typed errors, HttpApi spec
   server/    HTTP API handlers, repositories, service layer
 ```
 
-The **domain** package defines the API contract (`HttpApiGroup` + `Schema`), **server** implements it via `HttpApiBuilder`, and **cli** consumes it via `HttpApiClient` — all sharing the same type-safe spec.
+The **domain** package defines the API contract (`HttpApiGroup` + `Schema`) and **server** implements it via `HttpApiBuilder` — all sharing the same type-safe spec.
 
 ## Getting Started
 
@@ -63,9 +62,6 @@ pnpm biome:fix
 
 # Start the server
 pnpm tsx ./packages/server/src/server.ts
-
-# Use the CLI
-pnpm tsx ./packages/cli/src/bin.ts list
 ```
 
 ### Build

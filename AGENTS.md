@@ -11,7 +11,6 @@ applications/
 └── web/       - TanStack Start frontend (Vite, React 19)
 packages/
 ├── bot/       - Discord bot (dfx, Effect-native)
-├── cli/       - Command-line interface application
 ├── domain/    - Core domain logic and business rules
 └── server/    - Server application and API endpoints
 ```
@@ -192,7 +191,6 @@ Internal packages use scoped aliases:
 
 ```typescript
 @sideline/bot        → ./packages/bot/src
-@sideline/cli        → ./packages/cli/src
 @sideline/domain     → ./packages/domain/src
 @sideline/server     → ./packages/server/src
 ```
@@ -252,10 +250,6 @@ TEST_DIST=1 pnpm test        # Test built artifacts
 │   ├── bot/
 │   │   ├── src/           - Discord bot source (dfx)
 │   │   ├── test/          - Bot tests
-│   │   └── package.json
-│   ├── cli/
-│   │   ├── src/           - CLI source code
-│   │   ├── test/          - CLI tests
 │   │   └── package.json
 │   ├── domain/
 │   │   ├── src/           - Domain models and logic
@@ -497,7 +491,6 @@ pnpm test                  # Run tests
 
 - **Domain package**: Pure domain logic, no I/O dependencies
 - **Server package**: HTTP, database, external integrations
-- **CLI package**: Command parsing, user interaction
 - **Cross-cutting concerns**: Configuration, logging, observability
 
 ### Performance
