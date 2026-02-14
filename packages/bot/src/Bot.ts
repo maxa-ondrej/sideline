@@ -3,7 +3,7 @@ import * as DiscordConfig from "dfx/DiscordConfig"
 import { DiscordIxLive, runIx } from "dfx/gateway"
 import * as Ix from "dfx/Interactions/index"
 import * as Discord from "dfx/types"
-import { Config, Effect, Layer } from "effect"
+import { Config, Effect, Layer, Logger, LogLevel } from "effect"
 
 const PingCommand = Ix.global(
   { name: "ping", description: "Check if the bot is alive" },
@@ -33,6 +33,8 @@ const MainLive = DiscordIxLive.pipe(
       token: Config.redacted("DISCORD_BOT_TOKEN"),
     }),
   ),
+  Layer.provide(Logger.json),
+  Layer.provide(Logger.minimumLogLevel(LogLevel.Info)),
 )
 
 Effect.provide(program, MainLive).pipe(NodeRuntime.runMain)
