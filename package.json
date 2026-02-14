@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "codegen": "pnpm --recursive --parallel run codegen && biome check --write packages/*/src/index.ts",
-    "build": "tsc -b tsconfig.build.json && pnpm --recursive --parallel run build",
+    "build": "tsc -b tsconfig.build.json && pnpm --recursive --parallel --filter '!@sideline/web' run build",
     "check": "tsc -b tsconfig.json",
     "check-recursive": "pnpm --recursive exec tsc -b tsconfig.json",
     "format": "biome format .",
