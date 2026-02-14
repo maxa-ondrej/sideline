@@ -6,10 +6,10 @@ settings:
 
 patchedDependencies:
   '@changesets/assemble-release-plan@6.0.9':
-    hash: ypa3rdjn2zks4b2vtycade3ity
+    hash: 29cf7a343aefd3c59ad238a4cb067f0a1a0adbeed07b6d57d6f31d6c80a5e25e
     path: patches/@changesets__assemble-release-plan@6.0.9.patch
   '@changesets/get-github-info@0.6.0':
-    hash: 4nwpuevfciovsbhi25hd4g5r7y
+    hash: 1387c42d40315dc7805094fb3085da092ec802de277560db46fb53567ba583ec
     path: patches/@changesets__get-github-info@0.6.0.patch
 
 importers:
@@ -39,7 +39,7 @@ importers:
         version: 2.29.8(@types/node@22.19.11)
       '@changesets/get-github-info':
         specifier: 0.6.0
-        version: 0.6.0(patch_hash=4nwpuevfciovsbhi25hd4g5r7y)
+        version: 0.6.0(patch_hash=1387c42d40315dc7805094fb3085da092ec802de277560db46fb53567ba583ec)
       '@effect/build-utils':
         specifier: ^0.7.7
         version: 0.7.9
@@ -1911,7 +1911,7 @@ snapshots:
       resolve-from: 5.0.0
       semver: 7.7.4
 
-  '@changesets/assemble-release-plan@6.0.9(patch_hash=ypa3rdjn2zks4b2vtycade3ity)':
+  '@changesets/assemble-release-plan@6.0.9(patch_hash=29cf7a343aefd3c59ad238a4cb067f0a1a0adbeed07b6d57d6f31d6c80a5e25e)':
     dependencies:
       '@changesets/errors': 0.2.0
       '@changesets/get-dependents-graph': 2.1.3
@@ -1935,7 +1935,7 @@ snapshots:
   '@changesets/cli@2.29.8(@types/node@22.19.11)':
     dependencies:
       '@changesets/apply-release-plan': 7.0.14
-      '@changesets/assemble-release-plan': 6.0.9(patch_hash=ypa3rdjn2zks4b2vtycade3ity)
+      '@changesets/assemble-release-plan': 6.0.9(patch_hash=29cf7a343aefd3c59ad238a4cb067f0a1a0adbeed07b6d57d6f31d6c80a5e25e)
       '@changesets/changelog-git': 0.2.1
       '@changesets/config': 3.1.2
       '@changesets/errors': 0.2.0
@@ -1986,7 +1986,7 @@ snapshots:
       picocolors: 1.1.1
       semver: 7.7.4
 
-  '@changesets/get-github-info@0.6.0(patch_hash=4nwpuevfciovsbhi25hd4g5r7y)':
+  '@changesets/get-github-info@0.6.0(patch_hash=1387c42d40315dc7805094fb3085da092ec802de277560db46fb53567ba583ec)':
     dependencies:
       dataloader: 1.4.0
       node-fetch: 2.7.0
@@ -2002,7 +2002,7 @@ snapshots:
 
   '@changesets/get-release-plan@4.0.14':
     dependencies:
-      '@changesets/assemble-release-plan': 6.0.9(patch_hash=ypa3rdjn2zks4b2vtycade3ity)
+      '@changesets/assemble-release-plan': 6.0.9(patch_hash=29cf7a343aefd3c59ad238a4cb067f0a1a0adbeed07b6d57d6f31d6c80a5e25e)
       '@changesets/config': 3.1.2
       '@changesets/pre': 2.0.2
       '@changesets/read': 0.6.6
