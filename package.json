@@ -1,0 +1,48 @@
+{
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "codegen": "pnpm --recursive --parallel run codegen",
+    "build": "tsc -b tsconfig.build.json && pnpm --recursive --parallel run build",
+    "check": "tsc -b tsconfig.json",
+    "check-recursive": "pnpm --recursive exec tsc -b tsconfig.json",
+    "format": "biome format .",
+    "format:write": "biome format --write .",
+    "lint": "biome lint .",
+    "lint:write": "biome lint --write .",
+    "biome:check": "biome check .",
+    "biome:fix": "biome check --write .",
+    "test": "vitest",
+    "coverage": "vitest --coverage",
+    "changeset-version": "changeset version && node scripts/version.mjs",
+    "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.25.9",
+    "@babel/core": "^7.26.0",
+    "@babel/plugin-transform-export-namespace-from": "^7.25.9",
+    "@babel/plugin-transform-modules-commonjs": "^7.25.9",
+    "@biomejs/biome": "^2.3.15",
+    "@changesets/changelog-github": "^0.5.0",
+    "@changesets/cli": "^2.27.8",
+    "@changesets/get-github-info": "0.6.0",
+    "@effect/build-utils": "^0.7.7",
+    "@effect/language-service": "latest",
+    "@effect/vitest": "latest",
+    "@types/node": "^22.8.5",
+    "babel-plugin-annotate-pure-calls": "^0.5.0",
+    "effect": "^3.10.7",
+    "glob": "^11.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.0"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
+      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch"
+    }
+  }
+}
