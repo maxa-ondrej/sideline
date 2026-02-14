@@ -1,11 +1,11 @@
 import * as path from "node:path"
 import type { UserConfig } from "vitest/config"
 
-const alias = (name: string) => {
+const alias = (name: string, location = "packages") => {
   const target = process.env.TEST_DIST !== undefined ? "dist/dist/esm" : "src"
   return {
-    [`${name}/test`]: path.join(__dirname, "packages", name, "test"),
-    [`${name}`]: path.join(__dirname, "packages", name, target),
+    [`${name}/test`]: path.join(__dirname, location, name, "test"),
+    [`${name}`]: path.join(__dirname, location, name, target),
   }
 }
 
@@ -27,11 +27,10 @@ const config: UserConfig = {
     },
     include: ["test/**/*.test.ts"],
     alias: {
-      ...alias("bot"),
-      ...alias("cli"),
+      ...alias("bot", "applications"),
       ...alias("domain"),
       ...alias("migrations"),
-      ...alias("server"),
+      ...alias("server", "applications"),
     },
   },
 }

@@ -37,17 +37,17 @@
     "removeComments": false,
     "plugins": [{ "name": "@effect/language-service" }],
     "paths": {
-      "@sideline/bot": ["./packages/bot/src/index.js"],
-      "@sideline/bot/*": ["./packages/bot/src/*.js"],
-      "@sideline/bot/test/*": ["./packages/bot/test/*.js"],
+      "@sideline/bot": ["./applications/bot/src/index.js"],
+      "@sideline/bot/*": ["./applications/bot/src/*.js"],
+      "@sideline/bot/test/*": ["./applications/bot/test/*.js"],
       "@sideline/domain": ["./packages/domain/src/index.js"],
       "@sideline/domain/*": ["./packages/domain/src/*.js"],
       "@sideline/domain/test/*": ["./packages/domain/test/*.js"],
       "@sideline/migrations": ["./packages/migrations/src/index.js"],
       "@sideline/migrations/*": ["./packages/migrations/src/*.js"],
-      "@sideline/server": ["./packages/server/src/index.js"],
-      "@sideline/server/*": ["./packages/server/src/*.js"],
-      "@sideline/server/test/*": ["./packages/server/test/*.js"]
+      "@sideline/server": ["./applications/server/src/index.js"],
+      "@sideline/server/*": ["./applications/server/src/*.js"],
+      "@sideline/server/test/*": ["./applications/server/test/*.js"]
     }
   }
 }

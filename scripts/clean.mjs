@@ -1,7 +1,7 @@
 import * as Fs from "node:fs"
 import * as Glob from "glob"
 
-const dirs = [".", ...Glob.sync("packages/*/")]
+const dirs = [".", ...Glob.sync("{packages,applications}/*/")]
 for (const pkg of dirs) {
   const files = [".tsbuildinfo", "build", "dist", "coverage"]
 

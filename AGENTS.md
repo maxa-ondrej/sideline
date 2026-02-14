@@ -8,11 +8,12 @@ This is an **Effect-TS monorepo** built with TypeScript, utilizing a modern func
 
 ```
 applications/
+├── bot/       - Discord bot (dfx, Effect-native)
+├── server/    - Server application and API endpoints
 └── web/       - TanStack Start frontend (Vite, React 19)
 packages/
-├── bot/       - Discord bot (dfx, Effect-native)
 ├── domain/    - Core domain logic and business rules
-└── server/    - Server application and API endpoints
+└── migrations/- Database migrations
 ```
 
 This monorepo follows Effect's best practices for dependency management using covariant union types for the `R` (Requirements) parameter, enabling clean composition without intersection type conflicts.
@@ -190,9 +191,9 @@ import * as Domain from "@sideline/domain/models"
 Internal packages use scoped aliases:
 
 ```typescript
-@sideline/bot        → ./packages/bot/src
+@sideline/bot        → ./applications/bot/src
 @sideline/domain     → ./packages/domain/src
-@sideline/server     → ./packages/server/src
+@sideline/server     → ./applications/server/src
 ```
 
 ### Code Style
@@ -246,18 +247,23 @@ TEST_DIST=1 pnpm test        # Test built artifacts
 /
 ├── applications/
 │   └── web/               - TanStack Start frontend (own Vite build)
-├── packages/
+├── applications/
 │   ├── bot/
 │   │   ├── src/           - Discord bot source (dfx)
 │   │   ├── test/          - Bot tests
 │   │   └── package.json
+│   ├── server/
+│   │   ├── src/           - Server source code
+│   │   ├── test/          - Server tests
+│   │   └── package.json
+│   └── web/               - TanStack Start frontend (own Vite build)
+├── packages/
 │   ├── domain/
 │   │   ├── src/           - Domain models and logic
 │   │   ├── test/          - Domain tests
 │   │   └── package.json
-│   └── server/
-│       ├── src/           - Server source code
-│       ├── test/          - Server tests
+│   └── migrations/
+│       ├── src/           - Database migration files
 │       └── package.json
 ├── .github/workflows/     - CI workflows (check, release, snapshot)
 ├── scripts/               - Build and utility scripts

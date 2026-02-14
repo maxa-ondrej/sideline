@@ -16,11 +16,11 @@ An Effect-TS monorepo with schema-driven API design:
 
 ```
 applications/
+  bot/       Discord bot (dfx, Effect-native)
+  server/    HTTP API handlers, repositories, service layer
   web/       TanStack Start frontend (Vite, React 19)
 packages/
-  bot/       Discord bot (dfx, Effect-native)
   domain/    Schema definitions, typed errors, HttpApi spec
-  server/    HTTP API handlers, repositories, service layer
 ```
 
 The **domain** package defines the API contract (`HttpApiGroup` + `Schema`) and **server** implements it via `HttpApiBuilder` — all sharing the same type-safe spec.
@@ -61,7 +61,7 @@ pnpm test
 pnpm biome:fix
 
 # Start the server
-pnpm tsx ./packages/server/src/server.ts
+pnpm tsx ./applications/server/src/server.ts
 ```
 
 ### Build

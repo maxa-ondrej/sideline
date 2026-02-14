@@ -1,13 +1,13 @@
 {
-  "name": "@sideline/bot",
+  "name": "@sideline/server",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "Discord bot for Sideline",
+  "description": "The server template",
   "repository": {
     "type": "git",
     "url": "<PLACEHOLDER>",
-    "directory": "packages/bot"
+    "directory": "applications/server"
   },
   "publishConfig": {
     "access": "public",
@@ -26,9 +26,10 @@
   "dependencies": {
     "@effect/platform": "latest",
     "@effect/platform-node": "latest",
+    "@effect/sql": "latest",
+    "@effect/sql-pg": "latest",
     "@sideline/domain": "workspace:^",
-    "dfx": "latest",
-    "discord-api-types": "latest",
+    "@sideline/migrations": "workspace:^",
     "effect": "latest"
   },
   "effect": {
