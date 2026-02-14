@@ -17,7 +17,11 @@
     "test": "vitest",
     "coverage": "vitest --coverage",
     "changeset-version": "changeset version && node scripts/version.mjs",
-    "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish"
+    "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,css}": "biome check --write --no-errors-on-unmatched"
   },
   "devDependencies": {
     "@babel/cli": "^7.25.9",
@@ -35,6 +39,8 @@
     "babel-plugin-annotate-pure-calls": "^0.5.0",
     "effect": "^3.10.7",
     "glob": "^11.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vitest": "^3.2.0"

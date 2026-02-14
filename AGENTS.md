@@ -320,6 +320,14 @@ Build process:
 1. TypeScript compilation (`tsc -b tsconfig.build.json`)
 2. Package-specific builds (if configured)
 
+### Pre-commit Hooks
+
+The repo uses **husky** + **lint-staged** to run `biome check --write` on staged files before each commit. This catches formatting and lint issues locally before they hit CI.
+
+- Hooks are installed automatically via the `prepare` script on `pnpm install`.
+- The pre-commit hook lives in `.husky/pre-commit` and runs `pnpm exec lint-staged`.
+- `lint-staged` config is in the root `package.json`.
+
 ### Development Workflow
 
 ```bash
