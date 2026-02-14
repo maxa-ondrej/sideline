@@ -328,6 +328,27 @@ The repo uses **husky** + **lint-staged** to run `biome check --write` on staged
 - The pre-commit hook lives in `.husky/pre-commit` and runs `pnpm exec lint-staged`.
 - `lint-staged` config is in the root `package.json`.
 
+### Branching & PR Strategy
+
+The project follows **trunk-based development** on `main`:
+
+- **`main`** is the single long-lived branch. All work merges here.
+- **Feature branches** branch off `main` and are merged back via pull request.
+- **PRs to `main`** trigger the Check workflow (lint, types, build, test) and a Snapshot build (`pkg-pr-new`) for preview packages.
+- **Pushes to `main`** trigger the Check workflow plus the Release workflow (Changesets action creates a release PR or publishes).
+
+#### Workflow
+
+1. Create a feature branch from `main`
+2. Make changes, commit (pre-commit hooks run biome automatically)
+3. Open a PR against `main` — CI runs checks + snapshot build
+4. After review, squash-merge into `main`
+5. For publishable changes, add a changeset (`pnpm changeset`) before merging
+
+#### Branch naming
+
+Use descriptive kebab-case names: `feat/rsvp-buttons`, `fix/auth-token-refresh`, `docs/setup-guide`.
+
 ### Development Workflow
 
 ```bash
