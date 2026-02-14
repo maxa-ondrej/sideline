@@ -4,8 +4,8 @@
   "packageManager": "pnpm@10.28.0",
   "scripts": {
     "clean": "node scripts/clean.mjs",
-    "codegen": "pnpm --recursive --parallel run codegen && biome check --write {packages,applications}/*/src/index.ts",
-    "build": "tsc -b tsconfig.build.json && pnpm --recursive --parallel --filter './{packages,applications}/**' run build",
+    "codegen": "pnpm --recursive --parallel run codegen && biome check --write packages/*/src/index.ts applications/*/src/index.ts",
+    "build": "tsc -b tsconfig.build.json && pnpm --recursive --parallel --filter './packages/**' --filter './applications/**' run build",
     "check": "tsc -b tsconfig.json",
     "check-recursive": "pnpm --recursive exec tsc -b tsconfig.json",
     "format": "biome format .",
