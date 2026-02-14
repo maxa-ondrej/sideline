@@ -10,28 +10,29 @@ const PingCommand = Ix.global(
   Effect.succeed(
     Ix.response({
       type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { content: "Pong!" }
-    })
-  )
+      data: { content: "Pong!" },
+    }),
+  ),
 )
 
-const commands = Effect.succeed(Ix.builder.add(PingCommand));
+const commands = Effect.succeed(Ix.builder.add(PingCommand))
 
-const program = commands.pipe(Effect.andThen(runIx((effect) =>
-  Effect.catchAllCause(effect, (cause) =>
-    Effect.logError("Interaction error", cause)
-  )
-)));
+const program = commands.pipe(
+  Effect.andThen(
+    runIx((effect) =>
+      Effect.catchAllCause(effect, (cause) => Effect.logError("Interaction error", cause)),
+    ),
+  ),
+)
 
 const MainLive = DiscordIxLive.pipe(
   Layer.provide(NodeHttpClient.layerUndici),
   Layer.provide(NodeSocket.layerWebSocketConstructor),
   Layer.provide(
     DiscordConfig.layerConfig({
-      token: Config.redacted("DISCORD_BOT_TOKEN")
-    })
-  )
+      token: Config.redacted("DISCORD_BOT_TOKEN"),
+    }),
+  ),
 )
 
 Effect.provide(program, MainLive).pipe(NodeRuntime.runMain)
-

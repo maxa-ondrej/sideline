@@ -1,11 +1,11 @@
-import * as Glob from "glob"
 import * as Fs from "node:fs"
+import * as Glob from "glob"
 
 const dirs = [".", ...Glob.sync("packages/*/")]
-dirs.forEach((pkg) => {
+for (const pkg of dirs) {
   const files = [".tsbuildinfo", "build", "dist", "coverage"]
 
-  files.forEach((file) => {
+  for (const file of files) {
     Fs.rmSync(`${pkg}/${file}`, { recursive: true, force: true }, () => {})
-  })
-})
+  }
+}

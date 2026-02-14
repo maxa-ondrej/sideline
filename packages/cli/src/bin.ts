@@ -7,10 +7,7 @@ import { TodosClient } from "./TodosClient.js"
 
 const MainLive = TodosClient.Default.pipe(
   Layer.provide(NodeHttpClient.layerUndici),
-  Layer.merge(NodeContext.layer)
+  Layer.merge(NodeContext.layer),
 )
 
-cli(process.argv).pipe(
-  Effect.provide(MainLive),
-  NodeRuntime.runMain
-)
+cli(process.argv).pipe(Effect.provide(MainLive), NodeRuntime.runMain)
