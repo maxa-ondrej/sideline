@@ -1,9 +1,17 @@
-import { HttpApiBuilder } from "@effect/platform"
-import { TodosApi } from "@sideline/domain/TodosApi"
-import { Effect, Layer } from "effect"
+import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from "@effect/platform"
+import { TodosApiGroup } from "@sideline/domain/TodosApi"
+import { Effect, Layer, Schema } from "effect"
 import { TodosRepository } from "./TodosRepository.js"
 
-const TodosApiLive = HttpApiBuilder.group(TodosApi, "todos", (handlers) =>
+class HealthApiGroup extends HttpApiGroup.make("health").add(
+  HttpApiEndpoint.get("healthCheck", "/health").addSuccess(
+    Schema.Struct({ status: Schema.Literal("ok") }),
+  ),
+) {}
+
+class Api extends HttpApi.make("api").add(TodosApiGroup).add(HealthApiGroup) {}
+
+const TodosApiLive = HttpApiBuilder.group(Api, "todos", (handlers) =>
   Effect.gen(function* () {
     const todos = yield* TodosRepository
     return handlers
@@ -15,4 +23,11 @@ const TodosApiLive = HttpApiBuilder.group(TodosApi, "todos", (handlers) =>
   }),
 )
 
-export const ApiLive = HttpApiBuilder.api(TodosApi).pipe(Layer.provide(TodosApiLive))
+const HealthApiLive = HttpApiBuilder.group(Api, "health", (handlers) =>
+  Effect.succeed(handlers.handle("healthCheck", () => Effect.succeed({ status: "ok" as const }))),
+)
+
+export const ApiLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide(TodosApiLive),
+  Layer.provide(HealthApiLive),
+)

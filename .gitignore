@@ -9,6 +9,7 @@ docs/
 scratchpad/*
 !scratchpad/tsconfig.json
 .direnv/
+.local/
 .idea/
 .venv/
 .env

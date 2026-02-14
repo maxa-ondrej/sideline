@@ -300,10 +300,6 @@ packages/{name}/
 
 ## Common Tasks
 
-### pnpm Usage
-
-Always use `npx pnpm@10.14.0` instead of bare `pnpm` to ensure the correct version is used.
-
 ### Running Code
 
 Execute TypeScript files directly:
@@ -316,8 +312,8 @@ pnpm tsx ./path/to/file.ts
 
 ```bash
 pnpm build               # Build all packages (TypeScript + package builds)
-pnpm check               # Type check without building
-pnpm check-recursive     # Type check all packages individually
+pnpm check-recursive     # Type check all packages individually (preferred)
+pnpm check               # Type check without building (excludes web app)
 ```
 
 Build process:
@@ -357,7 +353,7 @@ Use descriptive kebab-case names: `feat/rsvp-buttons`, `fix/auth-token-refresh`,
 
 ```bash
 # Check types while developing
-pnpm check
+pnpm check-recursive
 
 # Run specific package tests
 cd packages/domain && pnpm test
@@ -473,7 +469,7 @@ The `check.yml` workflow runs on pushes to `main` and on pull requests. It has f
 |-----------------|-------------------|--------------------------------------------------|
 | **Lint & Format** | `pnpm biome:check` | Enforces formatting and lint rules via Biome     |
 | **Build**       | `pnpm codegen`    | Verifies codegen output is committed and current |
-| **Types**       | `pnpm check`      | Type-checks all packages with `tsc -b`           |
+| **Types**       | `pnpm check-recursive` | Type-checks all packages individually        |
 | **Test**        | `pnpm vitest`     | Runs all Vitest tests across the workspace       |
 
 All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js install with caching).
@@ -483,7 +479,7 @@ All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js
 ```bash
 pnpm biome:check           # Lint & format check
 pnpm codegen && git diff --exit-code  # Verify codegen is up to date
-pnpm check                 # Type check
+pnpm check-recursive       # Type check all packages
 pnpm test                  # Run tests
 ```
 

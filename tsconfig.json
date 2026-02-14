@@ -1,10 +1,5 @@
 {
   "extends": "./tsconfig.base.json",
   "include": [],
-  "references": [
-    { "path": "applications/bot" },
-    { "path": "packages/domain" },
-    { "path": "packages/migrations" },
-    { "path": "applications/server" }
-  ]
+  "references": [{ "path": "packages/domain" }, { "path": "packages/migrations" }]
 }

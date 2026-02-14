@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "start": "node .output/server/index.mjs"
+    "start": "node .output/server/index.mjs",
+    "check": "tsc -b tsconfig.json",
+    "codegen": "tsr generate"
   },
   "dependencies": {
     "@tanstack/react-router": "latest",
@@ -17,6 +19,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tanstack/router-cli": "latest",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "vite": "latest"
