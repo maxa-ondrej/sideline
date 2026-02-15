@@ -14,6 +14,9 @@ export default defineWorkspace([
   // Add specialized configuration for some packages.
   // project({ name: "my-package|browser", environment: "happy-dom" }),
   // Add the default configuration for all packages.
-  "packages/*",
-  "applications/*",
+  "packages/domain",
+  "packages/migrations",
+  "applications/bot",
+  "applications/server",
+  "applications/web",
 ])

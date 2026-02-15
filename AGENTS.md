@@ -701,6 +701,7 @@ When starting work on a task, update its status to `In Progress`. When done, mov
 ## Git Conventions
 
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers to commit messages.
+- After every `git push`, check that CI pipelines pass (`gh run list`, `gh run view`). If a workflow fails, investigate the logs, fix the issue, and push again until all checks are green.
 
 ---
 
