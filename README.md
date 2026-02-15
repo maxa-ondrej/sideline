@@ -18,12 +18,15 @@ An Effect-TS monorepo with schema-driven API design:
 applications/
   bot/       Discord bot (dfx, Effect-native)
   server/    HTTP API handlers, repositories, service layer
-  web/       TanStack Start frontend (Vite, React 19)
+  web/       TanStack Start frontend (Vite, React 19, Nitro)
 packages/
   domain/    Schema definitions, typed errors, HttpApi spec
+  migrations/Database migrations (Effect SQL)
 ```
 
 The **domain** package defines the API contract (`HttpApiGroup` + `Schema`) and **server** implements it via `HttpApiBuilder` — all sharing the same type-safe spec.
+
+Each application separates its composable layer (`AppLive`) from its runtime entrypoint (`run.ts`), allowing clean dependency injection and Docker deployment.
 
 ## Getting Started
 
@@ -69,6 +72,18 @@ pnpm tsx ./applications/server/src/server.ts
 ```sh
 pnpm build
 ```
+
+### Docker
+
+Each application has a multi-stage Dockerfile. Build images from the repo root:
+
+```sh
+docker build -f applications/bot/Dockerfile -t sideline-bot .
+docker build -f applications/server/Dockerfile -t sideline-server .
+docker build -f applications/web/Dockerfile -t sideline-web .
+```
+
+Images are automatically built and pushed to GHCR on pull requests via the Snapshot workflow.
 
 ## Tech Stack
 

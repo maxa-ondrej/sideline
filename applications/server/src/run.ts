@@ -1,20 +1,16 @@
 import { createServer } from "node:http"
-import { HttpApiBuilder, HttpMiddleware } from "@effect/platform"
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { PgClient } from "@effect/sql-pg"
 import { MigratorLive } from "@sideline/migrations"
 import { Config, Layer, Logger, LogLevel } from "effect"
-import { ApiLive } from "./Api.js"
-import { TodosRepository } from "./TodosRepository.js"
+import { AppLive } from "./index.js"
 
 const PgLive = PgClient.layerConfig({
   url: Config.redacted("DATABASE_URL"),
 })
 
-const HttpLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
+const HttpLive = AppLive.pipe(
   Layer.provide(MigratorLive),
-  Layer.provide(ApiLive),
-  Layer.provide(TodosRepository.Default),
   Layer.provide(PgLive),
   Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
   Layer.provide(Logger.json),

@@ -1,0 +1,28 @@
+FROM node:25-slim AS base
+RUN npm install -g pnpm@10.28.0
+WORKDIR /app
+
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches/ patches/
+COPY --parents packages/*/package.json /app/
+COPY applications/server/package.json applications/server/
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY packages/ /app/packages/
+COPY applications/server/ applications/server/
+COPY tsconfig.* /app/
+RUN pnpm codegen && pnpm build
+
+FROM base AS production
+ENV NODE_ENV=production
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches/ patches/
+COPY --from=build --parents /app/packages/*/package.json /app/packages/*/dist /
+COPY applications/server/package.json applications/server/
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+COPY --from=build /app/applications/server/build/esm applications/server/build
+
+EXPOSE 3000
+CMD ["node", "applications/server/build/run.js"]

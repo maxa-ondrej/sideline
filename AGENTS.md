@@ -9,12 +9,24 @@ This is an **Effect-TS monorepo** built with TypeScript, utilizing a modern func
 ```
 applications/
 ├── bot/       - Discord bot (dfx, Effect-native)
+│   ├── Bot.ts           - Interaction commands (exports program)
+│   ├── AppLive.ts       - Composable app layer (DiscordIx + HealthServer)
+│   ├── HealthServerLive.ts - Health check HTTP endpoint (:3001)
+│   └── run.ts           - Runtime entrypoint (config, logging, NodeRuntime)
 ├── server/    - Server application and API endpoints
-└── web/       - TanStack Start frontend (Vite, React 19)
+│   ├── AppLive.ts       - Composable app layer (HTTP + API + Repos)
+│   └── run.ts           - Runtime entrypoint (Pg, migrations, NodeRuntime)
+└── web/       - TanStack Start frontend (Vite, React 19, Nitro)
 packages/
 ├── domain/    - Core domain logic and business rules
-└── migrations/- Database migrations
+└── migrations/- Database migrations (provides MigratorLive layer)
 ```
+
+Each application follows an **AppLive + run.ts** pattern:
+- **`AppLive`** — a composable `Layer` that wires up the application's core services without runtime concerns (config, logging, connection details). This is the unit that can be tested or composed into larger systems.
+- **`run.ts`** — the deployment entrypoint that provides environment-specific layers (PgClient, NodeHttpServer, Logger, Config) and calls `NodeRuntime.runMain`.
+
+The **migrations** package exports `MigratorLive` — a layer that only needs a `PgClient` and filesystem. Consumers (like `server/run.ts`) provide their own `PgClient`, keeping the migration package decoupled from connection config.
 
 This monorepo follows Effect's best practices for dependency management using covariant union types for the `R` (Requirements) parameter, enabling clean composition without intersection type conflicts.
 
@@ -473,6 +485,15 @@ The `check.yml` workflow runs on pushes to `main` and on pull requests. It has f
 | **Test**        | `pnpm vitest`     | Runs all Vitest tests across the workspace       |
 
 All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js install with caching).
+
+### Docker / Snapshot Pipeline
+
+The `snapshot.yml` workflow runs on pull requests and manual dispatch. It:
+
+1. Publishes package snapshots via `pkg-pr-new`
+2. Builds Docker images for all applications (`bot`, `server`, `web`) using their respective `Dockerfile`s
+3. Pushes images to the GitHub Container Registry (`ghcr.io/maxa-ondrej/sideline/<app>`)
+4. Tags images with the PR number and commit SHA
 
 ### Running CI checks locally
 

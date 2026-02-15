@@ -14,6 +14,7 @@
     "directory": "dist"
   },
   "scripts": {
+    "build": "tsc -b tsconfig.build.json",
     "check": "tsc -b tsconfig.json",
     "test": "vitest",
     "coverage": "vitest --coverage"

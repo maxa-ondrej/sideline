@@ -1,0 +1,12 @@
+node_modules
+.git
+**/build
+**/dist
+**/.output
+**/.tsbuildinfo
+.direnv
+.local
+.env*
+.husky
+.changeset
+coverage
