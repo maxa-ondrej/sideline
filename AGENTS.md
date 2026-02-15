@@ -652,6 +652,8 @@ const program = Effect.gen(function* () {
 
 ## Task Management (Notion)
 
+**Always use the Notion MCP integration to check for tasks, stories, and sprint work.** Never use GitHub Issues, Asana, or other tools for task management — Notion is the single source of truth.
+
 Project tasks are managed in Notion via MCP integration. The workspace follows a four-level hierarchy:
 
 ```
