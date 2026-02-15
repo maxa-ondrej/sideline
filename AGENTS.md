@@ -324,7 +324,6 @@ pnpm tsx ./path/to/file.ts
 
 ```bash
 pnpm build               # Build all packages (TypeScript + package builds)
-pnpm check-recursive     # Type check all packages individually (preferred)
 pnpm check               # Type check without building (excludes web app)
 ```
 
@@ -365,7 +364,7 @@ Use descriptive kebab-case names: `feat/rsvp-buttons`, `fix/auth-token-refresh`,
 
 ```bash
 # Check types while developing
-pnpm check-recursive
+pnpm check
 
 # Run specific package tests
 cd packages/domain && pnpm test
@@ -429,12 +428,8 @@ The project uses `biome.json` in the root with:
 Available npm scripts for code quality:
 
 ```bash
-pnpm format          # Check formatting (dry-run)
-pnpm format:write    # Format and write changes
-pnpm lint            # Lint files (dry-run)
-pnpm lint:write      # Lint and apply safe fixes
-pnpm biome:check     # Check both formatting and linting
-pnpm biome:fix       # Fix all auto-fixable issues (recommended)
+pnpm lint            # Check both formatting and linting
+pnpm format          # Fix all auto-fixable issues (recommended)
 ```
 
 ### VS Code Integration
@@ -464,13 +459,10 @@ Test files (`*.test.ts`, `*.spec.ts`) have relaxed rules:
 
 ```bash
 # Before committing
-pnpm biome:fix
+pnpm format
 
 # Check specific files
 pnpm biome check src/
-
-# Format only (no linting)
-pnpm format:write
 ```
 
 ## CI Pipeline
@@ -479,9 +471,9 @@ The `check.yml` workflow runs on pushes to `main` and on pull requests. It has f
 
 | Job             | Command           | Purpose                                          |
 |-----------------|-------------------|--------------------------------------------------|
-| **Lint & Format** | `pnpm biome:check` | Enforces formatting and lint rules via Biome     |
+| **Lint & Format** | `pnpm lint`         | Enforces formatting and lint rules via Biome     |
 | **Build**       | `pnpm codegen`    | Verifies codegen output is committed and current |
-| **Types**       | `pnpm check-recursive` | Type-checks all packages individually        |
+| **Types**       | `pnpm check`      | Type-checks all packages individually        |
 | **Test**        | `pnpm vitest`     | Runs all Vitest tests across the workspace       |
 
 All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js install with caching).
@@ -498,9 +490,9 @@ The `snapshot.yml` workflow runs on pull requests and manual dispatch. It:
 ### Running CI checks locally
 
 ```bash
-pnpm biome:check           # Lint & format check
+pnpm lint                  # Lint & format check
 pnpm codegen && git diff --exit-code  # Verify codegen is up to date
-pnpm check-recursive       # Type check all packages
+pnpm check                 # Type check all packages
 pnpm test                  # Run tests
 ```
 
