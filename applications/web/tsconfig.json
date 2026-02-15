@@ -10,7 +10,11 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@sideline/domain": ["../../packages/domain/src/index.ts"],
+      "@sideline/domain/*": ["../../packages/domain/src/*.ts"]
+    }
   },
   "include": ["src", "vite.config.ts"]
 }

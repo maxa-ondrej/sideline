@@ -12,7 +12,7 @@ const PgLive = PgClient.layerConfig({
 const HttpLive = AppLive.pipe(
   Layer.provide(MigratorLive),
   Layer.provide(PgLive),
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3000 })),
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3001 })),
   Layer.provide(Logger.json),
   Layer.provide(Logger.minimumLogLevel(LogLevel.Info)),
 )

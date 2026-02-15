@@ -26,6 +26,8 @@
     "@effect/sql-pg": "latest",
     "@sideline/domain": "workspace:^",
     "@sideline/migrations": "workspace:^",
+    "arctic": "^3.7.0",
+    "dfx": "latest",
     "effect": "latest"
   },
   "effect": {

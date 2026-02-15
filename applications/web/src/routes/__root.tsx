@@ -1,6 +1,13 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router"
+import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
+import { fetchCurrentUser } from "../lib/auth"
+import type { RouterContext } from "../router"
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<RouterContext>()({
+  beforeLoad: async () => {
+    const user = await fetchCurrentUser()
+    console.log("user", user)
+    return { user }
+  },
   component: RootLayout,
 })
 

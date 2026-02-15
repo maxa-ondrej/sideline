@@ -13,8 +13,11 @@
     "codegen": "tsr generate"
   },
   "dependencies": {
+    "@effect/platform": "^0.94.5",
+    "@sideline/domain": "^0.0.0",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
+    "effect": "^3.19.17",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
