@@ -1,6 +1,7 @@
 import { NodeHttpClient, NodeSocket } from '@effect/platform-node';
 import * as DiscordConfig from 'dfx/DiscordConfig';
 import { Config, Effect, Layer } from 'effect';
+import { env } from './env.js';
 import { AppLive, Bot } from './index.js';
 import { runMain } from './Runtime.js';
 
@@ -9,7 +10,7 @@ const MainLive = AppLive.pipe(
   Layer.provide(NodeSocket.layerWebSocketConstructor),
   Layer.provide(
     DiscordConfig.layerConfig({
-      token: Config.redacted('DISCORD_BOT_TOKEN'),
+      token: Config.succeed(env.DISCORD_BOT_TOKEN),
     }),
   ),
 );

@@ -9,8 +9,9 @@ import {
 } from '@effect/platform';
 import { AuthApiGroup, CurrentUserContext } from '@sideline/domain/AuthApi';
 import * as Discord from 'dfx/types';
-import { Config, Effect, Layer, Schema } from 'effect';
+import { Effect, Layer, Schema } from 'effect';
 import { DiscordOAuth } from './DiscordOAuth.js';
+import { env } from './env.js';
 import { SessionsRepository } from './SessionsRepository.js';
 import { UsersRepository } from './UsersRepository.js';
 
@@ -31,8 +32,6 @@ const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     const discord = yield* DiscordOAuth;
     const users = yield* UsersRepository;
     const sessions = yield* SessionsRepository;
-    const frontendUrl = yield* Config.string('FRONTEND_URL');
-
     return handlers
       .handleRaw('login', () =>
         Effect.gen(function* () {
@@ -75,7 +74,7 @@ const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           yield* sessions.create(user.id, sessionToken, expiresAt);
 
           return HttpServerResponse.empty({ status: 302 }).pipe(
-            HttpServerResponse.setHeader('Location', `${frontendUrl}?token=${sessionToken}`),
+            HttpServerResponse.setHeader('Location', `${env.FRONTEND_URL}?token=${sessionToken}`),
           );
         }),
       )

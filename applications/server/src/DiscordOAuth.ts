@@ -1,27 +1,29 @@
 import { Discord } from 'arctic';
-import { Config, Effect, Redacted } from 'effect';
+import { Effect, Redacted } from 'effect';
+import { env } from './env.js';
 
 export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAuth', {
-  effect: Effect.gen(function* () {
-    const clientId = yield* Config.string('DISCORD_CLIENT_ID');
-    const clientSecret = yield* Config.redacted('DISCORD_CLIENT_SECRET');
-    const redirectUri = yield* Config.string('DISCORD_REDIRECT_URI');
-
-    const client = new Discord(clientId, Redacted.value(clientSecret), redirectUri);
-
-    function createAuthorizationURL(state: string) {
-      return Effect.sync(() => client.createAuthorizationURL(state, null, ['identify']));
-    }
-
-    function validateAuthorizationCode(code: string) {
-      return Effect.tryPromise({
-        try: () => client.validateAuthorizationCode(code, null),
-        catch: (error) => new DiscordOAuthError({ cause: error }),
-      });
-    }
-
-    return { createAuthorizationURL, validateAuthorizationCode } as const;
-  }),
+  effect: Effect.Do.pipe(
+    Effect.let('clientId', () => env.DISCORD_CLIENT_ID),
+    Effect.let('clientSecret', () => Redacted.value(env.DISCORD_CLIENT_SECRET)),
+    Effect.let('redirectUri', () => env.DISCORD_REDIRECT_URI),
+    Effect.let(
+      'client',
+      ({ clientId, clientSecret, redirectUri }) => new Discord(clientId, clientSecret, redirectUri),
+    ),
+    Effect.map(
+      ({ client }) =>
+        ({
+          createAuthorizationURL: (state: string) =>
+            Effect.sync(() => client.createAuthorizationURL(state, null, ['identify'])),
+          validateAuthorizationCode: (code: string) =>
+            Effect.tryPromise({
+              try: () => client.validateAuthorizationCode(code, null),
+              catch: (error) => new DiscordOAuthError({ cause: error }),
+            }),
+        }) as const,
+    ),
+  ),
 }) {}
 
 export class DiscordOAuthError {

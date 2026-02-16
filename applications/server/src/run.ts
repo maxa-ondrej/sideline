@@ -3,11 +3,12 @@ import { NodeHttpServer } from '@effect/platform-node';
 import { PgClient } from '@effect/sql-pg';
 import { MigratorLive } from '@sideline/migrations';
 import { Config, Layer } from 'effect';
+import { env } from './env.js';
 import { AppLive } from './index.js';
 import { runMain } from './Runtime.js';
 
 const PgLive = PgClient.layerConfig({
-  url: Config.redacted('DATABASE_URL'),
+  url: Config.succeed(env.DATABASE_URL),
 });
 
 const HttpLive = AppLive.pipe(

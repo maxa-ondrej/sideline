@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@effect/platform": "latest",
+    "@t3-oss/env-core": "^0.13.8",
     "@effect/platform-node": "latest",
     "@sideline/domain": "workspace:^",
     "dfx": "latest",
