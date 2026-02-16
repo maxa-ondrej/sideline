@@ -42,7 +42,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: pnpm codegen
-      - run: pnpm check-recursive
+      - run: pnpm check
   test:
     name: Test
     runs-on: ubuntu-latest
