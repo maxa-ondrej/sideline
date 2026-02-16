@@ -6,68 +6,61 @@ import {
   HttpClient,
   HttpClientRequest,
   HttpServerResponse,
-} from "@effect/platform"
-import { AuthApiGroup, CurrentUserContext } from "@sideline/domain/AuthApi"
-import * as Discord from "dfx/types"
-import { Config, Effect, Layer, Schema } from "effect"
-import { DiscordOAuth } from "./DiscordOAuth.js"
-import { SessionsRepository } from "./SessionsRepository.js"
-import { UsersRepository } from "./UsersRepository.js"
+} from '@effect/platform';
+import { AuthApiGroup, CurrentUserContext } from '@sideline/domain/AuthApi';
+import * as Discord from 'dfx/types';
+import { Config, Effect, Layer, Schema } from 'effect';
+import { DiscordOAuth } from './DiscordOAuth.js';
+import { SessionsRepository } from './SessionsRepository.js';
+import { UsersRepository } from './UsersRepository.js';
 
-class HealthApiGroup extends HttpApiGroup.make("health").add(
-  HttpApiEndpoint.get("healthCheck", "/health").addSuccess(
-    Schema.Struct({ status: Schema.Literal("ok") }),
+class HealthApiGroup extends HttpApiGroup.make('health').add(
+  HttpApiEndpoint.get('healthCheck', '/health').addSuccess(
+    Schema.Struct({ status: Schema.Literal('ok') }),
   ),
 ) {}
 
-class Api extends HttpApi.make("api").add(HealthApiGroup).add(AuthApiGroup) {}
+class Api extends HttpApi.make('api').add(HealthApiGroup).add(AuthApiGroup) {}
 
-const HealthApiLive = HttpApiBuilder.group(Api, "health", (handlers) =>
-  Effect.succeed(handlers.handle("healthCheck", () => Effect.succeed({ status: "ok" as const }))),
-)
+const HealthApiLive = HttpApiBuilder.group(Api, 'health', (handlers) =>
+  Effect.succeed(handlers.handle('healthCheck', () => Effect.succeed({ status: 'ok' as const }))),
+);
 
-const AuthApiLive = HttpApiBuilder.group(Api, "auth", (handlers) =>
+const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.gen(function* () {
-    const discord = yield* DiscordOAuth
-    const users = yield* UsersRepository
-    const sessions = yield* SessionsRepository
-    const frontendUrl = yield* Config.string("FRONTEND_URL")
+    const discord = yield* DiscordOAuth;
+    const users = yield* UsersRepository;
+    const sessions = yield* SessionsRepository;
+    const frontendUrl = yield* Config.string('FRONTEND_URL');
 
     return handlers
-      .handleRaw("login", () =>
+      .handleRaw('login', () =>
         Effect.gen(function* () {
-          const state = crypto.randomUUID()
-          const url = yield* discord.createAuthorizationURL(state)
+          const state = crypto.randomUUID();
+          const url = yield* discord.createAuthorizationURL(state);
           return HttpServerResponse.empty({ status: 302 }).pipe(
-            HttpServerResponse.setHeader("Location", url.toString()),
-            HttpServerResponse.unsafeSetCookie("oauth_state", state, {
-              httpOnly: true,
-              secure: false,
-              sameSite: "lax",
-              path: "/",
-              maxAge: "5 minutes",
-            }),
-          )
+            HttpServerResponse.setHeader('Location', url.toString()),
+          );
         }),
       )
-      .handleRaw("callback", ({ urlParams }) =>
+      .handleRaw('callback', ({ urlParams }) =>
         Effect.gen(function* () {
-          const { code, state } = urlParams
+          const { code, state } = urlParams;
 
           if (!state || !code) {
-            return HttpServerResponse.empty({ status: 400 })
+            return HttpServerResponse.empty({ status: 400 });
           }
 
-          const tokens = yield* Effect.orDie(discord.validateAuthorizationCode(code))
+          const tokens = yield* Effect.orDie(discord.validateAuthorizationCode(code));
 
           const bearerClient = (yield* HttpClient.HttpClient).pipe(
-            HttpClient.mapRequest(HttpClientRequest.prependUrl("https://discord.com/api/v10")),
+            HttpClient.mapRequest(HttpClientRequest.prependUrl('https://discord.com/api/v10')),
             HttpClient.mapRequest(
-              HttpClientRequest.setHeader("Authorization", `Bearer ${tokens.accessToken()}`),
+              HttpClientRequest.setHeader('Authorization', `Bearer ${tokens.accessToken()}`),
             ),
-          )
-          const discordRest = Discord.make(bearerClient)
-          const discordUser = yield* Effect.orDie(discordRest.getMyUser())
+          );
+          const discordRest = Discord.make(bearerClient);
+          const discordUser = yield* Effect.orDie(discordRest.getMyUser());
 
           const user = yield* users.upsertFromDiscord({
             discordId: discordUser.id,
@@ -75,41 +68,22 @@ const AuthApiLive = HttpApiBuilder.group(Api, "auth", (handlers) =>
             discordAvatar: discordUser.avatar ?? null,
             accessToken: tokens.accessToken(),
             refreshToken: tokens.refreshToken() ?? null,
-          })
+          });
 
-          const sessionToken = crypto.randomUUID()
-          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-          yield* sessions.create(user.id, sessionToken, expiresAt)
+          const sessionToken = crypto.randomUUID();
+          const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          yield* sessions.create(user.id, sessionToken, expiresAt);
 
           return HttpServerResponse.empty({ status: 302 }).pipe(
-            HttpServerResponse.setHeader("Location", frontendUrl),
-            HttpServerResponse.unsafeSetCookie("session", sessionToken, {
-              httpOnly: true,
-              secure: false,
-              sameSite: "lax",
-              path: "/",
-              maxAge: "30 days",
-            }),
-            HttpServerResponse.removeCookie("oauth_state"),
-          )
+            HttpServerResponse.setHeader('Location', `${frontendUrl}?token=${sessionToken}`),
+          );
         }),
       )
-      .handleRaw("logout", () =>
-        Effect.succeed(
-          HttpServerResponse.empty({ status: 200 }).pipe(
-            HttpServerResponse.removeCookie("session"),
-          ),
-        ),
-      )
-      .handle("me", () =>
-        Effect.gen(function* () {
-          return yield* CurrentUserContext
-        }),
-      )
+      .handle('me', () => CurrentUserContext);
   }),
-)
+);
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(HealthApiLive),
   Layer.provide(AuthApiLive),
-)
+);

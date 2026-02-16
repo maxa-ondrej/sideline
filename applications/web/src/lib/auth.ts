@@ -1,36 +1,25 @@
-import { FetchHttpClient, HttpApi, HttpApiClient } from "@effect/platform"
-import { AuthApiGroup, type CurrentUser } from "@sideline/domain/AuthApi"
-import { Effect, Layer } from "effect"
+import { Effect, Option } from 'effect';
+import { API_URL } from './client';
+import { ApiClient } from './runtime';
 
-const API_URL = "http://localhost:3001"
+export const getLogin = () => `${API_URL}/auth/login` as const;
 
-export type AuthUser = typeof CurrentUser.Type
+const TOKEN = 'api-token';
 
-class ClientApi extends HttpApi.make("api").add(AuthApiGroup) {}
+export const finishLogin = (token: string) => {
+  window.localStorage.setItem(TOKEN, token);
+};
 
-const HttpLive = FetchHttpClient.layer.pipe(
-  Layer.provide(Layer.succeed(FetchHttpClient.RequestInit, { credentials: "include" as const })),
-)
+export const getToken = Effect.sync(() => {
+  return Option.fromNullable(window.localStorage.getItem(TOKEN));
+});
 
-const client = HttpApiClient.make(ClientApi, { baseUrl: API_URL }).pipe(Effect.provide(HttpLive))
+export const logout = () => {
+  window.localStorage.removeItem(TOKEN);
+};
 
-export function fetchCurrentUser(): Promise<AuthUser | null> {
-  if (typeof window === "undefined") return Promise.resolve(null)
-  return client.pipe(
-    Effect.flatMap((c) => c.auth.me()),
-    Effect.catchAll(() => Effect.succeed(null as AuthUser | null)),
-    Effect.runPromise,
-  )
-}
-
-export function getLoginUrl(): string {
-  return `${API_URL}/auth/login`
-}
-
-export function logout(): Promise<void> {
-  return client.pipe(
-    Effect.flatMap((c) => c.auth.logout()),
-    Effect.catchAll(() => Effect.void),
-    Effect.runPromise,
-  )
-}
+export const getCurrentUser = ApiClient.pipe(
+  Effect.flatMap((api) => api.auth.me()),
+  Effect.catchTag('Unauthorized', () => Effect.succeed(null)),
+  Effect.tap((user) => Effect.logInfo('Logged in as', user)),
+);

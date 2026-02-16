@@ -5,6 +5,9 @@
     "clientKind": "git",
     "useIgnoreFile": true
   },
+  "files": {
+    "includes": ["**", "!**/*.gen.ts", "!applications/web/src/components/ui/*.tsx"]
+  },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -12,6 +15,14 @@
     "indentWidth": 2,
     "lineEnding": "lf",
     "lineWidth": 100
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
@@ -39,11 +50,11 @@
   "javascript": {
     "formatter": {
       "enabled": true,
-      "quoteStyle": "double",
-      "jsxQuoteStyle": "double",
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "single",
       "quoteProperties": "asNeeded",
       "trailingCommas": "all",
-      "semicolons": "asNeeded",
+      "semicolons": "always",
       "arrowParentheses": "always",
       "bracketSpacing": true,
       "bracketSameLine": false
@@ -70,7 +81,8 @@
       "enabled": true
     },
     "parser": {
-      "cssModules": true
+      "cssModules": true,
+      "tailwindDirectives": true
     }
   },
   "overrides": [

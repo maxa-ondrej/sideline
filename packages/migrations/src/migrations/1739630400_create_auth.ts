@@ -1,5 +1,5 @@
-import { SqlClient } from "@effect/sql"
-import { Effect } from "effect"
+import { SqlClient } from '@effect/sql';
+import { Effect } from 'effect';
 
 export default Effect.flatMap(
   SqlClient.SqlClient,
@@ -26,4 +26,4 @@ export default Effect.flatMap(
     CREATE INDEX idx_sessions_token ON sessions(token);
     CREATE INDEX idx_users_discord_id ON users(discord_id);
   `,
-)
+);

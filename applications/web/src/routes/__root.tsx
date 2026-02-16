@@ -1,27 +1,78 @@
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router"
-import { fetchCurrentUser } from "../lib/auth"
-import type { RouterContext } from "../router"
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import type { QueryClient } from '@tanstack/react-query';
+import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/react-router';
+import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { Effect } from 'effect';
+import TanStackQueryDevtools from '../integrations/tanstack-query/devtools';
+import { getCurrentUser } from '../lib/auth';
+import { ClientError, runPromise } from '../lib/runtime';
+import appCss from '../styles.css?url';
 
-export const Route = createRootRouteWithContext<RouterContext>()({
-  beforeLoad: async () => {
-    const user = await fetchCurrentUser()
-    console.log("user", user)
-    return { user }
-  },
-  component: RootLayout,
-})
+interface MyRouterContext {
+  queryClient: QueryClient;
+}
 
-function RootLayout() {
+export const Route = createRootRouteWithContext<MyRouterContext>()({
+  head: () => ({
+    meta: [
+      {
+        charSet: 'utf-8',
+      },
+      {
+        name: 'viewport',
+        content: 'width=device-width, initial-scale=1',
+      },
+      {
+        title: 'TanStack Start Starter',
+      },
+    ],
+    links: [
+      {
+        rel: 'stylesheet',
+        href: appCss,
+      },
+    ],
+  }),
+  ssr: false,
+  shellComponent: RootDocument,
+  beforeLoad: async ({ abortController }) =>
+    Effect.Do.pipe(
+      Effect.bind('user', () => getCurrentUser),
+      Effect.map(({ user }) => ({
+        user: user
+          ? {
+              id: user.id,
+              username: user.discordUsername,
+            }
+          : null,
+      })),
+      Effect.catchAll(() => new ClientError({ message: 'Error while fetching user!' })),
+      runPromise(abortController),
+    ),
+});
+
+function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang='en'>
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Sideline</title>
+        <HeadContent />
       </head>
       <body>
-        <Outlet />
+        {children}
+        <TanStackDevtools
+          config={{
+            position: 'bottom-right',
+          }}
+          plugins={[
+            {
+              name: 'Tanstack Router',
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+            TanStackQueryDevtools,
+          ]}
+        />
+        <Scripts />
       </body>
     </html>
-  )
+  );
 }

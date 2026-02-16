@@ -210,7 +210,7 @@ Internal packages use scoped aliases:
 
 ### Code Style
 
-- **Prefer `Effect.gen`** for sequential operations (like async/await)
+- **Never use `Effect.gen(function* () {`** — instead use `Effect.Do.pipe(...)` with `Effect.bind` / `Effect.let` / `Effect.tap` for sequential operations
 - **Use `pipe`** for linear transformations and chaining
 - **Avoid premature abstraction** - keep solutions simple
 - **Type narrow errors** - use discriminated unions for error types
@@ -417,9 +417,9 @@ Biome is configured for fast, comprehensive code quality checks across the monor
 
 The project uses `biome.json` in the root with:
 
-- **Formatter**: 2-space indentation, 100-char line width, double quotes, trailing commas
+- **Formatter**: 2-space indentation, 100-char line width, single quotes, semicolons, trailing commas
 - **Linter**: All recommended rules enabled plus TypeScript-specific rules
-- **Import Organization**: Automatic unused import removal via `noUnusedImports`
+- **Import Organization**: Automatic import sorting and unused import removal via `noUnusedImports`
 - **Type-aware Rules**: `useImportType`, `useExportType` for proper type imports
 - **VCS Integration**: Git-aware, respects `.gitignore`
 
@@ -527,6 +527,15 @@ pnpm test                  # Run tests
 - Provide fallbacks for non-critical operations
 
 ## Common Patterns
+
+### shadcn instructions
+
+Use the latest version of Shadcn to install new components, like this command to add a button component:
+
+```bash
+pnpm -C ./applications/web dlx shadcn@latest add button
+```
+
 
 ### Service Definition
 

@@ -1,21 +1,28 @@
-import { createFileRoute, redirect } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import React from 'react';
+import { logout } from '../lib/auth';
 
-export const Route = createFileRoute("/dashboard")({
-  beforeLoad: ({ context }) => {
-    if (!context.user) {
-      throw redirect({ to: "/" })
-    }
-  },
+export const Route = createFileRoute('/dashboard')({
   component: Dashboard,
-})
+  ssr: false,
+});
 
 function Dashboard() {
-  const { user } = Route.useRouteContext()
+  const { user } = Route.useRouteContext();
+  const navigate = useNavigate();
+
+  const doLogout = React.useCallback(() => {
+    logout();
+    navigate({ to: '/' });
+  }, [navigate]);
 
   return (
     <div>
       <h1>Dashboard</h1>
-      <p>Welcome, {user?.discordUsername}!</p>
+      <p>Welcome, {user?.username}</p>
+      <button type='button' onClick={doLogout}>
+        Logout
+      </button>
     </div>
-  )
+  );
 }

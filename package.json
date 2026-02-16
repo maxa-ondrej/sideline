@@ -9,7 +9,7 @@
     "check": "tsc -b tsconfig.json",
     "check-recursive": "pnpm --recursive exec tsc -b tsconfig.json",
     "lint": "biome check .",
-    "format": "biome check --write .",
+    "format": "biome check --write --unsafe .",
     "test": "vitest",
     "coverage": "vitest --coverage",
     "changeset-version": "changeset version && node scripts/version.mjs",

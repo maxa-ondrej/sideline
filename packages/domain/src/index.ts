@@ -1,1 +1,1 @@
-export * as AuthApi from "./AuthApi.js"
+export * as AuthApi from './AuthApi.js';
