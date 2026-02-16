@@ -1,7 +1,7 @@
 name: Snapshot
 on:
-  pull_request:
-    branches: [main]
+  push:
+    tags: ['*']
   workflow_dispatch:
 
 permissions: {}
@@ -47,7 +47,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.app }}
           tags: |
-            type=ref,event=pr
+            type=ref,event=tag
             type=sha
 
       - name: Build and push
