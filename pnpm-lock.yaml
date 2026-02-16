@@ -220,6 +220,9 @@ importers:
       '@tanstack/devtools-vite':
         specifier: ^0.3.11
         version: 0.3.12(vite@7.3.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      '@tanstack/router-cli':
+        specifier: latest
+        version: 1.160.1
       '@testing-library/dom':
         specifier: ^10.4.0
         version: 10.4.1
@@ -2561,6 +2564,11 @@ packages:
     engines: {node: '>=12'}
     hasBin: true
 
+  '@tanstack/router-cli@1.160.1':
+    resolution: {integrity: sha512-m0vEqMXkTmwbXTAgNXJrQW4zDIIpV4Y2ngtZZKB6yWr5/hylyakh5g/15zOQosPDfF3CaJZFtbvjfpL4UfIUKg==}
+    engines: {node: '>=12'}
+    hasBin: true
+
   '@tanstack/router-core@1.159.9':
     resolution: {integrity: sha512-A9B8gvklvMCjSAFG8nDAhfmROI8kjcij8wzznQaw4RfGIOrYXyNe5fCAcbHXGpgNeTE2JnK75b6AjidDPQfrmw==}
     engines: {node: '>=12'}
@@ -2585,6 +2593,10 @@ packages:
 
   '@tanstack/router-generator@1.160.0':
     resolution: {integrity: sha512-th0le0A1p6ra0BOr00cVqbMiovXN9QjH2Gb0/6elisL9cmmQkJe51RAFueWUnBevkZe1TDGkwlmb0aNsd0ZynQ==}
+    engines: {node: '>=12'}
+
+  '@tanstack/router-generator@1.160.1':
+    resolution: {integrity: sha512-De6TicInwy3/9rQ++RZAyFOvB2oi5UV5T0iiIlxe3jgiOLFxMA4EKKVlT+alDxKnq6udTLam9xqhvGOVZ6a2hw==}
     engines: {node: '>=12'}
 
   '@tanstack/router-plugin@1.159.12':
@@ -6852,6 +6864,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@tanstack/router-cli@1.160.1':
+    dependencies:
+      '@tanstack/router-generator': 1.160.1
+      chokidar: 3.6.0
+      yargs: 17.7.2
+    transitivePeerDependencies:
+      - supports-color
+
   '@tanstack/router-core@1.159.9':
     dependencies:
       '@tanstack/history': 1.154.14
@@ -6895,6 +6915,19 @@ snapshots:
       - supports-color
 
   '@tanstack/router-generator@1.160.0':
+    dependencies:
+      '@tanstack/router-core': 1.160.0
+      '@tanstack/router-utils': 1.158.0
+      '@tanstack/virtual-file-routes': 1.154.7
+      prettier: 3.8.1
+      recast: 0.23.11
+      source-map: 0.7.6
+      tsx: 4.21.0
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - supports-color
+
+  '@tanstack/router-generator@1.160.1':
     dependencies:
       '@tanstack/router-core': 1.160.0
       '@tanstack/router-utils': 1.158.0

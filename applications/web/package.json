@@ -6,12 +6,13 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "codegen": "tsr generate"
   },
   "dependencies": {
     "@effect/platform": "^0.94.5",
-    "@sideline/domain": "^0.0.0",
     "@faker-js/faker": "^10.0.0",
+    "@sideline/domain": "^0.0.0",
     "@t3-oss/env-core": "^0.13.8",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/match-sorter-utils": "^8.19.4",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@tanstack/devtools-vite": "^0.3.11",
+    "@tanstack/router-cli": "latest",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^22.10.2",
