@@ -389,6 +389,12 @@ pnpm changeset-version
 pnpm changeset-publish
 ```
 
+#### Changeset bump rules
+
+- **patch** — small features, bug fixes, refactors
+- **minor** — larger features, significant new functionality
+- **major** — never bump major. This project does not use major version bumps.
+
 ## Vitest Configuration
 
 ### Shared Configuration
