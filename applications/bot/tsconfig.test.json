@@ -1,7 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": ["test"],
-  "references": [{ "path": "tsconfig.src.json" }, { "path": "../../packages/domain" }],
+  "references": [
+    { "path": "tsconfig.src.json" },
+    { "path": "../../packages/domain" },
+    { "path": "../../packages/effect-lib" }
+  ],
   "compilerOptions": {
     "types": ["node"],
     "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
