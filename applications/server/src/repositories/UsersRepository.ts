@@ -1,5 +1,5 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
-import { User, type UserId } from '@sideline/domain/models/User';
+import { User, type UserId as UserIdType } from '@sideline/domain/models/User';
 import { Effect, Schema } from 'effect';
 
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
@@ -40,7 +40,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     ),
     Effect.let(
       'findById',
-      ({ repo }) => repo.findById as (id: UserId) => ReturnType<typeof repo.findById>,
+      ({ repo }) => repo.findById as (id: UserIdType) => ReturnType<typeof repo.findById>,
     ),
     Effect.let('upsertFromDiscord', ({ sql }) =>
       SqlSchema.single({

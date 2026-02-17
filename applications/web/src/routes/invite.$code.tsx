@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect } from 'effect';
 import React from 'react';
 import { getLogin, setPendingInvite } from '../lib/auth';
-import { ApiClient, ClientError, runPromise } from '../lib/runtime';
+import { ApiClient, ClientError, NotFound, runPromise } from '../lib/runtime';
 
 export const Route = createFileRoute('/invite/$code')({
   component: InvitePage,
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/invite/$code')({
   loader: async ({ params, abortController }) =>
     ApiClient.pipe(
       Effect.flatMap((api) => api.invite.getInvite({ path: { code: params.code } })),
-      Effect.catchAll(() => Effect.fail(new ClientError({ message: 'Invite not found' }))),
+      Effect.catchAll(NotFound.make),
       runPromise(abortController),
     ),
 });
@@ -58,15 +58,6 @@ function InvitePage() {
     setPendingInvite(code);
     window.location.href = getLogin();
   }, [code]);
-
-  if (!invite) {
-    return (
-      <div>
-        <h1>Invite Not Found</h1>
-        <p>This invite link is invalid or has expired.</p>
-      </div>
-    );
-  }
 
   return (
     <div>

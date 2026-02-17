@@ -104,6 +104,9 @@ importers:
 
   applications/server:
     dependencies:
+      '@effect/experimental':
+        specifier: ^0.58.0
+        version: 0.58.0(@effect/platform@0.94.5(effect@3.19.17))(effect@3.19.17)(ioredis@5.9.3)
       '@effect/platform':
         specifier: latest
         version: 0.94.5(effect@3.19.17)

@@ -126,6 +126,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   findByTeam: () => Effect.succeed([]),
   create: () => Effect.die('not implemented'),
   deactivateByTeam: () => Effect.succeed(undefined as undefined),
+  deactivateByTeamExcept: () => Effect.succeed(undefined as undefined),
 } as any);
 
 const TestLayer = ApiLive.pipe(

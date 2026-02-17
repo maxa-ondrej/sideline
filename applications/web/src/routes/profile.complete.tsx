@@ -1,5 +1,6 @@
+import { MIN_AGE } from '@sideline/domain/api/Auth';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import React from 'react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -27,7 +28,8 @@ export const Route = createFileRoute('/profile/complete')({
 });
 
 const currentYear = new Date().getFullYear();
-const birthYears = Array.from({ length: currentYear - 1900 - 5 }, (_, i) => currentYear - 6 - i);
+const maxBirthYear = currentYear - MIN_AGE;
+const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
 const genderOptions = [
   { value: 'male', label: 'Male' },
@@ -68,20 +70,19 @@ function ProfileComplete() {
       setSubmitting(true);
       setError(null);
 
-      const payload: Record<string, unknown> = {
+      const payload = {
         name: name.trim(),
         birthYear: Number(birthYear),
         gender,
         position,
         proficiency,
+        jerseyNumber: jerseyNumber !== '' ? Option.some(Number(jerseyNumber)) : Option.none(),
       };
-      if (jerseyNumber !== '') {
-        payload.jerseyNumber = Number(jerseyNumber);
-      }
 
       try {
         await ApiClient.pipe(
           Effect.flatMap((api) => api.auth.completeProfile({ payload: payload as any })),
+
           Effect.catchAll(() =>
             Effect.fail(new ClientError({ message: 'Failed to save profile.' })),
           ),

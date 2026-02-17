@@ -223,6 +223,14 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
     }
     return Effect.succeed(undefined as undefined);
   },
+  deactivateByTeamExcept: ({ teamId, excludeId }: { teamId: string; excludeId: string }) => {
+    for (const [key, invite] of invitesStore.entries()) {
+      if (invite.team_id === teamId && invite.id !== excludeId) {
+        invitesStore.set(key, { ...invite, active: false });
+      }
+    }
+    return Effect.succeed(undefined as undefined);
+  },
 } as any);
 
 const MockHttpClientLayer = Layer.succeed(

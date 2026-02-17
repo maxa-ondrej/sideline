@@ -8,11 +8,11 @@ import {
   InviteNotFound,
   JoinResult,
 } from '@sideline/domain/api/Invite';
-import { Effect, Option } from 'effect';
+import { Effect, Option, Schedule } from 'effect';
 import { TeamInvitesRepository } from '../repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '../repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '../repositories/TeamsRepository.js';
-import { Api } from './health.js';
+import { Api } from './api.js';
 
 const INVITE_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const INVITE_CODE_LENGTH = 12;
@@ -113,17 +113,24 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.tap(({ membership }) =>
               membership.role !== 'admin' ? Effect.fail(new Forbidden()) : Effect.void,
             ),
-            Effect.tap(() => invites.deactivateByTeam(teamId).pipe(Effect.orDie)),
             Effect.bind('newInvite', ({ user }) =>
-              invites
-                .create({
+              Effect.suspend(() =>
+                invites.create({
                   team_id: teamId,
                   code: generateInviteCode(),
                   active: true,
                   created_by: user.id,
                   expires_at: null,
                   created_at: undefined,
-                })
+                }),
+              ).pipe(
+                Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis')),
+                Effect.orDie,
+              ),
+            ),
+            Effect.tap(({ newInvite }) =>
+              invites
+                .deactivateByTeamExcept({ teamId, excludeId: newInvite.id })
                 .pipe(Effect.orDie),
             ),
             Effect.map(
@@ -153,7 +160,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               membership.role !== 'admin' ? Effect.fail(new Forbidden()) : Effect.void,
             ),
             Effect.tap(() => invites.deactivateByTeam(teamId).pipe(Effect.orDie)),
-            Effect.map(() => undefined as undefined),
+            Effect.asVoid,
           ),
         ),
     ),

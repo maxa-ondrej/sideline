@@ -6,9 +6,11 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
-import { UserId } from '../models/User.js';
+import { Gender, Position, Proficiency, UserId } from '../models/User.js';
 
 export { UserId } from '../models/User.js';
+
+export const MIN_AGE = 6;
 
 export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   id: UserId,
@@ -18,23 +20,29 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   isProfileComplete: Schema.Boolean,
   name: Schema.NullOr(Schema.String),
   birthYear: Schema.NullOr(Schema.Number),
-  gender: Schema.NullOr(Schema.String),
+  gender: Schema.NullOr(Gender),
   jerseyNumber: Schema.NullOr(Schema.Number),
-  position: Schema.NullOr(Schema.String),
-  proficiency: Schema.NullOr(Schema.String),
+  position: Schema.NullOr(Position),
+  proficiency: Schema.NullOr(Proficiency),
 }) {}
 
 export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
   'CompleteProfileRequest',
 )({
   name: Schema.String,
-  birthYear: Schema.Number.pipe(Schema.int(), Schema.between(1900, 2020)),
-  gender: Schema.Literal('male', 'female', 'other'),
+  birthYear: Schema.Number.pipe(
+    Schema.int(),
+    Schema.greaterThanOrEqualTo(1900),
+    Schema.filter((year) => year <= new Date().getFullYear() - MIN_AGE, {
+      message: () => `Birth year must be at most ${new Date().getFullYear() - MIN_AGE}`,
+    }),
+  ),
+  gender: Gender,
   jerseyNumber: Schema.optionalWith(Schema.Number.pipe(Schema.int(), Schema.between(0, 99)), {
     as: 'Option',
   }),
-  position: Schema.Literal('goalkeeper', 'defender', 'midfielder', 'forward'),
-  proficiency: Schema.Literal('beginner', 'intermediate', 'advanced', 'pro'),
+  position: Position,
+  proficiency: Proficiency,
 }) {}
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(

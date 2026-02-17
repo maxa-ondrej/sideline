@@ -1,13 +1,25 @@
-import { HttpApiBuilder } from '@effect/platform';
+import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { CurrentUser, CurrentUserContext } from '@sideline/domain/api/Auth';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
-import { DateTime, Effect, Option, pipe, Redacted } from 'effect';
+import { DateTime, Effect, Layer, Option, pipe, Redacted } from 'effect';
 import { env } from '../env.js';
 import { SessionsRepository } from '../repositories/SessionsRepository.js';
 import { UsersRepository } from '../repositories/UsersRepository.js';
 import { DiscordOAuth } from '../services/DiscordOAuth.js';
+import { Api } from './api.js';
 import { LogicError, Redirect, RuntimeError } from './errors.js';
-import { Api } from './health.js';
+
+const CustomClient = HttpClient.HttpClient.pipe(
+  Effect.bindTo('client'),
+  Effect.bind('config', () => DiscordConfig.DiscordConfig),
+  Effect.map(({ client, config }) =>
+    client.pipe(
+      HttpClient.mapRequest(HttpClientRequest.bearerToken(config.token)),
+      HttpClient.tapRequest(Effect.logDebug),
+    ),
+  ),
+  Layer.effect(HttpClient.HttpClient),
+);
 
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
@@ -39,8 +51,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.bind('client', ({ DiscordConfigLive }) =>
               DiscordREST.pipe(
                 Effect.provide(DiscordRESTLive),
-                Effect.provide(DiscordConfigLive),
+                Effect.provide(CustomClient),
                 Effect.provide(MemoryRateLimitStoreLive),
+                Effect.provide(DiscordConfigLive),
               ),
             ),
             Effect.bind('discordUser', ({ client }) => client.getMyUser()),

@@ -21,13 +21,14 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@effect/experimental": "^0.58.0",
     "@effect/platform": "latest",
-    "@t3-oss/env-core": "^0.13.8",
     "@effect/platform-node": "latest",
     "@effect/sql": "latest",
     "@effect/sql-pg": "latest",
     "@sideline/domain": "workspace:^",
     "@sideline/migrations": "workspace:^",
+    "@t3-oss/env-core": "^0.13.8",
     "arctic": "^3.7.0",
     "dfx": "latest",
     "effect": "latest"
