@@ -13,6 +13,9 @@ export type Position = typeof Position.Type;
 export const Proficiency = Schema.Literal('beginner', 'intermediate', 'advanced', 'pro');
 export type Proficiency = typeof Proficiency.Type;
 
+export const Locale = Schema.Literal('en', 'cs');
+export type Locale = typeof Locale.Type;
+
 export class User extends Model.Class<User>('User')({
   id: Model.Generated(UserId),
   discord_id: Schema.String,
@@ -26,6 +29,7 @@ export class User extends Model.Class<User>('User')({
   jersey_number: Schema.NullOr(Schema.Number),
   position: Schema.NullOr(Position),
   proficiency: Schema.NullOr(Proficiency),
+  locale: Locale,
   created_at: Model.DateTimeInsertFromDate,
   is_profile_complete: Schema.Boolean,
   updated_at: Model.DateTimeUpdateFromDate,

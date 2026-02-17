@@ -4,7 +4,11 @@ import * as Discord from 'dfx/types';
 import { Effect } from 'effect';
 
 const PingCommand = Ix.global(
-  { name: 'ping', description: 'Check if the bot is alive' },
+  {
+    name: 'ping',
+    description: 'Check if the bot is alive',
+    description_localizations: { cs: 'Zkontrolovat, jestli bot žije' },
+  },
   Effect.succeed(
     Ix.response({
       type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,

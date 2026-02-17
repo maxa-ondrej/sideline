@@ -1,14 +1,16 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Schema } from 'effect';
 import React from 'react';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '../lib/auth';
+import * as m from '../paraglide/messages.js';
 
-const reasonMessages: Record<string, string> = {
-  access_denied: 'You denied the Discord authorization request.',
-  missing_params: 'The login response was incomplete. Please try again.',
-  oauth_failed: 'Discord login failed. The authorization code may have expired.',
-  profile_failed: 'Could not retrieve your Discord profile. Please try again.',
-  internal_error: 'An unexpected error occurred. Please try again later.',
+const reasonMessages: Record<string, () => string> = {
+  access_denied: m.auth_errors_accessDenied,
+  missing_params: m.auth_errors_missingParams,
+  oauth_failed: m.auth_errors_oauthFailed,
+  profile_failed: m.auth_errors_profileFailed,
+  internal_error: m.auth_errors_internalError,
 };
 
 export const Route = createFileRoute('/')({
@@ -47,13 +49,13 @@ function Home() {
   if (user) {
     return (
       <div>
-        <h1>Sideline</h1>
-        <p>Signed in as {user.username}</p>
-        <button type='button' onClick={() => console.log('ahoj')}>
-          Dump
-        </button>
+        <div className='flex items-center justify-between'>
+          <h1>{m.app_name()}</h1>
+          <LanguageSwitcher isAuthenticated />
+        </div>
+        <p>{m.auth_signedInAs({ username: user.username })}</p>
         <button type='button' onClick={doLogout}>
-          Logout
+          {m.auth_logout()}
         </button>
       </div>
     );
@@ -61,16 +63,19 @@ function Home() {
 
   return (
     <div>
-      <h1>Sideline</h1>
+      <div className='flex items-center justify-between'>
+        <h1>{m.app_name()}</h1>
+        <LanguageSwitcher isAuthenticated={false} />
+      </div>
       {error ? (
         <div>
-          <p>{reasonMessages[reason ?? ''] ?? 'Login failed. Please try again.'}</p>
-          <a href={getLogin()}>Try again</a>
+          <p>{reasonMessages[reason ?? '']?.() ?? m.auth_loginFailed()}</p>
+          <a href={getLogin()}>{m.auth_tryAgain()}</a>
         </div>
       ) : (
         <div>
-          <p>Welcome to Sideline.</p>
-          <a href={getLogin()}>Sign in with Discord</a>
+          <p>{m.app_welcome()}</p>
+          <a href={getLogin()}>{m.auth_signInDiscord()}</a>
         </div>
       )}
     </div>

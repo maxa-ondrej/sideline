@@ -32,6 +32,7 @@ const makeTestUser = (overrides?: Record<string, unknown>) => ({
   jersey_number: null,
   position: null,
   proficiency: null,
+  locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
   ...overrides,
@@ -76,6 +77,10 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
       proficiency: input.proficiency,
       is_profile_complete: true,
     });
+    return Effect.succeed(testUser);
+  },
+  updateLocale: (input) => {
+    Object.assign(testUser, { locale: input.locale });
     return Effect.succeed(testUser);
   },
 });

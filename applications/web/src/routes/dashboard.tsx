@@ -1,6 +1,8 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import React from 'react';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { logout } from '../lib/auth';
+import * as m from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/dashboard')({
   component: Dashboard,
@@ -23,10 +25,13 @@ function Dashboard() {
 
   return (
     <div>
-      <h1>Dashboard</h1>
-      <p>Welcome, {user?.username}</p>
+      <div className='flex items-center justify-between'>
+        <h1>{m.dashboard_title()}</h1>
+        <LanguageSwitcher isAuthenticated={!!user} />
+      </div>
+      <p>{m.dashboard_welcome({ username: user?.username ?? '' })}</p>
       <button type='button' onClick={doLogout}>
-        Logout
+        {m.auth_logout()}
       </button>
     </div>
   );

@@ -33,6 +33,7 @@ const testUser = {
   jersey_number: null,
   position: null,
   proficiency: null,
+  locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
 };
@@ -51,6 +52,7 @@ const testAdmin = {
   jersey_number: 7,
   position: 'midfielder' as const,
   proficiency: 'advanced' as const,
+  locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
 };
@@ -136,6 +138,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   findByDiscordId: () => Effect.succeed(Option.none()),
   upsertFromDiscord: () => Effect.succeed(testUser),
   completeProfile: () => Effect.succeed(testUser),
+  updateLocale: () => Effect.succeed(testUser),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {

@@ -3,6 +3,7 @@ import { Effect } from 'effect';
 import React from 'react';
 import { getLogin, setPendingInvite } from '../lib/auth';
 import { ApiClient, ClientError, NotFound, runPromise } from '../lib/runtime';
+import * as m from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/invite/$code')({
   component: InvitePage,
@@ -34,10 +35,10 @@ function InvitePage() {
             new ClientError({
               message:
                 '_tag' in e && e._tag === 'AlreadyMember'
-                  ? 'You are already a member of this team.'
+                  ? m.invite_errors_alreadyMember()
                   : '_tag' in e && e._tag === 'InviteNotFound'
-                    ? 'This invite is no longer valid.'
-                    : 'Failed to join team.',
+                    ? m.invite_errors_inviteNotValid()
+                    : m.invite_errors_joinFailed(),
             }),
           ),
         ),
@@ -49,7 +50,7 @@ function InvitePage() {
         navigate({ to: '/profile/complete' });
       }
     } catch (e) {
-      setError(e instanceof ClientError ? e.message : 'Failed to join team.');
+      setError(e instanceof ClientError ? e.message : m.invite_errors_joinFailed());
       setJoining(false);
     }
   }, [code, navigate]);
@@ -61,16 +62,16 @@ function InvitePage() {
 
   return (
     <div>
-      <h1>Join {invite.teamName}</h1>
-      <p>You have been invited to join {invite.teamName}.</p>
+      <h1>{m.invite_joinTitle({ teamName: invite.teamName })}</h1>
+      <p>{m.invite_joinDescription({ teamName: invite.teamName })}</p>
       {error && <p>{error}</p>}
       {user ? (
         <button type='button' onClick={handleJoin} disabled={joining}>
-          {joining ? 'Joining...' : 'Join Team'}
+          {joining ? m.invite_joining() : m.invite_joinButton()}
         </button>
       ) : (
         <button type='button' onClick={handleSignIn}>
-          Sign in with Discord to join
+          {m.invite_signInToJoin()}
         </button>
       )}
     </div>

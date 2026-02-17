@@ -820,8 +820,9 @@ Stories, epics, and milestones keep the full lifecycle: `TODO → In Progress �
 
 #### Starting work (`TODO` → `In Progress`)
 
-- Move the task to `In Progress` **immediately** when you begin working on it — including during planning, not just coding.
-- If this is the **first task** being moved to `In Progress` for its parent story, also move the **story**, its parent **epic**, and the parent **milestone** to `In Progress`.
+- When starting work on a story, move **ALL tasks** in the story to `In Progress` **immediately** — including during planning, not just coding.
+- Also move the **story**, its parent **epic**, and the parent **milestone** to `In Progress` (if they are in `TODO` or `Not Started`).
+- **Do not skip updating tasks.** Every task must be marked `In Progress` before any planning or coding begins.
 
 #### Finishing work (`In Progress` → `Done`)
 
@@ -844,6 +845,76 @@ Stories, epics, and milestones keep the full lifecycle: `TODO → In Progress �
 - Before every commit, run `pnpm format` to format/lint and `pnpm codegen` to regenerate any generated code. Stage any resulting changes before committing.
 - When fixing biome-fixable errors, always use `pnpm format`.
 - After every `git push`, check that CI pipelines pass (`gh run list`, `gh run view`). If a workflow fails, investigate the logs, fix the issue, and push again until all checks are green.
+
+## Internationalization (i18n)
+
+### Supported Locales
+
+- **English (`en`)** — source language (base locale)
+- **Czech (`cs`)**
+
+### Framework: Paraglide JS v2
+
+Paraglide compiles translations into typed `m.key()` functions at build time. Missing keys fail the build. Unused translations are tree-shaken.
+
+- **Vite plugin**: `paraglideVitePlugin` from `@inlang/paraglide-js` in `applications/web/vite.config.ts`
+- **Project config**: `applications/web/project.inlang/settings.json`
+- **Generated code**: `applications/web/src/paraglide/` (auto-generated, gitignored)
+
+### Translation Files
+
+JSON files at `applications/web/messages/{locale}.json`:
+- `messages/en.json` — English (source)
+- `messages/cs.json` — Czech
+
+Key format: `snake_case` with `_` separating hierarchy levels (e.g., `profile_complete_title`).
+
+Parameterized strings use `{variable}` syntax: `"auth_signedInAs": "Signed in as {username}"`.
+
+### Adding New Translations
+
+1. Add the key + English text to `messages/en.json`
+2. Add the Czech translation to `messages/cs.json`
+3. Import and call in components:
+   ```typescript
+   import * as m from '../paraglide/messages.js';
+   // or: import { m } from '../paraglide/messages.js';
+   <p>{m.my_new_key({ param: value })}</p>
+   ```
+4. The Vite plugin regenerates types on save — IDE autocomplete works immediately
+
+### Locale Persistence
+
+- **Authenticated users**: `locale` column on `users` table (`VARCHAR(5) NOT NULL DEFAULT 'en'`). Updated via `PATCH /auth/me/locale`.
+- **Unauthenticated users**: Paraglide uses `localStorage` key `PARAGLIDE_LOCALE` (default strategy).
+- **Root route** (`__root.tsx`): On load, if user is authenticated, calls `setLocale(user.locale)` to sync Paraglide with the server-stored preference.
+
+### Locale Runtime API
+
+```typescript
+import { getLocale, setLocale } from '../paraglide/runtime.js';
+
+getLocale();      // Returns current locale: 'en' | 'cs'
+setLocale('cs');   // Switches locale
+```
+
+### Date Formatting
+
+The `useFormatDate` hook (`applications/web/src/hooks/useFormatDate.ts`) provides locale-aware formatting via the browser's `Intl` API:
+
+```typescript
+const { formatDate, formatTime, formatDateTime, formatRelative } = useFormatDate();
+formatDate(new Date());     // "17. února 2026" (cs) or "February 17, 2026" (en)
+formatRelative(someDate);   // "před 3 dny" (cs) or "3 days ago" (en)
+```
+
+### Language Switcher
+
+`LanguageSwitcher` component (`applications/web/src/components/LanguageSwitcher.tsx`) uses shadcn Select. Accepts `isAuthenticated` prop — when `true`, persists choice to server via the `updateLocale` API.
+
+### Bot Localization
+
+Discord's built-in `description_localizations` field on command definitions provides Czech translations. For dynamic response text, read `interaction.locale` or `interaction.guild_locale`.
 
 ## Documentation Conventions
 

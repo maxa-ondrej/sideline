@@ -107,6 +107,36 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           ),
         )
         .handle('me', () => CurrentUserContext)
+        .handle('updateLocale', ({ payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => CurrentUserContext),
+            Effect.bind('updated', ({ currentUser }) =>
+              users
+                .updateLocale({
+                  id: currentUser.id,
+                  locale: payload.locale,
+                })
+                .pipe(Effect.mapError(() => new InternalError())),
+            ),
+            Effect.map(
+              ({ updated }) =>
+                new CurrentUser({
+                  id: updated.id,
+                  discordId: updated.discord_id,
+                  discordUsername: updated.discord_username,
+                  discordAvatar: updated.discord_avatar,
+                  isProfileComplete: updated.is_profile_complete,
+                  name: updated.name,
+                  birthYear: updated.birth_year,
+                  gender: updated.gender,
+                  jerseyNumber: updated.jersey_number,
+                  position: updated.position,
+                  proficiency: updated.proficiency,
+                  locale: updated.locale,
+                }),
+            ),
+          ),
+        )
         .handle('completeProfile', ({ payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => CurrentUserContext),
@@ -137,6 +167,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   jerseyNumber: updated.jersey_number,
                   position: updated.position,
                   proficiency: updated.proficiency,
+                  locale: updated.locale,
                 }),
             ),
           ),
