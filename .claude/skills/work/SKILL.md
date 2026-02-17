@@ -51,6 +51,8 @@ Fetch each task to get its title, status, type, notes, and estimate.
 
 ### 4. Update statuses to In Progress
 
+Update task and parent statuses **immediately** when starting work — including during planning, not just coding.
+
 If the story is in TODO status, update it to **In Progress** using `notion-update-page`. Also check and update parent entities:
 
 - If the parent **epic** is in TODO, move it to **In Progress**
@@ -78,16 +80,27 @@ After the plan is approved, work through each remaining task **in order**. For e
 2. Implement the changes described in the plan
 3. Run `pnpm check` and `pnpm test` to verify the changes compile and pass tests
 
-Leave tasks in **In Progress** after implementation — the commit step handles pushing and moving them to **In Review**.
+Leave tasks in **In Progress** after implementation — the commit step handles pushing and moving them to **Done**.
 
 If a task fails (tests break, types don't pass), fix the issue before moving on. If you cannot fix it, leave the task as In Progress and report the blocker to the user.
 
-### 8. Commit and push to feature branch
+### 8. Create a feature branch
+
+Before writing any code, ensure you're starting from a clean, up-to-date `main`:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/story-name
+```
+
+This must happen **before** step 7 (implementing tasks). If you're resuming in-progress work that already has a branch, switch to that branch and rebase on main instead.
+
+### 9. Commit and push to feature branch
 
 After all tasks are complete (or as many as possible):
 
-1. Create a feature branch if not already on one (e.g. `feat/story-name`)
-2. Invoke the `/commit` skill to commit, push, and verify CI
-3. The commit skill will move tasks to **In Review** and cascade to the story if applicable
+1. Invoke the `/commit` skill to commit, push, and verify CI
+2. The commit skill will move tasks to **Done** only after CI checks pass, and cascade to the story if applicable
 
 **Never push directly to `main`.** All work goes through feature branches and pull requests.

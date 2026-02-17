@@ -12,5 +12,6 @@ export class User extends Model.Class<User>('User')({
   discord_access_token: Model.Sensitive(Schema.String),
   discord_refresh_token: Model.Sensitive(Schema.NullOr(Schema.String)),
   created_at: Model.DateTimeInsertFromDate,
+  is_profile_complete: Schema.Boolean,
   updated_at: Model.DateTimeUpdateFromDate,
 }) {}

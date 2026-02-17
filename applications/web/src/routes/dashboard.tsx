@@ -1,10 +1,15 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import React from 'react';
 import { logout } from '../lib/auth';
 
 export const Route = createFileRoute('/dashboard')({
   component: Dashboard,
   ssr: false,
+  beforeLoad: async ({ context }) => {
+    if (context.user && !context.user.isProfileComplete) {
+      throw redirect({ to: '/profile/complete' });
+    }
+  },
 });
 
 function Dashboard() {

@@ -43,6 +43,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
           ? {
               id: user.id,
               username: user.discordUsername,
+              isProfileComplete: user.isProfileComplete,
             }
           : null,
       })),
