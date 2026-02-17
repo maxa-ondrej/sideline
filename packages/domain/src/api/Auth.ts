@@ -6,18 +6,9 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
+import { UserId } from '../models/User.js';
 
-export const UserId = Schema.UUID.pipe(Schema.brand('UserId'));
-export type UserId = typeof UserId.Type;
-
-export class User extends Schema.Class<User>('User')({
-  id: UserId,
-  discordId: Schema.String,
-  discordUsername: Schema.String,
-  discordAvatar: Schema.NullOr(Schema.String),
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
-}) {}
+export { UserId } from '../models/User.js';
 
 export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   id: UserId,
@@ -44,15 +35,15 @@ export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()('Aut
 }) {}
 
 export class AuthApiGroup extends HttpApiGroup.make('auth')
-  .add(HttpApiEndpoint.get('login', '/login').addSuccess(Schema.Void))
+  .add(HttpApiEndpoint.get('login', '/login').addSuccess(Schema.Void, { status: 302 }))
   .add(
     HttpApiEndpoint.get('callback', '/callback')
-      .addSuccess(Schema.Struct({ token: Schema.String }))
-      .addError(Unauthorized, { status: 401 })
+      .addSuccess(Schema.Void, { status: 302 })
       .setUrlParams(
         Schema.Struct({
-          code: Schema.String,
-          state: Schema.String,
+          code: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
+          state: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
+          error: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
         }),
       ),
   )

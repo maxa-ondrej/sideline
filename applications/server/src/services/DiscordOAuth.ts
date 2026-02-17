@@ -1,6 +1,6 @@
 import { Discord } from 'arctic';
 import { Effect, Redacted } from 'effect';
-import { env } from './env.js';
+import { env } from '../env.js';
 
 export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAuth', {
   effect: Effect.Do.pipe(
@@ -9,7 +9,8 @@ export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAu
     Effect.let('redirectUri', () => env.DISCORD_REDIRECT_URI),
     Effect.let(
       'client',
-      ({ clientId, clientSecret, redirectUri }) => new Discord(clientId, clientSecret, redirectUri),
+      ({ clientId, clientSecret, redirectUri }) =>
+        new Discord(clientId, clientSecret, redirectUri.toString()),
     ),
     Effect.map(
       ({ client }) =>

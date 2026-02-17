@@ -5,7 +5,7 @@ import {
   HttpClient,
   HttpClientRequest,
 } from '@effect/platform';
-import { AuthApiGroup } from '@sideline/domain/AuthApi';
+import { AuthApiGroup } from '@sideline/domain/api/Auth';
 import { Effect, Option } from 'effect';
 import { getToken } from './auth';
 

@@ -14,11 +14,17 @@ applications/
 │   ├── HealthServerLive.ts - Health check HTTP endpoint (:3001)
 │   └── run.ts           - Runtime entrypoint (config, logging, NodeRuntime)
 ├── server/    - Server application and API endpoints
+│   ├── api/             - HTTP API modules (errors, health, auth, composition)
+│   ├── repositories/    - Database repositories (Sessions, Users)
+│   ├── services/        - External service integrations (DiscordOAuth)
+│   ├── middleware/       - HTTP middleware (AuthMiddlewareLive)
 │   ├── AppLive.ts       - Composable app layer (HTTP + API + Repos)
 │   └── run.ts           - Runtime entrypoint (Pg, migrations, NodeRuntime)
 └── web/       - TanStack Start frontend (Vite, React 19, Nitro)
 packages/
 ├── domain/    - Core domain logic and business rules
+│   ├── models/          - Entity definitions (User, Session)
+│   └── api/             - Shared HTTP API contracts (Auth)
 └── migrations/- Database migrations (provides MigratorLive layer)
 ```
 
@@ -172,6 +178,94 @@ const getUser = (id: string) =>
   Effect.request(makeGetUser(id), userResolver).pipe(
     Effect.withRequestCaching(true)
   )
+```
+
+### Database & SQL Patterns
+
+#### Model.Class
+
+Use `Model.Class` from `@effect/sql` to define database models with variant-based schemas. Each model automatically generates `select`, `insert`, `update`, and `json` schema variants.
+
+```typescript
+import { Model } from '@effect/sql';
+import { Schema } from 'effect';
+
+export const UserId = Schema.String.pipe(Schema.brand('UserId'));
+export type UserId = typeof UserId.Type;
+
+export class User extends Model.Class<User>('User')({
+  id: Model.Generated(UserId),           // excluded from insert (DB generates)
+  discord_id: Schema.String,
+  discord_avatar: Schema.NullOr(Schema.String),
+  discord_access_token: Model.Sensitive(Schema.String),  // excluded from json variants
+  created_at: Model.DateTimeInsertFromDate,  // auto-managed insert timestamp
+  updated_at: Model.DateTimeUpdateFromDate,  // auto-managed update timestamp
+}) {}
+```
+
+Key field helpers:
+- **`Model.Generated(schema)`** — DB-generated fields (excluded from `insert` variant)
+- **`Model.Sensitive(schema)`** — fields excluded from `json` variants (tokens, secrets)
+- **`Model.DateTimeInsertFromDate`** — auto-managed insert timestamp (`Date` → `DateTime.Utc`)
+- **`Model.DateTimeUpdateFromDate`** — auto-managed timestamp for both insert and update
+- **`Schema.NullOr(schema)`** — nullable DB columns (simpler than `Model.FieldOption`)
+
+Use **snake_case** field names matching DB columns directly — no `fieldFromKey` mapping needed.
+
+#### Model.makeRepository
+
+Use `Model.makeRepository` for standard CRUD operations. Returns `findById` (→ `Option<T>`), `insert`, `update`, `delete`.
+
+```typescript
+const repo = Model.makeRepository(User, {
+  tableName: 'users',
+  spanPrefix: 'UsersRepository',
+  idColumn: 'id',
+});
+```
+
+#### SqlSchema Helpers
+
+Use `SqlSchema` helpers for custom queries with schema-validated inputs and outputs:
+
+- **`SqlSchema.findOne`** — returns `Option<T>` (first row or `None`)
+- **`SqlSchema.single`** — returns `T` (first row, fails with `NoSuchElementException` if empty)
+- **`SqlSchema.void`** — discards result (for DELETE/UPDATE without RETURNING)
+- **`SqlSchema.findAll`** — returns `ReadonlyArray<T>`
+
+```typescript
+const findByDiscordId = SqlSchema.findOne({
+  Request: Schema.String,
+  Result: User,
+  execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
+});
+```
+
+#### Repository Pattern
+
+Construct repositories by starting from `SqlClient.SqlClient.pipe(Effect.bindTo('sql'), ...)`. Use `Effect.bind` for effectful dependencies (like `Model.makeRepository`) and `Effect.let` for pure method definitions (like `SqlSchema` queries). Do **not** add a final `Effect.map` — the service type already constrains the public interface.
+
+```typescript
+export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
+  effect: SqlClient.SqlClient.pipe(
+    Effect.bindTo('sql'),
+    Effect.bind('repo', () =>
+      Model.makeRepository(User, {
+        tableName: 'users',
+        spanPrefix: 'UsersRepository',
+        idColumn: 'id',
+      }),
+    ),
+    Effect.let('findById', ({ repo }) => repo.findById),
+    Effect.let('findByDiscordId', ({ sql }) =>
+      SqlSchema.findOne({
+        Request: Schema.String,
+        Result: User,
+        execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
+      }),
+    ),
+  ),
+}) {}
 ```
 
 ## Development Guidelines
