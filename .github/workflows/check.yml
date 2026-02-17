@@ -52,6 +52,6 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: pnpm build
-      - run: pnpm vitest
+      - run: pnpm test
         env:
           NODE_OPTIONS: --max_old_space_size=8192

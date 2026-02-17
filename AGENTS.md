@@ -569,12 +569,14 @@ pnpm biome check src/
 
 The `check.yml` workflow runs on pushes to `main` and on pull requests. It has four parallel jobs:
 
-| Job             | Command           | Purpose                                          |
-|-----------------|-------------------|--------------------------------------------------|
-| **Lint & Format** | `pnpm lint`         | Enforces formatting and lint rules via Biome     |
-| **Build**       | `pnpm codegen`    | Verifies codegen output is committed and current |
-| **Types**       | `pnpm check`      | Type-checks all packages individually        |
-| **Test**        | `pnpm vitest`     | Runs all Vitest tests across the workspace       |
+| Job             | Command                    | Purpose                                          |
+|-----------------|----------------------------|--------------------------------------------------|
+| **Lint & Format** | `pnpm lint`              | Enforces formatting and lint rules via Biome     |
+| **Build**       | `pnpm codegen`             | Verifies codegen output is committed and current |
+| **Types**       | `pnpm check`               | Type-checks all packages individually            |
+| **Test**        | `pnpm build && pnpm test`| Builds packages, then runs Vitest tests          |
+
+> **Why Test needs `pnpm build` first:** Workspace packages use `publishConfig.directory: "dist"`, so pnpm symlinks consumers to `packages/*/dist`. Vitest resolves imports through these symlinks, meaning built artifacts must exist before tests can run.
 
 All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js install with caching).
 
@@ -806,6 +808,10 @@ When starting work on a task, update its status to `In Progress`. When done, mov
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers to commit messages.
 - Before every commit, run `pnpm biome:fix` to format/lint and `pnpm codegen` to regenerate any generated code. Stage any resulting changes before committing.
 - After every `git push`, check that CI pipelines pass (`gh run list`, `gh run view`). If a workflow fails, investigate the logs, fix the issue, and push again until all checks are green.
+
+## Documentation Conventions
+
+- **Always update AGENTS.md** when making architecture changes, adding new patterns, changing CI/build workflows, or establishing new conventions. This file is the single source of truth for how the codebase works.
 
 ---
 
