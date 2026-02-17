@@ -1,5 +1,6 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { User, type UserId as UserIdType } from '@sideline/domain/models/User';
+import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
@@ -33,7 +34,9 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     ),
     Effect.let(
       'findById',
-      ({ repo }) => repo.findById as (id: UserIdType) => ReturnType<typeof repo.findById>,
+      ({ repo }) =>
+        (id: UserIdType) =>
+          repo.findById(id),
     ),
     Effect.let('upsertFromDiscord', ({ sql }) =>
       SqlSchema.single({
@@ -71,5 +74,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         `,
       }),
     ),
+    Bind.remove('sql'),
+    Bind.remove('repo'),
   ),
 }) {}

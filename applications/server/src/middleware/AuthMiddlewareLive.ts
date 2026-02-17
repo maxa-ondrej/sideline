@@ -12,13 +12,13 @@ export const AuthMiddlewareLive = Layer.effect(
     Effect.map(({ sessions, users }) => ({
       token: (token: RedactedType.Redacted<string>) =>
         sessions.findByToken(Redacted.value(token)).pipe(
-          Effect.orDie,
+          Effect.mapError(() => new Unauthorized()),
           Effect.flatMap(
             Option.match({
               onNone: () => new Unauthorized(),
               onSome: (session) =>
                 users.findById(session.user_id).pipe(
-                  Effect.orDie,
+                  Effect.mapError(() => new Unauthorized()),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => new Unauthorized(),

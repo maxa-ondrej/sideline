@@ -1,9 +1,9 @@
 import { NodeHttpClient, NodeSocket } from '@effect/platform-node';
+import { Runtime } from '@sideline/effect-lib';
 import * as DiscordConfig from 'dfx/DiscordConfig';
 import { Config, Effect, Layer } from 'effect';
 import { env } from './env.js';
 import { AppLive, Bot } from './index.js';
-import { runMain } from './Runtime.js';
 
 const MainLive = AppLive.pipe(
   Layer.provide(NodeHttpClient.layerUndici),
@@ -15,4 +15,4 @@ const MainLive = AppLive.pipe(
   ),
 );
 
-Effect.provide(Bot.program, MainLive).pipe(runMain);
+Effect.provide(Bot.program, MainLive).pipe(Runtime.runMain(env.NODE_ENV));

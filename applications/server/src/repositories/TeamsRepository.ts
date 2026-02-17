@@ -1,5 +1,6 @@
 import { Model, SqlClient } from '@effect/sql';
 import { Team, type TeamId } from '@sideline/domain/models/Team';
+import { Bind } from '@sideline/effect-lib';
 import { Effect } from 'effect';
 
 export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/TeamsRepository', {
@@ -14,8 +15,12 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
     ),
     Effect.let(
       'findById',
-      ({ repo }) => repo.findById as (id: TeamId) => ReturnType<typeof repo.findById>,
+      ({ repo }) =>
+        (id: TeamId) =>
+          repo.findById(id),
     ),
     Effect.let('insert', ({ repo }) => repo.insert),
+    Bind.remove('sql'),
+    Bind.remove('repo'),
   ),
 }) {}

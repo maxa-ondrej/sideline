@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { TeamInvite } from '@sideline/domain/models/TeamInvite';
+import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>()(
@@ -47,6 +48,7 @@ export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>
             sql`UPDATE team_invites SET active = false WHERE team_id = ${teamId} AND active = true AND id != ${excludeId}`,
         }),
       ),
+      Bind.remove('sql'),
     ),
   },
 ) {}

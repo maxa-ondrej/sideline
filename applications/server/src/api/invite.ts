@@ -13,6 +13,7 @@ import { TeamInvitesRepository } from '../repositories/TeamInvitesRepository.js'
 import { TeamMembersRepository } from '../repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '../repositories/TeamsRepository.js';
 import { Api } from './api.js';
+import { InternalError } from './errors.js';
 
 const INVITE_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const INVITE_CODE_LENGTH = 12;
@@ -31,13 +32,13 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
       handlers
         .handle('getInvite', ({ path: { code } }) =>
           invites.findByCode(code).pipe(
-            Effect.orDie,
+            Effect.mapError(() => new InternalError()),
             Effect.flatMap(
               Option.match({
                 onNone: () => new InviteNotFound(),
                 onSome: (invite) =>
                   teams.findById(invite.team_id).pipe(
-                    Effect.orDie,
+                    Effect.mapError(() => new InternalError()),
                     Effect.flatMap(
                       Option.match({
                         onNone: () => new InviteNotFound(),
@@ -61,7 +62,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => CurrentUserContext),
             Effect.bind('invite', () =>
               invites.findByCode(code).pipe(
-                Effect.orDie,
+                Effect.mapError(() => new InternalError()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new InviteNotFound()),
@@ -71,7 +72,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               ),
             ),
             Effect.bind('existing', ({ user, invite }) =>
-              members.findMembershipByIds(invite.team_id, user.id).pipe(Effect.orDie),
+              members
+                .findMembershipByIds(invite.team_id, user.id)
+                .pipe(Effect.mapError(() => new InternalError())),
             ),
             Effect.tap(({ existing }) =>
               Option.isSome(existing) ? Effect.fail(new AlreadyMember()) : Effect.void,
@@ -84,7 +87,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   role: 'member',
                   joined_at: undefined,
                 })
-                .pipe(Effect.orDie),
+                .pipe(Effect.mapError(() => new InternalError())),
             ),
             Effect.map(
               ({ user, membership }) =>
@@ -101,7 +104,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => CurrentUserContext),
             Effect.bind('membership', ({ user }) =>
               members.findMembershipByIds(teamId, user.id).pipe(
-                Effect.orDie,
+                Effect.mapError(() => new InternalError()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Forbidden()),
@@ -125,13 +128,13 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 }),
               ).pipe(
                 Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis')),
-                Effect.orDie,
+                Effect.mapError(() => new InternalError()),
               ),
             ),
             Effect.tap(({ newInvite }) =>
               invites
                 .deactivateByTeamExcept({ teamId, excludeId: newInvite.id })
-                .pipe(Effect.orDie),
+                .pipe(Effect.mapError(() => new InternalError())),
             ),
             Effect.map(
               ({ newInvite }) =>
@@ -147,7 +150,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => CurrentUserContext),
             Effect.bind('membership', ({ user }) =>
               members.findMembershipByIds(teamId, user.id).pipe(
-                Effect.orDie,
+                Effect.mapError(() => new InternalError()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Forbidden()),
@@ -159,7 +162,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.tap(({ membership }) =>
               membership.role !== 'admin' ? Effect.fail(new Forbidden()) : Effect.void,
             ),
-            Effect.tap(() => invites.deactivateByTeam(teamId).pipe(Effect.orDie)),
+            Effect.tap(() =>
+              invites.deactivateByTeam(teamId).pipe(Effect.mapError(() => new InternalError())),
+            ),
             Effect.asVoid,
           ),
         ),

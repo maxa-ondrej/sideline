@@ -243,9 +243,11 @@ const findByDiscordId = SqlSchema.findOne({
 
 #### Repository Pattern
 
-Construct repositories by starting from `SqlClient.SqlClient.pipe(Effect.bindTo('sql'), ...)`. Use `Effect.bind` for effectful dependencies (like `Model.makeRepository`) and `Effect.let` for pure method definitions (like `SqlSchema` queries). Do **not** add a final `Effect.map` — the service type already constrains the public interface.
+Construct repositories by starting from `SqlClient.SqlClient.pipe(Effect.bindTo('sql'), ...)`. Use `Effect.bind` for effectful dependencies (like `Model.makeRepository`) and `Effect.let` for pure method definitions (like `SqlSchema` queries). End with `Bind.remove` (from `@sideline/effect-lib`) to strip internals (`sql`, `repo`) from the service type.
 
 ```typescript
+import { Bind } from '@sideline/effect-lib';
+
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(
     Effect.bindTo('sql'),
@@ -256,7 +258,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         idColumn: 'id',
       }),
     ),
-    Effect.let('findById', ({ repo }) => repo.findById),
+    Effect.let('findById', ({ repo }) => (id: UserId) => repo.findById(id)),
     Effect.let('findByDiscordId', ({ sql }) =>
       SqlSchema.findOne({
         Request: Schema.String,
@@ -264,6 +266,8 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
       }),
     ),
+    Bind.remove('sql'),
+    Bind.remove('repo'),
   ),
 }) {}
 ```

@@ -1,4 +1,4 @@
-import { HttpServerResponse } from '@effect/platform';
+import { HttpApiSchema, HttpServerResponse } from '@effect/platform';
 import { Schema } from 'effect';
 
 export class RuntimeError extends Schema.TaggedError<RuntimeError>()('RuntimeError', {
@@ -13,6 +13,12 @@ export class LogicError extends Schema.TaggedError<LogicError>()('LogicError', {
 }) {
   static fromUnknown = (cause: unknown) => new LogicError({ cause });
 }
+
+export class InternalError extends Schema.TaggedError<InternalError>()(
+  'InternalError',
+  {},
+  HttpApiSchema.annotations({ status: 500 }),
+) {}
 
 export class Redirect extends Schema.Class<Redirect>('Redirect')({
   url: Schema.URL,

@@ -21,13 +21,14 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@effect/platform": "latest",
+    "@effect/platform": "0.94.5",
+    "@effect/platform-node": "0.104.1",
     "@t3-oss/env-core": "^0.13.8",
-    "@effect/platform-node": "latest",
     "@sideline/domain": "workspace:^",
-    "dfx": "latest",
-    "discord-api-types": "latest",
-    "effect": "latest"
+    "@sideline/effect-lib": "workspace:^",
+    "dfx": "0.127.0",
+    "discord-api-types": "0.38.39",
+    "effect": "3.19.18"
   },
   "effect": {
     "generateExports": {

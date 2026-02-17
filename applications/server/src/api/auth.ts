@@ -7,7 +7,7 @@ import { SessionsRepository } from '../repositories/SessionsRepository.js';
 import { UsersRepository } from '../repositories/UsersRepository.js';
 import { DiscordOAuth } from '../services/DiscordOAuth.js';
 import { Api } from './api.js';
-import { LogicError, Redirect, RuntimeError } from './errors.js';
+import { InternalError, LogicError, Redirect, RuntimeError } from './errors.js';
 
 const CustomClient = HttpClient.HttpClient.pipe(
   Effect.bindTo('client'),
@@ -121,7 +121,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   position: payload.position,
                   proficiency: payload.proficiency,
                 })
-                .pipe(Effect.orDie),
+                .pipe(Effect.mapError(() => new InternalError())),
             ),
             Effect.map(
               ({ updated }) =>

@@ -1,5 +1,9 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
 import type { UserId } from '@sideline/domain/api/Auth';
+import type { TeamId } from '@sideline/domain/models/Team';
+import type { TeamInviteId } from '@sideline/domain/models/TeamInvite';
+import type { TeamMemberId } from '@sideline/domain/models/TeamMember';
+import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '../src/api/index.js';
@@ -12,6 +16,7 @@ import { UsersRepository } from '../src/repositories/UsersRepository.js';
 import { DiscordOAuth } from '../src/services/DiscordOAuth.js';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as UserId;
+const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as TeamId;
 
 const makeTestUser = (overrides?: Record<string, unknown>) => ({
   id: TEST_USER_ID,
@@ -34,25 +39,34 @@ const makeTestUser = (overrides?: Record<string, unknown>) => ({
 
 const testUser = makeTestUser();
 
+const testTeam = {
+  id: TEST_TEAM_ID,
+  name: 'Test Team',
+  created_by: TEST_USER_ID,
+  created_at: DateTime.unsafeNow(),
+  updated_at: DateTime.unsafeNow(),
+};
+
 const sessionsStore = new Map<string, UserId>();
 sessionsStore.set('user-token', TEST_USER_ID);
 
 const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
+  _tag: 'api/DiscordOAuth',
   createAuthorizationURL: (_state: string) =>
     Effect.succeed(new URL('https://discord.com/oauth2/authorize?client_id=test')),
   validateAuthorizationCode: () =>
-    Effect.succeed({
-      accessToken: () => 'mock-access-token',
-      refreshToken: () => 'mock-refresh-token',
-    }),
-} as any);
+    Effect.succeed(
+      new OAuth2Tokens({ access_token: 'mock-access-token', refresh_token: 'mock-refresh-token' }),
+    ),
+});
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
+  _tag: 'api/UsersRepository',
   findById: (id: UserId) =>
     Effect.succeed(id === TEST_USER_ID ? Option.some(testUser) : Option.none()),
   findByDiscordId: () => Effect.succeed(Option.none()),
   upsertFromDiscord: () => Effect.succeed(testUser),
-  completeProfile: (input: any) => {
+  completeProfile: (input) => {
     Object.assign(testUser, {
       name: input.name,
       birth_year: input.birth_year,
@@ -64,10 +78,11 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     });
     return Effect.succeed(testUser);
   },
-} as any);
+});
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
-  create: (input: { user_id: UserId; token: string; expires_at: unknown }) => {
+  _tag: 'api/SessionsRepository',
+  create: (input) => {
     sessionsStore.set(input.token, input.user_id);
     return Effect.succeed({
       id: 'session-1',
@@ -77,7 +92,7 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       created_at: DateTime.unsafeNow(),
     });
   },
-  findByToken: (token: string) => {
+  findByToken: (token) => {
     const userId = sessionsStore.get(token);
     if (!userId) return Effect.succeed(Option.none());
     return Effect.succeed(
@@ -90,32 +105,48 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       }),
     );
   },
-  deleteByToken: (token: string) => {
-    sessionsStore.delete(token);
-    return Effect.succeed(undefined as undefined);
-  },
-} as any);
+  deleteByToken: () => Effect.void,
+});
 
 const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
+  _tag: 'api/TeamsRepository',
   findById: () => Effect.succeed(Option.none()),
-  insert: () => Effect.die('not implemented'),
-} as any);
+  insert: () => Effect.succeed(testTeam),
+});
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
-  addMember: () => Effect.die('not implemented'),
+  _tag: 'api/TeamMembersRepository',
+  addMember: () =>
+    Effect.succeed({
+      id: '00000000-0000-0000-0000-000000000020' as TeamMemberId,
+      team_id: TEST_TEAM_ID,
+      user_id: TEST_USER_ID,
+      role: 'member' as const,
+      joined_at: DateTime.unsafeNow(),
+    }),
   findMembership: () => Effect.succeed(Option.none()),
   findMembershipByIds: () => Effect.succeed(Option.none()),
   findByTeam: () => Effect.succeed([]),
   findByUser: () => Effect.succeed([]),
-} as any);
+});
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
+  _tag: 'api/TeamInvitesRepository',
   findByCode: () => Effect.succeed(Option.none()),
   findByTeam: () => Effect.succeed([]),
-  create: () => Effect.die('not implemented'),
-  deactivateByTeam: () => Effect.succeed(undefined as undefined),
-  deactivateByTeamExcept: () => Effect.succeed(undefined as undefined),
-} as any);
+  create: () =>
+    Effect.succeed({
+      id: '00000000-0000-0000-0000-000000000030' as TeamInviteId,
+      team_id: TEST_TEAM_ID,
+      code: 'test-code',
+      active: true,
+      created_by: TEST_USER_ID,
+      created_at: DateTime.unsafeNow(),
+      expires_at: null,
+    }),
+  deactivateByTeam: () => Effect.void,
+  deactivateByTeamExcept: () => Effect.void,
+});
 
 const MockHttpClientLayer = Layer.succeed(
   HttpClient.HttpClient,

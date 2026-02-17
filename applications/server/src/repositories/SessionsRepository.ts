@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Session } from '@sideline/domain/models/Session';
+import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 export class SessionsRepository extends Effect.Service<SessionsRepository>()(
@@ -32,6 +33,7 @@ export class SessionsRepository extends Effect.Service<SessionsRepository>()(
           execute: (token) => sql`DELETE FROM sessions WHERE token = ${token}`,
         }),
       ),
+      Bind.remove('sql'),
     ),
   },
 ) {}
