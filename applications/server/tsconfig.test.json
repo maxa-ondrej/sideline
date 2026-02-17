@@ -4,6 +4,7 @@
   "references": [
     { "path": "tsconfig.src.json" },
     { "path": "../../packages/domain" },
+    { "path": "../../packages/effect-lib" },
     { "path": "../../packages/migrations" }
   ],
   "compilerOptions": {

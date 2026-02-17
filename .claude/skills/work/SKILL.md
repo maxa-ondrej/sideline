@@ -94,7 +94,12 @@ git pull origin main
 git checkout -b feat/story-name
 ```
 
-This must happen **before** step 7 (implementing tasks). If you're resuming in-progress work that already has a branch, switch to that branch and rebase on main instead.
+This must happen **before** step 7 (implementing tasks).
+
+**Branch rules:**
+- Always create a **new branch from `main`** for each story. Never reuse an old feature branch for a new story.
+- If you're resuming in-progress work that already has an **unmerged branch for the same story**, switch to that branch and rebase on main instead.
+- If a previous branch for a different story exists, ignore it — start fresh from `main`.
 
 ### 9. Commit and push to feature branch
 

@@ -12,13 +12,13 @@ export const AuthMiddlewareLive = Layer.effect(
     Effect.map(({ sessions, users }) => ({
       token: (token: RedactedType.Redacted<string>) =>
         sessions.findByToken(Redacted.value(token)).pipe(
-          Effect.orDie,
+          Effect.mapError(() => new Unauthorized()),
           Effect.flatMap(
             Option.match({
               onNone: () => new Unauthorized(),
               onSome: (session) =>
                 users.findById(session.user_id).pipe(
-                  Effect.orDie,
+                  Effect.mapError(() => new Unauthorized()),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => new Unauthorized(),
@@ -30,6 +30,12 @@ export const AuthMiddlewareLive = Layer.effect(
                             discordUsername: user.discord_username,
                             discordAvatar: user.discord_avatar,
                             isProfileComplete: user.is_profile_complete,
+                            name: user.name,
+                            birthYear: user.birth_year,
+                            gender: user.gender,
+                            jerseyNumber: user.jersey_number,
+                            position: user.position,
+                            proficiency: user.proficiency,
                           }),
                         ),
                     }),

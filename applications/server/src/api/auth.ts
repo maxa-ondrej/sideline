@@ -1,13 +1,25 @@
-import { HttpApiBuilder } from '@effect/platform';
-import { CurrentUserContext } from '@sideline/domain/api/Auth';
+import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
+import { CurrentUser, CurrentUserContext } from '@sideline/domain/api/Auth';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
-import { DateTime, Effect, Option, pipe, Redacted } from 'effect';
+import { DateTime, Effect, Layer, Option, pipe, Redacted } from 'effect';
 import { env } from '../env.js';
 import { SessionsRepository } from '../repositories/SessionsRepository.js';
 import { UsersRepository } from '../repositories/UsersRepository.js';
 import { DiscordOAuth } from '../services/DiscordOAuth.js';
-import { LogicError, Redirect, RuntimeError } from './errors.js';
-import { Api } from './health.js';
+import { Api } from './api.js';
+import { InternalError, LogicError, Redirect, RuntimeError } from './errors.js';
+
+const CustomClient = HttpClient.HttpClient.pipe(
+  Effect.bindTo('client'),
+  Effect.bind('config', () => DiscordConfig.DiscordConfig),
+  Effect.map(({ client, config }) =>
+    client.pipe(
+      HttpClient.mapRequest(HttpClientRequest.bearerToken(config.token)),
+      HttpClient.tapRequest(Effect.logDebug),
+    ),
+  ),
+  Layer.effect(HttpClient.HttpClient),
+);
 
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
@@ -39,8 +51,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.bind('client', ({ DiscordConfigLive }) =>
               DiscordREST.pipe(
                 Effect.provide(DiscordRESTLive),
-                Effect.provide(DiscordConfigLive),
+                Effect.provide(CustomClient),
                 Effect.provide(MemoryRateLimitStoreLive),
+                Effect.provide(DiscordConfigLive),
               ),
             ),
             Effect.bind('discordUser', ({ client }) => client.getMyUser()),
@@ -93,7 +106,41 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.map(Redirect.toResponse),
           ),
         )
-        .handle('me', () => CurrentUserContext),
+        .handle('me', () => CurrentUserContext)
+        .handle('completeProfile', ({ payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => CurrentUserContext),
+            Effect.bind('updated', ({ currentUser }) =>
+              users
+                .completeProfile({
+                  id: currentUser.id,
+                  name: payload.name,
+                  birth_year: payload.birthYear,
+                  gender: payload.gender,
+                  jersey_number: Option.getOrNull(payload.jerseyNumber),
+                  position: payload.position,
+                  proficiency: payload.proficiency,
+                })
+                .pipe(Effect.mapError(() => new InternalError())),
+            ),
+            Effect.map(
+              ({ updated }) =>
+                new CurrentUser({
+                  id: updated.id,
+                  discordId: updated.discord_id,
+                  discordUsername: updated.discord_username,
+                  discordAvatar: updated.discord_avatar,
+                  isProfileComplete: updated.is_profile_complete,
+                  name: updated.name,
+                  birthYear: updated.birth_year,
+                  gender: updated.gender,
+                  jerseyNumber: updated.jersey_number,
+                  position: updated.position,
+                  proficiency: updated.proficiency,
+                }),
+            ),
+          ),
+        ),
     ),
   ),
 );

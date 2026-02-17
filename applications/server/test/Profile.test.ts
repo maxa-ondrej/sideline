@@ -13,13 +13,12 @@ import { TeamInvitesRepository } from '../src/repositories/TeamInvitesRepository
 import { TeamMembersRepository } from '../src/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '../src/repositories/TeamsRepository.js';
 import { UsersRepository } from '../src/repositories/UsersRepository.js';
-import { DiscordOAuth, DiscordOAuthError } from '../src/services/DiscordOAuth.js';
+import { DiscordOAuth } from '../src/services/DiscordOAuth.js';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as TeamId;
-const FRONTEND_URL = 'http://localhost:5173';
 
-const testUser = {
+const makeTestUser = (overrides?: Record<string, unknown>) => ({
   id: TEST_USER_ID,
   discord_id: '12345',
   discord_username: 'testuser',
@@ -35,7 +34,10 @@ const testUser = {
   proficiency: null,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
-};
+  ...overrides,
+});
+
+const testUser = makeTestUser();
 
 const testTeam = {
   id: TEST_TEAM_ID,
@@ -46,19 +48,16 @@ const testTeam = {
 };
 
 const sessionsStore = new Map<string, UserId>();
-sessionsStore.set('pre-existing-token', TEST_USER_ID);
-
-const mockTokens = (access: string, refresh: string) =>
-  new OAuth2Tokens({ access_token: access, refresh_token: refresh });
+sessionsStore.set('user-token', TEST_USER_ID);
 
 const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
   _tag: 'api/DiscordOAuth',
   createAuthorizationURL: (_state: string) =>
     Effect.succeed(new URL('https://discord.com/oauth2/authorize?client_id=test')),
-  validateAuthorizationCode: (code: string) =>
-    code === 'valid-code'
-      ? Effect.succeed(mockTokens('mock-access-token', 'mock-refresh-token'))
-      : Effect.fail(new DiscordOAuthError({ cause: new Error('Invalid code') })),
+  validateAuthorizationCode: () =>
+    Effect.succeed(
+      new OAuth2Tokens({ access_token: 'mock-access-token', refresh_token: 'mock-refresh-token' }),
+    ),
 });
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
@@ -67,7 +66,18 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     Effect.succeed(id === TEST_USER_ID ? Option.some(testUser) : Option.none()),
   findByDiscordId: () => Effect.succeed(Option.none()),
   upsertFromDiscord: () => Effect.succeed(testUser),
-  completeProfile: () => Effect.succeed(testUser),
+  completeProfile: (input) => {
+    Object.assign(testUser, {
+      name: input.name,
+      birth_year: input.birth_year,
+      gender: input.gender,
+      jersey_number: input.jersey_number,
+      position: input.position,
+      proficiency: input.proficiency,
+      is_profile_complete: true,
+    });
+    return Effect.succeed(testUser);
+  },
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -97,30 +107,6 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
   },
   deleteByToken: () => Effect.void,
 });
-
-const MockHttpClientLayer = Layer.succeed(
-  HttpClient.HttpClient,
-  HttpClient.make((request) =>
-    Effect.succeed(
-      HttpClientResponse.fromWeb(
-        request,
-        new Response(
-          JSON.stringify({
-            id: '12345',
-            username: 'testuser',
-            avatar: null,
-            discriminator: '0',
-            public_flags: 0,
-            flags: 0,
-            mfa_enabled: false,
-            locale: 'en-US',
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      ),
-    ),
-  ),
-);
 
 const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   _tag: 'api/TeamsRepository',
@@ -162,6 +148,21 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   deactivateByTeamExcept: () => Effect.void,
 });
 
+const MockHttpClientLayer = Layer.succeed(
+  HttpClient.HttpClient,
+  HttpClient.make((request) =>
+    Effect.succeed(
+      HttpClientResponse.fromWeb(
+        request,
+        new Response(JSON.stringify({ id: '12345', username: 'testuser', avatar: null }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    ),
+  ),
+);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -187,66 +188,135 @@ afterAll(async () => {
   await dispose();
 });
 
-describe('Auth API', () => {
-  it('GET /health returns 200 with status ok', async () => {
-    const response = await handler(new Request('http://localhost/health'));
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body).toEqual({ status: 'ok' });
-  });
-
-  it('GET /auth/me without token returns 401', async () => {
-    const response = await handler(new Request('http://localhost/auth/me'));
+describe('Profile Completion API', () => {
+  it('POST /auth/profile without token returns 401', async () => {
+    const response = await handler(
+      new Request('http://localhost/auth/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Test User',
+          birthYear: 1995,
+          gender: 'male',
+          position: 'midfielder',
+          proficiency: 'intermediate',
+        }),
+      }),
+    );
     expect(response.status).toBe(401);
   });
 
-  it('GET /auth/me with valid session returns user', async () => {
+  it('POST /auth/profile with valid data completes profile', async () => {
     const response = await handler(
-      new Request('http://localhost/auth/me', {
-        headers: { Authorization: 'Bearer pre-existing-token' },
+      new Request('http://localhost/auth/profile', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Test User',
+          birthYear: 1995,
+          gender: 'male',
+          position: 'midfielder',
+          proficiency: 'intermediate',
+        }),
       }),
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.discordUsername).toBe('testuser');
+    expect(body.name).toBe('Test User');
+    expect(body.birthYear).toBe(1995);
+    expect(body.gender).toBe('male');
+    expect(body.position).toBe('midfielder');
+    expect(body.proficiency).toBe('intermediate');
+    expect(body.isProfileComplete).toBe(true);
+    expect(body.jerseyNumber).toBeNull();
   });
 
-  it('GET /auth/login redirects to Discord OAuth', async () => {
-    const response = await handler(new Request('http://localhost/auth/login'));
-    expect(response.status).toBe(302);
-    const location = response.headers.get('Location');
-    expect(location).toContain('discord.com/oauth2/authorize');
-  });
-
-  it('GET /auth/callback with no params redirects with reason=missing_params', async () => {
-    const response = await handler(new Request('http://localhost/auth/callback'));
-    expect(response.status).toBe(302);
-    const location = response.headers.get('Location');
-    expect(location).toContain('reason=missing_params');
-  });
-
-  it('GET /auth/callback?error=access_denied redirects with reason=access_denied', async () => {
+  it('POST /auth/profile with jersey number includes it', async () => {
     const response = await handler(
-      new Request('http://localhost/auth/callback?error=access_denied'),
+      new Request('http://localhost/auth/profile', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Test User',
+          birthYear: 1995,
+          gender: 'female',
+          jerseyNumber: 10,
+          position: 'forward',
+          proficiency: 'advanced',
+        }),
+      }),
     );
-    expect(response.status).toBe(302);
-    const location = response.headers.get('Location');
-    expect(location).toContain('reason=access_denied');
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.jerseyNumber).toBe(10);
+    expect(body.gender).toBe('female');
+    expect(body.position).toBe('forward');
+    expect(body.proficiency).toBe('advanced');
   });
 
-  it('GET /auth/callback with bad code redirects with reason=oauth_failed', async () => {
-    const response = await handler(new Request('http://localhost/auth/callback?code=bad&state=x'));
-    expect(response.status).toBe(302);
-    const location = response.headers.get('Location');
-    expect(location).toContain('reason=oauth_failed');
-  });
-
-  it('GET /auth/callback with valid code redirects with token', async () => {
+  it('POST /auth/profile with invalid gender returns 400', async () => {
     const response = await handler(
-      new Request('http://localhost/auth/callback?code=valid-code&state=x'),
+      new Request('http://localhost/auth/profile', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Test User',
+          birthYear: 1995,
+          gender: 'invalid',
+          position: 'midfielder',
+          proficiency: 'intermediate',
+        }),
+      }),
     );
-    expect(response.status).toBe(302);
-    const location = response.headers.get('Location');
-    expect(location).toContain(`${FRONTEND_URL}/?token=`);
+    expect(response.status).toBe(400);
+  });
+
+  it('POST /auth/profile with invalid position returns 400', async () => {
+    const response = await handler(
+      new Request('http://localhost/auth/profile', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Test User',
+          birthYear: 1995,
+          gender: 'male',
+          position: 'striker',
+          proficiency: 'intermediate',
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('POST /auth/profile with birth year out of range returns 400', async () => {
+    const response = await handler(
+      new Request('http://localhost/auth/profile', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Test User',
+          birthYear: 1800,
+          gender: 'male',
+          position: 'midfielder',
+          proficiency: 'intermediate',
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
   });
 });

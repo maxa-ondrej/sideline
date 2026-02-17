@@ -21,16 +21,17 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@effect/platform": "latest",
-    "@t3-oss/env-core": "^0.13.8",
-    "@effect/platform-node": "latest",
-    "@effect/sql": "latest",
-    "@effect/sql-pg": "latest",
+    "@effect/platform": "0.94.5",
+    "@effect/platform-node": "0.104.1",
+    "@effect/sql": "0.49.0",
+    "@effect/sql-pg": "0.50.3",
     "@sideline/domain": "workspace:^",
+    "@sideline/effect-lib": "workspace:^",
     "@sideline/migrations": "workspace:^",
+    "@t3-oss/env-core": "^0.13.8",
     "arctic": "^3.7.0",
-    "dfx": "latest",
-    "effect": "latest"
+    "dfx": "0.127.0",
+    "effect": "3.19.18"
   },
   "effect": {
     "generateExports": {

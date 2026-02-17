@@ -6,9 +6,11 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
-import { UserId } from '../models/User.js';
+import { Gender, Position, Proficiency, UserId } from '../models/User.js';
 
 export { UserId } from '../models/User.js';
+
+export const MIN_AGE = 6;
 
 export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   id: UserId,
@@ -16,6 +18,31 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   discordUsername: Schema.String,
   discordAvatar: Schema.NullOr(Schema.String),
   isProfileComplete: Schema.Boolean,
+  name: Schema.NullOr(Schema.String),
+  birthYear: Schema.NullOr(Schema.Number),
+  gender: Schema.NullOr(Gender),
+  jerseyNumber: Schema.NullOr(Schema.Number),
+  position: Schema.NullOr(Position),
+  proficiency: Schema.NullOr(Proficiency),
+}) {}
+
+export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
+  'CompleteProfileRequest',
+)({
+  name: Schema.String,
+  birthYear: Schema.Number.pipe(
+    Schema.int(),
+    Schema.greaterThanOrEqualTo(1900),
+    Schema.filter((year) => year <= new Date().getFullYear() - MIN_AGE, {
+      message: () => `Birth year must be at most ${new Date().getFullYear() - MIN_AGE}`,
+    }),
+  ),
+  gender: Gender,
+  jerseyNumber: Schema.optionalWith(Schema.Number.pipe(Schema.int(), Schema.between(0, 99)), {
+    as: 'Option',
+  }),
+  position: Position,
+  proficiency: Proficiency,
 }) {}
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
@@ -52,6 +79,13 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
     HttpApiEndpoint.get('me', '/me')
       .addSuccess(CurrentUser)
       .addError(Unauthorized, { status: 401 })
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('completeProfile', '/profile')
+      .addSuccess(CurrentUser)
+      .addError(Unauthorized, { status: 401 })
+      .setPayload(CompleteProfileRequest)
       .middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

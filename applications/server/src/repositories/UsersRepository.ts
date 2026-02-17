@@ -1,5 +1,6 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
-import { User, type UserId } from '@sideline/domain/models/User';
+import { User, type UserId as UserIdType } from '@sideline/domain/models/User';
+import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
@@ -9,6 +10,10 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_access_token: Schema.String,
   discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
+
+const CompleteProfileInput = User.pipe(
+  Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
+);
 
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(
@@ -29,7 +34,9 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     ),
     Effect.let(
       'findById',
-      ({ repo }) => repo.findById as (id: UserId) => ReturnType<typeof repo.findById>,
+      ({ repo }) =>
+        (id: UserIdType) =>
+          repo.findById(id),
     ),
     Effect.let('upsertFromDiscord', ({ sql }) =>
       SqlSchema.single({
@@ -48,5 +55,26 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         `,
       }),
     ),
+    Effect.let('completeProfile', ({ sql }) =>
+      SqlSchema.single({
+        Request: CompleteProfileInput,
+        Result: User,
+        execute: (input) => sql`
+          UPDATE users SET
+            name = ${input.name},
+            birth_year = ${input.birth_year},
+            gender = ${input.gender},
+            jersey_number = ${input.jersey_number},
+            position = ${input.position},
+            proficiency = ${input.proficiency},
+            is_profile_complete = true,
+            updated_at = now()
+          WHERE id = ${input.id}
+          RETURNING *
+        `,
+      }),
+    ),
+    Bind.remove('sql'),
+    Bind.remove('repo'),
   ),
 }) {}

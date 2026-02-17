@@ -243,9 +243,11 @@ const findByDiscordId = SqlSchema.findOne({
 
 #### Repository Pattern
 
-Construct repositories by starting from `SqlClient.SqlClient.pipe(Effect.bindTo('sql'), ...)`. Use `Effect.bind` for effectful dependencies (like `Model.makeRepository`) and `Effect.let` for pure method definitions (like `SqlSchema` queries). Do **not** add a final `Effect.map` — the service type already constrains the public interface.
+Construct repositories by starting from `SqlClient.SqlClient.pipe(Effect.bindTo('sql'), ...)`. Use `Effect.bind` for effectful dependencies (like `Model.makeRepository`) and `Effect.let` for pure method definitions (like `SqlSchema` queries). End with `Bind.remove` (from `@sideline/effect-lib`) to strip internals (`sql`, `repo`) from the service type.
 
 ```typescript
+import { Bind } from '@sideline/effect-lib';
+
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(
     Effect.bindTo('sql'),
@@ -256,7 +258,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         idColumn: 'id',
       }),
     ),
-    Effect.let('findById', ({ repo }) => repo.findById),
+    Effect.let('findById', ({ repo }) => (id: UserId) => repo.findById(id)),
     Effect.let('findByDiscordId', ({ sql }) =>
       SqlSchema.findOne({
         Request: Schema.String,
@@ -264,6 +266,8 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
       }),
     ),
+    Bind.remove('sql'),
+    Bind.remove('repo'),
   ),
 }) {}
 ```
@@ -306,6 +310,9 @@ Internal packages use scoped aliases:
 
 - **Never use `Effect.gen(function* () {`** — instead use `Effect.Do.pipe(...)` with `Effect.bind` / `Effect.let` / `Effect.tap` for sequential operations
 - **Use `pipe`** for linear transformations and chaining
+- **Always use `Effect.asVoid`** instead of `Effect.map(() => undefined as undefined)`
+- **Never use `Effect.orDie`** or any other way of killing fibers — all errors must be handled gracefully
+- **Never cast types** (`as X`) and **never use `any`** — fix the types properly instead
 - **Avoid premature abstraction** - keep solutions simple
 - **Type narrow errors** - use discriminated unions for error types
 - **Document complex Effect chains** - explain the business logic, not the syntax
@@ -832,6 +839,8 @@ Stories, epics, and milestones keep the full lifecycle: `TODO → In Progress �
 ## Git Conventions
 
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers to commit messages.
+- **Never commit to or push to an old/existing feature branch** when working on a new story. Always create a fresh branch from `main`.
+- **After pushing a feature branch**, switch back to `main` (`git checkout main && git pull origin main`) so the working directory is always on the trunk between tasks.
 - Before every commit, run `pnpm format` to format/lint and `pnpm codegen` to regenerate any generated code. Stage any resulting changes before committing.
 - When fixing biome-fixable errors, always use `pnpm format`.
 - After every `git push`, check that CI pipelines pass (`gh run list`, `gh run view`). If a workflow fails, investigate the logs, fix the issue, and push again until all checks are green.

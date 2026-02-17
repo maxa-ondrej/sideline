@@ -2,6 +2,7 @@ import { SqlClient, SqlSchema } from '@effect/sql';
 import type { TeamId } from '@sideline/domain/models/Team';
 import { TeamMember } from '@sideline/domain/models/TeamMember';
 import type { UserId } from '@sideline/domain/models/User';
+import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class MembershipQuery extends Schema.Class<MembershipQuery>('MembershipQuery')({
@@ -47,6 +48,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           execute: (userId) => sql`SELECT * FROM team_members WHERE user_id = ${userId}`,
         }),
       ),
+      Bind.remove('sql'),
     ),
   },
 ) {

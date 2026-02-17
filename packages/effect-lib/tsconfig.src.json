@@ -1,7 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
   "include": ["src"],
-  "references": [{ "path": "../../packages/domain" }, { "path": "../../packages/effect-lib" }],
   "compilerOptions": {
     "types": ["node"],
     "outDir": "build/src",
