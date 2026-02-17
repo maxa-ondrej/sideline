@@ -61,3 +61,10 @@ gh run list --limit 1
 ```
 
 If the latest run is still in progress, wait and check again with `gh run watch`. If it fails, investigate the logs with `gh run view --log-failed`, fix the issue, and restart from step 3.
+
+### 7. Update Notion task statuses (if applicable)
+
+If the work being committed is associated with Notion tasks (e.g. from the `/work` skill or user-specified tasks), update statuses following the lifecycle in AGENTS.md:
+
+- **Pushing to a feature branch:** Move completed tasks to `In Review`. If no tasks for the parent story remain in `TODO` or `In Progress`, also move the story to `In Review`.
+- **Never** move anything to `Done` — that is done manually by the user.

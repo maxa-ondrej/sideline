@@ -49,9 +49,12 @@ Fetch the selected story page to get:
 
 Fetch each task to get its title, status, type, notes, and estimate.
 
-### 4. Update story status
+### 4. Update statuses to In Progress
 
-If the story is in TODO status, update it to **In Progress** using `notion-update-page`.
+If the story is in TODO status, update it to **In Progress** using `notion-update-page`. Also check and update parent entities:
+
+- If the parent **epic** is in TODO, move it to **In Progress**
+- If the parent **milestone** is in TODO, move it to **In Progress**
 
 ### 5. Present the work summary
 
@@ -74,14 +77,17 @@ After the plan is approved, work through each remaining task **in order**. For e
 1. Update the task status to **In Progress** in Notion using `notion-update-page`
 2. Implement the changes described in the plan
 3. Run `pnpm check` and `pnpm test` to verify the changes compile and pass tests
-4. Update the task status to **Done** in Notion
+
+Leave tasks in **In Progress** after implementation — the commit step handles pushing and moving them to **In Review**.
 
 If a task fails (tests break, types don't pass), fix the issue before moving on. If you cannot fix it, leave the task as In Progress and report the blocker to the user.
 
-### 8. Commit
+### 8. Commit and push to feature branch
 
-After all tasks are complete (or as many as possible), invoke the `/commit` skill to commit, push, and verify CI.
+After all tasks are complete (or as many as possible):
 
-### 9. Update story status
+1. Create a feature branch if not already on one (e.g. `feat/story-name`)
+2. Invoke the `/commit` skill to commit, push, and verify CI
+3. The commit skill will move tasks to **In Review** and cascade to the story if applicable
 
-If all tasks in the story are Done, update the story status to **In Review** in Notion.
+**Never push directly to `main`.** All work goes through feature branches and pull requests.

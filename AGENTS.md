@@ -801,7 +801,34 @@ Use the Notion MCP tools to query and update tasks:
 - `notion-update-page` — update task status, properties, or content
 - `notion-create-pages` — create new tasks in the Tasks database
 
-When starting work on a task, update its status to `In Progress`. When done, move it to `In Review` or `In Test` as appropriate.
+### Task Status Lifecycle
+
+All tasks start in `TODO`. Status transitions follow this flow:
+
+```
+TODO → In Progress → In Review → In Test → Done (manual only)
+```
+
+#### Starting work (`TODO` → `In Progress`)
+
+- Move the task to `In Progress` when you begin working on it.
+- If this is the **first task** being moved to `In Progress` for its parent story, also move the **story**, its parent **epic**, and the parent **milestone** to `In Progress`.
+
+#### Pushing work (`In Progress` → `In Review`)
+
+- Always push finished work to a **feature branch**, never directly to `main`.
+- Once pushed, move the task to `In Review`.
+- If **no tasks** for the parent story remain in `TODO` or `In Progress`, also move the **story** to `In Review`.
+
+#### After merge (`In Review` → `In Test`)
+
+- When the PR is merged into `main`, move the task(s) included in the PR to `In Test`.
+- If **all tasks** of a story are now in `In Test`, also move the **story** to `In Test`.
+- If **all stories** of an epic are in `In Test` or `Done`, move the **epic** to `In Review`.
+
+#### Done (manual only)
+
+- **Never** move tasks, stories, epics, or milestones to `Done`/`Completed`. That is done manually by the user.
 
 ## Git Conventions
 
