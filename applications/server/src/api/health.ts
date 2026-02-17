@@ -1,5 +1,6 @@
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
 import { AuthApiGroup } from '@sideline/domain/api/Auth';
+import { InviteApiGroup } from '@sideline/domain/api/Invite';
 import { Effect, Schema } from 'effect';
 
 export class HealthApiGroup extends HttpApiGroup.make('health').add(
@@ -8,7 +9,10 @@ export class HealthApiGroup extends HttpApiGroup.make('health').add(
   ),
 ) {}
 
-export class Api extends HttpApi.make('api').add(HealthApiGroup).add(AuthApiGroup) {}
+export class Api extends HttpApi.make('api')
+  .add(HealthApiGroup)
+  .add(AuthApiGroup)
+  .add(InviteApiGroup) {}
 
 export const HealthApiLive = HttpApiBuilder.group(Api, 'health', (handlers) =>
   Effect.succeed(handlers.handle('healthCheck', () => Effect.succeed({ status: 'ok' as const }))),

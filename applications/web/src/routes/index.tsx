@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Schema } from 'effect';
 import React from 'react';
-import { finishLogin, getLogin, logout } from '../lib/auth';
+import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '../lib/auth';
 
 const reasonMessages: Record<string, string> = {
   access_denied: 'You denied the Discord authorization request.',
@@ -24,6 +24,11 @@ export const Route = createFileRoute('/')({
   beforeLoad: async ({ search }) => {
     if (search.token) {
       finishLogin(search.token);
+      const pendingInvite = getPendingInvite();
+      if (pendingInvite) {
+        clearPendingInvite();
+        throw redirect({ to: '/invite/$code', params: { code: pendingInvite } });
+      }
       throw redirect({ to: '/dashboard' });
     }
   },

@@ -18,6 +18,20 @@ export const logout = () => {
   window.localStorage.removeItem(TOKEN);
 };
 
+const PENDING_INVITE = 'pending-invite';
+
+export const setPendingInvite = (code: string) => {
+  window.localStorage.setItem(PENDING_INVITE, code);
+};
+
+export const getPendingInvite = (): string | null => {
+  return window.localStorage.getItem(PENDING_INVITE);
+};
+
+export const clearPendingInvite = () => {
+  window.localStorage.removeItem(PENDING_INVITE);
+};
+
 export const getCurrentUser = ApiClient.pipe(
   Effect.flatMap((api) => api.auth.me()),
   Effect.catchTag('Unauthorized', () => Effect.succeed(null)),

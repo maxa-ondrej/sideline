@@ -29,6 +29,7 @@ export const AuthMiddlewareLive = Layer.effect(
                             discordId: user.discord_id,
                             discordUsername: user.discord_username,
                             discordAvatar: user.discord_avatar,
+                            isProfileComplete: user.is_profile_complete,
                           }),
                         ),
                     }),

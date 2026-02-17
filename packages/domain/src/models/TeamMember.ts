@@ -1,0 +1,18 @@
+import { Model } from '@effect/sql';
+import { Schema } from 'effect';
+import { TeamId } from './Team.js';
+import { UserId } from './User.js';
+
+export const TeamMemberId = Schema.String.pipe(Schema.brand('TeamMemberId'));
+export type TeamMemberId = typeof TeamMemberId.Type;
+
+export const TeamRole = Schema.Literal('admin', 'member');
+export type TeamRole = typeof TeamRole.Type;
+
+export class TeamMember extends Model.Class<TeamMember>('TeamMember')({
+  id: Model.Generated(TeamMemberId),
+  team_id: TeamId,
+  user_id: UserId,
+  role: TeamRole,
+  joined_at: Model.DateTimeInsertFromDate,
+}) {}

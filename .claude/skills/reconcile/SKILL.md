@@ -34,29 +34,44 @@ For each story in the sprint:
 
 Build a map of: `story → [tasks]` with statuses for each.
 
-### 3. Check merged PRs
+### 3. Check local work in progress
+
+Run `git status` and `git diff --stat` to check for uncommitted local changes. If changes exist, match them to sprint tasks by examining which files were modified and what they relate to. Any matching tasks still in `TODO` should be marked for `In Progress`.
+
+Also check for open (unmerged) feature branches with `gh pr list --state open --json number,title,headRefName` and `git branch --list 'feat/*' --list 'fix/*' --list 'docs/*'`. Match open branches/PRs to tasks — any matching tasks still in `TODO` should be marked for `In Progress`.
+
+### 4. Check merged PRs
 
 Run `gh pr list --state merged --base main --limit 50 --json number,title,mergedAt,headRefName` to find recently merged PRs.
 
-### 4. Apply lifecycle rules
+### 5. Apply lifecycle rules
+
+Tasks have a simplified lifecycle: `TODO → In Progress → Done`. Stories, epics, and milestones keep the full lifecycle.
 
 Walk through each story and its tasks, applying these rules **in order**. Collect all needed updates, then report them before making changes.
 
-#### Rule 1: In Review → In Test (after merge)
+#### Rule 0: Task TODO → In Progress (local work detected)
 
-For each task in `In Review`:
-- Check if its feature branch has been merged (match branch name or PR title to task/story)
-- If merged, mark the task for `In Test`
+For each task matched in step 3:
+- If the task is in `TODO`, mark it for `In Progress`
+- Apply Rule 5 (cascade In Progress) for its parent story/epic/milestone
 
-#### Rule 2: Story → In Test
+#### Rule 1: Task In Progress → Done (work pushed)
 
-For each story where **all tasks** are in `In Test` or `Done`:
-- If the story is not already in `In Test` or `Done`, mark it for `In Test`
+For each task in `In Progress`:
+- Check if its work has been pushed to a feature branch (match branch name or PR title to task/story)
+- If pushed, mark the task for `Done`
 
-#### Rule 3: Story → In Review
+#### Rule 2: Story → In Review
 
-For each story where **no tasks** remain in `TODO` or `In Progress`:
-- If the story is still in `In Progress`, mark it for `In Review`
+For each story where **all tasks** are `Done`:
+- If the story is not already in `In Review`, `In Test`, or `Done`, mark it for `In Review`
+
+#### Rule 3: Story → In Test (after merge)
+
+For each story in `In Review`:
+- Check if its feature branch PR has been merged into `main`
+- If merged, mark the story for `In Test`
 
 #### Rule 4: Epic → In Review
 
@@ -70,26 +85,27 @@ For each story in `In Progress`:
 - If parent epic is in `TODO`, mark it for `In Progress`
 - If parent milestone is in `TODO`, mark it for `In Progress`
 
-### 5. Report proposed changes
+### 6. Report proposed changes
 
 Present all proposed status changes to the user in a table:
 
 ```
 | Entity       | Current Status | New Status  | Reason                     |
 |--------------|---------------|-------------|----------------------------|
-| Task: ...    | In Review     | In Test     | PR #42 merged              |
-| Story: ...   | In Progress   | In Review   | No tasks in TODO/Progress  |
+| Task: ...    | In Progress   | Done        | Work pushed in feat/branch |
+| Story: ...   | In Progress   | In Review   | All tasks Done             |
+| Story: ...   | In Review     | In Test     | PR #42 merged              |
 | Epic: ...    | In Progress   | In Review   | All stories in Test/Done   |
 ```
 
 If no changes are needed, tell the user everything is in sync and stop.
 
-### 6. Apply changes
+### 7. Apply changes
 
 After the user confirms (or if no ambiguity exists), apply all updates via `notion-update-page`.
 
 **Never** move anything to `Done` — that is done manually by the user.
 
-### 7. Summary
+### 8. Summary
 
 Report what was updated and the final state of the sprint.

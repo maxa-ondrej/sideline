@@ -5,6 +5,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '../src/api/index.js';
 import { AuthMiddlewareLive } from '../src/middleware/AuthMiddlewareLive.js';
 import { SessionsRepository } from '../src/repositories/SessionsRepository.js';
+import { TeamInvitesRepository } from '../src/repositories/TeamInvitesRepository.js';
+import { TeamMembersRepository } from '../src/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '../src/repositories/TeamsRepository.js';
 import { UsersRepository } from '../src/repositories/UsersRepository.js';
 import { DiscordOAuth, DiscordOAuthError } from '../src/services/DiscordOAuth.js';
 
@@ -18,6 +21,7 @@ const testUser = {
   discord_avatar: null,
   discord_access_token: 'token',
   discord_refresh_token: null,
+  is_profile_complete: false,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
 };
@@ -98,12 +102,35 @@ const MockHttpClientLayer = Layer.succeed(
   ),
 );
 
+const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
+  findById: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die('not implemented'),
+} as any);
+
+const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
+  addMember: () => Effect.die('not implemented'),
+  findMembership: () => Effect.succeed(Option.none()),
+  findMembershipByIds: () => Effect.succeed(Option.none()),
+  findByTeam: () => Effect.succeed([]),
+  findByUser: () => Effect.succeed([]),
+} as any);
+
+const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
+  findByCode: () => Effect.succeed(Option.none()),
+  findByTeam: () => Effect.succeed([]),
+  create: () => Effect.die('not implemented'),
+  deactivateByTeam: () => Effect.succeed(undefined as undefined),
+} as any);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
   Layer.provide(MockDiscordOAuthLayer),
   Layer.provide(MockUsersRepositoryLayer),
   Layer.provide(MockSessionsRepositoryLayer),
+  Layer.provide(MockTeamsRepositoryLayer),
+  Layer.provide(MockTeamMembersRepositoryLayer),
+  Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
 );
 

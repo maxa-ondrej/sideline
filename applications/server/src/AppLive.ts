@@ -9,6 +9,9 @@ import { Layer } from 'effect';
 import { ApiLive } from './api/index.js';
 import { AuthMiddlewareLive } from './middleware/AuthMiddlewareLive.js';
 import { SessionsRepository } from './repositories/SessionsRepository.js';
+import { TeamInvitesRepository } from './repositories/TeamInvitesRepository.js';
+import { TeamMembersRepository } from './repositories/TeamMembersRepository.js';
+import { TeamsRepository } from './repositories/TeamsRepository.js';
 import { UsersRepository } from './repositories/UsersRepository.js';
 import { DiscordOAuth } from './services/DiscordOAuth.js';
 
@@ -21,6 +24,9 @@ export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(AuthMiddlewareLive),
   Layer.provide(UsersRepository.Default),
   Layer.provide(SessionsRepository.Default),
+  Layer.provide(TeamsRepository.Default),
+  Layer.provide(TeamMembersRepository.Default),
+  Layer.provide(TeamInvitesRepository.Default),
   Layer.provide(DiscordOAuth.Default),
   Layer.provide(FetchHttpClient.layer),
 );

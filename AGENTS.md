@@ -785,7 +785,7 @@ Milestone → Epic → Story → Task
 ### Task Properties
 
 - **Task** (title) — name of the task
-- **Status** — `TODO` | `In Progress` | `In Review` | `In Test` | `Done`
+- **Status** — `TODO` | `In Progress` | `Done`
 - **Type** — `🛠️ Feature` | `🐛 Bug` | `📐 Design` | `🧪 Test` | `📝 Docs` | `⚙️ DevOps` | `🔄 Refactor`
 - **Story** — relation to Stories database
 - **Version** — `v1` | `v2`
@@ -803,37 +803,37 @@ Use the Notion MCP tools to query and update tasks:
 
 ### Task Status Lifecycle
 
-All tasks start in `TODO`. Status transitions follow this flow:
+Tasks are subtasks of stories and have a simplified three-state lifecycle:
 
 ```
-TODO → In Progress → In Review → In Test → Done (manual only)
+TODO → In Progress → Done
 ```
+
+Stories, epics, and milestones keep the full lifecycle: `TODO → In Progress → In Review → In Test → Done`.
 
 #### Starting work (`TODO` → `In Progress`)
 
-- Move the task to `In Progress` when you begin working on it.
+- Move the task to `In Progress` **immediately** when you begin working on it — including during planning, not just coding.
 - If this is the **first task** being moved to `In Progress` for its parent story, also move the **story**, its parent **epic**, and the parent **milestone** to `In Progress`.
 
-#### Pushing work (`In Progress` → `In Review`)
+#### Finishing work (`In Progress` → `Done`)
 
 - Always push finished work to a **feature branch**, never directly to `main`.
-- Once pushed, move the task to `In Review`.
-- If **no tasks** for the parent story remain in `TODO` or `In Progress`, also move the **story** to `In Review`.
+- After pushing, **wait for CI checks to pass**. Only move the task to `Done` once checks are green.
+- If **all tasks** for the parent story are `Done`, move the **story** to `In Review` (the PR is ready for review).
 
-#### After merge (`In Review` → `In Test`)
+#### Story lifecycle (cascades from tasks)
 
-- When the PR is merged into `main`, move the task(s) included in the PR to `In Test`.
-- If **all tasks** of a story are now in `In Test`, also move the **story** to `In Test`.
-- If **all stories** of an epic are in `In Test` or `Done`, move the **epic** to `In Review`.
-
-#### Done (manual only)
-
-- **Never** move tasks, stories, epics, or milestones to `Done`/`Completed`. That is done manually by the user.
+- **Story → In Review**: all tasks are `Done` (PR open, ready for review).
+- **Story → In Test**: PR merged into `main`.
+- **Epic → In Review**: all stories are in `In Test` or `Done`.
+- **Never** move stories, epics, or milestones to `Done`/`Completed`. That is done manually by the user.
 
 ## Git Conventions
 
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers to commit messages.
-- Before every commit, run `pnpm biome:fix` to format/lint and `pnpm codegen` to regenerate any generated code. Stage any resulting changes before committing.
+- Before every commit, run `pnpm format` to format/lint and `pnpm codegen` to regenerate any generated code. Stage any resulting changes before committing.
+- When fixing biome-fixable errors, always use `pnpm format`.
 - After every `git push`, check that CI pipelines pass (`gh run list`, `gh run view`). If a workflow fails, investigate the logs, fix the issue, and push again until all checks are green.
 
 ## Documentation Conventions
@@ -842,6 +842,6 @@ TODO → In Progress → In Review → In Test → Done (manual only)
 
 ---
 
-**Last Updated**: 2026-02-14
+**Last Updated**: 2026-02-17
 
 When working on this codebase, prioritize type safety, composability, and Effect's functional patterns. Keep implementations simple and focused on the task at hand. Leverage Effect's powerful abstractions for error handling, resource management, and dependency injection.

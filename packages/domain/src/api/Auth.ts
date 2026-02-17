@@ -15,6 +15,7 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   discordId: Schema.String,
   discordUsername: Schema.String,
   discordAvatar: Schema.NullOr(Schema.String),
+  isProfileComplete: Schema.Boolean,
 }) {}
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
