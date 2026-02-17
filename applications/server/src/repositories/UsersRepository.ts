@@ -10,15 +10,8 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
 
-const CompleteProfileInput = Schema.pick(
-  User,
-  'id',
-  'name',
-  'birth_year',
-  'gender',
-  'jersey_number',
-  'position',
-  'proficiency',
+const CompleteProfileInput = User.pipe(
+  Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
 );
 
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
