@@ -16,6 +16,25 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   discordUsername: Schema.String,
   discordAvatar: Schema.NullOr(Schema.String),
   isProfileComplete: Schema.Boolean,
+  name: Schema.NullOr(Schema.String),
+  birthYear: Schema.NullOr(Schema.Number),
+  gender: Schema.NullOr(Schema.String),
+  jerseyNumber: Schema.NullOr(Schema.Number),
+  position: Schema.NullOr(Schema.String),
+  proficiency: Schema.NullOr(Schema.String),
+}) {}
+
+export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
+  'CompleteProfileRequest',
+)({
+  name: Schema.String,
+  birthYear: Schema.Number.pipe(Schema.int(), Schema.between(1900, 2020)),
+  gender: Schema.Literal('male', 'female', 'other'),
+  jerseyNumber: Schema.optionalWith(Schema.Number.pipe(Schema.int(), Schema.between(0, 99)), {
+    as: 'Option',
+  }),
+  position: Schema.Literal('goalkeeper', 'defender', 'midfielder', 'forward'),
+  proficiency: Schema.Literal('beginner', 'intermediate', 'advanced', 'pro'),
 }) {}
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
@@ -52,6 +71,13 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
     HttpApiEndpoint.get('me', '/me')
       .addSuccess(CurrentUser)
       .addError(Unauthorized, { status: 401 })
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('completeProfile', '/profile')
+      .addSuccess(CurrentUser)
+      .addError(Unauthorized, { status: 401 })
+      .setPayload(CompleteProfileRequest)
       .middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

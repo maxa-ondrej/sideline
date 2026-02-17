@@ -10,6 +10,16 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
 
+const CompleteProfileInput = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  birth_year: Schema.Number,
+  gender: Schema.String,
+  jersey_number: Schema.NullOr(Schema.Number),
+  position: Schema.String,
+  proficiency: Schema.String,
+});
+
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(
     Effect.bindTo('sql'),
@@ -44,6 +54,25 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
             discord_access_token = ${input.discord_access_token},
             discord_refresh_token = ${input.discord_refresh_token},
             updated_at = now()
+          RETURNING *
+        `,
+      }),
+    ),
+    Effect.let('completeProfile', ({ sql }) =>
+      SqlSchema.single({
+        Request: CompleteProfileInput,
+        Result: User,
+        execute: (input) => sql`
+          UPDATE users SET
+            name = ${input.name},
+            birth_year = ${input.birth_year},
+            gender = ${input.gender},
+            jersey_number = ${input.jersey_number},
+            position = ${input.position},
+            proficiency = ${input.proficiency},
+            is_profile_complete = true,
+            updated_at = now()
+          WHERE id = ${input.id}
           RETURNING *
         `,
       }),

@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { CurrentUserContext } from '@sideline/domain/api/Auth';
+import { CurrentUser, CurrentUserContext } from '@sideline/domain/api/Auth';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
 import { DateTime, Effect, Option, pipe, Redacted } from 'effect';
 import { env } from '../env.js';
@@ -93,7 +93,41 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.map(Redirect.toResponse),
           ),
         )
-        .handle('me', () => CurrentUserContext),
+        .handle('me', () => CurrentUserContext)
+        .handle('completeProfile', ({ payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => CurrentUserContext),
+            Effect.bind('updated', ({ currentUser }) =>
+              users
+                .completeProfile({
+                  id: currentUser.id,
+                  name: payload.name,
+                  birth_year: payload.birthYear,
+                  gender: payload.gender,
+                  jersey_number: Option.getOrNull(payload.jerseyNumber),
+                  position: payload.position,
+                  proficiency: payload.proficiency,
+                })
+                .pipe(Effect.orDie),
+            ),
+            Effect.map(
+              ({ updated }) =>
+                new CurrentUser({
+                  id: updated.id,
+                  discordId: updated.discord_id,
+                  discordUsername: updated.discord_username,
+                  discordAvatar: updated.discord_avatar,
+                  isProfileComplete: updated.is_profile_complete,
+                  name: updated.name,
+                  birthYear: updated.birth_year,
+                  gender: updated.gender,
+                  jerseyNumber: updated.jersey_number,
+                  position: updated.position,
+                  proficiency: updated.proficiency,
+                }),
+            ),
+          ),
+        ),
     ),
   ),
 );

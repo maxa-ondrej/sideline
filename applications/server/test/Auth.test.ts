@@ -22,6 +22,12 @@ const testUser = {
   discord_access_token: 'token',
   discord_refresh_token: null,
   is_profile_complete: false,
+  name: null,
+  birth_year: null,
+  gender: null,
+  jersey_number: null,
+  position: null,
+  proficiency: null,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
 };
