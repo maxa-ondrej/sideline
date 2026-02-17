@@ -2,6 +2,7 @@
   "extends": "./tsconfig.src.json",
   "references": [
     { "path": "../../packages/domain/tsconfig.build.json" },
+    { "path": "../../packages/effect-lib/tsconfig.build.json" },
     { "path": "../../packages/migrations/tsconfig.build.json" }
   ],
   "compilerOptions": {
