@@ -10,15 +10,16 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
 
-const CompleteProfileInput = Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  birth_year: Schema.Number,
-  gender: Schema.String,
-  jersey_number: Schema.NullOr(Schema.Number),
-  position: Schema.String,
-  proficiency: Schema.String,
-});
+const CompleteProfileInput = Schema.pick(
+  User,
+  'id',
+  'name',
+  'birth_year',
+  'gender',
+  'jersey_number',
+  'position',
+  'proficiency',
+);
 
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(

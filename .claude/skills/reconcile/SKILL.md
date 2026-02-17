@@ -104,7 +104,7 @@ If no changes are needed, tell the user everything is in sync and stop.
 
 After the user confirms (or if no ambiguity exists), apply all updates via `notion-update-page`.
 
-**Never** move anything to `Done` — that is done manually by the user.
+Only move *tasks* to `Done` automatically (per the lifecycle rules). Do **not** move stories, epics, or milestones to `Done` — those are set manually by the user.
 
 ### 8. Summary
 
