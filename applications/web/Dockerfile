@@ -13,7 +13,6 @@ FROM deps AS build
 COPY packages/ /app/packages/
 COPY applications/web/ applications/web/
 COPY tsconfig.* /app/
-ARG VITE_SERVER_URL
 RUN pnpm codegen && pnpm build
 
 FROM base AS production
@@ -25,6 +24,8 @@ COPY applications/web/package.json applications/web/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/applications/web/.output applications/web/.output
 
+ENV VITE_SERVER_URL
+
 EXPOSE 3000
 
-CMD ["node", "applications/web/.output/server/index.mjs"]
+CMD ["VITE_SERVER_URL=$VITE_SERVER_URL", "node", "applications/web/.output/server/index.mjs"]
