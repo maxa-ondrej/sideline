@@ -25,7 +25,5 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/applications/server/build/esm applications/server/build
 
 EXPOSE 3001
-HEALTHCHECK --interval=5m --timeout=3s \
-  CMD curl -f http://localhost:3001/health || exit 1
 
 CMD ["node", "applications/server/build/run.js"]
