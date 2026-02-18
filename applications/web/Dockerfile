@@ -24,7 +24,7 @@ COPY applications/web/package.json applications/web/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/applications/web/.output applications/web/.output
 
-ENV VITE_SERVER_URL
+ENV VITE_SERVER_URL=""
 
 EXPOSE 3000
 
