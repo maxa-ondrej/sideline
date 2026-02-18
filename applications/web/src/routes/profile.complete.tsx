@@ -2,6 +2,7 @@ import { MIN_AGE } from '@sideline/domain/api/Auth';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -13,6 +14,7 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { ApiClient, ClientError, runPromise } from '../lib/runtime';
+import * as m from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/profile/complete')({
   component: ProfileComplete,
@@ -31,26 +33,6 @@ const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - MIN_AGE;
 const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
-const genderOptions = [
-  { value: 'male', label: 'Male' },
-  { value: 'female', label: 'Female' },
-  { value: 'other', label: 'Other' },
-] as const;
-
-const positionOptions = [
-  { value: 'goalkeeper', label: 'Goalkeeper' },
-  { value: 'defender', label: 'Defender' },
-  { value: 'midfielder', label: 'Midfielder' },
-  { value: 'forward', label: 'Forward' },
-] as const;
-
-const proficiencyOptions = [
-  { value: 'beginner', label: 'Beginner' },
-  { value: 'intermediate', label: 'Intermediate' },
-  { value: 'advanced', label: 'Advanced' },
-  { value: 'pro', label: 'Pro' },
-] as const;
-
 function ProfileComplete() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
@@ -63,6 +45,26 @@ function ProfileComplete() {
   const [proficiency, setProficiency] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  const genderOptions = [
+    { value: 'male', label: m.profile_complete_genderMale() },
+    { value: 'female', label: m.profile_complete_genderFemale() },
+    { value: 'other', label: m.profile_complete_genderOther() },
+  ];
+
+  const positionOptions = [
+    { value: 'goalkeeper', label: m.profile_complete_positionGoalkeeper() },
+    { value: 'defender', label: m.profile_complete_positionDefender() },
+    { value: 'midfielder', label: m.profile_complete_positionMidfielder() },
+    { value: 'forward', label: m.profile_complete_positionForward() },
+  ];
+
+  const proficiencyOptions = [
+    { value: 'beginner', label: m.profile_complete_proficiencyBeginner() },
+    { value: 'intermediate', label: m.profile_complete_proficiencyIntermediate() },
+    { value: 'advanced', label: m.profile_complete_proficiencyAdvanced() },
+    { value: 'pro', label: m.profile_complete_proficiencyPro() },
+  ];
 
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent) => {
@@ -82,15 +84,14 @@ function ProfileComplete() {
       try {
         await ApiClient.pipe(
           Effect.flatMap((api) => api.auth.completeProfile({ payload: payload as any })),
-
           Effect.catchAll(() =>
-            Effect.fail(new ClientError({ message: 'Failed to save profile.' })),
+            Effect.fail(new ClientError({ message: m.profile_complete_saveFailed() })),
           ),
           runPromise(),
         );
         navigate({ to: '/dashboard' });
       } catch (err) {
-        setError(err instanceof ClientError ? err.message : 'Failed to save profile.');
+        setError(err instanceof ClientError ? err.message : m.profile_complete_saveFailed());
         setSubmitting(false);
       }
     },
@@ -106,8 +107,13 @@ function ProfileComplete() {
 
   return (
     <div className='mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-8'>
-      <h1 className='mb-2 text-2xl font-bold'>Complete Your Profile</h1>
-      <p className='text-muted-foreground mb-6 text-sm'>Fill in your details to get started.</p>
+      <div className='mb-6 flex items-center justify-between'>
+        <div>
+          <h1 className='mb-2 text-2xl font-bold'>{m.profile_complete_title()}</h1>
+          <p className='text-muted-foreground text-sm'>{m.profile_complete_subtitle()}</p>
+        </div>
+        <LanguageSwitcher isAuthenticated={!!user} />
+      </div>
 
       {error && (
         <div className='bg-destructive/10 text-destructive mb-4 rounded-md p-3 text-sm'>
@@ -117,21 +123,21 @@ function ProfileComplete() {
 
       <form onSubmit={handleSubmit} className='flex flex-col gap-4'>
         <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='name'>Display Name</Label>
+          <Label htmlFor='name'>{m.profile_complete_displayName()}</Label>
           <Input
             id='name'
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder='Your name'
+            placeholder={m.profile_complete_displayNamePlaceholder()}
             required
           />
         </div>
 
         <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='birthYear'>Birth Year</Label>
+          <Label htmlFor='birthYear'>{m.profile_complete_birthYear()}</Label>
           <Select value={birthYear} onValueChange={setBirthYear}>
             <SelectTrigger id='birthYear' className='w-full'>
-              <SelectValue placeholder='Select year' />
+              <SelectValue placeholder={m.profile_complete_birthYearPlaceholder()} />
             </SelectTrigger>
             <SelectContent>
               {birthYears.map((year) => (
@@ -144,10 +150,10 @@ function ProfileComplete() {
         </div>
 
         <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='gender'>Gender</Label>
+          <Label htmlFor='gender'>{m.profile_complete_gender()}</Label>
           <Select value={gender} onValueChange={setGender}>
             <SelectTrigger id='gender' className='w-full'>
-              <SelectValue placeholder='Select gender' />
+              <SelectValue placeholder={m.profile_complete_genderPlaceholder()} />
             </SelectTrigger>
             <SelectContent>
               {genderOptions.map((opt) => (
@@ -160,7 +166,7 @@ function ProfileComplete() {
         </div>
 
         <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='jerseyNumber'>Jersey Number (optional)</Label>
+          <Label htmlFor='jerseyNumber'>{m.profile_complete_jerseyNumber()}</Label>
           <Input
             id='jerseyNumber'
             type='number'
@@ -168,15 +174,15 @@ function ProfileComplete() {
             max={99}
             value={jerseyNumber}
             onChange={(e) => setJerseyNumber(e.target.value)}
-            placeholder='0-99'
+            placeholder={m.profile_complete_jerseyNumberPlaceholder()}
           />
         </div>
 
         <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='position'>Position</Label>
+          <Label htmlFor='position'>{m.profile_complete_position()}</Label>
           <Select value={position} onValueChange={setPosition}>
             <SelectTrigger id='position' className='w-full'>
-              <SelectValue placeholder='Select position' />
+              <SelectValue placeholder={m.profile_complete_positionPlaceholder()} />
             </SelectTrigger>
             <SelectContent>
               {positionOptions.map((opt) => (
@@ -189,10 +195,10 @@ function ProfileComplete() {
         </div>
 
         <div className='flex flex-col gap-1.5'>
-          <Label htmlFor='proficiency'>Skill Level</Label>
+          <Label htmlFor='proficiency'>{m.profile_complete_proficiency()}</Label>
           <Select value={proficiency} onValueChange={setProficiency}>
             <SelectTrigger id='proficiency' className='w-full'>
-              <SelectValue placeholder='Select skill level' />
+              <SelectValue placeholder={m.profile_complete_proficiencyPlaceholder()} />
             </SelectTrigger>
             <SelectContent>
               {proficiencyOptions.map((opt) => (
@@ -205,7 +211,7 @@ function ProfileComplete() {
         </div>
 
         <Button type='submit' disabled={!isValid || submitting} className='mt-2'>
-          {submitting ? 'Saving...' : 'Complete Profile'}
+          {submitting ? m.profile_complete_saving() : m.profile_complete_submit()}
         </Button>
       </form>
     </div>

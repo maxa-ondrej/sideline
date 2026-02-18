@@ -1,5 +1,11 @@
 import { createServer } from 'node:http';
-import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
+import {
+  HttpApi,
+  HttpApiBuilder,
+  HttpApiEndpoint,
+  HttpApiGroup,
+  HttpServer,
+} from '@effect/platform';
 import { NodeHttpServer } from '@effect/platform-node';
 import { Effect, Layer, Schema } from 'effect';
 
@@ -18,5 +24,6 @@ const HealthApiLive = HttpApiBuilder.group(BotHealthApi, 'health', (handlers) =>
 export const HealthServerLive = HttpApiBuilder.serve().pipe(
   Layer.provide(HttpApiBuilder.api(BotHealthApi)),
   Layer.provide(HealthApiLive),
-  Layer.provide(NodeHttpServer.layer(createServer, { port: 3001 })),
+  HttpServer.withLogAddress,
+  Layer.provide(NodeHttpServer.layer(createServer, { port: 3002 })),
 );

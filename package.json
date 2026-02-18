@@ -5,6 +5,7 @@
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "codegen": "pnpm --recursive --parallel run codegen && biome check --write packages/*/src/index.ts applications/*/src/index.ts",
+    "dev": "pnpm --parallel dev",
     "build": "pnpm --parallel --filter './packages/**' build && pnpm --parallel --filter './applications/**' build",
     "check": "tsc -b tsconfig.json",
     "lint": "biome check .",
@@ -39,6 +40,7 @@
     "glob": "^11.1.0",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
+    "tsc-watch": "^6.2.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "vitest": "3.2.4"

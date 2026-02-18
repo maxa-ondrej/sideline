@@ -6,6 +6,7 @@ import { Effect } from 'effect';
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools';
 import { getCurrentUser } from '../lib/auth';
 import { ClientError, runPromise } from '../lib/runtime';
+import { getLocale, setLocale } from '../paraglide/runtime.js';
 import appCss from '../styles.css?url';
 
 interface MyRouterContext {
@@ -23,7 +24,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'TanStack Start Starter',
+        title: 'Sideline',
       },
     ],
     links: [
@@ -38,12 +39,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   beforeLoad: async ({ abortController }) =>
     Effect.Do.pipe(
       Effect.bind('user', () => getCurrentUser),
+      Effect.tap(({ user }) => {
+        if (user) {
+          setLocale(user.locale);
+        }
+        return Effect.void;
+      }),
       Effect.map(({ user }) => ({
         user: user
           ? {
               id: user.id,
               username: user.discordUsername,
               isProfileComplete: user.isProfileComplete,
+              locale: user.locale,
             }
           : null,
       })),
@@ -53,8 +61,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const locale = getLocale();
+
   return (
-    <html lang='en'>
+    <html lang={locale}>
       <head>
         <HeadContent />
       </head>

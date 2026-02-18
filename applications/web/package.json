@@ -7,11 +7,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "codegen": "tsr generate"
+    "codegen": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && tsr generate"
   },
   "dependencies": {
     "@effect/platform": "0.94.5",
     "@faker-js/faker": "10.0.0",
+    "@inlang/paraglide-js": "^2.12.0",
     "@sideline/domain": "0.0.0",
     "@t3-oss/env-core": "0.13.8",
     "@tailwindcss/vite": "4.1.18",

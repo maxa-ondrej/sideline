@@ -6,7 +6,7 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
-import { Gender, Position, Proficiency, UserId } from '../models/User.js';
+import { Gender, Locale, Position, Proficiency, UserId } from '../models/User.js';
 
 export { UserId } from '../models/User.js';
 
@@ -24,6 +24,11 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   jerseyNumber: Schema.NullOr(Schema.Number),
   position: Schema.NullOr(Position),
   proficiency: Schema.NullOr(Proficiency),
+  locale: Locale,
+}) {}
+
+export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('UpdateLocaleRequest')({
+  locale: Locale,
 }) {}
 
 export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
@@ -86,6 +91,13 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
       .addSuccess(CurrentUser)
       .addError(Unauthorized, { status: 401 })
       .setPayload(CompleteProfileRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.patch('updateLocale', '/me/locale')
+      .addSuccess(CurrentUser)
+      .addError(Unauthorized, { status: 401 })
+      .setPayload(UpdateLocaleRequest)
       .middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

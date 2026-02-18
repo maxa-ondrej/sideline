@@ -1,5 +1,5 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
-import { User, type UserId as UserIdType } from '@sideline/domain/models/User';
+import { Locale, User, UserId, type UserId as UserIdType } from '@sideline/domain/models/User';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -68,6 +68,19 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
             position = ${input.position},
             proficiency = ${input.proficiency},
             is_profile_complete = true,
+            updated_at = now()
+          WHERE id = ${input.id}
+          RETURNING *
+        `,
+      }),
+    ),
+    Effect.let('updateLocale', ({ sql }) =>
+      SqlSchema.single({
+        Request: Schema.Struct({ id: UserId, locale: Locale }),
+        Result: User,
+        execute: (input) => sql`
+          UPDATE users SET
+            locale = ${input.locale},
             updated_at = now()
           WHERE id = ${input.id}
           RETURNING *

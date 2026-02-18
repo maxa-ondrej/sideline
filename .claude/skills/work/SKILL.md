@@ -51,12 +51,14 @@ Fetch each task to get its title, status, type, notes, and estimate.
 
 ### 4. Update statuses to In Progress
 
-Update task and parent statuses **immediately** when starting work — including during planning, not just coding.
+Update **ALL** statuses **immediately** when starting work — including during planning, not just coding.
 
-If the story is in TODO status, update it to **In Progress** using `notion-update-page`. Also check and update parent entities:
+1. Move **every task** in the story from `TODO` → `In Progress` using `notion-update-page`
+2. Move the **story** from `TODO` → `In Progress`
+3. If the parent **epic** is in `TODO` or `Not Started`, move it to `In Progress`
+4. If the parent **milestone** is in `TODO` or `Not Started`, move it to `In Progress`
 
-- If the parent **epic** is in TODO, move it to **In Progress**
-- If the parent **milestone** is in TODO, move it to **In Progress**
+**Do not skip updating tasks.** All tasks must be marked In Progress before proceeding to the next step.
 
 ### 5. Present the work summary
 

@@ -36,6 +36,7 @@ export const AuthMiddlewareLive = Layer.effect(
                             jerseyNumber: user.jersey_number,
                             position: user.position,
                             proficiency: user.proficiency,
+                            locale: user.locale,
                           }),
                         ),
                     }),

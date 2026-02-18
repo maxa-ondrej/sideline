@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
-    "preview": "node build/esm/server.js",
+    "dev": "tsx watch src/run.ts",
+    "preview": "node build/esm/run.js",
     "check": "tsc -b tsconfig.json",
     "test": "vitest",
     "coverage": "vitest --coverage"
