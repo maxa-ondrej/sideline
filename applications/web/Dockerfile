@@ -28,4 +28,4 @@ ENV VITE_SERVER_URL=""
 
 EXPOSE 3000
 
-CMD ["VITE_SERVER_URL=$VITE_SERVER_URL", "node", "applications/web/.output/server/index.mjs"]
+CMD ["bash", "-c", "node -e 'console.log(process.env.VITE_SERVER_URL)'; node applications/web/.output/server/index.mjs"]
