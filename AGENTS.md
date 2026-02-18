@@ -881,7 +881,8 @@ Parameterized strings use `{variable}` syntax: `"auth_signedInAs": "Signed in as
    // or: import { m } from '../paraglide/messages.js';
    <p>{m.my_new_key({ param: value })}</p>
    ```
-4. The Vite plugin regenerates types on save — IDE autocomplete works immediately
+4. Run `pnpm codegen` (from `applications/web/` or repo root) before committing — the CI `Build` job runs codegen and fails if the generated paraglide files are stale
+5. The Vite plugin regenerates types on save — IDE autocomplete works immediately
 
 ### Locale Persistence
 
@@ -914,7 +915,25 @@ formatRelative(someDate);   // "před 3 dny" (cs) or "3 days ago" (en)
 
 ### Bot Localization
 
-Discord's built-in `description_localizations` field on command definitions provides Czech translations. For dynamic response text, read `interaction.locale` or `interaction.guild_locale`.
+Discord's built-in `description_localizations` field on command definitions provides Czech translations. For dynamic response text, use the `Interaction` context tag from `dfx/Interactions/index` to read `guild_locale` (server language) or `locale` (user language):
+
+```typescript
+import { Interaction } from 'dfx/Interactions/index';
+
+Interaction.pipe(
+  Effect.map((i) => {
+    // APIPingInteraction omits `locale`, so narrow with `in` before accessing
+    const rawLocale = i.guild_locale ?? ('locale' in i ? i.locale : undefined);
+    const locale = (rawLocale ?? 'en').startsWith('cs') ? 'cs' : 'en';
+    return Ix.response({
+      type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { content: locale === 'cs' ? 'Pong! Bot žije.' : 'Pong!' },
+    });
+  }),
+)
+```
+
+Prefer `guild_locale` (server-configured language) over `locale` (individual user's language) for server-wide consistency.
 
 ## Documentation Conventions
 
