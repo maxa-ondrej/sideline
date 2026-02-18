@@ -83,7 +83,20 @@ function ProfileComplete() {
 
       try {
         await ApiClient.pipe(
-          Effect.flatMap((api) => api.auth.completeProfile({ payload: payload as any })),
+          Effect.flatMap((api) =>
+            api.auth.completeProfile({
+              payload: {
+                ...payload,
+                gender: payload.gender as 'male' | 'female' | 'other',
+                position: payload.gender as 'goalkeeper' | 'defender' | 'midfielder' | 'forward',
+                proficiency: payload.proficiency as
+                  | 'beginner'
+                  | 'intermediate'
+                  | 'advanced'
+                  | 'pro',
+              },
+            }),
+          ),
           Effect.catchAll(() =>
             Effect.fail(new ClientError({ message: m.profile_complete_saveFailed() })),
           ),

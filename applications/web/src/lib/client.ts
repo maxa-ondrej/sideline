@@ -7,22 +7,36 @@ import {
 } from '@effect/platform';
 import { AuthApiGroup } from '@sideline/domain/api/Auth';
 import { InviteApiGroup } from '@sideline/domain/api/Invite';
-import { Effect, Option } from 'effect';
-import { env } from '../env';
+import { Context, Effect, Option } from 'effect';
 import { getToken } from './auth';
+
+export type ClientConfigService = {
+  readonly baseUrl: string;
+};
+
+export type ClientConfig = { readonly _tag: 'api/ClientConfig' };
+
+export const ClientConfig = Context.GenericTag<ClientConfig, ClientConfigService>(
+  'api/ClientConfig',
+);
 
 class ClientApi extends HttpApi.make('api').add(AuthApiGroup).add(InviteApiGroup) {}
 
-export const client = HttpApiClient.make(ClientApi, {
-  baseUrl: env.VITE_SERVER_URL,
-  transformClient: (client) =>
-    HttpClient.mapRequestEffect(client, (request) =>
-      Effect.map(
-        getToken,
-        Option.match({
-          onSome: (token) => HttpClientRequest.bearerToken(request, token),
-          onNone: () => request,
-        }),
-      ),
-    ),
-}).pipe(Effect.provide(FetchHttpClient.layer));
+export const client = ClientConfig.pipe(
+  Effect.flatMap(({ baseUrl }) =>
+    HttpApiClient.make(ClientApi, {
+      baseUrl: baseUrl,
+      transformClient: (client) =>
+        HttpClient.mapRequestEffect(client, (request) =>
+          Effect.map(
+            getToken,
+            Option.match({
+              onSome: (token) => HttpClientRequest.bearerToken(request, token),
+              onNone: () => request,
+            }),
+          ),
+        ),
+    }),
+  ),
+  Effect.provide(FetchHttpClient.layer),
+);

@@ -1,8 +1,9 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Schema } from 'effect';
+import { Effect, Schema } from 'effect';
 import React from 'react';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '../lib/auth';
+import { runPromise } from '../lib/runtime.js';
 import * as m from '../paraglide/messages.js';
 
 const reasonMessages: Record<string, () => string> = {
@@ -34,10 +35,18 @@ export const Route = createFileRoute('/')({
       throw redirect({ to: '/dashboard' });
     }
   },
+  loader: ({ abortController }) =>
+    getLogin().pipe(
+      Effect.map((url) => url.toString()),
+      Effect.catchAll(() => Effect.succeed('/error')),
+      Effect.bindTo('loginUrl'),
+      runPromise(abortController),
+    ),
 });
 
 function Home() {
   const { user } = Route.useRouteContext();
+  const { loginUrl } = Route.useLoaderData();
   const navigate = useNavigate();
   const { error, reason } = Route.useSearch();
 
@@ -70,12 +79,12 @@ function Home() {
       {error ? (
         <div>
           <p>{reasonMessages[reason ?? '']?.() ?? m.auth_loginFailed()}</p>
-          <a href={getLogin()}>{m.auth_tryAgain()}</a>
+          <a href={loginUrl}>{m.auth_tryAgain()}</a>
         </div>
       ) : (
         <div>
           <p>{m.app_welcome()}</p>
-          <a href={getLogin()}>{m.auth_signInDiscord()}</a>
+          <a href={loginUrl}>{m.auth_signInDiscord()}</a>
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { type LinkOptions, notFound, redirect } from '@tanstack/react-router';
 import { Context, Data, Effect, Either, Layer, Logger, LogLevel } from 'effect';
-import { client } from './client';
+import { ClientConfig, client } from './client';
 
 export class ClientError extends Data.TaggedError('ClientError')<{
   readonly message: string;
@@ -30,20 +30,30 @@ const AppLayer = Layer.mergeAll(
 
 export const runPromise =
   <A>(abortController?: AbortController) =>
-  (effect: Effect.Effect<A, ClientError | Redirect | NotFound, ApiClient>): Promise<A> =>
-    effect.pipe(Effect.either, Effect.provide(AppLayer), (e) =>
-      Effect.runPromise(e, abortController).then(
-        Either.match({
-          onRight: (data) => data,
-          onLeft: (e) => {
-            if (e._tag === 'Redirect') {
-              throw redirect(e.linkOptions);
-            }
-            if (e._tag === 'NotFound') {
-              throw notFound();
-            }
-            throw e;
-          },
-        }),
-      ),
+  async (
+    effect: Effect.Effect<A, ClientError | Redirect | NotFound, ApiClient | ClientConfig>,
+  ): Promise<A> => {
+    const baseUrl = await fetch('/config')
+      .then((response) => response.json())
+      .then(({ SERVER_URL }) => SERVER_URL);
+    const effectResponse = effect.pipe(
+      Effect.either,
+      Effect.provide(AppLayer),
+      Effect.provideService(ClientConfig, {
+        baseUrl,
+      }),
     );
+    const response = await Effect.runPromise(effectResponse, abortController);
+    return Either.match(response, {
+      onRight: (data) => data,
+      onLeft: (e) => {
+        if (e._tag === 'Redirect') {
+          throw redirect(e.linkOptions);
+        }
+        if (e._tag === 'NotFound') {
+          throw notFound();
+        }
+        throw e;
+      },
+    });
+  };
