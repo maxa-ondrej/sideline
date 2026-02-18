@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import { ApiClient, ClientError, runPromise } from '../lib/runtime';
+import { ApiClient, ClientError } from '../lib/runtime';
 import * as m from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/profile/complete')({
@@ -34,7 +34,7 @@ const maxBirthYear = currentYear - MIN_AGE;
 const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
 function ProfileComplete() {
-  const { user } = Route.useRouteContext();
+  const { user, run } = Route.useRouteContext();
   const navigate = useNavigate();
 
   const [name, setName] = React.useState(user?.username ?? '');
@@ -100,7 +100,7 @@ function ProfileComplete() {
           Effect.catchAll(() =>
             Effect.fail(new ClientError({ message: m.profile_complete_saveFailed() })),
           ),
-          runPromise(),
+          run(),
         );
         navigate({ to: '/dashboard' });
       } catch (err) {
@@ -108,7 +108,7 @@ function ProfileComplete() {
         setSubmitting(false);
       }
     },
-    [name, birthYear, gender, jerseyNumber, position, proficiency, navigate],
+    [name, birthYear, gender, jerseyNumber, position, proficiency, navigate, run],
   );
 
   const isValid =

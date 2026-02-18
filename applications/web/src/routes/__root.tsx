@@ -3,9 +3,10 @@ import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/react-router';
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import { Effect } from 'effect';
+import { fetchEnv } from '../env.js';
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools';
 import { getCurrentUser } from '../lib/auth';
-import { ClientError, runPromise } from '../lib/runtime';
+import { ClientError, RunProvider, runPromise } from '../lib/runtime';
 import { getLocale, setLocale } from '../paraglide/runtime.js';
 import appCss from '../styles.css?url';
 
@@ -36,8 +37,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   }),
   ssr: false,
   shellComponent: RootDocument,
-  beforeLoad: async ({ abortController }) =>
-    Effect.Do.pipe(
+  beforeLoad: async ({ abortController }) => {
+    const environment = await fetchEnv();
+    return Effect.Do.pipe(
       Effect.bind('user', () => getCurrentUser),
       Effect.tap(({ user }) => {
         if (user) {
@@ -55,12 +57,16 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
             }
           : null,
       })),
+      Effect.let('environment', () => environment),
+      Effect.let('run', () => runPromise(environment.SERVER_URL)),
       Effect.catchAll(() => new ClientError({ message: 'Error while fetching user!' })),
-      runPromise(abortController),
-    ),
+      runPromise(environment.SERVER_URL)(abortController),
+    );
+  },
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const { run } = Route.useRouteContext();
   const locale = getLocale();
 
   return (
@@ -69,7 +75,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <RunProvider value={run}>{children}</RunProvider>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

@@ -1,5 +1,6 @@
 import { type LinkOptions, notFound, redirect } from '@tanstack/react-router';
 import { Context, Data, Effect, Either, Layer, Logger, LogLevel } from 'effect';
+import React from 'react';
 import { ClientConfig, client } from './client';
 
 export class ClientError extends Data.TaggedError('ClientError')<{
@@ -28,19 +29,27 @@ const AppLayer = Layer.mergeAll(
   Logger.minimumLogLevel(LogLevel.Info),
 );
 
+export type Run = ReturnType<typeof runPromise>;
+
+const RunContext = React.createContext<Run>(
+  () => () => new Promise((_, reject) => reject('Not implemented')),
+);
+
+export const RunProvider = RunContext.Provider;
+
+export const useRun = () => React.useContext(RunContext);
+
 export const runPromise =
+  (serverUrl: string) =>
   <A>(abortController?: AbortController) =>
   async (
     effect: Effect.Effect<A, ClientError | Redirect | NotFound, ApiClient | ClientConfig>,
   ): Promise<A> => {
-    const baseUrl = await fetch('/config')
-      .then((response) => response.json())
-      .then(({ SERVER_URL }) => SERVER_URL);
     const effectResponse = effect.pipe(
       Effect.either,
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
-        baseUrl,
+        baseUrl: serverUrl,
       }),
     );
     const response = await Effect.runPromise(effectResponse, abortController);

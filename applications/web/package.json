@@ -41,6 +41,7 @@
     "vite-tsconfig-paths": "5.1.4"
   },
   "devDependencies": {
+    "@effect/platform-browser": "0.74.0",
     "@tanstack/devtools-vite": "0.3.11",
     "@tanstack/router-cli": "1.160.1",
     "@testing-library/dom": "10.4.0",

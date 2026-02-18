@@ -2,22 +2,22 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
 import { getLogin, setPendingInvite } from '../lib/auth';
-import { ApiClient, ClientError, NotFound, runPromise } from '../lib/runtime';
+import { ApiClient, ClientError, NotFound } from '../lib/runtime';
 import * as m from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/invite/$code')({
   component: InvitePage,
   ssr: false,
-  loader: async ({ params, abortController }) =>
+  loader: async ({ params, abortController, context }) =>
     ApiClient.pipe(
       Effect.flatMap((api) => api.invite.getInvite({ path: { code: params.code } })),
       Effect.catchAll(NotFound.make),
-      runPromise(abortController),
+      context.run(abortController),
     ),
 });
 
 function InvitePage() {
-  const { user } = Route.useRouteContext();
+  const { user, run } = Route.useRouteContext();
   const { code } = Route.useParams();
   const invite = Route.useLoaderData();
   const navigate = useNavigate();
@@ -42,7 +42,7 @@ function InvitePage() {
             }),
           ),
         ),
-        runPromise(),
+        run(),
       );
       if (result.isProfileComplete) {
         navigate({ to: '/dashboard' });
@@ -53,18 +53,18 @@ function InvitePage() {
       setError(e instanceof ClientError ? e.message : m.invite_errors_joinFailed());
       setJoining(false);
     }
-  }, [code, navigate]);
+  }, [code, navigate, run]);
 
   const handleSignIn = React.useCallback(() => {
     setPendingInvite(code);
     getLogin()
-      .pipe(Effect.option, runPromise())
+      .pipe(Effect.option, run())
       .then((url) => {
         if (Option.isSome(url)) {
           navigate({ href: url.value.toString() });
         }
       });
-  }, [code, navigate]);
+  }, [code, navigate, run]);
 
   return (
     <div>

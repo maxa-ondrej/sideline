@@ -3,7 +3,6 @@ import { Effect, Schema } from 'effect';
 import React from 'react';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '../lib/auth';
-import { runPromise } from '../lib/runtime.js';
 import * as m from '../paraglide/messages.js';
 
 const reasonMessages: Record<string, () => string> = {
@@ -35,12 +34,12 @@ export const Route = createFileRoute('/')({
       throw redirect({ to: '/dashboard' });
     }
   },
-  loader: ({ abortController }) =>
+  loader: ({ abortController, context }) =>
     getLogin().pipe(
       Effect.map((url) => url.toString()),
       Effect.catchAll(() => Effect.succeed('/error')),
       Effect.bindTo('loginUrl'),
-      runPromise(abortController),
+      context.run(abortController),
     ),
 });
 

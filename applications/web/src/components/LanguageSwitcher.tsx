@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import { useCallback } from 'react';
-import { ApiClient, runPromise } from '../lib/runtime';
+import { ApiClient, useRun } from '../lib/runtime';
 import { m } from '../paraglide/messages.js';
 import { getLocale, setLocale } from '../paraglide/runtime.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -20,6 +20,7 @@ const localeLabel = (locale: 'en' | 'cs') => {
 };
 
 export function LanguageSwitcher({ isAuthenticated }: { isAuthenticated: boolean }) {
+  const run = useRun();
   const currentLocale = getLocale();
 
   const handleChange = useCallback(
@@ -31,11 +32,11 @@ export function LanguageSwitcher({ isAuthenticated }: { isAuthenticated: boolean
         ApiClient.pipe(
           Effect.flatMap((api) => api.auth.updateLocale({ payload: { locale } })),
           Effect.catchAll(() => Effect.void),
-          runPromise(),
+          run(),
         ).catch(() => {});
       }
     },
-    [isAuthenticated],
+    [isAuthenticated, run],
   );
 
   return (
