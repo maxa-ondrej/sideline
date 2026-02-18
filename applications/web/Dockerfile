@@ -13,6 +13,7 @@ FROM deps AS build
 COPY packages/ /app/packages/
 COPY applications/web/ applications/web/
 COPY tsconfig.* /app/
+ARG VITE_SERVER_URL
 RUN pnpm codegen && pnpm build
 
 FROM base AS production

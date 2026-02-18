@@ -6,6 +6,6 @@ export const env = createEnv({
   client: {
     VITE_SERVER_URL: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
   },
-  runtimeEnv: process.env,
+  runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,
 });
