@@ -1,21 +1,13 @@
 services:
   proxy:
     build: .docker/proxy
-    depends_on:
-      - server
-      - web
-      - adminer
   adminer:
     image: adminer
-    depends_on:
-      - postgres
     environment:
       ADMINER_DEFAULT_SERVER: postgres
   server:
     build:
       dockerfile: applications/server/Dockerfile
-    depends_on:
-      - postgres
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://sideline:sideline@postgres:5432/sideline
@@ -33,8 +25,6 @@ services:
   web:
     build:
       dockerfile: applications/web/Dockerfile
-    depends_on:
-      - server
     environment:
       VITE_SERVER_URL: ${BASE_URL}/api
   postgres:
