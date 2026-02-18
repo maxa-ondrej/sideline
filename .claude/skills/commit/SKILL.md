@@ -60,7 +60,7 @@ gh pr create --title "<short title>" --body "$(cat <<'EOF'
 - <bullet points>
 
 ## Test plan
-- [ ] CI passes
+- <test plan>
 EOF
 )"
 ```
