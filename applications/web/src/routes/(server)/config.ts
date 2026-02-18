@@ -9,7 +9,7 @@ export const Route = createFileRoute('/(server)/config')({
         Response.json(
           createEnv({
             server: schema,
-            runtimeEnv: import.meta.env,
+            runtimeEnv: process.env,
             emptyStringAsUndefined: true,
           }),
         ),
