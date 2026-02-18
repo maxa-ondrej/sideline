@@ -25,4 +25,7 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/applications/web/.output applications/web/.output
 
 EXPOSE 3000
+HEALTHCHECK --interval=5m --timeout=3s \
+  CMD curl -f http://localhost:3000/health || exit 1
+
 CMD ["node", "applications/web/.output/server/index.mjs"]
