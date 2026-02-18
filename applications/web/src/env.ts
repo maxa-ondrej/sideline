@@ -7,9 +7,6 @@ export const env = createEnv({
     VITE_SERVER_URL: Schema.OptionFromNullishOr(Schema.NonEmptyTrimmedString, null).pipe(
       Schema.standardSchemaV1,
     ),
-    VITE_APP_TITLE: Schema.OptionFromNullishOr(Schema.NonEmptyTrimmedString, null).pipe(
-      Schema.standardSchemaV1,
-    ),
   },
   runtimeEnv: import.meta.env,
   emptyStringAsUndefined: true,

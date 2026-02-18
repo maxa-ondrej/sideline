@@ -1,0 +1,51 @@
+services:
+  proxy:
+    image: nginx
+    depends_on:
+      - server
+      - web
+      - adminer
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+  adminer:
+    image: adminer
+    depends_on:
+      - postgres
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+  server:
+    build:
+      dockerfile: applications/server
+    depends_on:
+      - postgres
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://sideline:sideline@localhost:5432/sideline
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT_URI: ${BASE_URL}/api/auth/callback
+      FRONTEND_URL: ${BASE_URL}
+  bot:
+    build:
+      dockerfile: applications/bot
+    environment:
+      NODE_ENV: development
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+  web:
+    build:
+      dockerfile: applications/web
+    depends_on:
+      - server
+    environment:
+      VITE_SERVER_URL: ${BASE_URL}/api
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: sideline
+      POSTGRES_PASSWORD: sideline
+      POSTGRES_DB: sideline
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
