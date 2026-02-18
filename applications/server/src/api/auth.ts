@@ -1,3 +1,4 @@
+import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { CurrentUser, CurrentUserContext } from '@sideline/domain/api/Auth';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
@@ -28,7 +29,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     Effect.bind('sessions', () => SessionsRepository),
     Effect.map(({ discord, users, sessions }) =>
       handlers
-        .handle('login', () =>
+        .handle('getLogin', () => Effect.succeed(new URL(`${env.SERVER_URL}/auth/login`)))
+        .handle('doLogin', () =>
           Effect.sync(() => crypto.randomUUID()).pipe(
             Effect.flatMap(discord.createAuthorizationURL),
             Effect.map(Redirect.fromUrl),

@@ -1,8 +1,8 @@
 import { Effect, Option } from 'effect';
-import { API_URL } from './client';
+import { client } from './client';
 import { ApiClient } from './runtime';
 
-export const getLogin = () => `${API_URL}/auth/login` as const;
+export const getLogin = () => client.pipe(Effect.flatMap((c) => c.auth.getLogin()));
 
 const TOKEN = 'api-token';
 

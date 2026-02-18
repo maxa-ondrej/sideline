@@ -8,14 +8,13 @@ import {
 import { AuthApiGroup } from '@sideline/domain/api/Auth';
 import { InviteApiGroup } from '@sideline/domain/api/Invite';
 import { Effect, Option } from 'effect';
+import { env } from '../env';
 import { getToken } from './auth';
-
-export const API_URL = 'http://localhost:3001';
 
 class ClientApi extends HttpApi.make('api').add(AuthApiGroup).add(InviteApiGroup) {}
 
 export const client = HttpApiClient.make(ClientApi, {
-  baseUrl: API_URL,
+  baseUrl: env.VITE_SERVER_URL,
   transformClient: (client) =>
     HttpClient.mapRequestEffect(client, (request) =>
       Effect.map(

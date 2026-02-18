@@ -68,7 +68,8 @@ export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()('Aut
 }) {}
 
 export class AuthApiGroup extends HttpApiGroup.make('auth')
-  .add(HttpApiEndpoint.get('login', '/login').addSuccess(Schema.Void, { status: 302 }))
+  .add(HttpApiEndpoint.get('getLogin', '/login').addSuccess(Schema.URL))
+  .add(HttpApiEndpoint.post('doLogin', '/login').addSuccess(Schema.Void, { status: 302 }))
   .add(
     HttpApiEndpoint.get('callback', '/callback')
       .addSuccess(Schema.Void, { status: 302 })

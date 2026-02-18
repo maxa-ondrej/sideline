@@ -23,6 +23,7 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
       DISCORD_REDIRECT_URI: ${BASE_URL}/api/auth/callback
       FRONTEND_URL: ${BASE_URL}
+      SERVER_URL: ${BASE_URL}/api
   bot:
     build:
       dockerfile: applications/bot/Dockerfile

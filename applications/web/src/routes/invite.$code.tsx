@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import React from 'react';
 import { getLogin, setPendingInvite } from '../lib/auth';
 import { ApiClient, ClientError, NotFound, runPromise } from '../lib/runtime';
@@ -57,8 +57,14 @@ function InvitePage() {
 
   const handleSignIn = React.useCallback(() => {
     setPendingInvite(code);
-    window.location.href = getLogin();
-  }, [code]);
+    getLogin()
+      .pipe(Effect.option, runPromise())
+      .then((url) => {
+        if (Option.isSome(url)) {
+          navigate({ href: url.value.toString() });
+        }
+      });
+  }, [code, navigate]);
 
   return (
     <div>
