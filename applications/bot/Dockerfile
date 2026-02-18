@@ -16,7 +16,7 @@ COPY tsconfig.* /app/
 RUN pnpm codegen && pnpm build
 
 FROM base AS production
-RUN apt-get update && apt-get install -y curl &&  -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY patches/ patches/
