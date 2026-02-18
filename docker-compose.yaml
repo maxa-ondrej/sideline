@@ -15,7 +15,7 @@ services:
       ADMINER_DEFAULT_SERVER: postgres
   server:
     build:
-      dockerfile: applications/server
+      dockerfile: applications/server/Dockerfile
     depends_on:
       - postgres
     environment:
@@ -27,13 +27,13 @@ services:
       FRONTEND_URL: ${BASE_URL}
   bot:
     build:
-      dockerfile: applications/bot
+      dockerfile: applications/bot/Dockerfile
     environment:
       NODE_ENV: development
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
   web:
     build:
-      dockerfile: applications/web
+      dockerfile: applications/web/Dockerfile
     depends_on:
       - server
     environment:
