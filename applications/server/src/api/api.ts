@@ -11,7 +11,8 @@ export class HealthApiGroup extends HttpApiGroup.make('health').add(
 ) {}
 
 export class Api extends HttpApi.make('api')
-  .add(HealthApiGroup)
   .add(AuthApiGroup)
   .add(InviteApiGroup)
+  .prefix('/api')
+  .add(HealthApiGroup)
   .addError(InternalError) {}
