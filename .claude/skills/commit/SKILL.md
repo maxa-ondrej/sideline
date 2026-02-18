@@ -48,20 +48,26 @@ Stage any files modified by format/codegen before proceeding.
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers
 - Use a HEREDOC for the commit message to preserve formatting
 
-### 5. Push
+### 5. Push and open PR
 
 Run `git push` to push the commit to the remote. If the branch has no upstream yet, use `git push -u origin <branch>`.
 
-### 6. Switch back to main
-
-After pushing, switch back to `main` so the working directory is always on the trunk branch between tasks:
+Then always open a pull request with `gh pr create`:
 
 ```bash
-git checkout main
-git pull origin main
+gh pr create --title "<short title>" --body "$(cat <<'EOF'
+## Summary
+- <bullet points>
+
+## Test plan
+- [ ] CI passes
+EOF
+)"
 ```
 
-### 7. Verify CI
+Return the PR URL to the user.
+
+### 6. Verify CI
 
 After pushing, check that CI pipelines pass:
 
@@ -71,7 +77,7 @@ gh run list --limit 1
 
 If the latest run is still in progress, wait and check again with `gh run watch`. If it fails, investigate the logs with `gh run view --log-failed`, fix the issue, and restart from step 3.
 
-### 8. Update Notion task statuses (if applicable)
+### 7. Update Notion task statuses (if applicable)
 
 If the work being committed is associated with Notion tasks (e.g. from the `/work` skill or user-specified tasks), update statuses following the lifecycle in AGENTS.md:
 

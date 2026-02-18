@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "codegen": "tsr generate"
+    "codegen": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide && tsr generate"
   },
   "dependencies": {
     "@effect/platform": "0.94.5",
