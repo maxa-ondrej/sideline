@@ -13,7 +13,7 @@
     "@effect/platform": "0.94.5",
     "@faker-js/faker": "10.0.0",
     "@inlang/paraglide-js": "^2.12.0",
-    "@sideline/domain": "0.0.0",
+    "@sideline/domain": "workspace:^",
     "@t3-oss/env-core": "0.13.8",
     "@tailwindcss/vite": "4.1.18",
     "@tanstack/match-sorter-utils": "8.19.4",
