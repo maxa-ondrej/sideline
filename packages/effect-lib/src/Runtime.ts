@@ -1,14 +1,6 @@
 import { DevTools } from '@effect/experimental';
 import { NodeRuntime } from '@effect/platform-node';
-import { Effect, Layer, Logger, LogLevel, Option, Schema } from 'effect';
-
-export const NodeEnvSchema = Schema.OptionFromNullishOr(Schema.String, null).pipe(
-  Schema.transform(Schema.Literal('production', 'development'), {
-    strict: true,
-    decode: (raw) => (Option.contains(raw, 'production') ? 'production' : 'development'),
-    encode: Option.some,
-  }),
-);
+import { Effect, Layer, Logger, LogLevel } from 'effect';
 
 const LogLayer = (env: 'development' | 'production') =>
   env === 'production'

@@ -18,7 +18,6 @@ import * as m from '../../paraglide/messages.js';
 
 export const Route = createFileRoute('/(authenticated)/profile/complete')({
   component: ProfileComplete,
-  ssr: false,
   beforeLoad: async ({ context }) => {
     if (!context.user) {
       throw redirect({ to: '/' });

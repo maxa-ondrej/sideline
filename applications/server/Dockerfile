@@ -24,6 +24,7 @@ COPY applications/server/package.json applications/server/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/applications/server/build/esm applications/server/build
 
-EXPOSE 3001
+EXPOSE 80
+EXPOSE 9000
 
 CMD ["node", "applications/server/build/run.js"]

@@ -1,3 +1,5 @@
+export * as ApiGroup from './ApiGroup.js';
+
 export * as Auth from './api/Auth.js';
 
 export * as Invite from './api/Invite.js';

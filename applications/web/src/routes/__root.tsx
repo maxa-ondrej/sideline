@@ -52,7 +52,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       environment,
       makeRun,
       run,
-      user,
+      userOption: user,
     };
   },
 });

@@ -1,6 +1,8 @@
 services:
   proxy:
     build: .docker/proxy
+    environment:
+      WEB_PORT: 3000
   adminer:
     image: adminer
     environment:
@@ -13,7 +15,6 @@ services:
       DATABASE_URL: postgresql://sideline:sideline@postgres:5432/sideline
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_REDIRECT_URI: ${BASE_URL}/api/auth/callback
       FRONTEND_URL: ${BASE_URL}
       SERVER_URL: ${BASE_URL}/api
   bot:
@@ -27,6 +28,7 @@ services:
       dockerfile: applications/web/Dockerfile
     environment:
       SERVER_URL: ${BASE_URL}/api
+      PORT: 3000
   postgres:
     image: postgres:17
     environment:

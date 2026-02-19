@@ -1,3 +1,4 @@
+import { ApiGroup, Auth } from '@sideline/domain';
 import { Discord } from 'arctic';
 import { Effect, Redacted } from 'effect';
 import { env } from '../env.js';
@@ -6,7 +7,10 @@ export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAu
   effect: Effect.Do.pipe(
     Effect.let('clientId', () => env.DISCORD_CLIENT_ID),
     Effect.let('clientSecret', () => Redacted.value(env.DISCORD_CLIENT_SECRET)),
-    Effect.let('redirectUri', () => env.DISCORD_REDIRECT_URI),
+    Effect.let(
+      'redirectUri',
+      () => env.SERVER_URL + Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
+    ),
     Effect.let(
       'client',
       ({ clientId, clientSecret, redirectUri }) =>

@@ -25,6 +25,6 @@ COPY applications/bot/package.json applications/bot/
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/applications/bot/build/esm applications/bot/build
 
-EXPOSE 3002
+EXPOSE 9000
 
 CMD ["node", "applications/bot/build/run.js"]

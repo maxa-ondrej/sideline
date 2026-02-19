@@ -6,7 +6,6 @@ import * as m from '../../paraglide/messages.js';
 
 export const Route = createFileRoute('/(authenticated)/dashboard')({
   component: Dashboard,
-  ssr: false,
   beforeLoad: async ({ context }) => {
     if (context.user && !context.user.isProfileComplete) {
       throw redirect({ to: '/profile/complete' });

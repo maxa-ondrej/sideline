@@ -6,7 +6,7 @@ export const Route = createFileRoute('/(authenticated)')({
   component: Outlet,
   beforeLoad: ({ context }) =>
     Effect.Do.pipe(
-      Effect.bind('user', () => context.user),
+      Effect.bind('user', () => context.userOption),
       Effect.catchAll(NotFound.make),
       context.run,
     ),

@@ -15,7 +15,6 @@ const reasonMessages: Record<string, () => string> = {
 
 export const Route = createFileRoute('/')({
   component: Home,
-  ssr: false,
   validateSearch: Schema.standardSchemaV1(
     Schema.Struct({
       token: Schema.String.pipe(Schema.optional),
@@ -44,7 +43,7 @@ export const Route = createFileRoute('/')({
 });
 
 function Home() {
-  const { user } = Route.useRouteContext();
+  const { userOption } = Route.useRouteContext();
   const { loginUrl } = Route.useLoaderData();
   const navigate = useNavigate();
   const { error, reason } = Route.useSearch();
@@ -54,14 +53,14 @@ function Home() {
     navigate({ to: '/' });
   }, [navigate]);
 
-  if (Option.isSome(user)) {
+  if (Option.isSome(userOption)) {
     return (
       <div>
         <div className='flex items-center justify-between'>
           <h1>{m.app_name()}</h1>
           <LanguageSwitcher isAuthenticated />
         </div>
-        <p>{m.auth_signedInAs({ username: user.value.discordUsername })}</p>
+        <p>{m.auth_signedInAs({ username: userOption.value.discordUsername })}</p>
         <button type='button' onClick={doLogout}>
           {m.auth_logout()}
         </button>

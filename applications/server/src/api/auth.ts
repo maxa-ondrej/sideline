@@ -1,8 +1,9 @@
 import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
+import { ApiGroup, Auth } from '@sideline/domain';
 import { CurrentUser, CurrentUserContext } from '@sideline/domain/api/Auth';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
-import { DateTime, Effect, Layer, Option, pipe, Redacted } from 'effect';
+import { DateTime, Effect, Layer, Option, pipe, Redacted, Schema } from 'effect';
 import { env } from '../env.js';
 import { SessionsRepository } from '../repositories/SessionsRepository.js';
 import { UsersRepository } from '../repositories/UsersRepository.js';
@@ -22,6 +23,13 @@ const CustomClient = HttpClient.HttpClient.pipe(
   Layer.effect(HttpClient.HttpClient),
 );
 
+const LoginSchema = Schema.parseJson(
+  Schema.Struct({
+    id: Schema.UUID,
+    redirectUrl: Schema.URL,
+  }),
+);
+
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('discord', () => DiscordOAuth),
@@ -29,21 +37,31 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     Effect.bind('sessions', () => SessionsRepository),
     Effect.map(({ discord, users, sessions }) =>
       handlers
-        .handle('getLogin', () => Effect.succeed(new URL(`${env.SERVER_URL}/auth/login`)))
+        .handle('getLogin', () =>
+          Effect.succeed(
+            new URL(env.SERVER_URL + Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('doLogin')).path),
+          ),
+        )
         .handle('doLogin', () =>
           Effect.sync(() => crypto.randomUUID()).pipe(
+            Effect.bindTo('id'),
+            Effect.let('redirectUrl', () => env.FRONTEND_URL),
+            Effect.flatMap(Schema.encode(LoginSchema)),
             Effect.flatMap(discord.createAuthorizationURL),
             Effect.map(Redirect.fromUrl),
             Effect.map(Redirect.toResponse),
+            Effect.catchTag('ParseError', () => new InternalError()),
           ),
         )
         .handle('callback', ({ urlParams: { code, state, error } }) =>
           Effect.Do.pipe(
             Effect.bind('code', () => code),
-            Effect.bind('state', () => state),
+            Effect.bind('stateRaw', () => state),
             Effect.catchTag('NoSuchElementException', () =>
               RuntimeError.auth(Option.getOrElse(error, () => 'missing_params')),
             ),
+            Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
+            Effect.tap(({ state }) => Effect.logInfo(state)),
             Effect.bind('oauth', ({ code }) => discord.validateAuthorizationCode(code)),
             Effect.let('DiscordConfigLive', ({ oauth }) =>
               DiscordConfig.layer({
@@ -79,9 +97,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 created_at: undefined,
               }),
             ),
-            Effect.map(({ sessionToken }) =>
+            Effect.map(({ sessionToken, state }) =>
               pipe(
-                Redirect.fromUrl(env.FRONTEND_URL),
+                Redirect.fromUrl(state.redirectUrl),
                 Redirect.withSearchParam('token', sessionToken),
               ),
             ),

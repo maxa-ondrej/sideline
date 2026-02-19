@@ -16,14 +16,14 @@ class HealthApiGroup extends HttpApiGroup.make('health').add(
   ),
 ) {}
 
-export class BotHealthApi extends HttpApi.make('bot-health').add(HealthApiGroup) {}
+class HealthApi extends HttpApi.make('health').add(HealthApiGroup) {}
 
-const HealthApiLive = HttpApiBuilder.group(BotHealthApi, 'health', (handlers) =>
+const HealthApiLive = HttpApiBuilder.group(HealthApi, 'health', (handlers) =>
   Effect.succeed(handlers.handle('healthCheck', () => Effect.succeed({ status: 'ok' as const }))),
 );
 
 export const HealthServerLive = HttpApiBuilder.serve().pipe(
-  Layer.provide(HttpApiBuilder.api(BotHealthApi)),
+  Layer.provide(HttpApiBuilder.api(HealthApi)),
   Layer.provide(HealthApiLive),
   HttpServer.withLogAddress,
   Layer.provide(NodeHttpServer.layer(createServer, { port: env.HEALTH_PORT })),

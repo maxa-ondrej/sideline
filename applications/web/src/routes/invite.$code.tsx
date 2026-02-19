@@ -7,7 +7,6 @@ import * as m from '../paraglide/messages.js';
 
 export const Route = createFileRoute('/invite/$code')({
   component: InvitePage,
-  ssr: false,
   loader: async ({ params, context }) =>
     ApiClient.pipe(
       Effect.flatMap((api) => api.invite.getInvite({ path: { code: params.code } })),
@@ -17,7 +16,7 @@ export const Route = createFileRoute('/invite/$code')({
 });
 
 function InvitePage() {
-  const { user, makeRun } = Route.useRouteContext();
+  const { userOption, makeRun } = Route.useRouteContext();
   const { code } = Route.useParams();
   const invite = Route.useLoaderData();
   const navigate = useNavigate();
@@ -71,7 +70,7 @@ function InvitePage() {
       <h1>{m.invite_joinTitle({ teamName: invite.teamName })}</h1>
       <p>{m.invite_joinDescription({ teamName: invite.teamName })}</p>
       {error && <p>{error}</p>}
-      {user ? (
+      {Option.isSome(userOption) ? (
         <button type='button' onClick={handleJoin} disabled={joining}>
           {joining ? m.invite_joining() : m.invite_joinButton()}
         </button>
