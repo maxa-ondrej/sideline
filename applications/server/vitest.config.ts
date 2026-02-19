@@ -8,6 +8,7 @@ export default defineProject({
       DISCORD_CLIENT_SECRET: 'test-client-secret',
       DISCORD_REDIRECT_URI: 'http://localhost:3000/auth/callback',
       FRONTEND_URL: 'http://localhost:5173',
+      SERVER_URL: 'http://localhost:3000',
     },
   },
 });

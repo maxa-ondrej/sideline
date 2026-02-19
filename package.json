@@ -12,7 +12,7 @@
     "format": "biome check --write --unsafe .",
     "test": "vitest",
     "coverage": "vitest --coverage",
-    "changeset-version": "changeset version",
+    "changeset-version": "changeset version && pnpm install --no-frozen-lockfile",
     "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish",
     "db:up": "docker compose -f docker-compose.db.yaml up -d postgres",
     "db:down": "docker compose -f docker-compose.db.yaml down",
