@@ -34,6 +34,7 @@ export const clearPendingInvite = () => {
 
 export const getCurrentUser = ApiClient.pipe(
   Effect.flatMap((api) => api.auth.me()),
-  Effect.catchTag('Unauthorized', () => Effect.succeed(null)),
+  Effect.map(Option.some),
+  Effect.catchTag('Unauthorized', Option.none),
   Effect.tap((user) => Effect.logInfo('Logged in as', user)),
 );

@@ -41,8 +41,8 @@ export const useRun = () => React.useContext(RunContext);
 
 export const runPromise =
   (serverUrl: string) =>
-  <A>(abortController?: AbortController) =>
-  async (
+  (abortController?: AbortController) =>
+  async <A>(
     effect: Effect.Effect<A, ClientError | Redirect | NotFound, ApiClient | ClientConfig>,
   ): Promise<A> => {
     const effectResponse = effect.pipe(

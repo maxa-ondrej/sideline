@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '../lib/auth';
@@ -34,12 +34,12 @@ export const Route = createFileRoute('/')({
       throw redirect({ to: '/dashboard' });
     }
   },
-  loader: ({ abortController, context }) =>
+  loader: ({ context }) =>
     getLogin().pipe(
       Effect.map((url) => url.toString()),
       Effect.catchAll(() => Effect.succeed('/error')),
       Effect.bindTo('loginUrl'),
-      context.run(abortController),
+      context.run,
     ),
 });
 
@@ -54,14 +54,14 @@ function Home() {
     navigate({ to: '/' });
   }, [navigate]);
 
-  if (user) {
+  if (Option.isSome(user)) {
     return (
       <div>
         <div className='flex items-center justify-between'>
           <h1>{m.app_name()}</h1>
           <LanguageSwitcher isAuthenticated />
         </div>
-        <p>{m.auth_signedInAs({ username: user.username })}</p>
+        <p>{m.auth_signedInAs({ username: user.value.discordUsername })}</p>
         <button type='button' onClick={doLogout}>
           {m.auth_logout()}
         </button>

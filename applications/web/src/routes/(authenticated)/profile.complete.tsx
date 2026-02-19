@@ -2,21 +2,21 @@ import { MIN_AGE } from '@sideline/domain/api/Auth';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select';
-import { ApiClient, ClientError } from '../lib/runtime';
-import * as m from '../paraglide/messages.js';
+} from '../../components/ui/select';
+import { ApiClient, ClientError } from '../../lib/runtime';
+import * as m from '../../paraglide/messages.js';
 
-export const Route = createFileRoute('/profile/complete')({
+export const Route = createFileRoute('/(authenticated)/profile/complete')({
   component: ProfileComplete,
   ssr: false,
   beforeLoad: async ({ context }) => {
@@ -34,10 +34,10 @@ const maxBirthYear = currentYear - MIN_AGE;
 const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
 function ProfileComplete() {
-  const { user, run } = Route.useRouteContext();
+  const { user, makeRun } = Route.useRouteContext();
   const navigate = useNavigate();
 
-  const [name, setName] = React.useState(user?.username ?? '');
+  const [name, setName] = React.useState(user.discordUsername);
   const [birthYear, setBirthYear] = React.useState('');
   const [gender, setGender] = React.useState('');
   const [jerseyNumber, setJerseyNumber] = React.useState('');
@@ -100,7 +100,7 @@ function ProfileComplete() {
           Effect.catchAll(() =>
             Effect.fail(new ClientError({ message: m.profile_complete_saveFailed() })),
           ),
-          run(),
+          makeRun(),
         );
         navigate({ to: '/dashboard' });
       } catch (err) {
@@ -108,7 +108,7 @@ function ProfileComplete() {
         setSubmitting(false);
       }
     },
-    [name, birthYear, gender, jerseyNumber, position, proficiency, navigate, run],
+    [name, birthYear, gender, jerseyNumber, position, proficiency, navigate, makeRun],
   );
 
   const isValid =
