@@ -13,7 +13,7 @@ FROM deps AS build
 COPY packages/ /app/packages/
 COPY applications/bot/ applications/bot/
 COPY tsconfig.* /app/
-RUN pnpm codegen && pnpm build
+RUN pnpm --recursive --parallel run codegen && pnpm build
 
 FROM base AS production
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
