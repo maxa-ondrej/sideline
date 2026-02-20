@@ -42,6 +42,7 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
       - run: pnpm codegen
+      - run: pnpm build
       - run: pnpm check
   test:
     name: Test

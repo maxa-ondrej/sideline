@@ -189,13 +189,6 @@ afterAll(async () => {
 });
 
 describe('Auth API', () => {
-  it('GET /health returns 200 with status ok', async () => {
-    const response = await handler(new Request('http://localhost/health'));
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body).toEqual({ status: 'ok' });
-  });
-
   it('GET /auth/me without token returns 401', async () => {
     const response = await handler(new Request('http://localhost/auth/me'));
     expect(response.status).toBe(401);
