@@ -10,14 +10,14 @@ services:
   adminer:
     image: adminer
     depends_on:
-      - db
+      - postgres
     environment:
       ADMINER_DEFAULT_SERVER: postgres
   server:
     build:
       dockerfile: applications/server/Dockerfile
     depends_on:
-      - db
+      - postgres
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://sideline:sideline@postgres:5432/sideline
