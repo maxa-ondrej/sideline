@@ -25,6 +25,7 @@ const HealthApiLive = HttpApiBuilder.group(HealthApi, 'health', (handlers) =>
 export const HealthServerLive = HttpApiBuilder.serve().pipe(
   Layer.provide(HttpApiBuilder.api(HealthApi)),
   Layer.provide(HealthApiLive),
+  Layer.withSpan('Health'),
   HttpServer.withLogAddress,
   Layer.provide(NodeHttpServer.layer(createServer, { port: env.HEALTH_PORT })),
 );
