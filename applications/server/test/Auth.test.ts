@@ -17,7 +17,7 @@ import { DiscordOAuth, DiscordOAuthError } from '../src/services/DiscordOAuth.js
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as TeamId;
-const FRONTEND_URL = 'http://localhost:5173';
+const _FRONTEND_URL = 'http://localhost:5173';
 
 const testUser = {
   id: TEST_USER_ID,
@@ -237,7 +237,11 @@ describe('Auth API', () => {
   });
 
   it('GET /auth/callback with bad code redirects with reason=oauth_failed', async () => {
-    const response = await handler(new Request('http://localhost/auth/callback?code=bad&state=x'));
+    const response = await handler(
+      new Request(
+        'http://localhost/auth/callback?code=bad&state=%7B%22id%22%3A%22d5760fa3-5440-4f87-8136-f5c1109aaea0%22%2C%20%22redirectUrl%22%3A%22http%3A%2F%2Flocalhost%2Fredirect%22%7D',
+      ),
+    );
     expect(response.status).toBe(302);
     const location = response.headers.get('Location');
     expect(location).toContain('reason=oauth_failed');
@@ -245,10 +249,12 @@ describe('Auth API', () => {
 
   it('GET /auth/callback with valid code redirects with token', async () => {
     const response = await handler(
-      new Request('http://localhost/auth/callback?code=valid-code&state=x'),
+      new Request(
+        'http://localhost/auth/callback?code=valid-code&state=%7B%22id%22%3A%22d5760fa3-5440-4f87-8136-f5c1109aaea0%22%2C%20%22redirectUrl%22%3A%22http%3A%2F%2Flocalhost%2Fredirect%22%7D',
+      ),
     );
     expect(response.status).toBe(302);
     const location = response.headers.get('Location');
-    expect(location).toContain(`${FRONTEND_URL}/?token=`);
+    expect(location).toContain('http://localhost/redirect?token=');
   });
 });

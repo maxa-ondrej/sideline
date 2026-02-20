@@ -7,7 +7,7 @@ export default defineProject({
       DISCORD_CLIENT_ID: 'test-client-id',
       DISCORD_CLIENT_SECRET: 'test-client-secret',
       FRONTEND_URL: 'http://localhost:5173',
-      SERVER_URL: 'http://localhost:3000',
+      SERVER_URL: 'http://localhost',
     },
   },
 });

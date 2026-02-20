@@ -13,6 +13,10 @@ export const env = createEnv({
       Schemas.Optional(Schema.Number, () => 9000),
       Schema.standardSchemaV1,
     ),
+    API_PREFIX: Schema.String.pipe(
+      Schemas.Optional(Schema.String, () => ''),
+      Schema.standardSchemaV1,
+    ),
     SERVER_URL: Schema.URL.pipe(Schema.standardSchemaV1),
     DATABASE_URL: Schema.NonEmptyTrimmedString.pipe(Schema.Redacted, Schema.standardSchemaV1),
     DISCORD_CLIENT_ID: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),

@@ -61,7 +61,6 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               RuntimeError.auth(Option.getOrElse(error, () => 'missing_params')),
             ),
             Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
-            Effect.tap(({ state }) => Effect.logInfo(state)),
             Effect.bind('oauth', ({ code }) => discord.validateAuthorizationCode(code)),
             Effect.let('DiscordConfigLive', ({ oauth }) =>
               DiscordConfig.layer({
