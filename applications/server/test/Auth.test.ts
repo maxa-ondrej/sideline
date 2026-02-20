@@ -17,7 +17,6 @@ import { DiscordOAuth, DiscordOAuthError } from '../src/services/DiscordOAuth.js
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as TeamId;
-const _FRONTEND_URL = 'http://localhost:5173';
 
 const testUser = {
   id: TEST_USER_ID,

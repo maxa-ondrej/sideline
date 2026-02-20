@@ -29,7 +29,11 @@ const AppLayer = Layer.mergeAll(
   Logger.minimumLogLevel(LogLevel.Info),
 );
 
-export type Run = ReturnType<typeof runPromise>;
+export type Run = (
+  abortController?: AbortController,
+) => <A>(
+  effect: Effect.Effect<A, ClientError | Redirect | NotFound, ApiClient | ClientConfig>,
+) => Promise<A>;
 
 const RunContext = React.createContext<Run>(
   () => () => new Promise((_, reject) => reject('Not implemented')),
