@@ -24,6 +24,7 @@ export const env = createEnv({
       Schema.Redacted,
       Schema.standardSchemaV1,
     ),
+    DISCORD_REDIRECT: Schema.URL.pipe(Schema.standardSchemaV1),
     FRONTEND_URL: Schema.URL.pipe(Schema.standardSchemaV1),
   },
   runtimeEnv: process.env,

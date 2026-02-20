@@ -15,6 +15,7 @@ services:
       DATABASE_URL: postgresql://sideline:sideline@postgres:5432/sideline
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT: https://sideline-preview.majksa.net/api
       API_PREFIX: /api
       FRONTEND_URL: ${BASE_URL}
       SERVER_URL: ${BASE_URL}/api

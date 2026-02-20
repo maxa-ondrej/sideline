@@ -9,7 +9,7 @@ export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAu
     Effect.let('clientSecret', () => Redacted.value(env.DISCORD_CLIENT_SECRET)),
     Effect.let(
       'redirectUri',
-      () => env.SERVER_URL + Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
+      () => env.DISCORD_REDIRECT + Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
     ),
     Effect.let(
       'client',
