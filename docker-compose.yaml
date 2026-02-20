@@ -1,15 +1,23 @@
 services:
   proxy:
     build: .docker/proxy
+    depends_on:
+      - adminer
+      - server
+      - web
     environment:
       WEB_PORT: 3000
   adminer:
     image: adminer
+    depends_on:
+      - db
     environment:
       ADMINER_DEFAULT_SERVER: postgres
   server:
     build:
       dockerfile: applications/server/Dockerfile
+    depends_on:
+      - db
     environment:
       NODE_ENV: development
       DATABASE_URL: postgresql://sideline:sideline@postgres:5432/sideline
@@ -22,12 +30,16 @@ services:
   bot:
     build:
       dockerfile: applications/bot/Dockerfile
+    depends_on:
+      - server
     environment:
       NODE_ENV: development
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
   web:
     build:
       dockerfile: applications/web/Dockerfile
+    depends_on:
+      - server
     environment:
       SERVER_URL: ${BASE_URL}/api
       PORT: 3000
