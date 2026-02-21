@@ -108,6 +108,8 @@ importers:
         version: 3.19.18
     publishDirectory: dist
 
+  applications/proxy: {}
+
   applications/server:
     dependencies:
       '@effect/platform':
