@@ -1,5 +1,11 @@
 # @sideline/server
 
+## 0.1.1
+
+### Patch Changes
+
+- [`e01e3d6`](https://github.com/maxa-ondrej/sideline/commit/e01e3d6d39f59f141794328b1f1a702933b36e74) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Move npm publish back to release workflow, keep publish workflow for Docker builds only
+
 ## 0.1.0
 
 ### Minor Changes
