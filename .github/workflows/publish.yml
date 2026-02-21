@@ -24,25 +24,6 @@ jobs:
           else
             echo "is_app=false" >> "$GITHUB_OUTPUT"
           fi
-
-  npm:
-    name: Npm
-    needs: detect
-    if: needs.detect.outputs.is_app != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
-        uses: ./.github/actions/setup
-      - name: Publish
-        run: pnpm changeset-publish
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
   docker:
     name: Docker (${{ needs.detect.outputs.app }})
     needs: detect
