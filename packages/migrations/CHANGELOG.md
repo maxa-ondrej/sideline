@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.1.1
+
+### Patch Changes
+
+- [#9](https://github.com/maxa-ondrej/sideline/pull/9) [`851b9b2`](https://github.com/maxa-ondrej/sideline/commit/851b9b247e8b5f39db63a7d5c1748f3febc47f5a) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Decouple NodeFileSystem from Migrator export, allowing consumers to provide their own filesystem layer
+
 ## 0.1.0
 
 ### Minor Changes
