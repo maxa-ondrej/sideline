@@ -5,7 +5,3 @@ map $host $var_server_port {
 map $host $var_web_port {
   default "$WEB_PORT";
 }
-
-map $host $var_adminer_port {
-  default "$ADMINER_PORT";
-}

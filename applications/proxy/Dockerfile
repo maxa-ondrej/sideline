@@ -1,8 +1,8 @@
 FROM nginx
 
 RUN apt-get update && apt-get install -y curl && apt-get clean
-COPY ./templates /etc/nginx/templates
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY applications/proxy/templates /etc/nginx/templates
+COPY applications/proxy/nginx.conf /etc/nginx/nginx.conf
 
 ENV PORT=80
 ENV HEALTH_PORT=9000

@@ -1,6 +1,7 @@
 services:
   proxy:
-    build: .docker/proxy
+    build:
+      dockerfile: applications/proxy/Dockerfile
     depends_on:
       adminer:
         condition: service_healthy
@@ -11,7 +12,7 @@ services:
     environment:
       WEB_PORT: 3000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -24,7 +25,7 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080 || exit 1"]
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:8080 || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -45,7 +46,7 @@ services:
       FRONTEND_URL: ${BASE_URL}
       SERVER_URL: ${BASE_URL}/api
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
       timeout: 10s
       retries: 15
@@ -60,7 +61,7 @@ services:
       NODE_ENV: development
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -75,7 +76,7 @@ services:
       SERVER_URL: ${BASE_URL}/api
       PORT: 3000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -89,7 +90,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sideline -d sideline"]
+      test: [ "CMD-SHELL", "pg_isready -U sideline -d sideline" ]
       interval: 10s
       timeout: 5s
       retries: 5
