@@ -9,10 +9,10 @@ export const NodeEnv = Schema.OptionFromNullishOr(Schema.String, null).pipe(
 );
 
 export const Optional =
-  <T, E>(targetSchema: Schema.Schema<T>, lazyDefault: () => T) =>
-  (schema: Schema.Schema<T, E>) =>
-    Schema.transform(Schema.OptionFromNullishOr(schema, null), targetSchema, {
+  <T>(lazyDefault: () => T) =>
+  <R>(schema: Schema.Schema<T, R>) =>
+    Schema.transform(Schema.OptionFromNullishOr(schema, null), schema, {
       strict: true,
-      decode: Option.getOrElse(lazyDefault),
-      encode: Option.some,
+      decode: (opt) => opt.pipe(Option.getOrElse(lazyDefault), Schema.encodeSync(schema)),
+      encode: (_, a) => Option.some(a),
     });

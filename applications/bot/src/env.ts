@@ -7,7 +7,7 @@ export const env = createEnv({
     NODE_ENV: Schema.standardSchemaV1(Schemas.NodeEnv),
     DISCORD_BOT_TOKEN: Schema.NonEmptyTrimmedString.pipe(Schema.Redacted, Schema.standardSchemaV1),
     HEALTH_PORT: Schema.NumberFromString.pipe(
-      Schemas.Optional(Schema.Number, () => 9000),
+      Schemas.Optional(() => 9000),
       Schema.standardSchemaV1,
     ),
   },

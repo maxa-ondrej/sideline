@@ -6,15 +6,15 @@ export const env = createEnv({
   server: {
     NODE_ENV: Schema.standardSchemaV1(Schemas.NodeEnv),
     PORT: Schema.NumberFromString.pipe(
-      Schemas.Optional(Schema.Number, () => 80),
+      Schemas.Optional(() => 80),
       Schema.standardSchemaV1,
     ),
     HEALTH_PORT: Schema.NumberFromString.pipe(
-      Schemas.Optional(Schema.Number, () => 9000),
+      Schemas.Optional(() => 9000),
       Schema.standardSchemaV1,
     ),
     API_PREFIX: Schema.String.pipe(
-      Schemas.Optional(Schema.String, () => ''),
+      Schemas.Optional(() => ''),
       Schema.standardSchemaV1,
     ),
     SERVER_URL: Schema.URL.pipe(Schema.standardSchemaV1),
