@@ -1,5 +1,11 @@
 # @sideline/proxy
 
+## 0.2.4
+
+### Patch Changes
+
+- [`79f2e9e`](https://github.com/maxa-ondrej/sideline/commit/79f2e9e7271e5ab82acdcff1b72f2e2a3b77f59f) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix Docker build: add BuildKit setup and version-based image tags
+
 ## 0.2.3
 
 ### Patch Changes
