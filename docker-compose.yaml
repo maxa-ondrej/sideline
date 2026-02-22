@@ -1,100 +1,14 @@
 services:
-  proxy:
-    build:
-      dockerfile: applications/proxy/Dockerfile
-    depends_on:
-      adminer:
-        condition: service_healthy
-      server:
-        condition: service_healthy
-      web:
-        condition: service_healthy
-    environment:
-      WEB_PORT: 3000
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-  adminer:
-    image: adminer
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -q --spider http://localhost:8080 || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-  server:
-    build:
-      dockerfile: applications/server/Dockerfile
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://sideline:sideline@postgres:5432/sideline
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_REDIRECT: https://sideline-preview.majksa.net/api
-      API_PREFIX: /api
-      FRONTEND_URL: ${BASE_URL}
-      SERVER_URL: ${BASE_URL}/api
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 15
-      start_period: 30s
-  bot:
-    build:
-      dockerfile: applications/bot/Dockerfile
-    depends_on:
-      server:
-        condition: service_healthy
-    environment:
-      NODE_ENV: development
-      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-  web:
-    build:
-      dockerfile: applications/web/Dockerfile
-    depends_on:
-      server:
-        condition: service_healthy
-    environment:
-      SERVER_URL: ${BASE_URL}/api
-      PORT: 3000
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
   postgres:
     image: postgres:17
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: sideline
       POSTGRES_PASSWORD: sideline
       POSTGRES_DB: sideline
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U sideline -d sideline" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
 
 volumes:
   pgdata:

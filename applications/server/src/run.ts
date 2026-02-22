@@ -14,7 +14,7 @@ const PgLive = PgClient.layerConfig({
 const MigratorLive = Migrator.pipe(Layer.effectDiscard, Layer.provide(NodeFileSystem.layer));
 
 const App = AppLive.pipe(
-  Layer.provide(MigratorLive),
+  env.NODE_ENV === 'development' ? Layer.provide(MigratorLive) : Layer.provide(Layer.empty),
   Layer.provide(PgLive),
   Layer.provide(NodeHttpServer.layer(createServer, { port: env.PORT })),
   Layer.launch,
