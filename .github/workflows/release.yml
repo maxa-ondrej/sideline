@@ -62,8 +62,7 @@ jobs:
       - name: Get package.json data
         id: package
         run: |
-          VERSION="$(cat applications/${{ matrix.app }}/package.json | jq '.version')"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r '.version' applications/${{ matrix.app }}/package.json)" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
