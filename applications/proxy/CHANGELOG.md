@@ -1,5 +1,11 @@
 # @sideline/proxy
 
+## 0.2.5
+
+### Patch Changes
+
+- [`894c836`](https://github.com/maxa-ondrej/sideline/commit/894c836d65dc885a94d25d4f280c04c74b4866d0) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Simplify version extraction in Docker release workflow
+
 ## 0.2.4
 
 ### Patch Changes
