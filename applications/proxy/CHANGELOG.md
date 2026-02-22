@@ -1,5 +1,11 @@
 # @sideline/proxy
 
+## 0.2.3
+
+### Patch Changes
+
+- [`e1389ba`](https://github.com/maxa-ondrej/sideline/commit/e1389ba855a70a285581639d349908570456659c) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Build and push Docker images for changed applications as part of the release workflow
+
 ## 0.2.2
 
 ### Patch Changes
