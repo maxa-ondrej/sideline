@@ -126,7 +126,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 pipe(
                   Redirect.fromUrl(
                     new URL(
-                      `/api/${Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('doLogin')).path}`,
+                      env.API_PREFIX +
+                        Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
                       a.state.redirectUrl,
                     ),
                   ),
