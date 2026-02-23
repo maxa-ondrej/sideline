@@ -27,4 +27,4 @@ COPY --from=build /app/applications/server/build/esm applications/server/build
 EXPOSE 80
 EXPOSE 9000
 
-CMD ./start.sh
+CMD ["node", "applications/server/build/run.js"]
