@@ -128,7 +128,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                     new URL(
                       env.API_PREFIX +
                         Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
-                      a.state.redirectUrl,
+                      a.state.redirectUrl.origin,
                     ),
                   ),
                   Redirect.withSearchParam('state', Schema.encodeSync(LoginSchema)(a.state)),
