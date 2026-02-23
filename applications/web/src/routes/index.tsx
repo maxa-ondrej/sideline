@@ -57,7 +57,7 @@ function Home() {
     return (
       <div>
         <div className='flex items-center justify-between'>
-          <h1>{m.app_name()}</h1>
+          <h1>TEST: {m.app_name()}</h1>
           <LanguageSwitcher isAuthenticated />
         </div>
         <p>{m.auth_signedInAs({ username: userOption.value.discordUsername })}</p>
