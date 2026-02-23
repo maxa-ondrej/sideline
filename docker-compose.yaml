@@ -20,7 +20,7 @@ services:
       dockerfile: applications/server/Dockerfile
     environment:
       NODE_ENV: development
-      DATABASE_HOST: xksswoc0cswkwc8kco4g8ows
+      DATABASE_HOST: ek0k0ws8kgc8s8s800s844o8
       DATABASE_PORT: 5432
       DATABASE_NAME: ${SERVICE_FQDN_PROXY}
       DATABASE_MAIN: postgres
