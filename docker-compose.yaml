@@ -1,14 +1,70 @@
 services:
-  postgres:
-    image: postgres:17
-    ports:
-      - "5432:5432"
+  proxy:
+    build:
+      dockerfile: applications/proxy/Dockerfile
+    depends_on:
+      server:
+        condition: service_healthy
+      web:
+        condition: service_healthy
     environment:
-      POSTGRES_USER: sideline
-      POSTGRES_PASSWORD: sideline
-      POSTGRES_DB: sideline
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-volumes:
-  pgdata:
+      WEB_PORT: 3000
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+  server:
+    build:
+      dockerfile: applications/server/Dockerfile
+    environment:
+      NODE_ENV: development
+      DATABASE_HOST: xksswoc0cswkwc8kco4g8ows
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${SERVICE_FDQN_PROXY}
+      DATABASE_MAIN: postgres
+      DATABASE_USER: sideline
+      DATABASE_PASS: ${DATABASE_PASSWORD}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT: https://sideline-preview.majksa.net/api
+      API_PREFIX: /api
+      FRONTEND_URL: ${SERVICE_URL_PROXY}
+      SERVER_URL: ${SERVICE_URL_PROXY}/api
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+  bot:
+    build:
+      dockerfile: applications/bot/Dockerfile
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+  web:
+    build:
+      dockerfile: applications/web/Dockerfile
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      SERVER_URL: ${SERVICE_URL_PROXY}/api
+      PORT: 3000
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

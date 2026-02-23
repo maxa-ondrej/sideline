@@ -18,7 +18,15 @@ export const env = createEnv({
       Schema.standardSchemaV1,
     ),
     SERVER_URL: Schema.URL.pipe(Schema.standardSchemaV1),
-    DATABASE_URL: Schema.NonEmptyTrimmedString.pipe(Schema.Redacted, Schema.standardSchemaV1),
+    DATABASE_HOST: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    DATABASE_PORT: Schema.NumberFromString.pipe(
+      Schemas.Optional(() => 5432),
+      Schema.standardSchemaV1,
+    ),
+    DATABASE_MAIN: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    DATABASE_NAME: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    DATABASE_USER: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    DATABASE_PASS: Schema.NonEmptyTrimmedString.pipe(Schema.Redacted, Schema.standardSchemaV1),
     DISCORD_CLIENT_ID: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
     DISCORD_CLIENT_SECRET: Schema.NonEmptyTrimmedString.pipe(
       Schema.Redacted,

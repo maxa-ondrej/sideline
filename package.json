@@ -14,8 +14,8 @@
     "coverage": "vitest --coverage",
     "changeset-version": "changeset version",
     "changeset-publish": "pnpm build && TEST_DIST= pnpm vitest && changeset publish",
-    "db:up": "docker compose up -d postgres",
-    "db:down": "docker compose down",
+    "db:up": "docker compose -f docker-compose.db.yaml up -d postgres",
+    "db:down": "docker compose -f docker-compose.db.yaml down",
     "prepare": "husky"
   },
   "lint-staged": {
