@@ -9,6 +9,8 @@ services:
         condition: service_healthy
     environment:
       WEB_PORT: 3000
+      WEB_HOST: $SERVICE_NAME_WEB
+      SERVER_HOST: $SERVICE_NAME_SERVER
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
