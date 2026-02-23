@@ -1,5 +1,11 @@
 # @sideline/server
 
+## 0.1.6
+
+### Patch Changes
+
+- [`0685679`](https://github.com/maxa-ondrej/sideline/commit/06856798d01a669df8ac7ec38b64aca076e2b888) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Split migrations into before/after lifecycle, decompose DATABASE_URL into individual connection params, and update docker-compose for full-stack deployment.
+
 ## 0.1.5
 
 ### Patch Changes

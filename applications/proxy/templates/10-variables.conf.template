@@ -1,7 +1,7 @@
-map $host $var_server_port {
-  default "$SERVER_PORT";
+map $host $var_server_upstream {
+  default "http://$SERVER_HOST:$SERVER_PORT";
 }
 
-map $host $var_web_port {
-  default "$WEB_PORT";
+map $host $var_web_upstream {
+  default "http://$WEB_HOST:$WEB_PORT";
 }

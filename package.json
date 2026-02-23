@@ -34,6 +34,7 @@
     "@effect/language-service": "0.74.0",
     "@effect/vitest": "0.27.0",
     "@types/node": "22.19.11",
+    "@vitest/ui": "3.2.4",
     "babel-plugin-annotate-pure-calls": "0.5.0",
     "effect": "3.19.18",
     "glob": "^11.1.0",

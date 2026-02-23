@@ -3,7 +3,12 @@ import { defineProject } from 'vitest/config';
 export default defineProject({
   test: {
     env: {
-      DATABASE_URL: 'postgres://test:test@localhost/test',
+      DATABASE_HOST: 'localhost',
+      DATABASE_PORT: '5432',
+      DATABASE_MAIN: 'test',
+      DATABASE_NAME: 'test',
+      DATABASE_USER: 'test',
+      DATABASE_PASS: 'test',
       DISCORD_CLIENT_ID: 'test-client-id',
       DISCORD_CLIENT_SECRET: 'test-client-secret',
       DISCORD_REDIRECT: 'http://localhost',
