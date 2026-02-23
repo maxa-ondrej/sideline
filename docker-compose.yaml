@@ -22,7 +22,7 @@ services:
       NODE_ENV: development
       DATABASE_HOST: xksswoc0cswkwc8kco4g8ows
       DATABASE_PORT: 5432
-      DATABASE_NAME: ${SERVICE_FDQN_PROXY}
+      DATABASE_NAME: ${SERVICE_FQDN_PROXY}
       DATABASE_MAIN: postgres
       DATABASE_USER: sideline
       DATABASE_PASS: ${DATABASE_PASSWORD}
