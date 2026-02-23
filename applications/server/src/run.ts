@@ -17,7 +17,7 @@ const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
 };
 
 const CreateDb = SqlClient.SqlClient.pipe(
-  Effect.andThen((sql) => sql`CREATE DATABASE "${env.DATABASE_NAME}"`),
+  Effect.andThen((sql) => sql(`CREATE DATABASE "${env.DATABASE_NAME}"`)),
   Effect.tap(Effect.logInfo),
   Effect.tapError(Effect.logWarning),
   Effect.option,
