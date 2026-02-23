@@ -30,6 +30,11 @@ const LoginSchema = Schema.parseJson(
   }),
 );
 
+class BadOriginError extends Schema.TaggedError<BadOriginError>()('BadOriginError', {
+  code: Schema.String,
+  state: LoginSchema,
+}) {}
+
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('discord', () => DiscordOAuth),
@@ -61,6 +66,12 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               RuntimeError.auth(Option.getOrElse(error, () => 'missing_params')),
             ),
             Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
+            Effect.andThen((data) =>
+              env.NODE_ENV === 'development' &&
+              data.state.redirectUrl.toString().startsWith(env.FRONTEND_URL.toString())
+                ? Effect.succeed(data)
+                : Effect.fail(new BadOriginError({ state: data.state, code: data.code })),
+            ),
             Effect.bind('oauth', ({ code }) => discord.validateAuthorizationCode(code)),
             Effect.let('DiscordConfigLive', ({ oauth }) =>
               DiscordConfig.layer({
@@ -111,6 +122,18 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               SqlError: LogicError.fromUnknown,
               ParseError: LogicError.fromUnknown,
               NoSuchElementException: LogicError.fromUnknown,
+              BadOriginError: (a) =>
+                pipe(
+                  Redirect.fromUrl(
+                    new URL(
+                      `/api/${Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('doLogin')).path}`,
+                      a.state.redirectUrl,
+                    ),
+                  ),
+                  Redirect.withSearchParam('state', Schema.encodeSync(LoginSchema)(a.state)),
+                  Redirect.withSearchParam('code', a.code),
+                  Effect.succeed,
+                ),
             }),
             Effect.tapErrorTag('LogicError', Effect.logError),
             Effect.catchTag('LogicError', () => RuntimeError.auth('oauth_failed')),
