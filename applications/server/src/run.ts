@@ -5,8 +5,8 @@ import { PgClient } from '@effect/sql-pg';
 import { Runtime } from '@sideline/effect-lib';
 import { AfterMigrator, BeforeMigrator } from '@sideline/migrations';
 import { Config, Effect, Layer } from 'effect';
-import { env } from './env.js';
-import { AppLive, HealthServerLive } from './index.js';
+import { env } from '~/env.js';
+import { AppLive, HealthServerLive } from '~/index.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),

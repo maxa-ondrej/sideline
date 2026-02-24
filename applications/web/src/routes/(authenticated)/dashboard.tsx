@@ -1,7 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import React from 'react';
-import { DashboardPage } from '../../components/pages/DashboardPage';
-import { logout } from '../../lib/auth';
+import { DashboardPage } from '~/components/pages/DashboardPage';
+import { logout } from '~/lib/auth';
 
 export const Route = createFileRoute('/(authenticated)/dashboard')({
   component: DashboardRoute,

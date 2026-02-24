@@ -8,7 +8,7 @@ import {
 } from '@effect/platform';
 import { NodeHttpServer } from '@effect/platform-node';
 import { Effect, Layer, Schema } from 'effect';
-import { env } from './env.js';
+import { env } from '~/env.js';
 
 class HealthApiGroup extends HttpApiGroup.make('health').add(
   HttpApiEndpoint.get('healthCheck', '/health').addSuccess(

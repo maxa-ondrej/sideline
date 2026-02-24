@@ -1,5 +1,5 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
-import { Locale, User, UserId, type UserId as UserIdType } from '@sideline/domain/models/User';
+import { User as UserNS } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -11,7 +11,7 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
 
-const CompleteProfileInput = User.pipe(
+const CompleteProfileInput = UserNS.User.pipe(
   Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
 );
 
@@ -19,7 +19,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   effect: SqlClient.SqlClient.pipe(
     Effect.bindTo('sql'),
     Effect.bind('repo', () =>
-      Model.makeRepository(User, {
+      Model.makeRepository(UserNS.User, {
         tableName: 'users',
         spanPrefix: 'UsersRepository',
         idColumn: 'id',
@@ -28,20 +28,20 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     Effect.let('findByDiscordId', ({ sql }) =>
       SqlSchema.findOne({
         Request: Schema.String,
-        Result: User,
+        Result: UserNS.User,
         execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
       }),
     ),
     Effect.let(
       'findById',
       ({ repo }) =>
-        (id: UserIdType) =>
+        (id: UserNS.UserId) =>
           repo.findById(id),
     ),
     Effect.let('upsertFromDiscord', ({ sql }) =>
       SqlSchema.single({
         Request: UpsertDiscordInput,
-        Result: User,
+        Result: UserNS.User,
         execute: (input) => sql`
           INSERT INTO users (discord_id, discord_username, discord_avatar, discord_access_token, discord_refresh_token)
           VALUES (${input.discord_id}, ${input.discord_username}, ${input.discord_avatar}, ${input.discord_access_token}, ${input.discord_refresh_token})
@@ -58,7 +58,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     Effect.let('completeProfile', ({ sql }) =>
       SqlSchema.single({
         Request: CompleteProfileInput,
-        Result: User,
+        Result: UserNS.User,
         execute: (input) => sql`
           UPDATE users SET
             name = ${input.name},
@@ -76,8 +76,8 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     ),
     Effect.let('updateLocale', ({ sql }) =>
       SqlSchema.single({
-        Request: Schema.Struct({ id: UserId, locale: Locale }),
-        Result: User,
+        Request: Schema.Struct({ id: UserNS.UserId, locale: UserNS.Locale }),
+        Result: UserNS.User,
         execute: (input) => sql`
           UPDATE users SET
             locale = ${input.locale},

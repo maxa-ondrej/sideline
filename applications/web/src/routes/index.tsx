@@ -1,8 +1,8 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Effect, Schema } from 'effect';
 import React from 'react';
-import { HomePage } from '../components/pages/HomePage';
-import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '../lib/auth';
+import { HomePage } from '~/components/pages/HomePage';
+import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '~/lib/auth';
 
 export const Route = createFileRoute('/')({
   component: HomeRoute,

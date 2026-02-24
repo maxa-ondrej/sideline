@@ -1,8 +1,8 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
-import { TeamId } from '../models/Team.js';
-import { TeamRole } from '../models/TeamMember.js';
-import { AuthMiddleware } from './Auth.js';
+import { AuthMiddleware } from '~/api/Auth.js';
+import { TeamId } from '~/models/Team.js';
+import { TeamRole } from '~/models/TeamMember.js';
 
 export class InviteInfo extends Schema.Class<InviteInfo>('InviteInfo')({
   teamName: Schema.String,

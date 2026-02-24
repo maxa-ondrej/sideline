@@ -1,6 +1,6 @@
 import { Effect, Option } from 'effect';
-import { client } from './client';
-import { ApiClient } from './runtime';
+import { client } from '~/lib/client';
+import { ApiClient } from '~/lib/runtime';
 
 export const getLogin = () => client.pipe(Effect.flatMap((c) => c.auth.getLogin()));
 

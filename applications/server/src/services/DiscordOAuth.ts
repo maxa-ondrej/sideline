@@ -1,7 +1,7 @@
 import { ApiGroup, Auth } from '@sideline/domain';
 import { Discord } from 'arctic';
 import { Effect, Redacted } from 'effect';
-import { env } from '../env.js';
+import { env } from '~/env.js';
 
 export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAuth', {
   effect: Effect.Do.pipe(

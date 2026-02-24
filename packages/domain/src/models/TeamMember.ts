@@ -1,7 +1,7 @@
 import { Model } from '@effect/sql';
 import { Schema } from 'effect';
-import { TeamId } from './Team.js';
-import { UserId } from './User.js';
+import { TeamId } from '~/models/Team.js';
+import { UserId } from '~/models/User.js';
 
 export const TeamMemberId = Schema.String.pipe(Schema.brand('TeamMemberId'));
 export type TeamMemberId = typeof TeamMemberId.Type;

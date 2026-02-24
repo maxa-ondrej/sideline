@@ -5,10 +5,9 @@ import {
   HttpClient,
   HttpClientRequest,
 } from '@effect/platform';
-import { AuthApiGroup } from '@sideline/domain/api/Auth';
-import { InviteApiGroup } from '@sideline/domain/api/Invite';
+import { Auth, Invite } from '@sideline/domain';
 import { Context, Effect, Option } from 'effect';
-import { getToken } from './auth';
+import { getToken } from '~/lib/auth';
 
 export type ClientConfigService = {
   readonly baseUrl: string;
@@ -20,7 +19,7 @@ export const ClientConfig = Context.GenericTag<ClientConfig, ClientConfigService
   'api/ClientConfig',
 );
 
-class ClientApi extends HttpApi.make('api').add(AuthApiGroup).add(InviteApiGroup) {}
+class ClientApi extends HttpApi.make('api').add(Auth.AuthApiGroup).add(Invite.InviteApiGroup) {}
 
 export const client = ClientConfig.pipe(
   Effect.flatMap(({ baseUrl }) =>

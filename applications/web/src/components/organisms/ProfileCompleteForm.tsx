@@ -1,16 +1,29 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import { MIN_AGE } from '@sideline/domain/api/Auth';
+import { Auth } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
-import { ApiClient, ClientError, useRun } from '../../lib/runtime';
-import * as m from '../../paraglide/messages.js';
-import { Button } from '../ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
-import { Input } from '../ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Button } from '~/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '~/components/ui/form';
+import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { ApiClient, ClientError, useRun } from '~/lib/runtime';
+import * as m from '~/paraglide/messages.js';
 
 const currentYear = new Date().getFullYear();
-const maxBirthYear = currentYear - MIN_AGE;
+const maxBirthYear = currentYear - Auth.MIN_AGE;
 const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
 const ProfileFormSchema = Schema.Struct({

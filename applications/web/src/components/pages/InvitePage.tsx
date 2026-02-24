@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import React from 'react';
-import { ApiClient, ClientError, useRun } from '../../lib/runtime';
-import * as m from '../../paraglide/messages.js';
-import { Button } from '../ui/button';
+import { Button } from '~/components/ui/button';
+import { ApiClient, ClientError, useRun } from '~/lib/runtime';
+import * as m from '~/paraglide/messages.js';
 
 interface InvitePageProps {
   isAuthenticated: boolean;

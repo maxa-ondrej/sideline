@@ -1,15 +1,14 @@
 import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth } from '@sideline/domain';
-import { CurrentUser, CurrentUserContext } from '@sideline/domain/api/Auth';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
 import { Data, DateTime, Effect, flow, Layer, Option, pipe, Redacted, Schema } from 'effect';
-import { env } from '../env.js';
-import { SessionsRepository } from '../repositories/SessionsRepository.js';
-import { UsersRepository } from '../repositories/UsersRepository.js';
-import { DiscordOAuth } from '../services/DiscordOAuth.js';
-import { Api } from './api.js';
-import { Redirect } from './index.js';
+import { Api } from '~/api/api.js';
+import { Redirect } from '~/api/index.js';
+import { env } from '~/env.js';
+import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
 class AuthError extends Schema.TaggedError<AuthError>()('AuthError', {
   error: Schema.Literal('auth_failed'),
@@ -173,20 +172,20 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
           ),
         )
-        .handle('me', () => CurrentUserContext)
+        .handle('me', () => Auth.CurrentUserContext)
         .handle('updateLocale', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('updated', ({ currentUser }) =>
               users.updateLocale({
                 id: currentUser.id,
                 locale: payload.locale,
               }),
             ),
-            Effect.orDie,
+            Effect.mapError(() => new Auth.Unauthorized()),
             Effect.map(
               ({ updated }) =>
-                new CurrentUser({
+                new Auth.CurrentUser({
                   id: updated.id,
                   discordId: updated.discord_id,
                   discordUsername: updated.discord_username,
@@ -205,23 +204,22 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('completeProfile', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('updated', ({ currentUser }) =>
-              users
-                .completeProfile({
-                  id: currentUser.id,
-                  name: payload.name,
-                  birth_year: payload.birthYear,
-                  gender: payload.gender,
-                  jersey_number: Option.getOrNull(payload.jerseyNumber),
-                  position: payload.position,
-                  proficiency: payload.proficiency,
-                })
-                .pipe(Effect.orDie),
+              users.completeProfile({
+                id: currentUser.id,
+                name: payload.name,
+                birth_year: payload.birthYear,
+                gender: payload.gender,
+                jersey_number: Option.getOrNull(payload.jerseyNumber),
+                position: payload.position,
+                proficiency: payload.proficiency,
+              }),
             ),
+            Effect.mapError(() => new Auth.Unauthorized()),
             Effect.map(
               ({ updated }) =>
-                new CurrentUser({
+                new Auth.CurrentUser({
                   id: updated.id,
                   discordId: updated.discord_id,
                   discordUsername: updated.discord_username,
