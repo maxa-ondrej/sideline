@@ -34,10 +34,6 @@ const CustomClient = HttpClient.HttpClient.pipe(
   Layer.effect(HttpClient.HttpClient),
 );
 
-const DiscordRestLive = Layer.merge(DiscordRESTLive, CustomClient).pipe(
-  Layer.provide(MemoryRateLimitStoreLive),
-);
-
 const LoginSchema = Schema.parseJson(
   Schema.Struct({
     id: Schema.UUID,
@@ -96,7 +92,12 @@ const handleDiscordLogin = ({
       }),
     ),
     Effect.bind('client', ({ DiscordConfigLive }) =>
-      DiscordREST.pipe(Effect.provide(DiscordRestLive), Effect.provide(DiscordConfigLive)),
+      DiscordREST.pipe(
+        Effect.provide(DiscordRESTLive),
+        Effect.provide(CustomClient),
+        Effect.provide(MemoryRateLimitStoreLive),
+        Effect.provide(DiscordConfigLive),
+      ),
     ),
     Effect.tap(() =>
       Effect.logInfo('[auth/callback] Discord REST client ready, calling getMyUser()'),
