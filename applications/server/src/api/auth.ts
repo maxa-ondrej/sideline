@@ -2,7 +2,7 @@ import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
-import { Data, DateTime, Effect, flow, Layer, Option, pipe, Redacted, Schema } from 'effect';
+import { DateTime, Effect, Layer, Option, pipe, Redacted, Schema } from 'effect';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
 import { env } from '~/env.js';
@@ -17,7 +17,9 @@ class AuthError extends Schema.TaggedError<AuthError>()('AuthError', {
   static withReason = (reason: string) => new AuthError({ error: 'auth_failed', reason });
 
   static failCause = (cause: unknown) =>
-    Effect.logError(cause).pipe(Effect.flatMap(() => Effect.fail(this.withReason('oauth_failed'))));
+    Effect.logError('[auth/callback] unexpected error during OAuth flow', cause).pipe(
+      Effect.flatMap(() => Effect.fail(this.withReason('oauth_failed'))),
+    );
 }
 
 const CustomClient = HttpClient.HttpClient.pipe(
@@ -39,9 +41,126 @@ const LoginSchema = Schema.parseJson(
   }),
 );
 
-class BadOriginError extends Data.TaggedError('BadOriginError')<{
-  redirect: Redirect;
-}> {}
+type LoginState = Schema.Schema.Type<typeof LoginSchema>;
+
+const redirectForPreviews = ({
+  state,
+  stateRaw,
+  code,
+}: {
+  state: LoginState;
+  stateRaw: string;
+  code: string;
+}) =>
+  Effect.succeed(
+    pipe(
+      Redirect.fromUrl(
+        new URL(
+          env.API_PREFIX + Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
+          state.redirectUrl.origin,
+        ),
+      ),
+      Redirect.withSearchParam('state', stateRaw),
+      Redirect.withSearchParam('code', code),
+      Redirect.toResponse,
+    ),
+  );
+
+const handleDiscordLogin = ({
+  code,
+  state,
+  discord,
+  users,
+  sessions,
+}: {
+  code: string;
+  state: LoginState;
+  discord: DiscordOAuth;
+  users: UsersRepository;
+  sessions: SessionsRepository;
+}) =>
+  Effect.Do.pipe(
+    Effect.bind('oauth', () => discord.validateAuthorizationCode(code)),
+    Effect.tap(() =>
+      Effect.logInfo(
+        '[auth/callback] oauth token exchange succeeded, building Discord REST client',
+      ),
+    ),
+    Effect.let('DiscordConfigLive', ({ oauth }) =>
+      DiscordConfig.layer({
+        token: Redacted.make(oauth.accessToken()),
+      }),
+    ),
+    Effect.bind('client', ({ DiscordConfigLive }) =>
+      Effect.provide(
+        DiscordREST,
+        Layer.provideMerge(
+          Layer.merge(DiscordRESTLive, CustomClient), // original dependencies
+          Layer.merge(MemoryRateLimitStoreLive, DiscordConfigLive), // layers for dependencies
+        ),
+      ),
+    ),
+    Effect.tap(() =>
+      Effect.logInfo('[auth/callback] Discord REST client ready, calling getMyUser()'),
+    ),
+    Effect.bind('discordUser', ({ client }) => client.getMyUser()),
+    Effect.tap(({ discordUser }) =>
+      Effect.logInfo('[auth/callback] getMyUser() succeeded', {
+        discordId: discordUser.id,
+        username: discordUser.username,
+      }),
+    ),
+    Effect.let('sessionToken', () => crypto.randomUUID()),
+    Effect.bind('now', () => DateTime.now),
+    Effect.let('expiresAt', ({ now }) => DateTime.add(now, { days: 30 })),
+    Effect.bind('dbUser', ({ discordUser, oauth }) =>
+      users.upsertFromDiscord({
+        discord_id: discordUser.id,
+        discord_username: discordUser.username,
+        discord_avatar: discordUser.avatar ?? null,
+        discord_access_token: oauth.accessToken(),
+        discord_refresh_token: oauth.refreshToken(),
+      }),
+    ),
+    Effect.tap(({ dbUser }) =>
+      Effect.logInfo('[auth/callback] user upserted in db', { userId: dbUser.id }),
+    ),
+    Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
+      sessions.create({
+        user_id: dbUser.id,
+        token: sessionToken,
+        expires_at: expiresAt,
+        created_at: undefined,
+      }),
+    ),
+    Effect.tap(() => Effect.logInfo('[auth/callback] session created, redirecting')),
+    Effect.catchTag(
+      'RequestError',
+      'ResponseError',
+      'DiscordOAuthError',
+      'SqlError',
+      'ParseError',
+      'NoSuchElementException',
+      AuthError.failCause,
+    ),
+    Effect.map(({ sessionToken }) =>
+      pipe(
+        Redirect.fromUrl(state.redirectUrl),
+        Redirect.withSearchParam('token', sessionToken),
+        Redirect.toResponse,
+      ),
+    ),
+    Effect.catchTag('ErrorResponse', (e) =>
+      Effect.logError('[auth/callback] Discord API returned ErrorResponse in getMyUser()', e).pipe(
+        Effect.flatMap(() => Effect.fail(AuthError.withReason('profile_failed'))),
+      ),
+    ),
+    Effect.catchTag('RatelimitedResponse', (e) =>
+      Effect.logError('[auth/callback] Discord API rate-limited us', e).pipe(
+        Effect.flatMap(() => Effect.fail(AuthError.withReason('rate_limited'))),
+      ),
+    ),
+  );
 
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
@@ -77,90 +196,32 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('callback', ({ urlParams: { code, state, error } }) =>
           Effect.Do.pipe(
+            Effect.tap(() =>
+              Effect.logInfo('[auth/callback] received callback', {
+                hasCode: Option.isSome(code),
+                hasState: Option.isSome(state),
+                hasError: Option.isSome(error),
+              }),
+            ),
             Effect.bind('code', () => code),
             Effect.bind('stateRaw', () => state),
             Effect.catchTag('NoSuchElementException', () =>
               AuthError.withReason(Option.getOrElse(error, () => 'missing_params')),
             ),
             Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
-            Effect.tap(({ state, stateRaw, code }) =>
+            Effect.tap(({ state }) =>
+              Effect.logInfo('[auth/callback] state decoded', {
+                redirectUrl: state.redirectUrl.toString(),
+                frontendUrl: env.FRONTEND_URL.toString(),
+              }),
+            ),
+            Effect.andThen(({ state, stateRaw, code }) =>
               env.NODE_ENV === 'development' &&
               state.redirectUrl.toString().startsWith(env.FRONTEND_URL.toString())
-                ? Effect.void
-                : Effect.fail(
-                    new BadOriginError({
-                      redirect: pipe(
-                        Redirect.fromUrl(
-                          new URL(
-                            env.API_PREFIX +
-                              Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
-                            state.redirectUrl.origin,
-                          ),
-                        ),
-                        Redirect.withSearchParam('state', stateRaw),
-                        Redirect.withSearchParam('code', code),
-                      ),
-                    }),
-                  ),
+                ? handleDiscordLogin({ code, state, discord, users, sessions })
+                : redirectForPreviews({ state, stateRaw, code }),
             ),
-            Effect.bind('oauth', ({ code }) => discord.validateAuthorizationCode(code)),
-            Effect.let('DiscordConfigLive', ({ oauth }) =>
-              DiscordConfig.layer({
-                token: Redacted.make(oauth.accessToken()),
-              }),
-            ),
-            Effect.bind('client', ({ DiscordConfigLive }) =>
-              Effect.provide(
-                DiscordREST,
-                Layer.provideMerge(
-                  Layer.merge(DiscordRESTLive, CustomClient), // original dependencies
-                  Layer.merge(MemoryRateLimitStoreLive, DiscordConfigLive), // layers for dependencies
-                ),
-              ),
-            ),
-            Effect.bind('discordUser', ({ client }) => client.getMyUser()),
-            Effect.let('sessionToken', () => crypto.randomUUID()),
-            Effect.bind('now', () => DateTime.now),
-            Effect.let('expiresAt', ({ now }) => DateTime.add(now, { days: 30 })),
-            Effect.bind('dbUser', ({ discordUser, oauth }) =>
-              users.upsertFromDiscord({
-                discord_id: discordUser.id,
-                discord_username: discordUser.username,
-                discord_avatar: discordUser.avatar ?? null,
-                discord_access_token: oauth.accessToken(),
-                discord_refresh_token: oauth.refreshToken(),
-              }),
-            ),
-            Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
-              sessions.create({
-                user_id: dbUser.id,
-                token: sessionToken,
-                expires_at: expiresAt,
-                created_at: undefined,
-              }),
-            ),
-            Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'DiscordOAuthError',
-              'SqlError',
-              'ParseError',
-              'NoSuchElementException',
-              AuthError.failCause,
-            ),
-            Effect.map(({ sessionToken, state }) =>
-              pipe(
-                Redirect.fromUrl(state.redirectUrl),
-                Redirect.withSearchParam('token', sessionToken),
-                Redirect.toResponse,
-              ),
-            ),
-            Effect.catchTag(
-              'BadOriginError',
-              flow((e) => e.redirect, Redirect.toResponse, Effect.succeed),
-            ),
-            Effect.catchTag('ErrorResponse', () => AuthError.withReason('profile_failed')),
-            Effect.catchTag('RatelimitedResponse', () => AuthError.withReason('rate_limited')),
+            Effect.catchTag('ParseError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>
               pipe(
                 Redirect.fromUrl(env.FRONTEND_URL),
