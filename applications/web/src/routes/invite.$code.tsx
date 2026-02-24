@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
+import { InvitePage } from '../components/pages/InvitePage';
 import { getLogin, setPendingInvite } from '../lib/auth';
-import { ApiClient, ClientError, NotFound } from '../lib/runtime';
-import * as m from '../paraglide/messages.js';
+import { ApiClient, NotFound, useRun } from '../lib/runtime';
 
 export const Route = createFileRoute('/invite/$code')({
-  component: InvitePage,
+  component: InviteRoute,
   loader: async ({ params, context }) =>
     ApiClient.pipe(
       Effect.flatMap((api) => api.invite.getInvite({ path: { code: params.code } })),
@@ -15,70 +15,42 @@ export const Route = createFileRoute('/invite/$code')({
     ),
 });
 
-function InvitePage() {
-  const { userOption, makeRun } = Route.useRouteContext();
+function InviteRoute() {
+  const { userOption } = Route.useRouteContext();
   const { code } = Route.useParams();
   const invite = Route.useLoaderData();
   const navigate = useNavigate();
-  const [joining, setJoining] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
+  const run = useRun();
 
-  const handleJoin = React.useCallback(async () => {
-    setJoining(true);
-    setError(null);
-    try {
-      const result = await ApiClient.pipe(
-        Effect.flatMap((api) => api.invite.joinViaInvite({ path: { code } })),
-        Effect.catchAll((e) =>
-          Effect.fail(
-            new ClientError({
-              message:
-                '_tag' in e && e._tag === 'AlreadyMember'
-                  ? m.invite_errors_alreadyMember()
-                  : '_tag' in e && e._tag === 'InviteNotFound'
-                    ? m.invite_errors_inviteNotValid()
-                    : m.invite_errors_joinFailed(),
-            }),
-          ),
-        ),
-        makeRun(),
-      );
-      if (result.isProfileComplete) {
+  const handleJoined = React.useCallback(
+    (isProfileComplete: boolean) => {
+      if (isProfileComplete) {
         navigate({ to: '/dashboard' });
       } else {
         navigate({ to: '/profile/complete' });
       }
-    } catch (e) {
-      setError(e instanceof ClientError ? e.message : m.invite_errors_joinFailed());
-      setJoining(false);
-    }
-  }, [code, navigate, makeRun]);
+    },
+    [navigate],
+  );
 
   const handleSignIn = React.useCallback(() => {
     setPendingInvite(code);
     getLogin()
-      .pipe(Effect.option, makeRun())
+      .pipe(Effect.option, run)
       .then((url) => {
         if (Option.isSome(url)) {
           navigate({ href: url.value.toString() });
         }
       });
-  }, [code, navigate, makeRun]);
+  }, [code, navigate, run]);
 
   return (
-    <div>
-      <h1>{m.invite_joinTitle({ teamName: invite.teamName })}</h1>
-      <p>{m.invite_joinDescription({ teamName: invite.teamName })}</p>
-      {error && <p>{error}</p>}
-      {Option.isSome(userOption) ? (
-        <button type='button' onClick={handleJoin} disabled={joining}>
-          {joining ? m.invite_joining() : m.invite_joinButton()}
-        </button>
-      ) : (
-        <button type='button' onClick={handleSignIn}>
-          {m.invite_signInToJoin()}
-        </button>
-      )}
-    </div>
+    <InvitePage
+      isAuthenticated={Option.isSome(userOption)}
+      invite={invite}
+      code={code}
+      onJoined={handleJoined}
+      onSignIn={handleSignIn}
+    />
   );
 }

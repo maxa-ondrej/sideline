@@ -911,7 +911,7 @@ formatRelative(someDate);   // "před 3 dny" (cs) or "3 days ago" (en)
 
 ### Language Switcher
 
-`LanguageSwitcher` component (`applications/web/src/components/LanguageSwitcher.tsx`) uses shadcn Select. Accepts `isAuthenticated` prop — when `true`, persists choice to server via the `updateLocale` API.
+`LanguageSwitcher` organism (`applications/web/src/components/organisms/LanguageSwitcher.tsx`) uses the `LocaleSelect` molecule (Shadcn Select wrapper). Accepts `isAuthenticated` prop — when `true`, persists choice to server via the `updateLocale` API. Uses `useRun()` internally.
 
 ### Bot Localization
 
@@ -935,12 +935,95 @@ Interaction.pipe(
 
 Prefer `guild_locale` (server-configured language) over `locale` (individual user's language) for server-wide consistency.
 
+## Frontend Architecture (`applications/web`)
+
+### Component Structure — Atomic Design
+
+Components live in `applications/web/src/components/` and are organized following **Atomic Design**:
+
+```
+components/
+├── ui/          — Shadcn/UI primitives (auto-generated, do not hand-edit)
+├── atoms/       — Smallest self-contained components (e.g. LanguageSwitcher)
+├── molecules/   — Combinations of atoms (e.g. FormField = Label + Input)
+├── organisms/   — Complex, multi-responsibility sections (e.g. ProfileCompleteForm)
+├── pages/       — Full page components, one per route (e.g. HomePage, DashboardPage)
+└── layouts/     — Structural wrappers/shells (e.g. RootDocument)
+```
+
+#### Layer guidelines
+
+| Layer | Rule |
+|-------|------|
+| `ui/` | Shadcn primitives only. Added via `pnpm -C ./applications/web dlx shadcn@latest add <component>`. Never hand-edited. |
+| `atoms/` | Single responsibility, no business logic, no API calls. |
+| `molecules/` | Compose atoms + ui. No route-level data fetching, no API calls. |
+| `organisms/` | May own significant local state, form logic, or API calls via `useRun()` (e.g. `LanguageSwitcher`, `ProfileCompleteForm`). No TanStack Router hooks. |
+| `pages/` | One file per route. Receives data from `Route.useLoaderData()` / `Route.useRouteContext()` via props. Contains navigation callbacks. |
+| `layouts/` | Pure structural wrappers. Render `{children}` slots. No business logic. |
+
+#### Route file convention
+
+Route files (`routes/**/*.tsx`) contain TanStack Router config (`createFileRoute`, `beforeLoad`, `loader`, `validateSearch`) plus a thin wrapper component that calls `Route.use*()` hooks and passes the results as props to the Page component. The Page component itself has no TanStack Router dependency.
+
+```typescript
+// routes/(authenticated)/dashboard.tsx
+export const Route = createFileRoute('/(authenticated)/dashboard')({
+  component: DashboardRoute,
+  beforeLoad: ...,
+  loader: ...,
+});
+
+function DashboardRoute() {
+  const { user } = Route.useRouteContext();
+  const data = Route.useLoaderData();
+  return <DashboardPage user={user} data={data} />;
+}
+```
+
+```typescript
+// components/pages/DashboardPage.tsx
+export function DashboardPage({ user, data }: DashboardPageProps) {
+  // No Route.use*() calls — pure component driven by props
+}
+```
+
+### Runtime — Client vs Server runners
+
+`lib/runtime.ts` exposes two distinct run functions:
+
+| Function | Used in | Error channel | Returns | Side-effects |
+|---|---|---|---|---|
+| `runPromiseServer(url)(abortController?)` | `beforeLoad`, `loader` | `Redirect \| NotFound` | `Promise<A>` (throws on error) | None |
+| `runPromiseClient(url)` | Root loader → `RunProvider` | `ClientError` | `Promise<Option<A>>` | Auto `toast.error` on failure |
+
+**`Run` type** (what `useRun()` returns):
+```typescript
+type Run = <A>(
+  effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
+) => Promise<Option.Option<A>>;
+```
+
+**Wiring**: The root loader creates `runPromiseClient(url)` and passes it to `RootDocument` as the `run` prop, which puts it in `RunProvider`. All organisms access it via `useRun()` — no prop drilling of `makeRun`.
+
+**`ClientError`** has a static factory: `ClientError.make(message)`.
+
+**Organisms** call `useRun()` directly and pipe effects into `run`:
+```typescript
+const run = useRun();
+await ApiClient.pipe(
+  Effect.flatMap((api) => api.someEndpoint(...)),
+  Effect.catchTag('SomeError', () => ClientError.make('Error message')),
+  run, // toast.error shown automatically on ClientError
+);
+```
+
 ## Documentation Conventions
 
 - **Always update AGENTS.md** when making architecture changes, adding new patterns, changing CI/build workflows, or establishing new conventions. This file is the single source of truth for how the codebase works.
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-02-24
 
 When working on this codebase, prioritize type safety, composability, and Effect's functional patterns. Keep implementations simple and focused on the task at hand. Leverage Effect's powerful abstractions for error handling, resource management, and dependency injection.
