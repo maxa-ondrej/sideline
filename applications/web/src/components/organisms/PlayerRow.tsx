@@ -12,7 +12,7 @@ interface PlayerRowProps {
 
 export function PlayerRow({ player, teamId, isAdmin, onDeactivate }: PlayerRowProps) {
   const displayName = player.name ?? player.discordUsername;
-  const roleLabel = player.role === 'admin' ? m.roster_admin() : m.roster_member();
+  const roleLabel = player.role === 'admin' ? m.members_admin() : m.members_member();
 
   return (
     <tr className='border-b'>
@@ -35,14 +35,14 @@ export function PlayerRow({ player, teamId, isAdmin, onDeactivate }: PlayerRowPr
         <td className='py-2 px-4 flex gap-2'>
           <Button asChild variant='outline' size='sm'>
             <Link
-              to='/teams/$teamId/roster/$memberId'
+              to='/teams/$teamId/members/$memberId'
               params={{ teamId, memberId: player.memberId }}
             >
-              {m.roster_editPlayer()}
+              {m.members_editPlayer()}
             </Link>
           </Button>
           <Button variant='destructive' size='sm' onClick={() => onDeactivate(player.memberId)}>
-            {m.roster_deactivatePlayer()}
+            {m.members_deactivatePlayer()}
           </Button>
         </td>
       ) : (

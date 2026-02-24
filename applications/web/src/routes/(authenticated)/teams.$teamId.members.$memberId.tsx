@@ -7,20 +7,20 @@ import { PlayerDetailPage } from '~/components/pages/PlayerDetailPage';
 import { ApiClient, ClientError, NotFound, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
-export const Route = createFileRoute('/(authenticated)/teams/$teamId/roster/$memberId')({
-  component: PlayerDetailRoute,
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$memberId')({
+  component: MemberDetailRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(params.memberId);
     return ApiClient.pipe(
-      Effect.flatMap((api) => api.roster.getPlayer({ path: { teamId, memberId } })),
+      Effect.flatMap((api) => api.roster.getMember({ path: { teamId, memberId } })),
       Effect.catchAll(NotFound.make),
       context.run,
     );
   },
 });
 
-function PlayerDetailRoute() {
+function MemberDetailRoute() {
   const { user } = Route.useRouteContext();
   const { teamId: teamIdRaw, memberId: memberIdRaw } = Route.useParams();
   const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
@@ -36,7 +36,7 @@ function PlayerDetailRoute() {
     async (values: PlayerEditValues) => {
       const result = await ApiClient.pipe(
         Effect.flatMap((api) =>
-          api.roster.updatePlayer({
+          api.roster.updateMember({
             path: { teamId, memberId },
             payload: {
               name: values.name,
@@ -48,11 +48,11 @@ function PlayerDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roster_saveFailed())),
+        Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
         run,
       );
       if (Option.isSome(result)) {
-        navigate({ to: '/teams/$teamId/roster', params: { teamId: teamIdRaw } });
+        navigate({ to: '/teams/$teamId/members', params: { teamId: teamIdRaw } });
       }
     },
     [teamId, memberId, teamIdRaw, navigate, run],

@@ -25,8 +25,13 @@ export function DashboardPage({ user, teams, onLogout }: DashboardPageProps) {
               <li key={team.teamId} className='flex items-center gap-4'>
                 <span>{team.teamName}</span>
                 <Button asChild variant='outline' size='sm'>
-                  <Link to='/teams/$teamId/roster' params={{ teamId: team.teamId }}>
-                    {m.roster_viewRoster()}
+                  <Link to='/teams/$teamId/members' params={{ teamId: team.teamId }}>
+                    {m.members_viewMembers()}
+                  </Link>
+                </Button>
+                <Button asChild variant='outline' size='sm'>
+                  <Link to='/teams/$teamId/rosters' params={{ teamId: team.teamId }}>
+                    {m.roster_viewRosters()}
                   </Link>
                 </Button>
               </li>

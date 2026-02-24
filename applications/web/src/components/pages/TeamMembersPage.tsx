@@ -11,14 +11,14 @@ import {
 } from '~/components/ui/select';
 import * as m from '~/paraglide/messages.js';
 
-interface RosterPageProps {
+interface TeamMembersPageProps {
   teamId: string;
   isAdmin: boolean;
   players: ReadonlyArray<Roster.RosterPlayer>;
   onDeactivate: (memberId: string) => void;
 }
 
-export function RosterPage({ teamId, isAdmin, players, onDeactivate }: RosterPageProps) {
+export function TeamMembersPage({ teamId, isAdmin, players, onDeactivate }: TeamMembersPageProps) {
   const [search, setSearch] = React.useState('');
   const [positionFilter, setPositionFilter] = React.useState<string>('all');
 
@@ -31,20 +31,20 @@ export function RosterPage({ teamId, isAdmin, players, onDeactivate }: RosterPag
 
   return (
     <div className='p-4'>
-      <h1 className='text-2xl font-bold mb-4'>{m.roster_title()}</h1>
+      <h1 className='text-2xl font-bold mb-4'>{m.members_title()}</h1>
       <div className='flex gap-4 mb-4'>
         <Input
-          placeholder={m.roster_searchPlaceholder()}
+          placeholder={m.members_searchPlaceholder()}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className='max-w-xs'
         />
         <Select value={positionFilter} onValueChange={setPositionFilter}>
           <SelectTrigger className='w-48'>
-            <SelectValue placeholder={m.roster_filterPosition()} />
+            <SelectValue placeholder={m.members_filterPosition()} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value='all'>{m.roster_filterPosition()}</SelectItem>
+            <SelectItem value='all'>{m.members_filterPosition()}</SelectItem>
             <SelectItem value='goalkeeper'>{m.profile_complete_positionGoalkeeper()}</SelectItem>
             <SelectItem value='defender'>{m.profile_complete_positionDefender()}</SelectItem>
             <SelectItem value='midfielder'>{m.profile_complete_positionMidfielder()}</SelectItem>
@@ -53,7 +53,7 @@ export function RosterPage({ teamId, isAdmin, players, onDeactivate }: RosterPag
         </Select>
       </div>
       {filtered.length === 0 ? (
-        <p className='text-muted-foreground'>{m.roster_noPlayers()}</p>
+        <p className='text-muted-foreground'>{m.members_noPlayers()}</p>
       ) : (
         <table className='w-full'>
           <tbody>

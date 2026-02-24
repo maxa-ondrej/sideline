@@ -6,6 +6,10 @@ export * as Invite from './api/Invite.js';
 
 export * as Roster from './api/Roster.js';
 
+export * as RosterMemberModel from './models/RosterMemberModel.js';
+
+export * as RosterModel from './models/RosterModel.js';
+
 export * as Session from './models/Session.js';
 
 export * as Team from './models/Team.js';

@@ -59,8 +59,8 @@ export function PlayerDetailPage({ teamId, player, isAdmin, onSave }: PlayerDeta
   return (
     <div className='p-4 max-w-lg'>
       <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId/roster' params={{ teamId }}>
-          ← {m.roster_backToRoster()}
+        <Link to='/teams/$teamId/members' params={{ teamId }}>
+          ← {m.members_backToMembers()}
         </Link>
       </Button>
       <h1 className='text-2xl font-bold mb-4'>{displayName}</h1>
@@ -191,7 +191,7 @@ export function PlayerDetailPage({ teamId, player, isAdmin, onSave }: PlayerDeta
               )}
             />
             <Button type='submit' disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? m.roster_saving() : m.roster_saveChanges()}
+              {form.formState.isSubmitting ? m.members_saving() : m.members_saveChanges()}
             </Button>
           </form>
         </Form>

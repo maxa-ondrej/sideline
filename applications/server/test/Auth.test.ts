@@ -5,6 +5,7 @@ import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -167,6 +168,23 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   deactivateByTeamExcept: () => Effect.void,
 });
 
+const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
+  _tag: 'api/RostersRepository',
+  findByTeam: () => Effect.succeed([]),
+  findByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findRosterById: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  delete: () => Effect.void,
+  findMemberEntries: () => Effect.succeed([]),
+  findMemberEntriesById: () => Effect.succeed([]),
+  addMember: () => Effect.void,
+  addMemberById: () => Effect.void,
+  removeMember: () => Effect.void,
+  removeMemberById: () => Effect.void,
+});
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -175,6 +193,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockSessionsRepositoryLayer),
   Layer.provide(MockTeamsRepositoryLayer),
   Layer.provide(MockTeamMembersRepositoryLayer),
+  Layer.provide(MockRostersRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
 );

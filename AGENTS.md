@@ -942,7 +942,6 @@ Stories, epics, and milestones keep the full lifecycle: `TODO â†’ In Progress â†
 
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers to commit messages.
 - **Never commit to or push to an old/existing feature branch** when working on a new story. Always create a fresh branch from `main`.
-- **After pushing a feature branch**, switch back to `main` (`git checkout main && git pull origin main`) so the working directory is always on the trunk between tasks.
 - Before every commit, run `pnpm format` to format/lint and `pnpm codegen` to regenerate any generated code. Stage any resulting changes before committing.
 - When fixing biome-fixable errors, always use `pnpm format`.
 - After every `git push`, check that CI pipelines pass (`gh run list`, `gh run view`). If a workflow fails, investigate the logs, fix the issue, and push again until all checks are green.
