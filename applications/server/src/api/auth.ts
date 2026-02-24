@@ -7,6 +7,8 @@ import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
 import { env } from '~/env.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
@@ -166,7 +168,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     Effect.bind('discord', () => DiscordOAuth),
     Effect.bind('users', () => UsersRepository),
     Effect.bind('sessions', () => SessionsRepository),
-    Effect.map(({ discord, users, sessions }) =>
+    Effect.bind('members', () => TeamMembersRepository),
+    Effect.bind('teams', () => TeamsRepository),
+    Effect.map(({ discord, users, sessions, members, teams }) =>
       handlers
         .handle('getLogin', () =>
           Effect.succeed(
@@ -294,6 +298,40 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+          ),
+        )
+        .handle('myTeams', () =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('memberships', ({ currentUser }) =>
+              members
+                .findByUser(currentUser.id)
+                .pipe(Effect.mapError(() => new Auth.Unauthorized())),
+            ),
+            Effect.bind('userTeams', ({ memberships }) =>
+              Effect.all(
+                memberships.map((m) =>
+                  teams.findById(m.team_id).pipe(
+                    Effect.mapError(() => new Auth.Unauthorized()),
+                    Effect.flatMap(
+                      Option.match({
+                        onNone: () => Effect.fail(new Auth.Unauthorized()),
+                        onSome: (team) =>
+                          Effect.succeed(
+                            new Auth.UserTeam({
+                              teamId: team.id,
+                              teamName: team.name,
+                              role: m.role,
+                            }),
+                          ),
+                      }),
+                    ),
+                  ),
+                ),
+                { concurrency: 'unbounded' },
+              ),
+            ),
+            Effect.map(({ userTeams }) => userTeams),
           ),
         ),
     ),

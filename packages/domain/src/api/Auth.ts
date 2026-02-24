@@ -6,11 +6,19 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
+import { TeamId } from '~/models/Team.js';
+import { TeamRole } from '~/models/TeamMember.js';
 import { Gender, Locale, Position, Proficiency, UserId } from '~/models/User.js';
 
 export { UserId } from '~/models/User.js';
 
 export const MIN_AGE = 6;
+
+export class UserTeam extends Schema.Class<UserTeam>('UserTeam')({
+  teamId: TeamId,
+  teamName: Schema.String,
+  role: TeamRole,
+}) {}
 
 export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   id: UserId,
@@ -99,6 +107,12 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
       .addSuccess(CurrentUser)
       .addError(Unauthorized, { status: 401 })
       .setPayload(UpdateLocaleRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('myTeams', '/me/teams')
+      .addSuccess(Schema.Array(UserTeam))
+      .addError(Unauthorized, { status: 401 })
       .middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

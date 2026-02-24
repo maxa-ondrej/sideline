@@ -14,5 +14,6 @@ export class TeamMember extends Model.Class<TeamMember>('TeamMember')({
   team_id: TeamId,
   user_id: UserId,
   role: TeamRole,
+  active: Schema.Boolean,
   joined_at: Model.DateTimeInsertFromDate,
 }) {}

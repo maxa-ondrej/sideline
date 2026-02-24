@@ -3,14 +3,14 @@ import { Effect, Option } from 'effect';
 import React from 'react';
 import { InvitePage } from '~/components/pages/InvitePage';
 import { getLogin, setPendingInvite } from '~/lib/auth';
-import { ApiClient, NotFound, useRun } from '~/lib/runtime';
+import { ApiClient, useRun, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/invite/$code')({
   component: InviteRoute,
   loader: async ({ params, context }) =>
     ApiClient.pipe(
       Effect.flatMap((api) => api.invite.getInvite({ path: { code: params.code } })),
-      Effect.catchAll(NotFound.make),
+      warnAndCatchAll,
       context.run,
     ),
 });
