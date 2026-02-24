@@ -46,6 +46,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     const environment = await fetchEnv(abortController);
     const makeRun = runPromiseServer(environment.SERVER_URL);
     const run = makeRun(abortController);
+    const clientRun = runPromiseClient(environment.SERVER_URL);
     const user = await getCurrentUser.pipe(Effect.option, Effect.map(Option.flatten), run);
     if (Option.isSome(user)) {
       setLocale(user.value.locale);
@@ -53,19 +54,14 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     return {
       environment,
       run,
+      clientRun,
       userOption: user,
-    };
-  },
-  loader: async ({ context }) => {
-    const run = runPromiseClient(context.environment.SERVER_URL);
-    return {
-      run,
     };
   },
 });
 
 function RootDocumentRoute({ children }: { children: React.ReactNode }) {
-  const { run } = Route.useLoaderData();
+  const { clientRun } = Route.useRouteContext();
 
-  return <RootDocument run={run}>{children}</RootDocument>;
+  return <RootDocument run={clientRun}>{children}</RootDocument>;
 }
