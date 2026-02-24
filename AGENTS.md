@@ -659,25 +659,34 @@ pnpm -C ./applications/web dlx shadcn@latest add button
 #### Setup
 
 ```typescript
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
-import { Schema } from 'effect';
+import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { ApiClient, ClientError, useRun } from '../../lib/runtime';
 
 const MyFormSchema = Schema.Struct({
   name: Schema.NonEmptyString,
+  // Use transforming schemas so decoded values map directly to the API payload:
+  age: Schema.NumberFromString,
   role: Schema.Literal('admin', 'member'),
+  // Optional numeric field — decoded as Option<number>:
+  jerseyNumber: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
 });
+// Use the decoded/transformed type — this is what onSubmit receives:
 type MyFormValues = Schema.Schema.Type<typeof MyFormSchema>;
 
 function MyForm({ onSuccess }: { onSuccess: () => void }) {
   const run = useRun();
-  const form = useForm<MyFormValues>({
-    resolver: standardSchemaResolver(Schema.standardSchemaV1(MyFormSchema)),
+  // No explicit generic needed — effectTsResolver infers the type:
+  const form = useForm({
+    resolver: effectTsResolver(MyFormSchema),
+    mode: 'onChange',
     defaultValues: { name: '' },
   });
 
   const onSubmit = async (values: MyFormValues) => {
+    // values are already decoded (e.g. age is number, jerseyNumber is Option<number>)
     const result = await ApiClient.pipe(
       Effect.flatMap((api) => api.something.create({ payload: values })),
       Effect.catchAll(() => ClientError.make('Failed to save')),
@@ -689,9 +698,9 @@ function MyForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
+        {/* Spread form.register('fieldName') on FormField — do NOT use control + name props: */}
         <FormField
-          control={form.control}
-          name='name'
+          {...form.register('name')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
@@ -702,16 +711,15 @@ function MyForm({ onSuccess }: { onSuccess: () => void }) {
             </FormItem>
           )}
         />
-        {/* For Shadcn Select, bind via onValueChange/value, not spread: */}
+        {/* For Shadcn Select, bind via onValueChange/value, not field spread: */}
         <FormField
-          control={form.control}
-          name='role'
+          {...form.register('role')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className='w-full'><SelectValue /></SelectTrigger>
                 </FormControl>
                 <SelectContent>...</SelectContent>
               </Select>
@@ -727,7 +735,12 @@ function MyForm({ onSuccess }: { onSuccess: () => void }) {
 ```
 
 #### Key rules
-- Use `standardSchemaResolver(Schema.standardSchemaV1(MySchema))` — not zod, not yup.
+- Use `effectTsResolver(MySchema)` from `@hookform/resolvers/effect-ts` — **not** `standardSchemaResolver`, not zod, not yup.
+- Do **not** wrap the schema in `Schema.standardSchemaV1(...)` — pass it directly to `effectTsResolver`.
+- Use transforming schemas (`NumberFromString`, `optionalWith({ as: 'Option' })`, `NonEmptyString`) so the decoded type maps directly to the API payload — no manual value transformation needed in `onSubmit`.
+- `type FormValues = Schema.Schema.Type<typeof MySchema>` is the decoded/transformed type; use it as the `onSubmit` parameter type.
+- Do **not** pass explicit generics to `useForm<MyFormValues>(...)` — let `effectTsResolver` infer the type.
+- Spread `{...form.register('fieldName')}` on `<FormField>` — do **not** use `control={form.control} name='fieldName'` props.
 - Use `form.formState.isSubmitting` for the loading state — no manual `submitting` state.
 - Errors from the API are shown via automatic `toast.error` in `runPromiseClient` — no manual error state needed.
 - `Option.isSome(result)` guards the success path since `run` returns `Promise<Option<A>>`.
