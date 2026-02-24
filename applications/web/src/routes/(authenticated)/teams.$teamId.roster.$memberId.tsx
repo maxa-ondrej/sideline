@@ -1,0 +1,64 @@
+import { Team, TeamMember } from '@sideline/domain';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { Effect, Option, Schema } from 'effect';
+import React from 'react';
+import type { PlayerEditValues } from '~/components/pages/PlayerDetailPage';
+import { PlayerDetailPage } from '~/components/pages/PlayerDetailPage';
+import { ApiClient, ClientError, NotFound, useRun } from '~/lib/runtime';
+import * as m from '~/paraglide/messages.js';
+
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/roster/$memberId')({
+  component: PlayerDetailRoute,
+  loader: async ({ params, context }) => {
+    const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
+    const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(params.memberId);
+    return ApiClient.pipe(
+      Effect.flatMap((api) => api.roster.getPlayer({ path: { teamId, memberId } })),
+      Effect.catchAll(NotFound.make),
+      context.run,
+    );
+  },
+});
+
+function PlayerDetailRoute() {
+  const { user } = Route.useRouteContext();
+  const { teamId: teamIdRaw, memberId: memberIdRaw } = Route.useParams();
+  const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
+  const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
+  const navigate = useNavigate();
+  const run = useRun();
+  const player = Route.useLoaderData();
+
+  // Show edit form for authenticated admin users; API enforces admin-only on save
+  const isAdmin = player.role === 'admin' || user.id !== player.userId;
+
+  const handleSave = React.useCallback(
+    async (values: PlayerEditValues) => {
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.roster.updatePlayer({
+            path: { teamId, memberId },
+            payload: {
+              name: values.name,
+              birthYear: values.birthYear,
+              gender: values.gender,
+              jerseyNumber: values.jerseyNumber,
+              position: values.position,
+              proficiency: values.proficiency,
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.roster_saveFailed())),
+        run,
+      );
+      if (Option.isSome(result)) {
+        navigate({ to: '/teams/$teamId/roster', params: { teamId: teamIdRaw } });
+      }
+    },
+    [teamId, memberId, teamIdRaw, navigate, run],
+  );
+
+  return (
+    <PlayerDetailPage teamId={teamIdRaw} player={player} isAdmin={isAdmin} onSave={handleSave} />
+  );
+}

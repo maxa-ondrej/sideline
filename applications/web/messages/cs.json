@@ -52,5 +52,20 @@
   "profile_complete_submit": "Dokončit profil",
   "profile_complete_saveFailed": "Uložení profilu selhalo.",
   "language_en": "English",
-  "language_cs": "Čeština"
+  "language_cs": "Čeština",
+  "roster_title": "Soupiska týmu",
+  "roster_noPlayers": "V soupisce nejsou žádní hráči.",
+  "roster_editPlayer": "Upravit",
+  "roster_deactivatePlayer": "Deaktivovat",
+  "roster_deactivateConfirm": "Opravdu chcete tohoto hráče deaktivovat?",
+  "roster_deactivated": "Hráč byl deaktivován.",
+  "roster_backToRoster": "Zpět na soupisku",
+  "roster_saveChanges": "Uložit změny",
+  "roster_saving": "Ukládání...",
+  "roster_saveFailed": "Uložení profilu hráče selhalo.",
+  "roster_viewRoster": "Zobrazit soupisku",
+  "roster_admin": "Admin",
+  "roster_member": "Člen",
+  "roster_searchPlaceholder": "Hledat podle jména nebo uživatelského jména",
+  "roster_filterPosition": "Všechny pozice"
 }

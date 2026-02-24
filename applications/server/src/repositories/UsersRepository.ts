@@ -15,6 +15,10 @@ const CompleteProfileInput = UserNS.User.pipe(
   Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
 );
 
+const AdminUpdateProfileInput = UserNS.User.pipe(
+  Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
+);
+
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(
     Effect.bindTo('sql'),
@@ -81,6 +85,24 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         execute: (input) => sql`
           UPDATE users SET
             locale = ${input.locale},
+            updated_at = now()
+          WHERE id = ${input.id}
+          RETURNING *
+        `,
+      }),
+    ),
+    Effect.let('updateAdminProfile', ({ sql }) =>
+      SqlSchema.single({
+        Request: AdminUpdateProfileInput,
+        Result: UserNS.User,
+        execute: (input) => sql`
+          UPDATE users SET
+            name = ${input.name},
+            birth_year = ${input.birth_year},
+            gender = ${input.gender},
+            jersey_number = ${input.jersey_number},
+            position = ${input.position},
+            proficiency = ${input.proficiency},
             updated_at = now()
           WHERE id = ${input.id}
           RETURNING *

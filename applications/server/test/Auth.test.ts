@@ -66,6 +66,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   upsertFromDiscord: () => Effect.succeed(testUser),
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
+  updateAdminProfile: () => Effect.succeed(testUser),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -134,12 +135,18 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: TEST_TEAM_ID,
       user_id: TEST_USER_ID,
       role: 'member' as const,
+      active: true,
       joined_at: DateTime.unsafeNow(),
     }),
   findMembership: () => Effect.succeed(Option.none()),
   findMembershipByIds: () => Effect.succeed(Option.none()),
   findByTeam: () => Effect.succeed([]),
   findByUser: () => Effect.succeed([]),
+  findRosterByTeam: () => Effect.succeed([]),
+  findRosterMember: () => Effect.succeed(Option.none()),
+  findRosterMemberByIds: () => Effect.succeed(Option.none()),
+  deactivateMember: () => Effect.die(new Error('Not implemented')),
+  deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
 });
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {

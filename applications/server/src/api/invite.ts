@@ -80,6 +80,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   team_id: invite.team_id,
                   user_id: user.id,
                   role: 'member',
+                  active: true,
                   joined_at: undefined,
                 })
                 .pipe(Effect.mapError(() => new Invite.InviteNotFound())),

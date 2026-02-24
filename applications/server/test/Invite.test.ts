@@ -73,6 +73,7 @@ const membersStore = new Map<
     team_id: Team.TeamId;
     user_id: Auth.UserId;
     role: 'admin' | 'member';
+    active: boolean;
     joined_at: DateTime.Utc;
   }
 >();
@@ -81,6 +82,7 @@ membersStore.set(`${TEST_TEAM_ID}:${TEST_ADMIN_ID}`, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   role: 'admin',
+  active: true,
   joined_at: DateTime.unsafeNow(),
 });
 
@@ -136,6 +138,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   upsertFromDiscord: () => Effect.succeed(testUser),
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
+  updateAdminProfile: () => Effect.succeed(testUser),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -184,6 +187,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id,
       user_id: input.user_id,
       role: input.role,
+      active: input.active,
       joined_at: DateTime.unsafeNow(),
     };
     membersStore.set(key, member);
@@ -201,6 +205,11 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   },
   findByTeam: () => Effect.succeed([]),
   findByUser: () => Effect.succeed([]),
+  findRosterByTeam: () => Effect.succeed([]),
+  findRosterMember: () => Effect.succeed(Option.none()),
+  findRosterMemberByIds: () => Effect.succeed(Option.none()),
+  deactivateMember: () => Effect.die(new Error('Not implemented')),
+  deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
 });
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {

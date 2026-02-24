@@ -52,5 +52,20 @@
   "profile_complete_submit": "Complete Profile",
   "profile_complete_saveFailed": "Failed to save profile.",
   "language_en": "English",
-  "language_cs": "Čeština"
+  "language_cs": "Čeština",
+  "roster_title": "Team Roster",
+  "roster_noPlayers": "No players on this roster.",
+  "roster_editPlayer": "Edit",
+  "roster_deactivatePlayer": "Deactivate",
+  "roster_deactivateConfirm": "Are you sure you want to deactivate this player?",
+  "roster_deactivated": "Player deactivated.",
+  "roster_backToRoster": "Back to Roster",
+  "roster_saveChanges": "Save Changes",
+  "roster_saving": "Saving...",
+  "roster_saveFailed": "Failed to save player profile.",
+  "roster_viewRoster": "View Roster",
+  "roster_admin": "Admin",
+  "roster_member": "Member",
+  "roster_searchPlaceholder": "Search by name or username",
+  "roster_filterPosition": "All positions"
 }
