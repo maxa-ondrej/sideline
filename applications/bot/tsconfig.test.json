@@ -10,6 +10,8 @@
     "types": ["node"],
     "tsBuildInfoFile": ".tsbuildinfo/test.tsbuildinfo",
     "rootDir": "test",
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": { "~/*": ["./src/*", "../src/*"] }
   }
 }

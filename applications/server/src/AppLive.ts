@@ -6,14 +6,14 @@ import {
   HttpServer,
 } from '@effect/platform';
 import { Layer } from 'effect';
-import { ApiLive } from './api/index.js';
-import { AuthMiddlewareLive } from './middleware/AuthMiddlewareLive.js';
-import { SessionsRepository } from './repositories/SessionsRepository.js';
-import { TeamInvitesRepository } from './repositories/TeamInvitesRepository.js';
-import { TeamMembersRepository } from './repositories/TeamMembersRepository.js';
-import { TeamsRepository } from './repositories/TeamsRepository.js';
-import { UsersRepository } from './repositories/UsersRepository.js';
-import { DiscordOAuth } from './services/DiscordOAuth.js';
+import { ApiLive } from '~/api/index.js';
+import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
 export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(HttpApiSwagger.layer({ path: '/docs/swagger-ui' })),

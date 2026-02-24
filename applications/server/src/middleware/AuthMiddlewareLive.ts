@@ -1,30 +1,30 @@
-import { AuthMiddleware, CurrentUser, Unauthorized } from '@sideline/domain/api/Auth';
+import { Auth } from '@sideline/domain';
 import type { Redacted as RedactedType } from 'effect';
 import { Effect, Layer, Option, Redacted } from 'effect';
-import { SessionsRepository } from '../repositories/SessionsRepository.js';
-import { UsersRepository } from '../repositories/UsersRepository.js';
+import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 export const AuthMiddlewareLive = Layer.effect(
-  AuthMiddleware,
+  Auth.AuthMiddleware,
   Effect.Do.pipe(
     Effect.bind('sessions', () => SessionsRepository),
     Effect.bind('users', () => UsersRepository),
     Effect.map(({ sessions, users }) => ({
       token: (token: RedactedType.Redacted<string>) =>
         sessions.findByToken(Redacted.value(token)).pipe(
-          Effect.mapError(() => new Unauthorized()),
+          Effect.mapError(() => new Auth.Unauthorized()),
           Effect.flatMap(
             Option.match({
-              onNone: () => new Unauthorized(),
+              onNone: () => new Auth.Unauthorized(),
               onSome: (session) =>
                 users.findById(session.user_id).pipe(
-                  Effect.mapError(() => new Unauthorized()),
+                  Effect.mapError(() => new Auth.Unauthorized()),
                   Effect.flatMap(
                     Option.match({
-                      onNone: () => new Unauthorized(),
+                      onNone: () => new Auth.Unauthorized(),
                       onSome: (user) =>
                         Effect.succeed(
-                          new CurrentUser({
+                          new Auth.CurrentUser({
                             id: user.id,
                             discordId: user.discord_id,
                             discordUsername: user.discord_username,

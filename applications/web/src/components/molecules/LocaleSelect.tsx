@@ -1,5 +1,11 @@
-import { m } from '../../paraglide/messages.js';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { m } from '~/paraglide/messages.js';
 
 const locales = [
   { value: 'en' as const, flag: '🇬🇧' },

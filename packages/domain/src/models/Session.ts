@@ -1,6 +1,6 @@
 import { Model } from '@effect/sql';
 import { DateTime, Schema } from 'effect';
-import { UserId } from './User.js';
+import { UserId } from '~/models/User.js';
 
 const DateTimeFromDate = Schema.transform(Schema.DateFromSelf, Schema.DateTimeUtcFromSelf, {
   decode: (date) => DateTime.unsafeFromDate(date),

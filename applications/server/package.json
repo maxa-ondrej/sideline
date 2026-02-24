@@ -15,7 +15,7 @@
     "directory": "dist"
   },
   "scripts": {
-    "build": "tsc -b tsconfig.build.json",
+    "build": "tsc -b tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "dev": "tsx watch src/run.ts",
     "preview": "node build/esm/run.js",
     "check": "tsc -b tsconfig.json",

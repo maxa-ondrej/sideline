@@ -2,7 +2,7 @@ import { type LinkOptions, notFound, redirect } from '@tanstack/react-router';
 import { Context, Data, Effect, Either, Layer, Logger, LogLevel, Match, type Option } from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
-import { ClientConfig, client } from './client';
+import { ClientConfig, client } from '~/lib/client';
 
 export class ClientError extends Data.TaggedError('ClientError')<{
   readonly message: string;

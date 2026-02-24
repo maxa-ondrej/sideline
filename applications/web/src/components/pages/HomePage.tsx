@@ -1,7 +1,7 @@
 import { Option } from 'effect';
-import * as m from '../../paraglide/messages.js';
-import { LanguageSwitcher } from '../organisms/LanguageSwitcher';
-import { Button } from '../ui/button';
+import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
+import { Button } from '~/components/ui/button';
+import * as m from '~/paraglide/messages.js';
 
 const reasonMessages: Record<string, () => string> = {
   access_denied: m.auth_errors_accessDenied,

@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { TeamInvite } from '@sideline/domain/models/TeamInvite';
+import { TeamInvite as TeamInviteNS } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -11,7 +11,7 @@ export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>
       Effect.let('findByCode', ({ sql }) =>
         SqlSchema.findOne({
           Request: Schema.String,
-          Result: TeamInvite,
+          Result: TeamInviteNS.TeamInvite,
           execute: (code) =>
             sql`SELECT * FROM team_invites WHERE code = ${code} AND active = true AND (expires_at IS NULL OR expires_at > now())`,
         }),
@@ -19,14 +19,14 @@ export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>
       Effect.let('findByTeam', ({ sql }) =>
         SqlSchema.findAll({
           Request: Schema.String,
-          Result: TeamInvite,
+          Result: TeamInviteNS.TeamInvite,
           execute: (teamId) => sql`SELECT * FROM team_invites WHERE team_id = ${teamId}`,
         }),
       ),
       Effect.let('create', ({ sql }) =>
         SqlSchema.single({
-          Request: TeamInvite.insert,
-          Result: TeamInvite,
+          Request: TeamInviteNS.TeamInvite.insert,
+          Result: TeamInviteNS.TeamInvite,
           execute: (input) => sql`
             INSERT INTO team_invites (team_id, code, active, created_by, expires_at)
             VALUES (${input.team_id}, ${input.code}, ${input.active}, ${input.created_by}, ${input.expires_at})

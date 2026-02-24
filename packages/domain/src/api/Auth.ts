@@ -6,9 +6,9 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
-import { Gender, Locale, Position, Proficiency, UserId } from '../models/User.js';
+import { Gender, Locale, Position, Proficiency, UserId } from '~/models/User.js';
 
-export { UserId } from '../models/User.js';
+export { UserId } from '~/models/User.js';
 
 export const MIN_AGE = 6;
 

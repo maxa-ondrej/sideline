@@ -1,22 +1,19 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { UserId } from '@sideline/domain/api/Auth';
-import type { TeamId } from '@sideline/domain/models/Team';
-import type { TeamInviteId } from '@sideline/domain/models/TeamInvite';
-import type { TeamMemberId } from '@sideline/domain/models/TeamMember';
+import type { Auth, Team, TeamInvite, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ApiLive } from '../src/api/index.js';
-import { AuthMiddlewareLive } from '../src/middleware/AuthMiddlewareLive.js';
-import { SessionsRepository } from '../src/repositories/SessionsRepository.js';
-import { TeamInvitesRepository } from '../src/repositories/TeamInvitesRepository.js';
-import { TeamMembersRepository } from '../src/repositories/TeamMembersRepository.js';
-import { TeamsRepository } from '../src/repositories/TeamsRepository.js';
-import { UsersRepository } from '../src/repositories/UsersRepository.js';
-import { DiscordOAuth, DiscordOAuthError } from '../src/services/DiscordOAuth.js';
+import { ApiLive } from '~/api/index.js';
+import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { DiscordOAuth, DiscordOAuthError } from '~/services/DiscordOAuth.js';
 
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as UserId;
-const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as TeamId;
+const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
+const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 
 const testUser = {
   id: TEST_USER_ID,
@@ -45,7 +42,7 @@ const testTeam = {
   updated_at: DateTime.unsafeNow(),
 };
 
-const sessionsStore = new Map<string, UserId>();
+const sessionsStore = new Map<string, Auth.UserId>();
 sessionsStore.set('pre-existing-token', TEST_USER_ID);
 
 const mockTokens = (access: string, refresh: string) =>
@@ -63,7 +60,7 @@ const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   _tag: 'api/UsersRepository',
-  findById: (id: UserId) =>
+  findById: (id: Auth.UserId) =>
     Effect.succeed(id === TEST_USER_ID ? Option.some(testUser) : Option.none()),
   findByDiscordId: () => Effect.succeed(Option.none()),
   upsertFromDiscord: () => Effect.succeed(testUser),
@@ -133,7 +130,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   _tag: 'api/TeamMembersRepository',
   addMember: () =>
     Effect.succeed({
-      id: '00000000-0000-0000-0000-000000000020' as TeamMemberId,
+      id: '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId,
       team_id: TEST_TEAM_ID,
       user_id: TEST_USER_ID,
       role: 'member' as const,
@@ -151,7 +148,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   findByTeam: () => Effect.succeed([]),
   create: () =>
     Effect.succeed({
-      id: '00000000-0000-0000-0000-000000000030' as TeamInviteId,
+      id: '00000000-0000-0000-0000-000000000030' as TeamInvite.TeamInviteId,
       team_id: TEST_TEAM_ID,
       code: 'test-code',
       active: true,

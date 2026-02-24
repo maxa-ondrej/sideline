@@ -1,6 +1,6 @@
-import * as m from '../../paraglide/messages.js';
-import { LanguageSwitcher } from '../organisms/LanguageSwitcher';
-import { Button } from '../ui/button';
+import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
+import { Button } from '~/components/ui/button';
+import * as m from '~/paraglide/messages.js';
 
 interface DashboardPageProps {
   user: { discordUsername: string };

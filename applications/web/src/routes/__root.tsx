@@ -2,12 +2,18 @@ import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import type React from 'react';
-import { RootDocument } from '../components/layouts/RootDocument';
-import { fetchEnv } from '../env.js';
-import { getCurrentUser } from '../lib/auth';
-import { runPromiseClient, runPromiseServer } from '../lib/runtime';
-import { setLocale } from '../paraglide/runtime.js';
+import { RootDocument } from '~/components/layouts/RootDocument';
+import { fetchEnv } from '~/env.js';
+import { ApiClient, runPromiseClient, runPromiseServer } from '~/lib/runtime';
+import { setLocale } from '~/paraglide/runtime.js';
 import appCss from '../styles.css?url';
+
+const getCurrentUser = ApiClient.pipe(
+  Effect.flatMap((api) => api.auth.me()),
+  Effect.map(Option.some),
+  Effect.catchTag('Unauthorized', () => Effect.succeed(Option.none())),
+  Effect.tap((user) => Effect.logInfo('Logged in as', user)),
+);
 
 interface MyRouterContext {
   queryClient: QueryClient;

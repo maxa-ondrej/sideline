@@ -1,6 +1,6 @@
-import * as m from '../../paraglide/messages.js';
-import { LanguageSwitcher } from '../organisms/LanguageSwitcher';
-import { ProfileCompleteForm } from '../organisms/ProfileCompleteForm';
+import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
+import { ProfileCompleteForm } from '~/components/organisms/ProfileCompleteForm';
+import * as m from '~/paraglide/messages.js';
 
 interface ProfileCompletePageProps {
   user: { discordUsername: string };

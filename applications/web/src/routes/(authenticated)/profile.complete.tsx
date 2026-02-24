@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import React from 'react';
-import { ProfileCompletePage } from '../../components/pages/ProfileCompletePage';
+import { ProfileCompletePage } from '~/components/pages/ProfileCompletePage';
 
 export const Route = createFileRoute('/(authenticated)/profile/complete')({
   component: ProfileCompleteRoute,

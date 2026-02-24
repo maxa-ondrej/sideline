@@ -24,6 +24,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "~/*": ["./src/*", "../../packages/domain/src/*", "../../packages/effect-lib/src/*"],
       "@sideline/domain": ["../../packages/domain/src/index.ts"],
       "@sideline/domain/*": ["../../packages/domain/src/*.ts"]
     }
