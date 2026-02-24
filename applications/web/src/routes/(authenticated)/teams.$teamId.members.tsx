@@ -5,7 +5,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
 import { TeamMembersPage } from '~/components/pages/TeamMembersPage';
-import { ApiClient, ClientError, NotFound, useRun } from '~/lib/runtime';
+import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/members')({
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members')({
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     return ApiClient.pipe(
       Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
-      Effect.catchAll(NotFound.make),
+      warnAndCatchAll,
       context.run,
     );
   },

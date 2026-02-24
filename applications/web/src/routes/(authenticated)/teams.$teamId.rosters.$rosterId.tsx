@@ -2,7 +2,7 @@ import { RosterModel, Team } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema } from 'effect';
 import { RosterDetailPage } from '~/components/pages/RosterDetailPage';
-import { ApiClient, NotFound } from '~/lib/runtime';
+import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$rosterId')({
   component: RosterDetailRoute,
@@ -12,12 +12,12 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$ro
     const [rosterDetail, allMembers] = await Promise.all([
       ApiClient.pipe(
         Effect.flatMap((api) => api.roster.getRoster({ path: { teamId, rosterId } })),
-        Effect.catchAll(NotFound.make),
+        warnAndCatchAll,
         context.run,
       ),
       ApiClient.pipe(
         Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
-        Effect.catchAll(NotFound.make),
+        warnAndCatchAll,
         context.run,
       ),
     ]);

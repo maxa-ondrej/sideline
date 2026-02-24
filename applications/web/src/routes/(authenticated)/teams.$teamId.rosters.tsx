@@ -2,7 +2,7 @@ import { Team } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema } from 'effect';
 import { RostersListPage } from '~/components/pages/RostersListPage';
-import { ApiClient, NotFound } from '~/lib/runtime';
+import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters')({
   component: RostersRoute,
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters')({
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     return ApiClient.pipe(
       Effect.flatMap((api) => api.roster.listRosters({ path: { teamId } })),
-      Effect.catchAll(NotFound.make),
+      warnAndCatchAll,
       context.run,
     );
   },

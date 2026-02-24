@@ -3,7 +3,7 @@ import { Effect } from 'effect';
 import React from 'react';
 import { DashboardPage } from '~/components/pages/DashboardPage';
 import { logout } from '~/lib/auth';
-import { ApiClient, NotFound } from '~/lib/runtime';
+import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/dashboard')({
   component: DashboardRoute,
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/(authenticated)/dashboard')({
   loader: async ({ context }) =>
     ApiClient.pipe(
       Effect.flatMap((api) => api.auth.myTeams()),
-      Effect.catchAll(NotFound.make),
+      warnAndCatchAll,
       context.run,
     ),
 });

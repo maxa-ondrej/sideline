@@ -7,6 +7,14 @@ import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
+const mapDbError =
+  <E>(make: () => E) =>
+  <A, OrigE, R>(effect: Effect.Effect<A, OrigE, R>): Effect.Effect<A, E, R> =>
+    effect.pipe(
+      Effect.tapError((e) => Effect.logWarning('Unexpected error in roster handler', e)),
+      Effect.mapError(make),
+    );
+
 const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
@@ -28,7 +36,7 @@ const requireMembership = (
   userId: Auth.UserId,
 ) =>
   members.findMembershipByIds(teamId, userId).pipe(
-    Effect.mapError(() => new Roster.Forbidden()),
+    mapDbError(() => new Roster.Forbidden()),
     Effect.flatMap(
       Option.match({
         onNone: () => Effect.fail(new Roster.Forbidden()),
@@ -64,7 +72,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               requireMembership(members, teamId, currentUser.id),
             ),
             Effect.bind('roster', () =>
-              members.findRosterByTeam(teamId).pipe(Effect.mapError(() => new Roster.Forbidden())),
+              members.findRosterByTeam(teamId).pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.map(({ roster }) => roster.map(toRosterPlayer)),
           ),
@@ -77,7 +85,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('entry', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.PlayerNotFound()),
@@ -98,7 +106,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) => requireAdmin(membership)),
             Effect.bind('entry', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.PlayerNotFound()),
@@ -118,7 +126,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   position: payload.position,
                   proficiency: payload.proficiency,
                 })
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.map(
               ({ entry, updated }) =>
@@ -147,7 +155,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) => requireAdmin(membership)),
             Effect.bind('_check', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.PlayerNotFound()),
@@ -159,7 +167,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(() =>
               members
                 .deactivateMemberByIds(teamId, memberId)
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.asVoid,
           ),
@@ -171,7 +179,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               requireMembership(members, teamId, currentUser.id),
             ),
             Effect.bind('rosterList', () =>
-              rosters.findByTeamId(teamId).pipe(Effect.mapError(() => new Roster.Forbidden())),
+              rosters.findByTeamId(teamId).pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.map(({ rosterList }) =>
               rosterList.map(
@@ -198,7 +206,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.bind('roster', () =>
               rosters
                 .insert({ team_id: teamId, name: payload.name, active: true })
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.map(({ roster }) => toRosterInfo(roster, 0)),
           ),
@@ -211,7 +219,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('roster', () =>
               rosters.findRosterById(rosterId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.RosterNotFound()),
@@ -223,7 +231,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.bind('rosterMembers', ({ roster }) =>
               rosters
                 .findMemberEntriesById(roster.id)
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.map(
               ({ roster, rosterMembers }) =>
@@ -247,7 +255,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) => requireAdmin(membership)),
             Effect.bind('existing', () =>
               rosters.findRosterById(rosterId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.RosterNotFound()),
@@ -259,11 +267,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.bind('updated', () =>
               rosters
                 .update({ id: rosterId, name: payload.name, active: payload.active })
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.bind('memberCount', ({ updated }) =>
               rosters.findMemberEntriesById(updated.id).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.map((e) => e.length),
               ),
             ),
@@ -279,7 +287,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) => requireAdmin(membership)),
             Effect.bind('_existing', () =>
               rosters.findRosterById(rosterId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.RosterNotFound()),
@@ -289,7 +297,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
             ),
             Effect.tap(() =>
-              rosters.delete(rosterId).pipe(Effect.mapError(() => new Roster.Forbidden())),
+              rosters.delete(rosterId).pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.asVoid,
           ),
@@ -303,7 +311,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) => requireAdmin(membership)),
             Effect.bind('_roster', () =>
               rosters.findRosterById(rosterId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.RosterNotFound()),
@@ -314,7 +322,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('_member', () =>
               members.findRosterMemberByIds(teamId, payload.memberId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.PlayerNotFound()),
@@ -326,7 +334,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(() =>
               rosters
                 .addMemberById(rosterId, payload.memberId)
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.asVoid,
           ),
@@ -340,7 +348,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) => requireAdmin(membership)),
             Effect.bind('_roster', () =>
               rosters.findRosterById(rosterId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.RosterNotFound()),
@@ -351,7 +359,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('_member', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.mapError(() => new Roster.Forbidden()),
+                mapDbError(() => new Roster.Forbidden()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Roster.PlayerNotFound()),
@@ -363,7 +371,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(() =>
               rosters
                 .removeMemberById(rosterId, memberId)
-                .pipe(Effect.mapError(() => new Roster.Forbidden())),
+                .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.asVoid,
           ),
