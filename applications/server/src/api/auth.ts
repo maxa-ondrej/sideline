@@ -34,6 +34,8 @@ const CustomClient = HttpClient.HttpClient.pipe(
   Layer.effect(HttpClient.HttpClient),
 );
 
+const DiscordRestLive = Layer.merge(DiscordRESTLive, CustomClient);
+
 const LoginSchema = Schema.parseJson(
   Schema.Struct({
     id: Schema.UUID,
@@ -94,9 +96,9 @@ const handleDiscordLogin = ({
     Effect.bind('client', ({ DiscordConfigLive }) =>
       Effect.provide(
         DiscordREST,
-        Layer.provideMerge(
-          Layer.merge(DiscordRESTLive, CustomClient), // original dependencies
-          Layer.merge(MemoryRateLimitStoreLive, DiscordConfigLive), // layers for dependencies
+        pipe(
+          DiscordRestLive,
+          Layer.provideMerge(Layer.merge(MemoryRateLimitStoreLive, DiscordConfigLive)),
         ),
       ),
     ),
