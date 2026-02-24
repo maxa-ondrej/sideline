@@ -1,4 +1,4 @@
-import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import { MIN_AGE } from '@sideline/domain/api/Auth';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
@@ -13,17 +13,13 @@ const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - MIN_AGE;
 const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
-const genders = ['male', 'female', 'other'] as const;
-const positions = ['goalkeeper', 'defender', 'midfielder', 'forward'] as const;
-const proficiencies = ['beginner', 'intermediate', 'advanced', 'pro'] as const;
-
 const ProfileFormSchema = Schema.Struct({
   name: Schema.NonEmptyString,
-  birthYear: Schema.NonEmptyString,
-  gender: Schema.Literal(...genders),
-  jerseyNumber: Schema.String,
-  position: Schema.Literal(...positions),
-  proficiency: Schema.Literal(...proficiencies),
+  birthYear: Schema.NumberFromString,
+  gender: Schema.Literal('male', 'female', 'other'),
+  jerseyNumber: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
+  position: Schema.Literal('goalkeeper', 'defender', 'midfielder', 'forward'),
+  proficiency: Schema.Literal('beginner', 'intermediate', 'advanced', 'pro'),
 });
 
 type ProfileFormValues = Schema.Schema.Type<typeof ProfileFormSchema>;
@@ -56,11 +52,11 @@ interface ProfileCompleteFormProps {
 export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteFormProps) {
   const run = useRun();
 
-  const form = useForm<ProfileFormValues>({
-    resolver: standardSchemaResolver(Schema.standardSchemaV1(ProfileFormSchema)),
+  const form = useForm({
+    resolver: effectTsResolver(ProfileFormSchema),
+    mode: 'onChange',
     defaultValues: {
       name: initialName,
-      jerseyNumber: '',
     },
   });
 
@@ -68,15 +64,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.auth.completeProfile({
-          payload: {
-            name: values.name,
-            birthYear: Number(values.birthYear),
-            gender: values.gender,
-            position: values.position,
-            proficiency: values.proficiency,
-            jerseyNumber:
-              values.jerseyNumber !== '' ? Option.some(Number(values.jerseyNumber)) : Option.none(),
-          },
+          payload: values,
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.profile_complete_saveFailed())),
@@ -91,8 +79,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
         <FormField
-          control={form.control}
-          name='name'
+          {...form.register('name')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{m.profile_complete_displayName()}</FormLabel>
@@ -105,8 +92,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         />
 
         <FormField
-          control={form.control}
-          name='birthYear'
+          {...form.register('birthYear')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{m.profile_complete_birthYear()}</FormLabel>
@@ -130,8 +116,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         />
 
         <FormField
-          control={form.control}
-          name='gender'
+          {...form.register('gender')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{m.profile_complete_gender()}</FormLabel>
@@ -155,8 +140,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         />
 
         <FormField
-          control={form.control}
-          name='jerseyNumber'
+          {...form.register('jerseyNumber')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{m.profile_complete_jerseyNumber()}</FormLabel>
@@ -175,8 +159,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         />
 
         <FormField
-          control={form.control}
-          name='position'
+          {...form.register('position')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{m.profile_complete_position()}</FormLabel>
@@ -200,8 +183,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         />
 
         <FormField
-          control={form.control}
-          name='proficiency'
+          {...form.register('proficiency')}
           render={({ field }) => (
             <FormItem>
               <FormLabel>{m.profile_complete_proficiency()}</FormLabel>
