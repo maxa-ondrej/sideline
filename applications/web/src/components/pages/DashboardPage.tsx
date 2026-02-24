@@ -1,5 +1,6 @@
 import * as m from '../../paraglide/messages.js';
 import { LanguageSwitcher } from '../organisms/LanguageSwitcher';
+import { Button } from '../ui/button';
 
 interface DashboardPageProps {
   user: { discordUsername: string };
@@ -14,9 +15,9 @@ export function DashboardPage({ user, onLogout }: DashboardPageProps) {
         <LanguageSwitcher isAuthenticated />
       </div>
       <p>{m.dashboard_welcome({ username: user.discordUsername })}</p>
-      <button type='button' onClick={onLogout}>
+      <Button variant='outline' onClick={onLogout}>
         {m.auth_logout()}
-      </button>
+      </Button>
     </div>
   );
 }

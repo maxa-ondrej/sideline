@@ -645,6 +645,94 @@ Use the latest version of Shadcn to install new components, like this command to
 pnpm -C ./applications/web dlx shadcn@latest add button
 ```
 
+**Always prefer Shadcn components over plain HTML tags:**
+- `<button>` → `<Button>` from `components/ui/button`
+- `<a href>` → `<Button asChild><a href={...}>...</a></Button>`
+- `<input>` → `<Input>` from `components/ui/input`
+- `<select>` → `<Select>` from `components/ui/select`
+- `<label>` (in forms) → `<FormLabel>` from `components/ui/form`
+
+### Forms — React Hook Form + Effect Schema
+
+**Always use Shadcn Form (`components/ui/form`) with React Hook Form and Effect Schema** for any form that collects user input to be submitted to the backend.
+
+#### Setup
+
+```typescript
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
+import { Schema } from 'effect';
+import { useForm } from 'react-hook-form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+
+const MyFormSchema = Schema.Struct({
+  name: Schema.NonEmptyString,
+  role: Schema.Literal('admin', 'member'),
+});
+type MyFormValues = Schema.Schema.Type<typeof MyFormSchema>;
+
+function MyForm({ onSuccess }: { onSuccess: () => void }) {
+  const run = useRun();
+  const form = useForm<MyFormValues>({
+    resolver: standardSchemaResolver(Schema.standardSchemaV1(MyFormSchema)),
+    defaultValues: { name: '' },
+  });
+
+  const onSubmit = async (values: MyFormValues) => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) => api.something.create({ payload: values })),
+      Effect.catchAll(() => ClientError.make('Failed to save')),
+      run,
+    );
+    if (Option.isSome(result)) onSuccess();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
+        <FormField
+          control={form.control}
+          name='name'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* For Shadcn Select, bind via onValueChange/value, not spread: */}
+        <FormField
+          control={form.control}
+          name='role'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Role</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                </FormControl>
+                <SelectContent>...</SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type='submit' disabled={form.formState.isSubmitting}>Submit</Button>
+      </form>
+    </Form>
+  );
+}
+```
+
+#### Key rules
+- Use `standardSchemaResolver(Schema.standardSchemaV1(MySchema))` — not zod, not yup.
+- Use `form.formState.isSubmitting` for the loading state — no manual `submitting` state.
+- Errors from the API are shown via automatic `toast.error` in `runPromiseClient` — no manual error state needed.
+- `Option.isSome(result)` guards the success path since `run` returns `Promise<Option<A>>`.
+- For `<Select>`, use `onValueChange={field.onChange}` and `value={field.value}` — do **not** spread `{...field}` directly on `<Select>`.
+
 
 ### Service Definition
 

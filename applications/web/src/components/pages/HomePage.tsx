@@ -1,6 +1,7 @@
 import { Option } from 'effect';
 import * as m from '../../paraglide/messages.js';
 import { LanguageSwitcher } from '../organisms/LanguageSwitcher';
+import { Button } from '../ui/button';
 
 const reasonMessages: Record<string, () => string> = {
   access_denied: m.auth_errors_accessDenied,
@@ -27,9 +28,9 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
           <LanguageSwitcher isAuthenticated />
         </div>
         <p>{m.auth_signedInAs({ username: userOption.value.discordUsername })}</p>
-        <button type='button' onClick={onLogout}>
+        <Button variant='outline' onClick={onLogout}>
           {m.auth_logout()}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -43,12 +44,16 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
       {error ? (
         <div>
           <p>{reasonMessages[reason ?? '']?.() ?? m.auth_loginFailed()}</p>
-          <a href={loginUrl}>{m.auth_tryAgain()}</a>
+          <Button asChild variant='outline'>
+            <a href={loginUrl}>{m.auth_tryAgain()}</a>
+          </Button>
         </div>
       ) : (
         <div>
           <p>{m.app_welcome()}</p>
-          <a href={loginUrl}>{m.auth_signInDiscord()}</a>
+          <Button asChild>
+            <a href={loginUrl}>{m.auth_signInDiscord()}</a>
+          </Button>
         </div>
       )}
     </div>

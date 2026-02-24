@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import React from 'react';
 import { ApiClient, ClientError, useRun } from '../../lib/runtime';
 import * as m from '../../paraglide/messages.js';
+import { Button } from '../ui/button';
 
 interface InvitePageProps {
   isAuthenticated: boolean;
@@ -14,11 +15,9 @@ interface InvitePageProps {
 export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }: InvitePageProps) {
   const run = useRun();
   const [joining, setJoining] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   const handleJoin = React.useCallback(async () => {
     setJoining(true);
-    setError(null);
     await ApiClient.pipe(
       Effect.flatMap((api) => api.invite.joinViaInvite({ path: { code } })),
       Effect.tap((result) => Effect.sync(() => onJoined(result.isProfileComplete))),
@@ -41,15 +40,12 @@ export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }
     <div>
       <h1>{m.invite_joinTitle({ teamName: invite.teamName })}</h1>
       <p>{m.invite_joinDescription({ teamName: invite.teamName })}</p>
-      {error && <p>{error}</p>}
       {isAuthenticated ? (
-        <button type='button' onClick={handleJoin} disabled={joining}>
+        <Button onClick={handleJoin} disabled={joining}>
           {joining ? m.invite_joining() : m.invite_joinButton()}
-        </button>
+        </Button>
       ) : (
-        <button type='button' onClick={onSignIn}>
-          {m.invite_signInToJoin()}
-        </button>
+        <Button onClick={onSignIn}>{m.invite_signInToJoin()}</Button>
       )}
     </div>
   );
