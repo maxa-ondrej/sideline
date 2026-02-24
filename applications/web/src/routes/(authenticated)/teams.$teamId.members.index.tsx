@@ -8,7 +8,7 @@ import { TeamMembersPage } from '~/components/pages/TeamMembersPage';
 import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
-export const Route = createFileRoute('/(authenticated)/teams/$teamId/members')({
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/')({
   component: MembersRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);

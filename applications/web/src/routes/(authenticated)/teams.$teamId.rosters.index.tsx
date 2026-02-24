@@ -4,7 +4,7 @@ import { Effect, Schema } from 'effect';
 import { RostersListPage } from '~/components/pages/RostersListPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
-export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters')({
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/')({
   component: RostersRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
