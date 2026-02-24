@@ -1,4 +1,4 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
+import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import {
   RosterModel as RosterNS,
   TeamMember as TeamMemberNS,
@@ -13,7 +13,7 @@ class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
   team_id: TeamNS.TeamId,
   name: Schema.String,
   active: Schema.Boolean,
-  created_at: Schema.DateTimeUtc,
+  created_at: Model.DateTimeFromDate,
   member_count: Schema.Number,
 }) {}
 
