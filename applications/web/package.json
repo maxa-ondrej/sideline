@@ -13,6 +13,7 @@
   "dependencies": {
     "@effect/platform": "0.94.5",
     "@faker-js/faker": "10.0.0",
+    "@hookform/resolvers": "^5.2.2",
     "@inlang/paraglide-js": "^2.12.0",
     "@sideline/domain": "workspace:^",
     "@t3-oss/env-core": "0.13.8",
@@ -36,10 +37,13 @@
     "radix-ui": "1.4.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-hook-form": "^7.71.2",
+    "sonner": "^2.0.7",
     "tailwind-merge": "3.0.2",
     "tailwindcss": "4.1.18",
     "tw-animate-css": "1.3.6",
-    "vite-tsconfig-paths": "5.1.4"
+    "vite-tsconfig-paths": "5.1.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@effect/platform-browser": "0.74.0",

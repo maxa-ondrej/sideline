@@ -1,13 +1,12 @@
-import { TanStackDevtools } from '@tanstack/react-devtools';
 import type { QueryClient } from '@tanstack/react-query';
-import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/react-router';
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
+import { createRootRouteWithContext } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
+import type React from 'react';
+import { RootDocument } from '../components/layouts/RootDocument';
 import { fetchEnv } from '../env.js';
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools';
 import { getCurrentUser } from '../lib/auth';
-import { ClientError, RunProvider, runPromise } from '../lib/runtime';
-import { getLocale, setLocale } from '../paraglide/runtime.js';
+import { runPromiseClient, runPromiseServer } from '../lib/runtime';
+import { setLocale } from '../paraglide/runtime.js';
 import appCss from '../styles.css?url';
 
 interface MyRouterContext {
@@ -36,52 +35,31 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
   }),
   ssr: false,
-  shellComponent: RootDocument,
+  shellComponent: RootDocumentRoute,
   beforeLoad: async ({ abortController }) => {
     const environment = await fetchEnv(abortController);
-    const makeRun = runPromise(environment.SERVER_URL);
+    const makeRun = runPromiseServer(environment.SERVER_URL);
     const run = makeRun(abortController);
-    const user = await getCurrentUser.pipe(
-      Effect.catchAll(() => new ClientError({ message: 'Error while fetching user!' })),
-      run,
-    );
+    const user = await getCurrentUser.pipe(Effect.option, Effect.map(Option.flatten), run);
     if (Option.isSome(user)) {
       setLocale(user.value.locale);
     }
     return {
       environment,
-      makeRun,
       run,
       userOption: user,
     };
   },
+  loader: async ({ context }) => {
+    const run = runPromiseClient(context.environment.SERVER_URL);
+    return {
+      run,
+    };
+  },
 });
 
-function RootDocument({ children }: { children: React.ReactNode }) {
-  const { makeRun } = Route.useRouteContext();
-  const locale = getLocale();
+function RootDocumentRoute({ children }: { children: React.ReactNode }) {
+  const { run } = Route.useLoaderData();
 
-  return (
-    <html lang={locale}>
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <RunProvider value={makeRun}>{children}</RunProvider>
-        <TanStackDevtools
-          config={{
-            position: 'bottom-right',
-          }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-            TanStackQueryDevtools,
-          ]}
-        />
-        <Scripts />
-      </body>
-    </html>
-  );
+  return <RootDocument run={run}>{children}</RootDocument>;
 }

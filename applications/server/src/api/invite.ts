@@ -13,7 +13,6 @@ import { TeamInvitesRepository } from '../repositories/TeamInvitesRepository.js'
 import { TeamMembersRepository } from '../repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '../repositories/TeamsRepository.js';
 import { Api } from './api.js';
-import { InternalError } from './errors.js';
 
 const INVITE_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const INVITE_CODE_LENGTH = 12;
@@ -32,28 +31,20 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
       handlers
         .handle('getInvite', ({ path: { code } }) =>
           invites.findByCode(code).pipe(
-            Effect.mapError(() => new InternalError()),
-            Effect.flatMap(
-              Option.match({
-                onNone: () => new InviteNotFound(),
-                onSome: (invite) =>
-                  teams.findById(invite.team_id).pipe(
-                    Effect.mapError(() => new InternalError()),
-                    Effect.flatMap(
-                      Option.match({
-                        onNone: () => new InviteNotFound(),
-                        onSome: (team) =>
-                          Effect.succeed(
-                            new InviteInfo({
-                              teamName: team.name,
-                              teamId: team.id,
-                              code: invite.code,
-                            }),
-                          ),
-                      }),
-                    ),
-                  ),
-              }),
+            Effect.orDie,
+            Effect.flatten,
+            Effect.bindTo('invite'),
+            Effect.bind('team', ({ invite }) =>
+              teams.findById(invite.team_id).pipe(Effect.orDie, Effect.flatten),
+            ),
+            Effect.catchTag('NoSuchElementException', () => new InviteNotFound()),
+            Effect.map(
+              ({ team, invite }) =>
+                new InviteInfo({
+                  teamName: team.name,
+                  teamId: team.id,
+                  code: invite.code,
+                }),
             ),
           ),
         )
@@ -62,33 +53,27 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => CurrentUserContext),
             Effect.bind('invite', () =>
               invites.findByCode(code).pipe(
-                Effect.mapError(() => new InternalError()),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new InviteNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new InviteNotFound()),
               ),
             ),
+
             Effect.bind('existing', ({ user, invite }) =>
-              members
-                .findMembershipByIds(invite.team_id, user.id)
-                .pipe(Effect.mapError(() => new InternalError())),
+              members.findMembershipByIds(invite.team_id, user.id),
             ),
             Effect.tap(({ existing }) =>
               Option.isSome(existing) ? Effect.fail(new AlreadyMember()) : Effect.void,
             ),
             Effect.bind('membership', ({ user, invite }) =>
-              members
-                .addMember({
-                  team_id: invite.team_id,
-                  user_id: user.id,
-                  role: 'member',
-                  joined_at: undefined,
-                })
-                .pipe(Effect.mapError(() => new InternalError())),
+              members.addMember({
+                team_id: invite.team_id,
+                user_id: user.id,
+                role: 'member',
+                joined_at: undefined,
+              }),
             ),
+            Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
             Effect.map(
               ({ user, membership }) =>
                 new JoinResult({
@@ -104,13 +89,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => CurrentUserContext),
             Effect.bind('membership', ({ user }) =>
               members.findMembershipByIds(teamId, user.id).pipe(
-                Effect.mapError(() => new InternalError()),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Forbidden()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new Forbidden()),
               ),
             ),
             Effect.tap(({ membership }) =>
@@ -128,13 +109,13 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 }),
               ).pipe(
                 Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis')),
-                Effect.mapError(() => new InternalError()),
+                Effect.orDie,
               ),
             ),
             Effect.tap(({ newInvite }) =>
               invites
                 .deactivateByTeamExcept({ teamId, excludeId: newInvite.id })
-                .pipe(Effect.mapError(() => new InternalError())),
+                .pipe(Effect.orDie),
             ),
             Effect.map(
               ({ newInvite }) =>
@@ -150,21 +131,15 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => CurrentUserContext),
             Effect.bind('membership', ({ user }) =>
               members.findMembershipByIds(teamId, user.id).pipe(
-                Effect.mapError(() => new InternalError()),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Forbidden()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new Forbidden()),
               ),
             ),
             Effect.tap(({ membership }) =>
               membership.role !== 'admin' ? Effect.fail(new Forbidden()) : Effect.void,
             ),
-            Effect.tap(() =>
-              invites.deactivateByTeam(teamId).pipe(Effect.mapError(() => new InternalError())),
-            ),
+            Effect.tap(() => invites.deactivateByTeam(teamId).pipe(Effect.orDie)),
             Effect.asVoid,
           ),
         ),

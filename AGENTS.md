@@ -645,6 +645,107 @@ Use the latest version of Shadcn to install new components, like this command to
 pnpm -C ./applications/web dlx shadcn@latest add button
 ```
 
+**Always prefer Shadcn components over plain HTML tags:**
+- `<button>` → `<Button>` from `components/ui/button`
+- `<a href>` → `<Button asChild><a href={...}>...</a></Button>`
+- `<input>` → `<Input>` from `components/ui/input`
+- `<select>` → `<Select>` from `components/ui/select`
+- `<label>` (in forms) → `<FormLabel>` from `components/ui/form`
+
+### Forms — React Hook Form + Effect Schema
+
+**Always use Shadcn Form (`components/ui/form`) with React Hook Form and Effect Schema** for any form that collects user input to be submitted to the backend.
+
+#### Setup
+
+```typescript
+import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { Effect, Option, Schema } from 'effect';
+import { useForm } from 'react-hook-form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { ApiClient, ClientError, useRun } from '../../lib/runtime';
+
+const MyFormSchema = Schema.Struct({
+  name: Schema.NonEmptyString,
+  // Use transforming schemas so decoded values map directly to the API payload:
+  age: Schema.NumberFromString,
+  role: Schema.Literal('admin', 'member'),
+  // Optional numeric field — decoded as Option<number>:
+  jerseyNumber: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
+});
+// Use the decoded/transformed type — this is what onSubmit receives:
+type MyFormValues = Schema.Schema.Type<typeof MyFormSchema>;
+
+function MyForm({ onSuccess }: { onSuccess: () => void }) {
+  const run = useRun();
+  // No explicit generic needed — effectTsResolver infers the type:
+  const form = useForm({
+    resolver: effectTsResolver(MyFormSchema),
+    mode: 'onChange',
+    defaultValues: { name: '' },
+  });
+
+  const onSubmit = async (values: MyFormValues) => {
+    // values are already decoded (e.g. age is number, jerseyNumber is Option<number>)
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) => api.something.create({ payload: values })),
+      Effect.catchAll(() => ClientError.make('Failed to save')),
+      run,
+    );
+    if (Option.isSome(result)) onSuccess();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
+        {/* Spread form.register('fieldName') on FormField — do NOT use control + name props: */}
+        <FormField
+          {...form.register('name')}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* For Shadcn Select, bind via onValueChange/value, not field spread: */}
+        <FormField
+          {...form.register('role')}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Role</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className='w-full'><SelectValue /></SelectTrigger>
+                </FormControl>
+                <SelectContent>...</SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type='submit' disabled={form.formState.isSubmitting}>Submit</Button>
+      </form>
+    </Form>
+  );
+}
+```
+
+#### Key rules
+- Use `effectTsResolver(MySchema)` from `@hookform/resolvers/effect-ts` — **not** `standardSchemaResolver`, not zod, not yup.
+- Do **not** wrap the schema in `Schema.standardSchemaV1(...)` — pass it directly to `effectTsResolver`.
+- Use transforming schemas (`NumberFromString`, `optionalWith({ as: 'Option' })`, `NonEmptyString`) so the decoded type maps directly to the API payload — no manual value transformation needed in `onSubmit`.
+- `type FormValues = Schema.Schema.Type<typeof MySchema>` is the decoded/transformed type; use it as the `onSubmit` parameter type.
+- Do **not** pass explicit generics to `useForm<MyFormValues>(...)` — let `effectTsResolver` infer the type.
+- Spread `{...form.register('fieldName')}` on `<FormField>` — do **not** use `control={form.control} name='fieldName'` props.
+- Use `form.formState.isSubmitting` for the loading state — no manual `submitting` state.
+- Errors from the API are shown via automatic `toast.error` in `runPromiseClient` — no manual error state needed.
+- `Option.isSome(result)` guards the success path since `run` returns `Promise<Option<A>>`.
+- For `<Select>`, use `onValueChange={field.onChange}` and `value={field.value}` — do **not** spread `{...field}` directly on `<Select>`.
+
 
 ### Service Definition
 
@@ -911,7 +1012,7 @@ formatRelative(someDate);   // "před 3 dny" (cs) or "3 days ago" (en)
 
 ### Language Switcher
 
-`LanguageSwitcher` component (`applications/web/src/components/LanguageSwitcher.tsx`) uses shadcn Select. Accepts `isAuthenticated` prop — when `true`, persists choice to server via the `updateLocale` API.
+`LanguageSwitcher` organism (`applications/web/src/components/organisms/LanguageSwitcher.tsx`) uses the `LocaleSelect` molecule (Shadcn Select wrapper). Accepts `isAuthenticated` prop — when `true`, persists choice to server via the `updateLocale` API. Uses `useRun()` internally.
 
 ### Bot Localization
 
@@ -935,12 +1036,95 @@ Interaction.pipe(
 
 Prefer `guild_locale` (server-configured language) over `locale` (individual user's language) for server-wide consistency.
 
+## Frontend Architecture (`applications/web`)
+
+### Component Structure — Atomic Design
+
+Components live in `applications/web/src/components/` and are organized following **Atomic Design**:
+
+```
+components/
+├── ui/          — Shadcn/UI primitives (auto-generated, do not hand-edit)
+├── atoms/       — Smallest self-contained components (e.g. LanguageSwitcher)
+├── molecules/   — Combinations of atoms (e.g. FormField = Label + Input)
+├── organisms/   — Complex, multi-responsibility sections (e.g. ProfileCompleteForm)
+├── pages/       — Full page components, one per route (e.g. HomePage, DashboardPage)
+└── layouts/     — Structural wrappers/shells (e.g. RootDocument)
+```
+
+#### Layer guidelines
+
+| Layer | Rule |
+|-------|------|
+| `ui/` | Shadcn primitives only. Added via `pnpm -C ./applications/web dlx shadcn@latest add <component>`. Never hand-edited. |
+| `atoms/` | Single responsibility, no business logic, no API calls. |
+| `molecules/` | Compose atoms + ui. No route-level data fetching, no API calls. |
+| `organisms/` | May own significant local state, form logic, or API calls via `useRun()` (e.g. `LanguageSwitcher`, `ProfileCompleteForm`). No TanStack Router hooks. |
+| `pages/` | One file per route. Receives data from `Route.useLoaderData()` / `Route.useRouteContext()` via props. Contains navigation callbacks. |
+| `layouts/` | Pure structural wrappers. Render `{children}` slots. No business logic. |
+
+#### Route file convention
+
+Route files (`routes/**/*.tsx`) contain TanStack Router config (`createFileRoute`, `beforeLoad`, `loader`, `validateSearch`) plus a thin wrapper component that calls `Route.use*()` hooks and passes the results as props to the Page component. The Page component itself has no TanStack Router dependency.
+
+```typescript
+// routes/(authenticated)/dashboard.tsx
+export const Route = createFileRoute('/(authenticated)/dashboard')({
+  component: DashboardRoute,
+  beforeLoad: ...,
+  loader: ...,
+});
+
+function DashboardRoute() {
+  const { user } = Route.useRouteContext();
+  const data = Route.useLoaderData();
+  return <DashboardPage user={user} data={data} />;
+}
+```
+
+```typescript
+// components/pages/DashboardPage.tsx
+export function DashboardPage({ user, data }: DashboardPageProps) {
+  // No Route.use*() calls — pure component driven by props
+}
+```
+
+### Runtime — Client vs Server runners
+
+`lib/runtime.ts` exposes two distinct run functions:
+
+| Function | Used in | Error channel | Returns | Side-effects |
+|---|---|---|---|---|
+| `runPromiseServer(url)(abortController?)` | `beforeLoad`, `loader` | `Redirect \| NotFound` | `Promise<A>` (throws on error) | None |
+| `runPromiseClient(url)` | Root loader → `RunProvider` | `ClientError` | `Promise<Option<A>>` | Auto `toast.error` on failure |
+
+**`Run` type** (what `useRun()` returns):
+```typescript
+type Run = <A>(
+  effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
+) => Promise<Option.Option<A>>;
+```
+
+**Wiring**: The root loader creates `runPromiseClient(url)` and passes it to `RootDocument` as the `run` prop, which puts it in `RunProvider`. All organisms access it via `useRun()` — no prop drilling of `makeRun`.
+
+**`ClientError`** has a static factory: `ClientError.make(message)`.
+
+**Organisms** call `useRun()` directly and pipe effects into `run`:
+```typescript
+const run = useRun();
+await ApiClient.pipe(
+  Effect.flatMap((api) => api.someEndpoint(...)),
+  Effect.catchTag('SomeError', () => ClientError.make('Error message')),
+  run, // toast.error shown automatically on ClientError
+);
+```
+
 ## Documentation Conventions
 
 - **Always update AGENTS.md** when making architecture changes, adding new patterns, changing CI/build workflows, or establishing new conventions. This file is the single source of truth for how the codebase works.
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-02-24
 
 When working on this codebase, prioritize type safety, composability, and Effect's functional patterns. Keep implementations simple and focused on the task at hand. Leverage Effect's powerful abstractions for error handling, resource management, and dependency injection.

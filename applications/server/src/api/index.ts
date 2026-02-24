@@ -9,4 +9,4 @@ export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(InviteApiLive),
 );
 
-export { LogicError, Redirect, RuntimeError } from './errors.js';
+export { Redirect } from './redirect.js';
