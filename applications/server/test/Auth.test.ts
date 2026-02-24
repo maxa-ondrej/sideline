@@ -249,4 +249,15 @@ describe('Auth API', () => {
     const location = response.headers.get('Location');
     expect(location).toContain('http://localhost:5173/redirect?token=');
   });
+
+  it('GET /auth/callback of different server with valid code redirects to correct server', async () => {
+    const response = await handler(
+      new Request(
+        'http://localhost/auth/callback?code=valid-code&state=%7B%22id%22%3A%22d5760fa3-5440-4f87-8136-f5c1109aaea0%22%2C%20%22redirectUrl%22%3A%22http%3A%2F%2Flocalhost.test%3A5173%2Fredirect%22%7D',
+      ),
+    );
+    expect(response.status).toBe(302);
+    const location = response.headers.get('Location');
+    expect(location).toContain('http://localhost.test:5173/auth/callback');
+  });
 });
