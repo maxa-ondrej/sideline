@@ -11,6 +11,7 @@ const MainLive = AppLive.pipe(
   Layer.provide(
     DiscordConfig.layerConfig({
       token: Config.succeed(env.DISCORD_BOT_TOKEN),
+      gateway: Config.succeed({ intents: env.DISCORD_GATEWAY_INTENTS }),
     }),
   ),
 );

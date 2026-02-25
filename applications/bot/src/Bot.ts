@@ -1,33 +1,20 @@
 import { runIx } from 'dfx/gateway';
-import * as Ix from 'dfx/Interactions/index';
-import { Interaction } from 'dfx/Interactions/index';
-import * as Discord from 'dfx/types';
 import { Effect } from 'effect';
+import { commandBuilder } from '~/commands/index.js';
+import { eventHandlers } from '~/events/index.js';
+import { interactionBuilder } from '~/interactions/index.js';
 
-const PingCommand = Ix.global(
-  {
-    name: 'ping',
-    description: 'Check if the bot is alive',
-    description_localizations: { cs: 'Zkontrolovat, jestli bot žije' },
-  },
-  Interaction.pipe(
-    Effect.map((i) => {
-      const rawLocale = i.guild_locale ?? ('locale' in i ? i.locale : undefined);
-      const locale = (rawLocale ?? 'en').startsWith('cs') ? 'cs' : 'en';
-      return Ix.response({
-        type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: locale === 'cs' ? 'Pong! Bot žije.' : 'Pong!' },
-      });
-    }),
-  ),
-);
-
-const commands = Effect.succeed(Ix.builder.add(PingCommand));
-
-export const program = commands.pipe(
+const ixProgram = Effect.succeed(commandBuilder.concat(interactionBuilder)).pipe(
   Effect.andThen(
     runIx((effect) =>
       Effect.catchAllCause(effect, (cause) => Effect.logError('Interaction error', cause)),
     ),
   ),
+);
+
+export const program = Effect.Do.pipe(
+  Effect.bind('events', () => eventHandlers),
+  Effect.tap(() => Effect.log('Bot connected to Discord')),
+  Effect.andThen(({ events }) => Effect.all([ixProgram, ...events], { concurrency: 'unbounded' })),
+  Effect.asVoid,
 );

@@ -9,10 +9,14 @@ This is an **Effect-TS monorepo** built with TypeScript, utilizing a modern func
 ```
 applications/
 ├── bot/       - Discord bot (dfx, Effect-native)
-│   ├── Bot.ts           - Interaction commands (exports program)
-│   ├── AppLive.ts       - Composable app layer (DiscordIx + HealthServer)
-│   ├── HealthServerLive.ts - Health check HTTP endpoint (:3001)
-│   └── run.ts           - Runtime entrypoint (config, logging, NodeRuntime)
+│   ├── Bot.ts           - Composes commands + interactions + events into program
+│   ├── AppLive.ts       - Composable app layer (DiscordIx → HealthServer)
+│   ├── HealthServerLive.ts - Health check HTTP endpoint with gateway shard status
+│   ├── env.ts           - Environment config (token, intents, health port)
+│   ├── run.ts           - Runtime entrypoint (config, logging, NodeRuntime)
+│   ├── commands/        - Slash command registry (ping.ts, index.ts)
+│   ├── interactions/    - Component interaction registry (buttons/selects/modals)
+│   └── events/          - Gateway event handler registry (guild, member lifecycle)
 ├── server/    - Server application and API endpoints
 │   ├── api/             - HTTP API modules (errors, health, auth, composition)
 │   ├── repositories/    - Database repositories (Sessions, Users)
