@@ -1,8 +1,12 @@
 export * as ApiGroup from './ApiGroup.js';
 
+export * as AgeThresholdApi from './api/AgeThresholdApi.js';
+
 export * as Auth from './api/Auth.js';
 
 export * as Invite from './api/Invite.js';
+
+export * as NotificationApi from './api/NotificationApi.js';
 
 export * as RoleApi from './api/RoleApi.js';
 
@@ -10,7 +14,11 @@ export * as Roster from './api/Roster.js';
 
 export * as SubgroupApi from './api/SubgroupApi.js';
 
+export * as AgeThresholdRule from './models/AgeThresholdRule.js';
+
 export * as MemberRole from './models/MemberRole.js';
+
+export * as Notification from './models/Notification.js';
 
 export * as Role from './models/Role.js';
 

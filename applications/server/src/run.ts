@@ -7,6 +7,11 @@ import { AfterMigrator, BeforeMigrator } from '@sideline/migrations';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
+import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { AgeCheckCron } from '~/services/AgeCheckCron.js';
+import { AgeCheckService } from '~/services/AgeCheckService.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
@@ -43,9 +48,18 @@ const App = AppLive.pipe(
 
 const Health = HealthServerLive.pipe(Layer.launch, Effect.withLogSpan('health'));
 
+const Cron = AgeCheckCron.pipe(
+  Effect.provide(AgeCheckService.Default),
+  Effect.provide(AgeThresholdRepository.Default),
+  Effect.provide(NotificationsRepository.Default),
+  Effect.provide(TeamMembersRepository.Default),
+  Effect.provide(PgClient.layerConfig(BasePg)),
+  Effect.withLogSpan('age-check-cron'),
+);
+
 Effect.Do.pipe(
   Effect.tap(() => (env.NODE_ENV === 'development' ? CreateDb : Effect.void)),
   Effect.tap(() => MigrateBefore),
-  Effect.andThen(() => Effect.all([App, Health, MigrateAfter], { concurrency: 3 })),
+  Effect.andThen(() => Effect.all([App, Health, MigrateAfter, Cron], { concurrency: 4 })),
   Runtime.runMain(env.NODE_ENV),
 );
