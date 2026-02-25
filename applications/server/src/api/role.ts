@@ -187,13 +187,14 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ memberCount }) =>
               memberCount > 0 ? Effect.fail(new RoleApi.RoleInUse()) : Effect.void,
             ),
-            Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
             Effect.tap(({ existing }) =>
-              syncEvents.emitIfGuildLinked(teamId, 'role_deleted', existing.id, existing.name).pipe(
-                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
-                Effect.catchAll(() => Effect.void),
-              ),
+              syncEvents
+                .emitIfGuildLinked(teamId, 'role_deleted', existing.id, existing.name)
+                .pipe(
+                  Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
+                ),
             ),
+            Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
             Effect.asVoid,
           ),
         )
