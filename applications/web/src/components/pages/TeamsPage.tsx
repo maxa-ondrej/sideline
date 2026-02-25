@@ -25,17 +25,42 @@ export function TeamsPage({ teams, onCreateTeam }: TeamsPageProps) {
   }, [teamName, onCreateTeam]);
 
   return (
-    <div className='p-4'>
-      <div className='flex items-center gap-4 mb-6'>
-        <Button asChild variant='ghost' size='sm'>
-          <Link to='/dashboard'>{m.teams_backToDashboard()}</Link>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/dashboard'>← {m.teams_backToDashboard()}</Link>
         </Button>
         <h1 className='text-2xl font-bold'>{m.teams_title()}</h1>
-      </div>
+      </header>
 
-      <div className='p-4 border rounded-lg max-w-md mb-6'>
-        <h2 className='text-lg font-semibold mb-2'>{m.dashboard_createTeam()}</h2>
-        <div className='flex gap-2'>
+      <section className='mb-8'>
+        {teams.length > 0 ? (
+          <ul className='flex flex-col gap-2'>
+            {teams.map((team) => (
+              <li key={team.teamId}>
+                <Link
+                  to='/teams/$teamId'
+                  params={{ teamId: team.teamId }}
+                  className='flex items-center justify-between border rounded-lg p-3 hover:bg-accent transition-colors'
+                >
+                  <span className='font-medium'>{team.teamName}</span>
+                  {team.roleNames.length > 0 && (
+                    <span className='text-sm text-muted-foreground'>
+                      {team.roleNames.join(', ')}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className='text-muted-foreground'>{m.teams_noTeams()}</p>
+        )}
+      </section>
+
+      <section>
+        <h2 className='text-lg font-semibold mb-3'>{m.dashboard_createTeam()}</h2>
+        <div className='flex gap-2 max-w-md'>
           <Input
             placeholder={m.dashboard_teamNamePlaceholder()}
             value={teamName}
@@ -48,30 +73,7 @@ export function TeamsPage({ teams, onCreateTeam }: TeamsPageProps) {
             {creating ? m.dashboard_creating() : m.dashboard_createTeam()}
           </Button>
         </div>
-      </div>
-
-      {teams.length > 0 ? (
-        <ul className='flex flex-col gap-3'>
-          {teams.map((team) => (
-            <li key={team.teamId} className='border rounded-lg p-4'>
-              <Link
-                to='/teams/$teamId'
-                params={{ teamId: team.teamId }}
-                className='text-lg font-semibold hover:underline'
-              >
-                {team.teamName}
-              </Link>
-              {team.roleNames.length > 0 && (
-                <p className='text-sm text-muted-foreground mt-1'>
-                  {m.teams_yourRoles({ roles: team.roleNames.join(', ') })}
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className='text-muted-foreground'>{m.teams_noTeams()}</p>
-      )}
+      </section>
     </div>
   );
 }

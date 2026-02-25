@@ -18,29 +18,31 @@ export function TeamDetailPage({ teamId, team }: TeamDetailPageProps) {
   ] as const;
 
   return (
-    <div className='p-4'>
-      <div className='flex items-center gap-4 mb-6'>
-        <Button asChild variant='ghost' size='sm'>
-          <Link to='/teams'>{m.team_backToTeams()}</Link>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams'>← {m.team_backToTeams()}</Link>
         </Button>
         <h1 className='text-2xl font-bold'>{team.teamName}</h1>
-      </div>
+        {team.roleNames.length > 0 && (
+          <p className='text-muted-foreground'>
+            {m.teams_yourRoles({ roles: team.roleNames.join(', ') })}
+          </p>
+        )}
+      </header>
 
-      {team.roleNames.length > 0 && (
-        <p className='text-sm text-muted-foreground mb-6'>
-          {m.teams_yourRoles({ roles: team.roleNames.join(', ') })}
-        </p>
-      )}
-
-      <div className='grid gap-3 max-w-md'>
+      <nav className='flex flex-col gap-2'>
         {sections.map((section) => (
-          <Button key={section.to} asChild variant='outline' className='justify-start'>
-            <Link to={section.to} params={{ teamId }}>
-              {section.label}
-            </Link>
-          </Button>
+          <Link
+            key={section.to}
+            to={section.to}
+            params={{ teamId }}
+            className='flex items-center border rounded-lg p-3 font-medium hover:bg-accent transition-colors'
+          >
+            {section.label}
+          </Link>
         ))}
-      </div>
+      </nav>
     </div>
   );
 }
