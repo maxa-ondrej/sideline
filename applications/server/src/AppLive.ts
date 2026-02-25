@@ -28,7 +28,9 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
 const RpcLive = RpcServer.layer(RoleSyncRpc.RoleSyncRpcs).pipe(
   Layer.provide(RoleSyncRpcLive),
-  Layer.provide(RpcServer.layerProtocolHttp({ path: '/rpc/role-sync' })),
+  Layer.provide(
+    RpcServer.layerProtocolHttp({ path: '/rpc/role-sync', routerTag: HttpApiBuilder.Router }),
+  ),
   Layer.provide(RpcSerialization.layerNdjson),
 );
 
