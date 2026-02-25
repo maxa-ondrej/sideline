@@ -11,6 +11,7 @@ import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -30,6 +31,7 @@ export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(TeamMembersRepository.Default),
   Layer.provide(RostersRepository.Default),
   Layer.provide(RolesRepository.Default),
+  Layer.provide(SubgroupsRepository.Default),
   Layer.provide(TeamInvitesRepository.Default),
   Layer.provide(DiscordOAuth.Default),
   Layer.provide(FetchHttpClient.layer),
