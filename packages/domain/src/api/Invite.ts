@@ -11,7 +11,7 @@ export class InviteInfo extends Schema.Class<InviteInfo>('InviteInfo')({
 
 export class JoinResult extends Schema.Class<JoinResult>('JoinResult')({
   teamId: TeamId,
-  roleName: Schema.String,
+  roleNames: Schema.Array(Schema.String),
   isProfileComplete: Schema.Boolean,
 }) {}
 

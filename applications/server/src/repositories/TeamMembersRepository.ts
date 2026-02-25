@@ -18,20 +18,24 @@ class RosterMemberQuery extends Schema.Class<RosterMemberQuery>('RosterMemberQue
   member_id: Schema.String,
 }) {}
 
+class MemberRoleInput extends Schema.Class<MemberRoleInput>('MemberRoleInput')({
+  team_member_id: Schema.String,
+  role_id: Schema.String,
+}) {}
+
 export class MembershipWithRole extends Schema.Class<MembershipWithRole>('MembershipWithRole')({
   id: TeamMemberNS.TeamMemberId,
   team_id: TeamNS.TeamId,
   user_id: UserNS.UserId,
-  role_id: RoleNS.RoleId,
   active: Schema.Boolean,
-  role_name: Schema.String,
+  role_names: Schema.String,
   permissions: Schema.String,
 }) {}
 
 export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   member_id: TeamMemberNS.TeamMemberId,
   user_id: UserNS.UserId,
-  role_name: Schema.String,
+  role_names: Schema.String,
   permissions: Schema.String,
   name: Schema.NullOr(Schema.String),
   birth_year: Schema.NullOr(Schema.Number),
@@ -53,9 +57,28 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Request: TeamMemberNS.TeamMember.insert,
           Result: TeamMemberNS.TeamMember,
           execute: (input) => sql`
-            INSERT INTO team_members (team_id, user_id, role_id, active)
-            VALUES (${input.team_id}, ${input.user_id}, ${input.role_id}, ${input.active})
+            INSERT INTO team_members (team_id, user_id, active)
+            VALUES (${input.team_id}, ${input.user_id}, ${input.active})
             RETURNING *
+          `,
+        }),
+      ),
+      Effect.let('assignRoleToMember', ({ sql }) =>
+        SqlSchema.void({
+          Request: MemberRoleInput,
+          execute: (input) => sql`
+            INSERT INTO member_roles (team_member_id, role_id)
+            VALUES (${input.team_member_id}, ${input.role_id})
+            ON CONFLICT DO NOTHING
+          `,
+        }),
+      ),
+      Effect.let('unassignRoleFromMember', ({ sql }) =>
+        SqlSchema.void({
+          Request: MemberRoleInput,
+          execute: (input) => sql`
+            DELETE FROM member_roles
+            WHERE team_member_id = ${input.team_member_id} AND role_id = ${input.role_id}
           `,
         }),
       ),
@@ -64,14 +87,18 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Request: MembershipQuery,
           Result: MembershipWithRole,
           execute: (input) =>
-            sql`SELECT tm.id, tm.team_id, tm.user_id, tm.role_id, tm.active,
-                       r.name AS role_name,
+            sql`SELECT tm.id, tm.team_id, tm.user_id, tm.active,
                        COALESCE(
-                         (SELECT string_agg(rp.permission, ',') FROM role_permissions rp WHERE rp.role_id = r.id),
-                         ''
+                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
+                          FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+                          WHERE mr.team_member_id = tm.id), ''
+                       ) AS role_names,
+                       COALESCE(
+                         (SELECT string_agg(DISTINCT rp.permission, ',')
+                          FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
+                          WHERE mr.team_member_id = tm.id), ''
                        ) AS permissions
                 FROM team_members tm
-                JOIN roles r ON r.id = tm.role_id
                 WHERE tm.team_id = ${input.team_id} AND tm.user_id = ${input.user_id}`,
         }),
       ),
@@ -88,14 +115,18 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Request: Schema.String,
           Result: MembershipWithRole,
           execute: (userId) =>
-            sql`SELECT tm.id, tm.team_id, tm.user_id, tm.role_id, tm.active,
-                       r.name AS role_name,
+            sql`SELECT tm.id, tm.team_id, tm.user_id, tm.active,
                        COALESCE(
-                         (SELECT string_agg(rp.permission, ',') FROM role_permissions rp WHERE rp.role_id = r.id),
-                         ''
+                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
+                          FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+                          WHERE mr.team_member_id = tm.id), ''
+                       ) AS role_names,
+                       COALESCE(
+                         (SELECT string_agg(DISTINCT rp.permission, ',')
+                          FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
+                          WHERE mr.team_member_id = tm.id), ''
                        ) AS permissions
                 FROM team_members tm
-                JOIN roles r ON r.id = tm.role_id
                 WHERE tm.user_id = ${userId}`,
         }),
       ),
@@ -105,16 +136,20 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Result: RosterEntry,
           execute: (teamId) => sql`
             SELECT tm.id as member_id, tm.user_id,
-                   r.name AS role_name,
                    COALESCE(
-                     (SELECT string_agg(rp.permission, ',') FROM role_permissions rp WHERE rp.role_id = r.id),
-                     ''
+                     (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
+                      FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+                      WHERE mr.team_member_id = tm.id), ''
+                   ) AS role_names,
+                   COALESCE(
+                     (SELECT string_agg(DISTINCT rp.permission, ',')
+                      FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
+                      WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
                    u.name, u.birth_year, u.gender, u.jersey_number, u.position,
                    u.proficiency, u.discord_username, u.discord_avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
-            JOIN roles r ON r.id = tm.role_id
             WHERE tm.team_id = ${teamId} AND tm.active = true
           `,
         }),
@@ -125,16 +160,20 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Result: RosterEntry,
           execute: (input) => sql`
             SELECT tm.id as member_id, tm.user_id,
-                   r.name AS role_name,
                    COALESCE(
-                     (SELECT string_agg(rp.permission, ',') FROM role_permissions rp WHERE rp.role_id = r.id),
-                     ''
+                     (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
+                      FROM member_roles mr JOIN roles r ON r.id = mr.role_id
+                      WHERE mr.team_member_id = tm.id), ''
+                   ) AS role_names,
+                   COALESCE(
+                     (SELECT string_agg(DISTINCT rp.permission, ',')
+                      FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
+                      WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
                    u.name, u.birth_year, u.gender, u.jersey_number, u.position,
                    u.proficiency, u.discord_username, u.discord_avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
-            JOIN roles r ON r.id = tm.role_id
             WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id} AND tm.active = true
           `,
         }),
@@ -176,5 +215,13 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
 
   getPlayerRoleId(teamId: TeamNS.TeamId) {
     return this.findPlayerRoleId(teamId);
+  }
+
+  assignRole(teamMemberId: TeamMemberNS.TeamMemberId, roleId: RoleNS.RoleId) {
+    return this.assignRoleToMember({ team_member_id: teamMemberId, role_id: roleId });
+  }
+
+  unassignRole(teamMemberId: TeamMemberNS.TeamMemberId, roleId: RoleNS.RoleId) {
+    return this.unassignRoleFromMember({ team_member_id: teamMemberId, role_id: roleId });
   }
 }

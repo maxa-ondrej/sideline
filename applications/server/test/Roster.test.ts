@@ -21,7 +21,6 @@ const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
 const TEST_ROSTER_ID = '00000000-0000-0000-0000-000000000030' as RosterNS.RosterId;
-const TEST_ADMIN_ROLE_ID = '00000000-0000-0000-0000-000000000040' as Role.RoleId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
 const ADMIN_PERMISSIONS =
   'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage';
@@ -82,18 +81,16 @@ membersStore.set(TEST_MEMBER_ID, {
   id: TEST_MEMBER_ID,
   team_id: TEST_TEAM_ID,
   user_id: TEST_USER_ID,
-  role_id: TEST_PLAYER_ROLE_ID,
   active: true,
-  role_name: 'Player',
+  role_names: 'Player',
   permissions: PLAYER_PERMISSIONS,
 });
 membersStore.set(TEST_ADMIN_MEMBER_ID, {
   id: TEST_ADMIN_MEMBER_ID,
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
-  role_id: TEST_ADMIN_ROLE_ID,
   active: true,
-  role_name: 'Admin',
+  role_names: 'Admin',
   permissions: ADMIN_PERMISSIONS,
 });
 
@@ -123,7 +120,7 @@ usersMap.set(TEST_ADMIN_ID, testAdmin);
 const buildRosterEntry = (
   memberId: TeamMember.TeamMemberId,
   userId: Auth.UserId,
-  roleName: string,
+  roleNames: string,
   permissions: string,
 ): RosterEntry => {
   const user = usersMap.get(userId);
@@ -131,7 +128,7 @@ const buildRosterEntry = (
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
-    role_name: roleName,
+    role_names: roleNames,
     permissions,
     name: user.name,
     birth_year: user.birth_year,
@@ -251,9 +248,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id,
       team_id: input.team_id,
       user_id: input.user_id,
-      role_id: input.role_id,
       active: input.active,
-      role_name: 'Player',
+      role_names: 'Player',
       permissions: PLAYER_PERMISSIONS,
     };
     membersStore.set(id, member);
@@ -261,7 +257,6 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id,
       team_id: input.team_id,
       user_id: input.user_id,
-      role_id: input.role_id,
       active: input.active,
       joined_at: DateTime.unsafeNow(),
     });
@@ -286,7 +281,6 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
           id: m.id,
           team_id: m.team_id,
           user_id: m.user_id,
-          role_id: m.role_id,
           active: m.active,
           joined_at: DateTime.unsafeNow(),
         })),
@@ -297,7 +291,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
     Effect.succeed(
       Array.from(membersStore.values())
         .filter((m) => m.team_id === teamId && m.active)
-        .map((m) => buildRosterEntry(m.id, m.user_id, m.role_name, m.permissions)),
+        .map((m) => buildRosterEntry(m.id, m.user_id, m.role_names, m.permissions)),
     ),
   findRosterMember: (input) => {
     const member = membersStore.get(input.member_id as TeamMember.TeamMemberId);
@@ -306,7 +300,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
     }
     return Effect.succeed(
       Option.some(
-        buildRosterEntry(member.id, member.user_id, member.role_name, member.permissions),
+        buildRosterEntry(member.id, member.user_id, member.role_names, member.permissions),
       ),
     );
   },
@@ -317,7 +311,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
     }
     return Effect.succeed(
       Option.some(
-        buildRosterEntry(member.id, member.user_id, member.role_name, member.permissions),
+        buildRosterEntry(member.id, member.user_id, member.role_names, member.permissions),
       ),
     );
   },
@@ -330,7 +324,6 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id: updated.id,
       team_id: updated.team_id,
       user_id: updated.user_id,
-      role_id: updated.role_id,
       active: updated.active,
       joined_at: DateTime.unsafeNow(),
     });
@@ -344,13 +337,16 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id: updated.id,
       team_id: updated.team_id,
       user_id: updated.user_id,
-      role_id: updated.role_id,
       active: updated.active,
       joined_at: DateTime.unsafeNow(),
     });
   },
   findPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
   getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
+  assignRoleToMember: () => Effect.void,
+  unassignRoleFromMember: () => Effect.void,
+  assignRole: () => Effect.void,
+  unassignRole: () => Effect.void,
 });
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
@@ -425,7 +421,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     const entries = memberIds.flatMap((memberId) => {
       const member = membersStore.get(memberId);
       if (!member) return [];
-      return [buildRosterEntry(member.id, member.user_id, member.role_name, member.permissions)];
+      return [buildRosterEntry(member.id, member.user_id, member.role_names, member.permissions)];
     });
     return Effect.succeed(entries);
   },
@@ -436,7 +432,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     const entries = memberIds.flatMap((memberId) => {
       const member = membersStore.get(memberId);
       if (!member) return [];
-      return [buildRosterEntry(member.id, member.user_id, member.role_name, member.permissions)];
+      return [buildRosterEntry(member.id, member.user_id, member.role_names, member.permissions)];
     });
     return Effect.succeed(entries);
   },
@@ -514,6 +510,8 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   findByTeamAndName: () => Effect.succeed(Option.none()),
   findRoleByTeamAndName: () => Effect.succeed(Option.none()),
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
+  countMembersForRole: () => Effect.succeed({ count: 0 }),
+  getMemberCountForRole: () => Effect.succeed(0),
 });
 
 const TestLayer = ApiLive.pipe(
@@ -681,9 +679,8 @@ describe('Members API', () => {
         id: TEST_MEMBER_ID,
         team_id: TEST_TEAM_ID,
         user_id: TEST_USER_ID,
-        role_id: TEST_PLAYER_ROLE_ID,
         active: true,
-        role_name: 'Player',
+        role_names: 'Player',
         permissions: PLAYER_PERMISSIONS,
       });
       const response = await handler(
@@ -942,9 +939,8 @@ describe('Rosters API', () => {
         id: TEST_MEMBER_ID,
         team_id: TEST_TEAM_ID,
         user_id: TEST_USER_ID,
-        role_id: TEST_PLAYER_ROLE_ID,
         active: true,
-        role_name: 'Player',
+        role_names: 'Player',
         permissions: PLAYER_PERMISSIONS,
       });
       const response = await handler(
@@ -1000,9 +996,8 @@ describe('Rosters API', () => {
         id: TEST_MEMBER_ID,
         team_id: TEST_TEAM_ID,
         user_id: TEST_USER_ID,
-        role_id: TEST_PLAYER_ROLE_ID,
         active: true,
-        role_name: 'Player',
+        role_names: 'Player',
         permissions: PLAYER_PERMISSIONS,
       });
       const response = await handler(

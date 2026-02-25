@@ -8,6 +8,8 @@ export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';
 
+export * as MemberRole from './models/MemberRole.js';
+
 export * as Role from './models/Role.js';
 
 export * as RosterMemberModel from './models/RosterMemberModel.js';

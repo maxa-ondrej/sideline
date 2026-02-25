@@ -1,7 +1,8 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { Roster } from '@sideline/domain';
+import type { RoleApi, Roster } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
 import { Schema } from 'effect';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
 import {
@@ -37,10 +38,23 @@ interface PlayerDetailPageProps {
   teamId: string;
   player: Roster.RosterPlayer;
   canEdit: boolean;
+  canManageRoles: boolean;
+  availableRoles: ReadonlyArray<RoleApi.RoleInfo>;
   onSave: (values: PlayerEditValues) => Promise<void>;
+  onAssignRole: (roleId: string) => Promise<void>;
+  onUnassignRole: (roleId: string) => Promise<void>;
 }
 
-export function PlayerDetailPage({ teamId, player, canEdit, onSave }: PlayerDetailPageProps) {
+export function PlayerDetailPage({
+  teamId,
+  player,
+  canEdit,
+  canManageRoles,
+  availableRoles,
+  onSave,
+  onAssignRole,
+  onUnassignRole,
+}: PlayerDetailPageProps) {
   const form = useForm({
     resolver: effectTsResolver(PlayerEditSchema),
     mode: 'onChange',
@@ -209,6 +223,91 @@ export function PlayerDetailPage({ teamId, player, canEdit, onSave }: PlayerDeta
           </p>
         </div>
       )}
+      <RolesSection
+        player={player}
+        canManageRoles={canManageRoles}
+        availableRoles={availableRoles}
+        onAssignRole={onAssignRole}
+        onUnassignRole={onUnassignRole}
+      />
+    </div>
+  );
+}
+
+function RolesSection({
+  player,
+  canManageRoles,
+  availableRoles,
+  onAssignRole,
+  onUnassignRole,
+}: {
+  player: Roster.RosterPlayer;
+  canManageRoles: boolean;
+  availableRoles: ReadonlyArray<RoleApi.RoleInfo>;
+  onAssignRole: (roleId: string) => Promise<void>;
+  onUnassignRole: (roleId: string) => Promise<void>;
+}) {
+  const [selectedRoleId, setSelectedRoleId] = React.useState('');
+  const [assigning, setAssigning] = React.useState(false);
+
+  const assignableRoles = availableRoles.filter((r) => !player.roleNames.includes(r.name));
+
+  const handleAssign = React.useCallback(async () => {
+    if (!selectedRoleId) return;
+    setAssigning(true);
+    await onAssignRole(selectedRoleId);
+    setSelectedRoleId('');
+    setAssigning(false);
+  }, [selectedRoleId, onAssignRole]);
+
+  return (
+    <div className='mt-6'>
+      <h2 className='text-lg font-semibold mb-2'>{m.roles_currentRoles()}</h2>
+      {player.roleNames.length === 0 ? (
+        <p className='text-muted-foreground'>{m.roles_noRoles()}</p>
+      ) : (
+        <div className='flex flex-wrap gap-2 mb-4'>
+          {player.roleNames.map((roleName) => {
+            const roleInfo = availableRoles.find((r) => r.name === roleName);
+            return (
+              <span
+                key={roleName}
+                className='inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm'
+              >
+                {roleName}
+                {canManageRoles && roleInfo ? (
+                  <button
+                    type='button'
+                    className='ml-1 text-muted-foreground hover:text-destructive'
+                    onClick={() => onUnassignRole(roleInfo.roleId)}
+                  >
+                    x
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {canManageRoles && assignableRoles.length > 0 ? (
+        <div className='flex gap-2 items-end'>
+          <Select onValueChange={setSelectedRoleId} value={selectedRoleId}>
+            <SelectTrigger className='w-48'>
+              <SelectValue placeholder={m.roles_addRole()} />
+            </SelectTrigger>
+            <SelectContent>
+              {assignableRoles.map((r) => (
+                <SelectItem key={r.roleId} value={r.roleId}>
+                  {r.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size='sm' disabled={!selectedRoleId || assigning} onClick={handleAssign}>
+            {m.roles_addRole()}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -324,7 +324,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                             new Auth.UserTeam({
                               teamId: team.id,
                               teamName: team.name,
-                              roleName: m.role_name,
+                              roleNames: m.role_names === '' ? [] : m.role_names.split(','),
                               permissions: [...parsePermissions(m.permissions)],
                             }),
                           ),
@@ -354,21 +354,23 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               const admin = seededRoles.find((r) => r.name === 'Admin');
               return admin ? Effect.succeed(admin) : Effect.fail(new Auth.Unauthorized());
             }),
-            Effect.tap(({ team, currentUser, adminRole }) =>
+            Effect.bind('newMember', ({ team, currentUser }) =>
               members.addMember({
                 team_id: team.id,
                 user_id: currentUser.id,
-                role_id: adminRole.id,
                 active: true,
                 joined_at: undefined,
               }),
+            ),
+            Effect.tap(({ newMember, adminRole }) =>
+              members.assignRole(newMember.id, adminRole.id),
             ),
             Effect.map(
               ({ team }) =>
                 new Auth.UserTeam({
                   teamId: team.id,
                   teamName: team.name,
-                  roleName: 'Admin',
+                  roleNames: ['Admin'],
                   permissions: [...RoleNS.defaultPermissions.Admin],
                 }),
             ),

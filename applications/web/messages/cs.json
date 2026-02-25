@@ -122,5 +122,10 @@
   "roster_toggleActive": "Nastavit aktivní",
   "roster_toggleInactive": "Nastavit neaktivní",
   "roster_createFailed": "Vytvoření soupisky selhalo.",
-  "roster_updateFailed": "Aktualizace soupisky selhala."
+  "roster_updateFailed": "Aktualizace soupisky selhala.",
+  "roles_currentRoles": "Role",
+  "roles_addRole": "Přidat roli",
+  "roles_noRoles": "Žádné přiřazené role.",
+  "roles_assignFailed": "Přiřazení role selhalo.",
+  "roles_unassignFailed": "Odebrání role selhalo."
 }

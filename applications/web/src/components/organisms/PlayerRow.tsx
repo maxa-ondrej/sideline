@@ -13,7 +13,7 @@ interface PlayerRowProps {
 
 export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: PlayerRowProps) {
   const displayName = player.name ?? player.discordUsername;
-  const roleLabel = player.roleName;
+  const roleLabel = player.roleNames.join(', ') || '—';
 
   return (
     <tr className='border-b'>

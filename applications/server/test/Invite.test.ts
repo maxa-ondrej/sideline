@@ -18,7 +18,6 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_ADMIN_ID = '00000000-0000-0000-0000-000000000002' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
-const TEST_ADMIN_ROLE_ID = '00000000-0000-0000-0000-000000000040' as Role.RoleId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
 
 const testUser = {
@@ -76,9 +75,8 @@ membersStore.set(`${TEST_TEAM_ID}:${TEST_ADMIN_ID}`, {
   id: '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId,
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
-  role_id: TEST_ADMIN_ROLE_ID,
   active: true,
-  role_name: 'Admin',
+  role_names: 'Admin',
   permissions:
     'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage',
 });
@@ -183,9 +181,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id: crypto.randomUUID() as TeamMember.TeamMemberId,
       team_id: input.team_id as Team.TeamId,
       user_id: input.user_id as Auth.UserId,
-      role_id: input.role_id,
       active: input.active,
-      role_name: 'Player',
+      role_names: 'Player',
       permissions: 'roster:view,member:view',
     };
     membersStore.set(key, member);
@@ -193,7 +190,6 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id: member.id,
       team_id: input.team_id,
       user_id: input.user_id,
-      role_id: input.role_id,
       active: input.active,
       joined_at: DateTime.unsafeNow(),
     });
@@ -217,6 +213,10 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
   findPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
   getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
+  assignRoleToMember: () => Effect.void,
+  unassignRoleFromMember: () => Effect.void,
+  assignRole: () => Effect.void,
+  unassignRole: () => Effect.void,
 });
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
@@ -299,6 +299,8 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   findByTeamAndName: () => Effect.succeed(Option.none()),
   findRoleByTeamAndName: () => Effect.succeed(Option.none()),
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
+  countMembersForRole: () => Effect.succeed({ count: 0 }),
+  getMemberCountForRole: () => Effect.succeed(0),
 });
 
 const TestLayer = ApiLive.pipe(
@@ -365,7 +367,7 @@ describe('Invite API', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.teamId).toBe(TEST_TEAM_ID);
-    expect(body.roleName).toBe('Player');
+    expect(body.roleNames).toEqual(['Player']);
     expect(body.isProfileComplete).toBe(false);
   });
 
