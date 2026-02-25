@@ -80,9 +80,14 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
       ) : (
         <p className='mt-4 text-muted-foreground'>{m.dashboard_noTeams()}</p>
       )}
-      <Button variant='outline' onClick={onLogout} className='mt-4'>
-        {m.auth_logout()}
-      </Button>
+      <div className='mt-4 flex gap-2'>
+        <Button asChild variant='outline'>
+          <Link to='/profile'>{m.profile_viewProfile()}</Link>
+        </Button>
+        <Button variant='outline' onClick={onLogout}>
+          {m.auth_logout()}
+        </Button>
+      </div>
     </div>
   );
 }
