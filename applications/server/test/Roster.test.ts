@@ -511,6 +511,9 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   setRolePermissions: () => Effect.void,
   initTeamRoles: () => Effect.void,
   initializeTeamRoles: () => Effect.void,
+  findByTeamAndName: () => Effect.succeed(Option.none()),
+  findRoleByTeamAndName: () => Effect.succeed(Option.none()),
+  seedTeamRolesWithPermissions: () => Effect.succeed([]),
 });
 
 const TestLayer = ApiLive.pipe(

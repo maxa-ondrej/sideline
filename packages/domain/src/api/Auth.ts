@@ -40,6 +40,10 @@ export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('Upda
   locale: Locale,
 }) {}
 
+export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTeamRequest')({
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
+}) {}
+
 export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
   'CompleteProfileRequest',
 )({
@@ -114,6 +118,13 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
     HttpApiEndpoint.get('myTeams', '/me/teams')
       .addSuccess(Schema.Array(UserTeam))
       .addError(Unauthorized, { status: 401 })
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('createTeam', '/me/teams')
+      .addSuccess(UserTeam)
+      .addError(Unauthorized, { status: 401 })
+      .setPayload(CreateTeamRequest)
       .middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

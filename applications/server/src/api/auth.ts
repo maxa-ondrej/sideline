@@ -1,12 +1,13 @@
 import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
-import { ApiGroup, Auth } from '@sideline/domain';
+import { ApiGroup, Auth, Role as RoleNS } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
 import { DateTime, Effect, Layer, Option, pipe, Redacted, Schema } from 'effect';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
 import { parsePermissions } from '~/api/permissions.js';
 import { env } from '~/env.js';
+import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -171,7 +172,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     Effect.bind('sessions', () => SessionsRepository),
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('teams', () => TeamsRepository),
-    Effect.map(({ discord, users, sessions, members, teams }) =>
+    Effect.bind('roles', () => RolesRepository),
+    Effect.map(({ discord, users, sessions, members, teams, roles }) =>
       handlers
         .handle('getLogin', () =>
           Effect.succeed(
@@ -334,6 +336,43 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               ),
             ),
             Effect.map(({ userTeams }) => userTeams),
+          ),
+        )
+        .handle('createTeam', ({ payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('team', ({ currentUser }) =>
+              teams.insert({
+                name: payload.name,
+                created_by: currentUser.id,
+                created_at: undefined,
+                updated_at: undefined,
+              }),
+            ),
+            Effect.bind('seededRoles', ({ team }) => roles.seedTeamRolesWithPermissions(team.id)),
+            Effect.bind('adminRole', ({ seededRoles }) => {
+              const admin = seededRoles.find((r) => r.name === 'Admin');
+              return admin ? Effect.succeed(admin) : Effect.fail(new Auth.Unauthorized());
+            }),
+            Effect.tap(({ team, currentUser, adminRole }) =>
+              members.addMember({
+                team_id: team.id,
+                user_id: currentUser.id,
+                role_id: adminRole.id,
+                active: true,
+                joined_at: undefined,
+              }),
+            ),
+            Effect.map(
+              ({ team }) =>
+                new Auth.UserTeam({
+                  teamId: team.id,
+                  teamName: team.name,
+                  roleName: 'Admin',
+                  permissions: [...RoleNS.defaultPermissions.Admin],
+                }),
+            ),
+            Effect.mapError(() => new Auth.Unauthorized()),
           ),
         ),
     ),

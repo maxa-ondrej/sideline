@@ -40,6 +40,13 @@ class InsertPermissionInput extends Schema.Class<InsertPermissionInput>('InsertP
   permission: RoleNS.Permission,
 }) {}
 
+class FindByTeamAndNameInput extends Schema.Class<FindByTeamAndNameInput>('FindByTeamAndNameInput')(
+  {
+    team_id: Schema.String,
+    name: Schema.String,
+  },
+) {}
+
 class InitTeamRolesInput extends Schema.Class<InitTeamRolesInput>('InitTeamRolesInput')({
   team_id: Schema.String,
 }) {}
@@ -119,6 +126,14 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
           `,
       }),
     ),
+    Effect.let('findByTeamAndName', ({ sql }) =>
+      SqlSchema.findOne({
+        Request: FindByTeamAndNameInput,
+        Result: RoleRow,
+        execute: (input) =>
+          sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name}`,
+      }),
+    ),
     Effect.let('initTeamRoles', ({ sql }) =>
       SqlSchema.void({
         Request: InitTeamRolesInput,
@@ -172,5 +187,23 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
 
   initializeTeamRoles(teamId: TeamNS.TeamId) {
     return this.initTeamRoles({ team_id: teamId });
+  }
+
+  findRoleByTeamAndName(teamId: TeamNS.TeamId, name: string) {
+    return this.findByTeamAndName({ team_id: teamId, name });
+  }
+
+  seedTeamRolesWithPermissions(teamId: TeamNS.TeamId) {
+    return this.initializeTeamRoles(teamId).pipe(
+      Effect.flatMap(() => this.findByTeamId(teamId)),
+      Effect.tap((roles) =>
+        Effect.all(
+          roles.map((role) => {
+            const perms = RoleNS.defaultPermissions[role.name];
+            return perms ? this.setRolePermissions(role.id, perms) : Effect.void;
+          }),
+        ),
+      ),
+    );
   }
 }
