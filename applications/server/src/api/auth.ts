@@ -5,6 +5,7 @@ import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive }
 import { DateTime, Effect, Layer, Option, pipe, Redacted, Schema } from 'effect';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
+import { parsePermissions } from '~/api/permissions.js';
 import { env } from '~/env.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -321,7 +322,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                             new Auth.UserTeam({
                               teamId: team.id,
                               teamName: team.name,
-                              role: m.role,
+                              roleName: m.role_name,
+                              permissions: [...parsePermissions(m.permissions)],
                             }),
                           ),
                       }),

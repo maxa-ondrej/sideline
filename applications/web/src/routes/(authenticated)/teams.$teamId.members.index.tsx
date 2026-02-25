@@ -29,7 +29,9 @@ function MembersRoute() {
   const [players, setPlayers] = React.useState<ReadonlyArray<Roster.RosterPlayer>>(initialPlayers);
 
   const currentMembership = players.find((p) => p.userId === user.id);
-  const isAdmin = currentMembership?.role === 'admin';
+  const myPermissions = currentMembership?.permissions ?? [];
+  const canEdit = myPermissions.includes('member:edit');
+  const canRemove = myPermissions.includes('member:remove');
 
   const handleDeactivate = React.useCallback(
     async (memberIdRaw: string) => {
@@ -50,7 +52,8 @@ function MembersRoute() {
   return (
     <TeamMembersPage
       teamId={teamIdRaw}
-      isAdmin={isAdmin ?? false}
+      canEdit={canEdit}
+      canRemove={canRemove}
       players={players}
       onDeactivate={handleDeactivate}
     />

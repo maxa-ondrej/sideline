@@ -13,12 +13,19 @@ import * as m from '~/paraglide/messages.js';
 
 interface TeamMembersPageProps {
   teamId: string;
-  isAdmin: boolean;
+  canEdit: boolean;
+  canRemove: boolean;
   players: ReadonlyArray<Roster.RosterPlayer>;
   onDeactivate: (memberId: string) => void;
 }
 
-export function TeamMembersPage({ teamId, isAdmin, players, onDeactivate }: TeamMembersPageProps) {
+export function TeamMembersPage({
+  teamId,
+  canEdit,
+  canRemove,
+  players,
+  onDeactivate,
+}: TeamMembersPageProps) {
   const [search, setSearch] = React.useState('');
   const [positionFilter, setPositionFilter] = React.useState<string>('all');
 
@@ -62,7 +69,8 @@ export function TeamMembersPage({ teamId, isAdmin, players, onDeactivate }: Team
                 key={player.memberId}
                 player={player}
                 teamId={teamId}
-                isAdmin={isAdmin}
+                canEdit={canEdit}
+                canRemove={canRemove}
                 onDeactivate={onDeactivate}
               />
             ))}

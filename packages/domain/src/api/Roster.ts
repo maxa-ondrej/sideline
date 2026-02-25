@@ -1,15 +1,17 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { Permission } from '~/models/Role.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
-import { TeamMemberId, TeamRole } from '~/models/TeamMember.js';
+import { TeamMemberId } from '~/models/TeamMember.js';
 import { Gender, Position, Proficiency, UserId } from '~/models/User.js';
 
 export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   memberId: TeamMemberId,
   userId: UserId,
-  role: TeamRole,
+  roleName: Schema.String,
+  permissions: Schema.Array(Permission),
   name: Schema.NullOr(Schema.String),
   birthYear: Schema.NullOr(Schema.Number),
   gender: Schema.NullOr(Gender),

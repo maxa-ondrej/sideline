@@ -34,6 +34,11 @@ export function DashboardPage({ user, teams, onLogout }: DashboardPageProps) {
                     {m.roster_viewRosters()}
                   </Link>
                 </Button>
+                <Button asChild variant='outline' size='sm'>
+                  <Link to='/teams/$teamId/roles' params={{ teamId: team.teamId }}>
+                    {m.role_viewRoles()}
+                  </Link>
+                </Button>
               </li>
             ))}
           </ul>

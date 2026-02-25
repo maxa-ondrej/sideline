@@ -4,7 +4,11 @@ export * as Auth from './api/Auth.js';
 
 export * as Invite from './api/Invite.js';
 
+export * as RoleApi from './api/RoleApi.js';
+
 export * as Roster from './api/Roster.js';
+
+export * as Role from './models/Role.js';
 
 export * as RosterMemberModel from './models/RosterMemberModel.js';
 

@@ -21,7 +21,6 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
 });
 
 function MemberDetailRoute() {
-  const { user } = Route.useRouteContext();
   const { teamId: teamIdRaw, memberId: memberIdRaw } = Route.useParams();
   const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
   const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
@@ -29,8 +28,8 @@ function MemberDetailRoute() {
   const run = useRun();
   const player = Route.useLoaderData();
 
-  // Show edit form for authenticated admin users; API enforces admin-only on save
-  const isAdmin = player.role === 'admin' || user.id !== player.userId;
+  // Show edit form if the current user has member:edit permission; API enforces on save
+  const canEdit = player.permissions.includes('member:edit');
 
   const handleSave = React.useCallback(
     async (values: PlayerEditValues) => {
@@ -59,6 +58,6 @@ function MemberDetailRoute() {
   );
 
   return (
-    <PlayerDetailPage teamId={teamIdRaw} player={player} isAdmin={isAdmin} onSave={handleSave} />
+    <PlayerDetailPage teamId={teamIdRaw} player={player} canEdit={canEdit} onSave={handleSave} />
   );
 }

@@ -8,6 +8,7 @@ import {
 import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
@@ -28,6 +29,7 @@ export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(TeamsRepository.Default),
   Layer.provide(TeamMembersRepository.Default),
   Layer.provide(RostersRepository.Default),
+  Layer.provide(RolesRepository.Default),
   Layer.provide(TeamInvitesRepository.Default),
   Layer.provide(DiscordOAuth.Default),
   Layer.provide(FetchHttpClient.layer),

@@ -1,13 +1,15 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Team, TeamInvite, TeamMember } from '@sideline/domain';
+import type { Auth, Role, Team, TeamInvite, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
+import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -16,6 +18,8 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_ADMIN_ID = '00000000-0000-0000-0000-000000000002' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
+const TEST_ADMIN_ROLE_ID = '00000000-0000-0000-0000-000000000040' as Role.RoleId;
+const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
 
 const testUser = {
   id: TEST_USER_ID,
@@ -67,24 +71,16 @@ const sessionsStore = new Map<string, Auth.UserId>();
 sessionsStore.set('user-token', TEST_USER_ID);
 sessionsStore.set('admin-token', TEST_ADMIN_ID);
 
-const membersStore = new Map<
-  string,
-  {
-    id: TeamMember.TeamMemberId;
-    team_id: Team.TeamId;
-    user_id: Auth.UserId;
-    role: 'admin' | 'member';
-    active: boolean;
-    joined_at: DateTime.Utc;
-  }
->();
+const membersStore = new Map<string, MembershipWithRole>();
 membersStore.set(`${TEST_TEAM_ID}:${TEST_ADMIN_ID}`, {
   id: '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId,
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
-  role: 'admin',
+  role_id: TEST_ADMIN_ROLE_ID,
   active: true,
-  joined_at: DateTime.unsafeNow(),
+  role_name: 'Admin',
+  permissions:
+    'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage',
 });
 
 const invitesStore = new Map<
@@ -183,16 +179,24 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   _tag: 'api/TeamMembersRepository',
   addMember: (input) => {
     const key = `${input.team_id}:${input.user_id}`;
-    const member = {
+    const member: MembershipWithRole = {
       id: crypto.randomUUID() as TeamMember.TeamMemberId,
-      team_id: input.team_id,
-      user_id: input.user_id,
-      role: input.role,
+      team_id: input.team_id as Team.TeamId,
+      user_id: input.user_id as Auth.UserId,
+      role_id: input.role_id,
       active: input.active,
-      joined_at: DateTime.unsafeNow(),
+      role_name: 'Player',
+      permissions: 'roster:view,member:view',
     };
     membersStore.set(key, member);
-    return Effect.succeed(member);
+    return Effect.succeed({
+      id: member.id,
+      team_id: input.team_id,
+      user_id: input.user_id,
+      role_id: input.role_id,
+      active: input.active,
+      joined_at: DateTime.unsafeNow(),
+    });
   },
   findMembership: (input) => {
     const key = `${input.team_id}:${input.user_id}`;
@@ -211,6 +215,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findRosterMemberByIds: () => Effect.succeed(Option.none()),
   deactivateMember: () => Effect.die(new Error('Not implemented')),
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
+  findPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
+  getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
 });
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
@@ -271,6 +277,27 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   removeMemberById: () => Effect.void,
 });
 
+const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
+  _tag: 'api/RolesRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findRolesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findRoleById: () => Effect.succeed(Option.none()),
+  findPermissions: () => Effect.succeed([]),
+  getPermissionsForRoleId: () => Effect.succeed([]),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertRole: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateRole: () => Effect.die(new Error('Not implemented')),
+  deleteRole: () => Effect.void,
+  deleteRoleById: () => Effect.void,
+  deletePermissions: () => Effect.void,
+  insertPermission: () => Effect.void,
+  setRolePermissions: () => Effect.void,
+  initTeamRoles: () => Effect.void,
+  initializeTeamRoles: () => Effect.void,
+});
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -280,6 +307,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTeamsRepositoryLayer),
   Layer.provide(MockTeamMembersRepositoryLayer),
   Layer.provide(MockRostersRepositoryLayer),
+  Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
 );
@@ -334,7 +362,7 @@ describe('Invite API', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.teamId).toBe(TEST_TEAM_ID);
-    expect(body.role).toBe('member');
+    expect(body.roleName).toBe('Player');
     expect(body.isProfileComplete).toBe(false);
   });
 

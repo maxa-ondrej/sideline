@@ -6,8 +6,8 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
+import { Permission } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
-import { TeamRole } from '~/models/TeamMember.js';
 import { Gender, Locale, Position, Proficiency, UserId } from '~/models/User.js';
 
 export { UserId } from '~/models/User.js';
@@ -17,7 +17,8 @@ export const MIN_AGE = 6;
 export class UserTeam extends Schema.Class<UserTeam>('UserTeam')({
   teamId: TeamId,
   teamName: Schema.String,
-  role: TeamRole,
+  roleName: Schema.String,
+  permissions: Schema.Array(Permission),
 }) {}
 
 export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
