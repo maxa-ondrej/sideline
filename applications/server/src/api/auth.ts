@@ -269,6 +269,40 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
           ),
         )
+        .handle('updateProfile', ({ payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('updated', ({ currentUser }) =>
+              users.updateAdminProfile({
+                id: currentUser.id,
+                name: payload.name,
+                birth_year: payload.birthYear,
+                gender: payload.gender,
+                jersey_number: payload.jerseyNumber,
+                position: payload.position,
+                proficiency: payload.proficiency,
+              }),
+            ),
+            Effect.mapError(() => new Auth.Unauthorized()),
+            Effect.map(
+              ({ updated }) =>
+                new Auth.CurrentUser({
+                  id: updated.id,
+                  discordId: updated.discord_id,
+                  discordUsername: updated.discord_username,
+                  discordAvatar: updated.discord_avatar,
+                  isProfileComplete: updated.is_profile_complete,
+                  name: updated.name,
+                  birthYear: updated.birth_year,
+                  gender: updated.gender,
+                  jerseyNumber: updated.jersey_number,
+                  position: updated.position,
+                  proficiency: updated.proficiency,
+                  locale: updated.locale,
+                }),
+            ),
+          ),
+        )
         .handle('completeProfile', ({ payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),

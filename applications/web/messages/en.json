@@ -127,5 +127,13 @@
   "roles_addRole": "Add Role",
   "roles_noRoles": "No roles assigned.",
   "roles_assignFailed": "Failed to assign role.",
-  "roles_unassignFailed": "Failed to unassign role."
+  "roles_unassignFailed": "Failed to unassign role.",
+  "profile_title": "My Profile",
+  "profile_backToDashboard": "Back to Dashboard",
+  "profile_saveSuccess": "Profile updated.",
+  "profile_updateFailed": "Failed to update profile.",
+  "profile_viewProfile": "My Profile",
+  "profile_discordAvatar": "Discord Avatar",
+  "profile_saving": "Saving...",
+  "profile_saveChanges": "Save Changes"
 }

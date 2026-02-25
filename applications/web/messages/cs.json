@@ -127,5 +127,13 @@
   "roles_addRole": "Přidat roli",
   "roles_noRoles": "Žádné přiřazené role.",
   "roles_assignFailed": "Přiřazení role selhalo.",
-  "roles_unassignFailed": "Odebrání role selhalo."
+  "roles_unassignFailed": "Odebrání role selhalo.",
+  "profile_title": "Můj profil",
+  "profile_backToDashboard": "Zpět na přehled",
+  "profile_saveSuccess": "Profil aktualizován.",
+  "profile_updateFailed": "Aktualizace profilu selhala.",
+  "profile_viewProfile": "Můj profil",
+  "profile_discordAvatar": "Discord avatar",
+  "profile_saving": "Ukládání...",
+  "profile_saveChanges": "Uložit změny"
 }

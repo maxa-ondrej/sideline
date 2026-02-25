@@ -63,6 +63,25 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
   proficiency: Proficiency,
 }) {}
 
+export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
+  'UpdateProfileRequest',
+)({
+  name: Schema.NullOr(Schema.String),
+  birthYear: Schema.NullOr(
+    Schema.Number.pipe(
+      Schema.int(),
+      Schema.greaterThanOrEqualTo(1900),
+      Schema.filter((year) => year <= new Date().getFullYear() - MIN_AGE, {
+        message: () => `Birth year must be at most ${new Date().getFullYear() - MIN_AGE}`,
+      }),
+    ),
+  ),
+  gender: Schema.NullOr(Gender),
+  jerseyNumber: Schema.NullOr(Schema.Number.pipe(Schema.int(), Schema.between(0, 99))),
+  position: Schema.NullOr(Position),
+  proficiency: Schema.NullOr(Proficiency),
+}) {}
+
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   'Unauthorized',
   {},
@@ -112,6 +131,13 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
       .addSuccess(CurrentUser)
       .addError(Unauthorized, { status: 401 })
       .setPayload(UpdateLocaleRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.patch('updateProfile', '/me')
+      .addSuccess(CurrentUser)
+      .addError(Unauthorized, { status: 401 })
+      .setPayload(UpdateProfileRequest)
       .middleware(AuthMiddleware),
   )
   .add(

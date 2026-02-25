@@ -83,7 +83,17 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     Object.assign(testUser, { locale: input.locale });
     return Effect.succeed(testUser);
   },
-  updateAdminProfile: () => Effect.succeed(testUser),
+  updateAdminProfile: (input) => {
+    Object.assign(testUser, {
+      name: input.name,
+      birth_year: input.birth_year,
+      gender: input.gender,
+      jersey_number: input.jersey_number,
+      position: input.position,
+      proficiency: input.proficiency,
+    });
+    return Effect.succeed(testUser);
+  },
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -380,5 +390,81 @@ describe('Profile Completion API', () => {
       }),
     );
     expect(response.status).toBe(400);
+  });
+});
+
+describe('Profile Update API (PATCH /auth/me)', () => {
+  it('PATCH /auth/me without token returns 401', async () => {
+    const response = await handler(
+      new Request('http://localhost/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Updated Name',
+          birthYear: 1995,
+          gender: 'male',
+          jerseyNumber: 7,
+          position: 'forward',
+          proficiency: 'advanced',
+        }),
+      }),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it('PATCH /auth/me with valid data updates profile', async () => {
+    const response = await handler(
+      new Request('http://localhost/auth/me', {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Updated Name',
+          birthYear: 1990,
+          gender: 'female',
+          jerseyNumber: 10,
+          position: 'forward',
+          proficiency: 'advanced',
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.name).toBe('Updated Name');
+    expect(body.birthYear).toBe(1990);
+    expect(body.gender).toBe('female');
+    expect(body.jerseyNumber).toBe(10);
+    expect(body.position).toBe('forward');
+    expect(body.proficiency).toBe('advanced');
+  });
+
+  it('PATCH /auth/me with null fields clears values', async () => {
+    const response = await handler(
+      new Request('http://localhost/auth/me', {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer user-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: null,
+          birthYear: null,
+          gender: null,
+          jerseyNumber: null,
+          position: null,
+          proficiency: null,
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.name).toBeNull();
+    expect(body.birthYear).toBeNull();
+    expect(body.gender).toBeNull();
+    expect(body.jerseyNumber).toBeNull();
+    expect(body.position).toBeNull();
+    expect(body.proficiency).toBeNull();
   });
 });
