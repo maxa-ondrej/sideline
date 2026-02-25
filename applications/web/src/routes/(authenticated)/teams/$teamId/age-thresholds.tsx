@@ -4,7 +4,7 @@ import { Effect, Schema } from 'effect';
 import { AgeThresholdsPage } from '~/components/pages/AgeThresholdsPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
-export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresholds/')({
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresholds')({
   component: AgeThresholdsRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
