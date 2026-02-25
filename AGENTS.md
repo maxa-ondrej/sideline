@@ -1088,6 +1088,25 @@ export function DashboardPage({ user, data }: DashboardPageProps) {
 }
 ```
 
+#### Flat-file route naming (TanStack Router)
+
+TanStack Router uses **flat-file routing** with `.` as the path separator. The critical distinction is between **layout files** and **index files**:
+
+| File name | Resolves to | Purpose |
+|-----------|------------|---------|
+| `teams.tsx` | — | **Layout** wrapping all `/teams/**` child routes |
+| `teams.index.tsx` | `/teams` | **Index page** at `/teams` |
+| `teams.$teamId.tsx` | `/teams/:teamId` | **Page** at `/teams/:teamId` |
+| `teams.$teamId.members.index.tsx` | `/teams/:teamId/members` | **Index page** at `/teams/:teamId/members` |
+
+**Key rule:** When a route has sub-routes (e.g. `/profile` has `/profile/complete`), the parent route file (`profile.tsx`) is a **layout** — it wraps children via `<Outlet />`. The actual page at `/profile` must be `profile.index.tsx`.
+
+Examples from this codebase:
+- `profile.index.tsx` — page at `/profile` (view/edit own profile)
+- `profile.complete.tsx` — page at `/profile/complete` (first-time profile completion)
+- `teams.$teamId.members.index.tsx` — page at `/teams/:teamId/members`
+- `teams.$teamId.members.$memberId.tsx` — page at `/teams/:teamId/members/:memberId`
+
 ### Runtime — Client vs Server runners
 
 `lib/runtime.ts` exposes two distinct run functions:

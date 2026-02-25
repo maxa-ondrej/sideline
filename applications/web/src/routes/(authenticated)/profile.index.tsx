@@ -2,7 +2,7 @@ import { createFileRoute, redirect, useRouter } from '@tanstack/react-router';
 import React from 'react';
 import { MyProfilePage } from '~/components/pages/MyProfilePage';
 
-export const Route = createFileRoute('/(authenticated)/profile')({
+export const Route = createFileRoute('/(authenticated)/profile/')({
   component: ProfileRoute,
   beforeLoad: async ({ context }) => {
     if (!context.user) {
