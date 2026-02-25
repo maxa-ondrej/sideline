@@ -1,5 +1,6 @@
 import { Schemas } from '@sideline/effect-lib';
 import { createEnv } from '@t3-oss/env-core';
+import { Discord } from 'dfx';
 import { Schema } from 'effect';
 
 export const env = createEnv({
@@ -11,7 +12,9 @@ export const env = createEnv({
       Schema.standardSchemaV1,
     ),
     DISCORD_GATEWAY_INTENTS: Schema.NumberFromString.pipe(
-      Schemas.Optional(() => 3),
+      Schemas.Optional(
+        () => Discord.GatewayIntentBits.Guilds | Discord.GatewayIntentBits.GuildMembers,
+      ),
       Schema.standardSchemaV1,
     ),
   },
