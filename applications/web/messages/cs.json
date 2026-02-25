@@ -185,5 +185,15 @@
   "profile_viewProfile": "Můj profil",
   "profile_discordAvatar": "Discord avatar",
   "profile_saving": "Ukládání...",
-  "profile_saveChanges": "Uložit změny"
+  "profile_saveChanges": "Uložit změny",
+  "teams_title": "Moje týmy",
+  "teams_noTeams": "Zatím nejste členem žádného týmu.",
+  "teams_yourRoles": "Vaše role: {roles}",
+  "teams_backToDashboard": "Zpět na přehled",
+  "team_members": "Členové",
+  "team_rosters": "Soupisky",
+  "team_roles": "Role",
+  "team_subgroups": "Podskupiny",
+  "team_ageThresholds": "Věkové prahy",
+  "team_backToTeams": "Zpět na týmy"
 }
