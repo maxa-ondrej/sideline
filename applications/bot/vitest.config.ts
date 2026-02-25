@@ -6,6 +6,7 @@ export default defineProject({
     alias: { '~': path.resolve(__dirname, 'src') },
     env: {
       DISCORD_BOT_TOKEN: 'token',
+      SERVER_URL: 'http://localhost:3000',
     },
   },
 });

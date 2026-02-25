@@ -25,6 +25,7 @@
   "dependencies": {
     "@effect/platform": "0.94.5",
     "@effect/platform-node": "0.104.1",
+    "@effect/rpc": "0.73.0",
     "@t3-oss/env-core": "^0.13.8",
     "@sideline/domain": "workspace:^",
     "@sideline/effect-lib": "workspace:^",

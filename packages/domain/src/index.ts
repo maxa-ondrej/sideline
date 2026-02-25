@@ -16,11 +16,15 @@ export * as SubgroupApi from './api/SubgroupApi.js';
 
 export * as AgeThresholdRule from './models/AgeThresholdRule.js';
 
+export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
+
 export * as MemberRole from './models/MemberRole.js';
 
 export * as Notification from './models/Notification.js';
 
 export * as Role from './models/Role.js';
+
+export * as RoleSyncEvent from './models/RoleSyncEvent.js';
 
 export * as RosterMemberModel from './models/RosterMemberModel.js';
 
@@ -37,3 +41,5 @@ export * as TeamInvite from './models/TeamInvite.js';
 export * as TeamMember from './models/TeamMember.js';
 
 export * as User from './models/User.js';
+
+export * as RoleSyncRpc from './rpc/RoleSyncRpc.js';
