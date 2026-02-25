@@ -1096,6 +1096,8 @@ Routes use a **hybrid directory + flat-file** layout. Top-level groupings (`prof
 |------|------------|---------|
 | `profile/index.tsx` | `/profile` | **Index page** (has sibling sub-routes) |
 | `profile/complete.tsx` | `/profile/complete` | **Page** |
+| `teams/index.tsx` | `/teams` | **Index page** (has sibling sub-routes) |
+| `teams/$teamId/index.tsx` | `/teams/:teamId` | **Index page** (has sibling sub-routes, e.g. `members.index.tsx`) |
 | `teams/$teamId/members.index.tsx` | `/teams/:teamId/members` | **Index page** (has sibling `members.$memberId`) |
 | `teams/$teamId/members.$memberId.tsx` | `/teams/:teamId/members/:memberId` | **Page** |
 | `notifications.tsx` | `/notifications` | **Plain route** (no sub-routes, so no `.index`) |
@@ -1113,16 +1115,19 @@ routes/(authenticated)/
 ├── profile/
 │   ├── index.tsx                  — /profile
 │   └── complete.tsx               — /profile/complete
-└── teams/$teamId/
-    ├── age-thresholds.tsx         — /teams/:teamId/age-thresholds
-    ├── members.index.tsx          — /teams/:teamId/members
-    ├── members.$memberId.tsx      — /teams/:teamId/members/:memberId
-    ├── roles.index.tsx            — /teams/:teamId/roles
-    ├── roles.$roleId.tsx          — /teams/:teamId/roles/:roleId
-    ├── rosters.index.tsx          — /teams/:teamId/rosters
-    ├── rosters.$rosterId.tsx      — /teams/:teamId/rosters/:rosterId
-    ├── subgroups.index.tsx        — /teams/:teamId/subgroups
-    └── subgroups.$subgroupId.tsx  — /teams/:teamId/subgroups/:subgroupId
+└── teams/
+    ├── index.tsx                  — /teams
+    └── $teamId/
+        ├── index.tsx              — /teams/:teamId
+        ├── age-thresholds.tsx     — /teams/:teamId/age-thresholds
+        ├── members.index.tsx      — /teams/:teamId/members
+        ├── members.$memberId.tsx  — /teams/:teamId/members/:memberId
+        ├── roles.index.tsx        — /teams/:teamId/roles
+        ├── roles.$roleId.tsx      — /teams/:teamId/roles/:roleId
+        ├── rosters.index.tsx      — /teams/:teamId/rosters
+        ├── rosters.$rosterId.tsx  — /teams/:teamId/rosters/:rosterId
+        ├── subgroups.index.tsx    — /teams/:teamId/subgroups
+        └── subgroups.$subgroupId.tsx — /teams/:teamId/subgroups/:subgroupId
 ```
 
 ### Runtime — Client vs Server runners
