@@ -55,7 +55,7 @@ export function TeamsPage({ teams, onCreateTeam }: TeamsPageProps) {
           {teams.map((team) => (
             <li key={team.teamId} className='border rounded-lg p-4'>
               <Link
-                to='/teams/$teamId/members'
+                to='/teams/$teamId'
                 params={{ teamId: team.teamId }}
                 className='text-lg font-semibold hover:underline'
               >

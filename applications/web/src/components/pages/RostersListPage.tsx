@@ -60,8 +60,8 @@ export function RostersListPage({ teamId, rosters }: RostersListPageProps) {
   return (
     <div className='p-4'>
       <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId/members' params={{ teamId }}>
-          ← {m.members_viewMembers()}
+        <Link to='/teams/$teamId' params={{ teamId }}>
+          ← {m.team_backToTeams()}
         </Link>
       </Button>
       <h1 className='text-2xl font-bold mb-4'>{m.roster_rosters()}</h1>

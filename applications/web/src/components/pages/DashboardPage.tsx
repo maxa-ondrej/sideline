@@ -57,25 +57,19 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
           <ul className='flex flex-col gap-2'>
             {teams.map((team) => (
               <li key={team.teamId} className='flex items-center gap-4'>
-                <span>{team.teamName}</span>
-                <Button asChild variant='outline' size='sm'>
-                  <Link to='/teams/$teamId/members' params={{ teamId: team.teamId }}>
-                    {m.members_viewMembers()}
-                  </Link>
-                </Button>
-                <Button asChild variant='outline' size='sm'>
-                  <Link to='/teams/$teamId/rosters' params={{ teamId: team.teamId }}>
-                    {m.roster_viewRosters()}
-                  </Link>
-                </Button>
-                <Button asChild variant='outline' size='sm'>
-                  <Link to='/teams/$teamId/roles' params={{ teamId: team.teamId }}>
-                    {m.role_viewRoles()}
-                  </Link>
-                </Button>
+                <Link
+                  to='/teams/$teamId'
+                  params={{ teamId: team.teamId }}
+                  className='font-medium hover:underline'
+                >
+                  {team.teamName}
+                </Link>
               </li>
             ))}
           </ul>
+          <Button asChild variant='outline' size='sm' className='mt-3'>
+            <Link to='/teams'>{m.teams_viewTeams()}</Link>
+          </Button>
         </div>
       ) : (
         <p className='mt-4 text-muted-foreground'>{m.dashboard_noTeams()}</p>

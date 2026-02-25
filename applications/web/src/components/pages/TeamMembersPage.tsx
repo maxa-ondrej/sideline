@@ -1,6 +1,8 @@
 import type { Roster } from '@sideline/domain';
+import { Link } from '@tanstack/react-router';
 import React from 'react';
 import { PlayerRow } from '~/components/organisms/PlayerRow';
+import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import {
   Select,
@@ -38,6 +40,11 @@ export function TeamMembersPage({
 
   return (
     <div className='p-4'>
+      <Button asChild variant='ghost' className='mb-4'>
+        <Link to='/teams/$teamId' params={{ teamId }}>
+          ← {m.team_backToTeams()}
+        </Link>
+      </Button>
       <h1 className='text-2xl font-bold mb-4'>{m.members_title()}</h1>
       <div className='flex gap-4 mb-4'>
         <Input
