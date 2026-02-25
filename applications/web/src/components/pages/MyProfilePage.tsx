@@ -101,7 +101,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
       Effect.flatMap((api) =>
         api.auth.updateProfile({
           payload: {
-            name: values.name || null,
+            name: values.name,
             birthYear: typeof values.birthYear === 'number' ? values.birthYear : null,
             gender: values.gender === NONE_VALUE ? null : values.gender,
             jerseyNumber: typeof values.jerseyNumber === 'number' ? values.jerseyNumber : null,
