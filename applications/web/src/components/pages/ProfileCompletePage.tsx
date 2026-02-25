@@ -9,14 +9,14 @@ interface ProfileCompletePageProps {
 
 export function ProfileCompletePage({ user, onSuccess }: ProfileCompletePageProps) {
   return (
-    <div className='mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-8'>
-      <div className='mb-6 flex items-center justify-between'>
-        <div>
-          <h1 className='mb-2 text-2xl font-bold'>{m.profile_complete_title()}</h1>
-          <p className='text-muted-foreground text-sm'>{m.profile_complete_subtitle()}</p>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <div className='flex items-center justify-between mb-2'>
+          <h1 className='text-2xl font-bold'>{m.profile_complete_title()}</h1>
+          <LanguageSwitcher isAuthenticated />
         </div>
-        <LanguageSwitcher isAuthenticated />
-      </div>
+        <p className='text-muted-foreground'>{m.profile_complete_subtitle()}</p>
+      </header>
       <ProfileCompleteForm initialName={user.discordUsername} onSuccess={onSuccess} />
     </div>
   );
