@@ -9,8 +9,8 @@ services:
         condition: service_healthy
     environment:
       WEB_PORT: 3000
-      WEB_HOST: $SERVICE_NAME_WEB
-      SERVER_HOST: $SERVICE_NAME_SERVER
+      WEB_HOST: ${SERVICE_NAME_WEB}
+      SERVER_HOST: ${SERVICE_NAME_SERVER}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
@@ -48,7 +48,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
-      SERVER_URL: http://server:80
+      SERVER_URL: http://${SERVICE_NAME_SERVER}:80
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]

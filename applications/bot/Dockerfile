@@ -27,6 +27,4 @@ COPY --from=build /app/applications/bot/build/esm applications/bot/build
 
 EXPOSE 9000
 
-ENV SERVER_URL http://server:80
-
 CMD ["node", "applications/bot/build/run.js"]
