@@ -57,13 +57,15 @@ export function SubgroupsListPage({ teamId, subgroups }: SubgroupsListPageProps)
   };
 
   return (
-    <div className='p-4'>
-      <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId' params={{ teamId }}>
-          ← {m.team_backToTeams()}
-        </Link>
-      </Button>
-      <h1 className='text-2xl font-bold mb-4'>{m.subgroup_subgroups()}</h1>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId' params={{ teamId }}>
+            ← {m.team_backToTeams()}
+          </Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{m.subgroup_subgroups()}</h1>
+      </header>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>

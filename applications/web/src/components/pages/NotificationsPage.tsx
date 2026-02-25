@@ -1,6 +1,6 @@
 import type { NotificationApi } from '@sideline/domain';
 import { Notification } from '@sideline/domain';
-import { useRouter } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
@@ -44,8 +44,13 @@ export function NotificationsPage({ notifications }: NotificationsPageProps) {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
-    <div className='p-4 max-w-lg'>
-      <h1 className='text-2xl font-bold mb-4'>{m.notification_title()}</h1>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/dashboard'>← {m.profile_backToDashboard()}</Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{m.notification_title()}</h1>
+      </header>
 
       {unreadCount > 0 && (
         <Button onClick={handleMarkAllAsRead} variant='outline' className='mb-4' size='sm'>

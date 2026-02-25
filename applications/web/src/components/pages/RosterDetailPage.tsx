@@ -113,29 +113,32 @@ export function RosterDetailPage({
   }, [teamId, teamIdBranded, rosterIdBranded, run, router]);
 
   return (
-    <div className='p-4'>
-      <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId/rosters' params={{ teamId }}>
-          ← {m.roster_backToRosters()}
-        </Link>
-      </Button>
-
-      <div className='flex items-center gap-4 mb-6'>
-        <h1 className='text-2xl font-bold'>{rosterDetail.name}</h1>
-        <span
-          className={
-            rosterDetail.active ? 'text-green-700 font-medium' : 'text-muted-foreground font-medium'
-          }
-        >
-          {rosterDetail.active ? m.roster_active() : m.roster_inactive()}
-        </span>
-        <Button variant='outline' size='sm' onClick={handleToggleActive}>
-          {rosterDetail.active ? m.roster_toggleInactive() : m.roster_toggleActive()}
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId/rosters' params={{ teamId }}>
+            ← {m.roster_backToRosters()}
+          </Link>
         </Button>
-        <Button variant='destructive' size='sm' onClick={handleDelete}>
-          {m.roster_deleteRoster()}
-        </Button>
-      </div>
+        <div className='flex items-center gap-4'>
+          <h1 className='text-2xl font-bold'>{rosterDetail.name}</h1>
+          <span
+            className={
+              rosterDetail.active
+                ? 'text-green-700 font-medium'
+                : 'text-muted-foreground font-medium'
+            }
+          >
+            {rosterDetail.active ? m.roster_active() : m.roster_inactive()}
+          </span>
+          <Button variant='outline' size='sm' onClick={handleToggleActive}>
+            {rosterDetail.active ? m.roster_toggleInactive() : m.roster_toggleActive()}
+          </Button>
+          <Button variant='destructive' size='sm' onClick={handleDelete}>
+            {m.roster_deleteRoster()}
+          </Button>
+        </div>
+      </header>
 
       <div className='flex gap-2 mb-6 max-w-md'>
         <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>

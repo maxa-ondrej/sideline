@@ -122,31 +122,32 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   const initials = (user.name ?? user.discordUsername).slice(0, 2).toUpperCase();
 
   return (
-    <div className='mx-auto max-w-md px-4 py-8'>
-      <div className='mb-6 flex items-center justify-between'>
-        <Button asChild variant='ghost' size='sm'>
-          <Link to='/dashboard'>{m.profile_backToDashboard()}</Link>
-        </Button>
-        <LanguageSwitcher isAuthenticated />
-      </div>
-
-      <div className='mb-6 flex items-center gap-4'>
-        {user.discordAvatar ? (
-          <img
-            src={discordAvatarUrl(user.discordId, user.discordAvatar)}
-            alt={m.profile_discordAvatar()}
-            className='h-16 w-16 rounded-full'
-          />
-        ) : (
-          <div className='bg-muted flex h-16 w-16 items-center justify-center rounded-full text-lg font-semibold'>
-            {initials}
-          </div>
-        )}
-        <div>
-          <h1 className='text-2xl font-bold'>{m.profile_title()}</h1>
-          <p className='text-muted-foreground text-sm'>@{user.discordUsername}</p>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <div className='flex items-center justify-between mb-2'>
+          <Button asChild variant='ghost' size='sm'>
+            <Link to='/dashboard'>← {m.profile_backToDashboard()}</Link>
+          </Button>
+          <LanguageSwitcher isAuthenticated />
         </div>
-      </div>
+        <div className='flex items-center gap-4'>
+          {user.discordAvatar ? (
+            <img
+              src={discordAvatarUrl(user.discordId, user.discordAvatar)}
+              alt={m.profile_discordAvatar()}
+              className='h-16 w-16 rounded-full'
+            />
+          ) : (
+            <div className='bg-muted flex h-16 w-16 items-center justify-center rounded-full text-lg font-semibold'>
+              {initials}
+            </div>
+          )}
+          <div>
+            <h1 className='text-2xl font-bold'>{m.profile_title()}</h1>
+            <p className='text-muted-foreground text-sm'>@{user.discordUsername}</p>
+          </div>
+        </div>
+      </header>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>

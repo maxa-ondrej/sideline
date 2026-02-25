@@ -158,13 +158,15 @@ export function SubgroupDetailPage({
   }, [teamId, teamIdBranded, subgroupIdBranded, run, navigate]);
 
   return (
-    <div className='p-4 max-w-lg'>
-      <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId/subgroups' params={{ teamId }}>
-          ← {m.subgroup_backToSubgroups()}
-        </Link>
-      </Button>
-      <h1 className='text-2xl font-bold mb-6'>{subgroupDetail.name}</h1>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId/subgroups' params={{ teamId }}>
+            ← {m.subgroup_backToSubgroups()}
+          </Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{subgroupDetail.name}</h1>
+      </header>
 
       <div className='flex flex-col gap-6'>
         {/* Rename */}

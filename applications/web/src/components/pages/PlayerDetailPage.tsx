@@ -71,13 +71,15 @@ export function PlayerDetailPage({
   const displayName = player.name ?? player.discordUsername;
 
   return (
-    <div className='p-4 max-w-lg'>
-      <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId/members' params={{ teamId }}>
-          ← {m.members_backToMembers()}
-        </Link>
-      </Button>
-      <h1 className='text-2xl font-bold mb-4'>{displayName}</h1>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId/members' params={{ teamId }}>
+            ← {m.members_backToMembers()}
+          </Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{displayName}</h1>
+      </header>
       {canEdit ? (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSave)} className='flex flex-col gap-4'>
