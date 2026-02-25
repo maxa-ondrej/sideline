@@ -1,5 +1,17 @@
 # @sideline/server
 
+## 0.3.0
+
+### Minor Changes
+
+- [#35](https://github.com/maxa-ondrej/sideline/pull/35) [`eed4aa3`](https://github.com/maxa-ondrej/sideline/commit/eed4aa3820c6bbad12ff2292bcc92aee5a7460b9) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add Discord role sync via @effect/rpc: server emits role change events, bot polls and syncs to Discord
+
+### Patch Changes
+
+- Updated dependencies [[`eed4aa3`](https://github.com/maxa-ondrej/sideline/commit/eed4aa3820c6bbad12ff2292bcc92aee5a7460b9)]:
+  - @sideline/domain@0.3.0
+  - @sideline/migrations@0.3.0
+
 ## 0.2.0
 
 ### Minor Changes
