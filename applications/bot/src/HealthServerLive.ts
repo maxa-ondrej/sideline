@@ -7,19 +7,34 @@ import {
   HttpServer,
 } from '@effect/platform';
 import { NodeHttpServer } from '@effect/platform-node';
+import { DiscordGateway } from 'dfx/gateway';
 import { Effect, Layer, Schema } from 'effect';
 import { env } from '~/env.js';
 
+const HealthResponse = Schema.Struct({
+  status: Schema.Literal('ok', 'degraded'),
+  shards: Schema.Number,
+});
+
 class HealthApiGroup extends HttpApiGroup.make('health').add(
-  HttpApiEndpoint.get('healthCheck', '/health').addSuccess(
-    Schema.Struct({ status: Schema.Literal('ok') }),
-  ),
+  HttpApiEndpoint.get('healthCheck', '/health').addSuccess(HealthResponse),
 ) {}
 
 export class BotHealthApi extends HttpApi.make('bot-health').add(HealthApiGroup) {}
 
 const HealthApiLive = HttpApiBuilder.group(BotHealthApi, 'health', (handlers) =>
-  Effect.succeed(handlers.handle('healthCheck', () => Effect.succeed({ status: 'ok' as const }))),
+  Effect.succeed(
+    handlers.handle('healthCheck', () =>
+      Effect.Do.pipe(
+        Effect.bind('gateway', () => DiscordGateway),
+        Effect.bind('shards', ({ gateway }) => gateway.shards),
+        Effect.map(({ shards }) => ({
+          status: shards.size > 0 ? ('ok' as const) : ('degraded' as const),
+          shards: shards.size,
+        })),
+      ),
+    ),
+  ),
 );
 
 export const HealthServerLive = HttpApiBuilder.serve().pipe(

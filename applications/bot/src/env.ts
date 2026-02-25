@@ -10,6 +10,10 @@ export const env = createEnv({
       Schemas.Optional(() => 9000),
       Schema.standardSchemaV1,
     ),
+    DISCORD_GATEWAY_INTENTS: Schema.NumberFromString.pipe(
+      Schemas.Optional(() => 3),
+      Schema.standardSchemaV1,
+    ),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

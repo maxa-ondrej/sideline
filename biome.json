@@ -34,7 +34,8 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConsole": "off"
+        "noConsole": "off",
+        "noShadowRestrictedNames": "off"
       },
       "style": {
         "useImportType": "error",
