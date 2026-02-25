@@ -28,16 +28,61 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
   }, [teamName, onCreateTeam]);
 
   return (
-    <div>
-      <div className='flex items-center justify-between'>
-        <h1>{m.dashboard_title()}</h1>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='flex items-center justify-between mb-8'>
+        <div>
+          <h1 className='text-2xl font-bold'>{m.dashboard_title()}</h1>
+          <p className='text-muted-foreground'>
+            {m.dashboard_welcome({ username: user.discordUsername })}
+          </p>
+        </div>
         <LanguageSwitcher isAuthenticated />
-      </div>
-      <p>{m.dashboard_welcome({ username: user.discordUsername })}</p>
+      </header>
 
-      <div className='mt-6 p-4 border rounded-lg max-w-md'>
-        <h2 className='text-lg font-semibold mb-2'>{m.dashboard_createTeam()}</h2>
-        <div className='flex gap-2'>
+      <nav className='flex gap-2 mb-8'>
+        <Button asChild variant='outline' size='sm'>
+          <Link to='/teams'>{m.teams_viewTeams()}</Link>
+        </Button>
+        <Button asChild variant='outline' size='sm'>
+          <Link to='/notifications'>{m.notification_title()}</Link>
+        </Button>
+        <Button asChild variant='outline' size='sm'>
+          <Link to='/profile'>{m.profile_viewProfile()}</Link>
+        </Button>
+        <Button variant='ghost' size='sm' onClick={onLogout}>
+          {m.auth_logout()}
+        </Button>
+      </nav>
+
+      <section className='mb-8'>
+        <h2 className='text-lg font-semibold mb-3'>{m.teams_title()}</h2>
+        {teams.length > 0 ? (
+          <ul className='flex flex-col gap-2'>
+            {teams.map((team) => (
+              <li key={team.teamId}>
+                <Link
+                  to='/teams/$teamId'
+                  params={{ teamId: team.teamId }}
+                  className='flex items-center justify-between border rounded-lg p-3 hover:bg-accent transition-colors'
+                >
+                  <span className='font-medium'>{team.teamName}</span>
+                  {team.roleNames.length > 0 && (
+                    <span className='text-sm text-muted-foreground'>
+                      {team.roleNames.join(', ')}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className='text-muted-foreground'>{m.dashboard_noTeams()}</p>
+        )}
+      </section>
+
+      <section>
+        <h2 className='text-lg font-semibold mb-3'>{m.dashboard_createTeam()}</h2>
+        <div className='flex gap-2 max-w-md'>
           <Input
             placeholder={m.dashboard_teamNamePlaceholder()}
             value={teamName}
@@ -50,38 +95,7 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
             {creating ? m.dashboard_creating() : m.dashboard_createTeam()}
           </Button>
         </div>
-      </div>
-
-      {teams.length > 0 ? (
-        <div className='mt-4'>
-          <ul className='flex flex-col gap-2'>
-            {teams.map((team) => (
-              <li key={team.teamId} className='flex items-center gap-4'>
-                <Link
-                  to='/teams/$teamId'
-                  params={{ teamId: team.teamId }}
-                  className='font-medium hover:underline'
-                >
-                  {team.teamName}
-                </Link>
-              </li>
-            ))}
-          </ul>
-          <Button asChild variant='outline' size='sm' className='mt-3'>
-            <Link to='/teams'>{m.teams_viewTeams()}</Link>
-          </Button>
-        </div>
-      ) : (
-        <p className='mt-4 text-muted-foreground'>{m.dashboard_noTeams()}</p>
-      )}
-      <div className='mt-4 flex gap-2'>
-        <Button asChild variant='outline'>
-          <Link to='/profile'>{m.profile_viewProfile()}</Link>
-        </Button>
-        <Button variant='outline' onClick={onLogout}>
-          {m.auth_logout()}
-        </Button>
-      </div>
+      </section>
     </div>
   );
 }
