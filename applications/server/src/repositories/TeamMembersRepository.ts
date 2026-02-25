@@ -94,9 +94,15 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                           WHERE mr.team_member_id = tm.id), ''
                        ) AS role_names,
                        COALESCE(
-                         (SELECT string_agg(DISTINCT rp.permission, ',')
-                          FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
-                          WHERE mr.team_member_id = tm.id), ''
+                         (SELECT string_agg(DISTINCT perm, ',') FROM (
+                           SELECT rp.permission AS perm
+                           FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
+                           WHERE mr.team_member_id = tm.id
+                           UNION
+                           SELECT sp.permission AS perm
+                           FROM subgroup_members sgm JOIN subgroup_permissions sp ON sp.subgroup_id = sgm.subgroup_id
+                           WHERE sgm.team_member_id = tm.id
+                         ) all_perms), ''
                        ) AS permissions
                 FROM team_members tm
                 WHERE tm.team_id = ${input.team_id} AND tm.user_id = ${input.user_id}`,
@@ -122,9 +128,15 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                           WHERE mr.team_member_id = tm.id), ''
                        ) AS role_names,
                        COALESCE(
-                         (SELECT string_agg(DISTINCT rp.permission, ',')
-                          FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
-                          WHERE mr.team_member_id = tm.id), ''
+                         (SELECT string_agg(DISTINCT perm, ',') FROM (
+                           SELECT rp.permission AS perm
+                           FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
+                           WHERE mr.team_member_id = tm.id
+                           UNION
+                           SELECT sp.permission AS perm
+                           FROM subgroup_members sgm JOIN subgroup_permissions sp ON sp.subgroup_id = sgm.subgroup_id
+                           WHERE sgm.team_member_id = tm.id
+                         ) all_perms), ''
                        ) AS permissions
                 FROM team_members tm
                 WHERE tm.user_id = ${userId}`,

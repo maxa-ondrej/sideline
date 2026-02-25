@@ -8,6 +8,8 @@ export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';
 
+export * as SubgroupApi from './api/SubgroupApi.js';
+
 export * as MemberRole from './models/MemberRole.js';
 
 export * as Role from './models/Role.js';
@@ -17,6 +19,8 @@ export * as RosterMemberModel from './models/RosterMemberModel.js';
 export * as RosterModel from './models/RosterModel.js';
 
 export * as Session from './models/Session.js';
+
+export * as SubgroupModel from './models/SubgroupModel.js';
 
 export * as Team from './models/Team.js';
 

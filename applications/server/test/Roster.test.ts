@@ -8,6 +8,7 @@ import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -514,6 +515,33 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   getMemberCountForRole: () => Effect.succeed(0),
 });
 
+const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
+  _tag: 'api/SubgroupsRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findSubgroupsByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findSubgroupById: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertSubgroup: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateSubgroup: () => Effect.die(new Error('Not implemented')),
+  deleteSubgroup: () => Effect.void,
+  deleteSubgroupById: () => Effect.void,
+  findMembers: () => Effect.succeed([]),
+  findMembersBySubgroupId: () => Effect.succeed([]),
+  addMember: () => Effect.void,
+  addMemberById: () => Effect.void,
+  removeMember: () => Effect.void,
+  removeMemberById: () => Effect.void,
+  findPermissions: () => Effect.succeed([]),
+  getPermissionsForSubgroupId: () => Effect.succeed([]),
+  deletePermissions: () => Effect.void,
+  insertPermission: () => Effect.void,
+  setSubgroupPermissions: () => Effect.void,
+  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
+  getMemberCount: () => Effect.succeed(0),
+});
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -525,6 +553,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRostersRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
+  Layer.provide(MockSubgroupsRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
 );
 

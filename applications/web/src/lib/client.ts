@@ -5,7 +5,7 @@ import {
   HttpClient,
   HttpClientRequest,
 } from '@effect/platform';
-import { Auth, Invite, RoleApi, Roster } from '@sideline/domain';
+import { Auth, Invite, RoleApi, Roster, SubgroupApi } from '@sideline/domain';
 import { Context, Effect, Option } from 'effect';
 import { getToken } from '~/lib/auth';
 
@@ -23,7 +23,8 @@ class ClientApi extends HttpApi.make('api')
   .add(Auth.AuthApiGroup)
   .add(Invite.InviteApiGroup)
   .add(Roster.RosterApiGroup)
-  .add(RoleApi.RoleApiGroup) {}
+  .add(RoleApi.RoleApiGroup)
+  .add(SubgroupApi.SubgroupApiGroup) {}
 
 export const client = ClientConfig.pipe(
   Effect.flatMap(({ baseUrl }) =>
