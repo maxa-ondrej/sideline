@@ -1,5 +1,18 @@
 # @sideline/bot
 
+## 0.2.0
+
+### Minor Changes
+
+- [#35](https://github.com/maxa-ondrej/sideline/pull/35) [`eed4aa3`](https://github.com/maxa-ondrej/sideline/commit/eed4aa3820c6bbad12ff2292bcc92aee5a7460b9) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add Discord role sync via @effect/rpc: server emits role change events, bot polls and syncs to Discord
+
+### Patch Changes
+
+- [#33](https://github.com/maxa-ondrej/sideline/pull/33) [`018b413`](https://github.com/maxa-ondrej/sideline/commit/018b413fc26bd25b011c05f13456dcd8fd34475a) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add modular command, interaction, and event framework with gateway health checks
+
+- Updated dependencies [[`eed4aa3`](https://github.com/maxa-ondrej/sideline/commit/eed4aa3820c6bbad12ff2292bcc92aee5a7460b9)]:
+  - @sideline/domain@0.3.0
+
 ## 0.1.7
 
 ### Patch Changes
