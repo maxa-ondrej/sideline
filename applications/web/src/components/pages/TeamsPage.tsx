@@ -1,19 +1,16 @@
 import type { Auth } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
 import React from 'react';
-import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import * as m from '~/paraglide/messages.js';
 
-interface DashboardPageProps {
-  user: { discordUsername: string };
+interface TeamsPageProps {
   teams: ReadonlyArray<Auth.UserTeam>;
-  onLogout: () => void;
   onCreateTeam: (name: string) => Promise<boolean>;
 }
 
-export function DashboardPage({ user, teams, onLogout, onCreateTeam }: DashboardPageProps) {
+export function TeamsPage({ teams, onCreateTeam }: TeamsPageProps) {
   const [teamName, setTeamName] = React.useState('');
   const [creating, setCreating] = React.useState(false);
 
@@ -29,33 +26,14 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
 
   return (
     <div className='p-4 max-w-2xl mx-auto'>
-      <header className='flex items-center justify-between mb-8'>
-        <div>
-          <h1 className='text-2xl font-bold'>{m.dashboard_title()}</h1>
-          <p className='text-muted-foreground'>
-            {m.dashboard_welcome({ username: user.discordUsername })}
-          </p>
-        </div>
-        <LanguageSwitcher isAuthenticated />
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/dashboard'>← {m.teams_backToDashboard()}</Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{m.teams_title()}</h1>
       </header>
 
-      <nav className='flex gap-2 mb-8'>
-        <Button asChild variant='outline' size='sm'>
-          <Link to='/teams'>{m.teams_viewTeams()}</Link>
-        </Button>
-        <Button asChild variant='outline' size='sm'>
-          <Link to='/notifications'>{m.notification_title()}</Link>
-        </Button>
-        <Button asChild variant='outline' size='sm'>
-          <Link to='/profile'>{m.profile_viewProfile()}</Link>
-        </Button>
-        <Button variant='ghost' size='sm' onClick={onLogout}>
-          {m.auth_logout()}
-        </Button>
-      </nav>
-
       <section className='mb-8'>
-        <h2 className='text-lg font-semibold mb-3'>{m.teams_title()}</h2>
         {teams.length > 0 ? (
           <ul className='flex flex-col gap-2'>
             {teams.map((team) => (
@@ -76,7 +54,7 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
             ))}
           </ul>
         ) : (
-          <p className='text-muted-foreground'>{m.dashboard_noTeams()}</p>
+          <p className='text-muted-foreground'>{m.teams_noTeams()}</p>
         )}
       </section>
 

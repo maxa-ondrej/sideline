@@ -1088,24 +1088,47 @@ export function DashboardPage({ user, data }: DashboardPageProps) {
 }
 ```
 
-#### Flat-file route naming (TanStack Router)
+#### Route file naming (TanStack Router)
 
-TanStack Router uses **flat-file routing** with `.` as the path separator. The critical distinction is between **layout files** and **index files**:
+Routes use a **hybrid directory + flat-file** layout. Top-level groupings (`profile/`, `teams/$teamId/`) are directories; sub-pages within them stay flat (dot-separated). The critical distinction is between **layout files**, **index files**, and **plain route files**:
 
-| File name | Resolves to | Purpose |
-|-----------|------------|---------|
-| `teams.tsx` | — | **Layout** wrapping all `/teams/**` child routes |
-| `teams.index.tsx` | `/teams` | **Index page** at `/teams` |
-| `teams.$teamId.tsx` | `/teams/:teamId` | **Page** at `/teams/:teamId` |
-| `teams.$teamId.members.index.tsx` | `/teams/:teamId/members` | **Index page** at `/teams/:teamId/members` |
+| File | Resolves to | Purpose |
+|------|------------|---------|
+| `profile/index.tsx` | `/profile` | **Index page** (has sibling sub-routes) |
+| `profile/complete.tsx` | `/profile/complete` | **Page** |
+| `teams/index.tsx` | `/teams` | **Index page** (has sibling sub-routes) |
+| `teams/$teamId/index.tsx` | `/teams/:teamId` | **Index page** (has sibling sub-routes, e.g. `members.index.tsx`) |
+| `teams/$teamId/members.index.tsx` | `/teams/:teamId/members` | **Index page** (has sibling `members.$memberId`) |
+| `teams/$teamId/members.$memberId.tsx` | `/teams/:teamId/members/:memberId` | **Page** |
+| `notifications.tsx` | `/notifications` | **Plain route** (no sub-routes, so no `.index`) |
 
-**Key rule:** When a route has sub-routes (e.g. `/profile` has `/profile/complete`), the parent route file (`profile.tsx`) is a **layout** — it wraps children via `<Outlet />`. The actual page at `/profile` must be `profile.index.tsx`.
+**Key rules:**
+- Use `.index.tsx` only when the route has sibling sub-routes sharing the same prefix (e.g. `members.index.tsx` + `members.$memberId.tsx`). If a route has no sub-routes, use a plain `.tsx` file instead.
+- When a route has sub-routes, the parent route file is a **layout** — it wraps children via `<Outlet />`. The actual page at that path must be `index.tsx`.
 
-Examples from this codebase:
-- `profile.index.tsx` — page at `/profile` (view/edit own profile)
-- `profile.complete.tsx` — page at `/profile/complete` (first-time profile completion)
-- `teams.$teamId.members.index.tsx` — page at `/teams/:teamId/members`
-- `teams.$teamId.members.$memberId.tsx` — page at `/teams/:teamId/members/:memberId`
+Current route structure:
+```
+routes/(authenticated)/
+├── route.tsx                      — layout wrapper (auth guard)
+├── dashboard.tsx                  — /dashboard
+├── notifications.tsx              — /notifications
+├── profile/
+│   ├── index.tsx                  — /profile
+│   └── complete.tsx               — /profile/complete
+└── teams/
+    ├── index.tsx                  — /teams
+    └── $teamId/
+        ├── index.tsx              — /teams/:teamId
+        ├── age-thresholds.tsx     — /teams/:teamId/age-thresholds
+        ├── members.index.tsx      — /teams/:teamId/members
+        ├── members.$memberId.tsx  — /teams/:teamId/members/:memberId
+        ├── roles.index.tsx        — /teams/:teamId/roles
+        ├── roles.$roleId.tsx      — /teams/:teamId/roles/:roleId
+        ├── rosters.index.tsx      — /teams/:teamId/rosters
+        ├── rosters.$rosterId.tsx  — /teams/:teamId/rosters/:rosterId
+        ├── subgroups.index.tsx    — /teams/:teamId/subgroups
+        └── subgroups.$subgroupId.tsx — /teams/:teamId/subgroups/:subgroupId
+```
 
 ### Runtime — Client vs Server runners
 

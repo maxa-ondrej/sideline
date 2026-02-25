@@ -185,5 +185,16 @@
   "profile_viewProfile": "My Profile",
   "profile_discordAvatar": "Discord Avatar",
   "profile_saving": "Saving...",
-  "profile_saveChanges": "Save Changes"
+  "profile_saveChanges": "Save Changes",
+  "teams_title": "My Teams",
+  "teams_noTeams": "You are not a member of any team yet.",
+  "teams_yourRoles": "Your roles: {roles}",
+  "teams_backToDashboard": "Back to Dashboard",
+  "team_members": "Members",
+  "team_rosters": "Rosters",
+  "team_roles": "Roles",
+  "team_subgroups": "Subgroups",
+  "team_ageThresholds": "Age Thresholds",
+  "team_backToTeams": "Back to Teams",
+  "teams_viewTeams": "View Teams"
 }

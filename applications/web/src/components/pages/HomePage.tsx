@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Option } from 'effect';
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
@@ -20,42 +21,52 @@ interface HomePageProps {
 }
 
 export function HomePage({ userOption, loginUrl, error, reason, onLogout }: HomePageProps) {
-  if (Option.isSome(userOption)) {
-    return (
-      <div>
-        <div className='flex items-center justify-between'>
-          <h1>{m.app_name()}</h1>
-          <LanguageSwitcher isAuthenticated />
-        </div>
-        <p>{m.auth_signedInAs({ username: userOption.value.discordUsername })}</p>
-        <Button variant='outline' onClick={onLogout}>
-          {m.auth_logout()}
-        </Button>
-      </div>
-    );
-  }
+  const isAuthenticated = Option.isSome(userOption);
 
   return (
-    <div>
-      <div className='flex items-center justify-between'>
-        <h1>{m.app_name()}</h1>
-        <LanguageSwitcher isAuthenticated={false} />
-      </div>
-      {error ? (
-        <div>
-          <p>{reasonMessages[reason ?? '']?.() ?? m.auth_loginFailed()}</p>
-          <Button asChild variant='outline'>
-            <a href={loginUrl}>{m.auth_tryAgain()}</a>
-          </Button>
+    <div className='flex min-h-screen flex-col'>
+      <header className='flex items-center justify-between px-6 py-4'>
+        <span className='text-lg font-bold'>{m.app_name()}</span>
+        <div className='flex items-center gap-3'>
+          <LanguageSwitcher isAuthenticated={isAuthenticated} />
+          {isAuthenticated && (
+            <Button variant='ghost' size='sm' onClick={onLogout}>
+              {m.auth_logout()}
+            </Button>
+          )}
         </div>
-      ) : (
-        <div>
-          <p>{m.app_welcome()}</p>
-          <Button asChild>
-            <a href={loginUrl}>{m.auth_signInDiscord()}</a>
-          </Button>
-        </div>
-      )}
+      </header>
+
+      <main className='flex flex-1 flex-col items-center justify-center px-6 pb-24'>
+        {isAuthenticated ? (
+          <div className='flex flex-col items-center gap-6 text-center'>
+            <h1 className='text-3xl font-bold'>
+              {m.dashboard_welcome({ username: userOption.value.discordUsername })}
+            </h1>
+            <Button asChild size='lg'>
+              <Link to='/dashboard'>{m.dashboard_title()}</Link>
+            </Button>
+          </div>
+        ) : error ? (
+          <div className='flex flex-col items-center gap-4 text-center'>
+            <h1 className='text-3xl font-bold'>{m.app_name()}</h1>
+            <p className='text-muted-foreground'>
+              {reasonMessages[reason ?? '']?.() ?? m.auth_loginFailed()}
+            </p>
+            <Button asChild size='lg'>
+              <a href={loginUrl}>{m.auth_tryAgain()}</a>
+            </Button>
+          </div>
+        ) : (
+          <div className='flex flex-col items-center gap-4 text-center'>
+            <h1 className='text-3xl font-bold'>{m.app_name()}</h1>
+            <p className='text-lg text-muted-foreground'>{m.app_welcome()}</p>
+            <Button asChild size='lg'>
+              <a href={loginUrl}>{m.auth_signInDiscord()}</a>
+            </Button>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

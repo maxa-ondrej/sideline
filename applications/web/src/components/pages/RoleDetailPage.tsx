@@ -79,22 +79,18 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
   }, [teamIdBranded, roleIdBranded, teamId, navigate, run]);
 
   return (
-    <div className='p-4 max-w-lg'>
-      <Button asChild variant='ghost' className='mb-4'>
-        <Link to='/teams/$teamId/roles' params={{ teamId }}>
-          ← {m.role_backToRoles()}
-        </Link>
-      </Button>
-      <h1 className='text-2xl font-bold mb-4'>{role.name}</h1>
-      <span
-        className={
-          role.isBuiltIn
-            ? 'text-blue-700 font-medium mb-4 block'
-            : 'text-muted-foreground mb-4 block'
-        }
-      >
-        {role.isBuiltIn ? m.role_builtIn() : m.role_custom()}
-      </span>
+    <div className='p-4 max-w-2xl mx-auto'>
+      <header className='mb-8'>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId/roles' params={{ teamId }}>
+            ← {m.role_backToRoles()}
+          </Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{role.name}</h1>
+        <span className={role.isBuiltIn ? 'text-blue-700 font-medium' : 'text-muted-foreground'}>
+          {role.isBuiltIn ? m.role_builtIn() : m.role_custom()}
+        </span>
+      </header>
 
       <div className='flex flex-col gap-4'>
         <div>
