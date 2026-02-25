@@ -134,6 +134,14 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
           sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name}`,
       }),
     ),
+    Effect.let('countMembersForRole', ({ sql }) =>
+      SqlSchema.single({
+        Request: RoleNS.RoleId,
+        Result: Schema.Struct({ count: Schema.Number }),
+        execute: (roleId) =>
+          sql`SELECT COUNT(*)::int AS count FROM member_roles WHERE role_id = ${roleId}`,
+      }),
+    ),
     Effect.let('initTeamRoles', ({ sql }) =>
       SqlSchema.void({
         Request: InitTeamRolesInput,
@@ -205,5 +213,9 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
         ),
       ),
     );
+  }
+
+  getMemberCountForRole(roleId: RoleNS.RoleId) {
+    return this.countMembersForRole(roleId).pipe(Effect.map((r) => r.count));
   }
 }

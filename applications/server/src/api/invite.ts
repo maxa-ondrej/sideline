@@ -88,22 +88,26 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 ),
               ),
             ),
-            Effect.bind('membership', ({ user, invite, playerRole }) =>
+            Effect.bind('membership', ({ user, invite }) =>
               members
                 .addMember({
                   team_id: invite.team_id,
                   user_id: user.id,
-                  role_id: playerRole.id,
                   active: true,
                   joined_at: undefined,
                 })
+                .pipe(Effect.mapError(() => new Invite.InviteNotFound())),
+            ),
+            Effect.tap(({ membership, playerRole }) =>
+              members
+                .assignRole(membership.id, playerRole.id)
                 .pipe(Effect.mapError(() => new Invite.InviteNotFound())),
             ),
             Effect.map(
               ({ user, invite }) =>
                 new Invite.JoinResult({
                   teamId: invite.team_id,
-                  roleName: 'Player',
+                  roleNames: ['Player'],
                   isProfileComplete: user.isProfileComplete,
                 }),
             ),

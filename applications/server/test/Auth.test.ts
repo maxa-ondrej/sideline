@@ -137,7 +137,6 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       id: '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId,
       team_id: input.team_id,
       user_id: input.user_id,
-      role_id: input.role_id,
       active: true,
       joined_at: DateTime.unsafeNow(),
     }),
@@ -152,6 +151,10 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
   findPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
   getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
+  assignRoleToMember: () => Effect.void,
+  unassignRoleFromMember: () => Effect.void,
+  assignRole: () => Effect.void,
+  unassignRole: () => Effect.void,
 });
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
@@ -211,6 +214,8 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   findByTeamAndName: () => Effect.succeed(Option.none()),
   findRoleByTeamAndName: () => Effect.succeed(Option.none()),
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
+  countMembersForRole: () => Effect.succeed({ count: 0 }),
+  getMemberCountForRole: () => Effect.succeed(0),
 });
 
 const TestLayer = ApiLive.pipe(

@@ -169,7 +169,89 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ existing }) =>
               existing.is_built_in ? Effect.fail(new RoleApi.CannotModifyBuiltIn()) : Effect.void,
             ),
+            Effect.bind('memberCount', () =>
+              roles.getMemberCountForRole(roleId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ memberCount }) =>
+              memberCount > 0 ? Effect.fail(new RoleApi.RoleInUse()) : Effect.void,
+            ),
             Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
+            Effect.asVoid,
+          ),
+        )
+        .handle('assignRole', ({ path: { teamId, memberId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
+            Effect.bind('targetMember', () =>
+              members.findRosterMemberByIds(teamId, memberId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new RoleApi.MemberNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.bind('role', () =>
+              roles.findRoleById(payload.roleId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ role }) =>
+              role.team_id !== teamId ? Effect.fail(new RoleApi.RoleNotFound()) : Effect.void,
+            ),
+            Effect.tap(() =>
+              members.assignRole(memberId, payload.roleId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.asVoid,
+          ),
+        )
+        .handle('unassignRole', ({ path: { teamId, memberId, roleId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
+            Effect.bind('targetMember', () =>
+              members.findRosterMemberByIds(teamId, memberId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new RoleApi.MemberNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.bind('role', () =>
+              roles.findRoleById(roleId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ role }) =>
+              role.team_id !== teamId ? Effect.fail(new RoleApi.RoleNotFound()) : Effect.void,
+            ),
+            Effect.tap(() =>
+              members.unassignRole(memberId, roleId).pipe(Effect.mapError(() => forbidden)),
+            ),
             Effect.asVoid,
           ),
         ),

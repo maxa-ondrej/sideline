@@ -122,5 +122,10 @@
   "roster_toggleActive": "Set Active",
   "roster_toggleInactive": "Set Inactive",
   "roster_createFailed": "Failed to create roster.",
-  "roster_updateFailed": "Failed to update roster."
+  "roster_updateFailed": "Failed to update roster.",
+  "roles_currentRoles": "Roles",
+  "roles_addRole": "Add Role",
+  "roles_noRoles": "No roles assigned.",
+  "roles_assignFailed": "Failed to assign role.",
+  "roles_unassignFailed": "Failed to unassign role."
 }

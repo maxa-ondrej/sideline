@@ -17,7 +17,7 @@ export const MIN_AGE = 6;
 export class UserTeam extends Schema.Class<UserTeam>('UserTeam')({
   teamId: TeamId,
   teamName: Schema.String,
-  roleName: Schema.String,
+  roleNames: Schema.Array(Schema.String),
   permissions: Schema.Array(Permission),
 }) {}
 

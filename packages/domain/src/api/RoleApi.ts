@@ -3,6 +3,7 @@ import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Permission, RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
+import { TeamMemberId } from '~/models/TeamMember.js';
 
 export class RoleInfo extends Schema.Class<RoleInfo>('RoleInfo')({
   roleId: RoleId,
@@ -48,6 +49,22 @@ export class CannotModifyBuiltIn extends Schema.TaggedError<CannotModifyBuiltIn>
   HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
+export class AssignRoleRequest extends Schema.Class<AssignRoleRequest>('AssignRoleRequest')({
+  roleId: RoleId,
+}) {}
+
+export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+  'MemberNotFound',
+  {},
+  HttpApiSchema.annotations({ status: 404 }),
+) {}
+
+export class RoleInUse extends Schema.TaggedError<RoleInUse>()(
+  'RoleInUse',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class RoleApiGroup extends HttpApiGroup.make('role')
   .add(
     HttpApiEndpoint.get('listRoles', '/teams/:teamId/roles')
@@ -88,6 +105,26 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
       .addError(Forbidden, { status: 403 })
       .addError(RoleNotFound, { status: 404 })
       .addError(CannotModifyBuiltIn, { status: 400 })
+      .addError(RoleInUse, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('assignRole', '/teams/:teamId/members/:memberId/roles')
+      .addSuccess(Schema.Void, { status: 204 })
+      .addError(Forbidden, { status: 403 })
+      .addError(MemberNotFound, { status: 404 })
+      .addError(RoleNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
+      .setPayload(AssignRoleRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.del('unassignRole', '/teams/:teamId/members/:memberId/roles/:roleId')
+      .addSuccess(Schema.Void)
+      .addError(Forbidden, { status: 403 })
+      .addError(MemberNotFound, { status: 404 })
+      .addError(RoleNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, roleId: RoleId }))
       .middleware(AuthMiddleware),
   ) {}

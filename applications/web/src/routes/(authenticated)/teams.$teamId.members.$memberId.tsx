@@ -1,6 +1,6 @@
-import type { Auth } from '@sideline/domain';
+import type { Auth, Role } from '@sideline/domain';
 import { Team, TeamMember } from '@sideline/domain';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import type { PlayerEditValues } from '~/components/pages/PlayerDetailPage';
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
         Effect.all({
           player: api.roster.getMember({ path: { teamId, memberId } }),
           myTeams: api.auth.myTeams(),
+          roles: api.role.listRoles({ path: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -31,13 +32,15 @@ function MemberDetailRoute() {
   const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
   const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
   const navigate = useNavigate();
+  const router = useRouter();
   const run = useRun();
-  const { player, myTeams } = Route.useLoaderData();
+  const { player, myTeams, roles } = Route.useLoaderData();
 
   // Use the current user's permissions for this team, not the target player's
   const myPermissions =
     myTeams.find((t: Auth.UserTeam) => t.teamId === teamIdRaw)?.permissions ?? [];
   const canEdit = myPermissions.includes('member:edit');
+  const canManageRoles = myPermissions.includes('role:manage' as Role.Permission);
 
   const handleSave = React.useCallback(
     async (values: PlayerEditValues) => {
@@ -65,7 +68,53 @@ function MemberDetailRoute() {
     [teamId, memberId, teamIdRaw, navigate, run],
   );
 
+  const handleAssignRole = React.useCallback(
+    async (roleId: string) => {
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.role.assignRole({
+            path: { teamId, memberId },
+            payload: { roleId: roleId as Role.RoleId },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.roles_assignFailed())),
+        run,
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
+  const handleUnassignRole = React.useCallback(
+    async (roleId: string) => {
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.role.unassignRole({
+            path: { teamId, memberId, roleId: roleId as Role.RoleId },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.roles_unassignFailed())),
+        run,
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
   return (
-    <PlayerDetailPage teamId={teamIdRaw} player={player} canEdit={canEdit} onSave={handleSave} />
+    <PlayerDetailPage
+      teamId={teamIdRaw}
+      player={player}
+      canEdit={canEdit}
+      canManageRoles={canManageRoles}
+      availableRoles={roles}
+      onSave={handleSave}
+      onAssignRole={handleAssignRole}
+      onUnassignRole={handleUnassignRole}
+    />
   );
 }
