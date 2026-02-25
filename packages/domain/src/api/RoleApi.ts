@@ -42,8 +42,8 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()(
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class CannotDeleteBuiltIn extends Schema.TaggedError<CannotDeleteBuiltIn>()(
-  'CannotDeleteBuiltIn',
+export class CannotModifyBuiltIn extends Schema.TaggedError<CannotModifyBuiltIn>()(
+  'CannotModifyBuiltIn',
   {},
   HttpApiSchema.annotations({ status: 400 }),
 ) {}
@@ -77,7 +77,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
       .addSuccess(RoleDetail)
       .addError(Forbidden, { status: 403 })
       .addError(RoleNotFound, { status: 404 })
-      .addError(CannotDeleteBuiltIn, { status: 400 })
+      .addError(CannotModifyBuiltIn, { status: 400 })
       .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
       .setPayload(UpdateRoleRequest)
       .middleware(AuthMiddleware),
@@ -87,7 +87,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(RoleNotFound, { status: 404 })
-      .addError(CannotDeleteBuiltIn, { status: 400 })
+      .addError(CannotModifyBuiltIn, { status: 400 })
       .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
       .middleware(AuthMiddleware),
   ) {}

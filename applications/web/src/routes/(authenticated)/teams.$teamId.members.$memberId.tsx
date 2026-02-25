@@ -1,3 +1,4 @@
+import type { Auth } from '@sideline/domain';
 import { Team, TeamMember } from '@sideline/domain';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -13,7 +14,12 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(params.memberId);
     return ApiClient.pipe(
-      Effect.flatMap((api) => api.roster.getMember({ path: { teamId, memberId } })),
+      Effect.flatMap((api) =>
+        Effect.all({
+          player: api.roster.getMember({ path: { teamId, memberId } }),
+          myTeams: api.auth.myTeams(),
+        }),
+      ),
       warnAndCatchAll,
       context.run,
     );
@@ -26,10 +32,12 @@ function MemberDetailRoute() {
   const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
   const navigate = useNavigate();
   const run = useRun();
-  const player = Route.useLoaderData();
+  const { player, myTeams } = Route.useLoaderData();
 
-  // Show edit form if the current user has member:edit permission; API enforces on save
-  const canEdit = player.permissions.includes('member:edit');
+  // Use the current user's permissions for this team, not the target player's
+  const myPermissions =
+    myTeams.find((t: Auth.UserTeam) => t.teamId === teamIdRaw)?.permissions ?? [];
+  const canEdit = myPermissions.includes('member:edit');
 
   const handleSave = React.useCallback(
     async (values: PlayerEditValues) => {

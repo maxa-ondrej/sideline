@@ -1,12 +1,19 @@
 import type { Auth, Role as RoleNS, Team } from '@sideline/domain';
+import { Role } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import type {
   MembershipWithRole,
   TeamMembersRepository,
 } from '~/repositories/TeamMembersRepository.js';
 
+const knownPermissions: ReadonlySet<string> = new Set(Role.allPermissions);
+
 export const parsePermissions = (permissionsStr: string): ReadonlyArray<RoleNS.Permission> =>
-  permissionsStr === '' ? [] : (permissionsStr.split(',') as ReadonlyArray<RoleNS.Permission>);
+  permissionsStr === ''
+    ? []
+    : (permissionsStr
+        .split(',')
+        .filter((p) => knownPermissions.has(p)) as ReadonlyArray<RoleNS.Permission>);
 
 export const requireMembership = <E>(
   members: TeamMembersRepository,

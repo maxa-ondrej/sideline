@@ -118,7 +118,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.tap(({ existing }) =>
               existing.is_built_in && payload.name !== null
-                ? Effect.fail(new RoleApi.CannotDeleteBuiltIn())
+                ? Effect.fail(new RoleApi.CannotModifyBuiltIn())
                 : Effect.void,
             ),
             Effect.bind('updated', ({ existing }) =>
@@ -167,7 +167,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               ),
             ),
             Effect.tap(({ existing }) =>
-              existing.is_built_in ? Effect.fail(new RoleApi.CannotDeleteBuiltIn()) : Effect.void,
+              existing.is_built_in ? Effect.fail(new RoleApi.CannotModifyBuiltIn()) : Effect.void,
             ),
             Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
             Effect.asVoid,
