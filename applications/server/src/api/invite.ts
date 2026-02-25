@@ -2,6 +2,7 @@ import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Invite } from '@sideline/domain';
 import { Effect, Option, Schedule } from 'effect';
 import { Api } from '~/api/api.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -13,6 +14,8 @@ const generateInviteCode = (): string => {
   const bytes = crypto.getRandomValues(new Uint8Array(INVITE_CODE_LENGTH));
   return Array.from(bytes, (b) => INVITE_CODE_CHARS[b % INVITE_CODE_CHARS.length]).join('');
 };
+
+const forbidden = new Invite.Forbidden();
 
 export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
   Effect.Do.pipe(
@@ -74,22 +77,33 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.tap(({ existing }) =>
               Option.isSome(existing) ? Effect.fail(new Invite.AlreadyMember()) : Effect.void,
             ),
-            Effect.bind('membership', ({ user, invite }) =>
+            Effect.bind('playerRole', ({ invite }) =>
+              members.getPlayerRoleId(invite.team_id).pipe(
+                Effect.mapError(() => new Invite.InviteNotFound()),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new Invite.InviteNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.bind('membership', ({ user, invite, playerRole }) =>
               members
                 .addMember({
                   team_id: invite.team_id,
                   user_id: user.id,
-                  role: 'member',
+                  role_id: playerRole.id,
                   active: true,
                   joined_at: undefined,
                 })
                 .pipe(Effect.mapError(() => new Invite.InviteNotFound())),
             ),
             Effect.map(
-              ({ user, membership }) =>
+              ({ user, invite }) =>
                 new Invite.JoinResult({
-                  teamId: membership.team_id,
-                  role: membership.role,
+                  teamId: invite.team_id,
+                  roleName: 'Player',
                   isProfileComplete: user.isProfileComplete,
                 }),
             ),
@@ -99,19 +113,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('user', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ user }) =>
-              members.findMembershipByIds(teamId, user.id).pipe(
-                Effect.mapError(() => new Invite.Forbidden()),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Invite.Forbidden()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
+              requireMembership(members, teamId, user.id, forbidden),
             ),
-            Effect.tap(({ membership }) =>
-              membership.role !== 'admin' ? Effect.fail(new Invite.Forbidden()) : Effect.void,
-            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:invite', forbidden)),
             Effect.bind('newInvite', ({ user }) =>
               Effect.suspend(() =>
                 invites.create({
@@ -124,13 +128,13 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 }),
               ).pipe(
                 Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis')),
-                Effect.mapError(() => new Invite.Forbidden()),
+                Effect.mapError(() => forbidden),
               ),
             ),
             Effect.tap(({ newInvite }) =>
               invites
                 .deactivateByTeamExcept({ teamId, excludeId: newInvite.id })
-                .pipe(Effect.mapError(() => new Invite.Forbidden())),
+                .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(
               ({ newInvite }) =>
@@ -145,21 +149,11 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('user', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ user }) =>
-              members.findMembershipByIds(teamId, user.id).pipe(
-                Effect.mapError(() => new Invite.Forbidden()),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Invite.Forbidden()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
+              requireMembership(members, teamId, user.id, forbidden),
             ),
-            Effect.tap(({ membership }) =>
-              membership.role !== 'admin' ? Effect.fail(new Invite.Forbidden()) : Effect.void,
-            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:invite', forbidden)),
             Effect.tap(() =>
-              invites.deactivateByTeam(teamId).pipe(Effect.mapError(() => new Invite.Forbidden())),
+              invites.deactivateByTeam(teamId).pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.asVoid,
           ),

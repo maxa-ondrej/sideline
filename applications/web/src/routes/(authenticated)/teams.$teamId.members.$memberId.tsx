@@ -1,3 +1,4 @@
+import type { Auth } from '@sideline/domain';
 import { Team, TeamMember } from '@sideline/domain';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -13,7 +14,12 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(params.memberId);
     return ApiClient.pipe(
-      Effect.flatMap((api) => api.roster.getMember({ path: { teamId, memberId } })),
+      Effect.flatMap((api) =>
+        Effect.all({
+          player: api.roster.getMember({ path: { teamId, memberId } }),
+          myTeams: api.auth.myTeams(),
+        }),
+      ),
       warnAndCatchAll,
       context.run,
     );
@@ -21,16 +27,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
 });
 
 function MemberDetailRoute() {
-  const { user } = Route.useRouteContext();
   const { teamId: teamIdRaw, memberId: memberIdRaw } = Route.useParams();
   const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
   const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
   const navigate = useNavigate();
   const run = useRun();
-  const player = Route.useLoaderData();
+  const { player, myTeams } = Route.useLoaderData();
 
-  // Show edit form for authenticated admin users; API enforces admin-only on save
-  const isAdmin = player.role === 'admin' || user.id !== player.userId;
+  // Use the current user's permissions for this team, not the target player's
+  const myPermissions =
+    myTeams.find((t: Auth.UserTeam) => t.teamId === teamIdRaw)?.permissions ?? [];
+  const canEdit = myPermissions.includes('member:edit');
 
   const handleSave = React.useCallback(
     async (values: PlayerEditValues) => {
@@ -59,6 +66,6 @@ function MemberDetailRoute() {
   );
 
   return (
-    <PlayerDetailPage teamId={teamIdRaw} player={player} isAdmin={isAdmin} onSave={handleSave} />
+    <PlayerDetailPage teamId={teamIdRaw} player={player} canEdit={canEdit} onSave={handleSave} />
   );
 }

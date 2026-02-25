@@ -36,11 +36,11 @@ export type PlayerEditValues = Schema.Schema.Type<typeof PlayerEditSchema>;
 interface PlayerDetailPageProps {
   teamId: string;
   player: Roster.RosterPlayer;
-  isAdmin: boolean;
+  canEdit: boolean;
   onSave: (values: PlayerEditValues) => Promise<void>;
 }
 
-export function PlayerDetailPage({ teamId, player, isAdmin, onSave }: PlayerDetailPageProps) {
+export function PlayerDetailPage({ teamId, player, canEdit, onSave }: PlayerDetailPageProps) {
   const form = useForm({
     resolver: effectTsResolver(PlayerEditSchema),
     mode: 'onChange',
@@ -64,7 +64,7 @@ export function PlayerDetailPage({ teamId, player, isAdmin, onSave }: PlayerDeta
         </Link>
       </Button>
       <h1 className='text-2xl font-bold mb-4'>{displayName}</h1>
-      {isAdmin ? (
+      {canEdit ? (
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSave)} className='flex flex-col gap-4'>
             <FormField

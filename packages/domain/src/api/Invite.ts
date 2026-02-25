@@ -2,7 +2,6 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { TeamId } from '~/models/Team.js';
-import { TeamRole } from '~/models/TeamMember.js';
 
 export class InviteInfo extends Schema.Class<InviteInfo>('InviteInfo')({
   teamName: Schema.String,
@@ -12,7 +11,7 @@ export class InviteInfo extends Schema.Class<InviteInfo>('InviteInfo')({
 
 export class JoinResult extends Schema.Class<JoinResult>('JoinResult')({
   teamId: TeamId,
-  role: TeamRole,
+  roleName: Schema.String,
   isProfileComplete: Schema.Boolean,
 }) {}
 

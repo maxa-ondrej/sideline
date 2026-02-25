@@ -1,7 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, Roster, type RosterModel as RosterNS, type Team } from '@sideline/domain';
+import { Auth, Roster, type RosterModel as RosterNS } from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
+import { parsePermissions, requireMembership, requirePermission } from '~/api/permissions.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -19,7 +20,8 @@ const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
     userId: entry.user_id,
-    role: entry.role,
+    roleName: entry.role_name,
+    permissions: [...parsePermissions(entry.permissions)],
     name: entry.name,
     birthYear: entry.birth_year,
     gender: entry.gender,
@@ -29,24 +31,6 @@ const toRosterPlayer = (entry: RosterEntry) =>
     discordUsername: entry.discord_username,
     discordAvatar: entry.discord_avatar,
   });
-
-const requireMembership = (
-  members: TeamMembersRepository,
-  teamId: Team.TeamId,
-  userId: Auth.UserId,
-) =>
-  members.findMembershipByIds(teamId, userId).pipe(
-    mapDbError(() => new Roster.Forbidden()),
-    Effect.flatMap(
-      Option.match({
-        onNone: () => Effect.fail(new Roster.Forbidden()),
-        onSome: Effect.succeed,
-      }),
-    ),
-  );
-
-const requireAdmin = (membership: { role: string }) =>
-  membership.role !== 'admin' ? Effect.fail(new Roster.Forbidden()) : Effect.void;
 
 const toRosterInfo = (r: RosterNS.Roster, memberCount: number): Roster.RosterInfo =>
   new Roster.RosterInfo({
@@ -68,8 +52,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
         .handle('listMembers', ({ path: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('_membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+            ),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'member:view', new Roster.Forbidden()),
             ),
             Effect.bind('roster', () =>
               members.findRosterByTeam(teamId).pipe(mapDbError(() => new Roster.Forbidden())),
@@ -80,8 +67,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
         .handle('getMember', ({ path: { teamId, memberId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('_membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+            ),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'member:view', new Roster.Forbidden()),
             ),
             Effect.bind('entry', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
@@ -101,9 +91,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'member:edit', new Roster.Forbidden()),
+            ),
             Effect.bind('entry', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
                 mapDbError(() => new Roster.Forbidden()),
@@ -133,7 +125,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 new Roster.RosterPlayer({
                   memberId: entry.member_id,
                   userId: entry.user_id,
-                  role: entry.role,
+                  roleName: entry.role_name,
+                  permissions: [...parsePermissions(entry.permissions)],
                   name: updated.name,
                   birthYear: updated.birth_year,
                   gender: updated.gender,
@@ -150,9 +143,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'member:remove', new Roster.Forbidden()),
+            ),
             Effect.bind('_check', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
                 mapDbError(() => new Roster.Forbidden()),
@@ -175,8 +170,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
         .handle('listRosters', ({ path: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('_membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+            ),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:view', new Roster.Forbidden()),
             ),
             Effect.bind('rosterList', () =>
               rosters.findByTeamId(teamId).pipe(mapDbError(() => new Roster.Forbidden())),
@@ -200,9 +198,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+            ),
             Effect.bind('roster', () =>
               rosters
                 .insert({ team_id: teamId, name: payload.name, active: true })
@@ -214,8 +214,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
         .handle('getRoster', ({ path: { teamId, rosterId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('_membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+            ),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:view', new Roster.Forbidden()),
             ),
             Effect.bind('roster', () =>
               rosters.findRosterById(rosterId).pipe(
@@ -250,9 +253,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+            ),
             Effect.bind('existing', () =>
               rosters.findRosterById(rosterId).pipe(
                 mapDbError(() => new Roster.Forbidden()),
@@ -282,9 +287,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+            ),
             Effect.bind('_existing', () =>
               rosters.findRosterById(rosterId).pipe(
                 mapDbError(() => new Roster.Forbidden()),
@@ -306,9 +313,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+            ),
             Effect.bind('_roster', () =>
               rosters.findRosterById(rosterId).pipe(
                 mapDbError(() => new Roster.Forbidden()),
@@ -343,9 +352,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id),
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
             ),
-            Effect.tap(({ membership }) => requireAdmin(membership)),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+            ),
             Effect.bind('_roster', () =>
               rosters.findRosterById(rosterId).pipe(
                 mapDbError(() => new Roster.Forbidden()),

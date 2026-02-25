@@ -100,12 +100,18 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
           Request: RosterMemberEntriesInput,
           Result: RosterEntry,
           execute: (input) => sql`
-            SELECT tm.id AS member_id, tm.user_id, tm.role,
+            SELECT tm.id AS member_id, tm.user_id,
+                   r.name AS role_name,
+                   COALESCE(
+                     (SELECT string_agg(rp.permission, ',') FROM role_permissions rp WHERE rp.role_id = r.id),
+                     ''
+                   ) AS permissions,
                    u.name, u.birth_year, u.gender, u.jersey_number, u.position,
                    u.proficiency, u.discord_username, u.discord_avatar
             FROM roster_members rmb
             JOIN team_members tm ON tm.id = rmb.team_member_id
             JOIN users u ON u.id = tm.user_id
+            JOIN roles r ON r.id = tm.role_id
             WHERE rmb.roster_id = ${input.roster_id}
           `,
         }),

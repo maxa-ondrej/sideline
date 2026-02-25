@@ -1,10 +1,11 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Team, TeamInvite, TeamMember } from '@sideline/domain';
+import type { Auth, Role, Team, TeamInvite, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
@@ -15,6 +16,7 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
+const TEST_ROLE_ID = '00000000-0000-0000-0000-000000000040' as Role.RoleId;
 
 const makeTestUser = (overrides?: Record<string, unknown>) => ({
   id: TEST_USER_ID,
@@ -120,12 +122,12 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   _tag: 'api/TeamMembersRepository',
-  addMember: () =>
+  addMember: (input) =>
     Effect.succeed({
       id: '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId,
-      team_id: TEST_TEAM_ID,
-      user_id: TEST_USER_ID,
-      role: 'member' as const,
+      team_id: input.team_id,
+      user_id: input.user_id,
+      role_id: input.role_id,
       active: true,
       joined_at: DateTime.unsafeNow(),
     }),
@@ -138,6 +140,32 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findRosterMemberByIds: () => Effect.succeed(Option.none()),
   deactivateMember: () => Effect.die(new Error('Not implemented')),
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
+  findPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
+  getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
+});
+
+const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
+  _tag: 'api/RolesRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findRolesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findRoleById: () => Effect.succeed(Option.none()),
+  findPermissions: () => Effect.succeed([]),
+  getPermissionsForRoleId: () => Effect.succeed([]),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertRole: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateRole: () => Effect.die(new Error('Not implemented')),
+  deleteRole: () => Effect.void,
+  deleteRoleById: () => Effect.void,
+  deletePermissions: () => Effect.void,
+  insertPermission: () => Effect.void,
+  setRolePermissions: () => Effect.void,
+  initTeamRoles: () => Effect.void,
+  initializeTeamRoles: () => Effect.void,
+  findByTeamAndName: () => Effect.succeed(Option.none()),
+  findRoleByTeamAndName: () => Effect.succeed(Option.none()),
+  seedTeamRolesWithPermissions: () => Effect.succeed([]),
 });
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
@@ -199,6 +227,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTeamsRepositoryLayer),
   Layer.provide(MockTeamMembersRepositoryLayer),
   Layer.provide(MockRostersRepositoryLayer),
+  Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
 );
