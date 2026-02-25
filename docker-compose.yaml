@@ -48,6 +48,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
+      SERVER_URL: http://server:80
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
