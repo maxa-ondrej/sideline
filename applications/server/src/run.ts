@@ -9,6 +9,7 @@ import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
@@ -52,6 +53,7 @@ const Cron = AgeCheckCron.pipe(
   Effect.provide(AgeCheckService.Default),
   Effect.provide(AgeThresholdRepository.Default),
   Effect.provide(NotificationsRepository.Default),
+  Effect.provide(RoleSyncEventsRepository.Default),
   Effect.provide(TeamMembersRepository.Default),
   Effect.provide(PgClient.layerConfig(BasePg)),
   Effect.withLogSpan('age-check-cron'),

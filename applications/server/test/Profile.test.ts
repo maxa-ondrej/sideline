@@ -7,6 +7,7 @@ import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
@@ -300,6 +301,13 @@ const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
   evaluate: () => Effect.succeed([]),
 } as unknown as AgeCheckService);
 
+const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
+  emitIfGuildLinked: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as RoleSyncEventsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -316,6 +324,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockAgeCheckServiceLayer),
   Layer.provide(MockAgeThresholdRepositoryLayer),
   Layer.provide(MockNotificationsRepositoryLayer),
+  Layer.provide(MockRoleSyncEventsRepositoryLayer),
 );
 
 let handler: (request: Request) => Promise<Response>;

@@ -4,8 +4,10 @@ import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 const forbidden = new RoleApi.Forbidden();
 
@@ -14,7 +16,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('roles', () => RolesRepository),
     Effect.bind('notifications', () => NotificationsRepository),
-    Effect.map(({ members, roles, notifications }) =>
+    Effect.bind('syncEvents', () => RoleSyncEventsRepository),
+    Effect.bind('users', () => UsersRepository),
+    Effect.map(({ members, roles, notifications, syncEvents, users }) =>
       handlers
         .handle('listRoles', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -54,6 +58,12 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               roles
                 .setRolePermissions(role.id, payload.permissions)
                 .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ role }) =>
+              syncEvents.emitIfGuildLinked(teamId, 'role_created', role.id, role.name).pipe(
+                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
+                Effect.catchAll(() => Effect.void),
+              ),
             ),
             Effect.map(
               ({ role }) =>
@@ -178,6 +188,12 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               memberCount > 0 ? Effect.fail(new RoleApi.RoleInUse()) : Effect.void,
             ),
             Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
+            Effect.tap(({ existing }) =>
+              syncEvents.emitIfGuildLinked(teamId, 'role_deleted', existing.id, existing.name).pipe(
+                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
+                Effect.catchAll(() => Effect.void),
+              ),
+            ),
             Effect.asVoid,
           ),
         )
@@ -230,6 +246,26 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Effect.catchAll(() => Effect.void),
                 ),
             ),
+            Effect.tap(({ targetMember, role }) =>
+              users.findById(targetMember.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      syncEvents.emitIfGuildLinked(
+                        teamId,
+                        'role_assigned',
+                        payload.roleId,
+                        role.name,
+                        memberId,
+                        user.discord_id,
+                      ),
+                  }),
+                ),
+                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
+                Effect.catchAll(() => Effect.void),
+              ),
+            ),
             Effect.asVoid,
           ),
         )
@@ -281,6 +317,26 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Effect.tapError((e) => Effect.logWarning('Failed to create notification', e)),
                   Effect.catchAll(() => Effect.void),
                 ),
+            ),
+            Effect.tap(({ targetMember, role }) =>
+              users.findById(targetMember.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      syncEvents.emitIfGuildLinked(
+                        teamId,
+                        'role_unassigned',
+                        roleId,
+                        role.name,
+                        memberId,
+                        user.discord_id,
+                      ),
+                  }),
+                ),
+                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
+                Effect.catchAll(() => Effect.void),
+              ),
             ),
             Effect.asVoid,
           ),

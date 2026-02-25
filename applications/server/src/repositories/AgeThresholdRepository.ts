@@ -48,6 +48,7 @@ class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('MemberWithB
   user_id: Schema.String,
   member_name: Schema.NullOr(Schema.String),
   discord_username: Schema.String,
+  discord_id: Schema.String,
   birth_year: Schema.NullOr(Schema.Number),
   role_ids: Schema.String,
 }) {}
@@ -133,7 +134,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           Result: MemberWithBirthYear,
           execute: (teamId) => sql`
             SELECT tm.id AS member_id, tm.user_id,
-                   u.name AS member_name, u.discord_username,
+                   u.name AS member_name, u.discord_username, u.discord_id,
                    u.birth_year,
                    COALESCE(
                      (SELECT string_agg(mr.role_id::text, ',')

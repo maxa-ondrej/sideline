@@ -8,6 +8,7 @@ import {
 import { Effect } from 'effect';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeCheckService', {
@@ -15,9 +16,10 @@ export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeC
     Effect.bind('thresholds', () => AgeThresholdRepository),
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('notifications', () => NotificationsRepository),
+    Effect.bind('syncEvents', () => RoleSyncEventsRepository),
     Effect.let(
       'evaluateTeam',
-      ({ thresholds, members, notifications }) =>
+      ({ thresholds, members, notifications, syncEvents }) =>
         (teamId: TeamNS.TeamId, currentYear: number) =>
           Effect.Do.pipe(
             Effect.bind('rules', () =>
@@ -118,6 +120,30 @@ export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeC
               return notifs.length > 0
                 ? notifications.insertBulk(notifs).pipe(Effect.mapError(() => 'db' as const))
                 : Effect.void;
+            }),
+            Effect.tap(({ changes, teamMembers }) => {
+              if (changes.length === 0) return Effect.void;
+
+              return Effect.all(
+                changes.map((change) => {
+                  const member = teamMembers.find(
+                    (m) => (m.member_id as TeamMemberNS.TeamMemberId) === change.memberId,
+                  );
+                  return syncEvents
+                    .emitIfGuildLinked(
+                      teamId,
+                      change.action === 'assigned' ? 'role_assigned' : 'role_unassigned',
+                      change.roleId,
+                      change.roleName,
+                      change.memberId,
+                      member?.discord_id,
+                    )
+                    .pipe(
+                      Effect.tapError((e) => Effect.logWarning('sync event failed', e)),
+                      Effect.catchAll(() => Effect.void),
+                    );
+                }),
+              ).pipe(Effect.asVoid);
             }),
             Effect.map(({ changes }) =>
               changes.map(
