@@ -8,6 +8,8 @@ import {
 import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
@@ -16,6 +18,7 @@ import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
 export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
@@ -25,6 +28,7 @@ export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(ApiLive),
   HttpServer.withLogAddress,
   Layer.provide(AuthMiddlewareLive),
+  Layer.provide(AgeCheckService.Default),
   Layer.provide(UsersRepository.Default),
   Layer.provide(SessionsRepository.Default),
   Layer.provide(TeamsRepository.Default),
@@ -33,6 +37,8 @@ export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
   Layer.provide(RolesRepository.Default),
   Layer.provide(SubgroupsRepository.Default),
   Layer.provide(TeamInvitesRepository.Default),
+  Layer.provide(AgeThresholdRepository.Default),
+  Layer.provide(NotificationsRepository.Default),
   Layer.provide(DiscordOAuth.Default),
   Layer.provide(FetchHttpClient.layer),
 );

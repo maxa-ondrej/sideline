@@ -5,6 +5,8 @@ import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
@@ -14,6 +16,7 @@ import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
@@ -331,6 +334,42 @@ const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
   getMemberCount: () => Effect.succeed(0),
 });
 
+const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
+  findByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  updateRule: () => Effect.die(new Error('Not implemented')),
+  deleteRule: () => Effect.void,
+  findAllTeamsWithRules: () => Effect.succeed([]),
+  findMembersWithBirthYears: () => Effect.succeed([]),
+  findRulesByTeamId: () => Effect.succeed([]),
+  findRuleById: () => Effect.succeed(Option.none()),
+  insertRule: () => Effect.die(new Error('Not implemented')),
+  updateRuleById: () => Effect.die(new Error('Not implemented')),
+  deleteRuleById: () => Effect.void,
+  getAllTeamsWithRules: () => Effect.succeed([]),
+  getMembersWithBirthYears: () => Effect.succeed([]),
+} as unknown as AgeThresholdRepository);
+
+const MockNotificationsRepositoryLayer = Layer.succeed(NotificationsRepository, {
+  findByUserId: () => Effect.succeed([]),
+  insertOne: () => Effect.die(new Error('Not implemented')),
+  markOneAsRead: () => Effect.void,
+  markAllRead: () => Effect.void,
+  findOneById: () => Effect.succeed(Option.none()),
+  findByUser: () => Effect.succeed([]),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertBulk: () => Effect.void,
+  markAsRead: () => Effect.void,
+  markAllAsRead: () => Effect.void,
+  findById: () => Effect.succeed(Option.none()),
+} as unknown as NotificationsRepository);
+
+const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
+  evaluateTeam: () => Effect.succeed([]),
+  evaluate: () => Effect.succeed([]),
+} as unknown as AgeCheckService);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -344,6 +383,9 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockSubgroupsRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
+  Layer.provide(MockAgeCheckServiceLayer),
+  Layer.provide(MockAgeThresholdRepositoryLayer),
+  Layer.provide(MockNotificationsRepositoryLayer),
 );
 
 let handler: (request: Request) => Promise<Response>;

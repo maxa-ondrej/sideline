@@ -3,6 +3,7 @@ import { Auth, RoleApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
@@ -12,7 +13,8 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('roles', () => RolesRepository),
-    Effect.map(({ members, roles }) =>
+    Effect.bind('notifications', () => NotificationsRepository),
+    Effect.map(({ members, roles, notifications }) =>
       handlers
         .handle('listRoles', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -214,6 +216,20 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(() =>
               members.assignRole(memberId, payload.roleId).pipe(Effect.mapError(() => forbidden)),
             ),
+            Effect.tap(({ targetMember, role }) =>
+              notifications
+                .insert(
+                  teamId,
+                  targetMember.user_id,
+                  'role_assigned',
+                  `Role "${role.name}" assigned`,
+                  `You have been assigned the "${role.name}" role.`,
+                )
+                .pipe(
+                  Effect.tapError((e) => Effect.logWarning('Failed to create notification', e)),
+                  Effect.catchAll(() => Effect.void),
+                ),
+            ),
             Effect.asVoid,
           ),
         )
@@ -251,6 +267,20 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.tap(() =>
               members.unassignRole(memberId, roleId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ targetMember, role }) =>
+              notifications
+                .insert(
+                  teamId,
+                  targetMember.user_id,
+                  'role_removed',
+                  `Role "${role.name}" removed`,
+                  `You have been removed from the "${role.name}" role.`,
+                )
+                .pipe(
+                  Effect.tapError((e) => Effect.logWarning('Failed to create notification', e)),
+                  Effect.catchAll(() => Effect.void),
+                ),
             ),
             Effect.asVoid,
           ),
