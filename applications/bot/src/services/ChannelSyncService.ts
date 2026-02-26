@@ -190,10 +190,10 @@ const makeChannelSyncService = Effect.Do.pipe(
         );
       },
   ),
-  Effect.tap(() => Effect.log('ChannelSyncService initialized, starting poll loop')),
+  Effect.tap(() => Effect.logDebug('ChannelSyncService initialized')),
   Effect.let('processTick', ({ rpc, processEvent }) =>
     rpc.GetUnprocessedChannelEvents({ limit: POLL_BATCH_SIZE }).pipe(
-      Effect.tap((events) => Effect.log(`Channel sync poll: ${events.length} event(s)`)),
+      Effect.tap((events) => Effect.logDebug(`Channel sync poll: ${events.length} event(s)`)),
       Effect.flatMap((events) =>
         events.length === 0
           ? Effect.void
