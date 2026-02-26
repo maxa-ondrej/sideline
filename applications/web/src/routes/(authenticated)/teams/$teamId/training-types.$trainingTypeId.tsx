@@ -39,6 +39,7 @@ function TrainingTypeDetailRoute() {
       trainingTypeId={trainingTypeIdRaw}
       trainingTypeDetail={trainingTypeDetail}
       allMembers={allMembers}
+      canAdmin={trainingTypeDetail.canAdmin}
     />
   );
 }

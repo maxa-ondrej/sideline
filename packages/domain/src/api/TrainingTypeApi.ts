@@ -16,6 +16,7 @@ export class TrainingTypeDetail extends Schema.Class<TrainingTypeDetail>('Traini
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
+  canAdmin: Schema.Boolean,
   coaches: Schema.Array(
     Schema.Struct({
       memberId: TeamMemberId,
@@ -23,6 +24,13 @@ export class TrainingTypeDetail extends Schema.Class<TrainingTypeDetail>('Traini
       discordUsername: Schema.String,
     }),
   ),
+}) {}
+
+export class TrainingTypeListResponse extends Schema.Class<TrainingTypeListResponse>(
+  'TrainingTypeListResponse',
+)({
+  canAdmin: Schema.Boolean,
+  trainingTypes: Schema.Array(TrainingTypeInfo),
 }) {}
 
 export class CreateTrainingTypeRequest extends Schema.Class<CreateTrainingTypeRequest>(
@@ -64,7 +72,7 @@ export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
 export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
   .add(
     HttpApiEndpoint.get('listTrainingTypes', '/teams/:teamId/training-types')
-      .addSuccess(Schema.Array(TrainingTypeInfo))
+      .addSuccess(TrainingTypeListResponse)
       .addError(Forbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .middleware(AuthMiddleware),

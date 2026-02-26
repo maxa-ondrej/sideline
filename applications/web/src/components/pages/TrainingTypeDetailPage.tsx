@@ -21,6 +21,7 @@ interface TrainingTypeDetailPageProps {
   trainingTypeId: string;
   trainingTypeDetail: TrainingTypeApi.TrainingTypeDetail;
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
+  canAdmin: boolean;
 }
 
 export function TrainingTypeDetailPage({
@@ -28,6 +29,7 @@ export function TrainingTypeDetailPage({
   trainingTypeId,
   trainingTypeDetail,
   allMembers,
+  canAdmin,
 }: TrainingTypeDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -151,23 +153,25 @@ export function TrainingTypeDetailPage({
         {/* Coaches */}
         <div>
           <p className='text-sm font-medium mb-2'>{m.trainingType_coaches()}</p>
-          <div className='flex gap-2 mb-4'>
-            <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-              <SelectTrigger className='flex-1'>
-                <SelectValue placeholder={m.trainingType_addCoach()} />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMembers.map((member) => (
-                  <SelectItem key={member.memberId} value={member.memberId}>
-                    {member.name ?? member.discordUsername}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleAddCoach} disabled={!selectedMemberId}>
-              {m.trainingType_addCoach()}
-            </Button>
-          </div>
+          {canAdmin && (
+            <div className='flex gap-2 mb-4'>
+              <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+                <SelectTrigger className='flex-1'>
+                  <SelectValue placeholder={m.trainingType_addCoach()} />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMembers.map((member) => (
+                    <SelectItem key={member.memberId} value={member.memberId}>
+                      {member.name ?? member.discordUsername}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleAddCoach} disabled={!selectedMemberId}>
+                {m.trainingType_addCoach()}
+              </Button>
+            </div>
+          )}
 
           {trainingTypeDetail.coaches.length === 0 ? (
             <p className='text-muted-foreground'>{m.members_noPlayers()}</p>
@@ -177,15 +181,17 @@ export function TrainingTypeDetailPage({
                 {trainingTypeDetail.coaches.map((coach) => (
                   <tr key={coach.memberId} className='border-b'>
                     <td className='py-2 px-4'>{coach.name ?? coach.discordUsername}</td>
-                    <td className='py-2 px-4'>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        onClick={() => handleRemoveCoach(coach.memberId)}
-                      >
-                        {m.trainingType_removeCoach()}
-                      </Button>
-                    </td>
+                    {canAdmin && (
+                      <td className='py-2 px-4'>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => handleRemoveCoach(coach.memberId)}
+                        >
+                          {m.trainingType_removeCoach()}
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -194,11 +200,13 @@ export function TrainingTypeDetailPage({
         </div>
 
         {/* Delete */}
-        <div>
-          <Button variant='destructive' onClick={handleDelete}>
-            {m.trainingType_deleteTrainingType()}
-          </Button>
-        </div>
+        {canAdmin && (
+          <div>
+            <Button variant='destructive' onClick={handleDelete}>
+              {m.trainingType_deleteTrainingType()}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

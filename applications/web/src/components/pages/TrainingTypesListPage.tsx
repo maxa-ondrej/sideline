@@ -26,9 +26,14 @@ type CreateTrainingTypeValues = Schema.Schema.Type<typeof CreateTrainingTypeSche
 interface TrainingTypesListPageProps {
   teamId: string;
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
+  canAdmin: boolean;
 }
 
-export function TrainingTypesListPage({ teamId, trainingTypes }: TrainingTypesListPageProps) {
+export function TrainingTypesListPage({
+  teamId,
+  trainingTypes,
+  canAdmin,
+}: TrainingTypesListPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
@@ -67,25 +72,27 @@ export function TrainingTypesListPage({ teamId, trainingTypes }: TrainingTypesLi
         <h1 className='text-2xl font-bold'>{m.trainingType_trainingTypes()}</h1>
       </header>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
-          <FormField
-            {...form.register('name')}
-            render={({ field }) => (
-              <FormItem className='flex-1'>
-                <FormLabel>{m.trainingType_name()}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={m.trainingType_namePlaceholder()} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
-            {m.trainingType_createTrainingType()}
-          </Button>
-        </form>
-      </Form>
+      {canAdmin && (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
+            <FormField
+              {...form.register('name')}
+              render={({ field }) => (
+                <FormItem className='flex-1'>
+                  <FormLabel>{m.trainingType_name()}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={m.trainingType_namePlaceholder()} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
+              {m.trainingType_createTrainingType()}
+            </Button>
+          </form>
+        </Form>
+      )}
 
       {trainingTypes.length === 0 ? (
         <p className='text-muted-foreground'>{m.trainingType_noTrainingTypes()}</p>
