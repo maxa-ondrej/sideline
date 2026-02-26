@@ -13,5 +13,6 @@ export class DiscordChannelMapping extends Model.Class<DiscordChannelMapping>(
   team_id: TeamId,
   subgroup_id: SubgroupId,
   discord_channel_id: Schema.String,
+  discord_role_id: Schema.NullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

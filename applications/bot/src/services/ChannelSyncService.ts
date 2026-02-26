@@ -24,38 +24,78 @@ const makeChannelSyncService = Effect.Do.pipe(
             rpc.GetMappingForSubgroup({ team_id: teamId, subgroup_id: subgroupId }),
           ),
           Effect.flatMap(({ existing }) => {
-            if (existing !== null) {
-              return Effect.succeed(existing.discord_channel_id);
+            if (existing !== null && existing.discord_role_id !== null) {
+              return Effect.succeed({
+                discord_channel_id: existing.discord_channel_id,
+                discord_role_id: existing.discord_role_id,
+              });
             }
-            return rest
-              .createGuildChannel(guildId, {
-                name: subgroupName ?? 'subgroup',
-                type: 0,
-                permission_overwrites: [
-                  {
-                    id: guildId,
+            const channelName = subgroupName ?? 'subgroup';
+            return Effect.Do.pipe(
+              // Create the channel (deny @everyone by default)
+              Effect.bind('channel', () =>
+                rest
+                  .createGuildChannel(guildId, {
+                    name: channelName,
                     type: 0,
-                    deny: ALLOW_BITS,
-                  },
-                ],
-              })
-              .pipe(
-                Effect.retry(retryPolicy),
-                Effect.tap((created) =>
-                  Effect.log(
-                    `Auto-created Discord channel "${subgroupName}" (${created.id}) in guild ${guildId}`,
+                    permission_overwrites: [
+                      {
+                        id: guildId,
+                        type: 0,
+                        deny: ALLOW_BITS,
+                      },
+                    ],
+                  })
+                  .pipe(
+                    Effect.retry(retryPolicy),
+                    Effect.tap((created) =>
+                      Effect.log(
+                        `Auto-created Discord channel "${channelName}" (${created.id}) in guild ${guildId}`,
+                      ),
+                    ),
+                  ),
+              ),
+              // Create a role for this channel
+              Effect.bind('role', () =>
+                rest.createGuildRole(guildId, { name: channelName }).pipe(
+                  Effect.retry(retryPolicy),
+                  Effect.tap((created) =>
+                    Effect.log(
+                      `Auto-created Discord role "${channelName}" (${created.id}) in guild ${guildId}`,
+                    ),
                   ),
                 ),
-                Effect.flatMap((created) =>
-                  rpc
-                    .UpsertChannelMapping({
-                      team_id: teamId,
-                      subgroup_id: subgroupId,
-                      discord_channel_id: created.id,
-                    })
-                    .pipe(Effect.map(() => created.id)),
-                ),
-              );
+              ),
+              // Set the role as a permission overwrite on the channel
+              Effect.tap(({ channel, role }) =>
+                rest
+                  .setChannelPermissionOverwrite(channel.id, role.id, {
+                    type: 0,
+                    allow: ALLOW_BITS,
+                  })
+                  .pipe(
+                    Effect.retry(retryPolicy),
+                    Effect.tap(() =>
+                      Effect.log(
+                        `Set role ${role.id} permission overwrite on channel ${channel.id}`,
+                      ),
+                    ),
+                  ),
+              ),
+              // Persist the mapping
+              Effect.tap(({ channel, role }) =>
+                rpc.UpsertChannelMapping({
+                  team_id: teamId,
+                  subgroup_id: subgroupId,
+                  discord_channel_id: channel.id,
+                  discord_role_id: role.id,
+                }),
+              ),
+              Effect.map(({ channel, role }) => ({
+                discord_channel_id: channel.id,
+                discord_role_id: role.id,
+              })),
+            );
           }),
         ),
   ),
@@ -72,9 +112,9 @@ const makeChannelSyncService = Effect.Do.pipe(
                 event.guild_id,
                 event.subgroup_name,
               ).pipe(
-                Effect.tap((discordChannelId) =>
+                Effect.tap(({ discord_channel_id }) =>
                   Effect.log(
-                    `Synced channel_created: subgroup ${event.subgroup_id} → Discord channel ${discordChannelId} in guild ${event.guild_id}`,
+                    `Synced channel_created: subgroup ${event.subgroup_id} → Discord channel ${discord_channel_id} in guild ${event.guild_id}`,
                   ),
                 ),
                 Effect.asVoid,
@@ -93,19 +133,40 @@ const makeChannelSyncService = Effect.Do.pipe(
                         `No mapping found for subgroup ${event.subgroup_id} in guild ${event.guild_id}, skipping delete`,
                       );
                     }
-                    return rest.deleteChannel(mapping.discord_channel_id).pipe(
-                      Effect.retry(retryPolicy),
+                    return Effect.Do.pipe(
+                      // Delete the role (if it exists)
+                      Effect.tap(() => {
+                        if (mapping.discord_role_id === null) {
+                          return Effect.void;
+                        }
+                        return rest.deleteGuildRole(event.guild_id, mapping.discord_role_id).pipe(
+                          Effect.retry(retryPolicy),
+                          Effect.tap(() =>
+                            Effect.log(
+                              `Deleted Discord role ${mapping.discord_role_id} in guild ${event.guild_id}`,
+                            ),
+                          ),
+                        );
+                      }),
+                      // Delete the channel
                       Effect.tap(() =>
-                        Effect.log(
-                          `Deleted Discord channel ${mapping.discord_channel_id} in guild ${event.guild_id}`,
+                        rest.deleteChannel(mapping.discord_channel_id).pipe(
+                          Effect.retry(retryPolicy),
+                          Effect.tap(() =>
+                            Effect.log(
+                              `Deleted Discord channel ${mapping.discord_channel_id} in guild ${event.guild_id}`,
+                            ),
+                          ),
                         ),
                       ),
-                      Effect.flatMap(() =>
+                      // Delete the mapping
+                      Effect.tap(() =>
                         rpc.DeleteChannelMapping({
                           team_id: event.team_id,
                           subgroup_id: event.subgroup_id,
                         }),
                       ),
+                      Effect.asVoid,
                     );
                   }),
                 );
@@ -123,20 +184,15 @@ const makeChannelSyncService = Effect.Do.pipe(
                 event.guild_id,
                 event.subgroup_name,
               ).pipe(
-                Effect.flatMap((discordChannelId) =>
-                  rest
-                    .setChannelPermissionOverwrite(discordChannelId, addUserId, {
-                      type: 1,
-                      allow: ALLOW_BITS,
-                    })
-                    .pipe(
-                      Effect.retry(retryPolicy),
-                      Effect.tap(() =>
-                        Effect.log(
-                          `Granted channel access to user ${addUserId} in channel ${discordChannelId}`,
-                        ),
+                Effect.flatMap(({ discord_role_id }) =>
+                  rest.addGuildMemberRole(event.guild_id, addUserId, discord_role_id).pipe(
+                    Effect.retry(retryPolicy),
+                    Effect.tap(() =>
+                      Effect.log(
+                        `Assigned role ${discord_role_id} to user ${addUserId} in guild ${event.guild_id}`,
                       ),
                     ),
+                  ),
                 ),
               );
             }
@@ -155,18 +211,18 @@ const makeChannelSyncService = Effect.Do.pipe(
                 })
                 .pipe(
                   Effect.flatMap((mapping) => {
-                    if (mapping === null) {
+                    if (mapping === null || mapping.discord_role_id === null) {
                       return Effect.log(
                         `No mapping found for subgroup ${event.subgroup_id}, skipping member_removed`,
                       );
                     }
                     return rest
-                      .deleteChannelPermissionOverwrite(mapping.discord_channel_id, removeUserId)
+                      .deleteGuildMemberRole(event.guild_id, removeUserId, mapping.discord_role_id)
                       .pipe(
                         Effect.retry(retryPolicy),
                         Effect.tap(() =>
                           Effect.log(
-                            `Revoked channel access from user ${removeUserId} in channel ${mapping.discord_channel_id}`,
+                            `Removed role ${mapping.discord_role_id} from user ${removeUserId} in guild ${event.guild_id}`,
                           ),
                         ),
                       );

@@ -12,6 +12,7 @@ class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
   team_id: TeamNS.TeamId,
   subgroup_id: SubgroupModelNS.SubgroupId,
   discord_channel_id: Schema.String,
+  discord_role_id: Schema.NullOr(Schema.String),
 }) {}
 
 class FindBySubgroupInput extends Schema.Class<FindBySubgroupInput>('FindBySubgroupInput')({
@@ -23,6 +24,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   team_id: Schema.String,
   subgroup_id: Schema.String,
   discord_channel_id: Schema.String,
+  discord_role_id: Schema.String,
 }) {}
 
 class DeleteBySubgroupInput extends Schema.Class<DeleteBySubgroupInput>('DeleteBySubgroupInput')({
@@ -40,7 +42,7 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
           Request: FindBySubgroupInput,
           Result: MappingRow,
           execute: (input) => sql`
-            SELECT id, team_id, subgroup_id, discord_channel_id
+            SELECT id, team_id, subgroup_id, discord_channel_id, discord_role_id
             FROM discord_channel_mappings
             WHERE team_id = ${input.team_id} AND subgroup_id = ${input.subgroup_id}
           `,
@@ -50,9 +52,9 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
         SqlSchema.void({
           Request: InsertInput,
           execute: (input) => sql`
-            INSERT INTO discord_channel_mappings (team_id, subgroup_id, discord_channel_id)
-            VALUES (${input.team_id}, ${input.subgroup_id}, ${input.discord_channel_id})
-            ON CONFLICT (team_id, subgroup_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}
+            INSERT INTO discord_channel_mappings (team_id, subgroup_id, discord_channel_id, discord_role_id)
+            VALUES (${input.team_id}, ${input.subgroup_id}, ${input.discord_channel_id}, ${input.discord_role_id})
+            ON CONFLICT (team_id, subgroup_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}, discord_role_id = ${input.discord_role_id}
           `,
         }),
       ),
@@ -73,11 +75,17 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
     return this.findBySubgroup({ team_id: teamId, subgroup_id: subgroupId });
   }
 
-  insert(teamId: TeamNS.TeamId, subgroupId: SubgroupModelNS.SubgroupId, discordChannelId: string) {
+  insert(
+    teamId: TeamNS.TeamId,
+    subgroupId: SubgroupModelNS.SubgroupId,
+    discordChannelId: string,
+    discordRoleId: string,
+  ) {
     return this.insertMapping({
       team_id: teamId,
       subgroup_id: subgroupId,
       discord_channel_id: discordChannelId,
+      discord_role_id: discordRoleId,
     });
   }
 

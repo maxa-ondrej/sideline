@@ -149,6 +149,7 @@ export const RoleSyncRpcLive = RoleSyncRpc.RoleSyncRpcs.toLayer(
                     team_id: m.team_id,
                     subgroup_id: m.subgroup_id,
                     discord_channel_id: m.discord_channel_id,
+                    discord_role_id: m.discord_role_id,
                   }),
               }),
             ),
@@ -159,16 +160,19 @@ export const RoleSyncRpcLive = RoleSyncRpc.RoleSyncRpcs.toLayer(
         team_id,
         subgroup_id,
         discord_channel_id,
+        discord_role_id,
       }: {
         readonly team_id: string;
         readonly subgroup_id: string;
         readonly discord_channel_id: string;
+        readonly discord_role_id: string;
       }) =>
         channelMappings
           .insert(
             team_id as TeamNS.TeamId,
             subgroup_id as SubgroupModelNS.SubgroupId,
             discord_channel_id,
+            discord_role_id,
           )
           .pipe(Effect.catchAll(() => Effect.void)),
 
