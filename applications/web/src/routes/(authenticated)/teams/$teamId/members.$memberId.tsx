@@ -53,8 +53,6 @@ function MemberDetailRoute() {
               birthYear: values.birthYear,
               gender: values.gender,
               jerseyNumber: values.jerseyNumber,
-              position: values.position,
-              proficiency: values.proficiency,
             },
           }),
         ),

@@ -35,9 +35,6 @@ const makeTestUser = (overrides?: Record<string, unknown>) => ({
   name: null,
   birth_year: null,
   gender: null,
-  jersey_number: null,
-  position: null,
-  proficiency: null,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -78,9 +75,6 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
       name: input.name,
       birth_year: input.birth_year,
       gender: input.gender,
-      jersey_number: input.jersey_number,
-      position: input.position,
-      proficiency: input.proficiency,
       is_profile_complete: true,
     });
     return Effect.succeed(testUser);
@@ -94,9 +88,6 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
       name: input.name,
       birth_year: input.birth_year,
       gender: input.gender,
-      jersey_number: input.jersey_number,
-      position: input.position,
-      proficiency: input.proficiency,
     });
     return Effect.succeed(testUser);
   },
@@ -144,6 +135,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id,
       user_id: input.user_id,
       active: true,
+      jersey_number: null,
       joined_at: DateTime.unsafeNow(),
     }),
   findMembership: () => Effect.succeed(Option.none()),
@@ -161,6 +153,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   unassignRoleFromMember: () => Effect.void,
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
+  updateJerseyNumber: () => Effect.void,
+  setJerseyNumber: () => Effect.void,
 });
 
 const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
@@ -374,8 +368,6 @@ describe('Profile Completion API', () => {
           name: 'Test User',
           birthYear: 1995,
           gender: 'male',
-          position: 'midfielder',
-          proficiency: 'intermediate',
         }),
       }),
     );
@@ -394,8 +386,6 @@ describe('Profile Completion API', () => {
           name: 'Test User',
           birthYear: 1995,
           gender: 'male',
-          position: 'midfielder',
-          proficiency: 'intermediate',
         }),
       }),
     );
@@ -404,13 +394,10 @@ describe('Profile Completion API', () => {
     expect(body.name).toBe('Test User');
     expect(body.birthYear).toBe(1995);
     expect(body.gender).toBe('male');
-    expect(body.position).toBe('midfielder');
-    expect(body.proficiency).toBe('intermediate');
     expect(body.isProfileComplete).toBe(true);
-    expect(body.jerseyNumber).toBeNull();
   });
 
-  it('POST /auth/profile with jersey number includes it', async () => {
+  it('POST /auth/profile with different gender succeeds', async () => {
     const response = await handler(
       new Request('http://localhost/auth/profile', {
         method: 'POST',
@@ -422,18 +409,12 @@ describe('Profile Completion API', () => {
           name: 'Test User',
           birthYear: 1995,
           gender: 'female',
-          jerseyNumber: 10,
-          position: 'forward',
-          proficiency: 'advanced',
         }),
       }),
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.jerseyNumber).toBe(10);
     expect(body.gender).toBe('female');
-    expect(body.position).toBe('forward');
-    expect(body.proficiency).toBe('advanced');
   });
 
   it('POST /auth/profile with invalid gender returns 400', async () => {
@@ -448,28 +429,6 @@ describe('Profile Completion API', () => {
           name: 'Test User',
           birthYear: 1995,
           gender: 'invalid',
-          position: 'midfielder',
-          proficiency: 'intermediate',
-        }),
-      }),
-    );
-    expect(response.status).toBe(400);
-  });
-
-  it('POST /auth/profile with invalid position returns 400', async () => {
-    const response = await handler(
-      new Request('http://localhost/auth/profile', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer user-token',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'Test User',
-          birthYear: 1995,
-          gender: 'male',
-          position: 'striker',
-          proficiency: 'intermediate',
         }),
       }),
     );
@@ -488,8 +447,6 @@ describe('Profile Completion API', () => {
           name: 'Test User',
           birthYear: 1800,
           gender: 'male',
-          position: 'midfielder',
-          proficiency: 'intermediate',
         }),
       }),
     );
@@ -507,9 +464,6 @@ describe('Profile Update API (PATCH /auth/me)', () => {
           name: 'Updated Name',
           birthYear: 1995,
           gender: 'male',
-          jerseyNumber: 7,
-          position: 'forward',
-          proficiency: 'advanced',
         }),
       }),
     );
@@ -528,9 +482,6 @@ describe('Profile Update API (PATCH /auth/me)', () => {
           name: 'Updated Name',
           birthYear: 1990,
           gender: 'female',
-          jerseyNumber: 10,
-          position: 'forward',
-          proficiency: 'advanced',
         }),
       }),
     );
@@ -539,9 +490,6 @@ describe('Profile Update API (PATCH /auth/me)', () => {
     expect(body.name).toBe('Updated Name');
     expect(body.birthYear).toBe(1990);
     expect(body.gender).toBe('female');
-    expect(body.jerseyNumber).toBe(10);
-    expect(body.position).toBe('forward');
-    expect(body.proficiency).toBe('advanced');
   });
 
   it('PATCH /auth/me with null fields clears values', async () => {
@@ -556,9 +504,6 @@ describe('Profile Update API (PATCH /auth/me)', () => {
           name: null,
           birthYear: null,
           gender: null,
-          jerseyNumber: null,
-          position: null,
-          proficiency: null,
         }),
       }),
     );
@@ -567,8 +512,5 @@ describe('Profile Update API (PATCH /auth/me)', () => {
     expect(body.name).toBeNull();
     expect(body.birthYear).toBeNull();
     expect(body.gender).toBeNull();
-    expect(body.jerseyNumber).toBeNull();
-    expect(body.position).toBeNull();
-    expect(body.proficiency).toBeNull();
   });
 });

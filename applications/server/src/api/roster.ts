@@ -29,8 +29,6 @@ const toRosterPlayer = (entry: RosterEntry) =>
     birthYear: entry.birth_year,
     gender: entry.gender,
     jerseyNumber: entry.jersey_number,
-    position: entry.position,
-    proficiency: entry.proficiency,
     discordUsername: entry.discord_username,
     discordAvatar: entry.discord_avatar,
   });
@@ -117,10 +115,12 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   name: payload.name,
                   birth_year: payload.birthYear,
                   gender: payload.gender,
-                  jersey_number: payload.jerseyNumber,
-                  position: payload.position,
-                  proficiency: payload.proficiency,
                 })
+                .pipe(mapDbError(() => new Roster.Forbidden())),
+            ),
+            Effect.tap(({ entry }) =>
+              members
+                .setJerseyNumber(entry.member_id, payload.jerseyNumber)
                 .pipe(mapDbError(() => new Roster.Forbidden())),
             ),
             Effect.map(
@@ -133,9 +133,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   name: updated.name,
                   birthYear: updated.birth_year,
                   gender: updated.gender,
-                  jerseyNumber: updated.jersey_number,
-                  position: updated.position,
-                  proficiency: updated.proficiency,
+                  jerseyNumber: payload.jerseyNumber,
                   discordUsername: entry.discord_username,
                   discordAvatar: entry.discord_avatar,
                 }),

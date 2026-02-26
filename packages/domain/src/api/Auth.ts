@@ -8,7 +8,7 @@ import {
 import { Context, Schema } from 'effect';
 import { Permission } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
-import { Gender, Locale, Position, Proficiency, UserId } from '~/models/User.js';
+import { Gender, Locale, UserId } from '~/models/User.js';
 
 export { UserId } from '~/models/User.js';
 
@@ -30,9 +30,6 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   name: Schema.NullOr(Schema.String),
   birthYear: Schema.NullOr(Schema.Number),
   gender: Schema.NullOr(Gender),
-  jerseyNumber: Schema.NullOr(Schema.Number),
-  position: Schema.NullOr(Position),
-  proficiency: Schema.NullOr(Proficiency),
   locale: Locale,
 }) {}
 
@@ -56,11 +53,6 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
     }),
   ),
   gender: Gender,
-  jerseyNumber: Schema.optionalWith(Schema.Number.pipe(Schema.int(), Schema.between(0, 99)), {
-    as: 'Option',
-  }),
-  position: Position,
-  proficiency: Proficiency,
 }) {}
 
 export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
@@ -77,9 +69,6 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
     ),
   ),
   gender: Schema.NullOr(Gender),
-  jerseyNumber: Schema.NullOr(Schema.Number.pipe(Schema.int(), Schema.between(0, 99))),
-  position: Schema.NullOr(Position),
-  proficiency: Schema.NullOr(Proficiency),
 }) {}
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(

@@ -117,8 +117,8 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
                        WHERE sgm.team_member_id = tm.id
                      ) all_perms), ''
                    ) AS permissions,
-                   u.name, u.birth_year, u.gender, u.jersey_number, u.position,
-                   u.proficiency, u.discord_username, u.discord_avatar
+                   u.name, u.birth_year, u.gender, tm.jersey_number,
+                   u.discord_username, u.discord_avatar
             FROM roster_members rmb
             JOIN team_members tm ON tm.id = rmb.team_member_id
             JOIN users u ON u.id = tm.user_id

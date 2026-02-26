@@ -27,7 +27,6 @@ export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: 
         ) : null}
         {displayName}
       </td>
-      <td className='py-2 px-4'>{player.position ?? '—'}</td>
       <td className='py-2 px-4'>
         {player.jerseyNumber !== null ? `#${player.jerseyNumber}` : '—'}
       </td>

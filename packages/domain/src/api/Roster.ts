@@ -5,7 +5,7 @@ import { Permission } from '~/models/Role.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
-import { Gender, Position, Proficiency, UserId } from '~/models/User.js';
+import { Gender, UserId } from '~/models/User.js';
 
 export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   memberId: TeamMemberId,
@@ -16,8 +16,6 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   birthYear: Schema.NullOr(Schema.Number),
   gender: Schema.NullOr(Gender),
   jerseyNumber: Schema.NullOr(Schema.Number),
-  position: Schema.NullOr(Position),
-  proficiency: Schema.NullOr(Proficiency),
   discordUsername: Schema.String,
   discordAvatar: Schema.NullOr(Schema.String),
 }) {}
@@ -27,8 +25,6 @@ export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('Upda
   birthYear: Schema.NullOr(Schema.Number),
   gender: Schema.NullOr(Gender),
   jerseyNumber: Schema.NullOr(Schema.Number),
-  position: Schema.NullOr(Position),
-  proficiency: Schema.NullOr(Proficiency),
 }) {}
 
 export class PlayerNotFound extends Schema.TaggedError<PlayerNotFound>()(

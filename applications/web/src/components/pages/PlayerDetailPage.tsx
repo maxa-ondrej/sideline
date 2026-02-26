@@ -28,8 +28,6 @@ const PlayerEditSchema = Schema.Struct({
   birthYear: Schema.NullOr(Schema.NumberFromString),
   gender: Schema.NullOr(Schema.Literal('male', 'female', 'other')),
   jerseyNumber: Schema.NullOr(Schema.NumberFromString.pipe(Schema.int(), Schema.between(0, 99))),
-  position: Schema.NullOr(Schema.Literal('goalkeeper', 'defender', 'midfielder', 'forward')),
-  proficiency: Schema.NullOr(Schema.Literal('beginner', 'intermediate', 'advanced', 'pro')),
 });
 
 export type PlayerEditValues = Schema.Schema.Type<typeof PlayerEditSchema>;
@@ -63,8 +61,6 @@ export function PlayerDetailPage({
       birthYear: player.birthYear !== null ? String(player.birthYear) : null,
       gender: player.gender,
       jerseyNumber: player.jerseyNumber !== null ? String(player.jerseyNumber) : null,
-      position: player.position,
-      proficiency: player.proficiency,
     },
   });
 
@@ -148,64 +144,6 @@ export function PlayerDetailPage({
                 </FormItem>
               )}
             />
-            <FormField
-              {...form.register('position')}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{m.profile_complete_position()}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                    <FormControl>
-                      <SelectTrigger className='w-full'>
-                        <SelectValue placeholder={m.profile_complete_positionPlaceholder()} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='goalkeeper'>
-                        {m.profile_complete_positionGoalkeeper()}
-                      </SelectItem>
-                      <SelectItem value='defender'>
-                        {m.profile_complete_positionDefender()}
-                      </SelectItem>
-                      <SelectItem value='midfielder'>
-                        {m.profile_complete_positionMidfielder()}
-                      </SelectItem>
-                      <SelectItem value='forward'>
-                        {m.profile_complete_positionForward()}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              {...form.register('proficiency')}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{m.profile_complete_proficiency()}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                    <FormControl>
-                      <SelectTrigger className='w-full'>
-                        <SelectValue placeholder={m.profile_complete_proficiencyPlaceholder()} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='beginner'>
-                        {m.profile_complete_proficiencyBeginner()}
-                      </SelectItem>
-                      <SelectItem value='intermediate'>
-                        {m.profile_complete_proficiencyIntermediate()}
-                      </SelectItem>
-                      <SelectItem value='advanced'>
-                        {m.profile_complete_proficiencyAdvanced()}
-                      </SelectItem>
-                      <SelectItem value='pro'>{m.profile_complete_proficiencyPro()}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <Button type='submit' disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? m.members_saving() : m.members_saveChanges()}
             </Button>
@@ -213,12 +151,6 @@ export function PlayerDetailPage({
         </Form>
       ) : (
         <div className='flex flex-col gap-2'>
-          <p>
-            <strong>{m.profile_complete_position()}:</strong> {player.position ?? '—'}
-          </p>
-          <p>
-            <strong>{m.profile_complete_proficiency()}:</strong> {player.proficiency ?? '—'}
-          </p>
           <p>
             <strong>{m.profile_complete_jerseyNumber()}:</strong>{' '}
             {player.jerseyNumber !== null ? `#${player.jerseyNumber}` : '—'}

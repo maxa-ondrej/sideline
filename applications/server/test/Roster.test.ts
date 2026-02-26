@@ -43,9 +43,6 @@ const testUser = {
   name: null,
   birth_year: null,
   gender: null,
-  jersey_number: null,
-  position: null,
-  proficiency: null,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -62,9 +59,6 @@ const testAdmin = {
   name: 'Admin User',
   birth_year: 1990,
   gender: 'male' as const,
-  jersey_number: 7,
-  position: 'midfielder' as const,
-  proficiency: 'advanced' as const,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -111,9 +105,6 @@ type UserLike = {
   name: string | null;
   birth_year: number | null;
   gender: 'male' | 'female' | 'other' | null;
-  jersey_number: number | null;
-  position: 'goalkeeper' | 'defender' | 'midfielder' | 'forward' | null;
-  proficiency: 'beginner' | 'intermediate' | 'advanced' | 'pro' | null;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -139,9 +130,7 @@ const buildRosterEntry = (
     name: user.name,
     birth_year: user.birth_year,
     gender: user.gender,
-    jersey_number: user.jersey_number,
-    position: user.position,
-    proficiency: user.proficiency,
+    jersey_number: null,
     discord_username: user.discord_username,
     discord_avatar: user.discord_avatar,
   });
@@ -200,9 +189,6 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
       name: input.name,
       birth_year: input.birth_year,
       gender: input.gender,
-      jersey_number: input.jersey_number,
-      position: input.position,
-      proficiency: input.proficiency,
     };
     usersMap.set(input.id, updated);
     return Effect.succeed(updated);
@@ -264,6 +250,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id,
       user_id: input.user_id,
       active: input.active,
+      jersey_number: null,
       joined_at: DateTime.unsafeNow(),
     });
   },
@@ -288,6 +275,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
           team_id: m.team_id,
           user_id: m.user_id,
           active: m.active,
+          jersey_number: null,
           joined_at: DateTime.unsafeNow(),
         })),
     ),
@@ -331,6 +319,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: updated.team_id,
       user_id: updated.user_id,
       active: updated.active,
+      jersey_number: null,
       joined_at: DateTime.unsafeNow(),
     });
   },
@@ -344,6 +333,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: updated.team_id,
       user_id: updated.user_id,
       active: updated.active,
+      jersey_number: null,
       joined_at: DateTime.unsafeNow(),
     });
   },
@@ -353,6 +343,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   unassignRoleFromMember: () => Effect.void,
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
+  updateJerseyNumber: () => Effect.void,
+  setJerseyNumber: () => Effect.void,
 });
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
@@ -723,8 +715,6 @@ describe('Members API', () => {
             birthYear: null,
             gender: null,
             jerseyNumber: null,
-            position: null,
-            proficiency: null,
           }),
         }),
       );
@@ -746,8 +736,6 @@ describe('Members API', () => {
             birthYear: null,
             gender: null,
             jerseyNumber: null,
-            position: null,
-            proficiency: null,
           }),
         }),
       );

@@ -35,15 +35,6 @@ const ProfileEditSchema = Schema.Struct({
   name: Schema.String,
   birthYear: Schema.Union(Schema.NumberFromString, Schema.Literal(NONE_VALUE)),
   gender: Schema.Union(Schema.Literal('male', 'female', 'other'), Schema.Literal(NONE_VALUE)),
-  jerseyNumber: Schema.Union(Schema.NumberFromString, Schema.Literal('')),
-  position: Schema.Union(
-    Schema.Literal('goalkeeper', 'defender', 'midfielder', 'forward'),
-    Schema.Literal(NONE_VALUE),
-  ),
-  proficiency: Schema.Union(
-    Schema.Literal('beginner', 'intermediate', 'advanced', 'pro'),
-    Schema.Literal(NONE_VALUE),
-  ),
 });
 
 type ProfileEditValues = Schema.Schema.Type<typeof ProfileEditSchema>;
@@ -53,20 +44,6 @@ const genderOptions = [
   { value: 'male', label: () => m.profile_complete_genderMale() },
   { value: 'female', label: () => m.profile_complete_genderFemale() },
   { value: 'other', label: () => m.profile_complete_genderOther() },
-] as const;
-
-const positionOptions = [
-  { value: 'goalkeeper', label: () => m.profile_complete_positionGoalkeeper() },
-  { value: 'defender', label: () => m.profile_complete_positionDefender() },
-  { value: 'midfielder', label: () => m.profile_complete_positionMidfielder() },
-  { value: 'forward', label: () => m.profile_complete_positionForward() },
-] as const;
-
-const proficiencyOptions = [
-  { value: 'beginner', label: () => m.profile_complete_proficiencyBeginner() },
-  { value: 'intermediate', label: () => m.profile_complete_proficiencyIntermediate() },
-  { value: 'advanced', label: () => m.profile_complete_proficiencyAdvanced() },
-  { value: 'pro', label: () => m.profile_complete_proficiencyPro() },
 ] as const;
 
 function discordAvatarUrl(discordId: string, avatar: string): string {
@@ -85,9 +62,6 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
     name: user.name ?? '',
     birthYear: user.birthYear != null ? String(user.birthYear) : NONE_VALUE,
     gender: user.gender ?? NONE_VALUE,
-    jerseyNumber: user.jerseyNumber != null ? String(user.jerseyNumber) : '',
-    position: user.position ?? NONE_VALUE,
-    proficiency: user.proficiency ?? NONE_VALUE,
   };
 
   const form = useForm({
@@ -104,9 +78,6 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
             name: values.name,
             birthYear: typeof values.birthYear === 'number' ? values.birthYear : null,
             gender: values.gender === NONE_VALUE ? null : values.gender,
-            jerseyNumber: typeof values.jerseyNumber === 'number' ? values.jerseyNumber : null,
-            position: values.position === NONE_VALUE ? null : values.position,
-            proficiency: values.proficiency === NONE_VALUE ? null : values.proficiency,
           },
         }),
       ),
@@ -203,75 +174,6 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
                   <SelectContent>
                     <SelectItem value={NONE_VALUE}>—</SelectItem>
                     {genderOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            {...form.register('jerseyNumber')}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{m.profile_complete_jerseyNumber()}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    min={0}
-                    max={99}
-                    placeholder={m.profile_complete_jerseyNumberPlaceholder()}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            {...form.register('position')}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{m.profile_complete_position()}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder={m.profile_complete_positionPlaceholder()} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value={NONE_VALUE}>—</SelectItem>
-                    {positionOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            {...form.register('proficiency')}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{m.profile_complete_proficiency()}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder={m.profile_complete_proficiencyPlaceholder()} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value={NONE_VALUE}>—</SelectItem>
-                    {proficiencyOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label()}
                       </SelectItem>

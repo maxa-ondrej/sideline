@@ -41,8 +41,6 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   birth_year: Schema.NullOr(Schema.Number),
   gender: Schema.NullOr(UserNS.Gender),
   jersey_number: Schema.NullOr(Schema.Number),
-  position: Schema.NullOr(UserNS.Position),
-  proficiency: Schema.NullOr(UserNS.Proficiency),
   discord_username: Schema.String,
   discord_avatar: Schema.NullOr(Schema.String),
 }) {}
@@ -158,8 +156,8 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                       FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                       WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
-                   u.name, u.birth_year, u.gender, u.jersey_number, u.position,
-                   u.proficiency, u.discord_username, u.discord_avatar
+                   u.name, u.birth_year, u.gender, tm.jersey_number,
+                   u.discord_username, u.discord_avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ${teamId} AND tm.active = true
@@ -182,8 +180,8 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                       FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                       WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
-                   u.name, u.birth_year, u.gender, u.jersey_number, u.position,
-                   u.proficiency, u.discord_username, u.discord_avatar
+                   u.name, u.birth_year, u.gender, tm.jersey_number,
+                   u.discord_username, u.discord_avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id} AND tm.active = true
@@ -198,6 +196,18 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
             UPDATE team_members SET active = false
             WHERE id = ${input.member_id} AND team_id = ${input.team_id}
             RETURNING *
+          `,
+        }),
+      ),
+      Effect.let('updateJerseyNumber', ({ sql }) =>
+        SqlSchema.void({
+          Request: Schema.Struct({
+            member_id: TeamMemberNS.TeamMemberId,
+            jersey_number: Schema.NullOr(Schema.Number),
+          }),
+          execute: (input) => sql`
+            UPDATE team_members SET jersey_number = ${input.jersey_number}
+            WHERE id = ${input.member_id}
           `,
         }),
       ),
@@ -235,5 +245,9 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
 
   unassignRole(teamMemberId: TeamMemberNS.TeamMemberId, roleId: RoleNS.RoleId) {
     return this.unassignRoleFromMember({ team_member_id: teamMemberId, role_id: roleId });
+  }
+
+  setJerseyNumber(memberId: TeamMemberNS.TeamMemberId, jerseyNumber: number | null) {
+    return this.updateJerseyNumber({ member_id: memberId, jersey_number: jerseyNumber });
   }
 }

@@ -4,13 +4,6 @@ import React from 'react';
 import { PlayerRow } from '~/components/organisms/PlayerRow';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import * as m from '~/paraglide/messages.js';
 
 interface TeamMembersPageProps {
@@ -29,13 +22,10 @@ export function TeamMembersPage({
   onDeactivate,
 }: TeamMembersPageProps) {
   const [search, setSearch] = React.useState('');
-  const [positionFilter, setPositionFilter] = React.useState<string>('all');
 
   const filtered = players.filter((p) => {
     const name = (p.name ?? p.discordUsername).toLowerCase();
-    const matchesSearch = name.includes(search.toLowerCase());
-    const matchesPosition = positionFilter === 'all' || p.position === positionFilter;
-    return matchesSearch && matchesPosition;
+    return name.includes(search.toLowerCase());
   });
 
   return (
@@ -55,18 +45,6 @@ export function TeamMembersPage({
           onChange={(e) => setSearch(e.target.value)}
           className='max-w-xs'
         />
-        <Select value={positionFilter} onValueChange={setPositionFilter}>
-          <SelectTrigger className='w-48'>
-            <SelectValue placeholder={m.members_filterPosition()} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='all'>{m.members_filterPosition()}</SelectItem>
-            <SelectItem value='goalkeeper'>{m.profile_complete_positionGoalkeeper()}</SelectItem>
-            <SelectItem value='defender'>{m.profile_complete_positionDefender()}</SelectItem>
-            <SelectItem value='midfielder'>{m.profile_complete_positionMidfielder()}</SelectItem>
-            <SelectItem value='forward'>{m.profile_complete_positionForward()}</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
       {filtered.length === 0 ? (
         <p className='text-muted-foreground'>{m.members_noPlayers()}</p>
