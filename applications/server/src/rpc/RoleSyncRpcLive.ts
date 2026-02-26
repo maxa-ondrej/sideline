@@ -141,9 +141,8 @@ export const RoleSyncRpcLive = RoleSyncRpc.RoleSyncRpcs.toLayer(
           .findBySubgroupId(team_id as TeamNS.TeamId, subgroup_id as SubgroupModelNS.SubgroupId)
           .pipe(
             Effect.map(
-              Option.match({
-                onNone: () => null,
-                onSome: (m) =>
+              Option.map(
+                (m) =>
                   new RoleSyncRpc.ChannelMapping({
                     id: m.id,
                     team_id: m.team_id,
@@ -151,9 +150,9 @@ export const RoleSyncRpcLive = RoleSyncRpc.RoleSyncRpcs.toLayer(
                     discord_channel_id: m.discord_channel_id,
                     discord_role_id: m.discord_role_id,
                   }),
-              }),
+              ),
             ),
-            Effect.catchAll(() => Effect.succeed(null)),
+            Effect.catchAll(() => Effect.succeed(Option.none())),
           ),
 
       UpsertChannelMapping: ({

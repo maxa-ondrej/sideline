@@ -12,7 +12,7 @@ class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
   team_id: TeamNS.TeamId,
   subgroup_id: SubgroupModelNS.SubgroupId,
   discord_channel_id: Schema.String,
-  discord_role_id: Schema.NullOr(Schema.String),
+  discord_role_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class FindBySubgroupInput extends Schema.Class<FindBySubgroupInput>('FindBySubgroupInput')({

@@ -1,6 +1,6 @@
 import type { RoleSyncRpc } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect, Schedule } from 'effect';
+import { Effect, Option, Schedule } from 'effect';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const POLL_BATCH_SIZE = 50;
@@ -24,11 +24,16 @@ const makeChannelSyncService = Effect.Do.pipe(
             rpc.GetMappingForSubgroup({ team_id: teamId, subgroup_id: subgroupId }),
           ),
           Effect.flatMap(({ existing }) => {
-            if (existing !== null && existing.discord_role_id !== null) {
-              return Effect.succeed({
-                discord_channel_id: existing.discord_channel_id,
-                discord_role_id: existing.discord_role_id,
-              });
+            const cached = existing.pipe(
+              Option.flatMap((e) =>
+                Option.map(e.discord_role_id, (roleId) => ({
+                  discord_channel_id: e.discord_channel_id,
+                  discord_role_id: roleId,
+                })),
+              ),
+            );
+            if (Option.isSome(cached)) {
+              return Effect.succeed(cached.value);
             }
             const channelName = subgroupName ?? 'subgroup';
             return Effect.Do.pipe(
@@ -127,48 +132,51 @@ const makeChannelSyncService = Effect.Do.pipe(
                   subgroup_id: event.subgroup_id,
                 })
                 .pipe(
-                  Effect.flatMap((mapping) => {
-                    if (mapping === null) {
-                      return Effect.log(
-                        `No mapping found for subgroup ${event.subgroup_id} in guild ${event.guild_id}, skipping delete`,
-                      );
-                    }
-                    return Effect.Do.pipe(
-                      // Delete the role (if it exists)
-                      Effect.tap(() => {
-                        if (mapping.discord_role_id === null) {
-                          return Effect.void;
-                        }
-                        return rest.deleteGuildRole(event.guild_id, mapping.discord_role_id).pipe(
-                          Effect.retry(retryPolicy),
-                          Effect.tap(() =>
-                            Effect.log(
-                              `Deleted Discord role ${mapping.discord_role_id} in guild ${event.guild_id}`,
-                            ),
-                          ),
-                        );
-                      }),
-                      // Delete the channel
-                      Effect.tap(() =>
-                        rest.deleteChannel(mapping.discord_channel_id).pipe(
-                          Effect.retry(retryPolicy),
-                          Effect.tap(() =>
-                            Effect.log(
-                              `Deleted Discord channel ${mapping.discord_channel_id} in guild ${event.guild_id}`,
-                            ),
-                          ),
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () =>
+                        Effect.log(
+                          `No mapping found for subgroup ${event.subgroup_id} in guild ${event.guild_id}, skipping delete`,
                         ),
-                      ),
-                      // Delete the mapping
-                      Effect.tap(() =>
-                        rpc.DeleteChannelMapping({
-                          team_id: event.team_id,
-                          subgroup_id: event.subgroup_id,
-                        }),
-                      ),
-                      Effect.asVoid,
-                    );
-                  }),
+                      onSome: (mapping) =>
+                        Effect.Do.pipe(
+                          // Delete the role (if it exists)
+                          Effect.tap(() =>
+                            Option.match(mapping.discord_role_id, {
+                              onNone: () => Effect.void,
+                              onSome: (roleId) =>
+                                rest.deleteGuildRole(event.guild_id, roleId).pipe(
+                                  Effect.retry(retryPolicy),
+                                  Effect.tap(() =>
+                                    Effect.log(
+                                      `Deleted Discord role ${roleId} in guild ${event.guild_id}`,
+                                    ),
+                                  ),
+                                ),
+                            }),
+                          ),
+                          // Delete the channel
+                          Effect.tap(() =>
+                            rest.deleteChannel(mapping.discord_channel_id).pipe(
+                              Effect.retry(retryPolicy),
+                              Effect.tap(() =>
+                                Effect.log(
+                                  `Deleted Discord channel ${mapping.discord_channel_id} in guild ${event.guild_id}`,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Delete the mapping
+                          Effect.tap(() =>
+                            rpc.DeleteChannelMapping({
+                              team_id: event.team_id,
+                              subgroup_id: event.subgroup_id,
+                            }),
+                          ),
+                          Effect.asVoid,
+                        ),
+                    }),
+                  ),
                 );
 
             case 'member_added': {
@@ -210,19 +218,20 @@ const makeChannelSyncService = Effect.Do.pipe(
                   subgroup_id: event.subgroup_id,
                 })
                 .pipe(
-                  Effect.flatMap((mapping) => {
-                    if (mapping === null || mapping.discord_role_id === null) {
+                  Effect.flatMap((mappingOpt) => {
+                    const roleId = mappingOpt.pipe(Option.flatMap((m) => m.discord_role_id));
+                    if (Option.isNone(roleId)) {
                       return Effect.log(
                         `No mapping found for subgroup ${event.subgroup_id}, skipping member_removed`,
                       );
                     }
                     return rest
-                      .deleteGuildMemberRole(event.guild_id, removeUserId, mapping.discord_role_id)
+                      .deleteGuildMemberRole(event.guild_id, removeUserId, roleId.value)
                       .pipe(
                         Effect.retry(retryPolicy),
                         Effect.tap(() =>
                           Effect.log(
-                            `Removed role ${mapping.discord_role_id} from user ${removeUserId} in guild ${event.guild_id}`,
+                            `Removed role ${roleId.value} from user ${removeUserId} in guild ${event.guild_id}`,
                           ),
                         ),
                       );

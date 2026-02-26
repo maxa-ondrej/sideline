@@ -74,7 +74,7 @@ export class ChannelMapping extends Schema.Class<ChannelMapping>('ChannelMapping
   team_id: Schema.String,
   subgroup_id: Schema.String,
   discord_channel_id: Schema.String,
-  discord_role_id: Schema.NullOr(Schema.String),
+  discord_role_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 const GetUnprocessedChannelEvents = Rpc.make('GetUnprocessedChannelEvents', {
@@ -92,7 +92,7 @@ const MarkChannelEventFailed = Rpc.make('MarkChannelEventFailed', {
 
 const GetMappingForSubgroup = Rpc.make('GetMappingForSubgroup', {
   payload: { team_id: Schema.String, subgroup_id: Schema.String },
-  success: Schema.NullOr(ChannelMapping),
+  success: Schema.OptionFromNullOr(ChannelMapping),
 });
 
 const UpsertChannelMapping = Rpc.make('UpsertChannelMapping', {
