@@ -93,7 +93,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   const initials = (user.name ?? user.discordUsername).slice(0, 2).toUpperCase();
 
   return (
-    <div className='p-4 max-w-2xl mx-auto'>
+    <div>
       <header className='mb-8'>
         <div className='flex items-center justify-between mb-2'>
           <Button asChild variant='ghost' size='sm'>

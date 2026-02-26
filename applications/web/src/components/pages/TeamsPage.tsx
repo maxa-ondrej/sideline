@@ -25,7 +25,7 @@ export function TeamsPage({ teams, onCreateTeam }: TeamsPageProps) {
   }, [teamName, onCreateTeam]);
 
   return (
-    <div className='p-4 max-w-2xl mx-auto'>
+    <div>
       <header className='mb-8'>
         <Button asChild variant='ghost' size='sm' className='mb-2'>
           <Link to='/dashboard'>← {m.teams_backToDashboard()}</Link>

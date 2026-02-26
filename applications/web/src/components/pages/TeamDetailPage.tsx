@@ -18,7 +18,7 @@ export function TeamDetailPage({ teamId, team }: TeamDetailPageProps) {
   ] as const;
 
   return (
-    <div className='p-4 max-w-2xl mx-auto'>
+    <div>
       <header className='mb-8'>
         <Button asChild variant='ghost' size='sm' className='mb-2'>
           <Link to='/teams'>← {m.team_backToTeams()}</Link>

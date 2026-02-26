@@ -28,7 +28,7 @@ export function DashboardPage({ user, teams, onLogout, onCreateTeam }: Dashboard
   }, [teamName, onCreateTeam]);
 
   return (
-    <div className='p-4 max-w-2xl mx-auto'>
+    <div>
       <header className='flex items-center justify-between mb-8'>
         <div>
           <h1 className='text-2xl font-bold'>{m.dashboard_title()}</h1>
