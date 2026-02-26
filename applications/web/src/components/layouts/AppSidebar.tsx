@@ -2,6 +2,7 @@ import type { Auth } from '@sideline/domain';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   CalendarDays,
+  Dumbbell,
   Home,
   LayoutDashboard,
   type LucideIcon,
@@ -44,6 +45,12 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
     { title: 'Roles', icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
     { title: 'Rosters', icon: UsersRound, to: '/teams/$teamId/rosters', params: { teamId } },
     { title: 'Subgroups', icon: UserCog, to: '/teams/$teamId/subgroups', params: { teamId } },
+    {
+      title: 'Training Types',
+      icon: Dumbbell,
+      to: '/teams/$teamId/training-types',
+      params: { teamId },
+    },
     {
       title: 'Age Thresholds',
       icon: CalendarDays,

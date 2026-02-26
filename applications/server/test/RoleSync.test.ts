@@ -16,6 +16,7 @@ import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
@@ -432,6 +433,28 @@ const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
   getMemberCount: () => Effect.succeed(0),
 });
 
+const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
+  _tag: 'api/TrainingTypesRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findTrainingTypesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findTrainingTypeById: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertTrainingType: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateTrainingType: () => Effect.die(new Error('Not implemented')),
+  deleteTrainingType: () => Effect.void,
+  deleteTrainingTypeById: () => Effect.void,
+  findCoaches: () => Effect.succeed([]),
+  findCoachesByTrainingTypeId: () => Effect.succeed([]),
+  addCoach: () => Effect.void,
+  addCoachById: () => Effect.void,
+  removeCoach: () => Effect.void,
+  removeCoachById: () => Effect.void,
+  countCoachesForTrainingType: () => Effect.succeed({ count: 0 }),
+  getCoachCount: () => Effect.succeed(0),
+} as unknown as TrainingTypesRepository);
+
 const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
@@ -480,6 +503,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockSubgroupsRepositoryLayer),
+  Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
   Layer.provide(MockAgeCheckServiceLayer),
   Layer.provide(MockAgeThresholdRepositoryLayer),

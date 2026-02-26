@@ -8,6 +8,7 @@ import { NotificationApiLive } from '~/api/notification.js';
 import { RoleApiLive } from '~/api/role.js';
 import { RosterApiLive } from '~/api/roster.js';
 import { SubgroupApiLive } from '~/api/subgroup.js';
+import { TrainingTypeApiLive } from '~/api/training-type.js';
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AgeThresholdApiLive),
@@ -17,6 +18,7 @@ export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(RosterApiLive),
   Layer.provide(RoleApiLive),
   Layer.provide(SubgroupApiLive),
+  Layer.provide(TrainingTypeApiLive),
 );
 
 export { Redirect } from '~/api/redirect.js';

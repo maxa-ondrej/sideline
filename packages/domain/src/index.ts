@@ -14,6 +14,8 @@ export * as Roster from './api/Roster.js';
 
 export * as SubgroupApi from './api/SubgroupApi.js';
 
+export * as TrainingTypeApi from './api/TrainingTypeApi.js';
+
 export * as AgeThresholdRule from './models/AgeThresholdRule.js';
 
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
@@ -39,6 +41,8 @@ export * as Team from './models/Team.js';
 export * as TeamInvite from './models/TeamInvite.js';
 
 export * as TeamMember from './models/TeamMember.js';
+
+export * as TrainingType from './models/TrainingType.js';
 
 export * as User from './models/User.js';
 
