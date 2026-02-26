@@ -3,8 +3,10 @@ import { Auth, SubgroupApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 const forbidden = new SubgroupApi.Forbidden();
 
@@ -12,7 +14,9 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('subgroups', () => SubgroupsRepository),
-    Effect.map(({ members, subgroups }) =>
+    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
+    Effect.bind('users', () => UsersRepository),
+    Effect.map(({ members, subgroups, channelSync, users }) =>
       handlers
         .handle('listSubgroups', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -46,6 +50,11 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('subgroup', () =>
               subgroups.insertSubgroup(teamId, payload.name).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ subgroup }) =>
+              channelSync
+                .emitIfGuildLinked(teamId, 'channel_created', subgroup.id, subgroup.name)
+                .pipe(Effect.catchAll(() => Effect.void)),
             ),
             Effect.map(
               ({ subgroup }) =>
@@ -170,6 +179,11 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                 ? Effect.fail(new SubgroupApi.SubgroupNotFound())
                 : Effect.void,
             ),
+            Effect.tap(({ existing }) =>
+              channelSync
+                .emitIfGuildLinked(teamId, 'channel_deleted', subgroupId, existing.name)
+                .pipe(Effect.catchAll(() => Effect.void)),
+            ),
             Effect.tap(() =>
               subgroups.deleteSubgroupById(subgroupId).pipe(Effect.mapError(() => forbidden)),
             ),
@@ -213,6 +227,25 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                 .addMemberById(subgroupId, payload.memberId)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
+            Effect.tap(({ _member }) =>
+              users.findById(_member.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      channelSync.emitIfGuildLinked(
+                        teamId,
+                        'member_added',
+                        subgroupId,
+                        null,
+                        payload.memberId,
+                        user.discord_id,
+                      ),
+                  }),
+                ),
+                Effect.catchAll(() => Effect.void),
+              ),
+            ),
             Effect.asVoid,
           ),
         )
@@ -252,6 +285,25 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
               subgroups
                 .removeMemberById(subgroupId, memberId)
                 .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ _member }) =>
+              users.findById(_member.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      channelSync.emitIfGuildLinked(
+                        teamId,
+                        'member_removed',
+                        subgroupId,
+                        null,
+                        memberId,
+                        user.discord_id,
+                      ),
+                  }),
+                ),
+                Effect.catchAll(() => Effect.void),
+              ),
             ),
             Effect.asVoid,
           ),

@@ -1,5 +1,12 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Role, RoleSyncEvent, Team, TeamMember } from '@sideline/domain';
+import type {
+  Auth,
+  ChannelSyncEvent,
+  Role,
+  SubgroupModel,
+  Team,
+  TeamMember,
+} from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -111,126 +118,152 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
   permissions: ADMIN_PERMISSIONS,
 });
 
-// Roles store for mock
-type RoleLike = {
-  id: Role.RoleId;
-  team_id: Team.TeamId;
-  name: string;
-  is_built_in: boolean;
-};
-
-const rolesStore = new Map<Role.RoleId, RoleLike>();
-rolesStore.set(TEST_PLAYER_ROLE_ID, {
-  id: TEST_PLAYER_ROLE_ID,
-  team_id: TEST_TEAM_ID,
-  name: 'Player',
-  is_built_in: true,
-});
-
-// Recording mock for sync events
-type SyncEventCall = {
+// Recording mock for channel sync events
+type ChannelSyncEventCall = {
   teamId: Team.TeamId;
-  eventType: RoleSyncEvent.RoleSyncEventType;
-  roleId: Role.RoleId;
-  roleName: string | null;
+  eventType: ChannelSyncEvent.ChannelSyncEventType;
+  subgroupId: SubgroupModel.SubgroupId;
+  subgroupName: string | null;
   teamMemberId: TeamMember.TeamMemberId | undefined;
   discordUserId: string | undefined;
 };
 
-const syncEventCalls: SyncEventCall[] = [];
+const channelSyncEventCalls: ChannelSyncEventCall[] = [];
 
-const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
+const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
   emitIfGuildLinked: (
     teamId: Team.TeamId,
-    eventType: RoleSyncEvent.RoleSyncEventType,
-    roleId: Role.RoleId,
-    roleName: string | null,
+    eventType: ChannelSyncEvent.ChannelSyncEventType,
+    subgroupId: SubgroupModel.SubgroupId,
+    subgroupName: string | null,
     teamMemberId?: TeamMember.TeamMemberId,
     discordUserId?: string,
   ) => {
-    syncEventCalls.push({ teamId, eventType, roleId, roleName, teamMemberId, discordUserId });
+    channelSyncEventCalls.push({
+      teamId,
+      eventType,
+      subgroupId,
+      subgroupName,
+      teamMemberId,
+      discordUserId,
+    });
     return Effect.void;
   },
-  findUnprocessed: () => Effect.succeed([]),
-  markProcessed: () => Effect.void,
-  markFailed: () => Effect.void,
-} as unknown as RoleSyncEventsRepository);
-
-const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
-let nextRoleId = 100;
+let nextSubgroupId = 100;
 
-const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
-  _tag: 'api/RolesRepository',
+type SubgroupLike = {
+  id: SubgroupModel.SubgroupId;
+  team_id: Team.TeamId;
+  name: string;
+};
+
+const subgroupsStore = new Map<SubgroupModel.SubgroupId, SubgroupLike>();
+const subgroupMembersStore = new Map<string, Set<TeamMember.TeamMemberId>>();
+
+const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
+  _tag: 'api/SubgroupsRepository',
   findByTeamId: (teamId: string) =>
     Effect.succeed(
-      Array.from(rolesStore.values())
-        .filter((r) => r.team_id === teamId)
-        .map((r) => ({ ...r, permission_count: 0 })),
+      Array.from(subgroupsStore.values())
+        .filter((s) => s.team_id === teamId)
+        .map((s) => ({
+          ...s,
+          member_count: subgroupMembersStore.get(s.id)?.size ?? 0,
+          created_at: new Date(),
+        })),
     ),
-  findRolesByTeamId: (teamId: string) =>
+  findSubgroupsByTeamId: (teamId: string) =>
     Effect.succeed(
-      Array.from(rolesStore.values())
-        .filter((r) => r.team_id === teamId)
-        .map((r) => ({ ...r, permission_count: 0 })),
+      Array.from(subgroupsStore.values())
+        .filter((s) => s.team_id === teamId)
+        .map((s) => ({
+          ...s,
+          member_count: subgroupMembersStore.get(s.id)?.size ?? 0,
+          created_at: new Date(),
+        })),
     ),
-  findById: (id: Role.RoleId) => {
-    const role = rolesStore.get(id);
-    return Effect.succeed(role ? Option.some(role) : Option.none());
+  findById: (id: SubgroupModel.SubgroupId) => {
+    const sg = subgroupsStore.get(id);
+    return Effect.succeed(sg ? Option.some(sg) : Option.none());
   },
-  findRoleById: (id: Role.RoleId) => {
-    const role = rolesStore.get(id);
-    return Effect.succeed(role ? Option.some(role) : Option.none());
+  findSubgroupById: (id: SubgroupModel.SubgroupId) => {
+    const sg = subgroupsStore.get(id);
+    return Effect.succeed(sg ? Option.some(sg) : Option.none());
   },
-  findPermissions: () => Effect.succeed([]),
-  getPermissionsForRoleId: () => Effect.succeed([]),
-  insert: (input: { team_id: string; name: string; is_built_in: boolean }) => {
-    const id = `00000000-0000-0000-0000-${String(nextRoleId++).padStart(12, '0')}` as Role.RoleId;
-    const role: RoleLike = {
+  insert: (input: { team_id: string; name: string }) => {
+    const id =
+      `00000000-0000-0000-0000-${String(nextSubgroupId++).padStart(12, '0')}` as SubgroupModel.SubgroupId;
+    const sg: SubgroupLike = {
       id,
       team_id: input.team_id as Team.TeamId,
       name: input.name,
-      is_built_in: input.is_built_in,
     };
-    rolesStore.set(id, role);
-    return Effect.succeed(role);
+    subgroupsStore.set(id, sg);
+    return Effect.succeed(sg);
   },
-  insertRole: (teamId: string, name: string) => {
-    const id = `00000000-0000-0000-0000-${String(nextRoleId++).padStart(12, '0')}` as Role.RoleId;
-    const role: RoleLike = {
+  insertSubgroup: (teamId: string, name: string) => {
+    const id =
+      `00000000-0000-0000-0000-${String(nextSubgroupId++).padStart(12, '0')}` as SubgroupModel.SubgroupId;
+    const sg: SubgroupLike = {
       id,
       team_id: teamId as Team.TeamId,
       name,
-      is_built_in: false,
     };
-    rolesStore.set(id, role);
-    return Effect.succeed(role);
+    subgroupsStore.set(id, sg);
+    return Effect.succeed(sg);
   },
   update: () => Effect.die(new Error('Not implemented')),
-  updateRole: () => Effect.die(new Error('Not implemented')),
-  deleteRole: (id: Role.RoleId) => {
-    rolesStore.delete(id);
+  updateSubgroup: () => Effect.die(new Error('Not implemented')),
+  deleteSubgroup: (id: SubgroupModel.SubgroupId) => {
+    subgroupsStore.delete(id);
+    subgroupMembersStore.delete(id);
     return Effect.void;
   },
-  deleteRoleById: (id: Role.RoleId) => {
-    rolesStore.delete(id);
+  deleteSubgroupById: (id: SubgroupModel.SubgroupId) => {
+    subgroupsStore.delete(id);
+    subgroupMembersStore.delete(id);
     return Effect.void;
   },
+  findMembers: () => Effect.succeed([]),
+  findMembersBySubgroupId: () => Effect.succeed([]),
+  addMember: (input: {
+    subgroup_id: SubgroupModel.SubgroupId;
+    team_member_id: TeamMember.TeamMemberId;
+  }) => {
+    const members = subgroupMembersStore.get(input.subgroup_id) ?? new Set();
+    members.add(input.team_member_id);
+    subgroupMembersStore.set(input.subgroup_id, members);
+    return Effect.void;
+  },
+  addMemberById: (subgroupId: SubgroupModel.SubgroupId, memberId: TeamMember.TeamMemberId) => {
+    const members = subgroupMembersStore.get(subgroupId) ?? new Set();
+    members.add(memberId);
+    subgroupMembersStore.set(subgroupId, members);
+    return Effect.void;
+  },
+  removeMember: (input: {
+    subgroup_id: SubgroupModel.SubgroupId;
+    team_member_id: TeamMember.TeamMemberId;
+  }) => {
+    subgroupMembersStore.get(input.subgroup_id)?.delete(input.team_member_id);
+    return Effect.void;
+  },
+  removeMemberById: (subgroupId: SubgroupModel.SubgroupId, memberId: TeamMember.TeamMemberId) => {
+    subgroupMembersStore.get(subgroupId)?.delete(memberId);
+    return Effect.void;
+  },
+  findPermissions: () => Effect.succeed([]),
+  getPermissionsForSubgroupId: () => Effect.succeed([]),
   deletePermissions: () => Effect.void,
   insertPermission: () => Effect.void,
-  setRolePermissions: () => Effect.void,
-  initTeamRoles: () => Effect.void,
-  initializeTeamRoles: () => Effect.void,
-  findByTeamAndName: () => Effect.succeed(Option.none()),
-  findRoleByTeamAndName: () => Effect.succeed(Option.none()),
-  seedTeamRolesWithPermissions: () => Effect.succeed([]),
-  countMembersForRole: () => Effect.succeed({ count: 0 }),
-  getMemberCountForRole: () => Effect.succeed(0),
+  setSubgroupPermissions: () => Effect.void,
+  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
+  getMemberCount: () => Effect.succeed(0),
 });
 
 const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
@@ -362,6 +395,32 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   setJerseyNumber: () => Effect.void,
 });
 
+const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
+  _tag: 'api/RolesRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findRolesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findRoleById: () => Effect.succeed(Option.none()),
+  findPermissions: () => Effect.succeed([]),
+  getPermissionsForRoleId: () => Effect.succeed([]),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertRole: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateRole: () => Effect.die(new Error('Not implemented')),
+  deleteRole: () => Effect.void,
+  deleteRoleById: () => Effect.void,
+  deletePermissions: () => Effect.void,
+  insertPermission: () => Effect.void,
+  setRolePermissions: () => Effect.void,
+  initTeamRoles: () => Effect.void,
+  initializeTeamRoles: () => Effect.void,
+  findByTeamAndName: () => Effect.succeed(Option.none()),
+  findRoleByTeamAndName: () => Effect.succeed(Option.none()),
+  seedTeamRolesWithPermissions: () => Effect.succeed([]),
+  countMembersForRole: () => Effect.succeed({ count: 0 }),
+  getMemberCountForRole: () => Effect.succeed(0),
+});
+
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   _tag: 'api/RostersRepository',
   findByTeam: () => Effect.succeed([]),
@@ -402,33 +461,6 @@ const MockHttpClientLayer = Layer.succeed(
     ),
   ),
 );
-
-const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
-  _tag: 'api/SubgroupsRepository',
-  findByTeamId: () => Effect.succeed([]),
-  findSubgroupsByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
-  findSubgroupById: () => Effect.succeed(Option.none()),
-  insert: () => Effect.die(new Error('Not implemented')),
-  insertSubgroup: () => Effect.die(new Error('Not implemented')),
-  update: () => Effect.die(new Error('Not implemented')),
-  updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  deleteSubgroup: () => Effect.void,
-  deleteSubgroupById: () => Effect.void,
-  findMembers: () => Effect.succeed([]),
-  findMembersBySubgroupId: () => Effect.succeed([]),
-  addMember: () => Effect.void,
-  addMemberById: () => Effect.void,
-  removeMember: () => Effect.void,
-  removeMemberById: () => Effect.void,
-  findPermissions: () => Effect.succeed([]),
-  getPermissionsForSubgroupId: () => Effect.succeed([]),
-  deletePermissions: () => Effect.void,
-  insertPermission: () => Effect.void,
-  setSubgroupPermissions: () => Effect.void,
-  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
-  getMemberCount: () => Effect.succeed(0),
-});
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   _tag: 'api/TrainingTypesRepository',
@@ -488,6 +520,13 @@ const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
   evaluate: () => Effect.succeed([]),
 } as unknown as AgeCheckService);
 
+const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
+  emitIfGuildLinked: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as RoleSyncEventsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -523,132 +562,147 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-  syncEventCalls.length = 0;
+  channelSyncEventCalls.length = 0;
 });
 
-describe('Role Sync Events', () => {
-  describe('createRole', () => {
-    it('emits role_created sync event', async () => {
+describe('Channel Sync Events', () => {
+  describe('createSubgroup', () => {
+    it('emits channel_created sync event', async () => {
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Goalkeeper', permissions: ['roster:view'] }),
+          body: JSON.stringify({ name: 'Goalkeepers' }),
         }),
       );
       expect(response.status).toBe(201);
       const body = await response.json();
 
-      expect(syncEventCalls).toHaveLength(1);
-      expect(syncEventCalls[0]).toEqual({
+      expect(channelSyncEventCalls).toHaveLength(1);
+      expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
-        eventType: 'role_created',
-        roleId: body.roleId,
-        roleName: 'Goalkeeper',
+        eventType: 'channel_created',
+        subgroupId: body.subgroupId,
+        subgroupName: 'Goalkeepers',
         teamMemberId: undefined,
         discordUserId: undefined,
       });
     });
   });
 
-  describe('deleteRole', () => {
-    it('emits role_deleted sync event', async () => {
-      // First create a role to delete
+  describe('deleteSubgroup', () => {
+    it('emits channel_deleted sync event', async () => {
       const createResponse = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'ToDelete', permissions: [] }),
+          body: JSON.stringify({ name: 'ToDelete' }),
         }),
       );
       const created = await createResponse.json();
-      syncEventCalls.length = 0;
+      channelSyncEventCalls.length = 0;
 
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles/${created.roleId}`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}`, {
           method: 'DELETE',
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(204);
 
-      expect(syncEventCalls).toHaveLength(1);
-      expect(syncEventCalls[0]).toEqual({
+      expect(channelSyncEventCalls).toHaveLength(1);
+      expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
-        eventType: 'role_deleted',
-        roleId: created.roleId,
-        roleName: 'ToDelete',
+        eventType: 'channel_deleted',
+        subgroupId: created.subgroupId,
+        subgroupName: 'ToDelete',
         teamMemberId: undefined,
         discordUserId: undefined,
       });
     });
   });
 
-  describe('assignRole', () => {
-    it('emits role_assigned sync event with discord_user_id', async () => {
-      // Create a custom role to assign
+  describe('addSubgroupMember', () => {
+    it('emits member_added sync event with discord_user_id', async () => {
       const createResponse = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Captain', permissions: ['roster:view'] }),
+          body: JSON.stringify({ name: 'WithMembers' }),
         }),
       );
       const created = await createResponse.json();
-      syncEventCalls.length = 0;
+      channelSyncEventCalls.length = 0;
 
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/members/${TEST_MEMBER_ID}/roles`, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer admin-token',
-            'Content-Type': 'application/json',
+        new Request(
+          `http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}/members`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer admin-token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
           },
-          body: JSON.stringify({ roleId: created.roleId }),
-        }),
+        ),
       );
       expect(response.status).toBe(204);
 
-      expect(syncEventCalls).toHaveLength(1);
-      expect(syncEventCalls[0]).toEqual({
+      expect(channelSyncEventCalls).toHaveLength(1);
+      expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
-        eventType: 'role_assigned',
-        roleId: created.roleId,
-        roleName: 'Captain',
+        eventType: 'member_added',
+        subgroupId: created.subgroupId,
+        subgroupName: null,
         teamMemberId: TEST_MEMBER_ID,
         discordUserId: '12345',
       });
     });
   });
 
-  describe('unassignRole', () => {
-    it('emits role_unassigned sync event with discord_user_id', async () => {
-      // Create a custom role to unassign
+  describe('removeSubgroupMember', () => {
+    it('emits member_removed sync event with discord_user_id', async () => {
       const createResponse = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Temp', permissions: ['roster:view'] }),
+          body: JSON.stringify({ name: 'ForRemoval' }),
         }),
       );
       const created = await createResponse.json();
-      syncEventCalls.length = 0;
+
+      // Add member first
+      await handler(
+        new Request(
+          `http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}/members`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer admin-token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
+          },
+        ),
+      );
+      channelSyncEventCalls.length = 0;
 
       const response = await handler(
         new Request(
-          `http://localhost/teams/${TEST_TEAM_ID}/members/${TEST_MEMBER_ID}/roles/${created.roleId}`,
+          `http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}/members/${TEST_MEMBER_ID}`,
           {
             method: 'DELETE',
             headers: { Authorization: 'Bearer admin-token' },
@@ -657,12 +711,12 @@ describe('Role Sync Events', () => {
       );
       expect(response.status).toBe(204);
 
-      expect(syncEventCalls).toHaveLength(1);
-      expect(syncEventCalls[0]).toEqual({
+      expect(channelSyncEventCalls).toHaveLength(1);
+      expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
-        eventType: 'role_unassigned',
-        roleId: created.roleId,
-        roleName: 'Temp',
+        eventType: 'member_removed',
+        subgroupId: created.subgroupId,
+        subgroupName: null,
         teamMemberId: TEST_MEMBER_ID,
         discordUserId: '12345',
       });
@@ -670,21 +724,15 @@ describe('Role Sync Events', () => {
   });
 
   describe('sync event failure does not break primary operation', () => {
-    it('createRole succeeds even if sync event emission fails', async () => {
-      // Temporarily replace the sync events mock with one that fails
-      // Note: since we're testing via HTTP handler with a pre-built layer,
-      // the catchAll in the handler means a failing emitIfGuildLinked won't
-      // break the response. The existing mock always succeeds, so this test
-      // verifies the pattern works by confirming the role was created
-      // regardless of the sync event emission.
+    it('createSubgroup succeeds even if sync event emission fails', async () => {
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Resilient', permissions: [] }),
+          body: JSON.stringify({ name: 'Resilient' }),
         }),
       );
       expect(response.status).toBe(201);

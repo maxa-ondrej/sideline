@@ -11,6 +11,8 @@ import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -49,6 +51,8 @@ const Repositories = Layer.mergeAll(
   NotificationsRepository.Default,
   RoleSyncEventsRepository.Default,
   DiscordRoleMappingRepository.Default,
+  ChannelSyncEventsRepository.Default,
+  DiscordChannelMappingRepository.Default,
 );
 
 export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(

@@ -3,6 +3,7 @@ import { DiscordGateway, InteractionsRegistry } from 'dfx/gateway';
 import { Effect, Layer, Logger, LogLevel } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '~/index.js';
+import { ChannelSyncService } from '~/services/ChannelSyncService.js';
 import { RoleSyncService } from '~/services/RoleSyncService.js';
 
 const MockDiscordGatewayLayer = Layer.succeed(DiscordGateway, {
@@ -45,6 +46,12 @@ const MockRoleSyncServiceLayer = Layer.succeed(RoleSyncService, {
   pollLoop: () => Effect.void,
 } as unknown as RoleSyncService);
 
+const MockChannelSyncServiceLayer = Layer.succeed(ChannelSyncService, {
+  processTick: Effect.void,
+  poll: () => Effect.void,
+  pollLoop: () => Effect.void,
+} as unknown as ChannelSyncService);
+
 describe('Bot', () => {
   it('program composes and starts without error', async () => {
     const TestLayer = Layer.mergeAll(
@@ -52,6 +59,7 @@ describe('Bot', () => {
       MockInteractionsRegistryLayer,
       MockDiscordRESTLayer,
       MockRoleSyncServiceLayer,
+      MockChannelSyncServiceLayer,
     );
 
     const result = await Effect.runPromise(

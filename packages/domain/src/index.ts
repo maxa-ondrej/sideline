@@ -18,6 +18,10 @@ export * as TrainingTypeApi from './api/TrainingTypeApi.js';
 
 export * as AgeThresholdRule from './models/AgeThresholdRule.js';
 
+export * as ChannelSyncEvent from './models/ChannelSyncEvent.js';
+
+export * as DiscordChannelMapping from './models/DiscordChannelMapping.js';
+
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
 
 export * as MemberRole from './models/MemberRole.js';
