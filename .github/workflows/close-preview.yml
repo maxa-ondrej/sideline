@@ -19,7 +19,7 @@ jobs:
   database:
     name: Database
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Setup PostgreSQL
         uses: tj-actions/install-postgresql@v3
@@ -28,11 +28,22 @@ jobs:
       - name: Delete database
         run: |
           echo "Deleting database $PGDATABASE"
-          if psql -lqt | cut -d \| -f 1 | grep -qw "$PGDATABASE"; then
-            dropdb "$PGDATABASE"
-          else
-            echo "Database was already deleted!"
-          fi
+          for i in $(seq 1 15); do
+            if psql -lqt | cut -d \| -f 1 | grep -qw "$PGDATABASE"; then
+              if dropdb "$PGDATABASE" 2>&1; then
+                echo "Database deleted successfully!"
+                exit 0
+              else
+                echo "Attempt $i/15 failed, retrying in 60s..."
+                sleep 60
+              fi
+            else
+              echo "Database was already deleted!"
+              exit 0
+            fi
+          done
+          echo "Failed to delete database after 15 attempts"
+          exit 1
         env:
           PGPASSWORD: ${{ secrets.SIDELINE_DB_PASSWORD }}
           PGHOST: ${{ secrets.SIDELINE_DB_HOST }}
