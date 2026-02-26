@@ -1,5 +1,6 @@
 import type { RoleSyncRpc } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
+import * as Discord from 'dfx/types';
 import { Effect, Option, Schedule } from 'effect';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -7,10 +8,7 @@ const POLL_BATCH_SIZE = 50;
 
 const retryPolicy = Schedule.exponential('1 second').pipe(Schedule.intersect(Schedule.recurs(3)));
 
-/** Discord permission bits */
-const VIEW_CHANNEL = 1024;
-const SEND_MESSAGES = 2048;
-const ALLOW_BITS = VIEW_CHANNEL | SEND_MESSAGES;
+const ALLOW_BITS = Number(Discord.Permissions.ViewChannel | Discord.Permissions.SendMessages);
 
 const makeChannelSyncService = Effect.Do.pipe(
   Effect.bind('rpc', () => SyncRpc),
