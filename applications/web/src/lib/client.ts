@@ -13,6 +13,7 @@ import {
   RoleApi,
   Roster,
   SubgroupApi,
+  TrainingTypeApi,
 } from '@sideline/domain';
 import { Context, Effect, Option } from 'effect';
 import { getToken } from '~/lib/auth';
@@ -34,7 +35,8 @@ class ClientApi extends HttpApi.make('api')
   .add(NotificationApi.NotificationApiGroup)
   .add(Roster.RosterApiGroup)
   .add(RoleApi.RoleApiGroup)
-  .add(SubgroupApi.SubgroupApiGroup) {}
+  .add(SubgroupApi.SubgroupApiGroup)
+  .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 
 export const client = ClientConfig.pipe(
   Effect.flatMap(({ baseUrl }) =>

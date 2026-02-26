@@ -21,6 +21,7 @@ import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { RoleSyncRpcLive } from '~/rpc/RoleSyncRpcLive.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
@@ -42,6 +43,7 @@ const Repositories = Layer.mergeAll(
   RostersRepository.Default,
   RolesRepository.Default,
   SubgroupsRepository.Default,
+  TrainingTypesRepository.Default,
   TeamInvitesRepository.Default,
   AgeThresholdRepository.Default,
   NotificationsRepository.Default,
