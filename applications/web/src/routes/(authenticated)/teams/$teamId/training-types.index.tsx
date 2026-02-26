@@ -18,7 +18,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/training-ty
 
 function TrainingTypesRoute() {
   const { teamId: teamIdRaw } = Route.useParams();
-  const trainingTypes = Route.useLoaderData();
+  const { canAdmin, trainingTypes } = Route.useLoaderData();
 
-  return <TrainingTypesListPage teamId={teamIdRaw} trainingTypes={trainingTypes} />;
+  return (
+    <TrainingTypesListPage teamId={teamIdRaw} trainingTypes={trainingTypes} canAdmin={canAdmin} />
+  );
 }

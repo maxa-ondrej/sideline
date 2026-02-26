@@ -32,6 +32,14 @@ export const requireMembership = <E>(
     ),
   );
 
+export const hasPermission = (
+  membership: MembershipWithRole,
+  permission: RoleNS.Permission,
+): boolean => {
+  const perms = parsePermissions(membership.permissions);
+  return perms.includes(permission);
+};
+
 export const requirePermission = <E>(
   membership: MembershipWithRole,
   permission: RoleNS.Permission,

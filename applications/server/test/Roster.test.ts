@@ -559,6 +559,10 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   removeCoachById: () => Effect.void,
   countCoachesForTrainingType: () => Effect.succeed({ count: 0 }),
   getCoachCount: () => Effect.succeed(0),
+  checkCoach: () => Effect.succeed(Option.some({ exists: false })),
+  isCoachForTrainingType: () => Effect.succeed(false),
+  findByCoach: () => Effect.succeed([]),
+  findTrainingTypesByCoach: () => Effect.succeed([]),
 } as unknown as TrainingTypesRepository);
 
 const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {

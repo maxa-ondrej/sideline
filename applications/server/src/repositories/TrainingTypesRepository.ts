@@ -5,7 +5,7 @@ import {
   TrainingType as TrainingTypeNS,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 class TrainingTypeWithCount extends Schema.Class<TrainingTypeWithCount>('TrainingTypeWithCount')({
   id: TrainingTypeNS.TrainingTypeId,
@@ -45,6 +45,13 @@ class TrainingTypeCoachInput extends Schema.Class<TrainingTypeCoachInput>('Train
   {
     training_type_id: TrainingTypeNS.TrainingTypeId,
     team_member_id: TeamMemberNS.TeamMemberId,
+  },
+) {}
+
+class CoachTrainingTypeQuery extends Schema.Class<CoachTrainingTypeQuery>('CoachTrainingTypeQuery')(
+  {
+    team_id: Schema.String,
+    member_id: Schema.String,
   },
 ) {}
 
@@ -142,6 +149,33 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
             sql`SELECT COUNT(*)::int AS count FROM training_type_coaches WHERE training_type_id = ${trainingTypeId}`,
         }),
       ),
+      Effect.let('checkCoach', ({ sql }) =>
+        SqlSchema.findOne({
+          Request: TrainingTypeCoachInput,
+          Result: Schema.Struct({ exists: Schema.Boolean }),
+          execute: (input) => sql`
+            SELECT EXISTS(
+              SELECT 1 FROM training_type_coaches
+              WHERE training_type_id = ${input.training_type_id}
+                AND team_member_id = ${input.team_member_id}
+            ) AS exists
+          `,
+        }),
+      ),
+      Effect.let('findByCoach', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: CoachTrainingTypeQuery,
+          Result: TrainingTypeWithCount,
+          execute: (input) => sql`
+            SELECT t.id, t.team_id, t.name, t.created_at,
+                   (SELECT COUNT(*) FROM training_type_coaches tc2 WHERE tc2.training_type_id = t.id)::int AS coach_count
+            FROM training_types t
+            JOIN training_type_coaches tc ON tc.training_type_id = t.id AND tc.team_member_id = ${input.member_id}
+            WHERE t.team_id = ${input.team_id}
+            ORDER BY t.name ASC
+          `,
+        }),
+      ),
       Bind.remove('sql'),
     ),
   },
@@ -186,5 +220,26 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
 
   getCoachCount(trainingTypeId: TrainingTypeNS.TrainingTypeId) {
     return this.countCoachesForTrainingType(trainingTypeId).pipe(Effect.map((r) => r.count));
+  }
+
+  isCoachForTrainingType(
+    trainingTypeId: TrainingTypeNS.TrainingTypeId,
+    memberId: TeamMemberNS.TeamMemberId,
+  ) {
+    return this.checkCoach({
+      training_type_id: trainingTypeId,
+      team_member_id: memberId,
+    }).pipe(
+      Effect.map((row) =>
+        row.pipe(
+          Option.map((r) => r.exists),
+          Option.getOrElse(() => false),
+        ),
+      ),
+    );
+  }
+
+  findTrainingTypesByCoach(teamId: TeamNS.TeamId, memberId: TeamMemberNS.TeamMemberId) {
+    return this.findByCoach({ team_id: teamId, member_id: memberId });
   }
 }

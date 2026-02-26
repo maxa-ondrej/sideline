@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform';
 import { Auth, TrainingTypeApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 
@@ -20,22 +20,30 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
-            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
-            Effect.bind('list', () =>
-              trainingTypes
-                .findTrainingTypesByTeamId(teamId)
-                .pipe(Effect.mapError(() => forbidden)),
+            Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
+            Effect.bind('list', ({ isAdmin, membership }) =>
+              isAdmin
+                ? trainingTypes
+                    .findTrainingTypesByTeamId(teamId)
+                    .pipe(Effect.mapError(() => forbidden))
+                : trainingTypes
+                    .findTrainingTypesByCoach(teamId, membership.id)
+                    .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.map(({ list }) =>
-              list.map(
-                (t) =>
-                  new TrainingTypeApi.TrainingTypeInfo({
-                    trainingTypeId: t.id,
-                    teamId: t.team_id,
-                    name: t.name,
-                    coachCount: t.coach_count,
-                  }),
-              ),
+            Effect.map(
+              ({ list, isAdmin }) =>
+                new TrainingTypeApi.TrainingTypeListResponse({
+                  canAdmin: isAdmin,
+                  trainingTypes: list.map(
+                    (t) =>
+                      new TrainingTypeApi.TrainingTypeInfo({
+                        trainingTypeId: t.id,
+                        teamId: t.team_id,
+                        name: t.name,
+                        coachCount: t.coach_count,
+                      }),
+                  ),
+                }),
             ),
           ),
         )
@@ -68,7 +76,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
-            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('trainingType', () =>
               trainingTypes.findTrainingTypeById(trainingTypeId).pipe(
                 Effect.mapError(() => forbidden),
@@ -85,17 +93,26 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                 ? Effect.fail(new TrainingTypeApi.TrainingTypeNotFound())
                 : Effect.void,
             ),
+            Effect.tap(({ isAdmin, membership }) =>
+              isAdmin
+                ? Effect.void
+                : trainingTypes.isCoachForTrainingType(trainingTypeId, membership.id).pipe(
+                    Effect.mapError(() => forbidden),
+                    Effect.flatMap((isCoach) => (isCoach ? Effect.void : Effect.fail(forbidden))),
+                  ),
+            ),
             Effect.bind('coaches', () =>
               trainingTypes
                 .findCoachesByTrainingTypeId(trainingTypeId)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(
-              ({ trainingType, coaches }) =>
+              ({ trainingType, coaches, isAdmin }) =>
                 new TrainingTypeApi.TrainingTypeDetail({
                   trainingTypeId: trainingType.id,
                   teamId: trainingType.team_id,
                   name: trainingType.name,
+                  canAdmin: isAdmin,
                   coaches: coaches.map((c) => ({
                     memberId: c.member_id,
                     name: c.name,
@@ -111,7 +128,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
-            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('existing', () =>
               trainingTypes.findTrainingTypeById(trainingTypeId).pipe(
                 Effect.mapError(() => forbidden),
@@ -127,6 +144,14 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               existing.team_id !== teamId
                 ? Effect.fail(new TrainingTypeApi.TrainingTypeNotFound())
                 : Effect.void,
+            ),
+            Effect.tap(({ isAdmin, membership }) =>
+              isAdmin
+                ? Effect.void
+                : trainingTypes.isCoachForTrainingType(trainingTypeId, membership.id).pipe(
+                    Effect.mapError(() => forbidden),
+                    Effect.flatMap((isCoach) => (isCoach ? Effect.void : Effect.fail(forbidden))),
+                  ),
             ),
             Effect.bind('updated', () =>
               trainingTypes
