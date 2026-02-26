@@ -38,4 +38,4 @@ jobs:
           PGHOST: ${{ secrets.SIDELINE_DB_HOST }}
           PGPORT: ${{ secrets.SIDELINE_DB_PORT }}
           PGUSER: ${{ secrets.SIDELINE_DB_USER }}
-          PGDATABASE: sideline-preview-${{ github.event.inputs.pr || github.event.pull_request.id }}.majksa.net
+          PGDATABASE: sideline-preview-${{ github.event.inputs.pr || github.event.number }}.majksa.net
