@@ -115,7 +115,9 @@ export const RoleSyncRpcLive = RoleSyncRpc.RoleSyncRpcs.toLayer(
                 }),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed([])),
+          Effect.catchAll((error) =>
+            Effect.logError('GetUnprocessedChannelEvents failed', error).pipe(Effect.map(() => [])),
+          ),
         ),
 
       MarkChannelEventProcessed: ({ id }: { readonly id: string }) =>
