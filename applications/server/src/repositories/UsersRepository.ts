@@ -11,13 +11,9 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
 
-const CompleteProfileInput = UserNS.User.pipe(
-  Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
-);
+const CompleteProfileInput = UserNS.User.pipe(Schema.pick('id', 'name', 'birth_year', 'gender'));
 
-const AdminUpdateProfileInput = UserNS.User.pipe(
-  Schema.pick('id', 'name', 'birth_year', 'gender', 'jersey_number', 'position', 'proficiency'),
-);
+const AdminUpdateProfileInput = UserNS.User.pipe(Schema.pick('id', 'name', 'birth_year', 'gender'));
 
 export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
   effect: SqlClient.SqlClient.pipe(
@@ -68,9 +64,6 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
             name = ${input.name},
             birth_year = ${input.birth_year},
             gender = ${input.gender},
-            jersey_number = ${input.jersey_number},
-            position = ${input.position},
-            proficiency = ${input.proficiency},
             is_profile_complete = true,
             updated_at = now()
           WHERE id = ${input.id}
@@ -100,9 +93,6 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
             name = ${input.name},
             birth_year = ${input.birth_year},
             gender = ${input.gender},
-            jersey_number = ${input.jersey_number},
-            position = ${input.position},
-            proficiency = ${input.proficiency},
             updated_at = now()
           WHERE id = ${input.id}
           RETURNING *

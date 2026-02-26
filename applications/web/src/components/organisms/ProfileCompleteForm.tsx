@@ -30,9 +30,6 @@ const ProfileFormSchema = Schema.Struct({
   name: Schema.NonEmptyString,
   birthYear: Schema.NumberFromString,
   gender: Schema.Literal('male', 'female', 'other'),
-  jerseyNumber: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
-  position: Schema.Literal('goalkeeper', 'defender', 'midfielder', 'forward'),
-  proficiency: Schema.Literal('beginner', 'intermediate', 'advanced', 'pro'),
 });
 
 type ProfileFormValues = Schema.Schema.Type<typeof ProfileFormSchema>;
@@ -41,20 +38,6 @@ const genderOptions = [
   { value: 'male', label: () => m.profile_complete_genderMale() },
   { value: 'female', label: () => m.profile_complete_genderFemale() },
   { value: 'other', label: () => m.profile_complete_genderOther() },
-] as const;
-
-const positionOptions = [
-  { value: 'goalkeeper', label: () => m.profile_complete_positionGoalkeeper() },
-  { value: 'defender', label: () => m.profile_complete_positionDefender() },
-  { value: 'midfielder', label: () => m.profile_complete_positionMidfielder() },
-  { value: 'forward', label: () => m.profile_complete_positionForward() },
-] as const;
-
-const proficiencyOptions = [
-  { value: 'beginner', label: () => m.profile_complete_proficiencyBeginner() },
-  { value: 'intermediate', label: () => m.profile_complete_proficiencyIntermediate() },
-  { value: 'advanced', label: () => m.profile_complete_proficiencyAdvanced() },
-  { value: 'pro', label: () => m.profile_complete_proficiencyPro() },
 ] as const;
 
 interface ProfileCompleteFormProps {
@@ -141,73 +124,6 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
                 </FormControl>
                 <SelectContent>
                   {genderOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          {...form.register('jerseyNumber')}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{m.profile_complete_jerseyNumber()}</FormLabel>
-              <FormControl>
-                <Input
-                  type='number'
-                  min={0}
-                  max={99}
-                  placeholder={m.profile_complete_jerseyNumberPlaceholder()}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          {...form.register('position')}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{m.profile_complete_position()}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder={m.profile_complete_positionPlaceholder()} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {positionOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          {...form.register('proficiency')}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{m.profile_complete_proficiency()}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder={m.profile_complete_proficiencyPlaceholder()} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {proficiencyOptions.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label()}
                     </SelectItem>
