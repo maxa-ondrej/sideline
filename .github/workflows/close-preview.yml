@@ -1,0 +1,41 @@
+name: Close Preview
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: The PR preview ID which database should be dropped
+        type: number
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+permissions: {}
+
+jobs:
+  database:
+    name: Database
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Setup PostgreSQL
+        uses: tj-actions/install-postgresql@v3
+        with:
+          postgresql-version: 17
+      - name: Delete database
+        run: |
+          echo "Deleting database $PGDATABASE"
+          if psql -lqt | cut -d \| -f 1 | grep -qw "$PGDATABASE"; then
+            dropdb "$PGDATABASE"
+          else
+            echo "Database was already deleted!"
+          fi
+        env:
+          PGPASSWORD: ${{ secrets.SIDELINE_DB_PASSWORD }}
+          PGHOST: ${{ secrets.SIDELINE_DB_HOST }}
+          PGPORT: ${{ secrets.SIDELINE_DB_PORT }}
+          PGUSER: ${{ secrets.SIDELINE_DB_USER }}
+          PGDATABASE: sideline-preview-${{ github.event.inputs.pr || github.event.pull_request.id }}.majksa.net
