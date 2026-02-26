@@ -1,7 +1,7 @@
-import { RpcClient } from '@effect/rpc';
-import { RoleSyncRpc } from '@sideline/domain';
+import type { RoleSyncRpc } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Schedule } from 'effect';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 const POLL_BATCH_SIZE = 50;
 
@@ -13,7 +13,7 @@ const SEND_MESSAGES = 2048;
 const ALLOW_BITS = VIEW_CHANNEL | SEND_MESSAGES;
 
 const makeChannelSyncService = Effect.Do.pipe(
-  Effect.bind('rpc', () => RpcClient.make(RoleSyncRpc.RoleSyncRpcs)),
+  Effect.bind('rpc', () => SyncRpc),
   Effect.bind('rest', () => DiscordREST),
   Effect.let(
     'ensureMapping',
@@ -211,7 +211,7 @@ const makeChannelSyncService = Effect.Do.pipe(
 export class ChannelSyncService extends Effect.Service<ChannelSyncService>()(
   'bot/ChannelSyncService',
   {
-    scoped: makeChannelSyncService,
+    effect: makeChannelSyncService,
   },
 ) {
   poll() {

@@ -3,8 +3,10 @@ import { Layer } from 'effect';
 import { HealthServerLive } from '~/HealthServerLive.js';
 import { ChannelSyncService } from '~/services/ChannelSyncService.js';
 import { RoleSyncService } from '~/services/RoleSyncService.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 const SyncLive = Layer.mergeAll(RoleSyncService.Default, ChannelSyncService.Default).pipe(
+  Layer.provide(SyncRpc.Default),
   Layer.provide(DiscordIxLive),
 );
 

@@ -6,3 +6,4 @@ export { eventHandlers } from '~/events/index.js';
 export { interactionBuilder } from '~/interactions/index.js';
 export { ChannelSyncService } from '~/services/ChannelSyncService.js';
 export { RoleSyncService } from '~/services/RoleSyncService.js';
+export { SyncRpc } from '~/services/SyncRpc.js';

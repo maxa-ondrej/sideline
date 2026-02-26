@@ -1,14 +1,14 @@
-import { RpcClient } from '@effect/rpc';
-import { RoleSyncRpc } from '@sideline/domain';
+import type { RoleSyncRpc } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Schedule } from 'effect';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 const POLL_BATCH_SIZE = 50;
 
 const retryPolicy = Schedule.exponential('1 second').pipe(Schedule.intersect(Schedule.recurs(3)));
 
 const makeRoleSyncService = Effect.Do.pipe(
-  Effect.bind('rpc', () => RpcClient.make(RoleSyncRpc.RoleSyncRpcs)),
+  Effect.bind('rpc', () => SyncRpc),
   Effect.bind('rest', () => DiscordREST),
   Effect.let(
     'ensureMapping',
@@ -175,7 +175,7 @@ const makeRoleSyncService = Effect.Do.pipe(
 );
 
 export class RoleSyncService extends Effect.Service<RoleSyncService>()('bot/RoleSyncService', {
-  scoped: makeRoleSyncService,
+  effect: makeRoleSyncService,
 }) {
   poll() {
     return this.processTick;
