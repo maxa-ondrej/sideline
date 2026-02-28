@@ -7,10 +7,16 @@ import {
   type Team,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Array, Effect, flow, Option } from 'effect';
+import { Array, Data, Effect, flow, Option } from 'effect';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
+
+class NoChanges extends Data.TaggedError('NoChanges')<{
+  count: 0;
+}> {
+  static make = () => new NoChanges({ count: 0 });
+}
 
 export const ChannelsRpcLive = Effect.Do.pipe(
   Effect.bind('syncEvents', () => ChannelSyncEventsRepository),
@@ -26,6 +32,15 @@ export const ChannelsRpcLive = Effect.Do.pipe(
                 constructEvent,
                 Effect.tapErrorTag('EventPropertyMissing', EventPropertyMissing.handle),
               ),
+            ),
+          ),
+          Effect.tap(
+            flow(
+              Array.isEmptyReadonlyArray,
+              Effect.if({
+                onTrue: NoChanges.make,
+                onFalse: () => Effect.void,
+              }),
             ),
           ),
           Effect.tap((events) =>
