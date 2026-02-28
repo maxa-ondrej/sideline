@@ -669,7 +669,7 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'member_added',
         subgroupId: created.subgroupId,
-        subgroupName: Option.none(),
+        subgroupName: Option.some('WithMembers'),
         teamMemberId: Option.some(TEST_MEMBER_ID),
         discordUserId: Option.some('12345'),
       });
@@ -722,7 +722,7 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'member_removed',
         subgroupId: created.subgroupId,
-        subgroupName: Option.none(),
+        subgroupName: Option.some('ForRemoval'),
         teamMemberId: Option.some(TEST_MEMBER_ID),
         discordUserId: Option.some('12345'),
       });

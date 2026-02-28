@@ -173,7 +173,6 @@ const evaluateTeam =
         Effect.logInfo(`Detected ${changes.length} changes to be made with Age based roles!`),
       ),
       Effect.bind('commited', ({ changes }) => commitChanges(members, changes)),
-      Effect.bind('adminIds', ({ changes }) => commitChanges(members, changes)),
       Effect.tap(({ changes }) =>
         pipe(
           changes,

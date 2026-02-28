@@ -28,7 +28,7 @@ const processEvent = Effect.Do.pipe(
           Effect.catchAll((error) =>
             rpc['Role/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
               Effect.tap(() =>
-                Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
+                Effect.logWarning(`Failed to process role sync event ${event.id}`, error),
               ),
             ),
           ),

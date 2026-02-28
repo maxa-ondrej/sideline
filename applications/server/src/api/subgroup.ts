@@ -235,7 +235,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                 .addMemberById(subgroupId, payload.memberId)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.tap(({ _member }) =>
+            Effect.tap(({ _subgroup, _member }) =>
               users.findById(_member.user_id).pipe(
                 Effect.flatMap(
                   Option.match({
@@ -245,7 +245,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                         teamId,
                         'member_added',
                         subgroupId,
-                        Option.none(),
+                        Option.some(_subgroup.name),
                         Option.some(payload.memberId),
                         Option.some(user.discord_id as Discord.Snowflake),
                       ),
@@ -294,7 +294,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                 .removeMemberById(subgroupId, memberId)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.tap(({ _member }) =>
+            Effect.tap(({ _subgroup, _member }) =>
               users.findById(_member.user_id).pipe(
                 Effect.flatMap(
                   Option.match({
@@ -304,7 +304,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                         teamId,
                         'member_removed',
                         subgroupId,
-                        Option.none(),
+                        Option.some(_subgroup.name),
                         Option.some(memberId),
                         Option.some(user.discord_id as Discord.Snowflake),
                       ),

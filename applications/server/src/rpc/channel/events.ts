@@ -91,7 +91,6 @@ export const constructEvent = Match.type<EventRow>().pipe(
     Effect.Do.pipe(
       Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
       Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
-      Effect.bind('subgroup_name', () => nullable(r, 'subgroup_name')),
       Effect.map(
         ({ discord_user_id, team_member_id }) =>
           new ChannelRpcEvents.ChannelMemberRemovedEvent({
