@@ -1,4 +1,10 @@
-import { AgeThresholdApi, type Role, type Team, type TeamMember } from '@sideline/domain';
+import {
+  AgeThresholdApi,
+  type Role,
+  type Team,
+  type TeamMember,
+  type User,
+} from '@sideline/domain';
 import { Array, Data, Effect, Option, pipe } from 'effect';
 import {
   AgeThresholdRepository,
@@ -17,6 +23,7 @@ interface Dependencies {
 }
 
 interface Change {
+  userId: User.UserId;
   memberId: TeamMember.TeamMemberId;
   memberName: string;
   roleId: Role.RoleId;
@@ -61,6 +68,7 @@ const detectChanges = (
     Array.map(({ shouldHaveRole, member, displayName, rule }) =>
       shouldHaveRole
         ? makeChange({
+            userId: member.user_id,
             memberId: member.member_id,
             memberName: displayName,
             roleId: rule.role_id,
@@ -68,6 +76,7 @@ const detectChanges = (
             action: 'assigned',
           })
         : makeChange({
+            userId: member.user_id,
             memberId: member.member_id,
             memberName: displayName,
             roleId: rule.role_id,
@@ -141,7 +150,7 @@ const notifyAdmins = (
     Effect.tap((notifications) =>
       Array.isEmptyArray(notifications) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
     ),
-    Effect.flatMap(notifications.insertBulk),
+    Effect.flatMap((n) => notifications.insertBulk(n)),
     Effect.tapErrorTag('NoChanges', () => Effect.void),
     Effect.orDie,
   );
@@ -165,6 +174,28 @@ const evaluateTeam =
       ),
       Effect.bind('commited', ({ changes }) => commitChanges(members, changes)),
       Effect.bind('adminIds', ({ changes }) => commitChanges(members, changes)),
+      Effect.tap(({ changes }) =>
+        pipe(
+          changes,
+          Array.map((change) =>
+            change.action === 'assigned'
+              ? notifications.insert(
+                  teamId,
+                  change.userId,
+                  'role_assigned',
+                  `Role "${change.roleName}" assigned`,
+                  `You have been assigned the "${change.roleName}" role.`,
+                )
+              : notifications.insert(
+                  teamId,
+                  change.userId,
+                  'role_removed',
+                  `Role "${change.roleName}" removed`,
+                  `You have been removed from the "${change.roleName}" role.`,
+                ),
+          ),
+        ),
+      ),
       Effect.tap(({ changes, teamMembers }) =>
         notifyAdmins(notifications, teamId, changes, teamMembers),
       ),
