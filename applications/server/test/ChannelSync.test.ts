@@ -225,12 +225,12 @@ const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
   },
   update: () => Effect.die(new Error('Not implemented')),
   updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  deleteSubgroup: (id: SubgroupModel.SubgroupId) => {
+  archiveSubgroup: (id: SubgroupModel.SubgroupId) => {
     subgroupsStore.delete(id);
     subgroupMembersStore.delete(id);
     return Effect.void;
   },
-  deleteSubgroupById: (id: SubgroupModel.SubgroupId) => {
+  archiveSubgroupById: (id: SubgroupModel.SubgroupId) => {
     subgroupsStore.delete(id);
     subgroupMembersStore.delete(id);
     return Effect.void;
@@ -413,8 +413,8 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   insertRole: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
   updateRole: () => Effect.die(new Error('Not implemented')),
-  deleteRole: () => Effect.void,
-  deleteRoleById: () => Effect.void,
+  archiveRole: () => Effect.void,
+  archiveRoleById: () => Effect.void,
   deletePermissions: () => Effect.void,
   insertPermission: () => Effect.void,
   setRolePermissions: () => Effect.void,

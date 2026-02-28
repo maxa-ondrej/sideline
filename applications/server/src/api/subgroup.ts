@@ -196,7 +196,9 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                 )
                 .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
             ),
-            Effect.tap(() => subgroups.deleteSubgroupById(subgroupId).pipe(Effect.orDie)),
+            Effect.tap(() =>
+              subgroups.archiveSubgroupById(subgroupId).pipe(Effect.mapError(() => forbidden)),
+            ),
             Effect.asVoid,
           ),
         )
