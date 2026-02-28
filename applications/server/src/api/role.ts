@@ -180,7 +180,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ memberCount }) =>
               memberCount > 0 ? Effect.fail(new RoleApi.RoleInUse()) : Effect.void,
             ),
-            Effect.tap(() => roles.archiveRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
+            Effect.tap(() => roles.archiveRoleById(roleId).pipe(Effect.orDie)),
             Effect.tap(({ existing }) =>
               syncEvents.emitRoleDeleted(teamId, existing.id, existing.name).pipe(
                 Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),

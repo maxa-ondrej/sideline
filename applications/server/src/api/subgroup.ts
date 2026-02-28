@@ -186,6 +186,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                   )
                 : Effect.void,
             ),
+            Effect.tap(() => subgroups.archiveSubgroupById(subgroupId).pipe(Effect.orDie)),
             Effect.tap(({ existing }) =>
               channelSync
                 .emitIfGuildLinked(
@@ -195,9 +196,6 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                   Option.some(existing.name),
                 )
                 .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
-            ),
-            Effect.tap(() =>
-              subgroups.archiveSubgroupById(subgroupId).pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.asVoid,
           ),
