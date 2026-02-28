@@ -116,5 +116,5 @@ export const ChannelsRpcLive = Effect.Do.pipe(
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),
-  ChannelRpcGroup.ChannelRpcGroup.toLayer,
+  (handlers) => ChannelRpcGroup.ChannelRpcGroup.toLayer(handlers),
 );

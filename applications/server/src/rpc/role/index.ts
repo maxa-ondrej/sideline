@@ -93,5 +93,5 @@ export const RolesRpcLive = Effect.Do.pipe(
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),
-  RoleRpcGroup.RoleRpcGroup.toLayer,
+  (handlers) => RoleRpcGroup.RoleRpcGroup.toLayer(handlers),
 );
