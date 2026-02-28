@@ -2,7 +2,6 @@ import {
   FetchHttpClient,
   HttpApiBuilder,
   HttpApiSwagger,
-  HttpMiddleware,
   type HttpRouter,
   HttpServer,
 } from '@effect/platform';
@@ -29,6 +28,7 @@ import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 import { env } from './env.js';
+import { HttpLogger } from './middleware/HttpLogger.js';
 import { SyncRpcsLive } from './rpc/index.js';
 
 const RpcLive = RpcServer.layer(SyncRpcs.SyncRpcs).pipe(
@@ -60,7 +60,7 @@ const Repositories = Layer.mergeAll(
   DiscordChannelMappingRepository.Default,
 );
 
-export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
+export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(
   Layer.provide(HttpApiSwagger.layer({ path: '/docs/swagger-ui' })),
   Layer.provide(HttpApiBuilder.middlewareOpenApi({ path: '/docs/openapi.json' })),
   Layer.provide(HttpApiBuilder.middlewareCors({ credentials: true, allowedOrigins: () => true })),
