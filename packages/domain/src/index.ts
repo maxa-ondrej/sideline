@@ -20,6 +20,8 @@ export * as AgeThresholdRule from './models/AgeThresholdRule.js';
 
 export * as ChannelSyncEvent from './models/ChannelSyncEvent.js';
 
+export * as Discord from './models/Discord.js';
+
 export * as DiscordChannelMapping from './models/DiscordChannelMapping.js';
 
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
@@ -49,5 +51,8 @@ export * as TeamMember from './models/TeamMember.js';
 export * as TrainingType from './models/TrainingType.js';
 
 export * as User from './models/User.js';
-
-export * as RoleSyncRpc from './rpc/RoleSyncRpc.js';
+export * as ChannelRpcEvents from './rpc/channel/ChannelRpcEvents.js';
+export * as ChannelRpcModels from './rpc/channel/ChannelRpcModels.js';
+export * as RoleRpcEvents from './rpc/role/RoleRpcEvents.js';
+export * as RoleRpcModels from './rpc/role/RoleRpcModels.js';
+export * as SyncRpcs from './rpc/SyncRpcs.js';

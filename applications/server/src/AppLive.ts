@@ -6,7 +6,7 @@ import {
   HttpServer,
 } from '@effect/platform';
 import { RpcSerialization, RpcServer } from '@effect/rpc';
-import { RoleSyncRpc } from '@sideline/domain';
+import { SyncRpcs } from '@sideline/domain';
 import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
@@ -25,14 +25,14 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
-import { RoleSyncRpcLive } from '~/rpc/RoleSyncRpcLive.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
+import { SyncRpcsLive } from './rpc/index.js';
 
-const RpcLive = RpcServer.layer(RoleSyncRpc.RoleSyncRpcs).pipe(
-  Layer.provide(RoleSyncRpcLive),
+const RpcLive = RpcServer.layer(SyncRpcs.SyncRpcs).pipe(
+  Layer.provide(SyncRpcsLive),
   Layer.provide(
-    RpcServer.layerProtocolHttp({ path: '/rpc/role-sync', routerTag: HttpApiBuilder.Router }),
+    RpcServer.layerProtocolHttp({ path: '/rpc/sync', routerTag: HttpApiBuilder.Router }),
   ),
   Layer.provide(RpcSerialization.layerNdjson),
 );

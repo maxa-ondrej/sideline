@@ -1,56 +1,65 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import {
-  AgeThresholdRule as AgeThresholdNS,
-  Role as RoleNS,
-  Team as TeamNS,
+  AgeThresholdRule as AgeThreshold,
+  Discord,
+  Role,
+  Team,
+  TeamMember,
+  User,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Array, Effect, flow, type Option, Schema, String } from 'effect';
 
-class AgeThresholdWithRoleName extends Schema.Class<AgeThresholdWithRoleName>(
+export class AgeThresholdWithRoleName extends Schema.Class<AgeThresholdWithRoleName>(
   'AgeThresholdWithRoleName',
 )({
-  id: AgeThresholdNS.AgeThresholdRuleId,
-  team_id: TeamNS.TeamId,
-  role_id: RoleNS.RoleId,
+  id: AgeThreshold.AgeThresholdRuleId,
+  team_id: Team.TeamId,
+  role_id: Role.RoleId,
   role_name: Schema.String,
-  min_age: Schema.NullOr(Schema.Number),
-  max_age: Schema.NullOr(Schema.Number),
+  min_age: Schema.OptionFromNullOr(Schema.Number),
+  max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThresholdRow')({
-  id: AgeThresholdNS.AgeThresholdRuleId,
-  team_id: TeamNS.TeamId,
-  role_id: RoleNS.RoleId,
-  min_age: Schema.NullOr(Schema.Number),
-  max_age: Schema.NullOr(Schema.Number),
+export class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThresholdRow')({
+  id: AgeThreshold.AgeThresholdRuleId,
+  team_id: Team.TeamId,
+  role_id: Role.RoleId,
+  min_age: Schema.OptionFromNullOr(Schema.Number),
+  max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+export class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   team_id: Schema.String,
   role_id: Schema.String,
-  min_age: Schema.NullOr(Schema.Number),
-  max_age: Schema.NullOr(Schema.Number),
+  min_age: Schema.OptionFromNullOr(Schema.Number),
+  max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
-  id: AgeThresholdNS.AgeThresholdRuleId,
-  min_age: Schema.NullOr(Schema.Number),
-  max_age: Schema.NullOr(Schema.Number),
+export class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
+  id: AgeThreshold.AgeThresholdRuleId,
+  min_age: Schema.OptionFromNullOr(Schema.Number),
+  max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
-  team_id: TeamNS.TeamId,
+export class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
+  team_id: Team.TeamId,
 }) {}
 
-class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('MemberWithBirthYear')({
-  member_id: Schema.String,
-  user_id: Schema.String,
-  member_name: Schema.NullOr(Schema.String),
+export class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('MemberWithBirthYear')({
+  member_id: TeamMember.TeamMemberId,
+  user_id: User.UserId,
+  member_name: Schema.OptionFromNullOr(Schema.String),
   discord_username: Schema.String,
-  discord_id: Schema.String,
-  birth_year: Schema.NullOr(Schema.Number),
-  role_ids: Schema.String,
+  discord_id: Discord.Snowflake,
+  birth_year: Schema.Number,
+  role_ids: Schema.String.pipe(
+    Schema.transform(Schema.Array(Schema.NonEmptyString), {
+      strict: true,
+      decode: flow(String.split(','), Array.filter(String.isNonEmpty)),
+      encode: Array.join(','),
+    }),
+  ),
 }) {}
 
 export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepository>()(
@@ -74,7 +83,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       ),
       Effect.let('findById', ({ sql }) =>
         SqlSchema.findOne({
-          Request: AgeThresholdNS.AgeThresholdRuleId,
+          Request: AgeThreshold.AgeThresholdRuleId,
           Result: AgeThresholdRow,
           execute: (id) => sql`
             SELECT id, team_id, role_id, min_age, max_age
@@ -117,7 +126,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       ),
       Effect.let('deleteRule', ({ sql }) =>
         SqlSchema.void({
-          Request: AgeThresholdNS.AgeThresholdRuleId,
+          Request: AgeThreshold.AgeThresholdRuleId,
           execute: (id) => sql`DELETE FROM age_threshold_rules WHERE id = ${id}`,
         }),
       ),
@@ -142,7 +151,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
                    ) AS role_ids
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
-            WHERE tm.team_id = ${teamId} AND tm.active = true
+            WHERE tm.team_id = ${teamId} AND tm.active = true AND u.birth_year IS NOT NULL
           `,
         }),
       ),
@@ -150,32 +159,32 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
     ),
   },
 ) {
-  findRulesByTeamId(teamId: TeamNS.TeamId) {
+  findRulesByTeamId(teamId: Team.TeamId) {
     return this.findByTeamId(teamId);
   }
 
-  findRuleById(ruleId: AgeThresholdNS.AgeThresholdRuleId) {
+  findRuleById(ruleId: AgeThreshold.AgeThresholdRuleId) {
     return this.findById(ruleId);
   }
 
   insertRule(
-    teamId: TeamNS.TeamId,
-    roleId: RoleNS.RoleId,
-    minAge: number | null,
-    maxAge: number | null,
+    teamId: Team.TeamId,
+    roleId: Role.RoleId,
+    minAge: Option.Option<number>,
+    maxAge: Option.Option<number>,
   ) {
     return this.insert({ team_id: teamId, role_id: roleId, min_age: minAge, max_age: maxAge });
   }
 
   updateRuleById(
-    ruleId: AgeThresholdNS.AgeThresholdRuleId,
-    minAge: number | null,
-    maxAge: number | null,
+    ruleId: AgeThreshold.AgeThresholdRuleId,
+    minAge: Option.Option<number>,
+    maxAge: Option.Option<number>,
   ) {
     return this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge });
   }
 
-  deleteRuleById(ruleId: AgeThresholdNS.AgeThresholdRuleId) {
+  deleteRuleById(ruleId: AgeThreshold.AgeThresholdRuleId) {
     return this.deleteRule(ruleId);
   }
 
@@ -185,7 +194,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
     );
   }
 
-  getMembersWithBirthYears(teamId: TeamNS.TeamId) {
+  getMembersWithBirthYears(teamId: Team.TeamId) {
     return this.findMembersWithBirthYears(teamId);
   }
 }

@@ -1,44 +1,39 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import {
-  ChannelSyncEvent as ChannelSyncEventNS,
-  type SubgroupModel as SubgroupModelNS,
-  type TeamMember as TeamMemberNS,
-  type Team as TeamNS,
-} from '@sideline/domain';
+import { ChannelSyncEvent, Discord, SubgroupModel, Team, TeamMember } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
-  team_id: Schema.String,
-  guild_id: Schema.String,
-  event_type: Schema.String,
+  team_id: Team.TeamId,
+  guild_id: Discord.Snowflake,
+  event_type: ChannelSyncEvent.ChannelSyncEventType,
   subgroup_id: Schema.String,
-  subgroup_name: Schema.NullOr(Schema.String),
-  team_member_id: Schema.NullOr(Schema.String),
-  discord_user_id: Schema.NullOr(Schema.String),
+  subgroup_name: Schema.OptionFromNullOr(Schema.String),
+  team_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+  discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
-  guild_id: Schema.NullOr(Schema.String),
+  guild_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class EventRow extends Schema.Class<EventRow>('EventRow')({
-  id: ChannelSyncEventNS.ChannelSyncEventId,
-  team_id: Schema.String,
-  guild_id: Schema.String,
-  event_type: ChannelSyncEventNS.ChannelSyncEventType,
-  subgroup_id: Schema.String,
-  subgroup_name: Schema.NullOr(Schema.String),
-  team_member_id: Schema.NullOr(Schema.String),
-  discord_user_id: Schema.NullOr(Schema.String),
+export class EventRow extends Schema.Class<EventRow>('EventRow')({
+  id: ChannelSyncEvent.ChannelSyncEventId,
+  team_id: Team.TeamId,
+  guild_id: Discord.Snowflake,
+  event_type: ChannelSyncEvent.ChannelSyncEventType,
+  subgroup_id: SubgroupModel.SubgroupId,
+  subgroup_name: Schema.OptionFromNullOr(Schema.String),
+  team_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+  discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
-  id: ChannelSyncEventNS.ChannelSyncEventId,
+  id: ChannelSyncEvent.ChannelSyncEventId,
 }) {}
 
 class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
-  id: ChannelSyncEventNS.ChannelSyncEventId,
+  id: ChannelSyncEvent.ChannelSyncEventId,
   error: Schema.String,
 }) {}
 
@@ -97,27 +92,27 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
   },
 ) {
   emitIfGuildLinked(
-    teamId: TeamNS.TeamId,
-    eventType: ChannelSyncEventNS.ChannelSyncEventType,
-    subgroupId: SubgroupModelNS.SubgroupId,
-    subgroupName: string | null,
-    teamMemberId?: TeamMemberNS.TeamMemberId,
-    discordUserId?: string,
+    teamId: Team.TeamId,
+    eventType: ChannelSyncEvent.ChannelSyncEventType,
+    subgroupId: SubgroupModel.SubgroupId,
+    subgroupName: Option.Option<string> = Option.none(),
+    teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
+    discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
   ) {
     return this.lookupGuildId(teamId).pipe(
-      Effect.flatMap((opt) =>
-        opt._tag === 'Some' && opt.value.guild_id !== null
-          ? this.insertEvent({
-              team_id: teamId,
-              guild_id: opt.value.guild_id,
-              event_type: eventType,
-              subgroup_id: subgroupId,
-              subgroup_name: subgroupName,
-              team_member_id: teamMemberId ?? null,
-              discord_user_id: discordUserId ?? null,
-            })
-          : Effect.void,
+      Effect.flatMap(Option.flatMap(({ guild_id }) => guild_id)),
+      Effect.flatMap((guild_id) =>
+        this.insertEvent({
+          team_id: teamId,
+          guild_id,
+          event_type: eventType,
+          subgroup_id: subgroupId,
+          subgroup_name: subgroupName,
+          team_member_id: teamMemberId,
+          discord_user_id: discordUserId,
+        }),
       ),
+      Effect.catchTag('NoSuchElementException', () => Effect.void),
     );
   }
 
@@ -125,11 +120,11 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     return this.findUnprocessedEvents(limit);
   }
 
-  markProcessed(id: ChannelSyncEventNS.ChannelSyncEventId) {
+  markProcessed(id: ChannelSyncEvent.ChannelSyncEventId) {
     return this.markEventProcessed({ id });
   }
 
-  markFailed(id: ChannelSyncEventNS.ChannelSyncEventId, error: string) {
+  markFailed(id: ChannelSyncEvent.ChannelSyncEventId, error: string) {
     return this.markEventFailed({ id, error });
   }
 }

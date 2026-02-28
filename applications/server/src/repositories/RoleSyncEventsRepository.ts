@@ -1,36 +1,38 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import {
-  type Role as RoleNS,
+  Discord,
+  Role,
+  RoleSyncEvent,
   RoleSyncEvent as RoleSyncEventNS,
-  type TeamMember as TeamMemberNS,
-  type Team as TeamNS,
+  Team,
+  TeamMember,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
-  team_id: Schema.String,
-  guild_id: Schema.String,
-  event_type: Schema.String,
-  role_id: Schema.String,
-  role_name: Schema.NullOr(Schema.String),
-  team_member_id: Schema.NullOr(Schema.String),
-  discord_user_id: Schema.NullOr(Schema.String),
+  team_id: Team.TeamId,
+  guild_id: Discord.Snowflake,
+  event_type: RoleSyncEvent.RoleSyncEventType,
+  role_id: Role.RoleId,
+  role_name: Schema.OptionFromNullOr(Schema.String),
+  team_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+  discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
-  guild_id: Schema.NullOr(Schema.String),
+  guild_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class EventRow extends Schema.Class<EventRow>('EventRow')({
-  id: RoleSyncEventNS.RoleSyncEventId,
-  team_id: Schema.String,
-  guild_id: Schema.String,
-  event_type: RoleSyncEventNS.RoleSyncEventType,
-  role_id: Schema.String,
-  role_name: Schema.NullOr(Schema.String),
-  team_member_id: Schema.NullOr(Schema.String),
-  discord_user_id: Schema.NullOr(Schema.String),
+export class EventRow extends Schema.Class<EventRow>('EventRow')({
+  id: RoleSyncEvent.RoleSyncEventId,
+  team_id: Team.TeamId,
+  guild_id: Discord.Snowflake,
+  event_type: RoleSyncEvent.RoleSyncEventType,
+  role_id: Role.RoleId,
+  role_name: Schema.OptionFromNullOr(Schema.String),
+  team_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+  discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
@@ -96,28 +98,70 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
     ),
   },
 ) {
-  emitIfGuildLinked(
-    teamId: TeamNS.TeamId,
-    eventType: RoleSyncEventNS.RoleSyncEventType,
-    roleId: RoleNS.RoleId,
-    roleName: string | null,
-    teamMemberId?: TeamMemberNS.TeamMemberId,
-    discordUserId?: string,
+  private _emitIfGuildLinked(
+    teamId: Team.TeamId,
+    eventType: RoleSyncEvent.RoleSyncEventType,
+    roleId: Role.RoleId,
+    roleName: string,
+    teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
+    discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
   ) {
     return this.lookupGuildId(teamId).pipe(
-      Effect.flatMap((opt) =>
-        opt._tag === 'Some' && opt.value.guild_id !== null
-          ? this.insertEvent({
-              team_id: teamId,
-              guild_id: opt.value.guild_id,
-              event_type: eventType,
-              role_id: roleId,
-              role_name: roleName,
-              team_member_id: teamMemberId ?? null,
-              discord_user_id: discordUserId ?? null,
-            })
-          : Effect.void,
+      Effect.flatMap(Option.flatMap(({ guild_id }) => guild_id)),
+      Effect.flatMap((guild_id) =>
+        this.insertEvent({
+          team_id: teamId,
+          guild_id,
+          event_type: eventType,
+          role_id: roleId,
+          role_name: Option.some(roleName),
+          team_member_id: teamMemberId,
+          discord_user_id: discordUserId,
+        }),
       ),
+      Effect.catchTag('NoSuchElementException', () => Effect.void),
+    );
+  }
+
+  emitRoleCreated(teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) {
+    return this._emitIfGuildLinked(teamId, 'role_created', roleId, roleName);
+  }
+
+  emitRoleDeleted(teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) {
+    return this._emitIfGuildLinked(teamId, 'role_deleted', roleId, roleName);
+  }
+
+  emitRoleAssigned(
+    teamId: Team.TeamId,
+    roleId: Role.RoleId,
+    roleName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) {
+    return this._emitIfGuildLinked(
+      teamId,
+      'role_assigned',
+      roleId,
+      roleName,
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
+    );
+  }
+
+  emitRoleUnassigned(
+    teamId: Team.TeamId,
+    roleId: Role.RoleId,
+    roleName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) {
+    return this._emitIfGuildLinked(
+      teamId,
+      'role_unassigned',
+      roleId,
+      roleName,
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
     );
   }
 

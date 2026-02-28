@@ -3,8 +3,7 @@ import { DiscordGateway, InteractionsRegistry } from 'dfx/gateway';
 import { Effect, Layer, Logger, LogLevel } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '~/index.js';
-import { ChannelSyncService } from '~/services/ChannelSyncService.js';
-import { RoleSyncService } from '~/services/RoleSyncService.js';
+import { ChannelSyncService, RoleSyncService } from '~/rcp/index.js';
 
 const MockDiscordGatewayLayer = Layer.succeed(DiscordGateway, {
   [DiscordGateway.key]: DiscordGateway.key,

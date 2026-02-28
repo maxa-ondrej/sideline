@@ -1,35 +1,38 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import {
-  DiscordChannelMapping as DiscordChannelMappingNS,
-  SubgroupModel as SubgroupModelNS,
-  Team as TeamNS,
+  Discord,
+  DiscordChannelMapping,
+  SubgroupModel,
+  type SubgroupModel as SubgroupModelNS,
+  Team,
+  type Team as TeamNS,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
-  id: DiscordChannelMappingNS.DiscordChannelMappingId,
-  team_id: TeamNS.TeamId,
-  subgroup_id: SubgroupModelNS.SubgroupId,
-  discord_channel_id: Schema.String,
-  discord_role_id: Schema.OptionFromNullOr(Schema.String),
+  id: DiscordChannelMapping.DiscordChannelMappingId,
+  team_id: Team.TeamId,
+  subgroup_id: SubgroupModel.SubgroupId,
+  discord_channel_id: Discord.Snowflake,
+  discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class FindBySubgroupInput extends Schema.Class<FindBySubgroupInput>('FindBySubgroupInput')({
-  team_id: Schema.String,
-  subgroup_id: Schema.String,
+  team_id: Team.TeamId,
+  subgroup_id: SubgroupModel.SubgroupId,
 }) {}
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
-  team_id: Schema.String,
-  subgroup_id: Schema.String,
-  discord_channel_id: Schema.String,
-  discord_role_id: Schema.String,
+  team_id: Team.TeamId,
+  subgroup_id: SubgroupModel.SubgroupId,
+  discord_channel_id: Discord.Snowflake,
+  discord_role_id: Discord.Snowflake,
 }) {}
 
 class DeleteBySubgroupInput extends Schema.Class<DeleteBySubgroupInput>('DeleteBySubgroupInput')({
-  team_id: Schema.String,
-  subgroup_id: Schema.String,
+  team_id: Team.TeamId,
+  subgroup_id: SubgroupModel.SubgroupId,
 }) {}
 
 export class DiscordChannelMappingRepository extends Effect.Service<DiscordChannelMappingRepository>()(
@@ -78,8 +81,8 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
   insert(
     teamId: TeamNS.TeamId,
     subgroupId: SubgroupModelNS.SubgroupId,
-    discordChannelId: string,
-    discordRoleId: string,
+    discordChannelId: Discord.Snowflake,
+    discordRoleId: Discord.Snowflake,
   ) {
     return this.insertMapping({
       team_id: teamId,

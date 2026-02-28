@@ -3,8 +3,7 @@ import { Effect } from 'effect';
 import { commandBuilder } from '~/commands/index.js';
 import { eventHandlers } from '~/events/index.js';
 import { interactionBuilder } from '~/interactions/index.js';
-import { ChannelSyncService } from '~/services/ChannelSyncService.js';
-import { RoleSyncService } from '~/services/RoleSyncService.js';
+import { ChannelSyncService, RoleSyncService } from './index.js';
 
 const ixProgram = Effect.succeed(commandBuilder).pipe(
   Effect.map((cb) => cb.concat(interactionBuilder)),
@@ -17,11 +16,11 @@ const ixProgram = Effect.succeed(commandBuilder).pipe(
 
 export const program = Effect.Do.pipe(
   Effect.bind('events', () => eventHandlers),
-  Effect.bind('syncService', () => RoleSyncService),
-  Effect.bind('channelSyncService', () => ChannelSyncService),
+  Effect.bind('roles', () => RoleSyncService),
+  Effect.bind('channels', () => ChannelSyncService),
   Effect.tap(() => Effect.log('Bot connected to Discord')),
-  Effect.andThen(({ events, syncService, channelSyncService }) =>
-    Effect.all([ixProgram, ...events, syncService.pollLoop(), channelSyncService.pollLoop()], {
+  Effect.andThen(({ events, roles, channels }) =>
+    Effect.all([ixProgram, ...events, roles.pollLoop(), channels.pollLoop()], {
       concurrency: 'unbounded',
     }),
   ),

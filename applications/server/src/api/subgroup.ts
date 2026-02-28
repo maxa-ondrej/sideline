@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, SubgroupApi } from '@sideline/domain';
+import { Auth, type Discord, SubgroupApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -53,7 +53,12 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
             ),
             Effect.tap(({ subgroup }) =>
               channelSync
-                .emitIfGuildLinked(teamId, 'channel_created', subgroup.id, subgroup.name)
+                .emitIfGuildLinked(
+                  teamId,
+                  'channel_created',
+                  subgroup.id,
+                  Option.some(subgroup.name),
+                )
                 .pipe(Effect.catchAll(() => Effect.void)),
             ),
             Effect.map(
@@ -181,7 +186,12 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
             ),
             Effect.tap(({ existing }) =>
               channelSync
-                .emitIfGuildLinked(teamId, 'channel_deleted', subgroupId, existing.name)
+                .emitIfGuildLinked(
+                  teamId,
+                  'channel_deleted',
+                  subgroupId,
+                  Option.some(existing.name),
+                )
                 .pipe(Effect.catchAll(() => Effect.void)),
             ),
             Effect.tap(() =>
@@ -237,9 +247,9 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                         teamId,
                         'member_added',
                         subgroupId,
-                        null,
-                        payload.memberId,
-                        user.discord_id,
+                        Option.none(),
+                        Option.some(payload.memberId),
+                        Option.some(user.discord_id as Discord.Snowflake),
                       ),
                   }),
                 ),
@@ -296,9 +306,9 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                         teamId,
                         'member_removed',
                         subgroupId,
-                        null,
-                        memberId,
-                        user.discord_id,
+                        Option.none(),
+                        Option.some(memberId),
+                        Option.some(user.discord_id as Discord.Snowflake),
                       ),
                   }),
                 ),

@@ -11,8 +11,8 @@ export class AgeThresholdInfo extends Schema.Class<AgeThresholdInfo>('AgeThresho
   teamId: TeamId,
   roleId: RoleId,
   roleName: Schema.String,
-  minAge: Schema.NullOr(Schema.Number),
-  maxAge: Schema.NullOr(Schema.Number),
+  minAge: Schema.OptionFromNullOr(Schema.Number),
+  maxAge: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 export class AgeRoleChange extends Schema.Class<AgeRoleChange>('AgeRoleChange')({
@@ -27,15 +27,15 @@ export class CreateAgeThresholdRequest extends Schema.Class<CreateAgeThresholdRe
   'CreateAgeThresholdRequest',
 )({
   roleId: RoleId,
-  minAge: Schema.NullOr(Schema.Number),
-  maxAge: Schema.NullOr(Schema.Number),
+  minAge: Schema.OptionFromNullOr(Schema.Number),
+  maxAge: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 export class UpdateAgeThresholdRequest extends Schema.Class<UpdateAgeThresholdRequest>(
   'UpdateAgeThresholdRequest',
 )({
-  minAge: Schema.NullOr(Schema.Number),
-  maxAge: Schema.NullOr(Schema.Number),
+  minAge: Schema.OptionFromNullOr(Schema.Number),
+  maxAge: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 export class Forbidden extends Schema.TaggedError<Forbidden>()(

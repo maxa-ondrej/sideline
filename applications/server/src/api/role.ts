@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, RoleApi } from '@sideline/domain';
+import { Auth, type Discord, RoleApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -60,7 +60,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                 .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.tap(({ role }) =>
-              syncEvents.emitIfGuildLinked(teamId, 'role_created', role.id, role.name).pipe(
+              syncEvents.emitRoleCreated(teamId, role.id, role.name).pipe(
                 Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
                 Effect.catchAll(() => Effect.void),
               ),
@@ -189,7 +189,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
             Effect.tap(({ existing }) =>
-              syncEvents.emitIfGuildLinked(teamId, 'role_deleted', existing.id, existing.name).pipe(
+              syncEvents.emitRoleDeleted(teamId, existing.id, existing.name).pipe(
                 Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
                 Effect.catchAll(() => Effect.void),
               ),
@@ -252,13 +252,12 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Option.match({
                     onNone: () => Effect.void,
                     onSome: (user) =>
-                      syncEvents.emitIfGuildLinked(
+                      syncEvents.emitRoleAssigned(
                         teamId,
-                        'role_assigned',
                         payload.roleId,
                         role.name,
                         memberId,
-                        user.discord_id,
+                        user.discord_id as Discord.Snowflake,
                       ),
                   }),
                 ),
@@ -324,13 +323,12 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Option.match({
                     onNone: () => Effect.void,
                     onSome: (user) =>
-                      syncEvents.emitIfGuildLinked(
+                      syncEvents.emitRoleUnassigned(
                         teamId,
-                        'role_unassigned',
                         roleId,
                         role.name,
                         memberId,
-                        user.discord_id,
+                        user.discord_id as Discord.Snowflake,
                       ),
                   }),
                 ),
