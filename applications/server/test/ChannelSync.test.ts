@@ -123,21 +123,22 @@ type ChannelSyncEventCall = {
   teamId: Team.TeamId;
   eventType: ChannelSyncEvent.ChannelSyncEventType;
   subgroupId: SubgroupModel.SubgroupId;
-  subgroupName: string | null;
-  teamMemberId: TeamMember.TeamMemberId | undefined;
-  discordUserId: string | undefined;
+  subgroupName: Option.Option<string>;
+  teamMemberId: Option.Option<TeamMember.TeamMemberId>;
+  discordUserId: Option.Option<string>;
 };
 
 const channelSyncEventCalls: ChannelSyncEventCall[] = [];
 
 const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
+  _tag: 'api/ChannelSyncEventsRepository',
   emitIfGuildLinked: (
     teamId: Team.TeamId,
     eventType: ChannelSyncEvent.ChannelSyncEventType,
     subgroupId: SubgroupModel.SubgroupId,
-    subgroupName: string | null,
-    teamMemberId?: TeamMember.TeamMemberId,
-    discordUserId?: string,
+    subgroupName: Option.Option<string> = Option.none(),
+    teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
+    discordUserId: Option.Option<string> = Option.none(),
   ) => {
     channelSyncEventCalls.push({
       teamId,
@@ -152,7 +153,12 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-} as unknown as ChannelSyncEventsRepository);
+  insertEvent: () => Effect.die('Not implemented'),
+  lookupGuildId: () => Effect.die('Not implemented'),
+  findUnprocessedEvents: () => Effect.die('Not implemented'),
+  markEventProcessed: () => Effect.die('Not implemented'),
+  markEventFailed: () => Effect.die('Not implemented'),
+} as ChannelSyncEventsRepository);
 
 let nextSubgroupId = 100;
 
@@ -586,9 +592,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'channel_created',
         subgroupId: body.subgroupId,
-        subgroupName: 'Goalkeepers',
-        teamMemberId: undefined,
-        discordUserId: undefined,
+        subgroupName: Option.some('Goalkeepers'),
+        teamMemberId: Option.none(),
+        discordUserId: Option.none(),
       });
     });
   });
@@ -621,9 +627,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'channel_deleted',
         subgroupId: created.subgroupId,
-        subgroupName: 'ToDelete',
-        teamMemberId: undefined,
-        discordUserId: undefined,
+        subgroupName: Option.some('ToDelete'),
+        teamMemberId: Option.none(),
+        discordUserId: Option.none(),
       });
     });
   });
@@ -663,9 +669,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'member_added',
         subgroupId: created.subgroupId,
-        subgroupName: null,
-        teamMemberId: TEST_MEMBER_ID,
-        discordUserId: '12345',
+        subgroupName: Option.none(),
+        teamMemberId: Option.some(TEST_MEMBER_ID),
+        discordUserId: Option.some('12345'),
       });
     });
   });
@@ -716,9 +722,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'member_removed',
         subgroupId: created.subgroupId,
-        subgroupName: null,
-        teamMemberId: TEST_MEMBER_ID,
-        discordUserId: '12345',
+        subgroupName: Option.none(),
+        teamMemberId: Option.some(TEST_MEMBER_ID),
+        discordUserId: Option.some('12345'),
       });
     });
   });

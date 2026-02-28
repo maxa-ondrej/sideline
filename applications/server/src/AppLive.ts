@@ -3,6 +3,7 @@ import {
   HttpApiBuilder,
   HttpApiSwagger,
   HttpMiddleware,
+  type HttpRouter,
   HttpServer,
 } from '@effect/platform';
 import { RpcSerialization, RpcServer } from '@effect/rpc';
@@ -27,12 +28,16 @@ import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
+import { env } from './env.js';
 import { SyncRpcsLive } from './rpc/index.js';
 
 const RpcLive = RpcServer.layer(SyncRpcs.SyncRpcs).pipe(
   Layer.provide(SyncRpcsLive),
   Layer.provide(
-    RpcServer.layerProtocolHttp({ path: '/rpc/sync', routerTag: HttpApiBuilder.Router }),
+    RpcServer.layerProtocolHttp({
+      path: env.RPC_PREFIX as HttpRouter.PathInput,
+      routerTag: HttpApiBuilder.Router,
+    }),
   ),
   Layer.provide(RpcSerialization.layerNdjson),
 );

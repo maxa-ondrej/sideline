@@ -49,13 +49,20 @@ const App = AppLive.pipe(
 
 const Health = HealthServerLive.pipe(Layer.launch, Effect.withLogSpan('health'));
 
+const RepositoriesLive = Layer.mergeAll(
+  AgeThresholdRepository.Default,
+  NotificationsRepository.Default,
+  RoleSyncEventsRepository.Default,
+  TeamMembersRepository.Default,
+);
+
 const Cron = AgeCheckCron.pipe(
-  Effect.provide(AgeCheckService.Default),
-  Effect.provide(AgeThresholdRepository.Default),
-  Effect.provide(NotificationsRepository.Default),
-  Effect.provide(RoleSyncEventsRepository.Default),
-  Effect.provide(TeamMembersRepository.Default),
-  Effect.provide(PgClient.layerConfig(BasePg)),
+  Effect.provide(
+    AgeCheckService.Default.pipe(
+      Layer.provideMerge(RepositoriesLive),
+      Layer.provideMerge(PgClient.layerConfig(BasePg)),
+    ),
+  ),
   Effect.withLogSpan('age-check-cron'),
 );
 

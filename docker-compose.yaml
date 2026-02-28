@@ -32,6 +32,7 @@ services:
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
       DISCORD_REDIRECT: https://sideline-preview.majksa.net/api
       API_PREFIX: /api
+      RPC_PREFIX: /rpc/sync
       FRONTEND_URL: ${SERVICE_URL_PROXY}
       SERVER_URL: ${SERVICE_URL_PROXY}/api
     healthcheck:
@@ -49,6 +50,7 @@ services:
     environment:
       NODE_ENV: development
       SERVER_URL: http://${SERVICE_NAME_SERVER}:80
+      RPC_PREFIX: /rpc/sync
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]

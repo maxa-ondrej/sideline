@@ -1,6 +1,7 @@
 import {
   type Discord,
   type Role,
+  RoleRpcGroup,
   RoleRpcModels,
   type RoleSyncEvent,
   type Team,
@@ -11,7 +12,7 @@ import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingR
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
 
-export const RolesHandler = Effect.Do.pipe(
+export const RolesRpcLive = Effect.Do.pipe(
   Effect.bind('syncEvents', () => RoleSyncEventsRepository),
   Effect.bind('mappings', () => DiscordRoleMappingRepository),
   Effect.let(
@@ -92,4 +93,5 @@ export const RolesHandler = Effect.Do.pipe(
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),
+  RoleRpcGroup.RoleRpcGroup.toLayer,
 );

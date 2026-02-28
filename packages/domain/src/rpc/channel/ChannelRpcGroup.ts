@@ -1,25 +1,25 @@
-import { Rpc } from '@effect/rpc';
+import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
 import { ChannelSyncEvent, Discord, SubgroupModel, Team } from '~/index.js';
 import { UnprocessedChannelEvent } from './ChannelRpcEvents.js';
 import { ChannelMapping } from './ChannelRpcModels.js';
 
-export const ChannelRpcGroup = [
-  Rpc.make('Channel/GetUnprocessedEvents', {
+export const ChannelRpcGroup = RpcGroup.make(
+  Rpc.make('GetUnprocessedEvents', {
     payload: { limit: Schema.Number },
     success: Schema.Array(UnprocessedChannelEvent),
   }),
-  Rpc.make('Channel/MarkEventProcessed', {
+  Rpc.make('MarkEventProcessed', {
     payload: { id: ChannelSyncEvent.ChannelSyncEventId },
   }),
-  Rpc.make('Channel/MarkEventFailed', {
+  Rpc.make('MarkEventFailed', {
     payload: { id: ChannelSyncEvent.ChannelSyncEventId, error: Schema.String },
   }),
-  Rpc.make('Channel/GetMapping', {
+  Rpc.make('GetMapping', {
     payload: { team_id: Team.TeamId, subgroup_id: SubgroupModel.SubgroupId },
-    success: Schema.Option(ChannelMapping),
+    success: Schema.OptionFromNullOr(ChannelMapping),
   }),
-  Rpc.make('Channel/UpsertMapping', {
+  Rpc.make('UpsertMapping', {
     payload: {
       team_id: Team.TeamId,
       subgroup_id: SubgroupModel.SubgroupId,
@@ -27,7 +27,7 @@ export const ChannelRpcGroup = [
       discord_role_id: Discord.Snowflake,
     },
   }),
-  Rpc.make('Channel/DeleteMapping', {
+  Rpc.make('DeleteMapping', {
     payload: { team_id: Team.TeamId, subgroup_id: SubgroupModel.SubgroupId },
   }),
-];
+).prefix('Channel/');

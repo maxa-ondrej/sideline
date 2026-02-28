@@ -132,25 +132,60 @@ type SyncEventCall = {
   teamId: Team.TeamId;
   eventType: RoleSyncEvent.RoleSyncEventType;
   roleId: Role.RoleId;
-  roleName: string | null;
-  teamMemberId: TeamMember.TeamMemberId | undefined;
-  discordUserId: string | undefined;
+  roleName: Option.Option<string>;
+  teamMemberId: Option.Option<TeamMember.TeamMemberId>;
+  discordUserId: Option.Option<string>;
 };
 
 const syncEventCalls: SyncEventCall[] = [];
 
+const recordSyncEvent = (
+  teamId: Team.TeamId,
+  eventType: RoleSyncEvent.RoleSyncEventType,
+  roleId: Role.RoleId,
+  roleName: Option.Option<string> = Option.none(),
+  teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
+  discordUserId: Option.Option<string> = Option.none(),
+) => {
+  syncEventCalls.push({ teamId, eventType, roleId, roleName, teamMemberId, discordUserId });
+  return Effect.void;
+};
+
 const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
-  emitIfGuildLinked: (
+  emitRoleCreated: (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
+    recordSyncEvent(teamId, 'role_created', roleId, Option.some(roleName)),
+  emitRoleDeleted: (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
+    recordSyncEvent(teamId, 'role_deleted', roleId, Option.some(roleName)),
+  emitRoleAssigned: (
     teamId: Team.TeamId,
-    eventType: RoleSyncEvent.RoleSyncEventType,
     roleId: Role.RoleId,
-    roleName: string | null,
-    teamMemberId?: TeamMember.TeamMemberId,
-    discordUserId?: string,
-  ) => {
-    syncEventCalls.push({ teamId, eventType, roleId, roleName, teamMemberId, discordUserId });
-    return Effect.void;
-  },
+    roleName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: string,
+  ) =>
+    recordSyncEvent(
+      teamId,
+      'role_assigned',
+      roleId,
+      Option.some(roleName),
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
+    ),
+  emitRoleUnassigned: (
+    teamId: Team.TeamId,
+    roleId: Role.RoleId,
+    roleName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: string,
+  ) =>
+    recordSyncEvent(
+      teamId,
+      'role_unassigned',
+      roleId,
+      Option.some(roleName),
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
+    ),
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
@@ -547,9 +582,9 @@ describe('Role Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'role_created',
         roleId: body.roleId,
-        roleName: 'Goalkeeper',
-        teamMemberId: undefined,
-        discordUserId: undefined,
+        roleName: Option.some('Goalkeeper'),
+        teamMemberId: Option.none(),
+        discordUserId: Option.none(),
       });
     });
   });
@@ -583,9 +618,9 @@ describe('Role Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'role_deleted',
         roleId: created.roleId,
-        roleName: 'ToDelete',
-        teamMemberId: undefined,
-        discordUserId: undefined,
+        roleName: Option.some('ToDelete'),
+        teamMemberId: Option.none(),
+        discordUserId: Option.none(),
       });
     });
   });
@@ -623,9 +658,9 @@ describe('Role Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'role_assigned',
         roleId: created.roleId,
-        roleName: 'Captain',
-        teamMemberId: TEST_MEMBER_ID,
-        discordUserId: '12345',
+        roleName: Option.some('Captain'),
+        teamMemberId: Option.some(TEST_MEMBER_ID),
+        discordUserId: Option.some('12345'),
       });
     });
   });
@@ -662,9 +697,9 @@ describe('Role Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'role_unassigned',
         roleId: created.roleId,
-        roleName: 'Temp',
-        teamMemberId: TEST_MEMBER_ID,
-        discordUserId: '12345',
+        roleName: Option.some('Temp'),
+        teamMemberId: Option.some(TEST_MEMBER_ID),
+        discordUserId: Option.some('12345'),
       });
     });
   });

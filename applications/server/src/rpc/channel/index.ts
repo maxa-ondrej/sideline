@@ -1,4 +1,5 @@
 import {
+  ChannelRpcGroup,
   ChannelRpcModels,
   type ChannelSyncEvent,
   type Discord,
@@ -11,7 +12,7 @@ import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRep
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
 
-export const ChannelsHandler = Effect.Do.pipe(
+export const ChannelsRpcLive = Effect.Do.pipe(
   Effect.bind('syncEvents', () => ChannelSyncEventsRepository),
   Effect.bind('mappings', () => DiscordChannelMappingRepository),
   Effect.let(
@@ -115,4 +116,5 @@ export const ChannelsHandler = Effect.Do.pipe(
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),
+  ChannelRpcGroup.ChannelRpcGroup.toLayer,
 );
