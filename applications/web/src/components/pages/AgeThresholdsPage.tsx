@@ -27,9 +27,9 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
 const CreateThresholdSchema = Schema.Struct({
-  roleId: Schema.NonEmptyString,
-  minAge: Schema.String,
-  maxAge: Schema.String,
+  roleId: Role.RoleId,
+  minAge: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
+  maxAge: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
 });
 
 type CreateThresholdValues = Schema.Schema.Type<typeof CreateThresholdSchema>;
@@ -59,15 +59,11 @@ export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPagePro
   });
 
   const onSubmit = async (values: CreateThresholdValues) => {
-    const roleId = Schema.decodeSync(Role.RoleId)(values.roleId);
-    const minAge = values.minAge.trim() === '' ? null : Number(values.minAge);
-    const maxAge = values.maxAge.trim() === '' ? null : Number(values.maxAge);
-
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.createAgeThreshold({
           path: { teamId: teamIdBranded },
-          payload: { roleId, minAge, maxAge },
+          payload: values,
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.ageThreshold_createFailed())),
@@ -118,10 +114,16 @@ export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPagePro
     }
   }, [teamIdBranded, run, router]);
 
-  const formatAgeRange = (minAge: number | null, maxAge: number | null) => {
-    if (minAge !== null && maxAge !== null) return `${String(minAge)}–${String(maxAge)}`;
-    if (minAge !== null) return `${String(minAge)}+`;
-    if (maxAge !== null) return `≤${String(maxAge)}`;
+  const formatAgeRange = (minAge: Option.Option<number>, maxAge: Option.Option<number>) => {
+    if (Option.isSome(minAge) && Option.isSome(maxAge)) {
+      return `${minAge.value}–${maxAge.value}`;
+    }
+    if (Option.isSome(minAge)) {
+      return `${minAge.value}+`;
+    }
+    if (Option.isSome(maxAge)) {
+      return `≤${maxAge.value}`;
+    }
     return m.ageThreshold_anyAge();
   };
 
