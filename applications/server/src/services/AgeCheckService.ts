@@ -209,6 +209,7 @@ const evaluateTeam =
             }),
         ),
       ),
+      Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
     );
 
 export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeCheckService', {

@@ -50,6 +50,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} channel events from database.`),
           ),
+          Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
           Effect.catchAll((error) =>
             Effect.logError('GetUnprocessedChannelEvents failed', error).pipe(Effect.map(() => [])),
           ),
