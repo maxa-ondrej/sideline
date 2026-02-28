@@ -25,9 +25,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
-            Effect.bind('list', () =>
-              subgroups.findSubgroupsByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('list', () => subgroups.findSubgroupsByTeamId(teamId).pipe(Effect.orDie)),
             Effect.map(({ list }) =>
               list.map(
                 (s) =>
