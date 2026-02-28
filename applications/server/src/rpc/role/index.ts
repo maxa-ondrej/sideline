@@ -7,7 +7,7 @@ import {
   type Team,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Array, Data, Effect, flow, Option } from 'effect';
+import { Array, Data, Effect, Either, flow, Option } from 'effect';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
@@ -32,6 +32,7 @@ export const RolesRpcLive = Effect.Do.pipe(
                 constructEvent,
                 Effect.tapError(Effect.logError),
                 Effect.tapErrorTag('EventPropertyMissing', EventPropertyMissing.handle),
+                Effect.either,
               ),
             ),
           ),
@@ -47,7 +48,8 @@ export const RolesRpcLive = Effect.Do.pipe(
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} role events from database.`),
           ),
-          Effect.flatMap(Effect.allSuccesses),
+          Effect.flatMap(Effect.all),
+          Effect.map(Array.filterMap(Either.getRight)),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} role events from database.`),
           ),
