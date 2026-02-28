@@ -50,14 +50,12 @@ export const RolesRpcLive = Effect.Do.pipe(
             Effect.logInfo(`Collected ${events.length} role events from database.`),
           ),
           Effect.flatMap(Effect.all),
+          Effect.tap(flow(Array.filterMap(Either.getLeft), Array.map(Effect.logError), Effect.all)),
           Effect.map(Array.filterMap(Either.getRight)),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} role events from database.`),
           ),
           Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
-          Effect.catchAll((error) =>
-            Effect.logError('Role/GetUnprocessedEvents failed', error).pipe(Effect.map(() => [])),
-          ),
         ),
   ),
   Effect.let(
