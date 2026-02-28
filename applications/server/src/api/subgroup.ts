@@ -170,18 +170,20 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('existing', () =>
               subgroups.findSubgroupById(subgroupId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new SubgroupApi.SubgroupNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new SubgroupApi.SubgroupNotFound()),
               ),
             ),
             Effect.tap(({ existing }) =>
               existing.team_id !== teamId
-                ? Effect.fail(new SubgroupApi.SubgroupNotFound())
+                ? Effect.fail(new SubgroupApi.SubgroupNotFound()).pipe(
+                    Effect.tapError(() =>
+                      Effect.logWarning(
+                        `Tried to delete subgroup ${subgroupId} of team ${teamId}, but it actually belongs to ${existing.team_id}`,
+                      ),
+                    ),
+                  )
                 : Effect.void,
             ),
             Effect.tap(({ existing }) =>
@@ -192,11 +194,9 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                   subgroupId,
                   Option.some(existing.name),
                 )
-                .pipe(Effect.catchAll(() => Effect.void)),
+                .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
             ),
-            Effect.tap(() =>
-              subgroups.deleteSubgroupById(subgroupId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => subgroups.deleteSubgroupById(subgroupId).pipe(Effect.orDie)),
             Effect.asVoid,
           ),
         )
