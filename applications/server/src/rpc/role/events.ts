@@ -1,5 +1,5 @@
 import { RoleRpcEvents, type RoleSyncEvent } from '@sideline/domain';
-import { Data, Effect, Match, Option } from 'effect';
+import { Data, Effect, Match, type Option } from 'effect';
 import {
   type EventRow,
   RoleSyncEventsRepository,
@@ -35,7 +35,7 @@ const nullable = <
   event: E,
   key: K,
 ) =>
-  Option.fromNullable(event[key]).pipe(
+  event[key].pipe(
     Effect.catchTag(
       'NoSuchElementException',
       () => new EventPropertyMissing({ event_type: event.event_type, id: event.id, property: key }),
@@ -46,6 +46,11 @@ export const constructEvent = Match.type<EventRow>().pipe(
   Match.when({ event_type: 'role_created' }, (r) =>
     Effect.Do.pipe(
       Effect.bind('role_name', () => nullable(r, 'role_name')),
+      Effect.tap((extras) =>
+        Effect.logInfo(
+          `Constructing role_created event with ${JSON.stringify(r)} and ${JSON.stringify(extras)}`,
+        ),
+      ),
       Effect.map(
         ({ role_name }) =>
           new RoleRpcEvents.RoleCreatedEvent({
@@ -66,6 +71,12 @@ export const constructEvent = Match.type<EventRow>().pipe(
         guild_id: r.guild_id,
         role_id: r.role_id,
       }),
+    ).pipe(
+      Effect.tap((extras) =>
+        Effect.logInfo(
+          `Constructing role_deleted event with ${JSON.stringify(r)} and ${JSON.stringify(extras)}`,
+        ),
+      ),
     ),
   ),
   Match.when({ event_type: 'role_assigned' }, (r) =>
@@ -73,6 +84,11 @@ export const constructEvent = Match.type<EventRow>().pipe(
       Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
       Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
       Effect.bind('role_name', () => nullable(r, 'role_name')),
+      Effect.tap((extras) =>
+        Effect.logInfo(
+          `Constructing role_assigned event with ${JSON.stringify(r)} and ${JSON.stringify(extras)}`,
+        ),
+      ),
       Effect.map(
         ({ discord_user_id, team_member_id, role_name }) =>
           new RoleRpcEvents.RoleAssignedEvent({
@@ -91,6 +107,11 @@ export const constructEvent = Match.type<EventRow>().pipe(
     Effect.Do.pipe(
       Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
       Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
+      Effect.tap((extras) =>
+        Effect.logInfo(
+          `Constructing role_unassigned event with ${JSON.stringify(r)} and ${JSON.stringify(extras)}`,
+        ),
+      ),
       Effect.map(
         ({ discord_user_id, team_member_id }) =>
           new RoleRpcEvents.RoleUnassignedEvent({
