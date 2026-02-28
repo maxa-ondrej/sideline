@@ -1,12 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import {
-  Discord,
-  Role,
-  RoleSyncEvent,
-  RoleSyncEvent as RoleSyncEventNS,
-  Team,
-  TeamMember,
-} from '@sideline/domain';
+import { Discord, Role, RoleSyncEvent, Team, TeamMember } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
@@ -36,11 +29,11 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
-  id: RoleSyncEventNS.RoleSyncEventId,
+  id: RoleSyncEvent.RoleSyncEventId,
 }) {}
 
 class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
-  id: RoleSyncEventNS.RoleSyncEventId,
+  id: RoleSyncEvent.RoleSyncEventId,
   error: Schema.String,
 }) {}
 
@@ -169,11 +162,11 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
     return this.findUnprocessedEvents(limit);
   }
 
-  markProcessed(id: RoleSyncEventNS.RoleSyncEventId) {
+  markProcessed(id: RoleSyncEvent.RoleSyncEventId) {
     return this.markEventProcessed({ id });
   }
 
-  markFailed(id: RoleSyncEventNS.RoleSyncEventId, error: string) {
+  markFailed(id: RoleSyncEvent.RoleSyncEventId, error: string) {
     return this.markEventFailed({ id, error });
   }
 }

@@ -30,6 +30,7 @@ export const RolesRpcLive = Effect.Do.pipe(
             Array.map(
               flow(
                 constructEvent,
+                Effect.tapError(Effect.logError),
                 Effect.tapErrorTag('EventPropertyMissing', EventPropertyMissing.handle),
               ),
             ),
