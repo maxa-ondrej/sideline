@@ -1,8 +1,5 @@
 import { HttpMiddleware, HttpServerError, HttpServerRequest } from '@effect/platform';
 import { Effect } from 'effect';
-import { env } from '~/env.js';
-
-const rpcUrl = `/${env.RPC_PREFIX}`.replace(/\/+/g, '/');
 
 /**
  * Custom HTTP logger middleware that logs RPC polling requests at DEBUG level
@@ -12,9 +9,6 @@ export const HttpLogger = HttpMiddleware.make((httpApp) => {
   let counter = 0;
 
   return Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
-    const isRpc = request.method === 'POST' && request.url === rpcUrl;
-    const log = isRpc ? Effect.logDebug : Effect.log;
-
     return Effect.withLogSpan(
       Effect.flatMap(Effect.exit(httpApp), (exit) => {
         if (exit._tag === 'Failure') {
@@ -22,7 +16,9 @@ export const HttpLogger = HttpMiddleware.make((httpApp) => {
 
           return Effect.zipRight(
             Effect.annotateLogs(
-              cause._tag === 'Some' ? log(cause.value) : log('Sent HTTP response'),
+              cause._tag === 'Some'
+                ? Effect.logError(cause.value)
+                : Effect.logError('Sent HTTP response'),
               {
                 'http.method': request.method,
                 'http.url': request.url,
@@ -33,6 +29,7 @@ export const HttpLogger = HttpMiddleware.make((httpApp) => {
           );
         }
 
+        const log = exit.value.status >= 400 ? Effect.logWarning : Effect.logDebug;
         return Effect.zipRight(
           Effect.annotateLogs(log('Sent HTTP response'), {
             'http.method': request.method,
