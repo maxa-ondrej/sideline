@@ -315,9 +315,7 @@ Internal packages use scoped aliases:
 - **Never use `Effect.gen(function* () {`** — instead use `Effect.Do.pipe(...)` with `Effect.bind` / `Effect.let` / `Effect.tap` for sequential operations
 - **Use `pipe`** for linear transformations and chaining
 - **Always use `Effect.asVoid`** instead of `Effect.map(() => undefined as undefined)`
-- **Never use `Effect.orDie`** or any other way of killing fibers — all errors must be handled gracefully
 - **Never cast types** (`as X`) and **never use `any`** — fix the types properly instead
-- **Avoid premature abstraction** - keep solutions simple
 - **Type narrow errors** - use discriminated unions for error types
 - **Document complex Effect chains** - explain the business logic, not the syntax
 
