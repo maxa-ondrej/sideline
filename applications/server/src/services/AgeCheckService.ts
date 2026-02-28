@@ -112,11 +112,10 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
 const notifyAdmins = (
   notifications: NotificationsRepository,
   teamId: Team.TeamId,
-  isAdmin: (member: MemberWithBirthYear) => boolean,
   changes: readonly Change[],
   teamMembers: readonly MemberWithBirthYear[],
 ) =>
-  Effect.succeed(teamMembers.filter(isAdmin).map((m) => m.user_id)).pipe(
+  Effect.succeed(teamMembers.filter(({ is_admin }) => is_admin).map((m) => m.user_id)).pipe(
     Effect.map(Array.dedupe),
     Effect.map(
       Array.flatMap((userId) =>
@@ -167,13 +166,7 @@ const evaluateTeam =
       Effect.bind('commited', ({ changes }) => commitChanges(members, changes)),
       Effect.bind('adminIds', ({ changes }) => commitChanges(members, changes)),
       Effect.tap(({ changes, teamMembers }) =>
-        notifyAdmins(
-          notifications,
-          teamId,
-          ({ role_ids }) => Array.isNonEmptyReadonlyArray(role_ids),
-          changes,
-          teamMembers,
-        ),
+        notifyAdmins(notifications, teamId, changes, teamMembers),
       ),
       Effect.tap(({ changes, teamMembers }) =>
         Effect.allSuccesses(

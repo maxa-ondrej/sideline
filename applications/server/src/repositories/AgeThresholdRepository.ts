@@ -53,6 +53,7 @@ export class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('Memb
   discord_username: Schema.String,
   discord_id: Discord.Snowflake,
   birth_year: Schema.Number,
+  is_admin: Schema.Boolean,
   role_ids: Schema.String.pipe(
     Schema.transform(Schema.Array(Schema.NonEmptyString), {
       strict: true,
@@ -148,7 +149,12 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
                    COALESCE(
                      (SELECT string_agg(mr.role_id::text, ',')
                       FROM member_roles mr WHERE mr.team_member_id = tm.id), ''
-                   ) AS role_ids
+                   ) AS role_ids,
+                    (SELECT count(*)
+                      FROM member_roles mr
+                      JOIN roles r ON r.id = mr.role_id
+                      WHERE mr.team_member_id = tm.id
+                      AND r.name = 'Admin') > 0 AS is_admin
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ${teamId} AND tm.active = true AND u.birth_year IS NOT NULL
