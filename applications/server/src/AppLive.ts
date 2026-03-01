@@ -2,15 +2,17 @@ import {
   FetchHttpClient,
   HttpApiBuilder,
   HttpApiSwagger,
-  HttpMiddleware,
+  type HttpRouter,
   HttpServer,
 } from '@effect/platform';
 import { RpcSerialization, RpcServer } from '@effect/rpc';
-import { RoleSyncRpc } from '@sideline/domain';
+import { SyncRpcs } from '@sideline/domain';
 import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -23,14 +25,19 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
-import { RoleSyncRpcLive } from '~/rpc/RoleSyncRpcLive.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
+import { env } from './env.js';
+import { HttpLogger } from './middleware/HttpLogger.js';
+import { SyncRpcsLive } from './rpc/index.js';
 
-const RpcLive = RpcServer.layer(RoleSyncRpc.RoleSyncRpcs).pipe(
-  Layer.provide(RoleSyncRpcLive),
+const RpcLive = RpcServer.layer(SyncRpcs.SyncRpcs).pipe(
+  Layer.provide(SyncRpcsLive),
   Layer.provide(
-    RpcServer.layerProtocolHttp({ path: '/rpc/role-sync', routerTag: HttpApiBuilder.Router }),
+    RpcServer.layerProtocolHttp({
+      path: env.RPC_PREFIX as HttpRouter.PathInput,
+      routerTag: HttpApiBuilder.Router,
+    }),
   ),
   Layer.provide(RpcSerialization.layerNdjson),
 );
@@ -49,9 +56,11 @@ const Repositories = Layer.mergeAll(
   NotificationsRepository.Default,
   RoleSyncEventsRepository.Default,
   DiscordRoleMappingRepository.Default,
+  ChannelSyncEventsRepository.Default,
+  DiscordChannelMappingRepository.Default,
 );
 
-export const AppLive = HttpApiBuilder.serve(HttpMiddleware.logger).pipe(
+export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(
   Layer.provide(HttpApiSwagger.layer({ path: '/docs/swagger-ui' })),
   Layer.provide(HttpApiBuilder.middlewareOpenApi({ path: '/docs/openapi.json' })),
   Layer.provide(HttpApiBuilder.middlewareCors({ credentials: true, allowedOrigins: () => true })),

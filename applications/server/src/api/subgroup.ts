@@ -1,10 +1,12 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, SubgroupApi } from '@sideline/domain';
+import { Auth, type Discord, SubgroupApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 const forbidden = new SubgroupApi.Forbidden();
 
@@ -12,7 +14,9 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('subgroups', () => SubgroupsRepository),
-    Effect.map(({ members, subgroups }) =>
+    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
+    Effect.bind('users', () => UsersRepository),
+    Effect.map(({ members, subgroups, channelSync, users }) =>
       handlers
         .handle('listSubgroups', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -21,9 +25,7 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
-            Effect.bind('list', () =>
-              subgroups.findSubgroupsByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('list', () => subgroups.findSubgroupsByTeamId(teamId).pipe(Effect.orDie)),
             Effect.map(({ list }) =>
               list.map(
                 (s) =>
@@ -46,6 +48,16 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('subgroup', () =>
               subgroups.insertSubgroup(teamId, payload.name).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ subgroup }) =>
+              channelSync
+                .emitIfGuildLinked(
+                  teamId,
+                  'channel_created',
+                  subgroup.id,
+                  Option.some(subgroup.name),
+                )
+                .pipe(Effect.catchAll(() => Effect.void)),
             ),
             Effect.map(
               ({ subgroup }) =>
@@ -156,22 +168,32 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('existing', () =>
               subgroups.findSubgroupById(subgroupId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new SubgroupApi.SubgroupNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new SubgroupApi.SubgroupNotFound()),
               ),
             ),
             Effect.tap(({ existing }) =>
               existing.team_id !== teamId
-                ? Effect.fail(new SubgroupApi.SubgroupNotFound())
+                ? Effect.fail(new SubgroupApi.SubgroupNotFound()).pipe(
+                    Effect.tapError(() =>
+                      Effect.logWarning(
+                        `Tried to delete subgroup ${subgroupId} of team ${teamId}, but it actually belongs to ${existing.team_id}`,
+                      ),
+                    ),
+                  )
                 : Effect.void,
             ),
-            Effect.tap(() =>
-              subgroups.deleteSubgroupById(subgroupId).pipe(Effect.mapError(() => forbidden)),
+            Effect.tap(() => subgroups.archiveSubgroupById(subgroupId).pipe(Effect.orDie)),
+            Effect.tap(({ existing }) =>
+              channelSync
+                .emitIfGuildLinked(
+                  teamId,
+                  'channel_deleted',
+                  subgroupId,
+                  Option.some(existing.name),
+                )
+                .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
             ),
             Effect.asVoid,
           ),
@@ -213,6 +235,25 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
                 .addMemberById(subgroupId, payload.memberId)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
+            Effect.tap(({ _subgroup, _member }) =>
+              users.findById(_member.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      channelSync.emitIfGuildLinked(
+                        teamId,
+                        'member_added',
+                        subgroupId,
+                        Option.some(_subgroup.name),
+                        Option.some(payload.memberId),
+                        Option.some(user.discord_id as Discord.Snowflake),
+                      ),
+                  }),
+                ),
+                Effect.catchAll(() => Effect.void),
+              ),
+            ),
             Effect.asVoid,
           ),
         )
@@ -252,6 +293,25 @@ export const SubgroupApiLive = HttpApiBuilder.group(Api, 'subgroup', (handlers) 
               subgroups
                 .removeMemberById(subgroupId, memberId)
                 .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ _subgroup, _member }) =>
+              users.findById(_member.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      channelSync.emitIfGuildLinked(
+                        teamId,
+                        'member_removed',
+                        subgroupId,
+                        Option.some(_subgroup.name),
+                        Option.some(memberId),
+                        Option.some(user.discord_id as Discord.Snowflake),
+                      ),
+                  }),
+                ),
+                Effect.catchAll(() => Effect.void),
+              ),
             ),
             Effect.asVoid,
           ),

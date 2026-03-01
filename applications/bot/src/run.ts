@@ -7,7 +7,7 @@ import { env } from '~/env.js';
 import { AppLive, Bot } from '~/index.js';
 
 const RpcProtocol = RpcClient.layerProtocolHttp({
-  url: `${env.SERVER_URL}/rpc/role-sync`,
+  url: env.SERVER_URL + env.RPC_PREFIX,
 }).pipe(Layer.provide(NodeHttpClient.layerUndici), Layer.provide(RpcSerialization.layerNdjson));
 
 const MainLive = AppLive.pipe(

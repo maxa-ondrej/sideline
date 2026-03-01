@@ -17,6 +17,10 @@ export const env = createEnv({
       Schemas.Optional(() => ''),
       Schema.standardSchemaV1,
     ),
+    RPC_PREFIX: Schema.String.pipe(
+      Schemas.Optional(() => ''),
+      Schema.standardSchemaV1,
+    ),
     SERVER_URL: Schema.URL.pipe(Schema.standardSchemaV1),
     DATABASE_HOST: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
     DATABASE_PORT: Schema.NumberFromString.pipe(

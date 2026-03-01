@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
@@ -292,8 +293,8 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   insertRole: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
   updateRole: () => Effect.die(new Error('Not implemented')),
-  deleteRole: () => Effect.void,
-  deleteRoleById: () => Effect.void,
+  archiveRole: () => Effect.void,
+  archiveRoleById: () => Effect.void,
   deletePermissions: () => Effect.void,
   insertPermission: () => Effect.void,
   setRolePermissions: () => Effect.void,
@@ -316,8 +317,8 @@ const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
   insertSubgroup: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
   updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  deleteSubgroup: () => Effect.void,
-  deleteSubgroupById: () => Effect.void,
+  archiveSubgroup: () => Effect.void,
+  archiveSubgroupById: () => Effect.void,
   findMembers: () => Effect.succeed([]),
   findMembersBySubgroupId: () => Effect.succeed([]),
   addMember: () => Effect.void,
@@ -398,6 +399,13 @@ const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository
   markFailed: () => Effect.void,
 } as unknown as RoleSyncEventsRepository);
 
+const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
+  emitIfGuildLinked: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as ChannelSyncEventsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -416,6 +424,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockAgeThresholdRepositoryLayer),
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
+  Layer.provide(MockChannelSyncEventsRepositoryLayer),
 );
 
 let handler: (request: Request) => Promise<Response>;

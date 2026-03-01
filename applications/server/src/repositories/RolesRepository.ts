@@ -62,7 +62,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
             SELECT r.id, r.team_id, r.name, r.is_built_in,
                    (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id)::int AS permission_count
             FROM roles r
-            WHERE r.team_id = ${teamId}
+            WHERE r.team_id = ${teamId} AND r.is_archived = false
             ORDER BY r.is_built_in DESC, r.name ASC
           `,
       }),
@@ -71,7 +71,8 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
       SqlSchema.findOne({
         Request: RoleNS.RoleId,
         Result: RoleRow,
-        execute: (id) => sql`SELECT id, team_id, name, is_built_in FROM roles WHERE id = ${id}`,
+        execute: (id) =>
+          sql`SELECT id, team_id, name, is_built_in FROM roles WHERE id = ${id} AND is_archived = false`,
       }),
     ),
     Effect.let('findPermissions', ({ sql }) =>
@@ -104,10 +105,10 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
           `,
       }),
     ),
-    Effect.let('deleteRole', ({ sql }) =>
+    Effect.let('archiveRole', ({ sql }) =>
       SqlSchema.void({
         Request: RoleNS.RoleId,
-        execute: (id) => sql`DELETE FROM roles WHERE id = ${id}`,
+        execute: (id) => sql`UPDATE roles SET is_archived = true WHERE id = ${id}`,
       }),
     ),
     Effect.let('deletePermissions', ({ sql }) =>
@@ -131,7 +132,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
         Request: FindByTeamAndNameInput,
         Result: RoleRow,
         execute: (input) =>
-          sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name}`,
+          sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name} AND is_archived = false`,
       }),
     ),
     Effect.let('countMembersForRole', ({ sql }) =>
@@ -178,8 +179,8 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     return this.update({ id: roleId, name });
   }
 
-  deleteRoleById(roleId: RoleNS.RoleId) {
-    return this.deleteRole(roleId);
+  archiveRoleById(roleId: RoleNS.RoleId) {
+    return this.archiveRole(roleId);
   }
 
   setRolePermissions(roleId: RoleNS.RoleId, permissions: ReadonlyArray<RoleNS.Permission>) {

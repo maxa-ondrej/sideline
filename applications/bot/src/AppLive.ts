@@ -1,9 +1,13 @@
 import { DiscordIxLive } from 'dfx/gateway';
 import { Layer } from 'effect';
 import { HealthServerLive } from '~/HealthServerLive.js';
-import { RoleSyncService } from '~/services/RoleSyncService.js';
+import { ChannelSyncService, RoleSyncService } from '~/rcp/index.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
-const SyncLive = RoleSyncService.Default.pipe(Layer.provide(DiscordIxLive));
+const SyncLive = Layer.mergeAll(RoleSyncService.Default, ChannelSyncService.Default).pipe(
+  Layer.provide(SyncRpc.Default),
+  Layer.provide(DiscordIxLive),
+);
 
 export const AppLive = HealthServerLive.pipe(
   Layer.provideMerge(DiscordIxLive),

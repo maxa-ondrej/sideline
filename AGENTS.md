@@ -315,9 +315,7 @@ Internal packages use scoped aliases:
 - **Never use `Effect.gen(function* () {`** — instead use `Effect.Do.pipe(...)` with `Effect.bind` / `Effect.let` / `Effect.tap` for sequential operations
 - **Use `pipe`** for linear transformations and chaining
 - **Always use `Effect.asVoid`** instead of `Effect.map(() => undefined as undefined)`
-- **Never use `Effect.orDie`** or any other way of killing fibers — all errors must be handled gracefully
 - **Never cast types** (`as X`) and **never use `any`** — fix the types properly instead
-- **Avoid premature abstraction** - keep solutions simple
 - **Type narrow errors** - use discriminated unions for error types
 - **Document complex Effect chains** - explain the business logic, not the syntax
 
@@ -1038,6 +1036,74 @@ Interaction.pipe(
 ```
 
 Prefer `guild_locale` (server-configured language) over `locale` (individual user's language) for server-wide consistency.
+
+## Discord Sync Architecture
+
+The bot and server communicate via an **event-driven polling pattern** for syncing Discord resources. The server emits events into database tables; the bot polls every 5 seconds via RPC and processes them.
+
+### RPC Transport
+
+All sync RPCs share a single `RoleSyncRpcs` group served at `/rpc/role-sync` (NDJSON over HTTP). This avoids RPC protocol conflicts in the bot — a single `RpcClient.Protocol` layer can't serve two URLs, so both role sync and channel sync RPCs live in the same group.
+
+- **Domain**: `packages/domain/src/rpc/RoleSyncRpc.ts` — RPC definitions (schemas + group)
+- **Server**: `applications/server/src/rpc/RoleSyncRpcLive.ts` — RPC handler implementations
+- **Bot**: Both `RoleSyncService` and `ChannelSyncService` create clients via `RpcClient.make(RoleSyncRpcs)`
+
+### Role Sync (roles ↔ Discord roles)
+
+Syncs team roles to Discord guild roles. When roles are created/deleted/assigned/unassigned, the server emits events to `role_sync_events`.
+
+| Component | File |
+|-----------|------|
+| Events table | `role_sync_events` (migration: `1740970000_create_role_sync.ts`) |
+| Mapping table | `discord_role_mappings` (team_id + role_id → discord_role_id) |
+| Domain model | `packages/domain/src/models/RoleSyncEvent.ts` |
+| Server repo | `applications/server/src/repositories/RoleSyncEventsRepository.ts` |
+| Mapping repo | `applications/server/src/repositories/DiscordRoleMappingRepository.ts` |
+| Bot service | `applications/bot/src/services/RoleSyncService.ts` |
+| API integration | `applications/server/src/api/role.ts` |
+
+Event types: `role_created`, `role_deleted`, `role_assigned`, `role_unassigned`
+
+### Channel Sync (subgroups ↔ Discord channels)
+
+Syncs subgroups to private Discord text channels. When subgroups are created/deleted or members added/removed, the server emits events to `channel_sync_events`. The bot creates private channels (denying `@everyone` VIEW_CHANNEL+SEND_MESSAGES) and manages per-user permission overwrites.
+
+| Component | File |
+|-----------|------|
+| Events table | `channel_sync_events` (migration: `1741000000_create_channel_sync.ts`) |
+| Mapping table | `discord_channel_mappings` (team_id + subgroup_id → discord_channel_id) |
+| Domain model | `packages/domain/src/models/ChannelSyncEvent.ts` |
+| Server repo | `applications/server/src/repositories/ChannelSyncEventsRepository.ts` |
+| Mapping repo | `applications/server/src/repositories/DiscordChannelMappingRepository.ts` |
+| Bot service | `applications/bot/src/services/ChannelSyncService.ts` |
+| API integration | `applications/server/src/api/subgroup.ts` |
+
+Event types: `channel_created`, `channel_deleted`, `member_added`, `member_removed`
+
+### Sync Pattern (applies to both)
+
+1. **Server** API handler performs the primary operation (e.g. insert subgroup)
+2. **Server** calls `repo.emitIfGuildLinked(teamId, eventType, ...)` — looks up `guild_id` from `teams` table; if linked, inserts an event row; if not, no-op
+3. Event emission is wrapped in `Effect.catchAll(() => Effect.void)` so sync failures never break the primary operation
+4. **Bot** service polls via `rpc.GetUnprocessed*Events({ limit: 50 })` every 5 seconds
+5. **Bot** processes each event (Discord REST calls with exponential retry), then marks processed or failed
+6. Mapping tables track the Discord resource ID (role/channel) for each domain entity
+
+### Adding a New Sync Type
+
+Follow the same pattern:
+1. Create migration with `*_sync_events` and `discord_*_mappings` tables
+2. Add domain models in `packages/domain/src/models/`
+3. Add RPC schemas and endpoints to `RoleSyncRpc.ts` (same group)
+4. Rebuild domain: `pnpm build` in `packages/domain`
+5. Create server repositories following `RoleSyncEventsRepository` pattern
+6. Add RPC handlers to `RoleSyncRpcLive.ts`
+7. Wire repositories in `applications/server/src/AppLive.ts`
+8. Emit events from the relevant API handler
+9. Create bot service following `RoleSyncService` pattern
+10. Wire bot service in `AppLive.ts`, `Bot.ts`, `index.ts`
+11. Add `MockChannelSyncEventsRepository` (or equivalent) to all server test files
 
 ## Frontend Architecture (`applications/web`)
 

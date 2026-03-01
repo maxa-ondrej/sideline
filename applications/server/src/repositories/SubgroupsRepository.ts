@@ -67,7 +67,7 @@ export class SubgroupsRepository extends Effect.Service<SubgroupsRepository>()(
             SELECT s.id, s.team_id, s.name, s.created_at,
                    (SELECT COUNT(*) FROM subgroup_members sm WHERE sm.subgroup_id = s.id)::int AS member_count
             FROM subgroups s
-            WHERE s.team_id = ${teamId}
+            WHERE s.team_id = ${teamId} AND s.is_archived = false
             ORDER BY s.name ASC
           `,
         }),
@@ -76,7 +76,8 @@ export class SubgroupsRepository extends Effect.Service<SubgroupsRepository>()(
         SqlSchema.findOne({
           Request: SubgroupNS.SubgroupId,
           Result: SubgroupRow,
-          execute: (id) => sql`SELECT id, team_id, name FROM subgroups WHERE id = ${id}`,
+          execute: (id) =>
+            sql`SELECT id, team_id, name FROM subgroups WHERE id = ${id} AND is_archived = false`,
         }),
       ),
       Effect.let('insert', ({ sql }) =>
@@ -101,10 +102,10 @@ export class SubgroupsRepository extends Effect.Service<SubgroupsRepository>()(
           `,
         }),
       ),
-      Effect.let('deleteSubgroup', ({ sql }) =>
+      Effect.let('archiveSubgroup', ({ sql }) =>
         SqlSchema.void({
           Request: SubgroupNS.SubgroupId,
-          execute: (id) => sql`DELETE FROM subgroups WHERE id = ${id}`,
+          execute: (id) => sql`UPDATE subgroups SET is_archived = true WHERE id = ${id}`,
         }),
       ),
       Effect.let('findMembers', ({ sql }) =>
@@ -193,8 +194,8 @@ export class SubgroupsRepository extends Effect.Service<SubgroupsRepository>()(
     return this.update({ id: subgroupId, name });
   }
 
-  deleteSubgroupById(subgroupId: SubgroupNS.SubgroupId) {
-    return this.deleteSubgroup(subgroupId);
+  archiveSubgroupById(subgroupId: SubgroupNS.SubgroupId) {
+    return this.archiveSubgroup(subgroupId);
   }
 
   findMembersBySubgroupId(subgroupId: SubgroupNS.SubgroupId) {

@@ -26,7 +26,12 @@ export const requireMembership = <E>(
     Effect.mapError(() => forbidden),
     Effect.flatMap(
       Option.match({
-        onNone: () => Effect.fail(forbidden),
+        onNone: () =>
+          Effect.fail(forbidden).pipe(
+            Effect.tapError(() =>
+              Effect.logWarning(`Denied access for user ${userId} to team ${teamId}`),
+            ),
+          ),
         onSome: Effect.succeed,
       }),
     ),
@@ -46,5 +51,13 @@ export const requirePermission = <E>(
   forbidden: E,
 ) => {
   const perms = parsePermissions(membership.permissions);
-  return perms.includes(permission) ? Effect.void : Effect.fail(forbidden);
+  return perms.includes(permission)
+    ? Effect.void
+    : Effect.fail(forbidden).pipe(
+        Effect.tapError(() =>
+          Effect.logWarning(
+            `Denied permission ${permission} for user ${membership.user_id} to team ${membership.team_id}`,
+          ),
+        ),
+      );
 };

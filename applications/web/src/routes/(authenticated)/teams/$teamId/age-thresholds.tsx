@@ -1,20 +1,24 @@
 import { Team } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
+import { Effect, pipe, Schema } from 'effect';
 import { AgeThresholdsPage } from '~/components/pages/AgeThresholdsPage';
-import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
+import { ApiClient, NotFound, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresholds')({
   component: AgeThresholdsRoute,
+  ssr: false,
   loader: async ({ params, context }) => {
-    const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
+    const teamId = await pipe(
+      params.teamId,
+      Schema.decode(Team.TeamId),
+      Effect.mapError(NotFound.make),
+      context.run,
+    );
     const [rules, roles] = await Effect.all([
-      ApiClient.pipe(
-        Effect.flatMap((api) => api.ageThreshold.listAgeThresholds({ path: { teamId } })),
-      ),
-      ApiClient.pipe(Effect.flatMap((api) => api.role.listRoles({ path: { teamId } }))),
+      Effect.flatMap(ApiClient, (api) => api.ageThreshold.listAgeThresholds({ path: { teamId } })),
+      Effect.flatMap(ApiClient, (api) => api.role.listRoles({ path: { teamId } })),
     ]).pipe(warnAndCatchAll, context.run);
-    return { rules: rules ?? [], roles: roles ?? [] };
+    return { rules, roles };
   },
 });
 

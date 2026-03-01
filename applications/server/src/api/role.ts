@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, RoleApi } from '@sideline/domain';
+import { Auth, type Discord, RoleApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -52,15 +52,16 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('role', () =>
-              roles.insertRole(teamId, payload.name).pipe(Effect.mapError(() => forbidden)),
+              roles.insertRole(teamId, payload.name).pipe(
+                Effect.catchTag('NoSuchElementException', () => forbidden),
+                Effect.catchTag('ParseError', 'SqlError', Effect.die),
+              ),
             ),
             Effect.tap(({ role }) =>
-              roles
-                .setRolePermissions(role.id, payload.permissions)
-                .pipe(Effect.mapError(() => forbidden)),
+              roles.setRolePermissions(role.id, payload.permissions).pipe(Effect.orDie),
             ),
             Effect.tap(({ role }) =>
-              syncEvents.emitIfGuildLinked(teamId, 'role_created', role.id, role.name).pipe(
+              syncEvents.emitRoleCreated(teamId, role.id, role.name).pipe(
                 Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
                 Effect.catchAll(() => Effect.void),
               ),
@@ -86,17 +87,13 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:view', forbidden)),
             Effect.bind('role', () =>
               roles.findRoleById(roleId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new RoleApi.RoleNotFound()),
               ),
             ),
             Effect.bind('permissions', ({ role }) =>
-              roles.getPermissionsForRoleId(role.id).pipe(Effect.mapError(() => forbidden)),
+              roles.getPermissionsForRoleId(role.id).pipe(Effect.orDie),
             ),
             Effect.map(
               ({ role, permissions }) =>
@@ -119,13 +116,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('existing', () =>
               roles.findRoleById(roleId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new RoleApi.RoleNotFound()),
               ),
             ),
             Effect.tap(({ existing }) =>
@@ -135,18 +128,19 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.bind('updated', ({ existing }) =>
               payload.name !== null
-                ? roles.updateRole(roleId, payload.name).pipe(Effect.mapError(() => forbidden))
+                ? roles.updateRole(roleId, payload.name).pipe(
+                    Effect.catchTag('ParseError', 'SqlError', Effect.die),
+                    Effect.catchTag('NoSuchElementException', () => forbidden),
+                  )
                 : Effect.succeed(existing),
             ),
             Effect.tap(() =>
               payload.permissions !== null
-                ? roles
-                    .setRolePermissions(roleId, payload.permissions)
-                    .pipe(Effect.mapError(() => forbidden))
+                ? roles.setRolePermissions(roleId, payload.permissions).pipe(Effect.orDie)
                 : Effect.void,
             ),
             Effect.bind('permissions', () =>
-              roles.getPermissionsForRoleId(roleId).pipe(Effect.mapError(() => forbidden)),
+              roles.getPermissionsForRoleId(roleId).pipe(Effect.orDie),
             ),
             Effect.map(
               ({ updated, permissions }) =>
@@ -169,27 +163,26 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('existing', () =>
               roles.findRoleById(roleId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new RoleApi.RoleNotFound()),
               ),
             ),
             Effect.tap(({ existing }) =>
               existing.is_built_in ? Effect.fail(new RoleApi.CannotModifyBuiltIn()) : Effect.void,
             ),
             Effect.bind('memberCount', () =>
-              roles.getMemberCountForRole(roleId).pipe(Effect.mapError(() => forbidden)),
+              roles.getMemberCountForRole(roleId).pipe(
+                Effect.catchTag('ParseError', 'SqlError', Effect.die),
+                Effect.catchTag('NoSuchElementException', () => new RoleApi.RoleNotFound()),
+              ),
             ),
             Effect.tap(({ memberCount }) =>
               memberCount > 0 ? Effect.fail(new RoleApi.RoleInUse()) : Effect.void,
             ),
-            Effect.tap(() => roles.deleteRoleById(roleId).pipe(Effect.mapError(() => forbidden))),
+            Effect.tap(() => roles.archiveRoleById(roleId).pipe(Effect.orDie)),
             Effect.tap(({ existing }) =>
-              syncEvents.emitIfGuildLinked(teamId, 'role_deleted', existing.id, existing.name).pipe(
+              syncEvents.emitRoleDeleted(teamId, existing.id, existing.name).pipe(
                 Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
                 Effect.catchAll(() => Effect.void),
               ),
@@ -248,22 +241,18 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.tap(({ targetMember, role }) =>
               users.findById(targetMember.user_id).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.void,
-                    onSome: (user) =>
-                      syncEvents.emitIfGuildLinked(
-                        teamId,
-                        'role_assigned',
-                        payload.roleId,
-                        role.name,
-                        memberId,
-                        user.discord_id,
-                      ),
-                  }),
+                Effect.flatten,
+                Effect.flatMap((user) =>
+                  syncEvents.emitRoleAssigned(
+                    teamId,
+                    payload.roleId,
+                    role.name,
+                    memberId,
+                    user.discord_id as Discord.Snowflake,
+                  ),
                 ),
-                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
-                Effect.catchAll(() => Effect.void),
+                Effect.catchTag('NoSuchElementException', () => Effect.void),
+                Effect.catchAll((e) => Effect.logWarning('Failed to emit sync event', e)),
               ),
             ),
             Effect.asVoid,
@@ -278,32 +267,22 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('targetMember', () =>
               members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new RoleApi.MemberNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new RoleApi.MemberNotFound()),
               ),
             ),
             Effect.bind('role', () =>
               roles.findRoleById(roleId).pipe(
-                Effect.mapError(() => forbidden),
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new RoleApi.MemberNotFound()),
               ),
             ),
             Effect.tap(({ role }) =>
               role.team_id !== teamId ? Effect.fail(new RoleApi.RoleNotFound()) : Effect.void,
             ),
-            Effect.tap(() =>
-              members.unassignRole(memberId, roleId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => members.unassignRole(memberId, roleId).pipe(Effect.orDie)),
             Effect.tap(({ targetMember, role }) =>
               notifications
                 .insert(
@@ -314,28 +293,23 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   `You have been removed from the "${role.name}" role.`,
                 )
                 .pipe(
-                  Effect.tapError((e) => Effect.logWarning('Failed to create notification', e)),
-                  Effect.catchAll(() => Effect.void),
+                  Effect.catchAll((e) => Effect.logWarning('Failed to create notification', e)),
                 ),
             ),
             Effect.tap(({ targetMember, role }) =>
               users.findById(targetMember.user_id).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.void,
-                    onSome: (user) =>
-                      syncEvents.emitIfGuildLinked(
-                        teamId,
-                        'role_unassigned',
-                        roleId,
-                        role.name,
-                        memberId,
-                        user.discord_id,
-                      ),
-                  }),
+                Effect.flatten,
+                Effect.flatMap((user) =>
+                  syncEvents.emitRoleUnassigned(
+                    teamId,
+                    roleId,
+                    role.name,
+                    memberId,
+                    user.discord_id as Discord.Snowflake,
+                  ),
                 ),
-                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
-                Effect.catchAll(() => Effect.void),
+                Effect.catchTag('NoSuchElementException', () => Effect.void),
+                Effect.catchAll((e) => Effect.logWarning('Failed to emit sync event', e)),
               ),
             ),
             Effect.asVoid,
