@@ -28,8 +28,20 @@ import * as m from '~/paraglide/messages.js';
 
 const CreateThresholdSchema = Schema.Struct({
   roleId: Role.RoleId,
-  minAge: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
-  maxAge: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
+  minAge: Schema.OptionFromNonEmptyTrimmedString.pipe(
+    Schema.transform(Schema.Option(Schema.Number), {
+      strict: true,
+      decode: Option.map(Schema.decodeSync(Schema.NumberFromString)),
+      encode: (_, to) => Option.map(to, Schema.encodeSync(Schema.NumberFromString)),
+    }),
+  ),
+  maxAge: Schema.OptionFromNonEmptyTrimmedString.pipe(
+    Schema.transform(Schema.Option(Schema.Number), {
+      strict: true,
+      decode: Option.map(Schema.decodeSync(Schema.NumberFromString)),
+      encode: (_, to) => Option.map(to, Schema.encodeSync(Schema.NumberFromString)),
+    }),
+  ),
 });
 
 type CreateThresholdValues = Schema.Schema.Type<typeof CreateThresholdSchema>;
