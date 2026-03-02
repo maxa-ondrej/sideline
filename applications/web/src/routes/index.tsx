@@ -1,6 +1,5 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { Array, Data, Effect, Option, Schema } from 'effect';
-import React from 'react';
 import { HomePage } from '~/components/pages/HomePage';
 import {
   clearPendingInvite,
@@ -8,7 +7,6 @@ import {
   getLastTeamId,
   getLogin,
   getPendingInvite,
-  logout,
 } from '~/lib/auth';
 import { client } from '../lib/client';
 import { Redirect } from '../lib/runtime';
@@ -25,22 +23,31 @@ export const Route = createFileRoute('/')({
     }),
   ),
   beforeLoad: ({ search, context }) =>
-    Option.fromNullable(search.token).pipe(
-      Effect.catchTag('NoSuchElementException', () => new SkipError()),
-      Effect.flatMap(finishLogin),
-      Effect.tap(() => (Option.isNone(context.userOption) ? new SkipError() : Effect.void)),
+    Effect.Do.pipe(
+      Effect.tap(
+        Option.match(Option.fromNullable(search.token), {
+          onSome: finishLogin,
+          onNone: () => Effect.void,
+        }),
+      ),
+      Effect.tap(
+        Option.match(context.userOption, {
+          onSome: () => Effect.void,
+          onNone: () => new SkipError(),
+        }),
+      ),
       Effect.flatMap(() => getPendingInvite),
       Effect.tap(() => clearPendingInvite),
       Effect.flatMap(
         Option.match({
-          onSome: (code) => Redirect.make(redirect({ to: '/invite/$code', params: { code } })),
+          onSome: (code) => Redirect.make({ to: '/invite/$code', params: { code } }),
           onNone: () => Effect.void,
         }),
       ),
       Effect.flatMap(() => getLastTeamId),
       Effect.flatMap(
         Option.match({
-          onSome: (teamId) => Redirect.make(redirect({ to: '/teams/$teamId', params: { teamId } })),
+          onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
           onNone: () => Effect.void,
         }),
       ),
@@ -57,13 +64,9 @@ export const Route = createFileRoute('/')({
       ),
       Effect.flatten,
       Effect.flatMap((team) =>
-        Effect.fail(
-          Redirect.make(redirect({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
-        ),
+        Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
       ),
-      Effect.catchTag('NoSuchElementException', () =>
-        Redirect.make(redirect({ to: '/create-team' })),
-      ),
+      Effect.catchTag('NoSuchElementException', () => Redirect.make({ to: '/create-team' })),
       Effect.catchTag('SkipError', () => Effect.void),
       context.run,
     ),
@@ -77,23 +80,14 @@ export const Route = createFileRoute('/')({
 });
 
 function HomeRoute() {
-  const { userOption } = Route.useRouteContext();
   const { loginUrl } = Route.useLoaderData();
   const { error, reason } = Route.useSearch();
-  const navigate = useNavigate();
-
-  const handleLogout = React.useCallback(() => {
-    Effect.runSync(logout);
-    navigate({ to: '/' });
-  }, [navigate]);
 
   return (
     <HomePage
-      userOption={userOption}
       loginUrl={loginUrl}
       error={Option.fromNullable(error)}
       reason={Option.fromNullable(reason)}
-      onLogout={handleLogout}
     />
   );
 }
