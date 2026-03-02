@@ -24,13 +24,13 @@ export const handleDeleted = (event: ChannelRpcEvents.ChannelDeletedEvent) =>
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetMapping']({
         team_id: event.team_id,
-        subgroup_id: event.subgroup_id,
+        group_id: event.group_id,
       }),
     ),
     Effect.bind('mapping', ({ cached }) => cached),
     Effect.tapErrorTag('NoSuchElementException', () =>
       Effect.logWarning(
-        `No mapping found for subgroup ${event.subgroup_id} in guild ${event.guild_id}, skipping delete`,
+        `No mapping found for group ${event.group_id} in guild ${event.guild_id}, skipping delete`,
       ),
     ),
     Effect.tap(({ mapping }) => deleteRole(event.guild_id, mapping.discord_role_id)),
@@ -45,7 +45,7 @@ export const handleDeleted = (event: ChannelRpcEvents.ChannelDeletedEvent) =>
     Effect.tap(({ rpc }) =>
       rpc['Channel/DeleteMapping']({
         team_id: event.team_id,
-        subgroup_id: event.subgroup_id,
+        group_id: event.group_id,
       }),
     ),
     Effect.asVoid,

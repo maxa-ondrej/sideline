@@ -68,11 +68,11 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
           if (routeId.includes('$rosterId')) {
             crumbs.push({ label: 'Details', to: pathname });
           }
-        } else if (routeId.includes('/subgroups')) {
-          if (!crumbs.some((c) => c.label === 'Subgroups')) {
-            crumbs.push({ label: 'Subgroups', to: `/teams/${teamId}/subgroups` });
+        } else if (routeId.includes('/groups')) {
+          if (!crumbs.some((c) => c.label === 'Groups')) {
+            crumbs.push({ label: 'Groups', to: `/teams/${teamId}/groups` });
           }
-          if (routeId.includes('$subgroupId')) {
+          if (routeId.includes('$groupId')) {
             crumbs.push({ label: 'Details', to: pathname });
           }
         } else if (routeId.includes('/age-thresholds')) {

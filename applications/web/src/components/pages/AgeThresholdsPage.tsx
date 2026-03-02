@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { AgeThresholdApi, RoleApi } from '@sideline/domain';
-import { AgeThresholdRule, Role, Team } from '@sideline/domain';
+import type { AgeThresholdApi, GroupApi } from '@sideline/domain';
+import { AgeThresholdRule, GroupModel, Team } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -33,7 +33,7 @@ const OptionalNumber = Schema.transform(Schema.String, Schema.Option(Schema.Numb
 });
 
 const CreateThresholdSchema = Schema.Struct({
-  roleId: Role.RoleId,
+  groupId: GroupModel.GroupId,
   minAge: OptionalNumber,
   maxAge: OptionalNumber,
 });
@@ -43,25 +43,25 @@ type CreateThresholdValues = Schema.Schema.Type<typeof CreateThresholdSchema>;
 interface AgeThresholdsPageProps {
   teamId: string;
   rules: ReadonlyArray<AgeThresholdApi.AgeThresholdInfo>;
-  roles: ReadonlyArray<RoleApi.RoleInfo>;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
-export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPageProps) {
+export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
   const [evaluationResults, setEvaluationResults] = React.useState<
-    ReadonlyArray<AgeThresholdApi.AgeRoleChange>
+    ReadonlyArray<AgeThresholdApi.AgeGroupChange>
   >([]);
   const [evaluating, setEvaluating] = React.useState(false);
 
-  const usedRoleIds = new Set(rules.map((r) => r.roleId));
-  const availableRoles = roles.filter((r) => !usedRoleIds.has(r.roleId));
+  const usedGroupIds = new Set(rules.map((r) => r.groupId));
+  const availableGroups = groups.filter((g) => !usedGroupIds.has(g.groupId));
 
   const form = useForm({
     resolver: effectTsResolver(CreateThresholdSchema),
     mode: 'onChange',
-    defaultValues: { roleId: '', minAge: '', maxAge: '' },
+    defaultValues: { groupId: '', minAge: '', maxAge: '' },
   });
 
   const onSubmit = async (values: CreateThresholdValues) => {
@@ -147,20 +147,20 @@ export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPagePro
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-lg items-end'>
           <FormField
-            {...form.register('roleId')}
+            {...form.register('groupId')}
             render={({ field }) => (
               <FormItem className='flex-1'>
-                <FormLabel>{m.role_roleName()}</FormLabel>
+                <FormLabel>{m.group_groupName()}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={m.ageThreshold_selectRole()} />
+                      <SelectValue placeholder={m.ageThreshold_selectGroup()} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {availableRoles.map((role) => (
-                      <SelectItem key={role.roleId} value={role.roleId}>
-                        {role.name}
+                    {availableGroups.map((group) => (
+                      <SelectItem key={group.groupId} value={group.groupId}>
+                        {group.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -213,7 +213,7 @@ export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPagePro
         <table className='w-full mb-6'>
           <thead>
             <tr className='border-b'>
-              <th className='py-2 px-4 text-left'>{m.role_roleName()}</th>
+              <th className='py-2 px-4 text-left'>{m.group_groupName()}</th>
               <th className='py-2 px-4 text-left'>{m.ageThreshold_ageRange()}</th>
               <th className='py-2 px-4' />
             </tr>
@@ -221,7 +221,7 @@ export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPagePro
           <tbody>
             {rules.map((rule) => (
               <tr key={rule.ruleId} className='border-b'>
-                <td className='py-2 px-4 font-medium'>{rule.roleName}</td>
+                <td className='py-2 px-4 font-medium'>{rule.groupName}</td>
                 <td className='py-2 px-4'>{formatAgeRange(rule.minAge, rule.maxAge)}</td>
                 <td className='py-2 px-4'>
                   <Button variant='outline' size='sm' onClick={() => handleDelete(rule.ruleId)}>
@@ -245,19 +245,22 @@ export function AgeThresholdsPage({ teamId, rules, roles }: AgeThresholdsPagePro
             <table className='w-full'>
               <tbody>
                 {evaluationResults.map((change, i) => (
-                  <tr key={`${change.memberId}-${change.roleId}-${String(i)}`} className='border-b'>
+                  <tr
+                    key={`${change.memberId}-${change.groupId}-${String(i)}`}
+                    className='border-b'
+                  >
                     <td className='py-2 px-4'>{change.memberName}</td>
-                    <td className='py-2 px-4'>{change.roleName}</td>
+                    <td className='py-2 px-4'>{change.groupName}</td>
                     <td className='py-2 px-4'>
                       <span
                         className={
-                          change.action === 'assigned'
+                          change.action === 'added'
                             ? 'text-green-700 font-medium'
                             : 'text-red-700 font-medium'
                         }
                       >
-                        {change.action === 'assigned'
-                          ? m.ageThreshold_assigned()
+                        {change.action === 'added'
+                          ? m.ageThreshold_added()
                           : m.ageThreshold_removed()}
                       </span>
                     </td>

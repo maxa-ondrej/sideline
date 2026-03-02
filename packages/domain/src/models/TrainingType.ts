@@ -1,5 +1,6 @@
 import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 
 export const TrainingTypeId = Schema.String.pipe(Schema.brand('TrainingTypeId'));
@@ -9,5 +10,6 @@ export class TrainingType extends Model.Class<TrainingType>('TrainingType')({
   id: Model.Generated(TrainingTypeId),
   team_id: TeamId,
   name: Schema.String,
+  group_id: Schema.NullOr(GroupId),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

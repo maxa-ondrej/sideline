@@ -7,12 +7,12 @@ import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
-import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -223,33 +223,44 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
   countMembersForRole: () => Effect.succeed({ count: 0 }),
   getMemberCountForRole: () => Effect.succeed(0),
+  findGroupsForRoleId: () => Effect.succeed([]),
+  findGroupsForRole: () => Effect.succeed([]),
+  assignRoleGroup: () => Effect.void,
+  assignRoleToGroup: () => Effect.void,
+  unassignRoleGroup: () => Effect.void,
+  unassignRoleFromGroup: () => Effect.void,
 });
 
-const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
-  _tag: 'api/SubgroupsRepository',
+const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
+  _tag: 'api/GroupsRepository',
   findByTeamId: () => Effect.succeed([]),
-  findSubgroupsByTeamId: () => Effect.succeed([]),
+  findGroupsByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-  findSubgroupById: () => Effect.succeed(Option.none()),
+  findGroupById: () => Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
-  insertSubgroup: () => Effect.die(new Error('Not implemented')),
+  insertGroup: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
-  updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  archiveSubgroup: () => Effect.void,
-  archiveSubgroupById: () => Effect.void,
+  updateGroupById: () => Effect.die(new Error('Not implemented')),
+  archiveGroup: () => Effect.void,
+  archiveGroupById: () => Effect.void,
+  moveGroupParent: () => Effect.die(new Error('Not implemented')),
+  moveGroup: () => Effect.die(new Error('Not implemented')),
   findMembers: () => Effect.succeed([]),
-  findMembersBySubgroupId: () => Effect.succeed([]),
+  findMembersByGroupId: () => Effect.succeed([]),
   addMember: () => Effect.void,
   addMemberById: () => Effect.void,
   removeMember: () => Effect.void,
   removeMemberById: () => Effect.void,
-  findPermissions: () => Effect.succeed([]),
-  getPermissionsForSubgroupId: () => Effect.succeed([]),
-  deletePermissions: () => Effect.void,
-  insertPermission: () => Effect.void,
-  setSubgroupPermissions: () => Effect.void,
-  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
+  findRolesForGroup: () => Effect.succeed([]),
+  getRolesForGroup: () => Effect.succeed([]),
+  countMembersForGroup: () => Effect.succeed({ count: 0 }),
   getMemberCount: () => Effect.succeed(0),
+  findChildren: () => Effect.succeed([]),
+  getChildren: () => Effect.succeed([]),
+  findAncestors: () => Effect.succeed([]),
+  getAncestorIds: () => Effect.succeed([]),
+  findDescendantMembers: () => Effect.succeed([]),
+  getDescendantMemberIds: () => Effect.succeed([]),
 });
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
@@ -334,7 +345,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTeamMembersRepositoryLayer),
   Layer.provide(MockRostersRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
-  Layer.provide(MockSubgroupsRepositoryLayer),
+  Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),

@@ -2,7 +2,7 @@ import { SqlClient, SqlSchema } from '@effect/sql';
 import {
   AgeThresholdRule as AgeThreshold,
   Discord,
-  Role,
+  GroupModel,
   Team,
   TeamMember,
   User,
@@ -10,13 +10,13 @@ import {
 import { Bind } from '@sideline/effect-lib';
 import { Array, Effect, flow, type Option, Schema, String } from 'effect';
 
-export class AgeThresholdWithRoleName extends Schema.Class<AgeThresholdWithRoleName>(
-  'AgeThresholdWithRoleName',
+export class AgeThresholdWithGroupName extends Schema.Class<AgeThresholdWithGroupName>(
+  'AgeThresholdWithGroupName',
 )({
   id: AgeThreshold.AgeThresholdRuleId,
   team_id: Team.TeamId,
-  role_id: Role.RoleId,
-  role_name: Schema.String,
+  group_id: GroupModel.GroupId,
+  group_name: Schema.String,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
@@ -24,14 +24,14 @@ export class AgeThresholdWithRoleName extends Schema.Class<AgeThresholdWithRoleN
 export class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThresholdRow')({
   id: AgeThreshold.AgeThresholdRuleId,
   team_id: Team.TeamId,
-  role_id: Role.RoleId,
+  group_id: GroupModel.GroupId,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 export class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   team_id: Schema.String,
-  role_id: Schema.String,
+  group_id: Schema.String,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
@@ -54,7 +54,7 @@ export class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('Memb
   discord_id: Discord.Snowflake,
   birth_year: Schema.Number,
   is_admin: Schema.Boolean,
-  role_ids: Schema.String.pipe(
+  group_ids: Schema.String.pipe(
     Schema.transform(Schema.Array(Schema.NonEmptyString), {
       strict: true,
       decode: flow(String.split(','), Array.filter(String.isNonEmpty)),
@@ -71,14 +71,14 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       Effect.let('findByTeamId', ({ sql }) =>
         SqlSchema.findAll({
           Request: Schema.String,
-          Result: AgeThresholdWithRoleName,
+          Result: AgeThresholdWithGroupName,
           execute: (teamId) => sql`
-            SELECT atr.id, atr.team_id, atr.role_id, r.name AS role_name,
+            SELECT atr.id, atr.team_id, atr.group_id, g.name AS group_name,
                    atr.min_age, atr.max_age
             FROM age_threshold_rules atr
-            JOIN roles r ON r.id = atr.role_id
+            JOIN groups g ON g.id = atr.group_id
             WHERE atr.team_id = ${teamId}
-            ORDER BY r.name ASC
+            ORDER BY g.name ASC
           `,
         }),
       ),
@@ -87,7 +87,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           Request: AgeThreshold.AgeThresholdRuleId,
           Result: AgeThresholdRow,
           execute: (id) => sql`
-            SELECT id, team_id, role_id, min_age, max_age
+            SELECT id, team_id, group_id, min_age, max_age
             FROM age_threshold_rules WHERE id = ${id}
           `,
         }),
@@ -95,23 +95,23 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       Effect.let('insert', ({ sql }) =>
         SqlSchema.single({
           Request: InsertInput,
-          Result: AgeThresholdWithRoleName,
+          Result: AgeThresholdWithGroupName,
           execute: (input) => sql`
             WITH inserted AS (
-              INSERT INTO age_threshold_rules (team_id, role_id, min_age, max_age)
-              VALUES (${input.team_id}, ${input.role_id}, ${input.min_age}, ${input.max_age})
+              INSERT INTO age_threshold_rules (team_id, group_id, min_age, max_age)
+              VALUES (${input.team_id}, ${input.group_id}, ${input.min_age}, ${input.max_age})
               RETURNING *
             )
-            SELECT i.id, i.team_id, i.role_id, r.name AS role_name, i.min_age, i.max_age
+            SELECT i.id, i.team_id, i.group_id, g.name AS group_name, i.min_age, i.max_age
             FROM inserted i
-            JOIN roles r ON r.id = i.role_id
+            JOIN groups g ON g.id = i.group_id
           `,
         }),
       ),
       Effect.let('updateRule', ({ sql }) =>
         SqlSchema.single({
           Request: UpdateInput,
-          Result: AgeThresholdWithRoleName,
+          Result: AgeThresholdWithGroupName,
           execute: (input) => sql`
             WITH updated AS (
               UPDATE age_threshold_rules
@@ -119,9 +119,9 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
               WHERE id = ${input.id}
               RETURNING *
             )
-            SELECT u.id, u.team_id, u.role_id, r.name AS role_name, u.min_age, u.max_age
+            SELECT u.id, u.team_id, u.group_id, g.name AS group_name, u.min_age, u.max_age
             FROM updated u
-            JOIN roles r ON r.id = u.role_id
+            JOIN groups g ON g.id = u.group_id
           `,
         }),
       ),
@@ -147,9 +147,9 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
                    u.name AS member_name, u.discord_username, u.discord_id,
                    u.birth_year,
                    COALESCE(
-                     (SELECT string_agg(mr.role_id::text, ',')
-                      FROM member_roles mr WHERE mr.team_member_id = tm.id), ''
-                   ) AS role_ids,
+                     (SELECT string_agg(gm.group_id::text, ',')
+                      FROM group_members gm WHERE gm.team_member_id = tm.id), ''
+                   ) AS group_ids,
                     (SELECT count(*)
                       FROM member_roles mr
                       JOIN roles r ON r.id = mr.role_id
@@ -175,11 +175,11 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
 
   insertRule(
     teamId: Team.TeamId,
-    roleId: Role.RoleId,
+    groupId: GroupModel.GroupId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
   ) {
-    return this.insert({ team_id: teamId, role_id: roleId, min_age: minAge, max_age: maxAge });
+    return this.insert({ team_id: teamId, group_id: groupId, min_age: minAge, max_age: maxAge });
   }
 
   updateRuleById(

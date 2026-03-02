@@ -14,12 +14,12 @@ import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
-import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -49,7 +49,7 @@ const Repositories = Layer.mergeAll(
   TeamMembersRepository.Default,
   RostersRepository.Default,
   RolesRepository.Default,
-  SubgroupsRepository.Default,
+  GroupsRepository.Default,
   TrainingTypesRepository.Default,
   TeamInvitesRepository.Default,
   AgeThresholdRepository.Default,

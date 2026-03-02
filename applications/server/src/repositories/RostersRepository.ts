@@ -112,9 +112,19 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
                        FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                        WHERE mr.team_member_id = tm.id
                        UNION
-                       SELECT sp.permission AS perm
-                       FROM subgroup_members sgm JOIN subgroup_permissions sp ON sp.subgroup_id = sgm.subgroup_id
-                       WHERE sgm.team_member_id = tm.id
+                       SELECT rp.permission AS perm
+                       FROM group_members gm
+                       JOIN LATERAL (
+                         WITH RECURSIVE ancestors AS (
+                           SELECT gm.group_id AS id
+                           UNION ALL
+                           SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
+                         )
+                         SELECT id FROM ancestors
+                       ) anc ON true
+                       JOIN role_groups rg ON rg.group_id = anc.id
+                       JOIN role_permissions rp ON rp.role_id = rg.role_id
+                       WHERE gm.team_member_id = tm.id
                      ) all_perms), ''
                    ) AS permissions,
                    u.name, u.birth_year, u.gender, tm.jersey_number,

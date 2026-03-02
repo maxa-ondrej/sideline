@@ -1,0 +1,419 @@
+import { HttpApiBuilder } from '@effect/platform';
+import { Auth, type Discord, GroupApi } from '@sideline/domain';
+import { Effect, Option } from 'effect';
+import { Api } from '~/api/api.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { RolesRepository } from '~/repositories/RolesRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
+
+const forbidden = new GroupApi.Forbidden();
+
+export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
+  Effect.Do.pipe(
+    Effect.bind('members', () => TeamMembersRepository),
+    Effect.bind('groups', () => GroupsRepository),
+    Effect.bind('roles', () => RolesRepository),
+    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
+    Effect.bind('users', () => UsersRepository),
+    Effect.map(({ members, groups, roles, channelSync, users }) =>
+      handlers
+        .handle('listGroups', ({ path: { teamId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('list', () => groups.findGroupsByTeamId(teamId).pipe(Effect.orDie)),
+            Effect.map(({ list }) =>
+              list.map(
+                (g) =>
+                  new GroupApi.GroupInfo({
+                    groupId: g.id,
+                    teamId: g.team_id,
+                    parentId: g.parent_id,
+                    name: g.name,
+                    emoji: g.emoji,
+                    memberCount: g.member_count,
+                  }),
+              ),
+            ),
+          ),
+        )
+        .handle('createGroup', ({ path: { teamId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('group', () =>
+              groups
+                .insertGroup(teamId, payload.name, payload.parentId, payload.emoji)
+                .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ group }) =>
+              channelSync
+                .emitIfGuildLinked(teamId, 'channel_created', group.id, Option.some(group.name))
+                .pipe(Effect.catchAll(() => Effect.void)),
+            ),
+            Effect.map(
+              ({ group }) =>
+                new GroupApi.GroupInfo({
+                  groupId: group.id,
+                  teamId: group.team_id,
+                  parentId: group.parent_id,
+                  name: group.name,
+                  emoji: group.emoji,
+                  memberCount: 0,
+                }),
+            ),
+          ),
+        )
+        .handle('getGroup', ({ path: { teamId, groupId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('group', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ group }) =>
+              group.team_id !== teamId ? Effect.fail(new GroupApi.GroupNotFound()) : Effect.void,
+            ),
+            Effect.bind('groupMembers', () =>
+              groups.findMembersByGroupId(groupId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.bind('groupRoles', () =>
+              groups.getRolesForGroup(groupId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.map(
+              ({ group, groupMembers, groupRoles }) =>
+                new GroupApi.GroupDetail({
+                  groupId: group.id,
+                  teamId: group.team_id,
+                  parentId: group.parent_id,
+                  name: group.name,
+                  emoji: group.emoji,
+                  roles: groupRoles.map((r) => ({
+                    roleId: r.role_id,
+                    roleName: r.role_name,
+                  })),
+                  members: groupMembers.map((m) => ({
+                    memberId: m.member_id,
+                    name: m.name,
+                    discordUsername: m.discord_username,
+                  })),
+                }),
+            ),
+          ),
+        )
+        .handle('updateGroup', ({ path: { teamId, groupId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('existing', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ existing }) =>
+              existing.team_id !== teamId ? Effect.fail(new GroupApi.GroupNotFound()) : Effect.void,
+            ),
+            Effect.bind('updated', () =>
+              groups
+                .updateGroupById(groupId, payload.name, payload.emoji)
+                .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.bind('memberCount', () =>
+              groups.getMemberCount(groupId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.map(
+              ({ updated, memberCount }) =>
+                new GroupApi.GroupInfo({
+                  groupId: updated.id,
+                  teamId: updated.team_id,
+                  parentId: updated.parent_id,
+                  name: updated.name,
+                  emoji: updated.emoji,
+                  memberCount,
+                }),
+            ),
+          ),
+        )
+        .handle('deleteGroup', ({ path: { teamId, groupId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('existing', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => new GroupApi.GroupNotFound()),
+              ),
+            ),
+            Effect.tap(({ existing }) =>
+              existing.team_id !== teamId
+                ? Effect.fail(new GroupApi.GroupNotFound()).pipe(
+                    Effect.tapError(() =>
+                      Effect.logWarning(
+                        `Tried to delete group ${groupId} of team ${teamId}, but it actually belongs to ${existing.team_id}`,
+                      ),
+                    ),
+                  )
+                : Effect.void,
+            ),
+            Effect.tap(() => groups.archiveGroupById(groupId).pipe(Effect.orDie)),
+            Effect.tap(({ existing }) =>
+              channelSync
+                .emitIfGuildLinked(teamId, 'channel_deleted', groupId, Option.some(existing.name))
+                .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
+            ),
+            Effect.asVoid,
+          ),
+        )
+        .handle('addGroupMember', ({ path: { teamId, groupId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('_group', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: (g) =>
+                      g.team_id !== teamId
+                        ? Effect.fail(new GroupApi.GroupNotFound())
+                        : Effect.succeed(g),
+                  }),
+                ),
+              ),
+            ),
+            Effect.bind('_member', () =>
+              members.findRosterMemberByIds(teamId, payload.memberId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.MemberNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(() =>
+              groups
+                .addMemberById(groupId, payload.memberId)
+                .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ _group, _member }) =>
+              users.findById(_member.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      channelSync.emitIfGuildLinked(
+                        teamId,
+                        'member_added',
+                        groupId,
+                        Option.some(_group.name),
+                        Option.some(payload.memberId),
+                        Option.some(user.discord_id as Discord.Snowflake),
+                      ),
+                  }),
+                ),
+                Effect.catchAll(() => Effect.void),
+              ),
+            ),
+            Effect.asVoid,
+          ),
+        )
+        .handle('removeGroupMember', ({ path: { teamId, groupId, memberId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('_group', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: (g) =>
+                      g.team_id !== teamId
+                        ? Effect.fail(new GroupApi.GroupNotFound())
+                        : Effect.succeed(g),
+                  }),
+                ),
+              ),
+            ),
+            Effect.bind('_member', () =>
+              members.findRosterMemberByIds(teamId, memberId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.MemberNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(() =>
+              groups.removeMemberById(groupId, memberId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.tap(({ _group, _member }) =>
+              users.findById(_member.user_id).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.void,
+                    onSome: (user) =>
+                      channelSync.emitIfGuildLinked(
+                        teamId,
+                        'member_removed',
+                        groupId,
+                        Option.some(_group.name),
+                        Option.some(memberId),
+                        Option.some(user.discord_id as Discord.Snowflake),
+                      ),
+                  }),
+                ),
+                Effect.catchAll(() => Effect.void),
+              ),
+            ),
+            Effect.asVoid,
+          ),
+        )
+        .handle('assignGroupRole', ({ path: { teamId, groupId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('_group', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: (g) =>
+                      g.team_id !== teamId
+                        ? Effect.fail(new GroupApi.GroupNotFound())
+                        : Effect.succeed(g),
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(() => roles.assignRoleToGroup(payload.roleId, groupId).pipe(Effect.orDie)),
+            Effect.asVoid,
+          ),
+        )
+        .handle('unassignGroupRole', ({ path: { teamId, groupId, roleId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('_group', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: (g) =>
+                      g.team_id !== teamId
+                        ? Effect.fail(new GroupApi.GroupNotFound())
+                        : Effect.succeed(g),
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(() => roles.unassignRoleFromGroup(roleId, groupId).pipe(Effect.orDie)),
+            Effect.asVoid,
+          ),
+        )
+        .handle('moveGroup', ({ path: { teamId, groupId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('existing', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: (g) =>
+                      g.team_id !== teamId
+                        ? Effect.fail(new GroupApi.GroupNotFound())
+                        : Effect.succeed(g),
+                  }),
+                ),
+              ),
+            ),
+            // Validate no circular refs if moving to a new parent
+            Effect.tap(() =>
+              payload.parentId !== null
+                ? groups.getAncestorIds(payload.parentId).pipe(
+                    Effect.flatMap((ancestors) =>
+                      ancestors.includes(groupId) ? Effect.fail(forbidden) : Effect.void,
+                    ),
+                    Effect.catchAll(() => Effect.void),
+                  )
+                : Effect.void,
+            ),
+            Effect.bind('updated', () =>
+              groups.moveGroup(groupId, payload.parentId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.bind('memberCount', () =>
+              groups.getMemberCount(groupId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.map(
+              ({ updated, memberCount }) =>
+                new GroupApi.GroupInfo({
+                  groupId: updated.id,
+                  teamId: updated.team_id,
+                  parentId: updated.parent_id,
+                  name: updated.name,
+                  emoji: updated.emoji,
+                  memberCount,
+                }),
+            ),
+          ),
+        ),
+    ),
+  ),
+);

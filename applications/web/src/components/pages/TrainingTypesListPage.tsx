@@ -49,7 +49,7 @@ export function TrainingTypesListPage({
       Effect.flatMap((api) =>
         api.trainingType.createTrainingType({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name },
+          payload: { name: values.name, groupId: null },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_createFailed())),
@@ -111,7 +111,7 @@ export function TrainingTypesListPage({
                   </Link>
                 </td>
                 <td className='py-2 px-4 text-muted-foreground'>
-                  {m.trainingType_coachCount({ count: String(tt.coachCount) })}
+                  {tt.groupName ?? m.trainingType_noGroup()}
                 </td>
                 <td className='py-2 px-4'>
                   <Button asChild variant='outline' size='sm'>

@@ -1066,25 +1066,25 @@ Syncs team roles to Discord guild roles. When roles are created/deleted/assigned
 
 Event types: `role_created`, `role_deleted`, `role_assigned`, `role_unassigned`
 
-### Channel Sync (subgroups ↔ Discord channels)
+### Channel Sync (groups ↔ Discord channels)
 
-Syncs subgroups to private Discord text channels. When subgroups are created/deleted or members added/removed, the server emits events to `channel_sync_events`. The bot creates private channels (denying `@everyone` VIEW_CHANNEL+SEND_MESSAGES) and manages per-user permission overwrites.
+Syncs groups to private Discord text channels. When groups are created/deleted or members added/removed, the server emits events to `channel_sync_events`. The bot creates private channels (denying `@everyone` VIEW_CHANNEL+SEND_MESSAGES) and manages per-user permission overwrites.
 
 | Component | File |
 |-----------|------|
 | Events table | `channel_sync_events` (migration: `1741000000_create_channel_sync.ts`) |
-| Mapping table | `discord_channel_mappings` (team_id + subgroup_id → discord_channel_id) |
+| Mapping table | `discord_channel_mappings` (team_id + group_id → discord_channel_id) |
 | Domain model | `packages/domain/src/models/ChannelSyncEvent.ts` |
 | Server repo | `applications/server/src/repositories/ChannelSyncEventsRepository.ts` |
 | Mapping repo | `applications/server/src/repositories/DiscordChannelMappingRepository.ts` |
 | Bot service | `applications/bot/src/services/ChannelSyncService.ts` |
-| API integration | `applications/server/src/api/subgroup.ts` |
+| API integration | `applications/server/src/api/group.ts` |
 
 Event types: `channel_created`, `channel_deleted`, `member_added`, `member_removed`
 
 ### Sync Pattern (applies to both)
 
-1. **Server** API handler performs the primary operation (e.g. insert subgroup)
+1. **Server** API handler performs the primary operation (e.g. insert group)
 2. **Server** calls `repo.emitIfGuildLinked(teamId, eventType, ...)` — looks up `guild_id` from `teams` table; if linked, inserts an event row; if not, no-op
 3. Event emission is wrapped in `Effect.catchAll(() => Effect.void)` so sync failures never break the primary operation
 4. **Bot** service polls via `rpc.GetUnprocessed*Events({ limit: 50 })` every 5 seconds
@@ -1197,8 +1197,8 @@ routes/(authenticated)/
         ├── roles.$roleId.tsx      — /teams/:teamId/roles/:roleId
         ├── rosters.index.tsx      — /teams/:teamId/rosters
         ├── rosters.$rosterId.tsx  — /teams/:teamId/rosters/:rosterId
-        ├── subgroups.index.tsx    — /teams/:teamId/subgroups
-        └── subgroups.$subgroupId.tsx — /teams/:teamId/subgroups/:subgroupId
+        ├── groups.index.tsx       — /teams/:teamId/groups
+        └── groups.$groupId.tsx   — /teams/:teamId/groups/:groupId
 ```
 
 ### Auth store — `lib/auth.ts`

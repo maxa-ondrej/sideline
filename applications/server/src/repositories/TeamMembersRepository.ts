@@ -87,9 +87,22 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           execute: (input) =>
             sql`SELECT tm.id, tm.team_id, tm.user_id, tm.active,
                        COALESCE(
-                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
-                          FROM member_roles mr JOIN roles r ON r.id = mr.role_id
-                          WHERE mr.team_member_id = tm.id), ''
+                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name) FROM (
+                           SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.team_member_id = tm.id
+                           UNION
+                           SELECT r.name FROM group_members gm
+                           JOIN LATERAL (
+                             WITH RECURSIVE ancestors AS (
+                               SELECT gm.group_id AS id
+                               UNION ALL
+                               SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
+                             )
+                             SELECT id FROM ancestors
+                           ) anc ON true
+                           JOIN role_groups rg ON rg.group_id = anc.id
+                           JOIN roles r ON r.id = rg.role_id
+                           WHERE gm.team_member_id = tm.id
+                         ) all_roles), ''
                        ) AS role_names,
                        COALESCE(
                          (SELECT string_agg(DISTINCT perm, ',') FROM (
@@ -97,9 +110,19 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                            FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                            WHERE mr.team_member_id = tm.id
                            UNION
-                           SELECT sp.permission AS perm
-                           FROM subgroup_members sgm JOIN subgroup_permissions sp ON sp.subgroup_id = sgm.subgroup_id
-                           WHERE sgm.team_member_id = tm.id
+                           SELECT rp.permission AS perm
+                           FROM group_members gm
+                           JOIN LATERAL (
+                             WITH RECURSIVE ancestors AS (
+                               SELECT gm.group_id AS id
+                               UNION ALL
+                               SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
+                             )
+                             SELECT id FROM ancestors
+                           ) anc ON true
+                           JOIN role_groups rg ON rg.group_id = anc.id
+                           JOIN role_permissions rp ON rp.role_id = rg.role_id
+                           WHERE gm.team_member_id = tm.id
                          ) all_perms), ''
                        ) AS permissions
                 FROM team_members tm
@@ -121,9 +144,22 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           execute: (userId) =>
             sql`SELECT tm.id, tm.team_id, tm.user_id, tm.active,
                        COALESCE(
-                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
-                          FROM member_roles mr JOIN roles r ON r.id = mr.role_id
-                          WHERE mr.team_member_id = tm.id), ''
+                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name) FROM (
+                           SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.team_member_id = tm.id
+                           UNION
+                           SELECT r.name FROM group_members gm
+                           JOIN LATERAL (
+                             WITH RECURSIVE ancestors AS (
+                               SELECT gm.group_id AS id
+                               UNION ALL
+                               SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
+                             )
+                             SELECT id FROM ancestors
+                           ) anc ON true
+                           JOIN role_groups rg ON rg.group_id = anc.id
+                           JOIN roles r ON r.id = rg.role_id
+                           WHERE gm.team_member_id = tm.id
+                         ) all_roles), ''
                        ) AS role_names,
                        COALESCE(
                          (SELECT string_agg(DISTINCT perm, ',') FROM (
@@ -131,9 +167,19 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                            FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                            WHERE mr.team_member_id = tm.id
                            UNION
-                           SELECT sp.permission AS perm
-                           FROM subgroup_members sgm JOIN subgroup_permissions sp ON sp.subgroup_id = sgm.subgroup_id
-                           WHERE sgm.team_member_id = tm.id
+                           SELECT rp.permission AS perm
+                           FROM group_members gm
+                           JOIN LATERAL (
+                             WITH RECURSIVE ancestors AS (
+                               SELECT gm.group_id AS id
+                               UNION ALL
+                               SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
+                             )
+                             SELECT id FROM ancestors
+                           ) anc ON true
+                           JOIN role_groups rg ON rg.group_id = anc.id
+                           JOIN role_permissions rp ON rp.role_id = rg.role_id
+                           WHERE gm.team_member_id = tm.id
                          ) all_perms), ''
                        ) AS permissions
                 FROM team_members tm

@@ -1,29 +1,24 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
-import { TeamMemberId } from '~/models/TeamMember.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
 
 export class TrainingTypeInfo extends Schema.Class<TrainingTypeInfo>('TrainingTypeInfo')({
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
-  coachCount: Schema.Number,
+  groupName: Schema.NullOr(Schema.String),
 }) {}
 
 export class TrainingTypeDetail extends Schema.Class<TrainingTypeDetail>('TrainingTypeDetail')({
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
+  groupId: Schema.NullOr(GroupId),
+  groupName: Schema.NullOr(Schema.String),
   canAdmin: Schema.Boolean,
-  coaches: Schema.Array(
-    Schema.Struct({
-      memberId: TeamMemberId,
-      name: Schema.NullOr(Schema.String),
-      discordUsername: Schema.String,
-    }),
-  ),
 }) {}
 
 export class TrainingTypeListResponse extends Schema.Class<TrainingTypeListResponse>(
@@ -37,18 +32,13 @@ export class CreateTrainingTypeRequest extends Schema.Class<CreateTrainingTypeRe
   'CreateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
+  groupId: Schema.NullOr(GroupId),
 }) {}
 
 export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRequest>(
   'UpdateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
-}) {}
-
-export class AddTrainingTypeCoachRequest extends Schema.Class<AddTrainingTypeCoachRequest>(
-  'AddTrainingTypeCoachRequest',
-)({
-  memberId: TeamMemberId,
 }) {}
 
 export class TrainingTypeNotFound extends Schema.TaggedError<TrainingTypeNotFound>()(
@@ -61,12 +51,6 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()(
   'TrainingTypeForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
-) {}
-
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
-  'TrainingTypeMemberNotFound',
-  {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
@@ -108,36 +92,5 @@ export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
       .addError(Forbidden, { status: 403 })
       .addError(TrainingTypeNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, trainingTypeId: TrainingTypeId }))
-      .middleware(AuthMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.post(
-      'addTrainingTypeCoach',
-      '/teams/:teamId/training-types/:trainingTypeId/coaches',
-    )
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(TrainingTypeNotFound, { status: 404 })
-      .addError(MemberNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, trainingTypeId: TrainingTypeId }))
-      .setPayload(AddTrainingTypeCoachRequest)
-      .middleware(AuthMiddleware),
-  )
-  .add(
-    HttpApiEndpoint.del(
-      'removeTrainingTypeCoach',
-      '/teams/:teamId/training-types/:trainingTypeId/coaches/:memberId',
-    )
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(TrainingTypeNotFound, { status: 404 })
-      .addError(MemberNotFound, { status: 404 })
-      .setPath(
-        Schema.Struct({
-          teamId: TeamId,
-          trainingTypeId: TrainingTypeId,
-          memberId: TeamMemberId,
-        }),
-      )
       .middleware(AuthMiddleware),
   ) {}

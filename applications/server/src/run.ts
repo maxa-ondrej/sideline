@@ -8,9 +8,9 @@ import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
-import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
-import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 
@@ -52,8 +52,8 @@ const Health = HealthServerLive.pipe(Layer.launch, Effect.withLogSpan('health'))
 const RepositoriesLive = Layer.mergeAll(
   AgeThresholdRepository.Default,
   NotificationsRepository.Default,
-  RoleSyncEventsRepository.Default,
-  TeamMembersRepository.Default,
+  GroupsRepository.Default,
+  ChannelSyncEventsRepository.Default,
 );
 
 const Cron = AgeCheckCron.pipe(

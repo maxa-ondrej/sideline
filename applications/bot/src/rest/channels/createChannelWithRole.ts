@@ -1,4 +1,4 @@
-import type { Discord as DiscordSchemas, SubgroupModel, Team } from '@sideline/domain';
+import type { Discord as DiscordSchemas, GroupModel, Team } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Discord from 'dfx/types';
 import { Effect } from 'effect';
@@ -8,7 +8,7 @@ import { allow, deny, retryPolicy } from '../utils.js';
 
 export const createChannelWithRole = (
   teamId: Team.TeamId,
-  subgroupId: SubgroupModel.SubgroupId,
+  groupId: GroupModel.GroupId,
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
 ) =>
@@ -51,7 +51,7 @@ export const createChannelWithRole = (
     Effect.tap(({ channel, role, rpc }) =>
       rpc['Channel/UpsertMapping']({
         team_id: teamId,
-        subgroup_id: subgroupId,
+        group_id: groupId,
         discord_channel_id: channel.id as DiscordSchemas.Snowflake,
         discord_role_id: role.id as DiscordSchemas.Snowflake,
       }),

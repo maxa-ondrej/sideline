@@ -4,6 +4,8 @@ export * as AgeThresholdApi from './api/AgeThresholdApi.js';
 
 export * as Auth from './api/Auth.js';
 
+export * as GroupApi from './api/GroupApi.js';
+
 export * as Invite from './api/Invite.js';
 
 export * as NotificationApi from './api/NotificationApi.js';
@@ -11,8 +13,6 @@ export * as NotificationApi from './api/NotificationApi.js';
 export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';
-
-export * as SubgroupApi from './api/SubgroupApi.js';
 
 export * as TrainingTypeApi from './api/TrainingTypeApi.js';
 
@@ -26,11 +26,15 @@ export * as DiscordChannelMapping from './models/DiscordChannelMapping.js';
 
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
 
+export * as GroupModel from './models/GroupModel.js';
+
 export * as MemberRole from './models/MemberRole.js';
 
 export * as Notification from './models/Notification.js';
 
 export * as Role from './models/Role.js';
+
+export * as RoleGroup from './models/RoleGroup.js';
 
 export * as RoleSyncEvent from './models/RoleSyncEvent.js';
 
@@ -39,8 +43,6 @@ export * as RosterMemberModel from './models/RosterMemberModel.js';
 export * as RosterModel from './models/RosterModel.js';
 
 export * as Session from './models/Session.js';
-
-export * as SubgroupModel from './models/SubgroupModel.js';
 
 export * as Team from './models/Team.js';
 

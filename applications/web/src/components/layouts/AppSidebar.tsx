@@ -46,7 +46,7 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
     { title: 'Members', icon: Users, to: '/teams/$teamId/members', params: { teamId } },
     { title: 'Roles', icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
     { title: 'Rosters', icon: UsersRound, to: '/teams/$teamId/rosters', params: { teamId } },
-    { title: 'Subgroups', icon: UserCog, to: '/teams/$teamId/subgroups', params: { teamId } },
+    { title: 'Groups', icon: UserCog, to: '/teams/$teamId/groups', params: { teamId } },
     {
       title: 'Training Types',
       icon: Dumbbell,

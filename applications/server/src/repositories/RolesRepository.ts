@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Role as RoleNS, Team as TeamNS } from '@sideline/domain';
+import { GroupModel as GroupNS, Role as RoleNS, Team as TeamNS } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -49,6 +49,16 @@ class FindByTeamAndNameInput extends Schema.Class<FindByTeamAndNameInput>('FindB
 
 class InitTeamRolesInput extends Schema.Class<InitTeamRolesInput>('InitTeamRolesInput')({
   team_id: Schema.String,
+}) {}
+
+class RoleGroupInput extends Schema.Class<RoleGroupInput>('RoleGroupInput')({
+  role_id: RoleNS.RoleId,
+  group_id: GroupNS.GroupId,
+}) {}
+
+class RoleGroupRow extends Schema.Class<RoleGroupRow>('RoleGroupRow')({
+  group_id: GroupNS.GroupId,
+  group_name: Schema.String,
 }) {}
 
 export class RolesRepository extends Effect.Service<RolesRepository>()('api/RolesRepository', {
@@ -156,6 +166,38 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
           `,
       }),
     ),
+    Effect.let('findGroupsForRoleId', ({ sql }) =>
+      SqlSchema.findAll({
+        Request: RoleNS.RoleId,
+        Result: RoleGroupRow,
+        execute: (roleId) => sql`
+            SELECT g.id AS group_id, g.name AS group_name
+            FROM role_groups rg
+            JOIN groups g ON g.id = rg.group_id
+            WHERE rg.role_id = ${roleId}
+            ORDER BY g.name ASC
+          `,
+      }),
+    ),
+    Effect.let('assignRoleGroup', ({ sql }) =>
+      SqlSchema.void({
+        Request: RoleGroupInput,
+        execute: (input) => sql`
+            INSERT INTO role_groups (role_id, group_id)
+            VALUES (${input.role_id}, ${input.group_id})
+            ON CONFLICT DO NOTHING
+          `,
+      }),
+    ),
+    Effect.let('unassignRoleGroup', ({ sql }) =>
+      SqlSchema.void({
+        Request: RoleGroupInput,
+        execute: (input) => sql`
+            DELETE FROM role_groups
+            WHERE role_id = ${input.role_id} AND group_id = ${input.group_id}
+          `,
+      }),
+    ),
     Bind.remove('sql'),
   ),
 }) {
@@ -218,5 +260,17 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
 
   getMemberCountForRole(roleId: RoleNS.RoleId) {
     return this.countMembersForRole(roleId).pipe(Effect.map((r) => r.count));
+  }
+
+  findGroupsForRole(roleId: RoleNS.RoleId) {
+    return this.findGroupsForRoleId(roleId);
+  }
+
+  assignRoleToGroup(roleId: RoleNS.RoleId, groupId: GroupNS.GroupId) {
+    return this.assignRoleGroup({ role_id: roleId, group_id: groupId });
+  }
+
+  unassignRoleFromGroup(roleId: RoleNS.RoleId, groupId: GroupNS.GroupId) {
+    return this.unassignRoleGroup({ role_id: roleId, group_id: groupId });
   }
 }

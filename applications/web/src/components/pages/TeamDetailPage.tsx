@@ -12,7 +12,7 @@ export function TeamDetailPage({ teamId, team }: TeamDetailPageProps) {
     { to: '/teams/$teamId/members' as const, label: m.team_members() },
     { to: '/teams/$teamId/rosters' as const, label: m.team_rosters() },
     { to: '/teams/$teamId/roles' as const, label: m.team_roles() },
-    { to: '/teams/$teamId/subgroups' as const, label: m.team_subgroups() },
+    { to: '/teams/$teamId/groups' as const, label: m.team_groups() },
     { to: '/teams/$teamId/training-types' as const, label: m.team_trainingTypes() },
     { to: '/teams/$teamId/age-thresholds' as const, label: m.team_ageThresholds() },
   ] as const;

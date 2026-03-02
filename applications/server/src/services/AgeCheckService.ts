@@ -1,6 +1,7 @@
 import {
   AgeThresholdApi,
-  type Role,
+  type Discord,
+  type GroupModel,
   type Team,
   type TeamMember,
   type User,
@@ -8,34 +9,35 @@ import {
 import { Array, Data, Effect, Option, pipe } from 'effect';
 import {
   AgeThresholdRepository,
-  type AgeThresholdWithRoleName,
+  type AgeThresholdWithGroupName,
   type MemberWithBirthYear,
 } from '~/repositories/AgeThresholdRepository.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
-import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
-import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 interface Dependencies {
   thresholds: AgeThresholdRepository;
-  members: TeamMembersRepository;
+  groups: GroupsRepository;
   notifications: NotificationsRepository;
-  syncEvents: RoleSyncEventsRepository;
+  channelSync: ChannelSyncEventsRepository;
 }
 
 interface Change {
   userId: User.UserId;
   memberId: TeamMember.TeamMemberId;
   memberName: string;
-  roleId: Role.RoleId;
-  roleName: string;
-  action: 'assigned' | 'removed';
+  discordId: string;
+  groupId: GroupModel.GroupId;
+  groupName: string;
+  action: 'added' | 'removed';
 }
 
 const makeChange = (change: Change) => change;
 
 const detectChanges = (
   currentYear: number,
-  rules: readonly AgeThresholdWithRoleName[],
+  rules: readonly AgeThresholdWithGroupName[],
   teamMembers: readonly MemberWithBirthYear[],
 ) =>
   pipe(
@@ -59,58 +61,60 @@ const detectChanges = (
         Option.isNone,
       ),
     ),
-    Array.let('shouldHaveRole', ({ minOk, maxOk }) => minOk && maxOk),
-    Array.let('hasRole', ({ member, rule }) => Array.contains(member.role_ids, rule.role_id)),
-    Array.filter(({ shouldHaveRole, hasRole }) => shouldHaveRole !== hasRole),
+    Array.let('shouldBeInGroup', ({ minOk, maxOk }) => minOk && maxOk),
+    Array.let('isInGroup', ({ member, rule }) => Array.contains(member.group_ids, rule.group_id)),
+    Array.filter(({ shouldBeInGroup, isInGroup }) => shouldBeInGroup !== isInGroup),
     Array.let('displayName', ({ member }) =>
       Option.getOrElse(member.member_name, () => member.discord_username),
     ),
-    Array.map(({ shouldHaveRole, member, displayName, rule }) =>
-      shouldHaveRole
+    Array.map(({ shouldBeInGroup, member, displayName, rule }) =>
+      shouldBeInGroup
         ? makeChange({
             userId: member.user_id,
             memberId: member.member_id,
             memberName: displayName,
-            roleId: rule.role_id,
-            roleName: rule.role_name,
-            action: 'assigned',
+            discordId: member.discord_id,
+            groupId: rule.group_id,
+            groupName: rule.group_name,
+            action: 'added',
           })
         : makeChange({
             userId: member.user_id,
             memberId: member.member_id,
             memberName: displayName,
-            roleId: rule.role_id,
-            roleName: rule.role_name,
+            discordId: member.discord_id,
+            groupId: rule.group_id,
+            groupName: rule.group_name,
             action: 'removed',
           }),
     ),
   );
 
-const commitChange = (members: TeamMembersRepository) => (change: Change) =>
+const commitChange = (groups: GroupsRepository) => (change: Change) =>
   Effect.succeed(change).pipe(
     Effect.tap(
-      Effect.if(change.action === 'assigned', {
-        onTrue: () => members.assignRole(change.memberId, change.roleId),
-        onFalse: () => members.unassignRole(change.memberId, change.roleId),
+      Effect.if(change.action === 'added', {
+        onTrue: () => groups.addMemberById(change.groupId, change.memberId),
+        onFalse: () => groups.removeMemberById(change.groupId, change.memberId),
       }),
     ),
   );
 
-const commitChanges = (members: TeamMembersRepository, changes: readonly Change[]) =>
+const commitChanges = (groups: GroupsRepository, changes: readonly Change[]) =>
   pipe(
     changes,
-    Array.map(commitChange(members)),
+    Array.map(commitChange(groups)),
     Array.map(
       Effect.tap((change) =>
         Effect.logInfo(
-          `${change.memberId} was automatically ${change.action} the "${change.roleId}" role based on age threshold.`,
+          `${change.memberId} was automatically ${change.action} the "${change.groupName}" group based on age threshold.`,
         ),
       ),
     ),
     Array.map(Effect.tapError(Effect.logError)),
     Effect.allSuccesses,
     Effect.tap((commits) =>
-      Effect.logInfo(`Successfully made ${commits.length} changes to Age based roles!`),
+      Effect.logInfo(`Successfully made ${commits.length} changes to age-based groups!`),
     ),
   );
 
@@ -129,20 +133,20 @@ const notifyAdmins = (
     Effect.map(
       Array.flatMap((userId) =>
         Array.map(changes, (change) =>
-          change.action === 'assigned'
+          change.action === 'added'
             ? {
                 teamId,
                 userId,
-                type: 'age_role_assigned' as const,
-                title: `Role "${change.roleName}" assigned`,
-                body: `${change.memberName} was automatically assigned the "${change.roleName}" role based on age threshold.`,
+                type: 'age_group_added' as const,
+                title: `Added to group "${change.groupName}"`,
+                body: `${change.memberName} was automatically added to the "${change.groupName}" group based on age threshold.`,
               }
             : {
                 teamId,
                 userId,
-                type: 'age_role_removed' as const,
-                title: `Role "${change.roleName}" removed`,
-                body: `${change.memberName} was automatically removed from the "${change.roleName}" role based on age threshold.`,
+                type: 'age_group_removed' as const,
+                title: `Removed from group "${change.groupName}"`,
+                body: `${change.memberName} was automatically removed from the "${change.groupName}" group based on age threshold.`,
               },
         ),
       ),
@@ -156,7 +160,7 @@ const notifyAdmins = (
   );
 
 const evaluateTeam =
-  ({ thresholds, members, notifications, syncEvents }: Dependencies) =>
+  ({ thresholds, groups, notifications, channelSync }: Dependencies) =>
   (teamId: Team.TeamId, currentYear: number) =>
     Effect.Do.pipe(
       Effect.bind('rules', () => thresholds.findRulesByTeamId(teamId).pipe(Effect.orDie)),
@@ -170,27 +174,27 @@ const evaluateTeam =
         Array.isEmptyArray(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
       ),
       Effect.tap(({ changes }) =>
-        Effect.logInfo(`Detected ${changes.length} changes to be made with Age based roles!`),
+        Effect.logInfo(`Detected ${changes.length} changes to be made with age-based groups!`),
       ),
-      Effect.bind('commited', ({ changes }) => commitChanges(members, changes)),
+      Effect.bind('commited', ({ changes }) => commitChanges(groups, changes)),
       Effect.tap(({ changes }) =>
         pipe(
           changes,
           Array.map((change) =>
-            change.action === 'assigned'
+            change.action === 'added'
               ? notifications.insert(
                   teamId,
                   change.userId,
-                  'role_assigned',
-                  `Role "${change.roleName}" assigned`,
-                  `You have been assigned the "${change.roleName}" role.`,
+                  'age_group_added',
+                  `Added to group "${change.groupName}"`,
+                  `You have been added to the "${change.groupName}" group.`,
                 )
               : notifications.insert(
                   teamId,
                   change.userId,
-                  'role_removed',
-                  `Role "${change.roleName}" removed`,
-                  `You have been removed from the "${change.roleName}" role.`,
+                  'age_group_removed',
+                  `Removed from group "${change.groupName}"`,
+                  `You have been removed from the "${change.groupName}" group.`,
                 ),
           ),
         ),
@@ -198,43 +202,41 @@ const evaluateTeam =
       Effect.tap(({ changes, teamMembers }) =>
         notifyAdmins(notifications, teamId, changes, teamMembers),
       ),
-      Effect.tap(({ changes, teamMembers }) =>
+      Effect.tap(({ changes }) =>
         Effect.allSuccesses(
           changes.map((change) =>
-            pipe(
-              teamMembers,
-              Array.findFirst((m) => m.member_id === change.memberId),
-              Option.map((m) => m.discord_id),
-              Effect.flatMap((memberId) =>
-                change.action === 'assigned'
-                  ? syncEvents.emitRoleAssigned(
-                      teamId,
-                      change.roleId,
-                      change.roleName,
-                      change.memberId,
-                      memberId,
-                    )
-                  : syncEvents.emitRoleUnassigned(
-                      teamId,
-                      change.roleId,
-                      change.roleName,
-                      change.memberId,
-                      memberId,
-                    ),
-              ),
-              Effect.catchAll((e) => Effect.logError('sync event failed', e)),
-            ),
+            change.action === 'added'
+              ? channelSync
+                  .emitIfGuildLinked(
+                    teamId,
+                    'member_added',
+                    change.groupId,
+                    Option.some(change.groupName),
+                    Option.some(change.memberId),
+                    Option.some(change.discordId as Discord.Snowflake),
+                  )
+                  .pipe(Effect.catchAll((e) => Effect.logError('channel sync event failed', e)))
+              : channelSync
+                  .emitIfGuildLinked(
+                    teamId,
+                    'member_removed',
+                    change.groupId,
+                    Option.some(change.groupName),
+                    Option.some(change.memberId),
+                    Option.some(change.discordId as Discord.Snowflake),
+                  )
+                  .pipe(Effect.catchAll((e) => Effect.logError('channel sync event failed', e))),
           ),
         ).pipe(Effect.asVoid),
       ),
       Effect.map(({ changes }) =>
         changes.map(
           (c) =>
-            new AgeThresholdApi.AgeRoleChange({
+            new AgeThresholdApi.AgeGroupChange({
               memberId: c.memberId,
               memberName: c.memberName,
-              roleId: c.roleId,
-              roleName: c.roleName,
+              groupId: c.groupId,
+              groupName: c.groupName,
               action: c.action,
             }),
         ),
@@ -245,9 +247,9 @@ const evaluateTeam =
 export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeCheckService', {
   effect: Effect.Do.pipe(
     Effect.bind('thresholds', () => AgeThresholdRepository),
-    Effect.bind('members', () => TeamMembersRepository),
+    Effect.bind('groups', () => GroupsRepository),
     Effect.bind('notifications', () => NotificationsRepository),
-    Effect.bind('syncEvents', () => RoleSyncEventsRepository),
+    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
     Effect.let('evaluateTeam', evaluateTeam),
     Effect.map(({ evaluateTeam }) => ({ evaluateTeam })),
   ),

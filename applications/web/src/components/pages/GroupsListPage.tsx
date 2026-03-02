@@ -1,5 +1,5 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { SubgroupApi } from '@sideline/domain';
+import type { GroupApi } from '@sideline/domain';
 import { Team } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -17,37 +17,37 @@ import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
-const CreateSubgroupSchema = Schema.Struct({
+const CreateGroupSchema = Schema.Struct({
   name: Schema.NonEmptyString,
 });
 
-type CreateSubgroupValues = Schema.Schema.Type<typeof CreateSubgroupSchema>;
+type CreateGroupValues = Schema.Schema.Type<typeof CreateGroupSchema>;
 
-interface SubgroupsListPageProps {
+interface GroupsListPageProps {
   teamId: string;
-  subgroups: ReadonlyArray<SubgroupApi.SubgroupInfo>;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
-export function SubgroupsListPage({ teamId, subgroups }: SubgroupsListPageProps) {
+export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
 
   const form = useForm({
-    resolver: effectTsResolver(CreateSubgroupSchema),
+    resolver: effectTsResolver(CreateGroupSchema),
     mode: 'onChange',
     defaultValues: { name: '' },
   });
 
-  const onSubmit = async (values: CreateSubgroupValues) => {
+  const onSubmit = async (values: CreateGroupValues) => {
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
-        api.subgroup.createSubgroup({
+        api.group.createGroup({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name },
+          payload: { name: values.name, parentId: null, emoji: null },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.subgroup_createFailed())),
+      Effect.catchAll(() => ClientError.make(m.group_createFailed())),
       run,
     );
     if (Option.isSome(result)) {
@@ -64,7 +64,7 @@ export function SubgroupsListPage({ teamId, subgroups }: SubgroupsListPageProps)
             ← {m.team_backToTeams()}
           </Link>
         </Button>
-        <h1 className='text-2xl font-bold'>{m.subgroup_subgroups()}</h1>
+        <h1 className='text-2xl font-bold'>{m.group_groups()}</h1>
       </header>
 
       <Form {...form}>
@@ -73,44 +73,44 @@ export function SubgroupsListPage({ teamId, subgroups }: SubgroupsListPageProps)
             {...form.register('name')}
             render={({ field }) => (
               <FormItem className='flex-1'>
-                <FormLabel>{m.subgroup_subgroupName()}</FormLabel>
+                <FormLabel>{m.group_groupName()}</FormLabel>
                 <FormControl>
-                  <Input {...field} placeholder={m.subgroup_subgroupNamePlaceholder()} />
+                  <Input {...field} placeholder={m.group_groupNamePlaceholder()} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
           <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
-            {m.subgroup_createSubgroup()}
+            {m.group_createGroup()}
           </Button>
         </form>
       </Form>
 
-      {subgroups.length === 0 ? (
-        <p className='text-muted-foreground'>{m.subgroup_noSubgroups()}</p>
+      {groups.length === 0 ? (
+        <p className='text-muted-foreground'>{m.group_noGroups()}</p>
       ) : (
         <table className='w-full'>
           <tbody>
-            {subgroups.map((sg) => (
-              <tr key={sg.subgroupId} className='border-b'>
+            {groups.map((g) => (
+              <tr key={g.groupId} className='border-b'>
                 <td className='py-2 px-4'>
                   <Link
-                    to='/teams/$teamId/subgroups/$subgroupId'
-                    params={{ teamId, subgroupId: sg.subgroupId }}
+                    to='/teams/$teamId/groups/$groupId'
+                    params={{ teamId, groupId: g.groupId }}
                     className='font-medium hover:underline'
                   >
-                    {sg.name}
+                    {g.emoji ? `${g.emoji} ${g.name}` : g.name}
                   </Link>
                 </td>
                 <td className='py-2 px-4 text-muted-foreground'>
-                  {m.subgroup_memberCount({ count: String(sg.memberCount) })}
+                  {m.group_memberCount({ count: String(g.memberCount) })}
                 </td>
                 <td className='py-2 px-4'>
                   <Button asChild variant='outline' size='sm'>
                     <Link
-                      to='/teams/$teamId/subgroups/$subgroupId'
-                      params={{ teamId, subgroupId: sg.subgroupId }}
+                      to='/teams/$teamId/groups/$groupId'
+                      params={{ teamId, groupId: g.groupId }}
                     >
                       View
                     </Link>

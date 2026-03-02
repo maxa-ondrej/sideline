@@ -45,15 +45,15 @@ const nullable = <
 export const constructEvent = Match.type<EventRow>().pipe(
   Match.when({ event_type: 'channel_created' }, (r) =>
     Effect.Do.pipe(
-      Effect.bind('subgroup_name', () => nullable(r, 'subgroup_name')),
+      Effect.bind('group_name', () => nullable(r, 'group_name')),
       Effect.map(
-        ({ subgroup_name }) =>
+        ({ group_name }) =>
           new ChannelRpcEvents.ChannelCreatedEvent({
             id: r.id,
             team_id: r.team_id,
             guild_id: r.guild_id,
-            subgroup_id: r.subgroup_id,
-            subgroup_name,
+            group_id: r.group_id,
+            group_name,
           }),
       ),
     ),
@@ -64,7 +64,7 @@ export const constructEvent = Match.type<EventRow>().pipe(
         id: r.id,
         team_id: r.team_id,
         guild_id: r.guild_id,
-        subgroup_id: r.subgroup_id,
+        group_id: r.group_id,
       }),
     ),
   ),
@@ -72,15 +72,15 @@ export const constructEvent = Match.type<EventRow>().pipe(
     Effect.Do.pipe(
       Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
       Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
-      Effect.bind('subgroup_name', () => nullable(r, 'subgroup_name')),
+      Effect.bind('group_name', () => nullable(r, 'group_name')),
       Effect.map(
-        ({ discord_user_id, team_member_id, subgroup_name }) =>
+        ({ discord_user_id, team_member_id, group_name }) =>
           new ChannelRpcEvents.ChannelMemberAddedEvent({
             id: r.id,
             team_id: r.team_id,
             guild_id: r.guild_id,
-            subgroup_id: r.subgroup_id,
-            subgroup_name,
+            group_id: r.group_id,
+            group_name,
             discord_user_id,
             team_member_id,
           }),
@@ -97,7 +97,7 @@ export const constructEvent = Match.type<EventRow>().pipe(
             id: r.id,
             team_id: r.team_id,
             guild_id: r.guild_id,
-            subgroup_id: r.subgroup_id,
+            group_id: r.group_id,
             discord_user_id,
             team_member_id,
           }),

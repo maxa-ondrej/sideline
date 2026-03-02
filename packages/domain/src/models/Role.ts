@@ -15,6 +15,8 @@ export const Permission = Schema.Literal(
   'member:remove',
   'role:view',
   'role:manage',
+  'training-type:create',
+  'training-type:delete',
 );
 export type Permission = typeof Permission.Type;
 
@@ -32,6 +34,8 @@ export const defaultPermissions: Record<string, ReadonlyArray<Permission>> = {
     'member:remove',
     'role:view',
     'role:manage',
+    'training-type:create',
+    'training-type:delete',
   ],
   Captain: ['roster:view', 'roster:manage', 'member:view', 'member:edit', 'role:view'],
   Player: ['roster:view', 'member:view'],

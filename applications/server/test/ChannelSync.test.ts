@@ -1,12 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type {
-  Auth,
-  ChannelSyncEvent,
-  Role,
-  SubgroupModel,
-  Team,
-  TeamMember,
-} from '@sideline/domain';
+import type { Auth, ChannelSyncEvent, GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -14,12 +7,12 @@ import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
-import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -122,8 +115,8 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
 type ChannelSyncEventCall = {
   teamId: Team.TeamId;
   eventType: ChannelSyncEvent.ChannelSyncEventType;
-  subgroupId: SubgroupModel.SubgroupId;
-  subgroupName: Option.Option<string>;
+  groupId: GroupModel.GroupId;
+  groupName: Option.Option<string>;
   teamMemberId: Option.Option<TeamMember.TeamMemberId>;
   discordUserId: Option.Option<string>;
 };
@@ -135,16 +128,16 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   emitIfGuildLinked: (
     teamId: Team.TeamId,
     eventType: ChannelSyncEvent.ChannelSyncEventType,
-    subgroupId: SubgroupModel.SubgroupId,
-    subgroupName: Option.Option<string> = Option.none(),
+    groupId: GroupModel.GroupId,
+    groupName: Option.Option<string> = Option.none(),
     teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
     discordUserId: Option.Option<string> = Option.none(),
   ) => {
     channelSyncEventCalls.push({
       teamId,
       eventType,
-      subgroupId,
-      subgroupName,
+      groupId,
+      groupName,
       teamMemberId,
       discordUserId,
     });
@@ -160,116 +153,129 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markEventFailed: () => Effect.die('Not implemented'),
 } as ChannelSyncEventsRepository);
 
-let nextSubgroupId = 100;
+let nextGroupId = 100;
 
-type SubgroupLike = {
-  id: SubgroupModel.SubgroupId;
+type GroupLike = {
+  id: GroupModel.GroupId;
   team_id: Team.TeamId;
+  parent_id: GroupModel.GroupId | null;
   name: string;
+  emoji: string | null;
 };
 
-const subgroupsStore = new Map<SubgroupModel.SubgroupId, SubgroupLike>();
-const subgroupMembersStore = new Map<string, Set<TeamMember.TeamMemberId>>();
+const groupsStore = new Map<GroupModel.GroupId, GroupLike>();
+const groupMembersStore = new Map<string, Set<TeamMember.TeamMemberId>>();
 
-const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
-  _tag: 'api/SubgroupsRepository',
+const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
+  _tag: 'api/GroupsRepository',
   findByTeamId: (teamId: string) =>
     Effect.succeed(
-      Array.from(subgroupsStore.values())
-        .filter((s) => s.team_id === teamId)
-        .map((s) => ({
-          ...s,
-          member_count: subgroupMembersStore.get(s.id)?.size ?? 0,
+      Array.from(groupsStore.values())
+        .filter((g) => g.team_id === teamId)
+        .map((g) => ({
+          ...g,
+          member_count: groupMembersStore.get(g.id)?.size ?? 0,
           created_at: new Date(),
         })),
     ),
-  findSubgroupsByTeamId: (teamId: string) =>
+  findGroupsByTeamId: (teamId: string) =>
     Effect.succeed(
-      Array.from(subgroupsStore.values())
-        .filter((s) => s.team_id === teamId)
-        .map((s) => ({
-          ...s,
-          member_count: subgroupMembersStore.get(s.id)?.size ?? 0,
+      Array.from(groupsStore.values())
+        .filter((g) => g.team_id === teamId)
+        .map((g) => ({
+          ...g,
+          member_count: groupMembersStore.get(g.id)?.size ?? 0,
           created_at: new Date(),
         })),
     ),
-  findById: (id: SubgroupModel.SubgroupId) => {
-    const sg = subgroupsStore.get(id);
-    return Effect.succeed(sg ? Option.some(sg) : Option.none());
+  findById: (id: GroupModel.GroupId) => {
+    const g = groupsStore.get(id);
+    return Effect.succeed(g ? Option.some(g) : Option.none());
   },
-  findSubgroupById: (id: SubgroupModel.SubgroupId) => {
-    const sg = subgroupsStore.get(id);
-    return Effect.succeed(sg ? Option.some(sg) : Option.none());
+  findGroupById: (id: GroupModel.GroupId) => {
+    const g = groupsStore.get(id);
+    return Effect.succeed(g ? Option.some(g) : Option.none());
   },
-  insert: (input: { team_id: string; name: string }) => {
+  insert: (input: {
+    team_id: string;
+    parent_id: string | null;
+    name: string;
+    emoji: string | null;
+  }) => {
     const id =
-      `00000000-0000-0000-0000-${String(nextSubgroupId++).padStart(12, '0')}` as SubgroupModel.SubgroupId;
-    const sg: SubgroupLike = {
+      `00000000-0000-0000-0000-${String(nextGroupId++).padStart(12, '0')}` as GroupModel.GroupId;
+    const g: GroupLike = {
       id,
       team_id: input.team_id as Team.TeamId,
+      parent_id: input.parent_id as GroupModel.GroupId | null,
       name: input.name,
+      emoji: input.emoji,
     };
-    subgroupsStore.set(id, sg);
-    return Effect.succeed(sg);
+    groupsStore.set(id, g);
+    return Effect.succeed(g);
   },
-  insertSubgroup: (teamId: string, name: string) => {
+  insertGroup: (teamId: string, name: string, parentId: string | null, emoji: string | null) => {
     const id =
-      `00000000-0000-0000-0000-${String(nextSubgroupId++).padStart(12, '0')}` as SubgroupModel.SubgroupId;
-    const sg: SubgroupLike = {
+      `00000000-0000-0000-0000-${String(nextGroupId++).padStart(12, '0')}` as GroupModel.GroupId;
+    const g: GroupLike = {
       id,
       team_id: teamId as Team.TeamId,
+      parent_id: parentId as GroupModel.GroupId | null,
       name,
+      emoji,
     };
-    subgroupsStore.set(id, sg);
-    return Effect.succeed(sg);
+    groupsStore.set(id, g);
+    return Effect.succeed(g);
   },
   update: () => Effect.die(new Error('Not implemented')),
-  updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  archiveSubgroup: (id: SubgroupModel.SubgroupId) => {
-    subgroupsStore.delete(id);
-    subgroupMembersStore.delete(id);
+  updateGroupById: () => Effect.die(new Error('Not implemented')),
+  archiveGroup: (id: GroupModel.GroupId) => {
+    groupsStore.delete(id);
+    groupMembersStore.delete(id);
     return Effect.void;
   },
-  archiveSubgroupById: (id: SubgroupModel.SubgroupId) => {
-    subgroupsStore.delete(id);
-    subgroupMembersStore.delete(id);
+  archiveGroupById: (id: GroupModel.GroupId) => {
+    groupsStore.delete(id);
+    groupMembersStore.delete(id);
     return Effect.void;
   },
+  moveGroupParent: () => Effect.die(new Error('Not implemented')),
+  moveGroup: () => Effect.die(new Error('Not implemented')),
   findMembers: () => Effect.succeed([]),
-  findMembersBySubgroupId: () => Effect.succeed([]),
-  addMember: (input: {
-    subgroup_id: SubgroupModel.SubgroupId;
-    team_member_id: TeamMember.TeamMemberId;
-  }) => {
-    const members = subgroupMembersStore.get(input.subgroup_id) ?? new Set();
+  findMembersByGroupId: () => Effect.succeed([]),
+  addMember: (input: { group_id: GroupModel.GroupId; team_member_id: TeamMember.TeamMemberId }) => {
+    const members = groupMembersStore.get(input.group_id) ?? new Set();
     members.add(input.team_member_id);
-    subgroupMembersStore.set(input.subgroup_id, members);
+    groupMembersStore.set(input.group_id, members);
     return Effect.void;
   },
-  addMemberById: (subgroupId: SubgroupModel.SubgroupId, memberId: TeamMember.TeamMemberId) => {
-    const members = subgroupMembersStore.get(subgroupId) ?? new Set();
+  addMemberById: (groupId: GroupModel.GroupId, memberId: TeamMember.TeamMemberId) => {
+    const members = groupMembersStore.get(groupId) ?? new Set();
     members.add(memberId);
-    subgroupMembersStore.set(subgroupId, members);
+    groupMembersStore.set(groupId, members);
     return Effect.void;
   },
   removeMember: (input: {
-    subgroup_id: SubgroupModel.SubgroupId;
+    group_id: GroupModel.GroupId;
     team_member_id: TeamMember.TeamMemberId;
   }) => {
-    subgroupMembersStore.get(input.subgroup_id)?.delete(input.team_member_id);
+    groupMembersStore.get(input.group_id)?.delete(input.team_member_id);
     return Effect.void;
   },
-  removeMemberById: (subgroupId: SubgroupModel.SubgroupId, memberId: TeamMember.TeamMemberId) => {
-    subgroupMembersStore.get(subgroupId)?.delete(memberId);
+  removeMemberById: (groupId: GroupModel.GroupId, memberId: TeamMember.TeamMemberId) => {
+    groupMembersStore.get(groupId)?.delete(memberId);
     return Effect.void;
   },
-  findPermissions: () => Effect.succeed([]),
-  getPermissionsForSubgroupId: () => Effect.succeed([]),
-  deletePermissions: () => Effect.void,
-  insertPermission: () => Effect.void,
-  setSubgroupPermissions: () => Effect.void,
-  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
+  findRolesForGroup: () => Effect.succeed([]),
+  getRolesForGroup: () => Effect.succeed([]),
+  countMembersForGroup: () => Effect.succeed({ count: 0 }),
   getMemberCount: () => Effect.succeed(0),
+  findChildren: () => Effect.succeed([]),
+  getChildren: () => Effect.succeed([]),
+  findAncestors: () => Effect.succeed([]),
+  getAncestorIds: () => Effect.succeed([]),
+  findDescendantMembers: () => Effect.succeed([]),
+  getDescendantMemberIds: () => Effect.succeed([]),
 });
 
 const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
@@ -425,6 +431,12 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
   countMembersForRole: () => Effect.succeed({ count: 0 }),
   getMemberCountForRole: () => Effect.succeed(0),
+  findGroupsForRoleId: () => Effect.succeed([]),
+  findGroupsForRole: () => Effect.succeed([]),
+  assignRoleGroup: () => Effect.void,
+  assignRoleToGroup: () => Effect.void,
+  unassignRoleGroup: () => Effect.void,
+  unassignRoleFromGroup: () => Effect.void,
 });
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
@@ -544,7 +556,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRostersRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
-  Layer.provide(MockSubgroupsRepositoryLayer),
+  Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
   Layer.provide(MockAgeCheckServiceLayer),
@@ -572,16 +584,16 @@ beforeEach(() => {
 });
 
 describe('Channel Sync Events', () => {
-  describe('createSubgroup', () => {
+  describe('createGroup', () => {
     it('emits channel_created sync event', async () => {
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Goalkeepers' }),
+          body: JSON.stringify({ name: 'Goalkeepers', parentId: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(201);
@@ -591,31 +603,31 @@ describe('Channel Sync Events', () => {
       expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
         eventType: 'channel_created',
-        subgroupId: body.subgroupId,
-        subgroupName: Option.some('Goalkeepers'),
+        groupId: body.groupId,
+        groupName: Option.some('Goalkeepers'),
         teamMemberId: Option.none(),
         discordUserId: Option.none(),
       });
     });
   });
 
-  describe('deleteSubgroup', () => {
+  describe('deleteGroup', () => {
     it('emits channel_deleted sync event', async () => {
       const createResponse = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'ToDelete' }),
+          body: JSON.stringify({ name: 'ToDelete', parentId: null, emoji: null }),
         }),
       );
       const created = await createResponse.json();
       channelSyncEventCalls.length = 0;
 
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups/${created.groupId}`, {
           method: 'DELETE',
           headers: { Authorization: 'Bearer admin-token' },
         }),
@@ -626,41 +638,38 @@ describe('Channel Sync Events', () => {
       expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
         eventType: 'channel_deleted',
-        subgroupId: created.subgroupId,
-        subgroupName: Option.some('ToDelete'),
+        groupId: created.groupId,
+        groupName: Option.some('ToDelete'),
         teamMemberId: Option.none(),
         discordUserId: Option.none(),
       });
     });
   });
 
-  describe('addSubgroupMember', () => {
+  describe('addGroupMember', () => {
     it('emits member_added sync event with discord_user_id', async () => {
       const createResponse = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'WithMembers' }),
+          body: JSON.stringify({ name: 'WithMembers', parentId: null, emoji: null }),
         }),
       );
       const created = await createResponse.json();
       channelSyncEventCalls.length = 0;
 
       const response = await handler(
-        new Request(
-          `http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}/members`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer admin-token',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups/${created.groupId}/members`, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
           },
-        ),
+          body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
+        }),
       );
       expect(response.status).toBe(204);
 
@@ -668,47 +677,44 @@ describe('Channel Sync Events', () => {
       expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
         eventType: 'member_added',
-        subgroupId: created.subgroupId,
-        subgroupName: Option.some('WithMembers'),
+        groupId: created.groupId,
+        groupName: Option.some('WithMembers'),
         teamMemberId: Option.some(TEST_MEMBER_ID),
         discordUserId: Option.some('12345'),
       });
     });
   });
 
-  describe('removeSubgroupMember', () => {
+  describe('removeGroupMember', () => {
     it('emits member_removed sync event with discord_user_id', async () => {
       const createResponse = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'ForRemoval' }),
+          body: JSON.stringify({ name: 'ForRemoval', parentId: null, emoji: null }),
         }),
       );
       const created = await createResponse.json();
 
       // Add member first
       await handler(
-        new Request(
-          `http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}/members`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer admin-token',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups/${created.groupId}/members`, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
           },
-        ),
+          body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
+        }),
       );
       channelSyncEventCalls.length = 0;
 
       const response = await handler(
         new Request(
-          `http://localhost/teams/${TEST_TEAM_ID}/subgroups/${created.subgroupId}/members/${TEST_MEMBER_ID}`,
+          `http://localhost/teams/${TEST_TEAM_ID}/groups/${created.groupId}/members/${TEST_MEMBER_ID}`,
           {
             method: 'DELETE',
             headers: { Authorization: 'Bearer admin-token' },
@@ -721,8 +727,8 @@ describe('Channel Sync Events', () => {
       expect(channelSyncEventCalls[0]).toEqual({
         teamId: TEST_TEAM_ID,
         eventType: 'member_removed',
-        subgroupId: created.subgroupId,
-        subgroupName: Option.some('ForRemoval'),
+        groupId: created.groupId,
+        groupName: Option.some('ForRemoval'),
         teamMemberId: Option.some(TEST_MEMBER_ID),
         discordUserId: Option.some('12345'),
       });
@@ -730,15 +736,15 @@ describe('Channel Sync Events', () => {
   });
 
   describe('sync event failure does not break primary operation', () => {
-    it('createSubgroup succeeds even if sync event emission fails', async () => {
+    it('createGroup succeeds even if sync event emission fails', async () => {
       const response = await handler(
-        new Request(`http://localhost/teams/${TEST_TEAM_ID}/subgroups`, {
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
           method: 'POST',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Resilient' }),
+          body: JSON.stringify({ name: 'Resilient', parentId: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(201);
