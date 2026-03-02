@@ -8,7 +8,7 @@ interface InvitePageProps {
   isAuthenticated: boolean;
   invite: { teamName: string };
   code: string;
-  onJoined: (isProfileComplete: boolean) => void;
+  onJoined: (teamId: string, isProfileComplete: boolean) => void;
   onSignIn: () => void;
 }
 
@@ -20,7 +20,7 @@ export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }
     setJoining(true);
     await ApiClient.pipe(
       Effect.flatMap((api) => api.invite.joinViaInvite({ path: { code } })),
-      Effect.tap((result) => Effect.sync(() => onJoined(result.isProfileComplete))),
+      Effect.tap((result) => Effect.sync(() => onJoined(result.teamId, result.isProfileComplete))),
       Effect.catchTag('AlreadyMember', () => ClientError.make(m.invite_errors_alreadyMember())),
       Effect.catchTag('InviteNotFound', () => ClientError.make(m.invite_errors_inviteNotValid())),
       Effect.catchTag(

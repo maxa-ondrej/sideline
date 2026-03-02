@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
 import { InvitePage } from '~/components/pages/InvitePage';
-import { getLogin, setPendingInvite } from '~/lib/auth';
+import { getLogin, setLastTeamId, setPendingInvite } from '~/lib/auth';
 import { ApiClient, useRun, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/invite/$code')({
@@ -23,9 +23,10 @@ function InviteRoute() {
   const run = useRun();
 
   const handleJoined = React.useCallback(
-    (isProfileComplete: boolean) => {
+    (teamId: string, isProfileComplete: boolean) => {
+      setLastTeamId(teamId);
       if (isProfileComplete) {
-        navigate({ to: '/dashboard' });
+        navigate({ to: '/teams/$teamId', params: { teamId } });
       } else {
         navigate({ to: '/profile/complete' });
       }

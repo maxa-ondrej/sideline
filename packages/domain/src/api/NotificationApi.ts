@@ -31,6 +31,11 @@ export class NotificationApiGroup extends HttpApiGroup.make('notification')
     HttpApiEndpoint.get('listNotifications', '/notifications')
       .addSuccess(Schema.Array(NotificationInfo))
       .addError(Forbidden, { status: 403 })
+      .setUrlParams(
+        Schema.Struct({
+          teamId: TeamId.pipe(Schema.optional),
+        }),
+      )
       .middleware(AuthMiddleware),
   )
   .add(
@@ -45,5 +50,10 @@ export class NotificationApiGroup extends HttpApiGroup.make('notification')
     HttpApiEndpoint.post('markAllAsRead', '/notifications/read-all')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
+      .setPayload(
+        Schema.Struct({
+          teamId: TeamId.pipe(Schema.optional),
+        }),
+      )
       .middleware(AuthMiddleware),
   ) {}

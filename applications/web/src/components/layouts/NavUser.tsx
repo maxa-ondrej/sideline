@@ -36,10 +36,11 @@ function userInitials(user: Auth.CurrentUser): string {
 
 interface NavUserProps {
   user: Auth.CurrentUser;
+  activeTeamId: string | undefined;
   onLogout: () => void;
 }
 
-export function NavUser({ user, onLogout }: NavUserProps) {
+export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar();
   const displayName = user.name ?? user.discordUsername;
 
@@ -99,12 +100,14 @@ export function NavUser({ user, onLogout }: NavUserProps) {
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to='/notifications'>
-                  <Bell />
-                  Notifications
-                </Link>
-              </DropdownMenuItem>
+              {activeTeamId && (
+                <DropdownMenuItem asChild>
+                  <Link to='/teams/$teamId/notifications' params={{ teamId: activeTeamId }}>
+                    <Bell />
+                    Notifications
+                  </Link>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

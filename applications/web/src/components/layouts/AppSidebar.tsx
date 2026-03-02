@@ -1,10 +1,10 @@
 import type { Auth } from '@sideline/domain';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
+  Bell,
   CalendarDays,
   Dumbbell,
   Home,
-  LayoutDashboard,
   type LucideIcon,
   Shield,
   UserCog,
@@ -34,13 +34,15 @@ interface NavItem {
   params?: Record<string, string>;
 }
 
-function getGeneralNavItems(): ReadonlyArray<NavItem> {
-  return [{ title: 'Dashboard', icon: LayoutDashboard, to: '/dashboard' }];
-}
-
 function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
   return [
     { title: 'Overview', icon: Home, to: '/teams/$teamId', params: { teamId } },
+    {
+      title: 'Notifications',
+      icon: Bell,
+      to: '/teams/$teamId/notifications',
+      params: { teamId },
+    },
     { title: 'Members', icon: Users, to: '/teams/$teamId/members', params: { teamId } },
     { title: 'Roles', icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
     { title: 'Rosters', icon: UsersRound, to: '/teams/$teamId/rosters', params: { teamId } },
@@ -69,7 +71,6 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, teams, activeTeamId, onLogout, ...props }: AppSidebarProps) {
   const matchRoute = useMatchRoute();
-  const generalItems = getGeneralNavItems();
   const teamItems = activeTeamId ? getTeamNavItems(activeTeamId) : [];
 
   return (
@@ -78,28 +79,6 @@ export function AppSidebar({ user, teams, activeTeamId, onLogout, ...props }: Ap
         <TeamSwitcher teams={teams} activeTeamId={activeTeamId} />
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>General</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {generalItems.map((item) => (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={!!matchRoute({ to: item.to, params: item.params, fuzzy: true })}
-                    tooltip={item.title}
-                  >
-                    <Link to={item.to} params={item.params}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
         {activeTeamId && teamItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Team</SidebarGroupLabel>
@@ -125,7 +104,7 @@ export function AppSidebar({ user, teams, activeTeamId, onLogout, ...props }: Ap
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} onLogout={onLogout} />
+        <NavUser user={user} activeTeamId={activeTeamId} onLogout={onLogout} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

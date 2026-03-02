@@ -30,3 +30,13 @@ export const getPendingInvite = (): string | null => {
 export const clearPendingInvite = () => {
   window.localStorage.removeItem(PENDING_INVITE);
 };
+
+const LAST_TEAM = 'last-team-id';
+
+export const getLastTeamId = (): string | null => {
+  return window.localStorage.getItem(LAST_TEAM);
+};
+
+export const setLastTeamId = (teamId: string): void => {
+  window.localStorage.setItem(LAST_TEAM, teamId);
+};

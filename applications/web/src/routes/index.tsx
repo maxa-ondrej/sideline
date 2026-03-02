@@ -2,7 +2,14 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Effect, Schema } from 'effect';
 import React from 'react';
 import { HomePage } from '~/components/pages/HomePage';
-import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '~/lib/auth';
+import {
+  clearPendingInvite,
+  finishLogin,
+  getLastTeamId,
+  getLogin,
+  getPendingInvite,
+  logout,
+} from '~/lib/auth';
 
 export const Route = createFileRoute('/')({
   component: HomeRoute,
@@ -21,7 +28,11 @@ export const Route = createFileRoute('/')({
         clearPendingInvite();
         throw redirect({ to: '/invite/$code', params: { code: pendingInvite } });
       }
-      throw redirect({ to: '/dashboard' });
+      const lastTeamId = getLastTeamId();
+      if (lastTeamId) {
+        throw redirect({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
+      }
+      throw redirect({ to: '/create-team' });
     }
   },
   loader: ({ context }) =>

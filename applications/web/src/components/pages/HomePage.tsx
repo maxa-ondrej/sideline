@@ -1,7 +1,9 @@
-import { Link } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { Option } from 'effect';
+import React from 'react';
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
+import { getLastTeamId } from '~/lib/auth';
 import * as m from '~/paraglide/messages.js';
 
 const reasonMessages: Record<string, () => string> = {
@@ -22,6 +24,16 @@ interface HomePageProps {
 
 export function HomePage({ userOption, loginUrl, error, reason, onLogout }: HomePageProps) {
   const isAuthenticated = Option.isSome(userOption);
+  const navigate = useNavigate();
+
+  const handleGoToApp = React.useCallback(() => {
+    const lastTeamId = getLastTeamId();
+    if (lastTeamId) {
+      navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
+    } else {
+      navigate({ to: '/create-team' });
+    }
+  }, [navigate]);
 
   return (
     <div className='flex min-h-screen flex-col'>
@@ -43,8 +55,8 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
             <h1 className='text-3xl font-bold'>
               {m.dashboard_welcome({ username: userOption.value.discordUsername })}
             </h1>
-            <Button asChild size='lg'>
-              <Link to='/dashboard'>{m.dashboard_title()}</Link>
+            <Button size='lg' onClick={handleGoToApp}>
+              {m.dashboard_title()}
             </Button>
           </div>
         ) : error ? (

@@ -1,37 +1,24 @@
 import { createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
-import { DashboardPage } from '~/components/pages/DashboardPage';
-import { logout } from '~/lib/auth';
-import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
+import { CreateTeamPage } from '~/components/pages/CreateTeamPage';
+import { setLastTeamId } from '~/lib/auth';
+import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
-export const Route = createFileRoute('/(authenticated)/dashboard')({
-  component: DashboardRoute,
+export const Route = createFileRoute('/(authenticated)/create-team')({
+  component: CreateTeamRoute,
   beforeLoad: async ({ context }) => {
     if (context.user && !context.user.isProfileComplete) {
       throw redirect({ to: '/profile/complete' });
     }
   },
-  loader: async ({ context }) =>
-    ApiClient.pipe(
-      Effect.flatMap((api) => api.auth.myTeams()),
-      warnAndCatchAll,
-      context.run,
-    ),
 });
 
-function DashboardRoute() {
-  const { user } = Route.useRouteContext();
+function CreateTeamRoute() {
   const navigate = useNavigate();
   const router = useRouter();
   const run = useRun();
-  const teams = Route.useLoaderData();
-
-  const handleLogout = React.useCallback(() => {
-    logout();
-    navigate({ to: '/' });
-  }, [navigate]);
 
   const handleCreateTeam = React.useCallback(
     async (name: string) => {
@@ -41,20 +28,16 @@ function DashboardRoute() {
         run,
       );
       if (Option.isSome(result)) {
+        const teamId = result.value.teamId;
+        setLastTeamId(teamId);
         router.invalidate();
+        navigate({ to: '/teams/$teamId', params: { teamId } });
         return true;
       }
       return false;
     },
-    [run, router],
+    [run, router, navigate],
   );
 
-  return (
-    <DashboardPage
-      user={user}
-      teams={teams}
-      onLogout={handleLogout}
-      onCreateTeam={handleCreateTeam}
-    />
-  );
+  return <CreateTeamPage onCreateTeam={handleCreateTeam} />;
 }

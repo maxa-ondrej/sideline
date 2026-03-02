@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import React from 'react';
 import { ProfileCompletePage } from '~/components/pages/ProfileCompletePage';
+import { getLastTeamId } from '~/lib/auth';
 
 export const Route = createFileRoute('/(authenticated)/profile/complete')({
   component: ProfileCompleteRoute,
@@ -9,7 +10,11 @@ export const Route = createFileRoute('/(authenticated)/profile/complete')({
       throw redirect({ to: '/' });
     }
     if (context.user.isProfileComplete) {
-      throw redirect({ to: '/dashboard' });
+      const lastTeamId = getLastTeamId();
+      if (lastTeamId) {
+        throw redirect({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
+      }
+      throw redirect({ to: '/create-team' });
     }
   },
 });
@@ -19,7 +24,12 @@ function ProfileCompleteRoute() {
   const navigate = useNavigate();
 
   const handleSuccess = React.useCallback(() => {
-    navigate({ to: '/dashboard' });
+    const lastTeamId = getLastTeamId();
+    if (lastTeamId) {
+      navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
+    } else {
+      navigate({ to: '/create-team' });
+    }
   }, [navigate]);
 
   return <ProfileCompletePage user={user} onSuccess={handleSuccess} />;
