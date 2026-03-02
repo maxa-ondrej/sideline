@@ -35,7 +35,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
     const decodedTeamId = Schema.decodeSync(Team.TeamId)(teamId);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
-        api.notification.markAllAsRead({ payload: { teamId: Option.some(decodedTeamId) } }),
+        api.notification.markAllAsRead({ payload: { teamId: decodedTeamId } }),
       ),
       Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
       run,

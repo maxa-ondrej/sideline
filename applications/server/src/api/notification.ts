@@ -15,14 +15,9 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('list', ({ currentUser }) =>
-              Option.match(urlParams.teamId, {
-                onSome: (teamId) =>
-                  notifications
-                    .findByUserAndTeam(currentUser.id, teamId)
-                    .pipe(Effect.mapError(() => forbidden)),
-                onNone: () =>
-                  notifications.findByUser(currentUser.id).pipe(Effect.mapError(() => forbidden)),
-              }),
+              notifications
+                .findByUserAndTeam(currentUser.id, urlParams.teamId)
+                .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(({ list }) =>
               list.map(
@@ -67,16 +62,9 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.tap(({ currentUser }) =>
-              Option.match(payload.teamId, {
-                onSome: (teamId) =>
-                  notifications
-                    .markAllAsReadForTeam(currentUser.id, teamId)
-                    .pipe(Effect.mapError(() => forbidden)),
-                onNone: () =>
-                  notifications
-                    .markAllAsRead(currentUser.id)
-                    .pipe(Effect.mapError(() => forbidden)),
-              }),
+              notifications
+                .markAllAsReadForTeam(currentUser.id, payload.teamId)
+                .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.asVoid,
           ),
