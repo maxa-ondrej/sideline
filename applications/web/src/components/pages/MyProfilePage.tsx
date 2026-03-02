@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import { Auth } from '@sideline/domain';
-import { Link } from '@tanstack/react-router';
+
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -95,10 +95,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   return (
     <div>
       <header className='mb-8'>
-        <div className='flex items-center justify-between mb-2'>
-          <Button asChild variant='ghost' size='sm'>
-            <Link to='/dashboard'>← {m.profile_backToDashboard()}</Link>
-          </Button>
+        <div className='flex items-center justify-end mb-2'>
           <LanguageSwitcher isAuthenticated />
         </div>
         <div className='flex items-center gap-4'>

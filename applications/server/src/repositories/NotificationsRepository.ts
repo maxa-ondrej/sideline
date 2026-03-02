@@ -22,6 +22,20 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   body: Schema.String,
 }) {}
 
+class FindByUserAndTeamInput extends Schema.Class<FindByUserAndTeamInput>('FindByUserAndTeamInput')(
+  {
+    user_id: Schema.String,
+    team_id: Schema.String,
+  },
+) {}
+
+class MarkAllReadForTeamInput extends Schema.Class<MarkAllReadForTeamInput>(
+  'MarkAllReadForTeamInput',
+)({
+  user_id: Schema.String,
+  team_id: Schema.String,
+}) {}
+
 class MarkReadInput extends Schema.Class<MarkReadInput>('MarkReadInput')({
   id: NotificationNS.NotificationId,
 }) {}
@@ -43,6 +57,27 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
             ORDER BY created_at DESC
             LIMIT 50
           `,
+        }),
+      ),
+      Effect.let('findByUserIdAndTeamId', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: FindByUserAndTeamInput,
+          Result: NotificationRow,
+          execute: (input) => sql`
+            SELECT id, team_id, user_id, type, title, body, is_read,
+                   created_at::text AS created_at
+            FROM notifications
+            WHERE user_id = ${input.user_id} AND team_id = ${input.team_id}
+            ORDER BY created_at DESC
+            LIMIT 50
+          `,
+        }),
+      ),
+      Effect.let('markAllReadForTeam', ({ sql }) =>
+        SqlSchema.void({
+          Request: MarkAllReadForTeamInput,
+          execute: (input) =>
+            sql`UPDATE notifications SET is_read = true WHERE user_id = ${input.user_id} AND team_id = ${input.team_id} AND is_read = false`,
         }),
       ),
       Effect.let('insertOne', ({ sql }) =>
@@ -87,6 +122,14 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
 ) {
   findByUser(userId: UserNS.UserId) {
     return this.findByUserId(userId);
+  }
+
+  findByUserAndTeam(userId: UserNS.UserId, teamId: TeamNS.TeamId) {
+    return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId });
+  }
+
+  markAllAsReadForTeam(userId: UserNS.UserId, teamId: TeamNS.TeamId) {
+    return this.markAllReadForTeam({ user_id: userId, team_id: teamId });
   }
 
   insert(

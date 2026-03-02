@@ -11,11 +11,13 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
     Effect.bind('notifications', () => NotificationsRepository),
     Effect.map(({ notifications }) =>
       handlers
-        .handle('listNotifications', () =>
+        .handle('listNotifications', ({ urlParams }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('list', ({ currentUser }) =>
-              notifications.findByUser(currentUser.id).pipe(Effect.mapError(() => forbidden)),
+              notifications
+                .findByUserAndTeam(currentUser.id, urlParams.teamId)
+                .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(({ list }) =>
               list.map(
@@ -56,11 +58,13 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
             Effect.asVoid,
           ),
         )
-        .handle('markAllAsRead', () =>
+        .handle('markAllAsRead', ({ payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.tap(({ currentUser }) =>
-              notifications.markAllAsRead(currentUser.id).pipe(Effect.mapError(() => forbidden)),
+              notifications
+                .markAllAsReadForTeam(currentUser.id, payload.teamId)
+                .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.asVoid,
           ),

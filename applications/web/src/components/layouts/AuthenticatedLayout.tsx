@@ -31,10 +31,8 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
 
       const pathname = match.pathname;
 
-      if (routeId.includes('/dashboard')) {
-        crumbs.push({ label: 'Dashboard', to: pathname });
-      } else if (routeId.includes('/notifications')) {
-        crumbs.push({ label: 'Notifications', to: pathname });
+      if (routeId.includes('/create-team')) {
+        crumbs.push({ label: 'Create Team', to: pathname });
       } else if (routeId.includes('/profile/complete')) {
         crumbs.push({ label: 'Profile', to: '/profile' });
         crumbs.push({ label: 'Complete', to: pathname });
@@ -47,7 +45,9 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
           crumbs.push({ label: 'Team', to: `/teams/${teamId}` });
         }
 
-        if (routeId.includes('/members')) {
+        if (routeId.includes('/notifications')) {
+          crumbs.push({ label: 'Notifications', to: pathname });
+        } else if (routeId.includes('/members')) {
           if (!crumbs.some((c) => c.label === 'Members')) {
             crumbs.push({ label: 'Members', to: `/teams/${teamId}/members` });
           }
@@ -81,8 +81,6 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
       } else if (routeId === '/(authenticated)/teams/$teamId/') {
         const teamId = (match.params as Record<string, string>).teamId;
         crumbs.push({ label: 'Team', to: `/teams/${teamId}` });
-      } else if (routeId.includes('/teams')) {
-        crumbs.push({ label: 'Teams', to: pathname });
       }
     }
 

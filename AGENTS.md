@@ -316,6 +316,7 @@ Internal packages use scoped aliases:
 - **Use `pipe`** for linear transformations and chaining
 - **Always use `Effect.asVoid`** instead of `Effect.map(() => undefined as undefined)`
 - **Never cast types** (`as X`) and **never use `any`** — fix the types properly instead
+- **Never use `Schema.optional`** — always use `Schema.optionalWith({ as: 'Option' })` or `Schema.OptionFromNullOr(...)` so optional values are represented as `Option<T>` instead of `T | undefined`
 - **Type narrow errors** - use discriminated unions for error types
 - **Document complex Effect chains** - explain the business logic, not the syntax
 
@@ -1200,6 +1201,85 @@ routes/(authenticated)/
         └── subgroups.$subgroupId.tsx — /teams/:teamId/subgroups/:subgroupId
 ```
 
+### Auth store — `lib/auth.ts`
+
+`lib/auth.ts` wraps browser `localStorage` via `@effect/platform-browser` `BrowserKeyValueStore`. All auth functions return Effects with `never` error and `never` requirements (the `KeyValueStore` layer is provided internally, errors are caught).
+
+```typescript
+import { KeyValueStore } from '@effect/platform';
+import { BrowserKeyValueStore } from '@effect/platform-browser';
+
+const kvLayer = BrowserKeyValueStore.layerLocalStorage;
+
+// Internal helpers — provide layer + catch errors
+const get = (key: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.get(key)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+  );
+
+// Exported functions: Effect<..., never, never>
+export const getLastTeamId = get(LAST_TEAM);
+export const setLastTeamId = (teamId: string) => set(LAST_TEAM, teamId);
+```
+
+**In React callbacks / `useEffect`**: use `Effect.runSync(...)` since localStorage is synchronous:
+```typescript
+Effect.runSync(setLastTeamId(teamId));
+const lastTeamId = Effect.runSync(getLastTeamId); // Option<string>
+```
+
+**In `beforeLoad` / `loader`**: pipe auth effects directly into the Effect chain (no `Effect.runSync`). See the `beforeLoad` pattern below.
+
+### `beforeLoad` Effect pipe pattern
+
+`beforeLoad` should be a single `Effect.Do` pipe ending with `context.run` — **not** an `async` function with `Effect.runSync` calls. Use tagged errors for early exits and `Redirect.make({...})` for navigation:
+
+```typescript
+class SkipError extends Data.TaggedError('SkipError') {}
+
+beforeLoad: ({ search, context }) =>
+  Effect.Do.pipe(
+    Effect.tap(
+      Option.match(Option.fromNullable(search.token), {
+        onSome: finishLogin,
+        onNone: () => Effect.void,
+      }),
+    ),
+    Effect.tap(
+      Option.match(context.userOption, {
+        onSome: () => Effect.void,
+        onNone: () => new SkipError(),
+      }),
+    ),
+    Effect.flatMap(() => getPendingInvite),               // returns Option
+    Effect.tap(() => clearPendingInvite),
+    Effect.flatMap(
+      Option.match({
+        onSome: (code) => Redirect.make({ to: '/invite/$code', params: { code } }),
+        onNone: () => Effect.void,
+      }),
+    ),
+    Effect.flatMap(() => getLastTeamId),
+    Effect.flatMap(
+      Option.match({
+        onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
+        onNone: () => Effect.void,
+      }),
+    ),
+    // ... API calls, more redirects ...
+    Effect.catchTag('SkipError', () => Effect.void),     // swallow early exits
+    context.run,                                          // run the whole pipe
+  ),
+```
+
+**Key conventions:**
+- `SkipError` — custom tagged error for "stop processing, no redirect needed" (e.g. unauthenticated user)
+- `Redirect.make({...})` — accepts type-safe `RedirectOptions` directly. Internally defers the `redirect()` call in a closure to avoid circular type inference with `createFileRoute`. `context.run` invokes the closure which throws for TanStack Router to handle.
+- `Option.match({ onSome: ..., onNone: ... })` — branch on `Option` values from auth store / API calls
+- No `async`/`await` or `Effect.runSync` — the entire `beforeLoad` is one `Effect.Do` pipe
+
 ### Runtime — Client vs Server runners
 
 `lib/runtime.ts` exposes two distinct run functions:
@@ -1236,6 +1316,6 @@ await ApiClient.pipe(
 
 ---
 
-**Last Updated**: 2026-02-24
+**Last Updated**: 2026-03-02
 
 When working on this codebase, prioritize type safety, composability, and Effect's functional patterns. Keep implementations simple and focused on the task at hand. Leverage Effect's powerful abstractions for error handling, resource management, and dependency injection.

@@ -1,6 +1,6 @@
 import type { NotificationApi } from '@sideline/domain';
-import { Notification } from '@sideline/domain';
-import { Link, useRouter } from '@tanstack/react-router';
+import { Notification, Team } from '@sideline/domain';
+import { useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
@@ -9,9 +9,10 @@ import * as m from '~/paraglide/messages.js';
 
 interface NotificationsPageProps {
   notifications: ReadonlyArray<NotificationApi.NotificationInfo>;
+  teamId: string;
 }
 
-export function NotificationsPage({ notifications }: NotificationsPageProps) {
+export function NotificationsPage({ notifications, teamId }: NotificationsPageProps) {
   const run = useRun();
   const router = useRouter();
 
@@ -31,24 +32,24 @@ export function NotificationsPage({ notifications }: NotificationsPageProps) {
   );
 
   const handleMarkAllAsRead = React.useCallback(async () => {
+    const decodedTeamId = Schema.decodeSync(Team.TeamId)(teamId);
     const result = await ApiClient.pipe(
-      Effect.flatMap((api) => api.notification.markAllAsRead({})),
+      Effect.flatMap((api) =>
+        api.notification.markAllAsRead({ payload: { teamId: decodedTeamId } }),
+      ),
       Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
       run,
     );
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [run, router]);
+  }, [run, router, teamId]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   return (
     <div>
       <header className='mb-8'>
-        <Button asChild variant='ghost' size='sm' className='mb-2'>
-          <Link to='/dashboard'>← {m.profile_backToDashboard()}</Link>
-        </Button>
         <h1 className='text-2xl font-bold'>{m.notification_title()}</h1>
       </header>
 

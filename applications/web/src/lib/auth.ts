@@ -1,32 +1,49 @@
+import { KeyValueStore } from '@effect/platform';
+import { BrowserKeyValueStore } from '@effect/platform-browser';
 import { Effect, Option } from 'effect';
 import { client } from '~/lib/client';
 
 export const getLogin = () => client.pipe(Effect.flatMap((c) => c.auth.getLogin()));
 
 const TOKEN = 'api-token';
-
-export const finishLogin = (token: string) => {
-  window.localStorage.setItem(TOKEN, token);
-};
-
-export const getToken = Effect.sync(() => {
-  return Option.fromNullable(window.localStorage.getItem(TOKEN));
-});
-
-export const logout = () => {
-  window.localStorage.removeItem(TOKEN);
-};
-
 const PENDING_INVITE = 'pending-invite';
+const LAST_TEAM = 'last-team-id';
 
-export const setPendingInvite = (code: string) => {
-  window.localStorage.setItem(PENDING_INVITE, code);
-};
+const kvLayer = BrowserKeyValueStore.layerLocalStorage;
 
-export const getPendingInvite = (): string | null => {
-  return window.localStorage.getItem(PENDING_INVITE);
-};
+const get = (key: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.get(key)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+  );
 
-export const clearPendingInvite = () => {
-  window.localStorage.removeItem(PENDING_INVITE);
-};
+const set = (key: string, value: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.set(key, value)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.void),
+  );
+
+const remove = (key: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.remove(key)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.void),
+  );
+
+export const finishLogin = (token: string) => set(TOKEN, token);
+
+export const getToken = get(TOKEN);
+
+export const logout = Effect.all([remove(TOKEN), remove(LAST_TEAM)]).pipe(Effect.asVoid);
+
+export const setPendingInvite = (code: string) => set(PENDING_INVITE, code);
+
+export const getPendingInvite = get(PENDING_INVITE);
+
+export const clearPendingInvite = remove(PENDING_INVITE);
+
+export const getLastTeamId = get(LAST_TEAM);
+
+export const setLastTeamId = (teamId: string) => set(LAST_TEAM, teamId);

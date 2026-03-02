@@ -1,6 +1,5 @@
 import type { Auth } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
-import { Button } from '~/components/ui/button';
 import * as m from '~/paraglide/messages.js';
 
 interface TeamDetailPageProps {
@@ -14,15 +13,13 @@ export function TeamDetailPage({ teamId, team }: TeamDetailPageProps) {
     { to: '/teams/$teamId/rosters' as const, label: m.team_rosters() },
     { to: '/teams/$teamId/roles' as const, label: m.team_roles() },
     { to: '/teams/$teamId/subgroups' as const, label: m.team_subgroups() },
+    { to: '/teams/$teamId/training-types' as const, label: m.team_trainingTypes() },
     { to: '/teams/$teamId/age-thresholds' as const, label: m.team_ageThresholds() },
   ] as const;
 
   return (
     <div>
       <header className='mb-8'>
-        <Button asChild variant='ghost' size='sm' className='mb-2'>
-          <Link to='/teams'>← {m.team_backToTeams()}</Link>
-        </Button>
         <h1 className='text-2xl font-bold'>{team.teamName}</h1>
         {team.roleNames.length > 0 && (
           <p className='text-muted-foreground'>

@@ -1,29 +1,73 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
-import React from 'react';
+import { createFileRoute } from '@tanstack/react-router';
+import { Array, Data, Effect, Option, Schema } from 'effect';
 import { HomePage } from '~/components/pages/HomePage';
-import { clearPendingInvite, finishLogin, getLogin, getPendingInvite, logout } from '~/lib/auth';
+import {
+  clearPendingInvite,
+  finishLogin,
+  getLastTeamId,
+  getLogin,
+  getPendingInvite,
+} from '~/lib/auth';
+import { client } from '../lib/client';
+import { Redirect } from '../lib/runtime';
+
+class SkipError extends Data.TaggedError('SkipError') {}
 
 export const Route = createFileRoute('/')({
   component: HomeRoute,
   validateSearch: Schema.standardSchemaV1(
     Schema.Struct({
-      token: Schema.String.pipe(Schema.optional),
-      error: Schema.String.pipe(Schema.optional),
-      reason: Schema.String.pipe(Schema.optional),
+      token: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
+      error: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
+      reason: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
     }),
   ),
-  beforeLoad: async ({ search }) => {
-    if (search.token) {
-      finishLogin(search.token);
-      const pendingInvite = getPendingInvite();
-      if (pendingInvite) {
-        clearPendingInvite();
-        throw redirect({ to: '/invite/$code', params: { code: pendingInvite } });
-      }
-      throw redirect({ to: '/dashboard' });
-    }
-  },
+  beforeLoad: ({ search, context }) =>
+    Effect.Do.pipe(
+      Effect.flatMap(() => Option.fromNullable(search.token)),
+      Effect.flatMap(finishLogin),
+      Effect.flatMap(() => Redirect.make({ to: '.' })),
+      Effect.catchTag('NoSuchElementException', () => Effect.void),
+      Effect.tap(
+        Option.match(context.userOption, {
+          onSome: () => Effect.void,
+          onNone: () => new SkipError(),
+        }),
+      ),
+      Effect.flatMap(() => getPendingInvite),
+      Effect.tap(() => clearPendingInvite),
+      Effect.flatMap(
+        Option.match({
+          onSome: (code) => Redirect.make({ to: '/invite/$code', params: { code } }),
+          onNone: () => Effect.void,
+        }),
+      ),
+      Effect.flatMap(() => getLastTeamId),
+      Effect.flatMap(
+        Option.match({
+          onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
+          onNone: () => Effect.void,
+        }),
+      ),
+      Effect.flatMap(() => client),
+      Effect.flatMap((c) => c.auth.myTeams()),
+      Effect.map(Array.head),
+      Effect.catchTag(
+        'HttpApiDecodeError',
+        'ParseError',
+        'RequestError',
+        'ResponseError',
+        'Unauthorized',
+        () => Effect.succeed(Option.none()),
+      ),
+      Effect.flatten,
+      Effect.flatMap((team) =>
+        Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
+      ),
+      Effect.catchTag('NoSuchElementException', () => Redirect.make({ to: '/create-team' })),
+      Effect.catchTag('SkipError', () => Effect.void),
+      context.run,
+    ),
   loader: ({ context }) =>
     getLogin().pipe(
       Effect.map((url) => url.toString()),
@@ -34,23 +78,14 @@ export const Route = createFileRoute('/')({
 });
 
 function HomeRoute() {
-  const { userOption } = Route.useRouteContext();
   const { loginUrl } = Route.useLoaderData();
   const { error, reason } = Route.useSearch();
-  const navigate = useNavigate();
-
-  const handleLogout = React.useCallback(() => {
-    logout();
-    navigate({ to: '/' });
-  }, [navigate]);
 
   return (
     <HomePage
-      userOption={userOption}
       loginUrl={loginUrl}
-      error={error}
-      reason={reason}
-      onLogout={handleLogout}
+      error={Option.fromNullable(error)}
+      reason={Option.fromNullable(reason)}
     />
   );
 }

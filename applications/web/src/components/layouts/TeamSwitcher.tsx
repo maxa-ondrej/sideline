@@ -74,7 +74,7 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem className='gap-2 p-2' asChild>
-              <Link to='/dashboard'>
+              <Link to='/create-team'>
                 <div className='flex size-6 items-center justify-center rounded-md border bg-background'>
                   <Plus className='size-4' />
                 </div>

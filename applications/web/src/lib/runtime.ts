@@ -1,4 +1,10 @@
-import { type LinkOptions, notFound, redirect } from '@tanstack/react-router';
+import {
+  type AnyRouter,
+  notFound,
+  type RedirectOptions,
+  type RegisteredRouter,
+  redirect,
+} from '@tanstack/react-router';
 import { Context, Data, Effect, Either, Layer, Logger, LogLevel, Match, type Option } from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
@@ -15,9 +21,22 @@ type Client = Effect.Effect.Success<typeof client>;
 export class ApiClient extends Context.Tag('ApiClient')<ApiClient, Client>() {}
 
 export class Redirect extends Data.TaggedError('Redirect')<{
-  readonly linkOptions: LinkOptions;
+  readonly redirect: () => void;
 }> {
-  static make = (linkOptions: LinkOptions) => new Redirect({ linkOptions });
+  static make = <
+    TRouter extends AnyRouter = RegisteredRouter,
+    TFrom extends string = string,
+    TTo extends string | undefined = undefined,
+    TMaskFrom extends string = TFrom,
+    TMaskTo extends string = '.',
+  >(
+    options: RedirectOptions<TRouter, TFrom, TTo, TMaskFrom, TMaskTo>,
+  ) =>
+    new Redirect({
+      redirect: () => {
+        throw redirect(options);
+      },
+    });
 }
 
 export class NotFound extends Data.TaggedError('NotFound') {
@@ -77,7 +96,7 @@ export const runPromiseServer =
       onRight: (d) => d,
       onLeft: (e) => {
         throw Match.value(e).pipe(
-          Match.tag('Redirect', (e) => redirect(e.linkOptions)),
+          Match.tag('Redirect', (e) => e.redirect()),
           Match.tag('NotFound', () => notFound()),
           Match.exhaustive,
         );

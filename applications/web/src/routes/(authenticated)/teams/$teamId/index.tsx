@@ -20,7 +20,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/')({
     );
     const team = teams.find((t) => t.teamId === teamId);
     if (!team) {
-      throw redirect({ to: '/teams' });
+      throw redirect({ to: '/create-team' });
     }
     return team;
   },
