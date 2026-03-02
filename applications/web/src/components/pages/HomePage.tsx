@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Effect, Option } from 'effect';
+import { Effect, Option, Record } from 'effect';
 import React from 'react';
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
@@ -63,7 +63,10 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
           <div className='flex flex-col items-center gap-4 text-center'>
             <h1 className='text-3xl font-bold'>{m.app_name()}</h1>
             <p className='text-muted-foreground'>
-              {reasonMessages[Option.getOrElse(reason, () => '')]?.() ?? m.auth_loginFailed()}
+              {reason.pipe(
+                Option.flatMap((m) => Record.get(reasonMessages, m)),
+                Option.getOrElse(() => m.auth_loginFailed),
+              )()}
             </p>
             <Button asChild size='lg'>
               <a href={loginUrl}>{m.auth_tryAgain()}</a>

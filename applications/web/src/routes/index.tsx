@@ -19,13 +19,13 @@ export const Route = createFileRoute('/')({
   component: HomeRoute,
   validateSearch: Schema.standardSchemaV1(
     Schema.Struct({
-      token: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-      error: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-      reason: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
+      token: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
+      error: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
+      reason: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
     }),
   ),
   beforeLoad: ({ search, context }) =>
-    search.token.pipe(
+    Option.fromNullable(search.token).pipe(
       Effect.catchTag('NoSuchElementException', () => new SkipError()),
       Effect.flatMap(finishLogin),
       Effect.tap(() => (Option.isNone(context.userOption) ? new SkipError() : Effect.void)),
@@ -91,8 +91,8 @@ function HomeRoute() {
     <HomePage
       userOption={userOption}
       loginUrl={loginUrl}
-      error={error}
-      reason={reason}
+      error={Option.fromNullable(error)}
+      reason={Option.fromNullable(reason)}
       onLogout={handleLogout}
     />
   );
