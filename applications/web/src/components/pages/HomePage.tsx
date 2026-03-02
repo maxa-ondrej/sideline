@@ -59,7 +59,7 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
               {m.dashboard_title()}
             </Button>
           </div>
-        ) : error ? (
+        ) : Option.isSome(error) ? (
           <div className='flex flex-col items-center gap-4 text-center'>
             <h1 className='text-3xl font-bold'>{m.app_name()}</h1>
             <p className='text-muted-foreground'>
