@@ -316,6 +316,7 @@ Internal packages use scoped aliases:
 - **Use `pipe`** for linear transformations and chaining
 - **Always use `Effect.asVoid`** instead of `Effect.map(() => undefined as undefined)`
 - **Never cast types** (`as X`) and **never use `any`** — fix the types properly instead
+- **Never use `Schema.optional`** — always use `Schema.optionalWith({ as: 'Option' })` or `Schema.OptionFromNullOr(...)` so optional values are represented as `Option<T>` instead of `T | undefined`
 - **Type narrow errors** - use discriminated unions for error types
 - **Document complex Effect chains** - explain the business logic, not the syntax
 

@@ -33,7 +33,7 @@ export class NotificationApiGroup extends HttpApiGroup.make('notification')
       .addError(Forbidden, { status: 403 })
       .setUrlParams(
         Schema.Struct({
-          teamId: TeamId.pipe(Schema.optional),
+          teamId: TeamId.pipe(Schema.optionalWith({ as: 'Option' })),
         }),
       )
       .middleware(AuthMiddleware),
@@ -52,7 +52,7 @@ export class NotificationApiGroup extends HttpApiGroup.make('notification')
       .addError(Forbidden, { status: 403 })
       .setPayload(
         Schema.Struct({
-          teamId: TeamId.pipe(Schema.optional),
+          teamId: TeamId.pipe(Schema.optionalWith({ as: 'Option' })),
         }),
       )
       .middleware(AuthMiddleware),
