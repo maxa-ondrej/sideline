@@ -24,12 +24,10 @@ export const Route = createFileRoute('/')({
   ),
   beforeLoad: ({ search, context }) =>
     Effect.Do.pipe(
-      Effect.tap(
-        Option.match(Option.fromNullable(search.token), {
-          onSome: finishLogin,
-          onNone: () => Effect.void,
-        }),
-      ),
+      Effect.flatMap(() => Option.fromNullable(search.token)),
+      Effect.flatMap(finishLogin),
+      Effect.flatMap(() => Redirect.make({ to: '.' })),
+      Effect.catchTag('NoSuchElementException', () => Effect.void),
       Effect.tap(
         Option.match(context.userOption, {
           onSome: () => Effect.void,
