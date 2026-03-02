@@ -1234,29 +1234,37 @@ const lastTeamId = Effect.runSync(getLastTeamId); // Option<string>
 
 ### `beforeLoad` Effect pipe pattern
 
-`beforeLoad` should be a single Effect pipe ending with `context.run` — **not** an `async` function with `Effect.runSync` calls. Use tagged errors for early exits and `Redirect.make(redirect(...))` for navigation:
+`beforeLoad` should be a single `Effect.Do` pipe ending with `context.run` — **not** an `async` function with `Effect.runSync` calls. Use tagged errors for early exits and `Redirect.make({...})` for navigation:
 
 ```typescript
 class SkipError extends Data.TaggedError('SkipError') {}
 
 beforeLoad: ({ search, context }) =>
-  search.token.pipe(                                    // Option → Effect
-    Effect.catchTag('NoSuchElementException', () => new SkipError()),
-    Effect.flatMap(finishLogin),                         // auth Effect
-    Effect.tap(() => (Option.isNone(context.userOption) ? new SkipError() : Effect.void)),
+  Effect.Do.pipe(
+    Effect.tap(
+      Option.match(Option.fromNullable(search.token), {
+        onSome: finishLogin,
+        onNone: () => Effect.void,
+      }),
+    ),
+    Effect.tap(
+      Option.match(context.userOption, {
+        onSome: () => Effect.void,
+        onNone: () => new SkipError(),
+      }),
+    ),
     Effect.flatMap(() => getPendingInvite),               // returns Option
     Effect.tap(() => clearPendingInvite),
     Effect.flatMap(
       Option.match({
-        onSome: (code) => Redirect.make(redirect({ to: '/invite/$code', params: { code } })),
+        onSome: (code) => Redirect.make({ to: '/invite/$code', params: { code } }),
         onNone: () => Effect.void,
       }),
     ),
     Effect.flatMap(() => getLastTeamId),
     Effect.flatMap(
       Option.match({
-        onSome: (teamId) =>
-          Redirect.make(redirect({ to: '/teams/$teamId', params: { teamId } })),
+        onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
         onNone: () => Effect.void,
       }),
     ),
@@ -1268,9 +1276,9 @@ beforeLoad: ({ search, context }) =>
 
 **Key conventions:**
 - `SkipError` — custom tagged error for "stop processing, no redirect needed" (e.g. unauthenticated user)
-- `Redirect.make(redirect({...}))` — wraps TanStack Router's `redirect()` result in an Effect error. `Redirect` stores the opaque redirect object (not `LinkOptions`) to avoid circular type inference with `createFileRoute`. `context.run` re-throws it for TanStack Router to handle.
+- `Redirect.make({...})` — accepts type-safe `RedirectOptions` directly. Internally defers the `redirect()` call in a closure to avoid circular type inference with `createFileRoute`. `context.run` invokes the closure which throws for TanStack Router to handle.
 - `Option.match({ onSome: ..., onNone: ... })` — branch on `Option` values from auth store / API calls
-- No `async`/`await` or `Effect.runSync` — the entire `beforeLoad` is one Effect pipe
+- No `async`/`await` or `Effect.runSync` — the entire `beforeLoad` is one `Effect.Do` pipe
 
 ### Runtime — Client vs Server runners
 
