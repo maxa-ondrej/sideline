@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { HomePage } from '~/components/pages/HomePage';
 import {
@@ -20,20 +20,23 @@ export const Route = createFileRoute('/')({
       reason: Schema.String.pipe(Schema.optional),
     }),
   ),
-  beforeLoad: async ({ search }) => {
+  beforeLoad: async ({ search, context }) => {
     if (search.token) {
       finishLogin(search.token);
-      const pendingInvite = getPendingInvite();
-      if (pendingInvite) {
-        clearPendingInvite();
-        throw redirect({ to: '/invite/$code', params: { code: pendingInvite } });
-      }
-      const lastTeamId = getLastTeamId();
-      if (lastTeamId) {
-        throw redirect({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
-      }
-      throw redirect({ to: '/create-team' });
     }
+    if (Option.isNone(context.userOption)) {
+      return;
+    }
+    const pendingInvite = getPendingInvite();
+    if (pendingInvite) {
+      clearPendingInvite();
+      throw redirect({ to: '/invite/$code', params: { code: pendingInvite } });
+    }
+    const lastTeamId = getLastTeamId();
+    if (lastTeamId) {
+      throw redirect({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
+    }
+    throw redirect({ to: '/create-team' });
   },
   loader: ({ context }) =>
     getLogin().pipe(
