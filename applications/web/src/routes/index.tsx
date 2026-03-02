@@ -1,5 +1,6 @@
+import type { Auth } from '@sideline/domain';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Effect, Option, Schema } from 'effect';
+import { Array, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { HomePage } from '~/components/pages/HomePage';
 import {
@@ -10,6 +11,8 @@ import {
   getPendingInvite,
   logout,
 } from '~/lib/auth';
+import { client } from '../lib/client';
+import { Redirect } from '../lib/runtime';
 
 export const Route = createFileRoute('/')({
   component: HomeRoute,
@@ -36,6 +39,19 @@ export const Route = createFileRoute('/')({
     if (lastTeamId) {
       throw redirect({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
     }
+    await client.pipe(
+      Effect.flatMap((c) => c.auth.myTeams()),
+      Effect.map(Array.head),
+      Effect.catchAll(() => Effect.succeed(Option.none<Auth.UserTeam>())),
+      Effect.tap(
+        Option.match({
+          onSome: (team) =>
+            Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
+          onNone: () => Effect.void,
+        }),
+      ),
+      context.run,
+    );
     throw redirect({ to: '/create-team' });
   },
   loader: ({ context }) =>
