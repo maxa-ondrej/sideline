@@ -17,8 +17,8 @@ const reasonMessages: Record<string, () => string> = {
 interface HomePageProps {
   userOption: Option.Option<{ discordUsername: string }>;
   loginUrl: string;
-  error: string | undefined;
-  reason: string | undefined;
+  error: Option.Option<string>;
+  reason: Option.Option<string>;
   onLogout: () => void;
 }
 
@@ -63,7 +63,7 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
           <div className='flex flex-col items-center gap-4 text-center'>
             <h1 className='text-3xl font-bold'>{m.app_name()}</h1>
             <p className='text-muted-foreground'>
-              {reasonMessages[reason ?? '']?.() ?? m.auth_loginFailed()}
+              {reasonMessages[Option.getOrElse(reason, () => '')]?.() ?? m.auth_loginFailed()}
             </p>
             <Button asChild size='lg'>
               <a href={loginUrl}>{m.auth_tryAgain()}</a>

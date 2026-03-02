@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Array, Data, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { HomePage } from '~/components/pages/HomePage';
@@ -33,14 +33,14 @@ export const Route = createFileRoute('/')({
       Effect.tap(() => clearPendingInvite),
       Effect.flatMap(
         Option.match({
-          onSome: (code) => Redirect.make({ to: '/invite/$code', params: { code } }),
+          onSome: (code) => Redirect.make(redirect({ to: '/invite/$code', params: { code } })),
           onNone: () => Effect.void,
         }),
       ),
       Effect.flatMap(() => getLastTeamId),
       Effect.flatMap(
         Option.match({
-          onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
+          onSome: (teamId) => Redirect.make(redirect({ to: '/teams/$teamId', params: { teamId } })),
           onNone: () => Effect.void,
         }),
       ),
@@ -57,9 +57,13 @@ export const Route = createFileRoute('/')({
       ),
       Effect.flatten,
       Effect.flatMap((team) =>
-        Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
+        Effect.fail(
+          Redirect.make(redirect({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
+        ),
       ),
-      Effect.catchTag('NoSuchElementException', () => Redirect.make({ to: '/create-team' })),
+      Effect.catchTag('NoSuchElementException', () =>
+        Redirect.make(redirect({ to: '/create-team' })),
+      ),
       Effect.catchTag('SkipError', () => Effect.void),
       context.run,
     ),
