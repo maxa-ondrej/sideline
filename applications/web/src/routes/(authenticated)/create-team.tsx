@@ -29,7 +29,7 @@ function CreateTeamRoute() {
       );
       if (Option.isSome(result)) {
         const teamId = result.value.teamId;
-        setLastTeamId(teamId);
+        Effect.runSync(setLastTeamId(teamId));
         router.invalidate();
         navigate({ to: '/teams/$teamId', params: { teamId } });
         return true;

@@ -1,3 +1,5 @@
+import { KeyValueStore } from '@effect/platform';
+import { BrowserKeyValueStore } from '@effect/platform-browser';
 import { Effect, Option } from 'effect';
 import { client } from '~/lib/client';
 
@@ -7,35 +9,41 @@ const TOKEN = 'api-token';
 const PENDING_INVITE = 'pending-invite';
 const LAST_TEAM = 'last-team-id';
 
-export const finishLogin = (token: string) => {
-  window.localStorage.setItem(TOKEN, token);
-};
+const kvLayer = BrowserKeyValueStore.layerLocalStorage;
 
-export const getToken = Effect.sync(() => {
-  return Option.fromNullable(window.localStorage.getItem(TOKEN));
-});
+const get = (key: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.get(key)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+  );
 
-export const logout = () => {
-  window.localStorage.removeItem(TOKEN);
-  window.localStorage.removeItem(LAST_TEAM);
-};
+const set = (key: string, value: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.set(key, value)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.void),
+  );
 
-export const setPendingInvite = (code: string) => {
-  window.localStorage.setItem(PENDING_INVITE, code);
-};
+const remove = (key: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.remove(key)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.void),
+  );
 
-export const getPendingInvite = (): string | null => {
-  return window.localStorage.getItem(PENDING_INVITE);
-};
+export const finishLogin = (token: string) => set(TOKEN, token);
 
-export const clearPendingInvite = () => {
-  window.localStorage.removeItem(PENDING_INVITE);
-};
+export const getToken = get(TOKEN);
 
-export const getLastTeamId = (): string | null => {
-  return window.localStorage.getItem(LAST_TEAM);
-};
+export const logout = Effect.all([remove(TOKEN), remove(LAST_TEAM)]).pipe(Effect.asVoid);
 
-export const setLastTeamId = (teamId: string): void => {
-  window.localStorage.setItem(LAST_TEAM, teamId);
-};
+export const setPendingInvite = (code: string) => set(PENDING_INVITE, code);
+
+export const getPendingInvite = get(PENDING_INVITE);
+
+export const clearPendingInvite = remove(PENDING_INVITE);
+
+export const getLastTeamId = get(LAST_TEAM);
+
+export const setLastTeamId = (teamId: string) => set(LAST_TEAM, teamId);

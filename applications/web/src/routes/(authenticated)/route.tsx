@@ -1,5 +1,5 @@
 import { createFileRoute, redirect, useNavigate, useParams } from '@tanstack/react-router';
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import React from 'react';
 import { AuthenticatedLayout } from '~/components/layouts/AuthenticatedLayout';
 import { getLastTeamId, logout, setLastTeamId } from '~/lib/auth';
@@ -32,7 +32,7 @@ export const Route = createFileRoute('/(authenticated)')({
     if (teamMatch) {
       const teamId = teamMatch[1];
       if (teams.some((t) => t.teamId === teamId)) {
-        setLastTeamId(teamId);
+        Effect.runSync(setLastTeamId(teamId));
         return teams;
       }
     }
@@ -43,9 +43,11 @@ export const Route = createFileRoute('/(authenticated)')({
     }
 
     // Resolve the target team
-    const lastTeamId = getLastTeamId();
+    const lastTeamId = Effect.runSync(getLastTeamId);
     const targetTeamId =
-      lastTeamId && teams.some((t) => t.teamId === lastTeamId) ? lastTeamId : teams[0].teamId;
+      Option.isSome(lastTeamId) && teams.some((t) => t.teamId === lastTeamId.value)
+        ? lastTeamId.value
+        : teams[0].teamId;
 
     throw redirect({ to: '/teams/$teamId', params: { teamId: targetTeamId } });
   },
@@ -60,12 +62,12 @@ function AuthenticatedLayoutRoute() {
 
   React.useEffect(() => {
     if (activeTeamId) {
-      setLastTeamId(activeTeamId);
+      Effect.runSync(setLastTeamId(activeTeamId));
     }
   }, [activeTeamId]);
 
   const handleLogout = React.useCallback(() => {
-    logout();
+    Effect.runSync(logout);
     navigate({ to: '/' });
   }, [navigate]);
 

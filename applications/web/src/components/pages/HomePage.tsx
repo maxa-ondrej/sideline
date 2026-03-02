@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Option } from 'effect';
+import { Effect, Option } from 'effect';
 import React from 'react';
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
@@ -27,9 +27,9 @@ export function HomePage({ userOption, loginUrl, error, reason, onLogout }: Home
   const navigate = useNavigate();
 
   const handleGoToApp = React.useCallback(() => {
-    const lastTeamId = getLastTeamId();
-    if (lastTeamId) {
-      navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId } });
+    const lastTeamId = Effect.runSync(getLastTeamId);
+    if (Option.isSome(lastTeamId)) {
+      navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
     } else {
       navigate({ to: '/create-team' });
     }

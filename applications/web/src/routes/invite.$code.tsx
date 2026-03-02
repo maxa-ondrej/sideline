@@ -24,7 +24,7 @@ function InviteRoute() {
 
   const handleJoined = React.useCallback(
     (teamId: string, isProfileComplete: boolean) => {
-      setLastTeamId(teamId);
+      Effect.runSync(setLastTeamId(teamId));
       if (isProfileComplete) {
         navigate({ to: '/teams/$teamId', params: { teamId } });
       } else {
@@ -35,7 +35,7 @@ function InviteRoute() {
   );
 
   const handleSignIn = React.useCallback(() => {
-    setPendingInvite(code);
+    Effect.runSync(setPendingInvite(code));
     getLogin()
       .pipe(Effect.option, run)
       .then((url) => {
