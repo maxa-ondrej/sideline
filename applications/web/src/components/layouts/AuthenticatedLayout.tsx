@@ -91,21 +91,21 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
 interface AuthenticatedLayoutProps {
   user: Auth.CurrentUser;
   teams: ReadonlyArray<Auth.UserTeam>;
-  activeTeamId: string | undefined;
+  activeTeam: Auth.UserTeam;
   onLogout: () => void;
 }
 
 export function AuthenticatedLayout({
   user,
   teams,
-  activeTeamId,
+  activeTeam,
   onLogout,
 }: AuthenticatedLayoutProps) {
   const breadcrumbs = useBreadcrumbs();
 
   return (
     <SidebarProvider>
-      <AppSidebar user={user} teams={teams} activeTeamId={activeTeamId} onLogout={onLogout} />
+      <AppSidebar user={user} teams={teams} activeTeam={activeTeam} onLogout={onLogout} />
       <SidebarInset>
         <header className='flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12'>
           <div className='flex items-center gap-2 px-4'>
