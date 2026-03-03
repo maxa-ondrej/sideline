@@ -11,6 +11,7 @@ import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
@@ -46,6 +47,7 @@ const Repositories = Layer.mergeAll(
   UsersRepository.Default,
   SessionsRepository.Default,
   TeamsRepository.Default,
+  BotGuildsRepository.Default,
   TeamMembersRepository.Default,
   RostersRepository.Default,
   RolesRepository.Default,

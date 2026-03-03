@@ -540,7 +540,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
             Effect.tap(({ group }) =>
               channelSync
                 .emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(group.name))
-                .pipe(Effect.catchAll(() => Effect.void)),
+                .pipe(Effect.catchAll((e) => Effect.logError('Failed to emit channel_created', e))),
             ),
             Effect.asVoid,
           ),

@@ -1,7 +1,7 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { User } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Redacted, Schema } from 'effect';
 
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
   discord_id: Schema.String,
@@ -102,4 +102,11 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     Bind.remove('sql'),
     Bind.remove('repo'),
   ),
-}) {}
+}) {
+  getAccessToken(id: User.UserId) {
+    return this.findById(id).pipe(
+      Effect.flatten,
+      Effect.map((user) => Redacted.value(user.discord_access_token)),
+    );
+  }
+}

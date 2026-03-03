@@ -222,5 +222,20 @@
   "group_moveGroupFailed": "Přesun skupiny selhal.",
   "group_createChannel": "Vytvořit kanál",
   "group_channelCreateRequested": "Vytvoření kanálu bylo vyžádáno. Může chvíli trvat, než se zobrazí.",
-  "group_channelCreateFailed": "Vyžádání vytvoření kanálu selhalo."
+  "group_channelCreateFailed": "Vyžádání vytvoření kanálu selhalo.",
+  "guild_selectServer": "Vyberte Discord server",
+  "guild_selectServerDescription": "Zvolte Discord server, který propojíte se svým týmem.",
+  "guild_botPresent": "Bot aktivní",
+  "guild_botNotPresent": "Bot nepřidán",
+  "guild_inviteBot": "Přidat bota na server",
+  "guild_inviteBotDescription": "Sideline bot musí být přidán na váš Discord server před vytvořením týmu.",
+  "guild_inviteBotButton": "Přidat Sideline bota",
+  "guild_refreshGuilds": "Obnovit",
+  "guild_refreshing": "Obnovování...",
+  "guild_noGuilds": "Nenalezeny žádné vhodné servery. Potřebujete oprávnění Spravovat server nebo Administrátor.",
+  "guild_loadingGuilds": "Načítání vašich Discord serverů...",
+  "guild_nameTeam": "Pojmenujte svůj tým",
+  "guild_back": "Zpět",
+  "guild_continue": "Pokračovat",
+  "guild_owner": "Vlastník"
 }

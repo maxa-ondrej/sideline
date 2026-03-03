@@ -222,5 +222,20 @@
   "group_moveGroupFailed": "Failed to move group.",
   "group_createChannel": "Create Channel",
   "group_channelCreateRequested": "Channel creation requested. It may take a moment to appear.",
-  "group_channelCreateFailed": "Failed to request channel creation."
+  "group_channelCreateFailed": "Failed to request channel creation.",
+  "guild_selectServer": "Select Discord Server",
+  "guild_selectServerDescription": "Choose a Discord server to link with your team.",
+  "guild_botPresent": "Bot active",
+  "guild_botNotPresent": "Bot not added",
+  "guild_inviteBot": "Add Bot to Server",
+  "guild_inviteBotDescription": "The Sideline bot must be added to your Discord server before creating a team.",
+  "guild_inviteBotButton": "Add Sideline Bot",
+  "guild_refreshGuilds": "Refresh",
+  "guild_refreshing": "Refreshing...",
+  "guild_noGuilds": "No eligible servers found. You need Manage Server or Administrator permission.",
+  "guild_loadingGuilds": "Loading your Discord servers...",
+  "guild_nameTeam": "Name Your Team",
+  "guild_back": "Back",
+  "guild_continue": "Continue",
+  "guild_owner": "Owner"
 }

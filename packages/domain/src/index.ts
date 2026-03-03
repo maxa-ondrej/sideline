@@ -56,6 +56,7 @@ export * as User from './models/User.js';
 export * as ChannelRpcEvents from './rpc/channel/ChannelRpcEvents.js';
 export * as ChannelRpcGroup from './rpc/channel/ChannelRpcGroup.js';
 export * as ChannelRpcModels from './rpc/channel/ChannelRpcModels.js';
+export * as GuildRpcGroup from './rpc/guild/GuildRpcGroup.js';
 export * as RoleRpcEvents from './rpc/role/RoleRpcEvents.js';
 export * as RoleRpcGroup from './rpc/role/RoleRpcGroup.js';
 export * as RoleRpcModels from './rpc/role/RoleRpcModels.js';

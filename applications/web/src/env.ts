@@ -6,6 +6,7 @@ export const fetchEnv = createServerFn().handler(() =>
   createEnv({
     server: {
       SERVER_URL: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+      DISCORD_CLIENT_ID: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
     },
     runtimeEnv: process.env,
     emptyStringAsUndefined: true,
