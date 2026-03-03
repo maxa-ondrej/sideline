@@ -5,7 +5,7 @@ import { ChannelSyncService, RoleSyncService } from '~/rcp/index.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const SyncLive = Layer.mergeAll(RoleSyncService.Default, ChannelSyncService.Default).pipe(
-  Layer.provide(SyncRpc.Default),
+  Layer.provideMerge(SyncRpc.Default),
   Layer.provide(DiscordIxLive),
 );
 

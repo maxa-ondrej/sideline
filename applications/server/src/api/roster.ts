@@ -1,8 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, Roster, type RosterModel as RosterNS } from '@sideline/domain';
+import { Auth, Roster, type RosterModel } from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { parsePermissions, requireMembership, requirePermission } from '~/api/permissions.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -16,15 +16,12 @@ const mapDbError =
       Effect.mapError(make),
     );
 
-const splitRoleNames = (roleNames: string): ReadonlyArray<string> =>
-  roleNames === '' ? [] : roleNames.split(',');
-
 const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
     userId: entry.user_id,
-    roleNames: [...splitRoleNames(entry.role_names)],
-    permissions: [...parsePermissions(entry.permissions)],
+    roleNames: entry.role_names,
+    permissions: entry.permissions,
     name: entry.name,
     birthYear: entry.birth_year,
     gender: entry.gender,
@@ -33,7 +30,7 @@ const toRosterPlayer = (entry: RosterEntry) =>
     discordAvatar: entry.discord_avatar,
   });
 
-const toRosterInfo = (r: RosterNS.Roster, memberCount: number): Roster.RosterInfo =>
+const toRosterInfo = (r: RosterModel.Roster, memberCount: number): Roster.RosterInfo =>
   new Roster.RosterInfo({
     rosterId: r.id,
     teamId: r.team_id,
@@ -128,8 +125,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 new Roster.RosterPlayer({
                   memberId: entry.member_id,
                   userId: entry.user_id,
-                  roleNames: [...splitRoleNames(entry.role_names)],
-                  permissions: [...parsePermissions(entry.permissions)],
+                  roleNames: entry.role_names,
+                  permissions: entry.permissions,
                   name: updated.name,
                   birthYear: updated.birth_year,
                   gender: updated.gender,

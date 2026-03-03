@@ -11,34 +11,25 @@ export const Route = createFileRoute(
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const trainingTypeId = Schema.decodeSync(TrainingType.TrainingTypeId)(params.trainingTypeId);
-    const [trainingTypeDetail, allMembers] = await Promise.all([
-      ApiClient.pipe(
-        Effect.flatMap((api) =>
-          api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
-        ),
-        warnAndCatchAll,
-        context.run,
+    return ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
       ),
-      ApiClient.pipe(
-        Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
-        warnAndCatchAll,
-        context.run,
-      ),
-    ]);
-    return { trainingTypeDetail, allMembers };
+      warnAndCatchAll,
+      context.run,
+    );
   },
 });
 
 function TrainingTypeDetailRoute() {
   const { teamId: teamIdRaw, trainingTypeId: trainingTypeIdRaw } = Route.useParams();
-  const { trainingTypeDetail, allMembers } = Route.useLoaderData();
+  const trainingTypeDetail = Route.useLoaderData();
 
   return (
     <TrainingTypeDetailPage
       teamId={teamIdRaw}
       trainingTypeId={trainingTypeIdRaw}
       trainingTypeDetail={trainingTypeDetail}
-      allMembers={allMembers}
       canAdmin={trainingTypeDetail.canAdmin}
     />
   );

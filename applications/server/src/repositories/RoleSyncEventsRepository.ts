@@ -14,7 +14,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
-  guild_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  guild_id: Discord.Snowflake,
 }) {}
 
 export class EventRow extends Schema.Class<EventRow>('EventRow')({
@@ -100,8 +100,8 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
     discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
   ) {
     return this.lookupGuildId(teamId).pipe(
-      Effect.flatMap(Option.flatMap(({ guild_id }) => guild_id)),
-      Effect.flatMap((guild_id) =>
+      Effect.flatten,
+      Effect.flatMap(({ guild_id }) =>
         this.insertEvent({
           team_id: teamId,
           guild_id,

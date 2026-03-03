@@ -1,4 +1,4 @@
-import type { Discord as DiscordSchemas, SubgroupModel, Team } from '@sideline/domain';
+import type { Discord as DiscordSchemas, GroupModel, Team } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Discord from 'dfx/types';
 import { Effect } from 'effect';
@@ -9,7 +9,7 @@ import { createChannelWithRole } from './createChannelWithRole.js';
 
 const createRoleForExistingChannel = (
   teamId: Team.TeamId,
-  subgroupId: SubgroupModel.SubgroupId,
+  groupId: GroupModel.GroupId,
   guildId: DiscordSchemas.Snowflake,
   channelId: DiscordSchemas.Snowflake,
   channelName: string,
@@ -34,7 +34,7 @@ const createRoleForExistingChannel = (
     Effect.tap(({ role, rpc }) =>
       rpc['Channel/UpsertMapping']({
         team_id: teamId,
-        subgroup_id: subgroupId,
+        group_id: groupId,
         discord_channel_id: channelId,
         discord_role_id: role.id as DiscordSchemas.Snowflake,
       }),
@@ -47,15 +47,15 @@ const createRoleForExistingChannel = (
 
 export const ensureMapping = (
   teamId: Team.TeamId,
-  subgroupId: SubgroupModel.SubgroupId,
+  groupId: GroupModel.GroupId,
   guildId: DiscordSchemas.Snowflake,
-  subgroupName: string,
+  groupName: string,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('cached', ({ rpc }) =>
-      rpc['Channel/GetMapping']({ team_id: teamId, subgroup_id: subgroupId }),
+      rpc['Channel/GetMapping']({ team_id: teamId, group_id: groupId }),
     ),
     Effect.flatMap(({ cached }) =>
       cached.pipe(
@@ -68,16 +68,16 @@ export const ensureMapping = (
             Effect.catchTag('NoSuchElementException', () =>
               createRoleForExistingChannel(
                 teamId,
-                subgroupId,
+                groupId,
                 guildId,
                 mapping.discord_channel_id,
-                subgroupName,
+                groupName,
               ),
             ),
           ),
         ),
         Effect.catchTag('NoSuchElementException', () =>
-          createChannelWithRole(teamId, subgroupId, guildId, subgroupName),
+          createChannelWithRole(teamId, groupId, guildId, groupName),
         ),
       ),
     ),

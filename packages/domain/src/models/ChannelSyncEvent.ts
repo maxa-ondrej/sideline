@@ -1,6 +1,6 @@
 import { Model } from '@effect/sql';
 import { Schema } from 'effect';
-import { SubgroupId } from '~/models/SubgroupModel.js';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
@@ -20,8 +20,8 @@ export class ChannelSyncEvent extends Model.Class<ChannelSyncEvent>('ChannelSync
   team_id: TeamId,
   guild_id: Schema.String,
   event_type: ChannelSyncEventType,
-  subgroup_id: SubgroupId,
-  subgroup_name: Schema.NullOr(Schema.String),
+  group_id: GroupId,
+  group_name: Schema.NullOr(Schema.String),
   team_member_id: Schema.NullOr(TeamMemberId),
   discord_user_id: Schema.NullOr(Schema.String),
   processed_at: Schema.NullOr(Schema.String),

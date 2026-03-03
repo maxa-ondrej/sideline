@@ -1,19 +1,9 @@
-import type { Auth, Role as RoleNS, Team } from '@sideline/domain';
-import { Role } from '@sideline/domain';
+import type { Auth, Role, Team } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import type {
   MembershipWithRole,
   TeamMembersRepository,
 } from '~/repositories/TeamMembersRepository.js';
-
-const knownPermissions: ReadonlySet<string> = new Set(Role.allPermissions);
-
-export const parsePermissions = (permissionsStr: string): ReadonlyArray<RoleNS.Permission> =>
-  permissionsStr === ''
-    ? []
-    : (permissionsStr
-        .split(',')
-        .filter((p) => knownPermissions.has(p)) as ReadonlyArray<RoleNS.Permission>);
 
 export const requireMembership = <E>(
   members: TeamMembersRepository,
@@ -39,19 +29,15 @@ export const requireMembership = <E>(
 
 export const hasPermission = (
   membership: MembershipWithRole,
-  permission: RoleNS.Permission,
-): boolean => {
-  const perms = parsePermissions(membership.permissions);
-  return perms.includes(permission);
-};
+  permission: Role.Permission,
+): boolean => membership.permissions.includes(permission);
 
 export const requirePermission = <E>(
   membership: MembershipWithRole,
-  permission: RoleNS.Permission,
+  permission: Role.Permission,
   forbidden: E,
-) => {
-  const perms = parsePermissions(membership.permissions);
-  return perms.includes(permission)
+) =>
+  membership.permissions.includes(permission)
     ? Effect.void
     : Effect.fail(forbidden).pipe(
         Effect.tapError(() =>
@@ -60,4 +46,3 @@ export const requirePermission = <E>(
           ),
         ),
       );
-};

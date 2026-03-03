@@ -1,12 +1,23 @@
 import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
-import { ApiGroup, Auth, Role as RoleNS } from '@sideline/domain';
+import { ApiGroup, Auth, Discord, Role } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
-import { DateTime, Effect, Layer, Option, pipe, Redacted, Schema } from 'effect';
+import {
+  Array,
+  DateTime,
+  Effect,
+  flow,
+  Layer,
+  Option,
+  pipe,
+  Redacted,
+  Schema,
+  Struct,
+} from 'effect';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
-import { parsePermissions } from '~/api/permissions.js';
 import { env } from '~/env.js';
+import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -97,10 +108,13 @@ const handleDiscordLogin = ({
     ),
     Effect.bind('client', ({ DiscordConfigLive }) =>
       DiscordREST.pipe(
-        Effect.provide(DiscordRESTLive),
-        Effect.provide(CustomClient),
-        Effect.provide(MemoryRateLimitStoreLive),
-        Effect.provide(DiscordConfigLive),
+        Effect.provide(
+          DiscordRESTLive.pipe(
+            Layer.provideMerge(CustomClient),
+            Layer.provideMerge(MemoryRateLimitStoreLive),
+            Layer.provideMerge(DiscordConfigLive),
+          ),
+        ),
       ),
     ),
     Effect.tap(() =>
@@ -165,6 +179,24 @@ const handleDiscordLogin = ({
     ),
   );
 
+const MANAGE_GUILD = 0x20n;
+const ADMINISTRATOR = 0x8n;
+
+const makeUserDiscordClient = (accessToken: string) =>
+  DiscordREST.pipe(
+    Effect.provide(
+      DiscordRESTLive.pipe(
+        Layer.provideMerge(CustomClient),
+        Layer.provideMerge(MemoryRateLimitStoreLive),
+        Layer.provideMerge(
+          DiscordConfig.layer({
+            token: Redacted.make(accessToken),
+          }),
+        ),
+      ),
+    ),
+  );
+
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('discord', () => DiscordOAuth),
@@ -173,7 +205,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('teams', () => TeamsRepository),
     Effect.bind('roles', () => RolesRepository),
-    Effect.map(({ discord, users, sessions, members, teams, roles }) =>
+    Effect.bind('botGuilds', () => BotGuildsRepository),
+    Effect.map(({ discord, users, sessions, members, teams, roles, botGuilds }) =>
       handlers
         .handle('getLogin', () =>
           Effect.succeed(
@@ -326,35 +359,68 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('memberships', ({ currentUser }) =>
-              members
-                .findByUser(currentUser.id)
-                .pipe(Effect.mapError(() => new Auth.Unauthorized())),
+              members.findByUser(currentUser.id).pipe(Effect.orDie),
             ),
-            Effect.bind('userTeams', ({ memberships }) =>
-              Effect.all(
-                memberships.map((m) =>
+            Effect.flatMap(
+              flow(
+                Struct.get('memberships'),
+                Array.map((m) =>
                   teams.findById(m.team_id).pipe(
-                    Effect.mapError(() => new Auth.Unauthorized()),
-                    Effect.flatMap(
-                      Option.match({
-                        onNone: () => Effect.fail(new Auth.Unauthorized()),
-                        onSome: (team) =>
-                          Effect.succeed(
-                            new Auth.UserTeam({
-                              teamId: team.id,
-                              teamName: team.name,
-                              roleNames: m.role_names === '' ? [] : m.role_names.split(','),
-                              permissions: [...parsePermissions(m.permissions)],
-                            }),
-                          ),
-                      }),
+                    Effect.flatten,
+                    Effect.catchTag('NoSuchElementException', () => new Auth.Unauthorized()),
+                    Effect.map(
+                      (team) =>
+                        new Auth.UserTeam({
+                          teamId: team.id,
+                          teamName: team.name,
+                          roleNames: m.role_names,
+                          permissions: m.permissions,
+                        }),
                     ),
                   ),
                 ),
+                (all) => Effect.all(all, { concurrency: 'unbounded' }),
+              ),
+            ),
+          ),
+        )
+        .handle('myGuilds', () =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('accessToken', ({ currentUser }) => users.getAccessToken(currentUser.id)),
+            Effect.bind('client', ({ accessToken }) => makeUserDiscordClient(accessToken)),
+            Effect.bind('guilds', ({ client }) => client.listMyGuilds()),
+            Effect.flatMap(({ guilds }) =>
+              Effect.all(
+                guilds
+                  .filter((g) => {
+                    const perms = BigInt(g.permissions);
+                    return (perms & ADMINISTRATOR) !== 0n || (perms & MANAGE_GUILD) !== 0n;
+                  })
+                  .map((g) =>
+                    botGuilds.exists(Schema.decodeSync(Discord.Snowflake)(g.id)).pipe(
+                      Effect.map(
+                        (present) =>
+                          new Auth.DiscordGuild({
+                            id: Schema.decodeSync(Discord.Snowflake)(g.id),
+                            name: g.name,
+                            icon: g.icon ?? null,
+                            owner: g.owner,
+                            botPresent: present,
+                          }),
+                      ),
+                      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+                    ),
+                  ),
                 { concurrency: 'unbounded' },
               ),
             ),
-            Effect.map(({ userTeams }) => userTeams),
+            Effect.catchTag('NoSuchElementException', () => Effect.fail(new Auth.Unauthorized())),
+            Effect.catchTag('RequestError', 'ResponseError', () =>
+              Effect.fail(new Auth.Unauthorized()),
+            ),
+            Effect.catchTag('ErrorResponse', () => Effect.fail(new Auth.Unauthorized())),
+            Effect.catchTag('RatelimitedResponse', () => Effect.fail(new Auth.Unauthorized())),
           ),
         )
         .handle('createTeam', ({ payload }) =>
@@ -363,6 +429,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.bind('team', ({ currentUser }) =>
               teams.insert({
                 name: payload.name,
+                guild_id: payload.guildId,
                 created_by: currentUser.id,
                 created_at: undefined,
                 updated_at: undefined,
@@ -390,7 +457,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   teamId: team.id,
                   teamName: team.name,
                   roleNames: ['Admin'],
-                  permissions: [...RoleNS.defaultPermissions.Admin],
+                  permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
             Effect.mapError(() => new Auth.Unauthorized()),

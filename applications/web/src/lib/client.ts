@@ -8,11 +8,11 @@ import {
 import {
   AgeThresholdApi,
   Auth,
+  GroupApi,
   Invite,
   NotificationApi,
   RoleApi,
   Roster,
-  SubgroupApi,
   TrainingTypeApi,
 } from '@sideline/domain';
 import { Context, Effect, Option } from 'effect';
@@ -35,7 +35,7 @@ class ClientApi extends HttpApi.make('api')
   .add(NotificationApi.NotificationApiGroup)
   .add(Roster.RosterApiGroup)
   .add(RoleApi.RoleApiGroup)
-  .add(SubgroupApi.SubgroupApiGroup)
+  .add(GroupApi.GroupApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 
 export const client = ClientConfig.pipe(

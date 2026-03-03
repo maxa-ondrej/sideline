@@ -7,8 +7,8 @@ export const NotificationId = Schema.String.pipe(Schema.brand('NotificationId'))
 export type NotificationId = typeof NotificationId.Type;
 
 export const NotificationType = Schema.Literal(
-  'age_role_assigned',
-  'age_role_removed',
+  'age_group_added',
+  'age_group_removed',
   'role_assigned',
   'role_removed',
 );

@@ -1,6 +1,6 @@
 import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
-import { ChannelSyncEvent, Discord, SubgroupModel, Team } from '~/index.js';
+import { ChannelSyncEvent, Discord, GroupModel, Team } from '~/index.js';
 import { UnprocessedChannelEvent } from './ChannelRpcEvents.js';
 import { ChannelMapping } from './ChannelRpcModels.js';
 
@@ -16,18 +16,18 @@ export const ChannelRpcGroup = RpcGroup.make(
     payload: { id: ChannelSyncEvent.ChannelSyncEventId, error: Schema.String },
   }),
   Rpc.make('GetMapping', {
-    payload: { team_id: Team.TeamId, subgroup_id: SubgroupModel.SubgroupId },
+    payload: { team_id: Team.TeamId, group_id: GroupModel.GroupId },
     success: Schema.OptionFromNullOr(ChannelMapping),
   }),
   Rpc.make('UpsertMapping', {
     payload: {
       team_id: Team.TeamId,
-      subgroup_id: SubgroupModel.SubgroupId,
+      group_id: GroupModel.GroupId,
       discord_channel_id: Discord.Snowflake,
       discord_role_id: Discord.Snowflake,
     },
   }),
   Rpc.make('DeleteMapping', {
-    payload: { team_id: Team.TeamId, subgroup_id: SubgroupModel.SubgroupId },
+    payload: { team_id: Team.TeamId, group_id: GroupModel.GroupId },
   }),
 ).prefix('Channel/');

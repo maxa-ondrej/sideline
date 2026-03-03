@@ -46,7 +46,7 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
     { title: 'Members', icon: Users, to: '/teams/$teamId/members', params: { teamId } },
     { title: 'Roles', icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
     { title: 'Rosters', icon: UsersRound, to: '/teams/$teamId/rosters', params: { teamId } },
-    { title: 'Subgroups', icon: UserCog, to: '/teams/$teamId/subgroups', params: { teamId } },
+    { title: 'Groups', icon: UserCog, to: '/teams/$teamId/groups', params: { teamId } },
     {
       title: 'Training Types',
       icon: Dumbbell,
@@ -65,21 +65,21 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: Auth.CurrentUser;
   teams: ReadonlyArray<Auth.UserTeam>;
-  activeTeamId: string | undefined;
+  activeTeam: Auth.UserTeam;
   onLogout: () => void;
 }
 
-export function AppSidebar({ user, teams, activeTeamId, onLogout, ...props }: AppSidebarProps) {
+export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppSidebarProps) {
   const matchRoute = useMatchRoute();
-  const teamItems = activeTeamId ? getTeamNavItems(activeTeamId) : [];
+  const teamItems = getTeamNavItems(activeTeam.teamId);
 
   return (
     <Sidebar collapsible='icon' {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} activeTeamId={activeTeamId} />
+        <TeamSwitcher teams={teams} activeTeamId={activeTeam.teamId} />
       </SidebarHeader>
       <SidebarContent>
-        {activeTeamId && teamItems.length > 0 && (
+        {
           <SidebarGroup>
             <SidebarGroupLabel>Team</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -101,10 +101,10 @@ export function AppSidebar({ user, teams, activeTeamId, onLogout, ...props }: Ap
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        )}
+        }
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} activeTeamId={activeTeamId} onLogout={onLogout} />
+        <NavUser user={user} activeTeamId={activeTeam.teamId} onLogout={onLogout} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

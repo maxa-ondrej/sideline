@@ -14,17 +14,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresho
       Effect.mapError(NotFound.make),
       context.run,
     );
-    const [rules, roles] = await Effect.all([
+    const [rules, groups] = await Effect.all([
       Effect.flatMap(ApiClient, (api) => api.ageThreshold.listAgeThresholds({ path: { teamId } })),
-      Effect.flatMap(ApiClient, (api) => api.role.listRoles({ path: { teamId } })),
+      Effect.flatMap(ApiClient, (api) => api.group.listGroups({ path: { teamId } })),
     ]).pipe(warnAndCatchAll, context.run);
-    return { rules, roles };
+    return { rules, groups };
   },
 });
 
 function AgeThresholdsRoute() {
   const { teamId: teamIdRaw } = Route.useParams();
-  const { rules, roles } = Route.useLoaderData();
+  const { rules, groups } = Route.useLoaderData();
 
-  return <AgeThresholdsPage teamId={teamIdRaw} rules={rules} roles={roles} />;
+  return <AgeThresholdsPage teamId={teamIdRaw} rules={rules} groups={groups} />;
 }

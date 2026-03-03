@@ -28,7 +28,7 @@ export const handleMemberRemoved = (event: ChannelRpcEvents.ChannelMemberRemoved
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetMapping']({
         team_id: event.team_id,
-        subgroup_id: event.subgroup_id,
+        group_id: event.group_id,
       }),
     ),
     Effect.bind('mapping', ({ cached }) => cached),
@@ -37,8 +37,6 @@ export const handleMemberRemoved = (event: ChannelRpcEvents.ChannelMemberRemoved
     ),
     Effect.asVoid,
     Effect.catchTag('NoSuchElementException', () =>
-      Effect.logWarning(
-        `No mapping found for subgroup ${event.subgroup_id}, skipping member_removed`,
-      ),
+      Effect.logWarning(`No mapping found for group ${event.group_id}, skipping member_removed`),
     ),
   );

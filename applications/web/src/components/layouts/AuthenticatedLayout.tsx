@@ -68,11 +68,11 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
           if (routeId.includes('$rosterId')) {
             crumbs.push({ label: 'Details', to: pathname });
           }
-        } else if (routeId.includes('/subgroups')) {
-          if (!crumbs.some((c) => c.label === 'Subgroups')) {
-            crumbs.push({ label: 'Subgroups', to: `/teams/${teamId}/subgroups` });
+        } else if (routeId.includes('/groups')) {
+          if (!crumbs.some((c) => c.label === 'Groups')) {
+            crumbs.push({ label: 'Groups', to: `/teams/${teamId}/groups` });
           }
-          if (routeId.includes('$subgroupId')) {
+          if (routeId.includes('$groupId')) {
             crumbs.push({ label: 'Details', to: pathname });
           }
         } else if (routeId.includes('/age-thresholds')) {
@@ -91,21 +91,21 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
 interface AuthenticatedLayoutProps {
   user: Auth.CurrentUser;
   teams: ReadonlyArray<Auth.UserTeam>;
-  activeTeamId: string | undefined;
+  activeTeam: Auth.UserTeam;
   onLogout: () => void;
 }
 
 export function AuthenticatedLayout({
   user,
   teams,
-  activeTeamId,
+  activeTeam,
   onLogout,
 }: AuthenticatedLayoutProps) {
   const breadcrumbs = useBreadcrumbs();
 
   return (
     <SidebarProvider>
-      <AppSidebar user={user} teams={teams} activeTeamId={activeTeamId} onLogout={onLogout} />
+      <AppSidebar user={user} teams={teams} activeTeam={activeTeam} onLogout={onLogout} />
       <SidebarInset>
         <header className='flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12'>
           <div className='flex items-center gap-2 px-4'>

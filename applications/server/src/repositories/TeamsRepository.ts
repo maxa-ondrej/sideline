@@ -1,5 +1,5 @@
 import { Model, SqlClient } from '@effect/sql';
-import { Team as TeamNS } from '@sideline/domain';
+import { Team } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect } from 'effect';
 
@@ -7,7 +7,7 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
   effect: SqlClient.SqlClient.pipe(
     Effect.bindTo('sql'),
     Effect.bind('repo', () =>
-      Model.makeRepository(TeamNS.Team, {
+      Model.makeRepository(Team.Team, {
         tableName: 'teams',
         spanPrefix: 'TeamsRepository',
         idColumn: 'id',
@@ -16,7 +16,7 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
     Effect.let(
       'findById',
       ({ repo }) =>
-        (id: TeamNS.TeamId) =>
+        (id: Team.TeamId) =>
           repo.findById(id),
     ),
     Effect.let('insert', ({ repo }) => repo.insert),

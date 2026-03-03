@@ -8,7 +8,7 @@ export const handleMemberAdded = (event: ChannelRpcEvents.ChannelMemberAddedEven
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('mapping', () =>
-      ensureMapping(event.team_id, event.subgroup_id, event.guild_id, event.subgroup_name),
+      ensureMapping(event.team_id, event.group_id, event.guild_id, event.group_name),
     ),
     Effect.bind('guildRole', ({ rest, mapping }) =>
       rest

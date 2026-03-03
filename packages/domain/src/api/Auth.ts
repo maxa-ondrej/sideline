@@ -6,6 +6,7 @@ import {
   HttpApiSecurity,
 } from '@effect/platform';
 import { Context, Schema } from 'effect';
+import { Snowflake } from '~/models/Discord.js';
 import { Permission } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
 import { Gender, Locale, UserId } from '~/models/User.js';
@@ -39,6 +40,15 @@ export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('Upda
 
 export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTeamRequest')({
   name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
+  guildId: Snowflake,
+}) {}
+
+export class DiscordGuild extends Schema.Class<DiscordGuild>('DiscordGuild')({
+  id: Snowflake,
+  name: Schema.String,
+  icon: Schema.NullOr(Schema.String),
+  owner: Schema.Boolean,
+  botPresent: Schema.Boolean,
 }) {}
 
 export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
@@ -132,6 +142,12 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
   .add(
     HttpApiEndpoint.get('myTeams', '/me/teams')
       .addSuccess(Schema.Array(UserTeam))
+      .addError(Unauthorized, { status: 401 })
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('myGuilds', '/me/guilds')
+      .addSuccess(Schema.Array(DiscordGuild))
       .addError(Unauthorized, { status: 401 })
       .middleware(AuthMiddleware),
   )

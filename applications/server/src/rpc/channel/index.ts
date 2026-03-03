@@ -3,7 +3,7 @@ import {
   ChannelRpcModels,
   type ChannelSyncEvent,
   type Discord,
-  type SubgroupModel,
+  type GroupModel,
   type Team,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
@@ -79,19 +79,19 @@ export const ChannelsRpcLive = Effect.Do.pipe(
     ({ mappings }) =>
       ({
         team_id,
-        subgroup_id,
+        group_id,
       }: {
         readonly team_id: Team.TeamId;
-        readonly subgroup_id: SubgroupModel.SubgroupId;
+        readonly group_id: GroupModel.GroupId;
       }) =>
-        mappings.findBySubgroupId(team_id, subgroup_id).pipe(
+        mappings.findByGroupId(team_id, group_id).pipe(
           Effect.map(
             Option.map(
               (m) =>
                 new ChannelRpcModels.ChannelMapping({
                   id: m.id,
                   team_id: m.team_id,
-                  subgroup_id: m.subgroup_id,
+                  group_id: m.group_id,
                   discord_channel_id: m.discord_channel_id,
                   discord_role_id: m.discord_role_id,
                 }),
@@ -105,17 +105,17 @@ export const ChannelsRpcLive = Effect.Do.pipe(
     ({ mappings }) =>
       ({
         team_id,
-        subgroup_id,
+        group_id,
         discord_channel_id,
         discord_role_id,
       }: {
         readonly team_id: Team.TeamId;
-        readonly subgroup_id: SubgroupModel.SubgroupId;
+        readonly group_id: GroupModel.GroupId;
         readonly discord_channel_id: Discord.Snowflake;
         readonly discord_role_id: Discord.Snowflake;
       }) =>
         mappings
-          .insert(team_id, subgroup_id, discord_channel_id, discord_role_id)
+          .insert(team_id, group_id, discord_channel_id, discord_role_id)
           .pipe(Effect.catchAll(() => Effect.void)),
   ),
   Effect.let(
@@ -123,12 +123,12 @@ export const ChannelsRpcLive = Effect.Do.pipe(
     ({ mappings }) =>
       ({
         team_id,
-        subgroup_id,
+        group_id,
       }: {
         readonly team_id: Team.TeamId;
-        readonly subgroup_id: SubgroupModel.SubgroupId;
+        readonly group_id: GroupModel.GroupId;
       }) =>
-        mappings.deleteBySubgroupId(team_id, subgroup_id).pipe(Effect.catchAll(() => Effect.void)),
+        mappings.deleteByGroupId(team_id, group_id).pipe(Effect.catchAll(() => Effect.void)),
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),

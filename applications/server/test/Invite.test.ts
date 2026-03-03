@@ -1,18 +1,20 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Role, Team, TeamInvite, TeamMember } from '@sideline/domain';
+import type { Auth, Discord, Role, Team, TeamInvite, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
-import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -62,6 +64,7 @@ const testAdmin = {
 const testTeam = {
   id: TEST_TEAM_ID,
   name: 'Test Team',
+  guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -77,9 +80,18 @@ membersStore.set(`${TEST_TEAM_ID}:${TEST_ADMIN_ID}`, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   active: true,
-  role_names: 'Admin',
-  permissions:
-    'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage',
+  role_names: ['Admin'],
+  permissions: [
+    'team:manage',
+    'team:invite',
+    'roster:view',
+    'roster:manage',
+    'member:view',
+    'member:edit',
+    'member:remove',
+    'role:view',
+    'role:manage',
+  ] as readonly Role.Permission[],
 });
 
 const invitesStore = new Map<
@@ -135,6 +147,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: () => Effect.succeed(testUser),
+  getAccessToken: () => Effect.succeed('mock-access-token'),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -183,8 +196,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id as Team.TeamId,
       user_id: input.user_id as Auth.UserId,
       active: input.active,
-      role_names: 'Player',
-      permissions: 'roster:view,member:view',
+      role_names: ['Player'],
+      permissions: ['roster:view', 'member:view'] as readonly Role.Permission[],
     };
     membersStore.set(key, member);
     return Effect.succeed({
@@ -305,33 +318,44 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
   countMembersForRole: () => Effect.succeed({ count: 0 }),
   getMemberCountForRole: () => Effect.succeed(0),
+  findGroupsForRoleId: () => Effect.succeed([]),
+  findGroupsForRole: () => Effect.succeed([]),
+  assignRoleGroup: () => Effect.void,
+  assignRoleToGroup: () => Effect.void,
+  unassignRoleGroup: () => Effect.void,
+  unassignRoleFromGroup: () => Effect.void,
 });
 
-const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
-  _tag: 'api/SubgroupsRepository',
+const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
+  _tag: 'api/GroupsRepository',
   findByTeamId: () => Effect.succeed([]),
-  findSubgroupsByTeamId: () => Effect.succeed([]),
+  findGroupsByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-  findSubgroupById: () => Effect.succeed(Option.none()),
+  findGroupById: () => Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
-  insertSubgroup: () => Effect.die(new Error('Not implemented')),
+  insertGroup: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
-  updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  archiveSubgroup: () => Effect.void,
-  archiveSubgroupById: () => Effect.void,
+  updateGroupById: () => Effect.die(new Error('Not implemented')),
+  archiveGroup: () => Effect.void,
+  archiveGroupById: () => Effect.void,
+  moveGroupParent: () => Effect.die(new Error('Not implemented')),
+  moveGroup: () => Effect.die(new Error('Not implemented')),
   findMembers: () => Effect.succeed([]),
-  findMembersBySubgroupId: () => Effect.succeed([]),
+  findMembersByGroupId: () => Effect.succeed([]),
   addMember: () => Effect.void,
   addMemberById: () => Effect.void,
   removeMember: () => Effect.void,
   removeMemberById: () => Effect.void,
-  findPermissions: () => Effect.succeed([]),
-  getPermissionsForSubgroupId: () => Effect.succeed([]),
-  deletePermissions: () => Effect.void,
-  insertPermission: () => Effect.void,
-  setSubgroupPermissions: () => Effect.void,
-  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
+  findRolesForGroup: () => Effect.succeed([]),
+  getRolesForGroup: () => Effect.succeed([]),
+  countMembersForGroup: () => Effect.succeed({ count: 0 }),
   getMemberCount: () => Effect.succeed(0),
+  findChildren: () => Effect.succeed([]),
+  getChildren: () => Effect.succeed([]),
+  findAncestors: () => Effect.succeed([]),
+  getAncestorIds: () => Effect.succeed([]),
+  findDescendantMembers: () => Effect.succeed([]),
+  getDescendantMemberIds: () => Effect.succeed([]),
 });
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
@@ -406,6 +430,20 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
+const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
+  findByGroupId: () => Effect.succeed(Option.none()),
+  insert: () => Effect.void,
+  insertWithoutRole: () => Effect.void,
+  deleteByGroupId: () => Effect.void,
+} as unknown as DiscordChannelMappingRepository);
+
+const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {
+  upsert: () => Effect.void,
+  remove: () => Effect.void,
+  exists: () => Effect.succeed(false),
+  findAll: () => Effect.succeed([]),
+} as unknown as BotGuildsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -416,7 +454,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTeamMembersRepositoryLayer),
   Layer.provide(MockRostersRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
-  Layer.provide(MockSubgroupsRepositoryLayer),
+  Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
@@ -425,6 +463,8 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
+  Layer.provide(MockDiscordChannelMappingRepositoryLayer),
+  Layer.provide(MockBotGuildsRepositoryLayer),
 );
 
 let handler: (request: Request) => Promise<Response>;

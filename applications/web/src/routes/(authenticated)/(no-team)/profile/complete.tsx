@@ -1,23 +1,22 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
 import { ProfileCompletePage } from '~/components/pages/ProfileCompletePage';
 import { getLastTeamId } from '~/lib/auth';
+import { Redirect } from '~/lib/runtime';
 
-export const Route = createFileRoute('/(authenticated)/profile/complete')({
+export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complete')({
   component: ProfileCompleteRoute,
-  beforeLoad: async ({ context }) => {
-    if (!context.user) {
-      throw redirect({ to: '/' });
-    }
-    if (context.user.isProfileComplete) {
-      const lastTeamId = Effect.runSync(getLastTeamId);
-      if (Option.isSome(lastTeamId)) {
-        throw redirect({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
-      }
-      throw redirect({ to: '/create-team' });
-    }
-  },
+  beforeLoad: ({ context }) =>
+    context.user.isProfileComplete
+      ? Effect.Do.pipe(
+          Effect.flatMap(() => getLastTeamId),
+          Effect.flatten,
+          Effect.flatMap((teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } })),
+          Effect.catchTag('NoSuchElementException', () => Effect.void),
+          context.run,
+        )
+      : {},
 });
 
 function ProfileCompleteRoute() {

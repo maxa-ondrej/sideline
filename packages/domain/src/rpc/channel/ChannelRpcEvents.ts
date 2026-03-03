@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { ChannelSyncEvent, Discord, SubgroupModel, Team, TeamMember } from '~/index.js';
+import { ChannelSyncEvent, Discord, GroupModel, Team, TeamMember } from '~/index.js';
 
 export class ChannelCreatedEvent extends Schema.TaggedClass<ChannelCreatedEvent>()(
   'channel_created',
@@ -7,8 +7,8 @@ export class ChannelCreatedEvent extends Schema.TaggedClass<ChannelCreatedEvent>
     id: ChannelSyncEvent.ChannelSyncEventId,
     team_id: Team.TeamId,
     guild_id: Discord.Snowflake,
-    subgroup_id: SubgroupModel.SubgroupId,
-    subgroup_name: Schema.String,
+    group_id: GroupModel.GroupId,
+    group_name: Schema.String,
   },
 ) {}
 
@@ -18,7 +18,7 @@ export class ChannelDeletedEvent extends Schema.TaggedClass<ChannelDeletedEvent>
     id: ChannelSyncEvent.ChannelSyncEventId,
     team_id: Team.TeamId,
     guild_id: Discord.Snowflake,
-    subgroup_id: SubgroupModel.SubgroupId,
+    group_id: GroupModel.GroupId,
   },
 ) {}
 
@@ -28,8 +28,8 @@ export class ChannelMemberAddedEvent extends Schema.TaggedClass<ChannelMemberAdd
     id: ChannelSyncEvent.ChannelSyncEventId,
     team_id: Team.TeamId,
     guild_id: Discord.Snowflake,
-    subgroup_id: SubgroupModel.SubgroupId,
-    subgroup_name: Schema.String,
+    group_id: GroupModel.GroupId,
+    group_name: Schema.String,
     team_member_id: TeamMember.TeamMemberId,
     discord_user_id: Discord.Snowflake,
   },
@@ -41,7 +41,7 @@ export class ChannelMemberRemovedEvent extends Schema.TaggedClass<ChannelMemberR
     id: ChannelSyncEvent.ChannelSyncEventId,
     team_id: Team.TeamId,
     guild_id: Discord.Snowflake,
-    subgroup_id: SubgroupModel.SubgroupId,
+    group_id: GroupModel.GroupId,
     team_member_id: TeamMember.TeamMemberId,
     discord_user_id: Discord.Snowflake,
   },

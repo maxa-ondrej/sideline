@@ -1,24 +1,20 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type {
-  Auth,
-  Role,
-  Team,
-  TeamMember,
-  TrainingType as TrainingTypeNS,
-} from '@sideline/domain';
+import type { Auth, Discord, Role, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
-import { SubgroupsRepository } from '~/repositories/SubgroupsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -31,18 +27,27 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 // --- Test IDs ---
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_ADMIN_ID = '00000000-0000-0000-0000-000000000002' as Auth.UserId;
-const TEST_COACH_ID = '00000000-0000-0000-0000-000000000003' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
-const TEST_COACH_MEMBER_ID = '00000000-0000-0000-0000-000000000022' as TeamMember.TeamMemberId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const TEST_TT_ASSIGNED = '00000000-0000-0000-0000-000000000050' as TrainingTypeNS.TrainingTypeId;
-const TEST_TT_UNASSIGNED = '00000000-0000-0000-0000-000000000051' as TrainingTypeNS.TrainingTypeId;
+const TEST_TT_1 = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
+const TEST_TT_2 = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
 
-const ADMIN_PERMISSIONS =
-  'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage';
-const PLAYER_PERMISSIONS = 'roster:view,member:view';
+const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
+  'team:manage',
+  'team:invite',
+  'roster:view',
+  'roster:manage',
+  'member:view',
+  'member:edit',
+  'member:remove',
+  'role:view',
+  'role:manage',
+  'training-type:create',
+  'training-type:delete',
+];
+const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
 
 // --- Users ---
 const testUser = {
@@ -77,25 +82,10 @@ const testAdmin = {
   updated_at: DateTime.unsafeNow(),
 };
 
-const testCoach = {
-  id: TEST_COACH_ID,
-  discord_id: '11111',
-  discord_username: 'coachuser',
-  discord_avatar: null,
-  discord_access_token: 'coach-token',
-  discord_refresh_token: null,
-  is_profile_complete: true,
-  name: 'Coach User',
-  birth_year: 1985,
-  gender: 'male' as const,
-  locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
-};
-
 const testTeam = {
   id: TEST_TEAM_ID,
   name: 'Test Team',
+  guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -121,12 +111,10 @@ type UserLike = {
 const usersMap = new Map<Auth.UserId, UserLike>();
 usersMap.set(TEST_USER_ID, testUser);
 usersMap.set(TEST_ADMIN_ID, testAdmin);
-usersMap.set(TEST_COACH_ID, testCoach);
 
 const sessionsStore = new Map<string, Auth.UserId>();
 sessionsStore.set('user-token', TEST_USER_ID);
 sessionsStore.set('admin-token', TEST_ADMIN_ID);
-sessionsStore.set('coach-token', TEST_COACH_ID);
 
 const membersStore = new Map<string, MembershipWithRole>();
 membersStore.set(TEST_MEMBER_ID, {
@@ -134,7 +122,7 @@ membersStore.set(TEST_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_USER_ID,
   active: true,
-  role_names: 'Player',
+  role_names: ['Player'],
   permissions: PLAYER_PERMISSIONS,
 });
 membersStore.set(TEST_ADMIN_MEMBER_ID, {
@@ -142,52 +130,47 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   active: true,
-  role_names: 'Admin',
+  role_names: ['Admin'],
   permissions: ADMIN_PERMISSIONS,
-});
-membersStore.set(TEST_COACH_MEMBER_ID, {
-  id: TEST_COACH_MEMBER_ID,
-  team_id: TEST_TEAM_ID,
-  user_id: TEST_COACH_ID,
-  active: true,
-  role_names: 'Player',
-  permissions: PLAYER_PERMISSIONS,
 });
 
 // --- In-memory training types ---
 type TrainingTypeRecord = {
-  id: TrainingTypeNS.TrainingTypeId;
+  id: TrainingType.TrainingTypeId;
   team_id: Team.TeamId;
   name: string;
+  group_id: string | null;
+  group_name: string | null;
   created_at: Date;
 };
 
-let trainingTypesStore: Map<TrainingTypeNS.TrainingTypeId, TrainingTypeRecord>;
-let coachAssignmentsStore: Set<string>; // "trainingTypeId:memberId"
+let trainingTypesStore: Map<TrainingType.TrainingTypeId, TrainingTypeRecord>;
 
 const resetStores = () => {
   trainingTypesStore = new Map();
-  trainingTypesStore.set(TEST_TT_ASSIGNED, {
-    id: TEST_TT_ASSIGNED,
+  trainingTypesStore.set(TEST_TT_1, {
+    id: TEST_TT_1,
     team_id: TEST_TEAM_ID,
-    name: 'Assigned Training',
+    name: 'Training Type 1',
+    group_id: null,
+    group_name: null,
     created_at: new Date(),
   });
-  trainingTypesStore.set(TEST_TT_UNASSIGNED, {
-    id: TEST_TT_UNASSIGNED,
+  trainingTypesStore.set(TEST_TT_2, {
+    id: TEST_TT_2,
     team_id: TEST_TEAM_ID,
-    name: 'Unassigned Training',
+    name: 'Training Type 2',
+    group_id: null,
+    group_name: null,
     created_at: new Date(),
   });
-  coachAssignmentsStore = new Set();
-  coachAssignmentsStore.add(`${TEST_TT_ASSIGNED}:${TEST_COACH_MEMBER_ID}`);
 };
 
 const buildRosterEntry = (
   memberId: TeamMember.TeamMemberId,
   userId: Auth.UserId,
-  roleNames: string,
-  permissions: string,
+  roleNames: readonly string[],
+  permissions: readonly Role.Permission[],
 ): RosterEntry => {
   const user = usersMap.get(userId);
   if (!user) throw new Error(`User ${userId} not found in usersMap`);
@@ -195,7 +178,7 @@ const buildRosterEntry = (
     member_id: memberId,
     user_id: userId,
     role_names: roleNames,
-    permissions,
+    permissions: permissions,
     name: user.name,
     birth_year: user.birth_year,
     gender: user.gender,
@@ -227,6 +210,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: () => Effect.die(new Error('Not implemented')),
+  getAccessToken: () => Effect.succeed('mock-access-token'),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -337,9 +321,12 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
     const results = Array.from(trainingTypesStore.values())
       .filter((t) => t.team_id === teamId)
       .map((t) => ({
-        ...t,
-        coach_count: Array.from(coachAssignmentsStore).filter((k) => k.startsWith(`${t.id}:`))
-          .length,
+        id: t.id,
+        team_id: t.team_id,
+        name: t.name,
+        group_id: t.group_id,
+        group_name: t.group_name,
+        created_at: t.created_at,
       }));
     return Effect.succeed(results);
   },
@@ -347,189 +334,101 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
     const results = Array.from(trainingTypesStore.values())
       .filter((t) => t.team_id === teamId)
       .map((t) => ({
-        ...t,
-        coach_count: Array.from(coachAssignmentsStore).filter((k) => k.startsWith(`${t.id}:`))
-          .length,
+        id: t.id,
+        team_id: t.team_id,
+        name: t.name,
+        group_id: t.group_id,
+        group_name: t.group_name,
+        created_at: t.created_at,
       }));
     return Effect.succeed(results);
   },
-  findById: (id: TrainingTypeNS.TrainingTypeId) => {
+  findById: (id: TrainingType.TrainingTypeId) => {
     const tt = trainingTypesStore.get(id);
-    return Effect.succeed(tt ? Option.some(tt) : Option.none());
+    if (!tt) return Effect.succeed(Option.none());
+    return Effect.succeed(
+      Option.some({ id: tt.id, team_id: tt.team_id, name: tt.name, group_id: tt.group_id }),
+    );
   },
-  findTrainingTypeById: (id: TrainingTypeNS.TrainingTypeId) => {
+  findTrainingTypeById: (id: TrainingType.TrainingTypeId) => {
     const tt = trainingTypesStore.get(id);
-    return Effect.succeed(tt ? Option.some(tt) : Option.none());
+    if (!tt) return Effect.succeed(Option.none());
+    return Effect.succeed(
+      Option.some({ id: tt.id, team_id: tt.team_id, name: tt.name, group_id: tt.group_id }),
+    );
   },
-  insert: (input: { team_id: string; name: string }) => {
-    const id = crypto.randomUUID() as TrainingTypeNS.TrainingTypeId;
+  findByIdWithGroup: (id: TrainingType.TrainingTypeId) => {
+    const tt = trainingTypesStore.get(id);
+    if (!tt) return Effect.succeed(Option.none());
+    return Effect.succeed(Option.some(tt));
+  },
+  findTrainingTypeByIdWithGroup: (id: TrainingType.TrainingTypeId) => {
+    const tt = trainingTypesStore.get(id);
+    if (!tt) return Effect.succeed(Option.none());
+    return Effect.succeed(Option.some(tt));
+  },
+  insert: (input: { team_id: string; name: string; group_id: string | null }) => {
+    const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
       name: input.name,
+      group_id: input.group_id,
+      group_name: null,
       created_at: new Date(),
     };
     trainingTypesStore.set(id, record);
-    return Effect.succeed(record);
+    return Effect.succeed({
+      id,
+      team_id: record.team_id,
+      name: record.name,
+      group_id: record.group_id,
+    });
   },
-  insertTrainingType: (teamId: Team.TeamId, name: string) => {
-    const id = crypto.randomUUID() as TrainingTypeNS.TrainingTypeId;
+  insertTrainingType: (teamId: Team.TeamId, name: string, groupId: string | null) => {
+    const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: teamId,
       name,
+      group_id: groupId,
+      group_name: null,
       created_at: new Date(),
     };
     trainingTypesStore.set(id, record);
-    return Effect.succeed(record);
+    return Effect.succeed({ id, team_id: teamId, name, group_id: groupId });
   },
-  update: (input: { id: TrainingTypeNS.TrainingTypeId; name: string }) => {
+  update: (input: { id: TrainingType.TrainingTypeId; name: string }) => {
     const tt = trainingTypesStore.get(input.id);
     if (!tt) return Effect.die(new Error('Not found'));
     const updated = { ...tt, name: input.name };
     trainingTypesStore.set(input.id, updated);
-    return Effect.succeed(updated);
+    return Effect.succeed({
+      id: updated.id,
+      team_id: updated.team_id,
+      name: updated.name,
+      group_id: updated.group_id,
+    });
   },
-  updateTrainingType: (id: TrainingTypeNS.TrainingTypeId, name: string) => {
+  updateTrainingType: (id: TrainingType.TrainingTypeId, name: string) => {
     const tt = trainingTypesStore.get(id);
     if (!tt) return Effect.die(new Error('Not found'));
     const updated = { ...tt, name };
     trainingTypesStore.set(id, updated);
-    return Effect.succeed(updated);
+    return Effect.succeed({
+      id: updated.id,
+      team_id: updated.team_id,
+      name: updated.name,
+      group_id: updated.group_id,
+    });
   },
-  deleteTrainingType: (id: TrainingTypeNS.TrainingTypeId) => {
+  deleteTrainingType: (id: TrainingType.TrainingTypeId) => {
     trainingTypesStore.delete(id);
     return Effect.void;
   },
-  deleteTrainingTypeById: (id: TrainingTypeNS.TrainingTypeId) => {
+  deleteTrainingTypeById: (id: TrainingType.TrainingTypeId) => {
     trainingTypesStore.delete(id);
     return Effect.void;
-  },
-  findCoaches: (trainingTypeId: TrainingTypeNS.TrainingTypeId) => {
-    const coachMemberIds = Array.from(coachAssignmentsStore)
-      .filter((k) => k.startsWith(`${trainingTypeId}:`))
-      .map((k) => k.split(':')[1] as TeamMember.TeamMemberId);
-    const coaches = coachMemberIds.flatMap((memberId) => {
-      const member = membersStore.get(memberId);
-      if (!member) return [];
-      const user = usersMap.get(member.user_id);
-      if (!user) return [];
-      return [
-        {
-          member_id: memberId,
-          name: user.name,
-          discord_username: user.discord_username,
-        },
-      ];
-    });
-    return Effect.succeed(coaches);
-  },
-  findCoachesByTrainingTypeId: (trainingTypeId: TrainingTypeNS.TrainingTypeId) => {
-    const coachMemberIds = Array.from(coachAssignmentsStore)
-      .filter((k) => k.startsWith(`${trainingTypeId}:`))
-      .map((k) => k.split(':')[1] as TeamMember.TeamMemberId);
-    const coaches = coachMemberIds.flatMap((memberId) => {
-      const member = membersStore.get(memberId);
-      if (!member) return [];
-      const user = usersMap.get(member.user_id);
-      if (!user) return [];
-      return [
-        {
-          member_id: memberId,
-          name: user.name,
-          discord_username: user.discord_username,
-        },
-      ];
-    });
-    return Effect.succeed(coaches);
-  },
-  addCoach: (input: {
-    training_type_id: TrainingTypeNS.TrainingTypeId;
-    team_member_id: TeamMember.TeamMemberId;
-  }) => {
-    coachAssignmentsStore.add(`${input.training_type_id}:${input.team_member_id}`);
-    return Effect.void;
-  },
-  addCoachById: (
-    trainingTypeId: TrainingTypeNS.TrainingTypeId,
-    teamMemberId: TeamMember.TeamMemberId,
-  ) => {
-    coachAssignmentsStore.add(`${trainingTypeId}:${teamMemberId}`);
-    return Effect.void;
-  },
-  removeCoach: (input: {
-    training_type_id: TrainingTypeNS.TrainingTypeId;
-    team_member_id: TeamMember.TeamMemberId;
-  }) => {
-    coachAssignmentsStore.delete(`${input.training_type_id}:${input.team_member_id}`);
-    return Effect.void;
-  },
-  removeCoachById: (
-    trainingTypeId: TrainingTypeNS.TrainingTypeId,
-    teamMemberId: TeamMember.TeamMemberId,
-  ) => {
-    coachAssignmentsStore.delete(`${trainingTypeId}:${teamMemberId}`);
-    return Effect.void;
-  },
-  countCoachesForTrainingType: (trainingTypeId: TrainingTypeNS.TrainingTypeId) => {
-    const count = Array.from(coachAssignmentsStore).filter((k) =>
-      k.startsWith(`${trainingTypeId}:`),
-    ).length;
-    return Effect.succeed({ count });
-  },
-  getCoachCount: (trainingTypeId: TrainingTypeNS.TrainingTypeId) => {
-    const count = Array.from(coachAssignmentsStore).filter((k) =>
-      k.startsWith(`${trainingTypeId}:`),
-    ).length;
-    return Effect.succeed(count);
-  },
-  checkCoach: (input: {
-    training_type_id: TrainingTypeNS.TrainingTypeId;
-    team_member_id: TeamMember.TeamMemberId;
-  }) => {
-    const exists = coachAssignmentsStore.has(`${input.training_type_id}:${input.team_member_id}`);
-    return Effect.succeed(Option.some({ exists }));
-  },
-  isCoachForTrainingType: (
-    trainingTypeId: TrainingTypeNS.TrainingTypeId,
-    memberId: TeamMember.TeamMemberId,
-  ) => {
-    const exists = coachAssignmentsStore.has(`${trainingTypeId}:${memberId}`);
-    return Effect.succeed(exists);
-  },
-  findByCoach: (input: { team_id: string; member_id: string }) => {
-    const assignedIds = Array.from(coachAssignmentsStore)
-      .filter((k) => k.endsWith(`:${input.member_id}`))
-      .map((k) => k.split(':')[0] as TrainingTypeNS.TrainingTypeId);
-    const results = assignedIds.flatMap((id) => {
-      const tt = trainingTypesStore.get(id);
-      if (!tt || tt.team_id !== input.team_id) return [];
-      return [
-        {
-          ...tt,
-          coach_count: Array.from(coachAssignmentsStore).filter((k) => k.startsWith(`${tt.id}:`))
-            .length,
-        },
-      ];
-    });
-    return Effect.succeed(results);
-  },
-  findTrainingTypesByCoach: (teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) => {
-    const assignedIds = Array.from(coachAssignmentsStore)
-      .filter((k) => k.endsWith(`:${memberId}`))
-      .map((k) => k.split(':')[0] as TrainingTypeNS.TrainingTypeId);
-    const results = assignedIds.flatMap((id) => {
-      const tt = trainingTypesStore.get(id);
-      if (!tt || tt.team_id !== teamId) return [];
-      return [
-        {
-          ...tt,
-          coach_count: Array.from(coachAssignmentsStore).filter((k) => k.startsWith(`${tt.id}:`))
-            .length,
-        },
-      ];
-    });
-    return Effect.succeed(results);
   },
 } as unknown as TrainingTypesRepository);
 
@@ -581,33 +480,44 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
   countMembersForRole: () => Effect.succeed({ count: 0 }),
   getMemberCountForRole: () => Effect.succeed(0),
+  findGroupsForRoleId: () => Effect.succeed([]),
+  findGroupsForRole: () => Effect.succeed([]),
+  assignRoleGroup: () => Effect.void,
+  assignRoleToGroup: () => Effect.void,
+  unassignRoleGroup: () => Effect.void,
+  unassignRoleFromGroup: () => Effect.void,
 });
 
-const MockSubgroupsRepositoryLayer = Layer.succeed(SubgroupsRepository, {
-  _tag: 'api/SubgroupsRepository',
+const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
+  _tag: 'api/GroupsRepository',
   findByTeamId: () => Effect.succeed([]),
-  findSubgroupsByTeamId: () => Effect.succeed([]),
+  findGroupsByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-  findSubgroupById: () => Effect.succeed(Option.none()),
+  findGroupById: () => Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
-  insertSubgroup: () => Effect.die(new Error('Not implemented')),
+  insertGroup: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
-  updateSubgroup: () => Effect.die(new Error('Not implemented')),
-  archiveSubgroup: () => Effect.void,
-  archiveSubgroupById: () => Effect.void,
+  updateGroupById: () => Effect.die(new Error('Not implemented')),
+  archiveGroup: () => Effect.void,
+  archiveGroupById: () => Effect.void,
+  moveGroupParent: () => Effect.die(new Error('Not implemented')),
+  moveGroup: () => Effect.die(new Error('Not implemented')),
   findMembers: () => Effect.succeed([]),
-  findMembersBySubgroupId: () => Effect.succeed([]),
+  findMembersByGroupId: () => Effect.succeed([]),
   addMember: () => Effect.void,
   addMemberById: () => Effect.void,
   removeMember: () => Effect.void,
   removeMemberById: () => Effect.void,
-  findPermissions: () => Effect.succeed([]),
-  getPermissionsForSubgroupId: () => Effect.succeed([]),
-  deletePermissions: () => Effect.void,
-  insertPermission: () => Effect.void,
-  setSubgroupPermissions: () => Effect.void,
-  countMembersForSubgroup: () => Effect.succeed({ count: 0 }),
+  findRolesForGroup: () => Effect.succeed([]),
+  getRolesForGroup: () => Effect.succeed([]),
+  countMembersForGroup: () => Effect.succeed({ count: 0 }),
   getMemberCount: () => Effect.succeed(0),
+  findChildren: () => Effect.succeed([]),
+  getChildren: () => Effect.succeed([]),
+  findAncestors: () => Effect.succeed([]),
+  getAncestorIds: () => Effect.succeed([]),
+  findDescendantMembers: () => Effect.succeed([]),
+  getDescendantMemberIds: () => Effect.succeed([]),
 });
 
 const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
@@ -660,6 +570,13 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
+const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
+  findByGroupId: () => Effect.succeed(Option.none()),
+  insert: () => Effect.void,
+  insertWithoutRole: () => Effect.void,
+  deleteByGroupId: () => Effect.void,
+} as unknown as DiscordChannelMappingRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -671,7 +588,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRostersRepositoryLayer),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
-  Layer.provide(MockSubgroupsRepositoryLayer),
+  Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
   Layer.provide(MockAgeCheckServiceLayer),
@@ -679,6 +596,15 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
+  Layer.provide(MockDiscordChannelMappingRepositoryLayer),
+  Layer.provide(
+    Layer.succeed(BotGuildsRepository, {
+      upsert: () => Effect.void,
+      remove: () => Effect.void,
+      exists: () => Effect.succeed(false),
+      findAll: () => Effect.succeed([]),
+    } as unknown as BotGuildsRepository),
+  ),
 );
 
 let handler: (request: Request) => Promise<Response>;
@@ -717,50 +643,40 @@ describe('Training Types API', () => {
       expect(body.trainingTypes).toHaveLength(2);
     });
 
-    it('returns 200 with only assigned training types + canAdmin:false for coach', async () => {
+    it('returns 200 with all training types + canAdmin:false for regular member', async () => {
       const response = await handler(
-        new Request(BASE, { headers: { Authorization: 'Bearer coach-token' } }),
+        new Request(BASE, { headers: { Authorization: 'Bearer user-token' } }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canAdmin).toBe(false);
-      expect(body.trainingTypes).toHaveLength(1);
-      expect(body.trainingTypes[0].trainingTypeId).toBe(TEST_TT_ASSIGNED);
+      expect(body.trainingTypes).toHaveLength(2);
     });
   });
 
   describe('GET /teams/:teamId/training-types/:trainingTypeId (get)', () => {
     it('returns 200 with canAdmin:true for admin viewing any training type', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_UNASSIGNED}`, {
+        new Request(`${BASE}/${TEST_TT_2}`, {
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canAdmin).toBe(true);
-      expect(body.trainingTypeId).toBe(TEST_TT_UNASSIGNED);
+      expect(body.trainingTypeId).toBe(TEST_TT_2);
     });
 
-    it('returns 200 for coach viewing assigned training type', async () => {
+    it('returns 200 with canAdmin:false for regular member viewing any training type', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_ASSIGNED}`, {
-          headers: { Authorization: 'Bearer coach-token' },
+        new Request(`${BASE}/${TEST_TT_1}`, {
+          headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canAdmin).toBe(false);
-      expect(body.trainingTypeId).toBe(TEST_TT_ASSIGNED);
-    });
-
-    it('returns 403 for coach viewing unassigned training type', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_TT_UNASSIGNED}`, {
-          headers: { Authorization: 'Bearer coach-token' },
-        }),
-      );
-      expect(response.status).toBe(403);
+      expect(body.trainingTypeId).toBe(TEST_TT_1);
     });
 
     it('returns 404 for unknown training type', async () => {
@@ -775,9 +691,9 @@ describe('Training Types API', () => {
   });
 
   describe('PATCH /teams/:teamId/training-types/:trainingTypeId (update)', () => {
-    it('returns 200 for admin updating any training type', async () => {
+    it('returns 200 for admin updating training type', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_UNASSIGNED}`, {
+        new Request(`${BASE}/${TEST_TT_1}`, {
           method: 'PATCH',
           headers: {
             Authorization: 'Bearer admin-token',
@@ -791,28 +707,12 @@ describe('Training Types API', () => {
       expect(body.name).toBe('Renamed');
     });
 
-    it('returns 200 for coach updating assigned training type', async () => {
+    it('returns 403 for regular member updating training type', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_ASSIGNED}`, {
+        new Request(`${BASE}/${TEST_TT_1}`, {
           method: 'PATCH',
           headers: {
-            Authorization: 'Bearer coach-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: 'Coach Renamed' }),
-        }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.name).toBe('Coach Renamed');
-    });
-
-    it('returns 403 for coach updating unassigned training type', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_TT_UNASSIGNED}`, {
-          method: 'PATCH',
-          headers: {
-            Authorization: 'Bearer coach-token',
+            Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ name: 'Should Fail' }),
@@ -831,7 +731,7 @@ describe('Training Types API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'New Type' }),
+          body: JSON.stringify({ name: 'New Type', groupId: null }),
         }),
       );
       expect(response.status).toBe(201);
@@ -839,15 +739,15 @@ describe('Training Types API', () => {
       expect(body.name).toBe('New Type');
     });
 
-    it('returns 403 for coach creating training type', async () => {
+    it('returns 403 for regular member creating training type', async () => {
       const response = await handler(
         new Request(BASE, {
           method: 'POST',
           headers: {
-            Authorization: 'Bearer coach-token',
+            Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Should Fail' }),
+          body: JSON.stringify({ name: 'Should Fail', groupId: null }),
         }),
       );
       expect(response.status).toBe(403);
@@ -857,7 +757,7 @@ describe('Training Types API', () => {
   describe('DELETE /teams/:teamId/training-types/:trainingTypeId (delete)', () => {
     it('returns 204 for admin deleting training type', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_UNASSIGNED}`, {
+        new Request(`${BASE}/${TEST_TT_2}`, {
           method: 'DELETE',
           headers: { Authorization: 'Bearer admin-token' },
         }),
@@ -865,63 +765,11 @@ describe('Training Types API', () => {
       expect(response.status).toBe(204);
     });
 
-    it('returns 403 for coach deleting training type', async () => {
+    it('returns 403 for regular member deleting training type', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_ASSIGNED}`, {
+        new Request(`${BASE}/${TEST_TT_1}`, {
           method: 'DELETE',
-          headers: { Authorization: 'Bearer coach-token' },
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-  });
-
-  describe('POST /teams/:teamId/training-types/:trainingTypeId/coaches (add coach)', () => {
-    it('returns 204 for admin adding coach', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_TT_UNASSIGNED}/coaches`, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer admin-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ memberId: TEST_COACH_MEMBER_ID }),
-        }),
-      );
-      expect(response.status).toBe(204);
-    });
-
-    it('returns 403 for coach adding coach', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_TT_ASSIGNED}/coaches`, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer coach-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ memberId: TEST_MEMBER_ID }),
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-  });
-
-  describe('DELETE /teams/:teamId/training-types/:trainingTypeId/coaches/:memberId (remove coach)', () => {
-    it('returns 204 for admin removing coach', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_TT_ASSIGNED}/coaches/${TEST_COACH_MEMBER_ID}`, {
-          method: 'DELETE',
-          headers: { Authorization: 'Bearer admin-token' },
-        }),
-      );
-      expect(response.status).toBe(204);
-    });
-
-    it('returns 403 for coach removing coach', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_TT_ASSIGNED}/coaches/${TEST_COACH_MEMBER_ID}`, {
-          method: 'DELETE',
-          headers: { Authorization: 'Bearer coach-token' },
+          headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(403);
