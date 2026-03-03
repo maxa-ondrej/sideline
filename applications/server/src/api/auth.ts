@@ -107,10 +107,13 @@ const handleDiscordLogin = ({
     ),
     Effect.bind('client', ({ DiscordConfigLive }) =>
       DiscordREST.pipe(
-        Effect.provide(DiscordRESTLive),
-        Effect.provide(CustomClient),
-        Effect.provide(MemoryRateLimitStoreLive),
-        Effect.provide(DiscordConfigLive),
+        Effect.provide(
+          DiscordRESTLive.pipe(
+            Layer.provideMerge(CustomClient),
+            Layer.provideMerge(MemoryRateLimitStoreLive),
+            Layer.provideMerge(DiscordConfigLive),
+          ),
+        ),
       ),
     ),
     Effect.tap(() =>
