@@ -10,6 +10,7 @@ import { Gender, UserId } from '~/models/User.js';
 export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   memberId: TeamMemberId,
   userId: UserId,
+  discordId: Schema.String,
   roleNames: Schema.Array(Schema.String),
   permissions: Schema.Array(Permission),
   name: Schema.NullOr(Schema.String),

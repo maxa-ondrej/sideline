@@ -20,6 +20,7 @@ const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
     userId: entry.user_id,
+    discordId: entry.discord_id,
     roleNames: entry.role_names,
     permissions: entry.permissions,
     name: entry.name,
@@ -125,6 +126,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 new Roster.RosterPlayer({
                   memberId: entry.member_id,
                   userId: entry.user_id,
+                  discordId: entry.discord_id,
                   roleNames: entry.role_names,
                   permissions: entry.permissions,
                   name: updated.name,

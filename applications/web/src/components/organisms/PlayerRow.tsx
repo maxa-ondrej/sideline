@@ -20,7 +20,7 @@ export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: 
       <td className='py-2 px-4'>
         {player.discordAvatar ? (
           <img
-            src={`https://cdn.discordapp.com/avatars/${player.userId}/${player.discordAvatar}.png?size=32`}
+            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.discordAvatar}.png?size=32`}
             alt={displayName}
             className='w-8 h-8 rounded-full inline-block mr-2'
           />
