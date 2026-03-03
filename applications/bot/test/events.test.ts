@@ -3,6 +3,7 @@ import * as Discord from 'dfx/types';
 import { Effect, Layer, Logger, LogLevel } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { eventHandlers } from '~/events/index.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 const makeRecordingGateway = () => {
   const registeredEvents: string[] = [];
@@ -22,6 +23,13 @@ const makeRecordingGateway = () => {
   return { registeredEvents, layer };
 };
 
+const MockSyncRpcLayer = Layer.succeed(
+  SyncRpc,
+  new Proxy({} as SyncRpc, {
+    get: () => () => Effect.void,
+  }),
+);
+
 describe('events', () => {
   it('registers handlers for expected gateway events', async () => {
     const { registeredEvents, layer } = makeRecordingGateway();
@@ -30,16 +38,17 @@ describe('events', () => {
       eventHandlers.pipe(
         Effect.timeout('100 millis'),
         Effect.ignore,
-        Effect.provide(layer),
+        Effect.provide(Layer.merge(layer, MockSyncRpcLayer)),
         Logger.withMinimumLogLevel(LogLevel.None),
       ),
     );
 
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildCreate);
+    expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildDelete);
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildMemberAdd);
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildMemberRemove);
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildMemberUpdate);
-    expect(registeredEvents).toHaveLength(4);
+    expect(registeredEvents).toHaveLength(5);
   });
 
   it('returns the correct number of handler effects', async () => {
@@ -48,7 +57,7 @@ describe('events', () => {
     const result = await Effect.runPromise(
       eventHandlers.pipe(
         Effect.timeout('100 millis'),
-        Effect.provide(layer),
+        Effect.provide(Layer.merge(layer, MockSyncRpcLayer)),
         Logger.withMinimumLogLevel(LogLevel.None),
       ),
     );

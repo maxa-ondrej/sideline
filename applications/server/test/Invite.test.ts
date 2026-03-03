@@ -1,11 +1,12 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Role, Team, TeamInvite, TeamMember } from '@sideline/domain';
+import type { Auth, Discord, Role, Team, TeamInvite, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
+import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -63,6 +64,7 @@ const testAdmin = {
 const testTeam = {
   id: TEST_TEAM_ID,
   name: 'Test Team',
+  guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -145,6 +147,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: () => Effect.succeed(testUser),
+  getAccessToken: () => Effect.succeed('mock-access-token'),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -434,6 +437,13 @@ const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMap
   deleteByGroupId: () => Effect.void,
 } as unknown as DiscordChannelMappingRepository);
 
+const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {
+  upsert: () => Effect.void,
+  remove: () => Effect.void,
+  exists: () => Effect.succeed(false),
+  findAll: () => Effect.succeed([]),
+} as unknown as BotGuildsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -454,6 +464,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
+  Layer.provide(MockBotGuildsRepositoryLayer),
 );
 
 let handler: (request: Request) => Promise<Response>;

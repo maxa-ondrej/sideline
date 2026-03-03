@@ -4,6 +4,7 @@ import { Effect, Layer, Logger, LogLevel } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '~/index.js';
 import { ChannelSyncService, RoleSyncService } from '~/rcp/index.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 const MockDiscordGatewayLayer = Layer.succeed(DiscordGateway, {
   [DiscordGateway.key]: DiscordGateway.key,
@@ -51,6 +52,13 @@ const MockChannelSyncServiceLayer = Layer.succeed(ChannelSyncService, {
   pollLoop: () => Effect.void,
 } as unknown as ChannelSyncService);
 
+const MockSyncRpcLayer = Layer.succeed(
+  SyncRpc,
+  new Proxy({} as SyncRpc, {
+    get: () => () => Effect.void,
+  }),
+);
+
 describe('Bot', () => {
   it('program composes and starts without error', async () => {
     const TestLayer = Layer.mergeAll(
@@ -59,6 +67,7 @@ describe('Bot', () => {
       MockDiscordRESTLayer,
       MockRoleSyncServiceLayer,
       MockChannelSyncServiceLayer,
+      MockSyncRpcLayer,
     );
 
     const result = await Effect.runPromise(

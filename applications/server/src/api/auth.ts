@@ -409,6 +409,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                             botPresent: present,
                           }),
                       ),
+                      Effect.catchTag('SqlError', 'ParseError', Effect.die),
                     ),
                   ),
                 { concurrency: 'unbounded' },
