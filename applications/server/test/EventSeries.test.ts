@@ -30,6 +30,7 @@ import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -200,9 +201,10 @@ type SeriesRecord = {
   frequency: 'weekly' | 'biweekly';
   day_of_week: number;
   start_date: string;
-  end_date: string;
+  end_date: string | null;
   status: 'active' | 'cancelled';
   training_type_name: string | null;
+  last_generated_date: string | null;
 };
 
 let seriesStore: Map<EventSeries.EventSeriesId, SeriesRecord>;
@@ -246,6 +248,7 @@ const resetStores = () => {
     end_date: '2026-06-30',
     status: 'active',
     training_type_name: null,
+    last_generated_date: '2026-06-30',
   });
 
   eventsStore = new Map();
@@ -262,6 +265,7 @@ const buildRosterEntry = (
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
+    discord_id: user.discord_id,
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
@@ -540,7 +544,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     frequency: string;
     day_of_week: number;
     start_date: string;
-    end_date: string;
+    end_date: string | null;
     created_by: string;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
@@ -559,6 +563,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_date: input.end_date,
       status: 'active',
       training_type_name: null,
+      last_generated_date: null,
     };
     seriesStore.set(id, record);
     return Effect.succeed({
@@ -588,7 +593,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     frequency: string;
     dayOfWeek: number;
     startDate: string;
-    endDate: string;
+    endDate: string | null;
     createdBy: string;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
@@ -607,6 +612,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_date: input.endDate,
       status: 'active',
       training_type_name: null,
+      last_generated_date: null,
     };
     seriesStore.set(id, record);
     return Effect.succeed({
@@ -651,7 +657,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     start_time: string;
     end_time: string | null;
     location: string | null;
-    end_date: string;
+    end_date: string | null;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));
@@ -690,7 +696,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     startTime: string;
     endTime: string | null;
     location: string | null;
-    endDate: string;
+    endDate: string | null;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));
@@ -735,7 +741,21 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     }
     return Effect.void;
   },
+  findActiveForGeneration: () => Effect.succeed([]),
+  getActiveForGeneration: () => Effect.succeed([]),
+  setLastGeneratedDate: () => Effect.void,
+  updateLastGeneratedDate: () => Effect.void,
 } as unknown as EventSeriesRepository);
+
+const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
+  _tag: 'api/TeamSettingsRepository',
+  findByTeam: () => Effect.succeed(Option.none()),
+  findByTeamId: () => Effect.succeed(Option.none()),
+  upsertSettings: () => Effect.succeed({ team_id: TEST_TEAM_ID, event_horizon_days: 30 }),
+  upsert: () => Effect.succeed({ team_id: TEST_TEAM_ID, event_horizon_days: 30 }),
+  getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+  getHorizonDays: () => Effect.succeed(30),
+} as unknown as TeamSettingsRepository);
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   _tag: 'api/RostersRepository',
@@ -933,7 +953,12 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
-  Layer.provide(Layer.merge(MockEventsRepositoryLayer, MockEventSeriesRepositoryLayer)),
+  Layer.provide(
+    Layer.merge(
+      Layer.merge(MockEventsRepositoryLayer, MockEventSeriesRepositoryLayer),
+      MockTeamSettingsRepositoryLayer,
+    ),
+  ),
   Layer.provide(MockHttpClientLayer),
   Layer.provide(MockAgeCheckServiceLayer),
   Layer.provide(MockAgeThresholdRepositoryLayer),

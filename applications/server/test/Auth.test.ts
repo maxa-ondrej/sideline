@@ -20,6 +20,7 @@ import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -413,10 +414,21 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(
     Layer.merge(
       Layer.merge(
-        Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
-        MockDiscordChannelsRepositoryLayer,
+        Layer.merge(
+          Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
+          MockDiscordChannelsRepositoryLayer,
+        ),
+        MockEventSeriesRepositoryLayer,
       ),
-      MockEventSeriesRepositoryLayer,
+      Layer.succeed(TeamSettingsRepository, {
+        _tag: 'api/TeamSettingsRepository',
+        findByTeam: () => Effect.succeed(Option.none()),
+        findByTeamId: () => Effect.succeed(Option.none()),
+        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+        getHorizonDays: () => Effect.succeed(30),
+      } as unknown as TeamSettingsRepository),
     ),
   ),
 );

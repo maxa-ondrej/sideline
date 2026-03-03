@@ -26,6 +26,7 @@ import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -66,6 +67,7 @@ const Repositories = Layer.mergeAll(
   DiscordChannelsRepository.Default,
   EventsRepository.Default,
   EventSeriesRepository.Default,
+  TeamSettingsRepository.Default,
 );
 
 export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(

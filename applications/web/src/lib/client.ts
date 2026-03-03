@@ -15,6 +15,7 @@ import {
   NotificationApi,
   RoleApi,
   Roster,
+  TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
 import { Context, Effect, Option } from 'effect';
@@ -40,6 +41,7 @@ class ClientApi extends HttpApi.make('api')
   .add(EventApi.EventApiGroup)
   .add(EventSeriesApi.EventSeriesApiGroup)
   .add(GroupApi.GroupApiGroup)
+  .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 
 export const client = ClientConfig.pipe(

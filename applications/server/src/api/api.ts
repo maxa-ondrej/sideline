@@ -9,6 +9,7 @@ import {
   NotificationApi,
   RoleApi,
   Roster,
+  TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
 import { env } from '~/env.js';
@@ -23,6 +24,7 @@ export class Api extends HttpApi.make('api')
   .add(NotificationApi.NotificationApiGroup)
   .add(Roster.RosterApiGroup)
   .add(RoleApi.RoleApiGroup)
+  .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup)
   .pipe((api) =>
     env.API_PREFIX.startsWith('/') ? api.prefix(env.API_PREFIX as '/${string}') : api,

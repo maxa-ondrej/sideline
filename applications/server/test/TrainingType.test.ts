@@ -21,6 +21,7 @@ import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -180,6 +181,7 @@ const buildRosterEntry = (
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
+    discord_id: user.discord_id,
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
@@ -639,17 +641,28 @@ const TestLayer = ApiLive.pipe(
     Layer.merge(
       Layer.merge(
         Layer.merge(
-          MockEventsRepositoryLayer,
-          Layer.succeed(BotGuildsRepository, {
-            upsert: () => Effect.void,
-            remove: () => Effect.void,
-            exists: () => Effect.succeed(false),
-            findAll: () => Effect.succeed([]),
-          } as unknown as BotGuildsRepository),
+          Layer.merge(
+            MockEventsRepositoryLayer,
+            Layer.succeed(BotGuildsRepository, {
+              upsert: () => Effect.void,
+              remove: () => Effect.void,
+              exists: () => Effect.succeed(false),
+              findAll: () => Effect.succeed([]),
+            } as unknown as BotGuildsRepository),
+          ),
+          MockDiscordChannelsRepositoryLayer,
         ),
-        MockDiscordChannelsRepositoryLayer,
+        MockEventSeriesRepositoryLayer,
       ),
-      MockEventSeriesRepositoryLayer,
+      Layer.succeed(TeamSettingsRepository, {
+        _tag: 'api/TeamSettingsRepository',
+        findByTeam: () => Effect.succeed(Option.none()),
+        findByTeamId: () => Effect.succeed(Option.none()),
+        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+        getHorizonDays: () => Effect.succeed(30),
+      } as unknown as TeamSettingsRepository),
     ),
   ),
 );

@@ -306,5 +306,12 @@
   "event_updateSeriesFailed": "Aktualizace opakující se série selhala.",
   "role_perm_eventCreate": "Vytvářet události",
   "role_perm_eventEdit": "Upravovat události",
-  "role_perm_eventCancel": "Rušit události"
+  "role_perm_eventCancel": "Rušit události",
+  "event_endDateHelp": "Ponechte prázdné pro průběžnou sérii",
+  "event_ongoing": "Průběžná",
+  "team_settings": "Nastavení",
+  "teamSettings_horizonDays": "Horizont generování událostí (dny)",
+  "teamSettings_horizonDaysHelp": "Události se generují s tímto předstihem. Denní úloha je automaticky prodlužuje.",
+  "teamSettings_saved": "Nastavení uloženo.",
+  "teamSettings_saveFailed": "Uložení nastavení selhalo."
 }

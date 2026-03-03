@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { EventSeries, Team, TrainingType } from '@sideline/domain';
+import { EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -15,7 +15,7 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   frequency: EventSeries.RecurrenceFrequency,
   day_of_week: EventSeries.DayOfWeek,
   start_date: Schema.String,
-  end_date: Schema.String,
+  end_date: Schema.NullOr(Schema.String),
   status: EventSeries.EventSeriesStatus,
 }) {}
 
@@ -32,11 +32,32 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     frequency: EventSeries.RecurrenceFrequency,
     day_of_week: EventSeries.DayOfWeek,
     start_date: Schema.String,
-    end_date: Schema.String,
+    end_date: Schema.NullOr(Schema.String),
     status: EventSeries.EventSeriesStatus,
     training_type_name: Schema.NullOr(Schema.String),
+    last_generated_date: Schema.NullOr(Schema.String),
   },
 ) {}
+
+class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
+  'EventSeriesForGeneration',
+)({
+  id: EventSeries.EventSeriesId,
+  team_id: Team.TeamId,
+  training_type_id: Schema.NullOr(TrainingType.TrainingTypeId),
+  title: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  start_time: Schema.String,
+  end_time: Schema.NullOr(Schema.String),
+  location: Schema.NullOr(Schema.String),
+  frequency: EventSeries.RecurrenceFrequency,
+  day_of_week: EventSeries.DayOfWeek,
+  start_date: Schema.String,
+  end_date: Schema.NullOr(Schema.String),
+  last_generated_date: Schema.NullOr(Schema.String),
+  created_by: TeamMember.TeamMemberId,
+  event_horizon_days: Schema.Number,
+}) {}
 
 class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('EventSeriesInsertInput')(
   {
@@ -50,7 +71,7 @@ class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('Event
     frequency: Schema.String,
     day_of_week: Schema.Number,
     start_date: Schema.String,
-    end_date: Schema.String,
+    end_date: Schema.NullOr(Schema.String),
     created_by: Schema.String,
   },
 ) {}
@@ -64,7 +85,7 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
     start_time: Schema.String,
     end_time: Schema.NullOr(Schema.String),
     location: Schema.NullOr(Schema.String),
-    end_date: Schema.String,
+    end_date: Schema.NullOr(Schema.String),
   },
 ) {}
 
@@ -99,7 +120,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.day_of_week, es.start_date::text, es.end_date::text, es.status,
-                   tt.name AS training_type_name
+                   tt.name AS training_type_name, es.last_generated_date::text
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
             WHERE es.team_id = ${teamId}
@@ -115,11 +136,38 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.day_of_week, es.start_date::text, es.end_date::text, es.status,
-                   tt.name AS training_type_name
+                   tt.name AS training_type_name, es.last_generated_date::text
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
             WHERE es.id = ${id}
           `,
+        }),
+      ),
+      Effect.let('findActiveForGeneration', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: Schema.Void,
+          Result: EventSeriesForGeneration,
+          execute: () => sql`
+            SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
+                   es.start_time::text, es.end_time::text, es.location, es.frequency,
+                   es.day_of_week, es.start_date::text, es.end_date::text,
+                   es.last_generated_date::text, es.created_by,
+                   COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
+            FROM event_series es
+            LEFT JOIN team_settings ts ON ts.team_id = es.team_id
+            WHERE es.status = 'active'
+              AND (es.end_date IS NULL OR es.end_date > CURRENT_DATE)
+          `,
+        }),
+      ),
+      Effect.let('setLastGeneratedDate', ({ sql }) =>
+        SqlSchema.void({
+          Request: Schema.Struct({
+            id: EventSeries.EventSeriesId,
+            last_generated_date: Schema.String,
+          }),
+          execute: (input) =>
+            sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
         }),
       ),
       Effect.let('updateSeries', ({ sql }) =>
@@ -165,7 +213,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     frequency: string;
     dayOfWeek: number;
     startDate: string;
-    endDate: string;
+    endDate: string | null;
     createdBy: string;
   }) {
     return this.insertSeries({
@@ -200,7 +248,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     startTime: string;
     endTime: string | null;
     location: string | null;
-    endDate: string;
+    endDate: string | null;
   }) {
     return this.updateSeries({
       id: input.id,
@@ -216,5 +264,13 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
 
   cancelEventSeries(seriesId: EventSeries.EventSeriesId) {
     return this.cancelSeries(seriesId);
+  }
+
+  getActiveForGeneration() {
+    return this.findActiveForGeneration(undefined as undefined);
+  }
+
+  updateLastGeneratedDate(seriesId: EventSeries.EventSeriesId, date: string) {
+    return this.setLastGeneratedDate({ id: seriesId, last_generated_date: date });
   }
 }

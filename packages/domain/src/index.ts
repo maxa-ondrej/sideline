@@ -18,6 +18,8 @@ export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';
 
+export * as TeamSettingsApi from './api/TeamSettingsApi.js';
+
 export * as TrainingTypeApi from './api/TrainingTypeApi.js';
 
 export * as AgeThresholdRule from './models/AgeThresholdRule.js';
@@ -57,6 +59,8 @@ export * as Team from './models/Team.js';
 export * as TeamInvite from './models/TeamInvite.js';
 
 export * as TeamMember from './models/TeamMember.js';
+
+export * as TeamSettings from './models/TeamSettings.js';
 
 export * as TrainingType from './models/TrainingType.js';
 

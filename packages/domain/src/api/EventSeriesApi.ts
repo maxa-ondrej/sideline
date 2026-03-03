@@ -18,7 +18,7 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   frequency: RecurrenceFrequency,
   dayOfWeek: DayOfWeek,
   startDate: Schema.String,
-  endDate: Schema.String,
+  endDate: Schema.NullOr(Schema.String),
   status: EventSeriesStatus,
   trainingTypeId: Schema.NullOr(TrainingTypeId),
   trainingTypeName: Schema.NullOr(Schema.String),
@@ -35,7 +35,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   frequency: RecurrenceFrequency,
   dayOfWeek: DayOfWeek,
   startDate: Schema.String,
-  endDate: Schema.String,
+  endDate: Schema.NullOr(Schema.String),
   status: EventSeriesStatus,
   trainingTypeId: Schema.NullOr(TrainingTypeId),
   trainingTypeName: Schema.NullOr(Schema.String),
@@ -55,7 +55,7 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   frequency: RecurrenceFrequency,
   dayOfWeek: DayOfWeek,
   startDate: Schema.String,
-  endDate: Schema.String,
+  endDate: Schema.NullOr(Schema.String),
   startTime: Schema.String,
   endTime: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
@@ -70,7 +70,7 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   startTime: Schema.optionalWith(Schema.String, { as: 'Option' }),
   endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  endDate: Schema.optionalWith(Schema.String, { as: 'Option' }),
+  endDate: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
 export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(

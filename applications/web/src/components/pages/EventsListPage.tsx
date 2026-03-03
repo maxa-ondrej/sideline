@@ -48,7 +48,7 @@ const CreateSeriesSchema = Schema.Struct({
   frequency: EventSeries.RecurrenceFrequency,
   dayOfWeek: Schema.NumberFromString,
   startDate: Schema.NonEmptyString,
-  endDate: Schema.NonEmptyString,
+  endDate: Schema.String,
   startTime: Schema.NonEmptyString,
   endTime: Schema.String,
   location: Schema.String,
@@ -112,7 +112,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
       description: '',
       frequency: 'weekly' as EventSeries.RecurrenceFrequency,
       dayOfWeek: '1',
-      startDate: '',
+      startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       startTime: '',
       endTime: '',
@@ -164,7 +164,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
             frequency: values.frequency,
             dayOfWeek: values.dayOfWeek as EventSeries.DayOfWeek,
             startDate: values.startDate,
-            endDate: values.endDate,
+            endDate: values.endDate || null,
             startTime: values.startTime,
             endTime: values.endTime || null,
             location: values.location || null,
@@ -453,6 +453,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                         <FormControl>
                           <Input {...field} type='date' />
                         </FormControl>
+                        <p className='text-xs text-muted-foreground'>{m.event_endDateHelp()}</p>
                         <FormMessage />
                       </FormItem>
                     )}

@@ -28,7 +28,7 @@ export class EventSeries extends Model.Class<EventSeries>('EventSeries')({
   frequency: RecurrenceFrequency,
   day_of_week: DayOfWeek,
   start_date: Schema.DateFromSelf,
-  end_date: Schema.DateFromSelf,
+  end_date: Schema.NullOr(Schema.DateFromSelf),
   status: Model.FieldExcept('update')(EventSeriesStatus),
   created_by: TeamMemberId,
   created_at: Model.DateTimeInsertFromDate,

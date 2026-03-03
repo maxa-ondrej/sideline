@@ -12,7 +12,8 @@ import { hasPermission, requireMembership, requirePermission } from '~/api/permi
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
-import { generateOccurrenceDates } from '~/services/RecurrenceService.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventSeriesApi.EventSeriesNotFound();
@@ -43,7 +44,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('events', () => EventsRepository),
     Effect.bind('series', () => EventSeriesRepository),
-    Effect.map(({ members, events, series }) =>
+    Effect.bind('teamSettings', () => TeamSettingsRepository),
+    Effect.map(({ members, events, series, teamSettings }) =>
       handlers
         .handle('createEventSeries', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
@@ -76,12 +78,21 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.let('dates', ({ inserted }) =>
+            Effect.bind('horizonDays', () =>
+              teamSettings.getHorizonDays(teamId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.let('effectiveEnd', ({ inserted, horizonDays }) =>
+              computeHorizonEnd({
+                seriesEndDate: inserted.end_date,
+                horizonDays,
+              }),
+            ),
+            Effect.let('dates', ({ inserted, effectiveEnd }) =>
               generateOccurrenceDates({
                 frequency: inserted.frequency,
                 dayOfWeek: inserted.day_of_week,
                 startDate: DateTime.unsafeMake(inserted.start_date),
-                endDate: DateTime.unsafeMake(inserted.end_date),
+                endDate: effectiveEnd,
               }),
             ),
             Effect.tap(({ inserted, dates, membership }) =>
@@ -106,6 +117,11 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 }),
                 { concurrency: 1 },
               ),
+            ),
+            Effect.tap(({ inserted, effectiveEnd }) =>
+              series
+                .updateLastGeneratedDate(inserted.id, DateTime.formatIsoDateUtc(effectiveEnd))
+                .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(
               ({ inserted }) =>
@@ -235,115 +251,107 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               });
               return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
             }),
-            Effect.let('resolvedTitle', ({ existing }) =>
-              Option.getOrElse(payload.title, () => existing.title),
-            ),
-            Effect.let('resolvedTrainingTypeId', ({ existing }) =>
-              Option.match(payload.trainingTypeId, {
+            Effect.let('resolved', ({ existing }) => ({
+              title: Option.getOrElse(payload.title, () => existing.title),
+              trainingTypeId: Option.match(payload.trainingTypeId, {
                 onNone: () => existing.training_type_id,
                 onSome: Option.getOrNull,
               }),
-            ),
-            Effect.let('resolvedDescription', ({ existing }) =>
-              Option.match(payload.description, {
+              description: Option.match(payload.description, {
                 onNone: () => existing.description,
                 onSome: Option.getOrNull,
               }),
-            ),
-            Effect.let('resolvedStartTime', ({ existing }) =>
-              Option.getOrElse(payload.startTime, () => existing.start_time),
-            ),
-            Effect.let('resolvedEndTime', ({ existing }) =>
-              Option.match(payload.endTime, {
+              startTime: Option.getOrElse(payload.startTime, () => existing.start_time),
+              endTime: Option.match(payload.endTime, {
                 onNone: () => existing.end_time,
                 onSome: Option.getOrNull,
               }),
-            ),
-            Effect.let('resolvedLocation', ({ existing }) =>
-              Option.match(payload.location, {
+              location: Option.match(payload.location, {
                 onNone: () => existing.location,
                 onSome: Option.getOrNull,
               }),
+              endDate: Option.match(payload.endDate, {
+                onNone: () => existing.end_date,
+                onSome: Option.getOrNull,
+              }),
+            })),
+            Effect.tap(({ resolved }) =>
+              series
+                .updateEventSeries({
+                  id: seriesId,
+                  title: resolved.title,
+                  trainingTypeId: resolved.trainingTypeId,
+                  description: resolved.description,
+                  startTime: resolved.startTime,
+                  endTime: resolved.endTime,
+                  location: resolved.location,
+                  endDate: resolved.endDate,
+                })
+                .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.let('resolvedEndDate', ({ existing }) =>
-              Option.getOrElse(payload.endDate, () => existing.end_date),
+            Effect.tap(({ resolved }) =>
+              events
+                .updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
+                  title: resolved.title,
+                  trainingTypeId: resolved.trainingTypeId,
+                  description: resolved.description,
+                  startTime: resolved.startTime,
+                  endTime: resolved.endTime,
+                  location: resolved.location,
+                })
+                .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.tap(
-              ({
-                resolvedTitle,
-                resolvedTrainingTypeId,
-                resolvedDescription,
-                resolvedStartTime,
-                resolvedEndTime,
-                resolvedLocation,
-                resolvedEndDate,
-              }) =>
-                series
-                  .updateEventSeries({
-                    id: seriesId,
-                    title: resolvedTitle,
-                    trainingTypeId: resolvedTrainingTypeId,
-                    description: resolvedDescription,
-                    startTime: resolvedStartTime,
-                    endTime: resolvedEndTime,
-                    location: resolvedLocation,
-                    endDate: resolvedEndDate,
-                  })
-                  .pipe(Effect.mapError(() => forbidden)),
-            ),
-            Effect.tap(
-              ({
-                resolvedTitle,
-                resolvedTrainingTypeId,
-                resolvedDescription,
-                resolvedStartTime,
-                resolvedEndTime,
-                resolvedLocation,
-              }) =>
-                events
-                  .updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
-                    title: resolvedTitle,
-                    trainingTypeId: resolvedTrainingTypeId,
-                    description: resolvedDescription,
-                    startTime: resolvedStartTime,
-                    endTime: resolvedEndTime,
-                    location: resolvedLocation,
-                  })
-                  .pipe(Effect.mapError(() => forbidden)),
-            ),
-            Effect.tap(({ existing, resolvedEndDate, membership }) => {
-              const oldEnd = DateTime.unsafeMake(existing.end_date);
-              const newEnd = DateTime.unsafeMake(resolvedEndDate);
-              if (!DateTime.greaterThan(newEnd, oldEnd)) return Effect.void;
-              const nextDay = DateTime.add(oldEnd, { days: 1 });
-              const newDates = generateOccurrenceDates({
-                frequency: existing.frequency,
-                dayOfWeek: existing.day_of_week,
-                startDate: nextDay,
-                endDate: newEnd,
-              });
-              return Effect.all(
-                newDates.map((date) => {
-                  const dateStr = DateTime.formatIsoDateUtc(date);
-                  return events
-                    .insertEvent({
-                      teamId,
-                      trainingTypeId: existing.training_type_id,
-                      eventType: 'training',
-                      title: existing.title,
-                      description: existing.description,
-                      eventDate: dateStr,
-                      startTime: existing.start_time,
-                      endTime: existing.end_time,
-                      location: existing.location,
-                      createdBy: membership.id,
-                      seriesId: existing.id,
-                    })
-                    .pipe(Effect.mapError(() => forbidden));
+            Effect.tap(({ existing, resolved, membership }) =>
+              teamSettings.getHorizonDays(teamId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap((horizonDays) => {
+                  const effectiveEnd = computeHorizonEnd({
+                    seriesEndDate: resolved.endDate,
+                    horizonDays,
+                  });
+                  const lastGenStr = existing.last_generated_date;
+                  if (lastGenStr === null) return Effect.void;
+                  const lastGen = DateTime.unsafeMake(lastGenStr);
+                  if (!DateTime.greaterThan(effectiveEnd, lastGen)) return Effect.void;
+                  const nextDay = DateTime.add(lastGen, { days: 1 });
+                  const newDates = generateOccurrenceDates({
+                    frequency: existing.frequency,
+                    dayOfWeek: existing.day_of_week,
+                    startDate: nextDay,
+                    endDate: effectiveEnd,
+                  });
+                  if (newDates.length === 0) return Effect.void;
+                  const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
+                  return Effect.all(
+                    newDates.map((date) => {
+                      const dateStr = DateTime.formatIsoDateUtc(date);
+                      return events
+                        .insertEvent({
+                          teamId,
+                          trainingTypeId: existing.training_type_id,
+                          eventType: 'training',
+                          title: existing.title,
+                          description: existing.description,
+                          eventDate: dateStr,
+                          startTime: existing.start_time,
+                          endTime: existing.end_time,
+                          location: existing.location,
+                          createdBy: membership.id,
+                          seriesId: existing.id,
+                        })
+                        .pipe(Effect.mapError(() => forbidden));
+                    }),
+                    { concurrency: 1 },
+                  ).pipe(
+                    Effect.tap(() =>
+                      series
+                        .updateLastGeneratedDate(existing.id, lastDate)
+                        .pipe(Effect.mapError(() => forbidden)),
+                    ),
+                  );
                 }),
-                { concurrency: 1 },
-              );
-            }),
+              ),
+            ),
             Effect.bind('detail', () =>
               series.findSeriesById(seriesId).pipe(
                 Effect.mapError(() => forbidden),

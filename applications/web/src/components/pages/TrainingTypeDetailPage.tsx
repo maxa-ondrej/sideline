@@ -43,7 +43,7 @@ const CreateScheduleSchema = Schema.Struct({
   frequency: EventSeries.RecurrenceFrequency,
   dayOfWeek: Schema.NumberFromString,
   startDate: Schema.NonEmptyString,
-  endDate: Schema.NonEmptyString,
+  endDate: Schema.String,
   startTime: Schema.NonEmptyString,
   endTime: Schema.String,
   location: Schema.String,
@@ -85,7 +85,7 @@ export function TrainingTypeDetailPage({
       description: '',
       frequency: 'weekly' as EventSeries.RecurrenceFrequency,
       dayOfWeek: '1',
-      startDate: '',
+      startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       startTime: '',
       endTime: '',
@@ -140,7 +140,7 @@ export function TrainingTypeDetailPage({
             frequency: values.frequency,
             dayOfWeek: values.dayOfWeek as EventSeries.DayOfWeek,
             startDate: values.startDate,
-            endDate: values.endDate,
+            endDate: values.endDate || null,
             startTime: values.startTime,
             endTime: values.endTime || null,
             location: values.location || null,
@@ -245,7 +245,7 @@ export function TrainingTypeDetailPage({
                         {s.endTime ? ` - ${s.endTime}` : ''}
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
-                        {s.startDate} → {s.endDate}
+                        {s.startDate} → {s.endDate ?? m.event_ongoing()}
                       </td>
                       <td className='py-2 px-4'>
                         <Button
@@ -349,6 +349,7 @@ export function TrainingTypeDetailPage({
                             <FormControl>
                               <Input {...field} type='date' />
                             </FormControl>
+                            <p className='text-xs text-muted-foreground'>{m.event_endDateHelp()}</p>
                             <FormMessage />
                           </FormItem>
                         )}

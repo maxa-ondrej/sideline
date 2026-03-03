@@ -306,5 +306,12 @@
   "event_cancelAllFuture": "All future events in series",
   "event_seriesCancelled": "Recurring series cancelled.",
   "event_createSeriesFailed": "Failed to create recurring series.",
-  "event_updateSeriesFailed": "Failed to update recurring series."
+  "event_updateSeriesFailed": "Failed to update recurring series.",
+  "event_endDateHelp": "Leave empty for an ongoing series",
+  "event_ongoing": "Ongoing",
+  "team_settings": "Settings",
+  "teamSettings_horizonDays": "Event generation horizon (days)",
+  "teamSettings_horizonDaysHelp": "Events are generated this many days in advance. A daily job extends them automatically.",
+  "teamSettings_saved": "Settings saved.",
+  "teamSettings_saveFailed": "Failed to save settings."
 }

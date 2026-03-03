@@ -15,6 +15,7 @@ export function TeamDetailPage({ teamId, team }: TeamDetailPageProps) {
     { to: '/teams/$teamId/groups' as const, label: m.team_groups() },
     { to: '/teams/$teamId/training-types' as const, label: m.team_trainingTypes() },
     { to: '/teams/$teamId/age-thresholds' as const, label: m.team_ageThresholds() },
+    { to: '/teams/$teamId/settings' as const, label: m.team_settings() },
   ] as const;
 
   return (
