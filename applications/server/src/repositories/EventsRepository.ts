@@ -88,7 +88,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
             LEFT JOIN team_members tm ON tm.id = e.created_by
             LEFT JOIN users u ON u.id = tm.user_id
             WHERE e.team_id = ${teamId}
-            ORDER BY e.event_date DESC, e.start_time DESC
+            ORDER BY e.event_date ASC, e.start_time ASC
           `,
       }),
     ),
