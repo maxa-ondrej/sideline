@@ -2,10 +2,20 @@ import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth, Role as RoleNS } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
-import { DateTime, Effect, Layer, Option, pipe, Redacted, Schema } from 'effect';
+import {
+  Array,
+  DateTime,
+  Effect,
+  flow,
+  Layer,
+  Option,
+  pipe,
+  Redacted,
+  Schema,
+  Struct,
+} from 'effect';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
-import { parsePermissions } from '~/api/permissions.js';
 import { env } from '~/env.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
@@ -326,35 +336,29 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('memberships', ({ currentUser }) =>
-              members
-                .findByUser(currentUser.id)
-                .pipe(Effect.mapError(() => new Auth.Unauthorized())),
+              members.findByUser(currentUser.id).pipe(Effect.orDie),
             ),
-            Effect.bind('userTeams', ({ memberships }) =>
-              Effect.all(
-                memberships.map((m) =>
+            Effect.flatMap(
+              flow(
+                Struct.get('memberships'),
+                Array.map((m) =>
                   teams.findById(m.team_id).pipe(
-                    Effect.mapError(() => new Auth.Unauthorized()),
-                    Effect.flatMap(
-                      Option.match({
-                        onNone: () => Effect.fail(new Auth.Unauthorized()),
-                        onSome: (team) =>
-                          Effect.succeed(
-                            new Auth.UserTeam({
-                              teamId: team.id,
-                              teamName: team.name,
-                              roleNames: m.role_names === '' ? [] : m.role_names.split(','),
-                              permissions: [...parsePermissions(m.permissions)],
-                            }),
-                          ),
-                      }),
+                    Effect.flatten,
+                    Effect.catchTag('NoSuchElementException', () => new Auth.Unauthorized()),
+                    Effect.map(
+                      (team) =>
+                        new Auth.UserTeam({
+                          teamId: team.id,
+                          teamName: team.name,
+                          roleNames: m.role_names,
+                          permissions: m.permissions,
+                        }),
                     ),
                   ),
                 ),
-                { concurrency: 'unbounded' },
+                (all) => Effect.all(all, { concurrency: 'unbounded' }),
               ),
             ),
-            Effect.map(({ userTeams }) => userTeams),
           ),
         )
         .handle('createTeam', ({ payload }) =>

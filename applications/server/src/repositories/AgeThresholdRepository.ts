@@ -7,8 +7,8 @@ import {
   TeamMember,
   User,
 } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
-import { Array, Effect, flow, type Option, Schema, String } from 'effect';
+import { Bind, Schemas } from '@sideline/effect-lib';
+import { Effect, type Option, Schema } from 'effect';
 
 export class AgeThresholdWithGroupName extends Schema.Class<AgeThresholdWithGroupName>(
   'AgeThresholdWithGroupName',
@@ -54,13 +54,7 @@ export class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('Memb
   discord_id: Discord.Snowflake,
   birth_year: Schema.Number,
   is_admin: Schema.Boolean,
-  group_ids: Schema.String.pipe(
-    Schema.transform(Schema.Array(Schema.NonEmptyString), {
-      strict: true,
-      decode: flow(String.split(','), Array.filter(String.isNonEmpty)),
-      encode: Array.join(','),
-    }),
-  ),
+  group_ids: Schemas.ArrayFromSplitString(),
 }) {}
 
 export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepository>()(

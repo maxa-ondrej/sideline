@@ -1,4 +1,4 @@
-import { Option, Schema } from 'effect';
+import { Array, flow, Option, Schema, String } from 'effect';
 
 export const NodeEnv = Schema.OptionFromNullishOr(Schema.String, null).pipe(
   Schema.transform(Schema.Literal('production', 'development'), {
@@ -16,3 +16,12 @@ export const Optional =
       decode: (opt) => opt.pipe(Option.getOrElse(lazyDefault), Schema.encodeSync(schema)),
       encode: (_, a) => Option.some(a),
     });
+
+export const ArrayFromSplitString = (separator: string = ',') =>
+  Schema.String.pipe(
+    Schema.transform(Schema.Array(Schema.NonEmptyString), {
+      strict: true,
+      decode: flow(String.split(separator), Array.filter(String.isNonEmpty)),
+      encode: Array.join(separator),
+    }),
+  );

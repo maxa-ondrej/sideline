@@ -1,11 +1,12 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import {
+  Role,
   Role as RoleNS,
   TeamMember as TeamMemberNS,
   Team as TeamNS,
   User as UserNS,
 } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
+import { Bind, Schemas } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class MembershipQuery extends Schema.Class<MembershipQuery>('MembershipQuery')({
@@ -28,8 +29,8 @@ export class MembershipWithRole extends Schema.Class<MembershipWithRole>('Member
   team_id: TeamNS.TeamId,
   user_id: UserNS.UserId,
   active: Schema.Boolean,
-  role_names: Schema.String,
-  permissions: Schema.String,
+  role_names: Schemas.ArrayFromSplitString(),
+  permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
 }) {}
 
 export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
