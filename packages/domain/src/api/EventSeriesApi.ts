@@ -20,6 +20,7 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   startDate: Schema.String,
   endDate: Schema.String,
   status: EventSeriesStatus,
+  trainingTypeId: Schema.NullOr(TrainingTypeId),
   trainingTypeName: Schema.NullOr(Schema.String),
   startTime: Schema.String,
   endTime: Schema.NullOr(Schema.String),

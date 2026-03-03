@@ -211,7 +211,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
           </div>
 
           {mode === 'one-time' ? (
-            <Form {...form}>
+            <Form key='one-time' {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
                 <FormField
                   {...form.register('title')}
@@ -346,7 +346,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
               </form>
             </Form>
           ) : (
-            <Form {...seriesForm}>
+            <Form key='recurring' {...seriesForm}>
               <form
                 onSubmit={seriesForm.handleSubmit(onSubmitSeries)}
                 className='flex flex-col gap-4'

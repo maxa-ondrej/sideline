@@ -1,19 +1,62 @@
-import type { TrainingTypeApi } from '@sideline/domain';
-import { Team, TrainingType } from '@sideline/domain';
+import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import type { EventSeriesApi, TrainingTypeApi } from '@sideline/domain';
+import { EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Button } from '~/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
+
+const dayOfWeekLabels: Record<number, () => string> = {
+  0: m.event_day_0,
+  1: m.event_day_1,
+  2: m.event_day_2,
+  3: m.event_day_3,
+  4: m.event_day_4,
+  5: m.event_day_5,
+  6: m.event_day_6,
+};
+
+const CreateScheduleSchema = Schema.Struct({
+  title: Schema.NonEmptyString,
+  description: Schema.String,
+  frequency: EventSeries.RecurrenceFrequency,
+  dayOfWeek: Schema.NumberFromString,
+  startDate: Schema.NonEmptyString,
+  endDate: Schema.NonEmptyString,
+  startTime: Schema.NonEmptyString,
+  endTime: Schema.String,
+  location: Schema.String,
+});
+
+type CreateScheduleValues = Schema.Schema.Type<typeof CreateScheduleSchema>;
 
 interface TrainingTypeDetailPageProps {
   teamId: string;
   trainingTypeId: string;
   trainingTypeDetail: TrainingTypeApi.TrainingTypeDetail;
   canAdmin: boolean;
+  series: ReadonlyArray<EventSeriesApi.EventSeriesInfo>;
 }
 
 export function TrainingTypeDetailPage({
@@ -21,6 +64,7 @@ export function TrainingTypeDetailPage({
   trainingTypeId,
   trainingTypeDetail,
   canAdmin,
+  series,
 }: TrainingTypeDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -31,6 +75,23 @@ export function TrainingTypeDetailPage({
 
   const [name, setName] = React.useState(trainingTypeDetail.name);
   const [saving, setSaving] = React.useState(false);
+  const [showCreateForm, setShowCreateForm] = React.useState(false);
+
+  const scheduleForm = useForm({
+    resolver: effectTsResolver(CreateScheduleSchema),
+    mode: 'onChange',
+    defaultValues: {
+      title: trainingTypeDetail.name,
+      description: '',
+      frequency: 'weekly' as EventSeries.RecurrenceFrequency,
+      dayOfWeek: '1',
+      startDate: '',
+      endDate: '',
+      startTime: '',
+      endTime: '',
+      location: '',
+    },
+  });
 
   const handleSaveName = React.useCallback(async () => {
     setSaving(true);
@@ -67,6 +128,60 @@ export function TrainingTypeDetailPage({
     }
   }, [teamId, teamIdBranded, trainingTypeIdBranded, run, navigate]);
 
+  const onSubmitSchedule = async (values: CreateScheduleValues) => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.eventSeries.createEventSeries({
+          path: { teamId: teamIdBranded },
+          payload: {
+            title: values.title,
+            trainingTypeId: trainingTypeIdBranded,
+            description: values.description || null,
+            frequency: values.frequency,
+            dayOfWeek: values.dayOfWeek as EventSeries.DayOfWeek,
+            startDate: values.startDate,
+            endDate: values.endDate,
+            startTime: values.startTime,
+            endTime: values.endTime || null,
+            location: values.location || null,
+          },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.trainingType_createScheduleFailed())),
+      run,
+    );
+    if (Option.isSome(result)) {
+      scheduleForm.reset({ ...scheduleForm.formState.defaultValues } as Record<string, string>);
+      setShowCreateForm(false);
+      router.invalidate();
+    }
+  };
+
+  const handleCancelSchedule = React.useCallback(
+    async (seriesId: string) => {
+      if (!window.confirm(m.trainingType_cancelScheduleConfirm())) return;
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.eventSeries.cancelEventSeries({
+            path: {
+              teamId: teamIdBranded,
+              seriesId: Schema.decodeSync(EventSeries.EventSeriesId)(seriesId),
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
+        run,
+      );
+      if (Option.isSome(result)) {
+        toast.success(m.trainingType_scheduleCancelled());
+        router.invalidate();
+      }
+    },
+    [teamIdBranded, run, router],
+  );
+
+  const activeSeries = series.filter((s) => s.status === 'active');
+
   return (
     <div>
       <header className='mb-8'>
@@ -101,6 +216,220 @@ export function TrainingTypeDetailPage({
             </Button>
           </div>
         </div>
+
+        {/* Recurring Schedules */}
+        {canAdmin && (
+          <div>
+            <h2 className='text-lg font-semibold mb-3'>{m.trainingType_recurringSchedules()}</h2>
+
+            {activeSeries.length === 0 && !showCreateForm && (
+              <p className='text-muted-foreground mb-3'>{m.trainingType_noSchedules()}</p>
+            )}
+
+            {activeSeries.length > 0 && (
+              <table className='w-full mb-4'>
+                <tbody>
+                  {activeSeries.map((s) => (
+                    <tr key={s.seriesId} className='border-b'>
+                      <td className='py-2 px-4 font-medium'>{s.title}</td>
+                      <td className='py-2 px-4 text-muted-foreground'>
+                        {s.frequency === 'weekly'
+                          ? m.event_frequency_weekly()
+                          : m.event_frequency_biweekly()}
+                      </td>
+                      <td className='py-2 px-4 text-muted-foreground'>
+                        {dayOfWeekLabels[s.dayOfWeek]()}
+                      </td>
+                      <td className='py-2 px-4 text-muted-foreground'>
+                        {s.startTime}
+                        {s.endTime ? ` - ${s.endTime}` : ''}
+                      </td>
+                      <td className='py-2 px-4 text-muted-foreground'>
+                        {s.startDate} → {s.endDate}
+                      </td>
+                      <td className='py-2 px-4'>
+                        <Button
+                          variant='outline'
+                          size='sm'
+                          onClick={() => handleCancelSchedule(s.seriesId)}
+                        >
+                          {m.trainingType_cancelSchedule()}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            {showCreateForm ? (
+              <div className='max-w-lg'>
+                <Form {...scheduleForm}>
+                  <form
+                    onSubmit={scheduleForm.handleSubmit(onSubmitSchedule)}
+                    className='flex flex-col gap-4'
+                  >
+                    <FormField
+                      {...scheduleForm.register('title')}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{m.event_title()}</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder={m.event_titlePlaceholder()} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className='flex gap-4'>
+                      <FormField
+                        {...scheduleForm.register('frequency')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_frequency()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value='weekly'>{m.event_frequency_weekly()}</SelectItem>
+                                <SelectItem value='biweekly'>
+                                  {m.event_frequency_biweekly()}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...scheduleForm.register('dayOfWeek')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_dayOfWeek()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={String(field.value)}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {[1, 2, 3, 4, 5, 6, 0].map((d) => (
+                                  <SelectItem key={d} value={String(d)}>
+                                    {dayOfWeekLabels[d]()}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className='flex gap-4'>
+                      <FormField
+                        {...scheduleForm.register('startDate')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_startDate()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} type='date' />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...scheduleForm.register('endDate')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_endDate()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} type='date' />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className='flex gap-4'>
+                      <FormField
+                        {...scheduleForm.register('startTime')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_startTime()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} type='time' />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...scheduleForm.register('endTime')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_endTime()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} type='time' />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      {...scheduleForm.register('location')}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{m.event_location()}</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder={m.event_locationPlaceholder()} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      {...scheduleForm.register('description')}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{m.event_description()}</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder={m.event_descriptionPlaceholder()}
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className='flex gap-2'>
+                      <Button type='submit' disabled={scheduleForm.formState.isSubmitting}>
+                        {m.trainingType_createSchedule()}
+                      </Button>
+                      <Button
+                        type='button'
+                        variant='outline'
+                        onClick={() => setShowCreateForm(false)}
+                      >
+                        {m.guild_back()}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            ) : (
+              <Button variant='outline' onClick={() => setShowCreateForm(true)}>
+                {m.trainingType_createSchedule()}
+              </Button>
+            )}
+          </div>
+        )}
 
         {/* Delete */}
         {canAdmin && (
