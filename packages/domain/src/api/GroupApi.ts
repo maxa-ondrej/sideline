@@ -66,6 +66,7 @@ export class MoveGroupRequest extends Schema.Class<MoveGroupRequest>('MoveGroupR
 
 export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('ChannelMappingInfo')({
   discordChannelId: Snowflake,
+  discordChannelName: Schema.NullOr(Schema.String),
   discordRoleId: Schema.NullOr(Snowflake),
 }) {}
 

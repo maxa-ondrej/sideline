@@ -369,12 +369,12 @@ export function GroupDetailPage({
           <p className='text-sm font-medium mb-2'>{m.group_discordChannel()}</p>
           {channelMapping ? (
             <div className='flex items-center gap-2'>
-              <span className='text-sm'>
-                <code>{channelMapping.discordChannelId}</code>
+              <span className='text-sm' title={channelMapping.discordChannelId}>
+                # {channelMapping.discordChannelName ?? channelMapping.discordChannelId}
                 {channelMapping.discordRoleId && (
                   <>
                     {' '}
-                    (Role: <code>{channelMapping.discordRoleId}</code>)
+                    (Role: <code title={channelMapping.discordRoleId}>synced</code>)
                   </>
                 )}
               </span>
