@@ -53,14 +53,14 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
 }) {}
 
 export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
-  title: Schema.NullOr(Schema.NonEmptyString),
-  eventType: Schema.NullOr(EventType),
-  trainingTypeId: Schema.NullOr(TrainingTypeId),
-  description: Schema.NullOr(Schema.String),
-  eventDate: Schema.NullOr(Schema.String),
-  startTime: Schema.NullOr(Schema.String),
-  endTime: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  title: Schema.optionalWith(Schema.NonEmptyString, { as: 'Option' }),
+  eventType: Schema.optionalWith(EventType, { as: 'Option' }),
+  trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
+  description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  eventDate: Schema.optionalWith(Schema.String, { as: 'Option' }),
+  startTime: Schema.optionalWith(Schema.String, { as: 'Option' }),
+  endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(

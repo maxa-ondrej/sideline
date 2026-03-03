@@ -34,5 +34,5 @@ export class Event extends Model.Class<Event>('Event')({
   status: Model.FieldExcept('update')(EventStatus),
   created_by: TeamMemberId,
   created_at: Model.DateTimeInsertFromDate,
-  updated_at: Model.DateTimeInsertFromDate,
+  updated_at: Model.DateTimeUpdateFromDate,
 }) {}

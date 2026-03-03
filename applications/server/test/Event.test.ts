@@ -1,5 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Discord, Event, Role, Team, TeamMember } from '@sideline/domain';
+import type { Auth, Discord, Event, Role, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -37,6 +37,9 @@ const TEST_CAPTAIN_MEMBER_ID = '00000000-0000-0000-0000-000000000022' as TeamMem
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
 const TEST_EVENT_1 = '00000000-0000-0000-0000-000000000060' as Event.EventId;
 const TEST_EVENT_2 = '00000000-0000-0000-0000-000000000061' as Event.EventId;
+const TEST_EVENT_SCOPED = '00000000-0000-0000-0000-000000000062' as Event.EventId;
+const TEST_TRAINING_TYPE_A = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
+const TEST_TRAINING_TYPE_B = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
 
 const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'team:manage',
@@ -229,6 +232,22 @@ const resetStores = () => {
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: null,
+    created_by_name: 'Admin User',
+  });
+  eventsStore.set(TEST_EVENT_SCOPED, {
+    id: TEST_EVENT_SCOPED,
+    team_id: TEST_TEAM_ID,
+    training_type_id: TEST_TRAINING_TYPE_A,
+    event_type: 'training',
+    title: 'Scoped Training',
+    description: null,
+    event_date: '2026-03-12',
+    start_time: '17:00:00',
+    end_time: '19:00:00',
+    location: null,
+    status: 'active',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: 'Type A',
     created_by_name: 'Admin User',
   });
 };
@@ -602,8 +621,18 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     }
     return Effect.void;
   },
-  findScopedTrainingTypeIds: () => Effect.succeed([]),
-  getScopedTrainingTypeIds: () => Effect.succeed([]),
+  findScopedTrainingTypeIds: (memberId: TeamMember.TeamMemberId) => {
+    if (memberId === TEST_CAPTAIN_MEMBER_ID) {
+      return Effect.succeed([{ training_type_id: TEST_TRAINING_TYPE_A }]);
+    }
+    return Effect.succeed([]);
+  },
+  getScopedTrainingTypeIds: (memberId: TeamMember.TeamMemberId) => {
+    if (memberId === TEST_CAPTAIN_MEMBER_ID) {
+      return Effect.succeed([{ training_type_id: TEST_TRAINING_TYPE_A }]);
+    }
+    return Effect.succeed([]);
+  },
 } as unknown as EventsRepository);
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
@@ -825,7 +854,7 @@ describe('Events API', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canCreate).toBe(true);
-      expect(body.events).toHaveLength(2);
+      expect(body.events).toHaveLength(3);
     });
 
     it('returns 200 with canCreate:true for captain', async () => {
@@ -844,7 +873,7 @@ describe('Events API', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canCreate).toBe(false);
-      expect(body.events).toHaveLength(2);
+      expect(body.events).toHaveLength(3);
     });
   });
 
@@ -967,13 +996,6 @@ describe('Events API', () => {
           },
           body: JSON.stringify({
             title: 'Renamed Training',
-            eventType: null,
-            trainingTypeId: null,
-            description: null,
-            eventDate: null,
-            startTime: null,
-            endTime: null,
-            location: null,
           }),
         }),
       );
@@ -992,13 +1014,6 @@ describe('Events API', () => {
           },
           body: JSON.stringify({
             title: 'Should Fail',
-            eventType: null,
-            trainingTypeId: null,
-            description: null,
-            eventDate: null,
-            startTime: null,
-            endTime: null,
-            location: null,
           }),
         }),
       );
@@ -1015,13 +1030,6 @@ describe('Events API', () => {
           },
           body: JSON.stringify({
             title: 'Try Update',
-            eventType: null,
-            trainingTypeId: null,
-            description: null,
-            eventDate: null,
-            startTime: null,
-            endTime: null,
-            location: null,
           }),
         }),
       );
@@ -1058,6 +1066,122 @@ describe('Events API', () => {
         }),
       );
       expect(response.status).toBe(400);
+    });
+  });
+
+  describe('Coach scoping', () => {
+    it('captain can create event with allowed training type', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'Scoped Event',
+            eventType: 'training',
+            trainingTypeId: TEST_TRAINING_TYPE_A,
+            description: null,
+            eventDate: '2026-03-20',
+            startTime: '18:00',
+            endTime: null,
+            location: null,
+          }),
+        }),
+      );
+      expect(response.status).toBe(201);
+    });
+
+    it('captain cannot create event with disallowed training type', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'Blocked Event',
+            eventType: 'training',
+            trainingTypeId: TEST_TRAINING_TYPE_B,
+            description: null,
+            eventDate: '2026-03-20',
+            startTime: '18:00',
+            endTime: null,
+            location: null,
+          }),
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it('captain can update event with allowed training type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_SCOPED}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'Updated Scoped',
+            trainingTypeId: TEST_TRAINING_TYPE_A,
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.title).toBe('Updated Scoped');
+    });
+
+    it('captain cannot update event to disallowed training type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_SCOPED}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            trainingTypeId: TEST_TRAINING_TYPE_B,
+          }),
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it('captain can cancel event with allowed training type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_SCOPED}/cancel`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer captain-token' },
+        }),
+      );
+      expect(response.status).toBe(204);
+    });
+
+    it('admin bypasses coach scoping for disallowed training type', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'Admin Event',
+            eventType: 'training',
+            trainingTypeId: TEST_TRAINING_TYPE_B,
+            description: null,
+            eventDate: '2026-03-20',
+            startTime: '18:00',
+            endTime: null,
+            location: null,
+          }),
+        }),
+      );
+      expect(response.status).toBe(201);
     });
   });
 });

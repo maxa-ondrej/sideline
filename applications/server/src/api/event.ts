@@ -182,29 +182,37 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.tap(({ existing }) =>
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
-            Effect.tap(({ existing, isAdmin }) => {
-              const newTrainingTypeId =
-                payload.trainingTypeId !== null
-                  ? payload.trainingTypeId
-                  : existing.training_type_id;
-              return checkCoachScoping(events, existing.created_by, newTrainingTypeId, isAdmin);
+            Effect.tap(({ existing, isAdmin, membership }) => {
+              const newTrainingTypeId = Option.match(payload.trainingTypeId, {
+                onNone: () => existing.training_type_id,
+                onSome: Option.getOrNull,
+              });
+              return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
             }),
             Effect.bind('updated', ({ existing }) =>
               events
                 .updateEvent({
                   id: eventId,
-                  title: payload.title ?? existing.title,
-                  eventType: payload.eventType ?? existing.event_type,
-                  trainingTypeId:
-                    payload.trainingTypeId !== undefined
-                      ? payload.trainingTypeId
-                      : existing.training_type_id,
-                  description:
-                    payload.description !== undefined ? payload.description : existing.description,
-                  eventDate: payload.eventDate ?? existing.event_date,
-                  startTime: payload.startTime ?? existing.start_time,
-                  endTime: payload.endTime !== undefined ? payload.endTime : existing.end_time,
-                  location: payload.location !== undefined ? payload.location : existing.location,
+                  title: Option.getOrElse(payload.title, () => existing.title),
+                  eventType: Option.getOrElse(payload.eventType, () => existing.event_type),
+                  trainingTypeId: Option.match(payload.trainingTypeId, {
+                    onNone: () => existing.training_type_id,
+                    onSome: Option.getOrNull,
+                  }),
+                  description: Option.match(payload.description, {
+                    onNone: () => existing.description,
+                    onSome: Option.getOrNull,
+                  }),
+                  eventDate: Option.getOrElse(payload.eventDate, () => existing.event_date),
+                  startTime: Option.getOrElse(payload.startTime, () => existing.start_time),
+                  endTime: Option.match(payload.endTime, {
+                    onNone: () => existing.end_time,
+                    onSome: Option.getOrNull,
+                  }),
+                  location: Option.match(payload.location, {
+                    onNone: () => existing.location,
+                    onSome: Option.getOrNull,
+                  }),
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
@@ -269,8 +277,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.tap(({ existing }) =>
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
-            Effect.tap(({ existing, isAdmin }) =>
-              checkCoachScoping(events, existing.created_by, existing.training_type_id, isAdmin),
+            Effect.tap(({ existing, isAdmin, membership }) =>
+              checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
             ),
             Effect.tap(() => events.cancelEvent(eventId).pipe(Effect.mapError(() => forbidden))),
             Effect.asVoid,

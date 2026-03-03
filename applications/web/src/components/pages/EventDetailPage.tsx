@@ -67,17 +67,18 @@ export function EventDetailPage({
         api.event.updateEvent({
           path: { teamId: teamIdBranded, eventId: eventIdBranded },
           payload: {
-            title,
-            eventType,
-            trainingTypeId:
+            title: Option.some(title),
+            eventType: Option.some(eventType),
+            trainingTypeId: Option.some(
               trainingTypeId && trainingTypeId !== NONE_VALUE
-                ? Schema.decodeSync(TrainingType.TrainingTypeId)(trainingTypeId)
-                : null,
-            description: description || null,
-            eventDate,
-            startTime,
-            endTime: endTime || null,
-            location: location || null,
+                ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(trainingTypeId))
+                : Option.none(),
+            ),
+            description: Option.some(description ? Option.some(description) : Option.none()),
+            eventDate: Option.some(eventDate),
+            startTime: Option.some(startTime),
+            endTime: Option.some(endTime ? Option.some(endTime) : Option.none()),
+            location: Option.some(location ? Option.some(location) : Option.none()),
           },
         }),
       ),
