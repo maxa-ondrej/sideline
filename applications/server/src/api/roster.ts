@@ -20,8 +20,8 @@ const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
     userId: entry.user_id,
-    roleNames: [...entry.role_names],
-    permissions: [...entry.permissions],
+    roleNames: entry.role_names,
+    permissions: entry.permissions,
     name: entry.name,
     birthYear: entry.birth_year,
     gender: entry.gender,
@@ -125,8 +125,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 new Roster.RosterPlayer({
                   memberId: entry.member_id,
                   userId: entry.user_id,
-                  roleNames: [...entry.role_names],
-                  permissions: [...entry.permissions],
+                  roleNames: entry.role_names,
+                  permissions: entry.permissions,
                   name: updated.name,
                   birthYear: updated.birth_year,
                   gender: updated.gender,
