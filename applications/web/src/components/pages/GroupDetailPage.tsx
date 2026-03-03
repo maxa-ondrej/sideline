@@ -24,6 +24,7 @@ interface GroupDetailPageProps {
   allRoles: ReadonlyArray<RoleApi.RoleInfo>;
   channelMapping: GroupApi.ChannelMappingInfo | null;
   allGroups: ReadonlyArray<GroupApi.GroupInfo>;
+  discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
 
 export function GroupDetailPage({
@@ -34,6 +35,7 @@ export function GroupDetailPage({
   allRoles,
   channelMapping,
   allGroups,
+  discordChannels,
 }: GroupDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -47,7 +49,7 @@ export function GroupDetailPage({
   const [saving, setSaving] = React.useState(false);
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = React.useState<string>('');
-  const [channelIdInput, setChannelIdInput] = React.useState('');
+  const [selectedChannelId, setSelectedChannelId] = React.useState('');
   const [parentGroupId, setParentGroupId] = React.useState<string>(
     groupDetail.parentId ?? '__root__',
   );
@@ -172,8 +174,8 @@ export function GroupDetailPage({
   }, [teamId, teamIdBranded, groupIdBranded, run, navigate]);
 
   const handleLinkChannel = React.useCallback(async () => {
-    if (!channelIdInput.trim()) return;
-    const discordChannelId = Schema.decodeSync(Discord.Snowflake)(channelIdInput.trim());
+    if (!selectedChannelId) return;
+    const discordChannelId = Schema.decodeSync(Discord.Snowflake)(selectedChannelId);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.group.setChannelMapping({
@@ -185,11 +187,11 @@ export function GroupDetailPage({
       run,
     );
     if (Option.isSome(result)) {
-      setChannelIdInput('');
+      setSelectedChannelId('');
       toast.success(m.group_channelLinked());
       router.invalidate();
     }
-  }, [channelIdInput, teamIdBranded, groupIdBranded, run, router]);
+  }, [selectedChannelId, teamIdBranded, groupIdBranded, run, router]);
 
   const handleUnlinkChannel = React.useCallback(async () => {
     const result = await ApiClient.pipe(
@@ -367,12 +369,12 @@ export function GroupDetailPage({
           <p className='text-sm font-medium mb-2'>{m.group_discordChannel()}</p>
           {channelMapping ? (
             <div className='flex items-center gap-2'>
-              <span className='text-sm'>
-                {m.group_discordChannelId()}: <code>{channelMapping.discordChannelId}</code>
+              <span className='text-sm' title={channelMapping.discordChannelId}>
+                # {channelMapping.discordChannelName ?? channelMapping.discordChannelId}
                 {channelMapping.discordRoleId && (
                   <>
                     {' '}
-                    (Role: <code>{channelMapping.discordRoleId}</code>)
+                    (Role: <code title={channelMapping.discordRoleId}>synced</code>)
                   </>
                 )}
               </span>
@@ -383,13 +385,19 @@ export function GroupDetailPage({
           ) : (
             <div className='flex flex-col gap-2'>
               <div className='flex gap-2'>
-                <Input
-                  value={channelIdInput}
-                  onChange={(e) => setChannelIdInput(e.target.value)}
-                  placeholder={m.group_discordChannelIdPlaceholder()}
-                  className='max-w-xs'
-                />
-                <Button onClick={handleLinkChannel} disabled={!channelIdInput.trim()}>
+                <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+                  <SelectTrigger className='flex-1'>
+                    <SelectValue placeholder={m.group_selectChannel()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {discordChannels.map((ch) => (
+                      <SelectItem key={ch.id} value={ch.id}>
+                        # {ch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleLinkChannel} disabled={!selectedChannelId}>
                   {m.group_linkChannel()}
                 </Button>
               </div>

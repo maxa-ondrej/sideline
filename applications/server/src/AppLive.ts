@@ -14,6 +14,7 @@ import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -60,6 +61,7 @@ const Repositories = Layer.mergeAll(
   DiscordRoleMappingRepository.Default,
   ChannelSyncEventsRepository.Default,
   DiscordChannelMappingRepository.Default,
+  DiscordChannelsRepository.Default,
 );
 
 export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(

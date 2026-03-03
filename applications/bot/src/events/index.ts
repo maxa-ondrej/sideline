@@ -1,4 +1,5 @@
 import { Discord } from '@sideline/domain';
+import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
 import { Effect, Schema } from 'effect';
@@ -9,7 +10,8 @@ const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
 export const eventHandlers = Effect.Do.pipe(
   Effect.bind('gateway', () => DiscordGateway),
   Effect.bind('rpc', () => SyncRpc),
-  Effect.let('guildCreate', ({ gateway, rpc }) =>
+  Effect.bind('rest', () => DiscordREST),
+  Effect.let('guildCreate', ({ gateway, rpc, rest }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
       Effect.Do.pipe(
         Effect.tap(() => Effect.log(`Guild available: ${guild.name} (${guild.id})`)),
@@ -18,6 +20,33 @@ export const eventHandlers = Effect.Do.pipe(
             guild_id: decodeSnowflake(guild.id),
             guild_name: guild.name,
           }),
+        ),
+        Effect.tap(() =>
+          rest.listGuildChannels(guild.id).pipe(
+            Effect.map((channels) =>
+              channels.flatMap((ch) => {
+                if (ch.type !== 0 || !('name' in ch)) return [];
+                const parentId = 'parent_id' in ch && ch.parent_id ? String(ch.parent_id) : null;
+                return [
+                  {
+                    channel_id: decodeSnowflake(ch.id),
+                    name: ch.name,
+                    type: ch.type,
+                    parent_id: parentId ? decodeSnowflake(parentId) : null,
+                  },
+                ];
+              }),
+            ),
+            Effect.tap((channels) =>
+              rpc['Guild/SyncGuildChannels']({
+                guild_id: decodeSnowflake(guild.id),
+                channels,
+              }),
+            ),
+            Effect.catchAll((error) =>
+              Effect.logError(`Failed to sync channels for guild ${guild.id}`, error),
+            ),
+          ),
         ),
         Effect.catchAll((error) => Effect.logError(`Failed to register guild ${guild.id}`, error)),
       ),

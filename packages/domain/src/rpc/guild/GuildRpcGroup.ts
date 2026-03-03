@@ -13,4 +13,17 @@ export const GuildRpcGroup = RpcGroup.make(
     payload: { guild_id: Discord.Snowflake },
     success: Schema.Boolean,
   }),
+  Rpc.make('SyncGuildChannels', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      channels: Schema.Array(
+        Schema.Struct({
+          channel_id: Discord.Snowflake,
+          name: Schema.String,
+          type: Schema.Number,
+          parent_id: Schema.NullOr(Discord.Snowflake),
+        }),
+      ),
+    },
+  }),
 ).prefix('Guild/');

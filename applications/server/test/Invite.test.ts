@@ -9,6 +9,7 @@ import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -444,6 +445,11 @@ const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {
   findAll: () => Effect.succeed([]),
 } as unknown as BotGuildsRepository);
 
+const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsRepository, {
+  syncChannels: () => Effect.void,
+  findByGuildId: () => Effect.succeed([]),
+} as unknown as DiscordChannelsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -464,7 +470,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
-  Layer.provide(MockBotGuildsRepositoryLayer),
+  Layer.provide(Layer.merge(MockBotGuildsRepositoryLayer, MockDiscordChannelsRepositoryLayer)),
 );
 
 let handler: (request: Request) => Promise<Response>;

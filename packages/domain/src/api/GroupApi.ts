@@ -66,6 +66,7 @@ export class MoveGroupRequest extends Schema.Class<MoveGroupRequest>('MoveGroupR
 
 export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('ChannelMappingInfo')({
   discordChannelId: Snowflake,
+  discordChannelName: Schema.NullOr(Schema.String),
   discordRoleId: Schema.NullOr(Snowflake),
 }) {}
 
@@ -73,6 +74,13 @@ export class SetChannelMappingRequest extends Schema.Class<SetChannelMappingRequ
   'SetChannelMappingRequest',
 )({
   discordChannelId: Snowflake,
+}) {}
+
+export class DiscordChannelInfo extends Schema.Class<DiscordChannelInfo>('DiscordChannelInfo')({
+  id: Snowflake,
+  name: Schema.String,
+  type: Schema.Number,
+  parentId: Schema.NullOr(Snowflake),
 }) {}
 
 export class GroupNotFound extends Schema.TaggedError<GroupNotFound>()(
@@ -210,5 +218,12 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('listDiscordChannels', '/teams/:teamId/discord-channels')
+      .addSuccess(Schema.Array(DiscordChannelInfo))
+      .addError(Forbidden, { status: 403 })
+      .setPath(Schema.Struct({ teamId: TeamId }))
       .middleware(AuthMiddleware),
   ) {}
