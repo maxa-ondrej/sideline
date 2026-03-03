@@ -1,5 +1,6 @@
 import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { EventSeriesId } from '~/models/EventSeries.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
@@ -31,6 +32,8 @@ export class Event extends Model.Class<Event>('Event')({
   start_time: Schema.String,
   end_time: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
+  series_id: Schema.NullOr(EventSeriesId),
+  series_modified: Schema.Boolean,
   status: Model.FieldExcept('update')(EventStatus),
   created_by: TeamMemberId,
   created_at: Model.DateTimeInsertFromDate,

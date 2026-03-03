@@ -3,6 +3,7 @@ import {
   AgeThresholdApi,
   Auth,
   EventApi,
+  EventSeriesApi,
   GroupApi,
   Invite,
   NotificationApi,
@@ -16,6 +17,7 @@ export class Api extends HttpApi.make('api')
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)
   .add(EventApi.EventApiGroup)
+  .add(EventSeriesApi.EventSeriesApiGroup)
   .add(GroupApi.GroupApiGroup)
   .add(Invite.InviteApiGroup)
   .add(NotificationApi.NotificationApiGroup)

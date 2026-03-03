@@ -18,6 +18,7 @@ import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
+import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -590,6 +591,20 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   getScopedTrainingTypeIds: () => Effect.succeed([]),
 } as unknown as EventsRepository);
 
+const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
+  _tag: 'api/EventSeriesRepository',
+  insertSeries: () => Effect.die(new Error('Not implemented')),
+  insertEventSeries: () => Effect.die(new Error('Not implemented')),
+  findByTeamId: () => Effect.succeed([]),
+  findSeriesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findSeriesById: () => Effect.succeed(Option.none()),
+  updateSeries: () => Effect.die(new Error('Not implemented')),
+  updateEventSeries: () => Effect.die(new Error('Not implemented')),
+  cancelSeries: () => Effect.void,
+  cancelEventSeries: () => Effect.void,
+} as unknown as EventSeriesRepository);
+
 const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {
   upsert: () => Effect.void,
   remove: () => Effect.void,
@@ -624,8 +639,11 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
   Layer.provide(
     Layer.merge(
-      Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
-      MockDiscordChannelsRepositoryLayer,
+      Layer.merge(
+        Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
+        MockDiscordChannelsRepositoryLayer,
+      ),
+      MockEventSeriesRepositoryLayer,
     ),
   ),
 );

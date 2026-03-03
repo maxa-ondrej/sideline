@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { EventId, EventStatus, EventType } from '~/models/Event.js';
+import { EventSeriesId } from '~/models/EventSeries.js';
 import { TeamId } from '~/models/Team.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
 
@@ -16,6 +17,7 @@ export class EventInfo extends Schema.Class<EventInfo>('EventInfo')({
   endTime: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   status: EventStatus,
+  seriesId: Schema.NullOr(EventSeriesId),
 }) {}
 
 export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
@@ -34,6 +36,8 @@ export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
   createdByName: Schema.NullOr(Schema.String),
   canEdit: Schema.Boolean,
   canCancel: Schema.Boolean,
+  seriesId: Schema.NullOr(EventSeriesId),
+  seriesModified: Schema.Boolean,
 }) {}
 
 export class EventListResponse extends Schema.Class<EventListResponse>('EventListResponse')({
