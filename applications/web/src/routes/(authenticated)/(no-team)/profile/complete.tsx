@@ -5,7 +5,7 @@ import { ProfileCompletePage } from '~/components/pages/ProfileCompletePage';
 import { getLastTeamId } from '~/lib/auth';
 import { Redirect } from '~/lib/runtime';
 
-export const Route = createFileRoute('/(authenticated)/profile/complete')({
+export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complete')({
   component: ProfileCompleteRoute,
   beforeLoad: ({ context }) =>
     context.user.isProfileComplete

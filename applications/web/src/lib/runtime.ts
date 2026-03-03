@@ -47,14 +47,7 @@ export const warnAndCatchAll = <A, E, R>(
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<A, NotFound, R> =>
   effect.pipe(
-    Effect.tapError((e) =>
-      typeof e === 'object' &&
-      e !== null &&
-      '_tag' in e &&
-      (e as { _tag: unknown })._tag === 'NoSuchElementError'
-        ? Effect.void
-        : Effect.logWarning('Unexpected loader error', e),
-    ),
+    Effect.tapError((e) => Effect.logWarning('Unexpected loader error', e)),
     Effect.catchAll(NotFound.make),
   );
 

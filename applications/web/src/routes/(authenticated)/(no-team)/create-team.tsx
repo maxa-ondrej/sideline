@@ -6,7 +6,7 @@ import { setLastTeamId } from '~/lib/auth';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
-export const Route = createFileRoute('/(authenticated)/create-team')({
+export const Route = createFileRoute('/(authenticated)/(no-team)/create-team')({
   component: CreateTeamRoute,
   beforeLoad: async ({ context }) => {
     if (context.user && !context.user.isProfileComplete) {
