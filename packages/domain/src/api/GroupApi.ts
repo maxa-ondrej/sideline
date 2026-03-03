@@ -203,4 +203,12 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .addError(GroupNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
       .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('createChannel', '/teams/:teamId/groups/:groupId/create-channel')
+      .addSuccess(Schema.Void, { status: 201 })
+      .addError(Forbidden, { status: 403 })
+      .addError(GroupNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
+      .middleware(AuthMiddleware),
   ) {}

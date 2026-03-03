@@ -23,6 +23,7 @@ interface GroupDetailPageProps {
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
   allRoles: ReadonlyArray<RoleApi.RoleInfo>;
   channelMapping: GroupApi.ChannelMappingInfo | null;
+  allGroups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
 export function GroupDetailPage({
@@ -32,6 +33,7 @@ export function GroupDetailPage({
   allMembers,
   allRoles,
   channelMapping,
+  allGroups,
 }: GroupDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -46,6 +48,9 @@ export function GroupDetailPage({
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = React.useState<string>('');
   const [channelIdInput, setChannelIdInput] = React.useState('');
+  const [parentGroupId, setParentGroupId] = React.useState<string>(
+    groupDetail.parentId ?? '__root__',
+  );
 
   const memberIdsInGroup = new Set(groupDetail.members.map((m) => m.memberId));
   const availableMembers = allMembers.filter((m) => !memberIdsInGroup.has(m.memberId));
@@ -202,6 +207,44 @@ export function GroupDetailPage({
     }
   }, [teamIdBranded, groupIdBranded, run, router]);
 
+  const handleMoveGroup = React.useCallback(
+    async (newParentId: string) => {
+      const parentId =
+        newParentId === '__root__' ? null : Schema.decodeSync(GroupModel.GroupId)(newParentId);
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.group.moveGroup({
+            path: { teamId: teamIdBranded, groupId: groupIdBranded },
+            payload: { parentId },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.group_moveGroupFailed())),
+        run,
+      );
+      if (Option.isSome(result)) {
+        toast.success(m.group_parentChanged());
+        router.invalidate();
+      }
+    },
+    [teamIdBranded, groupIdBranded, run, router],
+  );
+
+  const handleCreateChannel = React.useCallback(async () => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.group.createChannel({
+          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.group_channelCreateFailed())),
+      run,
+    );
+    if (Option.isSome(result)) {
+      toast.success(m.group_channelCreateRequested());
+      router.invalidate();
+    }
+  }, [teamIdBranded, groupIdBranded, run, router]);
+
   return (
     <div>
       <header className='mb-8'>
@@ -241,6 +284,36 @@ export function GroupDetailPage({
             >
               {saving ? m.group_saving() : m.group_saveChanges()}
             </Button>
+          </div>
+        </div>
+
+        {/* Parent Group */}
+        <div>
+          <label htmlFor='parent-group' className='text-sm font-medium mb-1 block'>
+            {m.group_parentGroup()}
+          </label>
+          <div className='flex gap-2'>
+            <Select
+              value={parentGroupId}
+              onValueChange={(value) => {
+                setParentGroupId(value);
+                handleMoveGroup(value);
+              }}
+            >
+              <SelectTrigger className='flex-1'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='__root__'>{m.group_rootGroup()}</SelectItem>
+                {allGroups
+                  .filter((g) => g.groupId !== groupId)
+                  .map((g) => (
+                    <SelectItem key={g.groupId} value={g.groupId}>
+                      {g.emoji ? `${g.emoji} ${g.name}` : g.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -308,16 +381,23 @@ export function GroupDetailPage({
               </Button>
             </div>
           ) : (
-            <div className='flex gap-2'>
-              <Input
-                value={channelIdInput}
-                onChange={(e) => setChannelIdInput(e.target.value)}
-                placeholder={m.group_discordChannelIdPlaceholder()}
-                className='max-w-xs'
-              />
-              <Button onClick={handleLinkChannel} disabled={!channelIdInput.trim()}>
-                {m.group_linkChannel()}
-              </Button>
+            <div className='flex flex-col gap-2'>
+              <div className='flex gap-2'>
+                <Input
+                  value={channelIdInput}
+                  onChange={(e) => setChannelIdInput(e.target.value)}
+                  placeholder={m.group_discordChannelIdPlaceholder()}
+                  className='max-w-xs'
+                />
+                <Button onClick={handleLinkChannel} disabled={!channelIdInput.trim()}>
+                  {m.group_linkChannel()}
+                </Button>
+              </div>
+              <div>
+                <Button variant='outline' onClick={handleCreateChannel}>
+                  {m.group_createChannel()}
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -216,5 +216,11 @@
   "group_channelLinkFailed": "Failed to link Discord channel.",
   "group_parentGroup": "Parent Group",
   "group_rootGroup": "Root (no parent)",
-  "group_createSubgroup": "Create Subgroup"
+  "group_createSubgroup": "Create Subgroup",
+  "group_moveGroup": "Move Group",
+  "group_parentChanged": "Group parent changed.",
+  "group_moveGroupFailed": "Failed to move group.",
+  "group_createChannel": "Create Channel",
+  "group_channelCreateRequested": "Channel creation requested. It may take a moment to appear.",
+  "group_channelCreateFailed": "Failed to request channel creation."
 }

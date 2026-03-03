@@ -205,5 +205,22 @@
   "trainingType_saveChanges": "Uložit změny",
   "trainingType_rename": "Přejmenovat",
   "role_perm_trainingTypeCreate": "Vytvářet typy tréninků",
-  "role_perm_trainingTypeDelete": "Mazat typy tréninků"
+  "role_perm_trainingTypeDelete": "Mazat typy tréninků",
+  "group_discordChannel": "Discord kanál",
+  "group_discordChannelId": "ID Discord kanálu",
+  "group_discordChannelIdPlaceholder": "např. 1234567890",
+  "group_linkChannel": "Propojit kanál",
+  "group_unlinkChannel": "Odpojit",
+  "group_channelLinked": "Discord kanál propojen.",
+  "group_channelUnlinked": "Discord kanál odpojen.",
+  "group_channelLinkFailed": "Propojení Discord kanálu selhalo.",
+  "group_parentGroup": "Nadřazená skupina",
+  "group_rootGroup": "Kořen (bez nadřazené skupiny)",
+  "group_createSubgroup": "Vytvořit podskupinu",
+  "group_moveGroup": "Přesunout skupinu",
+  "group_parentChanged": "Nadřazená skupina byla změněna.",
+  "group_moveGroupFailed": "Přesun skupiny selhal.",
+  "group_createChannel": "Vytvořit kanál",
+  "group_channelCreateRequested": "Vytvoření kanálu bylo vyžádáno. Může chvíli trvat, než se zobrazí.",
+  "group_channelCreateFailed": "Vyžádání vytvoření kanálu selhalo."
 }

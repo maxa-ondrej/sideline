@@ -515,6 +515,35 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
             ),
             Effect.asVoid,
           ),
+        )
+        .handle('createChannel', ({ path: { teamId, groupId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('group', () =>
+              groups.findGroupById(groupId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                    onSome: (g) =>
+                      g.team_id !== teamId
+                        ? Effect.fail(new GroupApi.GroupNotFound())
+                        : Effect.succeed(g),
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ group }) =>
+              channelSync
+                .emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(group.name))
+                .pipe(Effect.catchAll(() => Effect.void)),
+            ),
+            Effect.asVoid,
+          ),
         ),
     ),
   ),

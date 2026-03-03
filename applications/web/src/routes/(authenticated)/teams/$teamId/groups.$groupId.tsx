@@ -9,7 +9,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const groupId = Schema.decodeSync(GroupModel.GroupId)(params.groupId);
-    const [groupDetail, allMembers, allRoles, channelMapping] = await Promise.all([
+    const [groupDetail, allMembers, allRoles, channelMapping, allGroups] = await Promise.all([
       ApiClient.pipe(
         Effect.flatMap((api) => api.group.getGroup({ path: { teamId, groupId } })),
         warnAndCatchAll,
@@ -30,14 +30,19 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
         warnAndCatchAll,
         context.run,
       ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.group.listGroups({ path: { teamId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
     ]);
-    return { groupDetail, allMembers, allRoles, channelMapping };
+    return { groupDetail, allMembers, allRoles, channelMapping, allGroups };
   },
 });
 
 function GroupDetailRoute() {
   const { teamId: teamIdRaw, groupId: groupIdRaw } = Route.useParams();
-  const { groupDetail, allMembers, allRoles, channelMapping } = Route.useLoaderData();
+  const { groupDetail, allMembers, allRoles, channelMapping, allGroups } = Route.useLoaderData();
 
   return (
     <GroupDetailPage
@@ -47,6 +52,7 @@ function GroupDetailRoute() {
       allMembers={allMembers}
       allRoles={allRoles}
       channelMapping={channelMapping}
+      allGroups={allGroups}
     />
   );
 }
