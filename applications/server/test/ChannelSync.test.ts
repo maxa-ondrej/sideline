@@ -7,6 +7,7 @@ import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -554,6 +555,13 @@ const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository
   markFailed: () => Effect.void,
 } as unknown as RoleSyncEventsRepository);
 
+const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
+  findByGroupId: () => Effect.succeed(Option.none()),
+  insert: () => Effect.void,
+  insertWithoutRole: () => Effect.void,
+  deleteByGroupId: () => Effect.void,
+} as unknown as DiscordChannelMappingRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -573,6 +581,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
+  Layer.provide(MockDiscordChannelMappingRepositoryLayer),
 );
 
 let handler: (request: Request) => Promise<Response>;

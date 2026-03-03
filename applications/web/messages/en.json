@@ -205,5 +205,16 @@
   "trainingType_saveChanges": "Save Changes",
   "trainingType_rename": "Rename",
   "role_perm_trainingTypeCreate": "Create Training Types",
-  "role_perm_trainingTypeDelete": "Delete Training Types"
+  "role_perm_trainingTypeDelete": "Delete Training Types",
+  "group_discordChannel": "Discord Channel",
+  "group_discordChannelId": "Discord Channel ID",
+  "group_discordChannelIdPlaceholder": "e.g. 1234567890",
+  "group_linkChannel": "Link Channel",
+  "group_unlinkChannel": "Unlink",
+  "group_channelLinked": "Discord channel linked.",
+  "group_channelUnlinked": "Discord channel unlinked.",
+  "group_channelLinkFailed": "Failed to link Discord channel.",
+  "group_parentGroup": "Parent Group",
+  "group_rootGroup": "Root (no parent)",
+  "group_createSubgroup": "Create Subgroup"
 }

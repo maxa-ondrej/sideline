@@ -1,5 +1,5 @@
 import type { GroupApi, RoleApi, Roster as RosterDomain } from '@sideline/domain';
-import { GroupModel, Role, Team, TeamMember } from '@sideline/domain';
+import { Discord, GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -22,6 +22,7 @@ interface GroupDetailPageProps {
   groupDetail: GroupApi.GroupDetail;
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
   allRoles: ReadonlyArray<RoleApi.RoleInfo>;
+  channelMapping: GroupApi.ChannelMappingInfo | null;
 }
 
 export function GroupDetailPage({
@@ -30,6 +31,7 @@ export function GroupDetailPage({
   groupDetail,
   allMembers,
   allRoles,
+  channelMapping,
 }: GroupDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -43,6 +45,7 @@ export function GroupDetailPage({
   const [saving, setSaving] = React.useState(false);
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = React.useState<string>('');
+  const [channelIdInput, setChannelIdInput] = React.useState('');
 
   const memberIdsInGroup = new Set(groupDetail.members.map((m) => m.memberId));
   const availableMembers = allMembers.filter((m) => !memberIdsInGroup.has(m.memberId));
@@ -163,6 +166,42 @@ export function GroupDetailPage({
     }
   }, [teamId, teamIdBranded, groupIdBranded, run, navigate]);
 
+  const handleLinkChannel = React.useCallback(async () => {
+    if (!channelIdInput.trim()) return;
+    const discordChannelId = Schema.decodeSync(Discord.Snowflake)(channelIdInput.trim());
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.group.setChannelMapping({
+          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          payload: { discordChannelId },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
+      run,
+    );
+    if (Option.isSome(result)) {
+      setChannelIdInput('');
+      toast.success(m.group_channelLinked());
+      router.invalidate();
+    }
+  }, [channelIdInput, teamIdBranded, groupIdBranded, run, router]);
+
+  const handleUnlinkChannel = React.useCallback(async () => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.group.deleteChannelMapping({
+          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
+      run,
+    );
+    if (Option.isSome(result)) {
+      toast.success(m.group_channelUnlinked());
+      router.invalidate();
+    }
+  }, [teamIdBranded, groupIdBranded, run, router]);
+
   return (
     <div>
       <header className='mb-8'>
@@ -247,6 +286,39 @@ export function GroupDetailPage({
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+
+        {/* Discord Channel */}
+        <div>
+          <p className='text-sm font-medium mb-2'>{m.group_discordChannel()}</p>
+          {channelMapping ? (
+            <div className='flex items-center gap-2'>
+              <span className='text-sm'>
+                {m.group_discordChannelId()}: <code>{channelMapping.discordChannelId}</code>
+                {channelMapping.discordRoleId && (
+                  <>
+                    {' '}
+                    (Role: <code>{channelMapping.discordRoleId}</code>)
+                  </>
+                )}
+              </span>
+              <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
+                {m.group_unlinkChannel()}
+              </Button>
+            </div>
+          ) : (
+            <div className='flex gap-2'>
+              <Input
+                value={channelIdInput}
+                onChange={(e) => setChannelIdInput(e.target.value)}
+                placeholder={m.group_discordChannelIdPlaceholder()}
+                className='max-w-xs'
+              />
+              <Button onClick={handleLinkChannel} disabled={!channelIdInput.trim()}>
+                {m.group_linkChannel()}
+              </Button>
+            </div>
           )}
         </div>
 

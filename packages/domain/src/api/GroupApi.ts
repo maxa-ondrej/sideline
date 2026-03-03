@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { Snowflake } from '~/models/Discord.js';
 import { GroupId } from '~/models/GroupModel.js';
 import { RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
@@ -61,6 +62,17 @@ export class AssignGroupRoleRequest extends Schema.Class<AssignGroupRoleRequest>
 
 export class MoveGroupRequest extends Schema.Class<MoveGroupRequest>('MoveGroupRequest')({
   parentId: Schema.NullOr(GroupId),
+}) {}
+
+export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('ChannelMappingInfo')({
+  discordChannelId: Snowflake,
+  discordRoleId: Schema.NullOr(Snowflake),
+}) {}
+
+export class SetChannelMappingRequest extends Schema.Class<SetChannelMappingRequest>(
+  'SetChannelMappingRequest',
+)({
+  discordChannelId: Snowflake,
 }) {}
 
 export class GroupNotFound extends Schema.TaggedError<GroupNotFound>()(
@@ -165,5 +177,30 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .addError(GroupNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
       .setPayload(MoveGroupRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('getChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
+      .addSuccess(Schema.NullOr(ChannelMappingInfo))
+      .addError(Forbidden, { status: 403 })
+      .addError(GroupNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.put('setChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
+      .addSuccess(ChannelMappingInfo)
+      .addError(Forbidden, { status: 403 })
+      .addError(GroupNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
+      .setPayload(SetChannelMappingRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.del('deleteChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
+      .addSuccess(Schema.Void)
+      .addError(Forbidden, { status: 403 })
+      .addError(GroupNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
       .middleware(AuthMiddleware),
   ) {}

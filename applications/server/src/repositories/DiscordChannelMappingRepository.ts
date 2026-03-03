@@ -23,6 +23,14 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   discord_role_id: Discord.Snowflake,
 }) {}
 
+class InsertWithoutRoleInput extends Schema.Class<InsertWithoutRoleInput>('InsertWithoutRoleInput')(
+  {
+    team_id: Team.TeamId,
+    group_id: GroupModel.GroupId,
+    discord_channel_id: Discord.Snowflake,
+  },
+) {}
+
 class DeleteByGroupInput extends Schema.Class<DeleteByGroupInput>('DeleteByGroupInput')({
   team_id: Team.TeamId,
   group_id: GroupModel.GroupId,
@@ -54,6 +62,16 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
           `,
         }),
       ),
+      Effect.let('upsertWithoutRole', ({ sql }) =>
+        SqlSchema.void({
+          Request: InsertWithoutRoleInput,
+          execute: (input) => sql`
+            INSERT INTO discord_channel_mappings (team_id, group_id, discord_channel_id)
+            VALUES (${input.team_id}, ${input.group_id}, ${input.discord_channel_id})
+            ON CONFLICT (team_id, group_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}, discord_role_id = NULL
+          `,
+        }),
+      ),
       Effect.let('deleteByGroup', ({ sql }) =>
         SqlSchema.void({
           Request: DeleteByGroupInput,
@@ -82,6 +100,18 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
       group_id: groupId,
       discord_channel_id: discordChannelId,
       discord_role_id: discordRoleId,
+    });
+  }
+
+  insertWithoutRole(
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    discordChannelId: Discord.Snowflake,
+  ) {
+    return this.upsertWithoutRole({
+      team_id: teamId,
+      group_id: groupId,
+      discord_channel_id: discordChannelId,
     });
   }
 
