@@ -427,13 +427,8 @@ pnpm tsx ./path/to/file.ts
 ### Building
 
 ```bash
-pnpm build               # Build all packages (TypeScript + package builds)
-pnpm check               # Type check without building (excludes web app)
-```
-
-Build process:
-1. TypeScript compilation (`tsc -b tsconfig.build.json`)
-2. Package-specific builds (if configured)
+pnpm build               # Build all packages
+pnpm check               # Type check
 
 ### Pre-commit Hooks
 

@@ -98,6 +98,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v4
         with:
           event-type: deploy
-          repository: username/my-repo
+          repository: maxa-ondrej/majksa-ops
           token: ${{ secrets.GH_PAT }}
           client-payload: '{"env":"dev","app":"sideline","service":"${{ matrix.app }}","version":"${{ steps.package.outputs.version }}"}'
