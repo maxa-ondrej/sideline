@@ -1,6 +1,6 @@
 import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
-import { ApiGroup, Auth, Role as RoleNS } from '@sideline/domain';
+import { ApiGroup, Auth, Role } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
 import {
   Array,
@@ -394,7 +394,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   teamId: team.id,
                   teamName: team.name,
                   roleNames: ['Admin'],
-                  permissions: [...RoleNS.defaultPermissions.Admin],
+                  permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
             Effect.mapError(() => new Auth.Unauthorized()),

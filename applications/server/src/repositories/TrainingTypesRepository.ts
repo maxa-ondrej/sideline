@@ -1,26 +1,22 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import {
-  GroupModel as GroupNS,
-  Team as TeamNS,
-  TrainingType as TrainingTypeNS,
-} from '@sideline/domain';
+import { GroupModel, Team, TrainingType } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class TrainingTypeWithGroup extends Schema.Class<TrainingTypeWithGroup>('TrainingTypeWithGroup')({
-  id: TrainingTypeNS.TrainingTypeId,
-  team_id: TeamNS.TeamId,
+  id: TrainingType.TrainingTypeId,
+  team_id: Team.TeamId,
   name: Schema.String,
-  group_id: Schema.NullOr(GroupNS.GroupId),
+  group_id: Schema.NullOr(GroupModel.GroupId),
   group_name: Schema.NullOr(Schema.String),
   created_at: Schema.DateFromSelf,
 }) {}
 
 class TrainingTypeRow extends Schema.Class<TrainingTypeRow>('TrainingTypeRow')({
-  id: TrainingTypeNS.TrainingTypeId,
-  team_id: TeamNS.TeamId,
+  id: TrainingType.TrainingTypeId,
+  team_id: Team.TeamId,
   name: Schema.String,
-  group_id: Schema.NullOr(GroupNS.GroupId),
+  group_id: Schema.NullOr(GroupModel.GroupId),
 }) {}
 
 class TrainingTypeInsertInput extends Schema.Class<TrainingTypeInsertInput>(
@@ -34,7 +30,7 @@ class TrainingTypeInsertInput extends Schema.Class<TrainingTypeInsertInput>(
 class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
   'TrainingTypeUpdateInput',
 )({
-  id: TrainingTypeNS.TrainingTypeId,
+  id: TrainingType.TrainingTypeId,
   name: Schema.String,
 }) {}
 
@@ -58,7 +54,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       ),
       Effect.let('findById', ({ sql }) =>
         SqlSchema.findOne({
-          Request: TrainingTypeNS.TrainingTypeId,
+          Request: TrainingType.TrainingTypeId,
           Result: TrainingTypeRow,
           execute: (id) =>
             sql`SELECT id, team_id, name, group_id FROM training_types WHERE id = ${id}`,
@@ -66,7 +62,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       ),
       Effect.let('findByIdWithGroup', ({ sql }) =>
         SqlSchema.findOne({
-          Request: TrainingTypeNS.TrainingTypeId,
+          Request: TrainingType.TrainingTypeId,
           Result: TrainingTypeWithGroup,
           execute: (id) => sql`
             SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.created_at
@@ -100,7 +96,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       ),
       Effect.let('deleteTrainingType', ({ sql }) =>
         SqlSchema.void({
-          Request: TrainingTypeNS.TrainingTypeId,
+          Request: TrainingType.TrainingTypeId,
           execute: (id) => sql`DELETE FROM training_types WHERE id = ${id}`,
         }),
       ),
@@ -108,27 +104,27 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     ),
   },
 ) {
-  findTrainingTypesByTeamId(teamId: TeamNS.TeamId) {
+  findTrainingTypesByTeamId(teamId: Team.TeamId) {
     return this.findByTeamId(teamId);
   }
 
-  findTrainingTypeById(trainingTypeId: TrainingTypeNS.TrainingTypeId) {
+  findTrainingTypeById(trainingTypeId: TrainingType.TrainingTypeId) {
     return this.findById(trainingTypeId);
   }
 
-  findTrainingTypeByIdWithGroup(trainingTypeId: TrainingTypeNS.TrainingTypeId) {
+  findTrainingTypeByIdWithGroup(trainingTypeId: TrainingType.TrainingTypeId) {
     return this.findByIdWithGroup(trainingTypeId);
   }
 
-  insertTrainingType(teamId: TeamNS.TeamId, name: string, groupId: string | null) {
+  insertTrainingType(teamId: Team.TeamId, name: string, groupId: string | null) {
     return this.insert({ team_id: teamId, name, group_id: groupId });
   }
 
-  updateTrainingType(trainingTypeId: TrainingTypeNS.TrainingTypeId, name: string) {
+  updateTrainingType(trainingTypeId: TrainingType.TrainingTypeId, name: string) {
     return this.update({ id: trainingTypeId, name });
   }
 
-  deleteTrainingTypeById(trainingTypeId: TrainingTypeNS.TrainingTypeId) {
+  deleteTrainingTypeById(trainingTypeId: TrainingType.TrainingTypeId) {
     return this.deleteTrainingType(trainingTypeId);
   }
 }

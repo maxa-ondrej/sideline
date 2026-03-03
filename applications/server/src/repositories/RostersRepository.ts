@@ -1,16 +1,12 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
-import {
-  RosterModel as RosterNS,
-  TeamMember as TeamMemberNS,
-  Team as TeamNS,
-} from '@sideline/domain';
+import { RosterModel, Team, TeamMember } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 import { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 
 class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
-  id: RosterNS.RosterId,
-  team_id: TeamNS.TeamId,
+  id: RosterModel.RosterId,
+  team_id: Team.TeamId,
   name: Schema.String,
   active: Schema.Boolean,
   created_at: Model.DateTimeFromDate,
@@ -24,20 +20,20 @@ class RosterInsertInput extends Schema.Class<RosterInsertInput>('RosterInsertInp
 }) {}
 
 class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInput')({
-  id: RosterNS.RosterId,
+  id: RosterModel.RosterId,
   name: Schema.NullOr(Schema.String),
   active: Schema.NullOr(Schema.Boolean),
 }) {}
 
 class RosterMemberInput extends Schema.Class<RosterMemberInput>('RosterMemberInput')({
-  roster_id: RosterNS.RosterId,
-  team_member_id: TeamMemberNS.TeamMemberId,
+  roster_id: RosterModel.RosterId,
+  team_member_id: TeamMember.TeamMemberId,
 }) {}
 
 class RosterMemberEntriesInput extends Schema.Class<RosterMemberEntriesInput>(
   'RosterMemberEntriesInput',
 )({
-  roster_id: RosterNS.RosterId,
+  roster_id: RosterModel.RosterId,
 }) {}
 
 export class RostersRepository extends Effect.Service<RostersRepository>()(
@@ -60,15 +56,15 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       ),
       Effect.let('findById', ({ sql }) =>
         SqlSchema.findOne({
-          Request: RosterNS.RosterId,
-          Result: RosterNS.Roster,
+          Request: RosterModel.RosterId,
+          Result: RosterModel.Roster,
           execute: (id) => sql`SELECT * FROM rosters WHERE id = ${id}`,
         }),
       ),
       Effect.let('insert', ({ sql }) =>
         SqlSchema.single({
           Request: RosterInsertInput,
-          Result: RosterNS.Roster,
+          Result: RosterModel.Roster,
           execute: (input) => sql`
             INSERT INTO rosters (team_id, name, active)
             VALUES (${input.team_id}, ${input.name}, ${input.active})
@@ -79,7 +75,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       Effect.let('update', ({ sql }) =>
         SqlSchema.single({
           Request: RosterUpdateInput,
-          Result: RosterNS.Roster,
+          Result: RosterModel.Roster,
           execute: (input) => sql`
             UPDATE rosters
             SET name = COALESCE(${input.name}, name),
@@ -91,7 +87,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       ),
       Effect.let('delete', ({ sql }) =>
         SqlSchema.void({
-          Request: RosterNS.RosterId,
+          Request: RosterModel.RosterId,
           execute: (id) => sql`DELETE FROM rosters WHERE id = ${id}`,
         }),
       ),
@@ -159,23 +155,23 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     ),
   },
 ) {
-  findByTeamId(teamId: TeamNS.TeamId) {
+  findByTeamId(teamId: Team.TeamId) {
     return this.findByTeam(teamId);
   }
 
-  findRosterById(rosterId: RosterNS.RosterId) {
+  findRosterById(rosterId: RosterModel.RosterId) {
     return this.findById(rosterId);
   }
 
-  addMemberById(rosterId: RosterNS.RosterId, teamMemberId: TeamMemberNS.TeamMemberId) {
+  addMemberById(rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) {
     return this.addMember({ roster_id: rosterId, team_member_id: teamMemberId });
   }
 
-  removeMemberById(rosterId: RosterNS.RosterId, teamMemberId: TeamMemberNS.TeamMemberId) {
+  removeMemberById(rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) {
     return this.removeMember({ roster_id: rosterId, team_member_id: teamMemberId });
   }
 
-  findMemberEntriesById(rosterId: RosterNS.RosterId) {
+  findMemberEntriesById(rosterId: RosterModel.RosterId) {
     return this.findMemberEntries({ roster_id: rosterId });
   }
 }

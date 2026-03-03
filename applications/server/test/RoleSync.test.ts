@@ -28,8 +28,17 @@ const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const ADMIN_PERMISSIONS =
-  'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage';
+const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
+  'team:manage',
+  'team:invite',
+  'roster:view',
+  'roster:manage',
+  'member:view',
+  'member:edit',
+  'member:remove',
+  'role:view',
+  'role:manage',
+];
 
 const testUser = {
   id: TEST_USER_ID,
@@ -99,15 +108,15 @@ membersStore.set(TEST_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_USER_ID,
   active: true,
-  role_names: 'Player',
-  permissions: 'roster:view,member:view',
+  role_names: ['Player'],
+  permissions: ['roster:view', 'member:view'],
 });
 membersStore.set(TEST_ADMIN_MEMBER_ID, {
   id: TEST_ADMIN_MEMBER_ID,
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   active: true,
-  role_names: 'Admin',
+  role_names: ['Admin'],
   permissions: ADMIN_PERMISSIONS,
 });
 
@@ -355,8 +364,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
         new RosterEntry({
           member_id: member.id,
           user_id: member.user_id,
-          role_names: member.role_names,
-          permissions: member.permissions,
+          role_names: member.role_names.join(','),
+          permissions: member.permissions.join(','),
           name: user.name,
           birth_year: user.birth_year,
           gender: user.gender,
@@ -379,8 +388,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
         new RosterEntry({
           member_id: member.id,
           user_id: member.user_id,
-          role_names: member.role_names,
-          permissions: member.permissions,
+          role_names: member.role_names.join(','),
+          permissions: member.permissions.join(','),
           name: user.name,
           birth_year: user.birth_year,
           gender: user.gender,

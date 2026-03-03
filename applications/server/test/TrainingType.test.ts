@@ -1,11 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type {
-  Auth,
-  Role,
-  Team,
-  TeamMember,
-  TrainingType as TrainingTypeNS,
-} from '@sideline/domain';
+import type { Auth, Role, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -35,12 +29,23 @@ const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const TEST_TT_1 = '00000000-0000-0000-0000-000000000050' as TrainingTypeNS.TrainingTypeId;
-const TEST_TT_2 = '00000000-0000-0000-0000-000000000051' as TrainingTypeNS.TrainingTypeId;
+const TEST_TT_1 = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
+const TEST_TT_2 = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
 
-const ADMIN_PERMISSIONS =
-  'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage,training-type:create,training-type:delete';
-const PLAYER_PERMISSIONS = 'roster:view,member:view';
+const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
+  'team:manage',
+  'team:invite',
+  'roster:view',
+  'roster:manage',
+  'member:view',
+  'member:edit',
+  'member:remove',
+  'role:view',
+  'role:manage',
+  'training-type:create',
+  'training-type:delete',
+];
+const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
 
 // --- Users ---
 const testUser = {
@@ -114,7 +119,7 @@ membersStore.set(TEST_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_USER_ID,
   active: true,
-  role_names: 'Player',
+  role_names: ['Player'],
   permissions: PLAYER_PERMISSIONS,
 });
 membersStore.set(TEST_ADMIN_MEMBER_ID, {
@@ -122,13 +127,13 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   active: true,
-  role_names: 'Admin',
+  role_names: ['Admin'],
   permissions: ADMIN_PERMISSIONS,
 });
 
 // --- In-memory training types ---
 type TrainingTypeRecord = {
-  id: TrainingTypeNS.TrainingTypeId;
+  id: TrainingType.TrainingTypeId;
   team_id: Team.TeamId;
   name: string;
   group_id: string | null;
@@ -136,7 +141,7 @@ type TrainingTypeRecord = {
   created_at: Date;
 };
 
-let trainingTypesStore: Map<TrainingTypeNS.TrainingTypeId, TrainingTypeRecord>;
+let trainingTypesStore: Map<TrainingType.TrainingTypeId, TrainingTypeRecord>;
 
 const resetStores = () => {
   trainingTypesStore = new Map();
@@ -161,16 +166,16 @@ const resetStores = () => {
 const buildRosterEntry = (
   memberId: TeamMember.TeamMemberId,
   userId: Auth.UserId,
-  roleNames: string,
-  permissions: string,
+  roleNames: readonly string[],
+  permissions: readonly Role.Permission[],
 ): RosterEntry => {
   const user = usersMap.get(userId);
   if (!user) throw new Error(`User ${userId} not found in usersMap`);
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
-    role_names: roleNames,
-    permissions,
+    role_names: roleNames.join(','),
+    permissions: permissions.join(','),
     name: user.name,
     birth_year: user.birth_year,
     gender: user.gender,
@@ -334,32 +339,32 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       }));
     return Effect.succeed(results);
   },
-  findById: (id: TrainingTypeNS.TrainingTypeId) => {
+  findById: (id: TrainingType.TrainingTypeId) => {
     const tt = trainingTypesStore.get(id);
     if (!tt) return Effect.succeed(Option.none());
     return Effect.succeed(
       Option.some({ id: tt.id, team_id: tt.team_id, name: tt.name, group_id: tt.group_id }),
     );
   },
-  findTrainingTypeById: (id: TrainingTypeNS.TrainingTypeId) => {
+  findTrainingTypeById: (id: TrainingType.TrainingTypeId) => {
     const tt = trainingTypesStore.get(id);
     if (!tt) return Effect.succeed(Option.none());
     return Effect.succeed(
       Option.some({ id: tt.id, team_id: tt.team_id, name: tt.name, group_id: tt.group_id }),
     );
   },
-  findByIdWithGroup: (id: TrainingTypeNS.TrainingTypeId) => {
+  findByIdWithGroup: (id: TrainingType.TrainingTypeId) => {
     const tt = trainingTypesStore.get(id);
     if (!tt) return Effect.succeed(Option.none());
     return Effect.succeed(Option.some(tt));
   },
-  findTrainingTypeByIdWithGroup: (id: TrainingTypeNS.TrainingTypeId) => {
+  findTrainingTypeByIdWithGroup: (id: TrainingType.TrainingTypeId) => {
     const tt = trainingTypesStore.get(id);
     if (!tt) return Effect.succeed(Option.none());
     return Effect.succeed(Option.some(tt));
   },
   insert: (input: { team_id: string; name: string; group_id: string | null }) => {
-    const id = crypto.randomUUID() as TrainingTypeNS.TrainingTypeId;
+    const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
@@ -377,7 +382,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
     });
   },
   insertTrainingType: (teamId: Team.TeamId, name: string, groupId: string | null) => {
-    const id = crypto.randomUUID() as TrainingTypeNS.TrainingTypeId;
+    const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: teamId,
@@ -389,7 +394,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
     trainingTypesStore.set(id, record);
     return Effect.succeed({ id, team_id: teamId, name, group_id: groupId });
   },
-  update: (input: { id: TrainingTypeNS.TrainingTypeId; name: string }) => {
+  update: (input: { id: TrainingType.TrainingTypeId; name: string }) => {
     const tt = trainingTypesStore.get(input.id);
     if (!tt) return Effect.die(new Error('Not found'));
     const updated = { ...tt, name: input.name };
@@ -401,7 +406,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       group_id: updated.group_id,
     });
   },
-  updateTrainingType: (id: TrainingTypeNS.TrainingTypeId, name: string) => {
+  updateTrainingType: (id: TrainingType.TrainingTypeId, name: string) => {
     const tt = trainingTypesStore.get(id);
     if (!tt) return Effect.die(new Error('Not found'));
     const updated = { ...tt, name };
@@ -413,11 +418,11 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       group_id: updated.group_id,
     });
   },
-  deleteTrainingType: (id: TrainingTypeNS.TrainingTypeId) => {
+  deleteTrainingType: (id: TrainingType.TrainingTypeId) => {
     trainingTypesStore.delete(id);
     return Effect.void;
   },
-  deleteTrainingTypeById: (id: TrainingTypeNS.TrainingTypeId) => {
+  deleteTrainingTypeById: (id: TrainingType.TrainingTypeId) => {
     trainingTypesStore.delete(id);
     return Effect.void;
   },

@@ -1,13 +1,13 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Notification as NotificationNS, Team as TeamNS, User as UserNS } from '@sideline/domain';
+import { Notification, Team, User } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class NotificationRow extends Schema.Class<NotificationRow>('NotificationRow')({
-  id: NotificationNS.NotificationId,
-  team_id: TeamNS.TeamId,
-  user_id: UserNS.UserId,
-  type: NotificationNS.NotificationType,
+  id: Notification.NotificationId,
+  team_id: Team.TeamId,
+  user_id: User.UserId,
+  type: Notification.NotificationType,
   title: Schema.String,
   body: Schema.String,
   is_read: Schema.Boolean,
@@ -37,7 +37,7 @@ class MarkAllReadForTeamInput extends Schema.Class<MarkAllReadForTeamInput>(
 }) {}
 
 class MarkReadInput extends Schema.Class<MarkReadInput>('MarkReadInput')({
-  id: NotificationNS.NotificationId,
+  id: Notification.NotificationId,
 }) {}
 
 export class NotificationsRepository extends Effect.Service<NotificationsRepository>()(
@@ -107,7 +107,7 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
       ),
       Effect.let('findOneById', ({ sql }) =>
         SqlSchema.findOne({
-          Request: NotificationNS.NotificationId,
+          Request: Notification.NotificationId,
           Result: NotificationRow,
           execute: (id) => sql`
             SELECT id, team_id, user_id, type, title, body, is_read,
@@ -120,22 +120,22 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     ),
   },
 ) {
-  findByUser(userId: UserNS.UserId) {
+  findByUser(userId: User.UserId) {
     return this.findByUserId(userId);
   }
 
-  findByUserAndTeam(userId: UserNS.UserId, teamId: TeamNS.TeamId) {
+  findByUserAndTeam(userId: User.UserId, teamId: Team.TeamId) {
     return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId });
   }
 
-  markAllAsReadForTeam(userId: UserNS.UserId, teamId: TeamNS.TeamId) {
+  markAllAsReadForTeam(userId: User.UserId, teamId: Team.TeamId) {
     return this.markAllReadForTeam({ user_id: userId, team_id: teamId });
   }
 
   insert(
-    teamId: TeamNS.TeamId,
-    userId: UserNS.UserId,
-    type: NotificationNS.NotificationType,
+    teamId: Team.TeamId,
+    userId: User.UserId,
+    type: Notification.NotificationType,
     title: string,
     body: string,
   ) {
@@ -144,9 +144,9 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
 
   insertBulk(
     notifications: ReadonlyArray<{
-      teamId: TeamNS.TeamId;
-      userId: UserNS.UserId;
-      type: NotificationNS.NotificationType;
+      teamId: Team.TeamId;
+      userId: User.UserId;
+      type: Notification.NotificationType;
       title: string;
       body: string;
     }>,
@@ -164,15 +164,15 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     ).pipe(Effect.asVoid);
   }
 
-  markAsRead(notificationId: NotificationNS.NotificationId) {
+  markAsRead(notificationId: Notification.NotificationId) {
     return this.markOneAsRead({ id: notificationId });
   }
 
-  markAllAsRead(userId: UserNS.UserId) {
+  markAllAsRead(userId: User.UserId) {
     return this.markAllRead(userId);
   }
 
-  findById(notificationId: NotificationNS.NotificationId) {
+  findById(notificationId: Notification.NotificationId) {
     return this.findOneById(notificationId);
   }
 }

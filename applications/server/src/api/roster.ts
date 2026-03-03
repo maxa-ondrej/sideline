@@ -1,8 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, Roster, type RosterModel as RosterNS } from '@sideline/domain';
+import { Auth, Role, Roster, type RosterModel } from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { parsePermissions, requireMembership, requirePermission } from '~/api/permissions.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -16,14 +16,18 @@ const mapDbError =
       Effect.mapError(make),
     );
 
-const splitRoleNames = (roleNames: string): ReadonlyArray<string> =>
-  roleNames === '' ? [] : roleNames.split(',');
+const knownPermissions: ReadonlySet<string> = new Set(Role.allPermissions);
+
+const splitString = (s: string): ReadonlyArray<string> => (s === '' ? [] : s.split(','));
+
+const parsePermissions = (s: string): ReadonlyArray<Role.Permission> =>
+  splitString(s).filter((p) => knownPermissions.has(p)) as ReadonlyArray<Role.Permission>;
 
 const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
     userId: entry.user_id,
-    roleNames: [...splitRoleNames(entry.role_names)],
+    roleNames: [...splitString(entry.role_names)],
     permissions: [...parsePermissions(entry.permissions)],
     name: entry.name,
     birthYear: entry.birth_year,
@@ -33,7 +37,7 @@ const toRosterPlayer = (entry: RosterEntry) =>
     discordAvatar: entry.discord_avatar,
   });
 
-const toRosterInfo = (r: RosterNS.Roster, memberCount: number): Roster.RosterInfo =>
+const toRosterInfo = (r: RosterModel.Roster, memberCount: number): Roster.RosterInfo =>
   new Roster.RosterInfo({
     rosterId: r.id,
     teamId: r.team_id,
@@ -128,7 +132,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 new Roster.RosterPlayer({
                   memberId: entry.member_id,
                   userId: entry.user_id,
-                  roleNames: [...splitRoleNames(entry.role_names)],
+                  roleNames: [...splitString(entry.role_names)],
                   permissions: [...parsePermissions(entry.permissions)],
                   name: updated.name,
                   birthYear: updated.birth_year,

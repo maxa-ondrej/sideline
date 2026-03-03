@@ -77,9 +77,18 @@ membersStore.set(`${TEST_TEAM_ID}:${TEST_ADMIN_ID}`, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   active: true,
-  role_names: 'Admin',
-  permissions:
-    'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage',
+  role_names: ['Admin'],
+  permissions: [
+    'team:manage',
+    'team:invite',
+    'roster:view',
+    'roster:manage',
+    'member:view',
+    'member:edit',
+    'member:remove',
+    'role:view',
+    'role:manage',
+  ] as readonly Role.Permission[],
 });
 
 const invitesStore = new Map<
@@ -183,8 +192,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id as Team.TeamId,
       user_id: input.user_id as Auth.UserId,
       active: input.active,
-      role_names: 'Player',
-      permissions: 'roster:view,member:view',
+      role_names: ['Player'],
+      permissions: ['roster:view', 'member:view'] as readonly Role.Permission[],
     };
     membersStore.set(key, member);
     return Effect.succeed({

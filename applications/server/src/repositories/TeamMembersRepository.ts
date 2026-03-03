@@ -1,11 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import {
-  Role,
-  Role as RoleNS,
-  TeamMember as TeamMemberNS,
-  Team as TeamNS,
-  User as UserNS,
-} from '@sideline/domain';
+import { Role, Team, TeamMember, User } from '@sideline/domain';
 import { Bind, Schemas } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -25,22 +19,22 @@ class MemberRoleInput extends Schema.Class<MemberRoleInput>('MemberRoleInput')({
 }) {}
 
 export class MembershipWithRole extends Schema.Class<MembershipWithRole>('MembershipWithRole')({
-  id: TeamMemberNS.TeamMemberId,
-  team_id: TeamNS.TeamId,
-  user_id: UserNS.UserId,
+  id: TeamMember.TeamMemberId,
+  team_id: Team.TeamId,
+  user_id: User.UserId,
   active: Schema.Boolean,
   role_names: Schemas.ArrayFromSplitString(),
   permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
 }) {}
 
 export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
-  member_id: TeamMemberNS.TeamMemberId,
-  user_id: UserNS.UserId,
+  member_id: TeamMember.TeamMemberId,
+  user_id: User.UserId,
   role_names: Schema.String,
   permissions: Schema.String,
   name: Schema.NullOr(Schema.String),
   birth_year: Schema.NullOr(Schema.Number),
-  gender: Schema.NullOr(UserNS.Gender),
+  gender: Schema.NullOr(User.Gender),
   jersey_number: Schema.NullOr(Schema.Number),
   discord_username: Schema.String,
   discord_avatar: Schema.NullOr(Schema.String),
@@ -53,8 +47,8 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       Effect.bindTo('sql'),
       Effect.let('addMember', ({ sql }) =>
         SqlSchema.single({
-          Request: TeamMemberNS.TeamMember.insert,
-          Result: TeamMemberNS.TeamMember,
+          Request: TeamMember.TeamMember.insert,
+          Result: TeamMember.TeamMember,
           execute: (input) => sql`
             INSERT INTO team_members (team_id, user_id, active)
             VALUES (${input.team_id}, ${input.user_id}, ${input.active})
@@ -133,7 +127,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       Effect.let('findByTeam', ({ sql }) =>
         SqlSchema.findAll({
           Request: Schema.String,
-          Result: TeamMemberNS.TeamMember,
+          Result: TeamMember.TeamMember,
           execute: (teamId) =>
             sql`SELECT * FROM team_members WHERE team_id = ${teamId} AND active = true`,
         }),
@@ -238,7 +232,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       Effect.let('deactivateMember', ({ sql }) =>
         SqlSchema.single({
           Request: RosterMemberQuery,
-          Result: TeamMemberNS.TeamMember,
+          Result: TeamMember.TeamMember,
           execute: (input) => sql`
             UPDATE team_members SET active = false
             WHERE id = ${input.member_id} AND team_id = ${input.team_id}
@@ -249,7 +243,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       Effect.let('updateJerseyNumber', ({ sql }) =>
         SqlSchema.void({
           Request: Schema.Struct({
-            member_id: TeamMemberNS.TeamMemberId,
+            member_id: TeamMember.TeamMemberId,
             jersey_number: Schema.NullOr(Schema.Number),
           }),
           execute: (input) => sql`
@@ -261,7 +255,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       Effect.let('findPlayerRoleId', ({ sql }) =>
         SqlSchema.findOne({
           Request: Schema.String,
-          Result: Schema.Struct({ id: RoleNS.RoleId }),
+          Result: Schema.Struct({ id: Role.RoleId }),
           execute: (teamId) =>
             sql`SELECT id FROM roles WHERE team_id = ${teamId} AND name = 'Player' AND is_built_in = true`,
         }),
@@ -270,31 +264,31 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
     ),
   },
 ) {
-  findMembershipByIds(teamId: TeamNS.TeamId, userId: UserNS.UserId) {
+  findMembershipByIds(teamId: Team.TeamId, userId: User.UserId) {
     return this.findMembership({ team_id: teamId, user_id: userId });
   }
 
-  findRosterMemberByIds(teamId: TeamNS.TeamId, memberId: TeamMemberNS.TeamMemberId) {
+  findRosterMemberByIds(teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) {
     return this.findRosterMember({ team_id: teamId, member_id: memberId });
   }
 
-  deactivateMemberByIds(teamId: TeamNS.TeamId, memberId: TeamMemberNS.TeamMemberId) {
+  deactivateMemberByIds(teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) {
     return this.deactivateMember({ team_id: teamId, member_id: memberId });
   }
 
-  getPlayerRoleId(teamId: TeamNS.TeamId) {
+  getPlayerRoleId(teamId: Team.TeamId) {
     return this.findPlayerRoleId(teamId);
   }
 
-  assignRole(teamMemberId: TeamMemberNS.TeamMemberId, roleId: RoleNS.RoleId) {
+  assignRole(teamMemberId: TeamMember.TeamMemberId, roleId: Role.RoleId) {
     return this.assignRoleToMember({ team_member_id: teamMemberId, role_id: roleId });
   }
 
-  unassignRole(teamMemberId: TeamMemberNS.TeamMemberId, roleId: RoleNS.RoleId) {
+  unassignRole(teamMemberId: TeamMember.TeamMemberId, roleId: Role.RoleId) {
     return this.unassignRoleFromMember({ team_member_id: teamMemberId, role_id: roleId });
   }
 
-  setJerseyNumber(memberId: TeamMemberNS.TeamMemberId, jerseyNumber: number | null) {
+  setJerseyNumber(memberId: TeamMember.TeamMemberId, jerseyNumber: number | null) {
     return this.updateJerseyNumber({ member_id: memberId, jersey_number: jerseyNumber });
   }
 }

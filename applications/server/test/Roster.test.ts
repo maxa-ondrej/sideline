@@ -1,5 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Role, RosterModel as RosterNS, Team, TeamMember } from '@sideline/domain';
+import type { Auth, Role, RosterModel, Team, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -27,11 +27,20 @@ const TEST_ADMIN_ID = '00000000-0000-0000-0000-000000000002' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
-const TEST_ROSTER_ID = '00000000-0000-0000-0000-000000000030' as RosterNS.RosterId;
+const TEST_ROSTER_ID = '00000000-0000-0000-0000-000000000030' as RosterModel.RosterId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const ADMIN_PERMISSIONS =
-  'team:manage,team:invite,roster:view,roster:manage,member:view,member:edit,member:remove,role:view,role:manage';
-const PLAYER_PERMISSIONS = 'roster:view,member:view';
+const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
+  'team:manage',
+  'team:invite',
+  'roster:view',
+  'roster:manage',
+  'member:view',
+  'member:edit',
+  'member:remove',
+  'role:view',
+  'role:manage',
+];
+const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
 
 const testUser = {
   id: TEST_USER_ID,
@@ -83,7 +92,7 @@ membersStore.set(TEST_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_USER_ID,
   active: true,
-  role_names: 'Player',
+  role_names: ['Player'],
   permissions: PLAYER_PERMISSIONS,
 });
 membersStore.set(TEST_ADMIN_MEMBER_ID, {
@@ -91,7 +100,7 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
   team_id: TEST_TEAM_ID,
   user_id: TEST_ADMIN_ID,
   active: true,
-  role_names: 'Admin',
+  role_names: ['Admin'],
   permissions: ADMIN_PERMISSIONS,
 });
 
@@ -118,16 +127,16 @@ usersMap.set(TEST_ADMIN_ID, testAdmin);
 const buildRosterEntry = (
   memberId: TeamMember.TeamMemberId,
   userId: Auth.UserId,
-  roleNames: string,
-  permissions: string,
+  roleNames: readonly string[],
+  permissions: readonly Role.Permission[],
 ): RosterEntry => {
   const user = usersMap.get(userId);
   if (!user) throw new Error(`User ${userId} not found in usersMap`);
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
-    role_names: roleNames,
-    permissions,
+    role_names: roleNames.join(','),
+    permissions: permissions.join(','),
     name: user.name,
     birth_year: user.birth_year,
     gender: user.gender,
@@ -139,7 +148,7 @@ const buildRosterEntry = (
 
 // In-memory roster store
 type RosterRecord = {
-  id: RosterNS.RosterId;
+  id: RosterModel.RosterId;
   team_id: Team.TeamId;
   name: string;
   active: boolean;
@@ -147,11 +156,11 @@ type RosterRecord = {
 };
 
 type RosterMemberRecord = {
-  roster_id: RosterNS.RosterId;
+  roster_id: RosterModel.RosterId;
   team_member_id: TeamMember.TeamMemberId;
 };
 
-const rostersStore = new Map<RosterNS.RosterId, RosterRecord>();
+const rostersStore = new Map<RosterModel.RosterId, RosterRecord>();
 rostersStore.set(TEST_ROSTER_ID, {
   id: TEST_ROSTER_ID,
   team_id: TEST_TEAM_ID,
@@ -242,7 +251,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id,
       user_id: input.user_id,
       active: input.active,
-      role_names: 'Player',
+      role_names: ['Player'],
       permissions: PLAYER_PERMISSIONS,
     };
     membersStore.set(id, member);
@@ -378,16 +387,16 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
       })),
     );
   },
-  findById: (id: RosterNS.RosterId) => {
+  findById: (id: RosterModel.RosterId) => {
     const roster = rostersStore.get(id);
     return Effect.succeed(roster ? Option.some(roster) : Option.none());
   },
-  findRosterById: (id: RosterNS.RosterId) => {
+  findRosterById: (id: RosterModel.RosterId) => {
     const roster = rostersStore.get(id);
     return Effect.succeed(roster ? Option.some(roster) : Option.none());
   },
   insert: (input: { team_id: string; name: string; active: boolean }) => {
-    const id = crypto.randomUUID() as RosterNS.RosterId;
+    const id = crypto.randomUUID() as RosterModel.RosterId;
     const roster: RosterRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
@@ -398,7 +407,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     rostersStore.set(id, roster);
     return Effect.succeed(roster);
   },
-  update: (input: { id: RosterNS.RosterId; name: string | null; active: boolean | null }) => {
+  update: (input: { id: RosterModel.RosterId; name: string | null; active: boolean | null }) => {
     const roster = rostersStore.get(input.id);
     if (!roster) return Effect.die(new Error('Roster not found'));
     const updated = {
@@ -409,11 +418,11 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     rostersStore.set(input.id, updated);
     return Effect.succeed(updated);
   },
-  delete: (id: RosterNS.RosterId) => {
+  delete: (id: RosterModel.RosterId) => {
     rostersStore.delete(id);
     return Effect.void;
   },
-  findMemberEntries: (input: { roster_id: RosterNS.RosterId }) => {
+  findMemberEntries: (input: { roster_id: RosterModel.RosterId }) => {
     const memberIds = Array.from(rosterMembersStore.values())
       .filter((rm) => rm.roster_id === input.roster_id)
       .map((rm) => rm.team_member_id);
@@ -424,7 +433,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     });
     return Effect.succeed(entries);
   },
-  findMemberEntriesById: (rosterId: RosterNS.RosterId) => {
+  findMemberEntriesById: (rosterId: RosterModel.RosterId) => {
     const memberIds = Array.from(rosterMembersStore.values())
       .filter((rm) => rm.roster_id === rosterId)
       .map((rm) => rm.team_member_id);
@@ -435,7 +444,10 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     });
     return Effect.succeed(entries);
   },
-  addMember: (input: { roster_id: RosterNS.RosterId; team_member_id: TeamMember.TeamMemberId }) => {
+  addMember: (input: {
+    roster_id: RosterModel.RosterId;
+    team_member_id: TeamMember.TeamMemberId;
+  }) => {
     const key = `${input.roster_id}:${input.team_member_id}`;
     rosterMembersStore.set(key, {
       roster_id: input.roster_id,
@@ -443,20 +455,20 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     });
     return Effect.void;
   },
-  addMemberById: (rosterId: RosterNS.RosterId, teamMemberId: TeamMember.TeamMemberId) => {
+  addMemberById: (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) => {
     const key = `${rosterId}:${teamMemberId}`;
     rosterMembersStore.set(key, { roster_id: rosterId, team_member_id: teamMemberId });
     return Effect.void;
   },
   removeMember: (input: {
-    roster_id: RosterNS.RosterId;
+    roster_id: RosterModel.RosterId;
     team_member_id: TeamMember.TeamMemberId;
   }) => {
     const key = `${input.roster_id}:${input.team_member_id}`;
     rosterMembersStore.delete(key);
     return Effect.void;
   },
-  removeMemberById: (rosterId: RosterNS.RosterId, teamMemberId: TeamMember.TeamMemberId) => {
+  removeMemberById: (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) => {
     const key = `${rosterId}:${teamMemberId}`;
     rosterMembersStore.delete(key);
     return Effect.void;
@@ -796,7 +808,7 @@ describe('Members API', () => {
         team_id: TEST_TEAM_ID,
         user_id: TEST_USER_ID,
         active: true,
-        role_names: 'Player',
+        role_names: ['Player'],
         permissions: PLAYER_PERMISSIONS,
       });
       const response = await handler(
@@ -1056,7 +1068,7 @@ describe('Rosters API', () => {
         team_id: TEST_TEAM_ID,
         user_id: TEST_USER_ID,
         active: true,
-        role_names: 'Player',
+        role_names: ['Player'],
         permissions: PLAYER_PERMISSIONS,
       });
       const response = await handler(
@@ -1113,7 +1125,7 @@ describe('Rosters API', () => {
         team_id: TEST_TEAM_ID,
         user_id: TEST_USER_ID,
         active: true,
-        role_names: 'Player',
+        role_names: ['Player'],
         permissions: PLAYER_PERMISSIONS,
       });
       const response = await handler(

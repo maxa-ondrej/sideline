@@ -1,17 +1,12 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import {
-  GroupModel as GroupNS,
-  Role as RoleNS,
-  TeamMember as TeamMemberNS,
-  Team as TeamNS,
-} from '@sideline/domain';
+import { GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class GroupWithCount extends Schema.Class<GroupWithCount>('GroupWithCount')({
-  id: GroupNS.GroupId,
-  team_id: TeamNS.TeamId,
-  parent_id: Schema.NullOr(GroupNS.GroupId),
+  id: GroupModel.GroupId,
+  team_id: Team.TeamId,
+  parent_id: Schema.NullOr(GroupModel.GroupId),
   name: Schema.String,
   emoji: Schema.NullOr(Schema.String),
   created_at: Schema.DateFromSelf,
@@ -19,21 +14,21 @@ class GroupWithCount extends Schema.Class<GroupWithCount>('GroupWithCount')({
 }) {}
 
 class GroupRow extends Schema.Class<GroupRow>('GroupRow')({
-  id: GroupNS.GroupId,
-  team_id: TeamNS.TeamId,
-  parent_id: Schema.NullOr(GroupNS.GroupId),
+  id: GroupModel.GroupId,
+  team_id: Team.TeamId,
+  parent_id: Schema.NullOr(GroupModel.GroupId),
   name: Schema.String,
   emoji: Schema.NullOr(Schema.String),
 }) {}
 
 class GroupMemberRow extends Schema.Class<GroupMemberRow>('GroupMemberRow')({
-  member_id: TeamMemberNS.TeamMemberId,
+  member_id: TeamMember.TeamMemberId,
   name: Schema.NullOr(Schema.String),
   discord_username: Schema.String,
 }) {}
 
 class GroupRoleRow extends Schema.Class<GroupRoleRow>('GroupRoleRow')({
-  role_id: RoleNS.RoleId,
+  role_id: Role.RoleId,
   role_name: Schema.String,
 }) {}
 
@@ -45,27 +40,27 @@ class GroupInsertInput extends Schema.Class<GroupInsertInput>('GroupInsertInput'
 }) {}
 
 class GroupUpdateInput extends Schema.Class<GroupUpdateInput>('GroupUpdateInput')({
-  id: GroupNS.GroupId,
+  id: GroupModel.GroupId,
   name: Schema.String,
   emoji: Schema.NullOr(Schema.String),
 }) {}
 
 class GroupMemberInput extends Schema.Class<GroupMemberInput>('GroupMemberInput')({
-  group_id: GroupNS.GroupId,
-  team_member_id: TeamMemberNS.TeamMemberId,
+  group_id: GroupModel.GroupId,
+  team_member_id: TeamMember.TeamMemberId,
 }) {}
 
 class MoveGroupInput extends Schema.Class<MoveGroupInput>('MoveGroupInput')({
-  id: GroupNS.GroupId,
-  parent_id: Schema.NullOr(GroupNS.GroupId),
+  id: GroupModel.GroupId,
+  parent_id: Schema.NullOr(GroupModel.GroupId),
 }) {}
 
 class AncestorRow extends Schema.Class<AncestorRow>('AncestorRow')({
-  id: GroupNS.GroupId,
+  id: GroupModel.GroupId,
 }) {}
 
 class DescendantMemberRow extends Schema.Class<DescendantMemberRow>('DescendantMemberRow')({
-  team_member_id: TeamMemberNS.TeamMemberId,
+  team_member_id: TeamMember.TeamMemberId,
 }) {}
 
 export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/GroupsRepository', {
@@ -86,7 +81,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('findById', ({ sql }) =>
       SqlSchema.findOne({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: GroupRow,
         execute: (id) =>
           sql`SELECT id, team_id, parent_id, name, emoji FROM groups WHERE id = ${id} AND is_archived = false`,
@@ -116,7 +111,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('archiveGroup', ({ sql }) =>
       SqlSchema.void({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         execute: (id) => sql`UPDATE groups SET is_archived = true WHERE id = ${id}`,
       }),
     ),
@@ -133,7 +128,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('findMembers', ({ sql }) =>
       SqlSchema.findAll({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: GroupMemberRow,
         execute: (groupId) => sql`
             SELECT tm.id AS member_id, u.name, u.discord_username
@@ -166,7 +161,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('findRolesForGroup', ({ sql }) =>
       SqlSchema.findAll({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: GroupRoleRow,
         execute: (groupId) => sql`
             SELECT r.id AS role_id, r.name AS role_name
@@ -179,7 +174,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('countMembersForGroup', ({ sql }) =>
       SqlSchema.single({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: Schema.Struct({ count: Schema.Number }),
         execute: (groupId) =>
           sql`SELECT COUNT(*)::int AS count FROM group_members WHERE group_id = ${groupId}`,
@@ -187,7 +182,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('findChildren', ({ sql }) =>
       SqlSchema.findAll({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: GroupRow,
         execute: (groupId) =>
           sql`SELECT id, team_id, parent_id, name, emoji FROM groups WHERE parent_id = ${groupId} AND is_archived = false`,
@@ -195,7 +190,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('findAncestors', ({ sql }) =>
       SqlSchema.findAll({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: AncestorRow,
         execute: (groupId) => sql`
             WITH RECURSIVE ancestors AS (
@@ -209,7 +204,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     ),
     Effect.let('findDescendantMembers', ({ sql }) =>
       SqlSchema.findAll({
-        Request: GroupNS.GroupId,
+        Request: GroupModel.GroupId,
         Result: DescendantMemberRow,
         execute: (groupId) => sql`
             WITH RECURSIVE descendants AS (
@@ -226,59 +221,59 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Bind.remove('sql'),
   ),
 }) {
-  findGroupsByTeamId(teamId: TeamNS.TeamId) {
+  findGroupsByTeamId(teamId: Team.TeamId) {
     return this.findByTeamId(teamId);
   }
 
-  findGroupById(groupId: GroupNS.GroupId) {
+  findGroupById(groupId: GroupModel.GroupId) {
     return this.findById(groupId);
   }
 
-  insertGroup(teamId: TeamNS.TeamId, name: string, parentId: string | null, emoji: string | null) {
+  insertGroup(teamId: Team.TeamId, name: string, parentId: string | null, emoji: string | null) {
     return this.insert({ team_id: teamId, parent_id: parentId, name, emoji });
   }
 
-  updateGroupById(groupId: GroupNS.GroupId, name: string, emoji: string | null) {
+  updateGroupById(groupId: GroupModel.GroupId, name: string, emoji: string | null) {
     return this.update({ id: groupId, name, emoji });
   }
 
-  archiveGroupById(groupId: GroupNS.GroupId) {
+  archiveGroupById(groupId: GroupModel.GroupId) {
     return this.archiveGroup(groupId);
   }
 
-  moveGroup(groupId: GroupNS.GroupId, parentId: GroupNS.GroupId | null) {
+  moveGroup(groupId: GroupModel.GroupId, parentId: GroupModel.GroupId | null) {
     return this.moveGroupParent({ id: groupId, parent_id: parentId });
   }
 
-  findMembersByGroupId(groupId: GroupNS.GroupId) {
+  findMembersByGroupId(groupId: GroupModel.GroupId) {
     return this.findMembers(groupId);
   }
 
-  addMemberById(groupId: GroupNS.GroupId, teamMemberId: TeamMemberNS.TeamMemberId) {
+  addMemberById(groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) {
     return this.addMember({ group_id: groupId, team_member_id: teamMemberId });
   }
 
-  removeMemberById(groupId: GroupNS.GroupId, teamMemberId: TeamMemberNS.TeamMemberId) {
+  removeMemberById(groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) {
     return this.removeMember({ group_id: groupId, team_member_id: teamMemberId });
   }
 
-  getRolesForGroup(groupId: GroupNS.GroupId) {
+  getRolesForGroup(groupId: GroupModel.GroupId) {
     return this.findRolesForGroup(groupId);
   }
 
-  getMemberCount(groupId: GroupNS.GroupId) {
+  getMemberCount(groupId: GroupModel.GroupId) {
     return this.countMembersForGroup(groupId).pipe(Effect.map((r) => r.count));
   }
 
-  getChildren(groupId: GroupNS.GroupId) {
+  getChildren(groupId: GroupModel.GroupId) {
     return this.findChildren(groupId);
   }
 
-  getAncestorIds(groupId: GroupNS.GroupId) {
+  getAncestorIds(groupId: GroupModel.GroupId) {
     return this.findAncestors(groupId).pipe(Effect.map((rows) => rows.map((r) => r.id)));
   }
 
-  getDescendantMemberIds(groupId: GroupNS.GroupId) {
+  getDescendantMemberIds(groupId: GroupModel.GroupId) {
     return this.findDescendantMembers(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.team_member_id)),
     );

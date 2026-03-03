@@ -1,12 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import {
-  Discord,
-  DiscordChannelMapping,
-  GroupModel,
-  type GroupModel as GroupModelNS,
-  Team,
-  type Team as TeamNS,
-} from '@sideline/domain';
+import { Discord, DiscordChannelMapping, GroupModel, Team } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -74,13 +67,13 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
     ),
   },
 ) {
-  findByGroupId(teamId: TeamNS.TeamId, groupId: GroupModelNS.GroupId) {
+  findByGroupId(teamId: Team.TeamId, groupId: GroupModel.GroupId) {
     return this.findByGroup({ team_id: teamId, group_id: groupId });
   }
 
   insert(
-    teamId: TeamNS.TeamId,
-    groupId: GroupModelNS.GroupId,
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
     discordChannelId: Discord.Snowflake,
     discordRoleId: Discord.Snowflake,
   ) {
@@ -92,7 +85,7 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
     });
   }
 
-  deleteByGroupId(teamId: TeamNS.TeamId, groupId: GroupModelNS.GroupId) {
+  deleteByGroupId(teamId: Team.TeamId, groupId: GroupModel.GroupId) {
     return this.deleteByGroup({ team_id: teamId, group_id: groupId });
   }
 }
