@@ -82,7 +82,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           execute: (input) =>
             sql`SELECT tm.id, tm.team_id, tm.user_id, tm.active,
                        COALESCE(
-                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name) FROM (
+                         (SELECT string_agg(DISTINCT name, ',' ORDER BY name) FROM (
                            SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.team_member_id = tm.id
                            UNION
                            SELECT r.name FROM group_members gm
@@ -139,7 +139,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           execute: (userId) =>
             sql`SELECT tm.id, tm.team_id, tm.user_id, tm.active,
                        COALESCE(
-                         (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name) FROM (
+                         (SELECT string_agg(DISTINCT name, ',' ORDER BY name) FROM (
                            SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id WHERE mr.team_member_id = tm.id
                            UNION
                            SELECT r.name FROM group_members gm
