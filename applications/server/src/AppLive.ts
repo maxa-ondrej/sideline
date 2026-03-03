@@ -16,6 +16,7 @@ import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRep
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
+import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -62,6 +63,7 @@ const Repositories = Layer.mergeAll(
   ChannelSyncEventsRepository.Default,
   DiscordChannelMappingRepository.Default,
   DiscordChannelsRepository.Default,
+  EventsRepository.Default,
 );
 
 export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(

@@ -1,5 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Discord, Role, Team, TeamMember, TrainingType } from '@sideline/domain';
+import type { Auth, Discord, Event, Role, Team, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -29,12 +29,14 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 // --- Test IDs ---
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_ADMIN_ID = '00000000-0000-0000-0000-000000000002' as Auth.UserId;
+const TEST_CAPTAIN_ID = '00000000-0000-0000-0000-000000000003' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
+const TEST_CAPTAIN_MEMBER_ID = '00000000-0000-0000-0000-000000000022' as TeamMember.TeamMemberId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const TEST_TT_1 = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
-const TEST_TT_2 = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
+const TEST_EVENT_1 = '00000000-0000-0000-0000-000000000060' as Event.EventId;
+const TEST_EVENT_2 = '00000000-0000-0000-0000-000000000061' as Event.EventId;
 
 const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'team:manage',
@@ -48,6 +50,19 @@ const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'role:manage',
   'training-type:create',
   'training-type:delete',
+  'event:create',
+  'event:edit',
+  'event:cancel',
+];
+const CAPTAIN_PERMISSIONS: readonly Role.Permission[] = [
+  'roster:view',
+  'roster:manage',
+  'member:view',
+  'member:edit',
+  'role:view',
+  'event:create',
+  'event:edit',
+  'event:cancel',
 ];
 const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
 
@@ -84,6 +99,22 @@ const testAdmin = {
   updated_at: DateTime.unsafeNow(),
 };
 
+const testCaptain = {
+  id: TEST_CAPTAIN_ID,
+  discord_id: '11111',
+  discord_username: 'captainuser',
+  discord_avatar: null,
+  discord_access_token: 'captain-token',
+  discord_refresh_token: null,
+  is_profile_complete: true,
+  name: 'Captain User',
+  birth_year: 1992,
+  gender: 'male' as const,
+  locale: 'en' as const,
+  created_at: DateTime.unsafeNow(),
+  updated_at: DateTime.unsafeNow(),
+};
+
 const testTeam = {
   id: TEST_TEAM_ID,
   name: 'Test Team',
@@ -113,10 +144,12 @@ type UserLike = {
 const usersMap = new Map<Auth.UserId, UserLike>();
 usersMap.set(TEST_USER_ID, testUser);
 usersMap.set(TEST_ADMIN_ID, testAdmin);
+usersMap.set(TEST_CAPTAIN_ID, testCaptain);
 
 const sessionsStore = new Map<string, Auth.UserId>();
 sessionsStore.set('user-token', TEST_USER_ID);
 sessionsStore.set('admin-token', TEST_ADMIN_ID);
+sessionsStore.set('captain-token', TEST_CAPTAIN_ID);
 
 const membersStore = new Map<string, MembershipWithRole>();
 membersStore.set(TEST_MEMBER_ID, {
@@ -135,36 +168,68 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
   role_names: ['Admin'],
   permissions: ADMIN_PERMISSIONS,
 });
+membersStore.set(TEST_CAPTAIN_MEMBER_ID, {
+  id: TEST_CAPTAIN_MEMBER_ID,
+  team_id: TEST_TEAM_ID,
+  user_id: TEST_CAPTAIN_ID,
+  active: true,
+  role_names: ['Captain'],
+  permissions: CAPTAIN_PERMISSIONS,
+});
 
-// --- In-memory training types ---
-type TrainingTypeRecord = {
-  id: TrainingType.TrainingTypeId;
+// --- In-memory events ---
+type EventRecord = {
+  id: Event.EventId;
   team_id: Team.TeamId;
-  name: string;
-  group_id: string | null;
-  group_name: string | null;
-  created_at: Date;
+  training_type_id: string | null;
+  event_type: Event.EventType;
+  title: string;
+  description: string | null;
+  event_date: string;
+  start_time: string;
+  end_time: string | null;
+  location: string | null;
+  status: Event.EventStatus;
+  created_by: TeamMember.TeamMemberId;
+  training_type_name: string | null;
+  created_by_name: string | null;
 };
 
-let trainingTypesStore: Map<TrainingType.TrainingTypeId, TrainingTypeRecord>;
+let eventsStore: Map<Event.EventId, EventRecord>;
 
 const resetStores = () => {
-  trainingTypesStore = new Map();
-  trainingTypesStore.set(TEST_TT_1, {
-    id: TEST_TT_1,
+  eventsStore = new Map();
+  eventsStore.set(TEST_EVENT_1, {
+    id: TEST_EVENT_1,
     team_id: TEST_TEAM_ID,
-    name: 'Training Type 1',
-    group_id: null,
-    group_name: null,
-    created_at: new Date(),
+    training_type_id: null,
+    event_type: 'training',
+    title: 'Tuesday Training',
+    description: 'Weekly training session',
+    event_date: '2026-03-10',
+    start_time: '18:00:00',
+    end_time: '20:00:00',
+    location: 'Main Field',
+    status: 'active',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: null,
+    created_by_name: 'Admin User',
   });
-  trainingTypesStore.set(TEST_TT_2, {
-    id: TEST_TT_2,
+  eventsStore.set(TEST_EVENT_2, {
+    id: TEST_EVENT_2,
     team_id: TEST_TEAM_ID,
-    name: 'Training Type 2',
-    group_id: null,
-    group_name: null,
-    created_at: new Date(),
+    training_type_id: null,
+    event_type: 'match',
+    title: 'Cancelled Match',
+    description: null,
+    event_date: '2026-03-15',
+    start_time: '14:00:00',
+    end_time: '16:00:00',
+    location: null,
+    status: 'cancelled',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: null,
+    created_by_name: 'Admin User',
   });
 };
 
@@ -319,120 +384,227 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   _tag: 'api/TrainingTypesRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findTrainingTypesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findTrainingTypeById: () => Effect.succeed(Option.none()),
+  findByIdWithGroup: () => Effect.succeed(Option.none()),
+  findTrainingTypeByIdWithGroup: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertTrainingType: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateTrainingType: () => Effect.die(new Error('Not implemented')),
+  deleteTrainingType: () => Effect.void,
+  deleteTrainingTypeById: () => Effect.void,
+} as unknown as TrainingTypesRepository);
+
+const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
+  _tag: 'api/EventsRepository',
   findByTeamId: (teamId: string) => {
-    const results = Array.from(trainingTypesStore.values())
-      .filter((t) => t.team_id === teamId)
-      .map((t) => ({
-        id: t.id,
-        team_id: t.team_id,
-        name: t.name,
-        group_id: t.group_id,
-        group_name: t.group_name,
-        created_at: t.created_at,
-      }));
+    const results = Array.from(eventsStore.values()).filter((e) => e.team_id === teamId);
     return Effect.succeed(results);
   },
-  findTrainingTypesByTeamId: (teamId: string) => {
-    const results = Array.from(trainingTypesStore.values())
-      .filter((t) => t.team_id === teamId)
-      .map((t) => ({
-        id: t.id,
-        team_id: t.team_id,
-        name: t.name,
-        group_id: t.group_id,
-        group_name: t.group_name,
-        created_at: t.created_at,
-      }));
+  findEventsByTeamId: (teamId: string) => {
+    const results = Array.from(eventsStore.values()).filter((e) => e.team_id === teamId);
     return Effect.succeed(results);
   },
-  findById: (id: TrainingType.TrainingTypeId) => {
-    const tt = trainingTypesStore.get(id);
-    if (!tt) return Effect.succeed(Option.none());
-    return Effect.succeed(
-      Option.some({ id: tt.id, team_id: tt.team_id, name: tt.name, group_id: tt.group_id }),
-    );
+  findByIdWithDetails: (id: Event.EventId) => {
+    const event = eventsStore.get(id);
+    if (!event) return Effect.succeed(Option.none());
+    return Effect.succeed(Option.some(event));
   },
-  findTrainingTypeById: (id: TrainingType.TrainingTypeId) => {
-    const tt = trainingTypesStore.get(id);
-    if (!tt) return Effect.succeed(Option.none());
-    return Effect.succeed(
-      Option.some({ id: tt.id, team_id: tt.team_id, name: tt.name, group_id: tt.group_id }),
-    );
+  findEventByIdWithDetails: (id: Event.EventId) => {
+    const event = eventsStore.get(id);
+    if (!event) return Effect.succeed(Option.none());
+    return Effect.succeed(Option.some(event));
   },
-  findByIdWithGroup: (id: TrainingType.TrainingTypeId) => {
-    const tt = trainingTypesStore.get(id);
-    if (!tt) return Effect.succeed(Option.none());
-    return Effect.succeed(Option.some(tt));
-  },
-  findTrainingTypeByIdWithGroup: (id: TrainingType.TrainingTypeId) => {
-    const tt = trainingTypesStore.get(id);
-    if (!tt) return Effect.succeed(Option.none());
-    return Effect.succeed(Option.some(tt));
-  },
-  insert: (input: { team_id: string; name: string; group_id: string | null }) => {
-    const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
-    const record: TrainingTypeRecord = {
+  insert: (input: {
+    team_id: string;
+    training_type_id: string | null;
+    event_type: string;
+    title: string;
+    description: string | null;
+    event_date: string;
+    start_time: string;
+    end_time: string | null;
+    location: string | null;
+    created_by: string;
+  }) => {
+    const id = crypto.randomUUID() as Event.EventId;
+    const record: EventRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
-      name: input.name,
-      group_id: input.group_id,
-      group_name: null,
-      created_at: new Date(),
+      training_type_id: input.training_type_id,
+      event_type: input.event_type as Event.EventType,
+      title: input.title,
+      description: input.description,
+      event_date: input.event_date,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      location: input.location,
+      status: 'active',
+      created_by: input.created_by as TeamMember.TeamMemberId,
+      training_type_name: null,
+      created_by_name: null,
     };
-    trainingTypesStore.set(id, record);
+    eventsStore.set(id, record);
     return Effect.succeed({
       id,
       team_id: record.team_id,
-      name: record.name,
-      group_id: record.group_id,
+      training_type_id: record.training_type_id,
+      event_type: record.event_type,
+      title: record.title,
+      description: record.description,
+      event_date: record.event_date,
+      start_time: record.start_time,
+      end_time: record.end_time,
+      location: record.location,
+      status: record.status,
+      created_by: record.created_by,
     });
   },
-  insertTrainingType: (teamId: Team.TeamId, name: string, groupId: string | null) => {
-    const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
-    const record: TrainingTypeRecord = {
+  insertEvent: (input: {
+    teamId: string;
+    trainingTypeId: string | null;
+    eventType: string;
+    title: string;
+    description: string | null;
+    eventDate: string;
+    startTime: string;
+    endTime: string | null;
+    location: string | null;
+    createdBy: string;
+  }) => {
+    const id = crypto.randomUUID() as Event.EventId;
+    const record: EventRecord = {
       id,
-      team_id: teamId,
-      name,
-      group_id: groupId,
-      group_name: null,
-      created_at: new Date(),
+      team_id: input.teamId as Team.TeamId,
+      training_type_id: input.trainingTypeId,
+      event_type: input.eventType as Event.EventType,
+      title: input.title,
+      description: input.description,
+      event_date: input.eventDate,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      location: input.location,
+      status: 'active',
+      created_by: input.createdBy as TeamMember.TeamMemberId,
+      training_type_name: null,
+      created_by_name: null,
     };
-    trainingTypesStore.set(id, record);
-    return Effect.succeed({ id, team_id: teamId, name, group_id: groupId });
+    eventsStore.set(id, record);
+    return Effect.succeed({
+      id,
+      team_id: record.team_id,
+      training_type_id: record.training_type_id,
+      event_type: record.event_type,
+      title: record.title,
+      description: record.description,
+      event_date: record.event_date,
+      start_time: record.start_time,
+      end_time: record.end_time,
+      location: record.location,
+      status: record.status,
+      created_by: record.created_by,
+    });
   },
-  update: (input: { id: TrainingType.TrainingTypeId; name: string }) => {
-    const tt = trainingTypesStore.get(input.id);
-    if (!tt) return Effect.die(new Error('Not found'));
-    const updated = { ...tt, name: input.name };
-    trainingTypesStore.set(input.id, updated);
+  update: (input: {
+    id: Event.EventId;
+    title: string;
+    event_type: string;
+    training_type_id: string | null;
+    description: string | null;
+    event_date: string;
+    start_time: string;
+    end_time: string | null;
+    location: string | null;
+  }) => {
+    const event = eventsStore.get(input.id);
+    if (!event) return Effect.die(new Error('Not found'));
+    const updated = {
+      ...event,
+      title: input.title,
+      event_type: input.event_type as Event.EventType,
+      training_type_id: input.training_type_id,
+      description: input.description,
+      event_date: input.event_date,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      location: input.location,
+    };
+    eventsStore.set(input.id, updated);
     return Effect.succeed({
       id: updated.id,
       team_id: updated.team_id,
-      name: updated.name,
-      group_id: updated.group_id,
+      training_type_id: updated.training_type_id,
+      event_type: updated.event_type,
+      title: updated.title,
+      description: updated.description,
+      event_date: updated.event_date,
+      start_time: updated.start_time,
+      end_time: updated.end_time,
+      location: updated.location,
+      status: updated.status,
+      created_by: updated.created_by,
     });
   },
-  updateTrainingType: (id: TrainingType.TrainingTypeId, name: string) => {
-    const tt = trainingTypesStore.get(id);
-    if (!tt) return Effect.die(new Error('Not found'));
-    const updated = { ...tt, name };
-    trainingTypesStore.set(id, updated);
+  updateEvent: (input: {
+    id: Event.EventId;
+    title: string;
+    eventType: string;
+    trainingTypeId: string | null;
+    description: string | null;
+    eventDate: string;
+    startTime: string;
+    endTime: string | null;
+    location: string | null;
+  }) => {
+    const event = eventsStore.get(input.id);
+    if (!event) return Effect.die(new Error('Not found'));
+    const updated = {
+      ...event,
+      title: input.title,
+      event_type: input.eventType as Event.EventType,
+      training_type_id: input.trainingTypeId,
+      description: input.description,
+      event_date: input.eventDate,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      location: input.location,
+    };
+    eventsStore.set(input.id, updated);
     return Effect.succeed({
       id: updated.id,
       team_id: updated.team_id,
-      name: updated.name,
-      group_id: updated.group_id,
+      training_type_id: updated.training_type_id,
+      event_type: updated.event_type,
+      title: updated.title,
+      description: updated.description,
+      event_date: updated.event_date,
+      start_time: updated.start_time,
+      end_time: updated.end_time,
+      location: updated.location,
+      status: updated.status,
+      created_by: updated.created_by,
     });
   },
-  deleteTrainingType: (id: TrainingType.TrainingTypeId) => {
-    trainingTypesStore.delete(id);
+  cancel: (id: Event.EventId) => {
+    const event = eventsStore.get(id);
+    if (event) {
+      eventsStore.set(id, { ...event, status: 'cancelled' });
+    }
     return Effect.void;
   },
-  deleteTrainingTypeById: (id: TrainingType.TrainingTypeId) => {
-    trainingTypesStore.delete(id);
+  cancelEvent: (id: Event.EventId) => {
+    const event = eventsStore.get(id);
+    if (event) {
+      eventsStore.set(id, { ...event, status: 'cancelled' });
+    }
     return Effect.void;
   },
-} as unknown as TrainingTypesRepository);
+  findScopedTrainingTypeIds: () => Effect.succeed([]),
+  getScopedTrainingTypeIds: () => Effect.succeed([]),
+} as unknown as EventsRepository);
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   _tag: 'api/TeamInvitesRepository',
@@ -584,22 +756,6 @@ const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsReposito
   findByGuildId: () => Effect.succeed([]),
 } as unknown as DiscordChannelsRepository);
 
-const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
-  _tag: 'api/EventsRepository',
-  findByTeamId: () => Effect.succeed([]),
-  findEventsByTeamId: () => Effect.succeed([]),
-  findByIdWithDetails: () => Effect.succeed(Option.none()),
-  findEventByIdWithDetails: () => Effect.succeed(Option.none()),
-  insert: () => Effect.die(new Error('Not implemented')),
-  insertEvent: () => Effect.die(new Error('Not implemented')),
-  update: () => Effect.die(new Error('Not implemented')),
-  updateEvent: () => Effect.die(new Error('Not implemented')),
-  cancel: () => Effect.void,
-  cancelEvent: () => Effect.void,
-  findScopedTrainingTypeIds: () => Effect.succeed([]),
-  getScopedTrainingTypeIds: () => Effect.succeed([]),
-} as unknown as EventsRepository);
-
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -613,17 +769,17 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
+  Layer.provide(MockEventsRepositoryLayer),
   Layer.provide(MockHttpClientLayer),
   Layer.provide(MockAgeCheckServiceLayer),
   Layer.provide(MockAgeThresholdRepositoryLayer),
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
-  Layer.provide(MockDiscordChannelMappingRepositoryLayer),
   Layer.provide(
     Layer.merge(
       Layer.merge(
-        MockEventsRepositoryLayer,
+        MockDiscordChannelMappingRepositoryLayer,
         Layer.succeed(BotGuildsRepository, {
           upsert: () => Effect.void,
           remove: () => Effect.void,
@@ -653,62 +809,143 @@ beforeEach(() => {
   resetStores();
 });
 
-const BASE = `http://localhost/teams/${TEST_TEAM_ID}/training-types`;
+const BASE = `http://localhost/teams/${TEST_TEAM_ID}/events`;
 
-describe('Training Types API', () => {
-  describe('GET /teams/:teamId/training-types (list)', () => {
+describe('Events API', () => {
+  describe('GET /teams/:teamId/events (list)', () => {
     it('returns 401 without auth token', async () => {
       const response = await handler(new Request(BASE));
       expect(response.status).toBe(401);
     });
 
-    it('returns 200 with all training types + canAdmin:true for admin', async () => {
+    it('returns 200 with canCreate:true for admin', async () => {
       const response = await handler(
         new Request(BASE, { headers: { Authorization: 'Bearer admin-token' } }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.canAdmin).toBe(true);
-      expect(body.trainingTypes).toHaveLength(2);
+      expect(body.canCreate).toBe(true);
+      expect(body.events).toHaveLength(2);
     });
 
-    it('returns 200 with all training types + canAdmin:false for regular member', async () => {
+    it('returns 200 with canCreate:true for captain', async () => {
+      const response = await handler(
+        new Request(BASE, { headers: { Authorization: 'Bearer captain-token' } }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.canCreate).toBe(true);
+    });
+
+    it('returns 200 with canCreate:false for regular player', async () => {
       const response = await handler(
         new Request(BASE, { headers: { Authorization: 'Bearer user-token' } }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.canAdmin).toBe(false);
-      expect(body.trainingTypes).toHaveLength(2);
+      expect(body.canCreate).toBe(false);
+      expect(body.events).toHaveLength(2);
     });
   });
 
-  describe('GET /teams/:teamId/training-types/:trainingTypeId (get)', () => {
-    it('returns 200 with canAdmin:true for admin viewing any training type', async () => {
+  describe('POST /teams/:teamId/events (create)', () => {
+    const createPayload = {
+      title: 'New Training',
+      eventType: 'training',
+      trainingTypeId: null,
+      description: null,
+      eventDate: '2026-03-20',
+      startTime: '18:00',
+      endTime: null,
+      location: null,
+    };
+
+    it('returns 201 for admin creating event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_2}`, {
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createPayload),
+        }),
+      );
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.title).toBe('New Training');
+      expect(body.eventType).toBe('training');
+    });
+
+    it('returns 201 for captain creating event', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createPayload),
+        }),
+      );
+      expect(response.status).toBe(201);
+    });
+
+    it('returns 403 for player creating event', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(createPayload),
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('GET /teams/:teamId/events/:eventId (get)', () => {
+    it('returns 200 with canEdit/canCancel for admin on active event', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.canAdmin).toBe(true);
-      expect(body.trainingTypeId).toBe(TEST_TT_2);
+      expect(body.canEdit).toBe(true);
+      expect(body.canCancel).toBe(true);
+      expect(body.title).toBe('Tuesday Training');
     });
 
-    it('returns 200 with canAdmin:false for regular member viewing any training type', async () => {
+    it('returns 200 with canEdit:false/canCancel:false on cancelled event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_1}`, {
+        new Request(`${BASE}/${TEST_EVENT_2}`, {
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.canEdit).toBe(false);
+      expect(body.canCancel).toBe(false);
+      expect(body.status).toBe('cancelled');
+    });
+
+    it('returns 200 with canEdit:false/canCancel:false for player', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
           headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.canAdmin).toBe(false);
-      expect(body.trainingTypeId).toBe(TEST_TT_1);
+      expect(body.canEdit).toBe(false);
+      expect(body.canCancel).toBe(false);
     });
 
-    it('returns 404 for unknown training type', async () => {
+    it('returns 404 for unknown event', async () => {
       const unknownId = '00000000-0000-0000-0000-000000000099';
       const response = await handler(
         new Request(`${BASE}/${unknownId}`, {
@@ -719,89 +956,108 @@ describe('Training Types API', () => {
     });
   });
 
-  describe('PATCH /teams/:teamId/training-types/:trainingTypeId (update)', () => {
-    it('returns 200 for admin updating training type', async () => {
+  describe('PATCH /teams/:teamId/events/:eventId (update)', () => {
+    it('returns 200 for admin updating event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_1}`, {
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
           method: 'PATCH',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Renamed' }),
+          body: JSON.stringify({
+            title: 'Renamed Training',
+            eventType: null,
+            trainingTypeId: null,
+            description: null,
+            eventDate: null,
+            startTime: null,
+            endTime: null,
+            location: null,
+          }),
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.name).toBe('Renamed');
+      expect(body.title).toBe('Renamed Training');
     });
 
-    it('returns 403 for regular member updating training type', async () => {
+    it('returns 403 for player updating event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_1}`, {
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
           method: 'PATCH',
           headers: {
             Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Should Fail' }),
+          body: JSON.stringify({
+            title: 'Should Fail',
+            eventType: null,
+            trainingTypeId: null,
+            description: null,
+            eventDate: null,
+            startTime: null,
+            endTime: null,
+            location: null,
+          }),
         }),
       );
       expect(response.status).toBe(403);
     });
-  });
 
-  describe('POST /teams/:teamId/training-types (create)', () => {
-    it('returns 201 for admin creating training type', async () => {
+    it('returns 400 when updating cancelled event', async () => {
       const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
+        new Request(`${BASE}/${TEST_EVENT_2}`, {
+          method: 'PATCH',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'New Type', groupId: null }),
+          body: JSON.stringify({
+            title: 'Try Update',
+            eventType: null,
+            trainingTypeId: null,
+            description: null,
+            eventDate: null,
+            startTime: null,
+            endTime: null,
+            location: null,
+          }),
         }),
       );
-      expect(response.status).toBe(201);
-      const body = await response.json();
-      expect(body.name).toBe('New Type');
-    });
-
-    it('returns 403 for regular member creating training type', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer user-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name: 'Should Fail', groupId: null }),
-        }),
-      );
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(400);
     });
   });
 
-  describe('DELETE /teams/:teamId/training-types/:trainingTypeId (delete)', () => {
-    it('returns 204 for admin deleting training type', async () => {
+  describe('POST /teams/:teamId/events/:eventId/cancel', () => {
+    it('returns 204 for admin cancelling event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_2}`, {
-          method: 'DELETE',
+        new Request(`${BASE}/${TEST_EVENT_1}/cancel`, {
+          method: 'POST',
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(204);
     });
 
-    it('returns 403 for regular member deleting training type', async () => {
+    it('returns 403 for player cancelling event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_TT_1}`, {
-          method: 'DELETE',
+        new Request(`${BASE}/${TEST_EVENT_1}/cancel`, {
+          method: 'POST',
           headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(403);
+    });
+
+    it('returns 400 when cancelling already cancelled event', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_2}/cancel`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(400);
     });
   });
 });

@@ -1,0 +1,37 @@
+import { Event, Team } from '@sideline/domain';
+import { createFileRoute } from '@tanstack/react-router';
+import { Effect, Schema } from 'effect';
+import { EventDetailPage } from '~/components/pages/EventDetailPage';
+import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
+
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eventId')({
+  component: EventDetailRoute,
+  loader: async ({ params, context }) => {
+    const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
+    const eventId = Schema.decodeSync(Event.EventId)(params.eventId);
+    return ApiClient.pipe(
+      Effect.flatMap((api) =>
+        Effect.all({
+          event: api.event.getEvent({ path: { teamId, eventId } }),
+          trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
+        }),
+      ),
+      warnAndCatchAll,
+      context.run,
+    );
+  },
+});
+
+function EventDetailRoute() {
+  const { teamId: teamIdRaw, eventId: eventIdRaw } = Route.useParams();
+  const data = Route.useLoaderData();
+
+  return (
+    <EventDetailPage
+      teamId={teamIdRaw}
+      eventId={eventIdRaw}
+      eventDetail={data.event}
+      trainingTypes={data.trainingTypes.trainingTypes}
+    />
+  );
+}

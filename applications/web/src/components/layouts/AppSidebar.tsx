@@ -2,6 +2,7 @@ import type { Auth } from '@sideline/domain';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Bell,
+  Calendar,
   CalendarDays,
   Dumbbell,
   Home,
@@ -51,6 +52,12 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
       title: 'Training Types',
       icon: Dumbbell,
       to: '/teams/$teamId/training-types',
+      params: { teamId },
+    },
+    {
+      title: 'Events',
+      icon: Calendar,
+      to: '/teams/$teamId/events',
       params: { teamId },
     },
     {

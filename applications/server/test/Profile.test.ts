@@ -10,6 +10,7 @@ import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
+import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -368,6 +369,22 @@ const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsReposito
   findByGuildId: () => Effect.succeed([]),
 } as unknown as DiscordChannelsRepository);
 
+const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
+  _tag: 'api/EventsRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findEventsByTeamId: () => Effect.succeed([]),
+  findByIdWithDetails: () => Effect.succeed(Option.none()),
+  findEventByIdWithDetails: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertEvent: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateEvent: () => Effect.die(new Error('Not implemented')),
+  cancel: () => Effect.void,
+  cancelEvent: () => Effect.void,
+  findScopedTrainingTypeIds: () => Effect.succeed([]),
+  getScopedTrainingTypeIds: () => Effect.succeed([]),
+} as unknown as EventsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -388,7 +405,12 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
-  Layer.provide(Layer.merge(MockBotGuildsRepositoryLayer, MockDiscordChannelsRepositoryLayer)),
+  Layer.provide(
+    Layer.merge(
+      Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
+      MockDiscordChannelsRepositoryLayer,
+    ),
+  ),
 );
 
 let handler: (request: Request) => Promise<Response>;
