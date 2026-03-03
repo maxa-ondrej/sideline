@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, Role, Roster, type RosterModel } from '@sideline/domain';
+import { Auth, Roster, type RosterModel } from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -16,19 +16,12 @@ const mapDbError =
       Effect.mapError(make),
     );
 
-const knownPermissions: ReadonlySet<string> = new Set(Role.allPermissions);
-
-const splitString = (s: string): ReadonlyArray<string> => (s === '' ? [] : s.split(','));
-
-const parsePermissions = (s: string): ReadonlyArray<Role.Permission> =>
-  splitString(s).filter((p) => knownPermissions.has(p)) as ReadonlyArray<Role.Permission>;
-
 const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
     memberId: entry.member_id,
     userId: entry.user_id,
-    roleNames: [...splitString(entry.role_names)],
-    permissions: [...parsePermissions(entry.permissions)],
+    roleNames: [...entry.role_names],
+    permissions: [...entry.permissions],
     name: entry.name,
     birthYear: entry.birth_year,
     gender: entry.gender,
@@ -132,8 +125,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 new Roster.RosterPlayer({
                   memberId: entry.member_id,
                   userId: entry.user_id,
-                  roleNames: [...splitString(entry.role_names)],
-                  permissions: [...parsePermissions(entry.permissions)],
+                  roleNames: [...entry.role_names],
+                  permissions: [...entry.permissions],
                   name: updated.name,
                   birthYear: updated.birth_year,
                   gender: updated.gender,

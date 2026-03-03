@@ -368,8 +368,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
         new RosterEntry({
           member_id: member.id,
           user_id: member.user_id,
-          role_names: member.role_names.join(','),
-          permissions: member.permissions.join(','),
+          role_names: member.role_names,
+          permissions: member.permissions,
           name: user.name,
           birth_year: user.birth_year,
           gender: user.gender,
@@ -392,8 +392,8 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
         new RosterEntry({
           member_id: member.id,
           user_id: member.user_id,
-          role_names: member.role_names.join(','),
-          permissions: member.permissions.join(','),
+          role_names: member.role_names,
+          permissions: member.permissions,
           name: user.name,
           birth_year: user.birth_year,
           gender: user.gender,

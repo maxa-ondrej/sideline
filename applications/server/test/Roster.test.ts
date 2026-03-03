@@ -135,8 +135,8 @@ const buildRosterEntry = (
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
-    role_names: roleNames.join(','),
-    permissions: permissions.join(','),
+    role_names: roleNames,
+    permissions: permissions,
     name: user.name,
     birth_year: user.birth_year,
     gender: user.gender,

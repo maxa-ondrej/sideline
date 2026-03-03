@@ -30,8 +30,8 @@ export class MembershipWithRole extends Schema.Class<MembershipWithRole>('Member
 export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   member_id: TeamMember.TeamMemberId,
   user_id: User.UserId,
-  role_names: Schema.String,
-  permissions: Schema.String,
+  role_names: Schemas.ArrayFromSplitString(),
+  permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
   name: Schema.NullOr(Schema.String),
   birth_year: Schema.NullOr(Schema.Number),
   gender: Schema.NullOr(User.Gender),
