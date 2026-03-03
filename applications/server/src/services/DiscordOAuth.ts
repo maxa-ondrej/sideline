@@ -20,13 +20,7 @@ export class DiscordOAuth extends Effect.Service<DiscordOAuth>()('api/DiscordOAu
       ({ client }) =>
         ({
           createAuthorizationURL: (state: string) =>
-            Effect.sync(() =>
-              client.createAuthorizationURL(state, null, [
-                'identify',
-                'guilds',
-                'guilds.members.read',
-              ]),
-            ),
+            Effect.sync(() => client.createAuthorizationURL(state, null, ['identify', 'guilds'])),
           validateAuthorizationCode: (code: string) =>
             Effect.tryPromise({
               try: () => client.validateAuthorizationCode(code, null),
