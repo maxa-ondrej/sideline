@@ -2,6 +2,7 @@ import { HttpApi } from '@effect/platform';
 import {
   AgeThresholdApi,
   Auth,
+  EventApi,
   GroupApi,
   Invite,
   NotificationApi,
@@ -14,6 +15,7 @@ import { env } from '~/env.js';
 export class Api extends HttpApi.make('api')
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)
+  .add(EventApi.EventApiGroup)
   .add(GroupApi.GroupApiGroup)
   .add(Invite.InviteApiGroup)
   .add(NotificationApi.NotificationApiGroup)

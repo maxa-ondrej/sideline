@@ -17,6 +17,9 @@ export const Permission = Schema.Literal(
   'role:manage',
   'training-type:create',
   'training-type:delete',
+  'event:create',
+  'event:edit',
+  'event:cancel',
 );
 export type Permission = typeof Permission.Type;
 
@@ -36,8 +39,20 @@ export const defaultPermissions: Record<string, ReadonlyArray<Permission>> = {
     'role:manage',
     'training-type:create',
     'training-type:delete',
+    'event:create',
+    'event:edit',
+    'event:cancel',
   ],
-  Captain: ['roster:view', 'roster:manage', 'member:view', 'member:edit', 'role:view'],
+  Captain: [
+    'roster:view',
+    'roster:manage',
+    'member:view',
+    'member:edit',
+    'role:view',
+    'event:create',
+    'event:edit',
+    'event:cancel',
+  ],
   Player: ['roster:view', 'member:view'],
 };
 
