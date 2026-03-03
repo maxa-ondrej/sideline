@@ -1,18 +1,20 @@
-import { createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
 import { CreateTeamPage } from '~/components/pages/CreateTeamPage';
 import { setLastTeamId } from '~/lib/auth';
-import { ApiClient, ClientError, useRun } from '~/lib/runtime';
+import { ApiClient, ClientError, Redirect, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
 export const Route = createFileRoute('/(authenticated)/(no-team)/create-team')({
   component: CreateTeamRoute,
-  beforeLoad: async ({ context }) => {
-    if (context.user && !context.user.isProfileComplete) {
-      throw redirect({ to: '/profile/complete' });
-    }
-  },
+  beforeLoad: ({ context }) =>
+    Effect.Do.pipe(
+      Effect.tap(() =>
+        context.user.isProfileComplete ? Effect.void : Redirect.make({ to: '/profile/complete' }),
+      ),
+      context.run,
+    ),
 });
 
 function CreateTeamRoute() {

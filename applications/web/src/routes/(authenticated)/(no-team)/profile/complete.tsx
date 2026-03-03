@@ -11,12 +11,9 @@ export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complet
     context.user.isProfileComplete
       ? Effect.Do.pipe(
           Effect.flatMap(() => getLastTeamId),
-          Effect.flatMap(
-            Option.match({
-              onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
-              onNone: () => Redirect.make({ to: '/create-team' }),
-            }),
-          ),
+          Effect.flatten,
+          Effect.flatMap((teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } })),
+          Effect.catchTag('NoSuchElementException', () => Effect.void),
           context.run,
         )
       : {},
