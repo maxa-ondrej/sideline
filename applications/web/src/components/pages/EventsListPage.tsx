@@ -25,6 +25,8 @@ import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
+const NONE_VALUE = '__none__';
+
 const CreateEventSchema = Schema.Struct({
   title: Schema.NonEmptyString,
   eventType: Event.EventType,
@@ -65,7 +67,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
     defaultValues: {
       title: '',
       eventType: 'training' as Event.EventType,
-      trainingTypeId: '',
+      trainingTypeId: NONE_VALUE,
       description: '',
       eventDate: '',
       startTime: '',
@@ -82,9 +84,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
           payload: {
             title: values.title,
             eventType: values.eventType,
-            trainingTypeId: values.trainingTypeId
-              ? Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId)
-              : null,
+            trainingTypeId:
+              values.trainingTypeId && values.trainingTypeId !== NONE_VALUE
+                ? Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId)
+                : null,
             description: values.description || null,
             eventDate: values.eventDate,
             startTime: values.startTime,
@@ -167,7 +170,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value=''>{m.event_noTrainingType()}</SelectItem>
+                        <SelectItem value={NONE_VALUE}>{m.event_noTrainingType()}</SelectItem>
                         {trainingTypes.map((tt) => (
                           <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
                             {tt.name}

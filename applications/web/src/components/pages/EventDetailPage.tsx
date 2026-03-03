@@ -17,6 +17,8 @@ import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
+const NONE_VALUE = '__none__';
+
 const eventTypeLabels: Record<Event.EventType, () => string> = {
   training: m.event_type_training,
   match: m.event_type_match,
@@ -48,7 +50,9 @@ export function EventDetailPage({
 
   const [title, setTitle] = React.useState(eventDetail.title);
   const [eventType, setEventType] = React.useState(eventDetail.eventType);
-  const [trainingTypeId, setTrainingTypeId] = React.useState(eventDetail.trainingTypeId ?? '');
+  const [trainingTypeId, setTrainingTypeId] = React.useState(
+    eventDetail.trainingTypeId ?? NONE_VALUE,
+  );
   const [description, setDescription] = React.useState(eventDetail.description ?? '');
   const [eventDate, setEventDate] = React.useState(eventDetail.eventDate);
   const [startTime, setStartTime] = React.useState(eventDetail.startTime);
@@ -65,9 +69,10 @@ export function EventDetailPage({
           payload: {
             title,
             eventType,
-            trainingTypeId: trainingTypeId
-              ? Schema.decodeSync(TrainingType.TrainingTypeId)(trainingTypeId)
-              : null,
+            trainingTypeId:
+              trainingTypeId && trainingTypeId !== NONE_VALUE
+                ? Schema.decodeSync(TrainingType.TrainingTypeId)(trainingTypeId)
+                : null,
             description: description || null,
             eventDate,
             startTime,
@@ -178,7 +183,7 @@ export function EventDetailPage({
                     <SelectValue placeholder={m.event_noTrainingType()} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value=''>{m.event_noTrainingType()}</SelectItem>
+                    <SelectItem value={NONE_VALUE}>{m.event_noTrainingType()}</SelectItem>
                     {trainingTypes.map((tt) => (
                       <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
                         {tt.name}
