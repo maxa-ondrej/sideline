@@ -1,5 +1,11 @@
 # @sideline/bot
 
+## 0.3.1
+
+### Patch Changes
+
+- [`90b50bb`](https://github.com/maxa-ondrej/sideline/commit/90b50bbf8317901cedaa7cda8216ecef12be9acc) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Patch bump all applications
+
 ## 0.3.0
 
 ### Minor Changes
