@@ -1,5 +1,27 @@
 # @sideline/server
 
+## 0.5.0
+
+### Minor Changes
+
+- [#47](https://github.com/maxa-ondrej/sideline/pull/47) [`85d3108`](https://github.com/maxa-ondrej/sideline/commit/85d3108070f0868622a56d75a3cdd813b57e03bd) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Rework groups and roles: rename subgroups to groups with hierarchical support, assign roles to groups with recursive permission inheritance, scope training types to groups instead of coaches, and update age thresholds to operate on groups
+
+### Patch Changes
+
+- [#48](https://github.com/maxa-ondrej/sideline/pull/48) [`bdacd74`](https://github.com/maxa-ondrej/sideline/commit/bdacd74ce3ef5900ba18b266ef4836b284059428) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Emit channel_created event when linking an existing channel so the bot creates a role, and show channel names instead of raw snowflake IDs
+
+- [#48](https://github.com/maxa-ondrej/sideline/pull/48) [`bdacd74`](https://github.com/maxa-ondrej/sideline/commit/bdacd74ce3ef5900ba18b266ef4836b284059428) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Replace Discord channel ID input with a select dropdown that fetches guild text channels via the user's OAuth token
+
+- [#47](https://github.com/maxa-ondrej/sideline/pull/47) [`85d3108`](https://github.com/maxa-ondrej/sideline/commit/85d3108070f0868622a56d75a3cdd813b57e03bd) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add group hierarchy tree UI with expand/collapse and parent selector, Discord channel mapping HTTP API and group detail section
+
+- [#47](https://github.com/maxa-ondrej/sideline/pull/47) [`85d3108`](https://github.com/maxa-ondrej/sideline/commit/85d3108070f0868622a56d75a3cdd813b57e03bd) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add move-group UI and create-channel endpoint for existing groups
+
+- [#45](https://github.com/maxa-ondrej/sideline/pull/45) [`74544b4`](https://github.com/maxa-ondrej/sideline/commit/74544b4ede8dde9539bcb5c76c25afda279d883b) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add team-scoped authenticated routes and notification filtering
+
+- Updated dependencies [[`bdacd74`](https://github.com/maxa-ondrej/sideline/commit/bdacd74ce3ef5900ba18b266ef4836b284059428), [`bdacd74`](https://github.com/maxa-ondrej/sideline/commit/bdacd74ce3ef5900ba18b266ef4836b284059428), [`85d3108`](https://github.com/maxa-ondrej/sideline/commit/85d3108070f0868622a56d75a3cdd813b57e03bd), [`85d3108`](https://github.com/maxa-ondrej/sideline/commit/85d3108070f0868622a56d75a3cdd813b57e03bd), [`85d3108`](https://github.com/maxa-ondrej/sideline/commit/85d3108070f0868622a56d75a3cdd813b57e03bd), [`74544b4`](https://github.com/maxa-ondrej/sideline/commit/74544b4ede8dde9539bcb5c76c25afda279d883b)]:
+  - @sideline/domain@0.5.0
+  - @sideline/migrations@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
