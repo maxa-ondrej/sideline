@@ -1,3 +1,4 @@
+import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as Discord from 'dfx/types';
 import { Effect, Layer, Logger, LogLevel } from 'effect';
@@ -30,6 +31,15 @@ const MockSyncRpcLayer = Layer.succeed(
   }),
 );
 
+const MockDiscordRESTLayer = Layer.succeed(
+  DiscordREST,
+  new Proxy({} as never, {
+    get: () => () => Effect.succeed([]),
+  }),
+);
+
+const MockLayers = Layer.mergeAll(MockSyncRpcLayer, MockDiscordRESTLayer);
+
 describe('events', () => {
   it('registers handlers for expected gateway events', async () => {
     const { registeredEvents, layer } = makeRecordingGateway();
@@ -38,7 +48,7 @@ describe('events', () => {
       eventHandlers.pipe(
         Effect.timeout('100 millis'),
         Effect.ignore,
-        Effect.provide(Layer.merge(layer, MockSyncRpcLayer)),
+        Effect.provide(Layer.merge(layer, MockLayers)),
         Logger.withMinimumLogLevel(LogLevel.None),
       ),
     );
@@ -57,7 +67,7 @@ describe('events', () => {
     const result = await Effect.runPromise(
       eventHandlers.pipe(
         Effect.timeout('100 millis'),
-        Effect.provide(Layer.merge(layer, MockSyncRpcLayer)),
+        Effect.provide(Layer.merge(layer, MockLayers)),
         Logger.withMinimumLogLevel(LogLevel.None),
       ),
     );

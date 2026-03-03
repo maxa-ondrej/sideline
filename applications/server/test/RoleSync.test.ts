@@ -9,6 +9,7 @@ import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -554,6 +555,11 @@ const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMap
   deleteByGroupId: () => Effect.void,
 } as unknown as DiscordChannelMappingRepository);
 
+const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsRepository, {
+  syncChannels: () => Effect.void,
+  findByGuildId: () => Effect.succeed([]),
+} as unknown as DiscordChannelsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -575,12 +581,15 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockChannelSyncEventsRepositoryLayer),
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
   Layer.provide(
-    Layer.succeed(BotGuildsRepository, {
-      upsert: () => Effect.void,
-      remove: () => Effect.void,
-      exists: () => Effect.succeed(false),
-      findAll: () => Effect.succeed([]),
-    } as unknown as BotGuildsRepository),
+    Layer.merge(
+      Layer.succeed(BotGuildsRepository, {
+        upsert: () => Effect.void,
+        remove: () => Effect.void,
+        exists: () => Effect.succeed(false),
+        findAll: () => Effect.succeed([]),
+      } as unknown as BotGuildsRepository),
+      MockDiscordChannelsRepositoryLayer,
+    ),
   ),
 );
 
