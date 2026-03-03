@@ -1,6 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
-import { Auth, type Discord, GroupApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
+import { Auth, Discord, GroupApi } from '@sideline/domain';
+import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
+import { Effect, Layer, Option, Redacted, Schema } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -8,7 +9,31 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+
+const UserClient = HttpClient.HttpClient.pipe(
+  Effect.bindTo('client'),
+  Effect.bind('config', () => DiscordConfig.DiscordConfig),
+  Effect.map(({ client, config }) =>
+    client.pipe(
+      HttpClient.mapRequest(HttpClientRequest.bearerToken(config.token)),
+      HttpClient.tapRequest(Effect.logDebug),
+    ),
+  ),
+  Layer.effect(HttpClient.HttpClient),
+);
+
+const makeUserDiscordClient = (accessToken: string) =>
+  DiscordREST.pipe(
+    Effect.provide(
+      DiscordRESTLive.pipe(
+        Layer.provideMerge(UserClient),
+        Layer.provideMerge(MemoryRateLimitStoreLive),
+        Layer.provideMerge(DiscordConfig.layer({ token: Redacted.make(accessToken) })),
+      ),
+    ),
+  );
 
 const forbidden = new GroupApi.Forbidden();
 
@@ -20,7 +45,8 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
     Effect.bind('channelSync', () => ChannelSyncEventsRepository),
     Effect.bind('users', () => UsersRepository),
     Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
-    Effect.map(({ members, groups, roles, channelSync, users, channelMappings }) =>
+    Effect.bind('teams', () => TeamsRepository),
+    Effect.map(({ members, groups, roles, channelSync, users, channelMappings, teams }) =>
       handlers
         .handle('listGroups', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -543,6 +569,50 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 .pipe(Effect.catchAll((e) => Effect.logError('Failed to emit channel_created', e))),
             ),
             Effect.asVoid,
+          ),
+        )
+        .handle('listDiscordChannels', ({ path: { teamId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('team', () =>
+              teams.findById(teamId).pipe(
+                Effect.orDie,
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
+              ),
+            ),
+            Effect.bind('accessToken', ({ currentUser }) =>
+              users
+                .getAccessToken(currentUser.id)
+                .pipe(Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden))),
+            ),
+            Effect.bind('client', ({ accessToken }) => makeUserDiscordClient(accessToken)),
+            Effect.bind('channels', ({ team, client }) =>
+              client.listGuildChannels(team.guild_id).pipe(
+                Effect.catchTag('ErrorResponse', () => Effect.succeed([] as const)),
+                Effect.catchTag('RatelimitedResponse', () => Effect.succeed([] as const)),
+                Effect.catchTag('RequestError', () => Effect.succeed([] as const)),
+                Effect.catchTag('ResponseError', () => Effect.succeed([] as const)),
+              ),
+            ),
+            Effect.map(({ channels }) =>
+              channels.flatMap((ch) => {
+                if (ch.type !== 0 || !('name' in ch)) return [];
+                const parentId = 'parent_id' in ch && ch.parent_id ? String(ch.parent_id) : null;
+                return [
+                  new GroupApi.DiscordChannelInfo({
+                    id: Schema.decodeSync(Discord.Snowflake)(ch.id),
+                    name: ch.name,
+                    type: ch.type,
+                    parentId: parentId ? Schema.decodeSync(Discord.Snowflake)(parentId) : null,
+                  }),
+                ];
+              }),
+            ),
           ),
         ),
     ),
