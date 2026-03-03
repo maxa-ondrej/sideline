@@ -9,10 +9,14 @@ import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
+import { EventHorizonCron } from '~/services/EventHorizonCron.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
@@ -66,9 +70,24 @@ const Cron = AgeCheckCron.pipe(
   Effect.withLogSpan('age-check-cron'),
 );
 
+const EventHorizonRepositoriesLive = Layer.mergeAll(
+  EventSeriesRepository.Default,
+  EventsRepository.Default,
+  TeamSettingsRepository.Default,
+);
+
+const HorizonCron = EventHorizonCron.pipe(
+  Effect.provide(
+    EventHorizonRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
+  ),
+  Effect.withLogSpan('event-horizon-cron'),
+);
+
 Effect.Do.pipe(
   Effect.tap(() => (env.NODE_ENV === 'development' ? CreateDb : Effect.void)),
   Effect.tap(() => MigrateBefore),
-  Effect.andThen(() => Effect.all([App, Health, MigrateAfter, Cron], { concurrency: 4 })),
+  Effect.andThen(() =>
+    Effect.all([App, Health, MigrateAfter, Cron, HorizonCron], { concurrency: 5 }),
+  ),
   Runtime.runMain(env.NODE_ENV),
 );

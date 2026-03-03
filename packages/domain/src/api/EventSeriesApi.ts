@@ -1,0 +1,130 @@
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
+import { Schema } from 'effect';
+import { AuthMiddleware } from '~/api/Auth.js';
+import { Forbidden } from '~/api/EventApi.js';
+import {
+  DayOfWeek,
+  EventSeriesId,
+  EventSeriesStatus,
+  RecurrenceFrequency,
+} from '~/models/EventSeries.js';
+import { TeamId } from '~/models/Team.js';
+import { TrainingTypeId } from '~/models/TrainingType.js';
+
+export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesInfo')({
+  seriesId: EventSeriesId,
+  teamId: TeamId,
+  title: Schema.String,
+  frequency: RecurrenceFrequency,
+  dayOfWeek: DayOfWeek,
+  startDate: Schema.String,
+  endDate: Schema.NullOr(Schema.String),
+  status: EventSeriesStatus,
+  trainingTypeId: Schema.NullOr(TrainingTypeId),
+  trainingTypeName: Schema.NullOr(Schema.String),
+  startTime: Schema.String,
+  endTime: Schema.NullOr(Schema.String),
+  location: Schema.NullOr(Schema.String),
+}) {}
+
+export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSeriesDetail')({
+  seriesId: EventSeriesId,
+  teamId: TeamId,
+  title: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  frequency: RecurrenceFrequency,
+  dayOfWeek: DayOfWeek,
+  startDate: Schema.String,
+  endDate: Schema.NullOr(Schema.String),
+  status: EventSeriesStatus,
+  trainingTypeId: Schema.NullOr(TrainingTypeId),
+  trainingTypeName: Schema.NullOr(Schema.String),
+  startTime: Schema.String,
+  endTime: Schema.NullOr(Schema.String),
+  location: Schema.NullOr(Schema.String),
+  canEdit: Schema.Boolean,
+  canCancel: Schema.Boolean,
+}) {}
+
+export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequest>(
+  'CreateEventSeriesRequest',
+)({
+  title: Schema.NonEmptyString,
+  trainingTypeId: Schema.NullOr(TrainingTypeId),
+  description: Schema.NullOr(Schema.String),
+  frequency: RecurrenceFrequency,
+  dayOfWeek: DayOfWeek,
+  startDate: Schema.String,
+  endDate: Schema.NullOr(Schema.String),
+  startTime: Schema.String,
+  endTime: Schema.NullOr(Schema.String),
+  location: Schema.NullOr(Schema.String),
+}) {}
+
+export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
+  'UpdateEventSeriesRequest',
+)({
+  title: Schema.optionalWith(Schema.NonEmptyString, { as: 'Option' }),
+  trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
+  description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  startTime: Schema.optionalWith(Schema.String, { as: 'Option' }),
+  endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  endDate: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+}) {}
+
+export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(
+  'EventSeriesNotFound',
+  {},
+  HttpApiSchema.annotations({ status: 404 }),
+) {}
+
+export class EventSeriesCancelled extends Schema.TaggedError<EventSeriesCancelled>()(
+  'EventSeriesCancelled',
+  {},
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
+export class EventSeriesApiGroup extends HttpApiGroup.make('eventSeries')
+  .add(
+    HttpApiEndpoint.post('createEventSeries', '/teams/:teamId/event-series')
+      .addSuccess(EventSeriesInfo, { status: 201 })
+      .addError(Forbidden, { status: 403 })
+      .setPath(Schema.Struct({ teamId: TeamId }))
+      .setPayload(CreateEventSeriesRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('listEventSeries', '/teams/:teamId/event-series')
+      .addSuccess(Schema.Array(EventSeriesInfo))
+      .addError(Forbidden, { status: 403 })
+      .setPath(Schema.Struct({ teamId: TeamId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('getEventSeries', '/teams/:teamId/event-series/:seriesId')
+      .addSuccess(EventSeriesDetail)
+      .addError(Forbidden, { status: 403 })
+      .addError(EventSeriesNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, seriesId: EventSeriesId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.patch('updateEventSeries', '/teams/:teamId/event-series/:seriesId')
+      .addSuccess(EventSeriesDetail)
+      .addError(Forbidden, { status: 403 })
+      .addError(EventSeriesNotFound, { status: 404 })
+      .addError(EventSeriesCancelled, { status: 400 })
+      .setPath(Schema.Struct({ teamId: TeamId, seriesId: EventSeriesId }))
+      .setPayload(UpdateEventSeriesRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('cancelEventSeries', '/teams/:teamId/event-series/:seriesId/cancel')
+      .addSuccess(Schema.Void, { status: 204 })
+      .addError(Forbidden, { status: 403 })
+      .addError(EventSeriesNotFound, { status: 404 })
+      .addError(EventSeriesCancelled, { status: 400 })
+      .setPath(Schema.Struct({ teamId: TeamId, seriesId: EventSeriesId }))
+      .middleware(AuthMiddleware),
+  ) {}

@@ -6,6 +6,8 @@ export * as Auth from './api/Auth.js';
 
 export * as EventApi from './api/EventApi.js';
 
+export * as EventSeriesApi from './api/EventSeriesApi.js';
+
 export * as GroupApi from './api/GroupApi.js';
 
 export * as Invite from './api/Invite.js';
@@ -15,6 +17,8 @@ export * as NotificationApi from './api/NotificationApi.js';
 export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';
+
+export * as TeamSettingsApi from './api/TeamSettingsApi.js';
 
 export * as TrainingTypeApi from './api/TrainingTypeApi.js';
 
@@ -29,6 +33,8 @@ export * as DiscordChannelMapping from './models/DiscordChannelMapping.js';
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
 
 export * as Event from './models/Event.js';
+
+export * as EventSeries from './models/EventSeries.js';
 
 export * as GroupModel from './models/GroupModel.js';
 
@@ -53,6 +59,8 @@ export * as Team from './models/Team.js';
 export * as TeamInvite from './models/TeamInvite.js';
 
 export * as TeamMember from './models/TeamMember.js';
+
+export * as TeamSettings from './models/TeamSettings.js';
 
 export * as TrainingType from './models/TrainingType.js';
 

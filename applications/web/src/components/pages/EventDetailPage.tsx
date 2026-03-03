@@ -1,5 +1,5 @@
 import type { EventApi, TrainingTypeApi } from '@sideline/domain';
-import { Event, Team, TrainingType } from '@sideline/domain';
+import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -59,9 +59,14 @@ export function EventDetailPage({
   const [endTime, setEndTime] = React.useState(eventDetail.endTime ?? '');
   const [location, setLocation] = React.useState(eventDetail.location ?? '');
   const [saving, setSaving] = React.useState(false);
+  const [showEditScope, setShowEditScope] = React.useState(false);
+  const [showCancelScope, setShowCancelScope] = React.useState(false);
 
-  const handleSave = React.useCallback(async () => {
+  const hasSeries = eventDetail.seriesId !== null;
+
+  const doSaveThisOnly = React.useCallback(async () => {
     setSaving(true);
+    setShowEditScope(false);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.event.updateEvent({
@@ -104,8 +109,60 @@ export function EventDetailPage({
     router,
   ]);
 
-  const handleCancel = React.useCallback(async () => {
-    if (!window.confirm(m.event_cancelConfirm())) return;
+  const doSaveAllFuture = React.useCallback(async () => {
+    if (!eventDetail.seriesId) return;
+    setSaving(true);
+    setShowEditScope(false);
+    const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(eventDetail.seriesId);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.eventSeries.updateEventSeries({
+          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          payload: {
+            title: Option.some(title),
+            trainingTypeId: Option.some(
+              trainingTypeId && trainingTypeId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(trainingTypeId))
+                : Option.none(),
+            ),
+            description: Option.some(description ? Option.some(description) : Option.none()),
+            startTime: Option.some(startTime),
+            endTime: Option.some(endTime ? Option.some(endTime) : Option.none()),
+            location: Option.some(location ? Option.some(location) : Option.none()),
+            endDate: Option.none(),
+          },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.event_updateSeriesFailed())),
+      run,
+    );
+    setSaving(false);
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [
+    teamIdBranded,
+    eventDetail.seriesId,
+    title,
+    trainingTypeId,
+    description,
+    startTime,
+    endTime,
+    location,
+    run,
+    router,
+  ]);
+
+  const handleSave = React.useCallback(() => {
+    if (hasSeries) {
+      setShowEditScope(true);
+    } else {
+      doSaveThisOnly();
+    }
+  }, [hasSeries, doSaveThisOnly]);
+
+  const doCancelThisOnly = React.useCallback(async () => {
+    setShowCancelScope(false);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.event.cancelEvent({ path: { teamId: teamIdBranded, eventId: eventIdBranded } }),
@@ -118,6 +175,34 @@ export function EventDetailPage({
       navigate({ to: '/teams/$teamId/events', params: { teamId } });
     }
   }, [teamId, teamIdBranded, eventIdBranded, run, navigate]);
+
+  const doCancelAllFuture = React.useCallback(async () => {
+    if (!eventDetail.seriesId) return;
+    setShowCancelScope(false);
+    const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(eventDetail.seriesId);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.eventSeries.cancelEventSeries({
+          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
+      run,
+    );
+    if (Option.isSome(result)) {
+      toast.success(m.event_seriesCancelled());
+      navigate({ to: '/teams/$teamId/events', params: { teamId } });
+    }
+  }, [teamId, teamIdBranded, eventDetail.seriesId, run, navigate]);
+
+  const handleCancel = React.useCallback(() => {
+    if (hasSeries) {
+      setShowCancelScope(true);
+    } else {
+      if (!window.confirm(m.event_cancelConfirm())) return;
+      doCancelThisOnly();
+    }
+  }, [hasSeries, doCancelThisOnly]);
 
   const isActive = eventDetail.status === 'active';
 
@@ -146,6 +231,12 @@ export function EventDetailPage({
           )}
         </div>
       </header>
+
+      {hasSeries && (
+        <div className='mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800'>
+          {m.event_partOfSeries()}
+        </div>
+      )}
 
       <div className='flex flex-col gap-6 max-w-lg'>
         {eventDetail.canEdit && isActive ? (
@@ -255,6 +346,34 @@ export function EventDetailPage({
                 rows={3}
               />
             </div>
+
+            {showEditScope && (
+              <div className='rounded-md border p-4 space-y-2'>
+                <p className='font-medium'>{m.event_editScopeTitle()}</p>
+                <div className='flex gap-2'>
+                  <Button size='sm' variant='outline' onClick={doSaveThisOnly}>
+                    {m.event_editThisOnly()}
+                  </Button>
+                  <Button size='sm' onClick={doSaveAllFuture}>
+                    {m.event_editAllFuture()}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {showCancelScope && (
+              <div className='rounded-md border border-destructive/30 p-4 space-y-2'>
+                <p className='font-medium'>{m.event_cancelScopeTitle()}</p>
+                <div className='flex gap-2'>
+                  <Button size='sm' variant='outline' onClick={doCancelThisOnly}>
+                    {m.event_cancelThisOnly()}
+                  </Button>
+                  <Button size='sm' variant='destructive' onClick={doCancelAllFuture}>
+                    {m.event_cancelAllFuture()}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className='flex gap-2'>
               <Button onClick={handleSave} disabled={saving}>

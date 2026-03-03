@@ -1,5 +1,14 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type { Auth, Discord, Event, Role, Team, TeamMember, TrainingType } from '@sideline/domain';
+import type {
+  Auth,
+  Discord,
+  Event,
+  EventSeries,
+  Role,
+  Team,
+  TeamMember,
+  TrainingType,
+} from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -37,9 +46,7 @@ const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.Team
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
 const TEST_CAPTAIN_MEMBER_ID = '00000000-0000-0000-0000-000000000022' as TeamMember.TeamMemberId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const TEST_EVENT_1 = '00000000-0000-0000-0000-000000000060' as Event.EventId;
-const TEST_EVENT_2 = '00000000-0000-0000-0000-000000000061' as Event.EventId;
-const TEST_EVENT_SCOPED = '00000000-0000-0000-0000-000000000062' as Event.EventId;
+const TEST_SERIES_1 = '00000000-0000-0000-0000-000000000070' as EventSeries.EventSeriesId;
 const TEST_TRAINING_TYPE_A = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
 const TEST_TRAINING_TYPE_B = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
 
@@ -145,7 +152,6 @@ type UserLike = {
   updated_at: DateTime.Utc;
 };
 
-// --- Stores ---
 const usersMap = new Map<Auth.UserId, UserLike>();
 usersMap.set(TEST_USER_ID, testUser);
 usersMap.set(TEST_ADMIN_ID, testAdmin);
@@ -182,7 +188,28 @@ membersStore.set(TEST_CAPTAIN_MEMBER_ID, {
   permissions: CAPTAIN_PERMISSIONS,
 });
 
-// --- In-memory events ---
+// --- In-memory series store ---
+type SeriesRecord = {
+  id: EventSeries.EventSeriesId;
+  team_id: Team.TeamId;
+  training_type_id: string | null;
+  title: string;
+  description: string | null;
+  start_time: string;
+  end_time: string | null;
+  location: string | null;
+  frequency: 'weekly' | 'biweekly';
+  day_of_week: number;
+  start_date: string;
+  end_date: string | null;
+  status: 'active' | 'cancelled';
+  training_type_name: string | null;
+  last_generated_date: string | null;
+};
+
+let seriesStore: Map<EventSeries.EventSeriesId, SeriesRecord>;
+
+// --- In-memory events store ---
 type EventRecord = {
   id: Event.EventId;
   team_id: Team.TeamId;
@@ -205,61 +232,26 @@ type EventRecord = {
 let eventsStore: Map<Event.EventId, EventRecord>;
 
 const resetStores = () => {
-  eventsStore = new Map();
-  eventsStore.set(TEST_EVENT_1, {
-    id: TEST_EVENT_1,
+  seriesStore = new Map();
+  seriesStore.set(TEST_SERIES_1, {
+    id: TEST_SERIES_1,
     team_id: TEST_TEAM_ID,
     training_type_id: null,
-    event_type: 'training',
-    title: 'Tuesday Training',
-    description: 'Weekly training session',
-    event_date: '2026-03-10',
+    title: 'Weekly Training',
+    description: 'Regular training',
     start_time: '18:00:00',
     end_time: '20:00:00',
     location: 'Main Field',
+    frequency: 'weekly',
+    day_of_week: 2,
+    start_date: '2026-03-03',
+    end_date: '2026-06-30',
     status: 'active',
-    created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
-    series_modified: false,
+    last_generated_date: '2026-06-30',
   });
-  eventsStore.set(TEST_EVENT_2, {
-    id: TEST_EVENT_2,
-    team_id: TEST_TEAM_ID,
-    training_type_id: null,
-    event_type: 'match',
-    title: 'Cancelled Match',
-    description: null,
-    event_date: '2026-03-15',
-    start_time: '14:00:00',
-    end_time: '16:00:00',
-    location: null,
-    status: 'cancelled',
-    created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
-    series_modified: false,
-  });
-  eventsStore.set(TEST_EVENT_SCOPED, {
-    id: TEST_EVENT_SCOPED,
-    team_id: TEST_TEAM_ID,
-    training_type_id: TEST_TRAINING_TYPE_A,
-    event_type: 'training',
-    title: 'Scoped Training',
-    description: null,
-    event_date: '2026-03-12',
-    start_time: '17:00:00',
-    end_time: '19:00:00',
-    location: null,
-    status: 'active',
-    created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: 'Type A',
-    created_by_name: 'Admin User',
-    series_id: null,
-    series_modified: false,
-  });
+
+  eventsStore = new Map();
 };
 
 const buildRosterEntry = (
@@ -269,7 +261,7 @@ const buildRosterEntry = (
   permissions: readonly Role.Permission[],
 ): RosterEntry => {
   const user = usersMap.get(userId);
-  if (!user) throw new Error(`User ${userId} not found in usersMap`);
+  if (!user) throw new Error(`User ${userId} not found`);
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
@@ -395,39 +387,6 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   setJerseyNumber: () => Effect.void,
 });
 
-const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
-  _tag: 'api/RostersRepository',
-  findByTeam: () => Effect.succeed([]),
-  findByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
-  findRosterById: () => Effect.succeed(Option.none()),
-  insert: () => Effect.die(new Error('Not implemented')),
-  update: () => Effect.die(new Error('Not implemented')),
-  delete: () => Effect.void,
-  findMemberEntries: () => Effect.succeed([]),
-  findMemberEntriesById: () => Effect.succeed([]),
-  addMember: () => Effect.void,
-  addMemberById: () => Effect.void,
-  removeMember: () => Effect.void,
-  removeMemberById: () => Effect.void,
-});
-
-const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
-  _tag: 'api/TrainingTypesRepository',
-  findByTeamId: () => Effect.succeed([]),
-  findTrainingTypesByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
-  findTrainingTypeById: () => Effect.succeed(Option.none()),
-  findByIdWithGroup: () => Effect.succeed(Option.none()),
-  findTrainingTypeByIdWithGroup: () => Effect.succeed(Option.none()),
-  insert: () => Effect.die(new Error('Not implemented')),
-  insertTrainingType: () => Effect.die(new Error('Not implemented')),
-  update: () => Effect.die(new Error('Not implemented')),
-  updateTrainingType: () => Effect.die(new Error('Not implemented')),
-  deleteTrainingType: () => Effect.void,
-  deleteTrainingTypeById: () => Effect.void,
-} as unknown as TrainingTypesRepository);
-
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   _tag: 'api/EventsRepository',
   findByTeamId: (teamId: string) => {
@@ -548,100 +507,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_modified: record.series_modified,
     });
   },
-  update: (input: {
-    id: Event.EventId;
-    title: string;
-    event_type: string;
-    training_type_id: string | null;
-    description: string | null;
-    event_date: string;
-    start_time: string;
-    end_time: string | null;
-    location: string | null;
-  }) => {
-    const event = eventsStore.get(input.id);
-    if (!event) return Effect.die(new Error('Not found'));
-    const updated = {
-      ...event,
-      title: input.title,
-      event_type: input.event_type as Event.EventType,
-      training_type_id: input.training_type_id,
-      description: input.description,
-      event_date: input.event_date,
-      start_time: input.start_time,
-      end_time: input.end_time,
-      location: input.location,
-    };
-    eventsStore.set(input.id, updated);
-    return Effect.succeed({
-      id: updated.id,
-      team_id: updated.team_id,
-      training_type_id: updated.training_type_id,
-      event_type: updated.event_type,
-      title: updated.title,
-      description: updated.description,
-      event_date: updated.event_date,
-      start_time: updated.start_time,
-      end_time: updated.end_time,
-      location: updated.location,
-      status: updated.status,
-      created_by: updated.created_by,
-    });
-  },
-  updateEvent: (input: {
-    id: Event.EventId;
-    title: string;
-    eventType: string;
-    trainingTypeId: string | null;
-    description: string | null;
-    eventDate: string;
-    startTime: string;
-    endTime: string | null;
-    location: string | null;
-  }) => {
-    const event = eventsStore.get(input.id);
-    if (!event) return Effect.die(new Error('Not found'));
-    const updated = {
-      ...event,
-      title: input.title,
-      event_type: input.eventType as Event.EventType,
-      training_type_id: input.trainingTypeId,
-      description: input.description,
-      event_date: input.eventDate,
-      start_time: input.startTime,
-      end_time: input.endTime,
-      location: input.location,
-    };
-    eventsStore.set(input.id, updated);
-    return Effect.succeed({
-      id: updated.id,
-      team_id: updated.team_id,
-      training_type_id: updated.training_type_id,
-      event_type: updated.event_type,
-      title: updated.title,
-      description: updated.description,
-      event_date: updated.event_date,
-      start_time: updated.start_time,
-      end_time: updated.end_time,
-      location: updated.location,
-      status: updated.status,
-      created_by: updated.created_by,
-    });
-  },
-  cancel: (id: Event.EventId) => {
-    const event = eventsStore.get(id);
-    if (event) {
-      eventsStore.set(id, { ...event, status: 'cancelled' });
-    }
-    return Effect.void;
-  },
-  cancelEvent: (id: Event.EventId) => {
-    const event = eventsStore.get(id);
-    if (event) {
-      eventsStore.set(id, { ...event, status: 'cancelled' });
-    }
-    return Effect.void;
-  },
+  update: () => Effect.die(new Error('Not needed in series tests')),
+  updateEvent: () => Effect.die(new Error('Not needed in series tests')),
+  cancel: () => Effect.void,
+  cancelEvent: () => Effect.void,
   findScopedTrainingTypeIds: (memberId: TeamMember.TeamMemberId) => {
     if (memberId === TEST_CAPTAIN_MEMBER_ID) {
       return Effect.succeed([{ training_type_id: TEST_TRAINING_TYPE_A }]);
@@ -661,6 +530,265 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   updateFutureUnmodified: () => Effect.void,
   updateFutureUnmodifiedInSeries: () => Effect.void,
 } as unknown as EventsRepository);
+
+const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
+  _tag: 'api/EventSeriesRepository',
+  insertSeries: (input: {
+    team_id: string;
+    training_type_id: string | null;
+    title: string;
+    description: string | null;
+    start_time: string;
+    end_time: string | null;
+    location: string | null;
+    frequency: string;
+    day_of_week: number;
+    start_date: string;
+    end_date: string | null;
+    created_by: string;
+  }) => {
+    const id = crypto.randomUUID() as EventSeries.EventSeriesId;
+    const record: SeriesRecord = {
+      id,
+      team_id: input.team_id as Team.TeamId,
+      training_type_id: input.training_type_id,
+      title: input.title,
+      description: input.description,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      location: input.location,
+      frequency: input.frequency as 'weekly' | 'biweekly',
+      day_of_week: input.day_of_week,
+      start_date: input.start_date,
+      end_date: input.end_date,
+      status: 'active',
+      training_type_name: null,
+      last_generated_date: null,
+    };
+    seriesStore.set(id, record);
+    return Effect.succeed({
+      id,
+      team_id: record.team_id,
+      training_type_id: record.training_type_id,
+      title: record.title,
+      description: record.description,
+      start_time: record.start_time,
+      end_time: record.end_time,
+      location: record.location,
+      frequency: record.frequency,
+      day_of_week: record.day_of_week,
+      start_date: record.start_date,
+      end_date: record.end_date,
+      status: record.status,
+    });
+  },
+  insertEventSeries: (input: {
+    teamId: string;
+    trainingTypeId: string | null;
+    title: string;
+    description: string | null;
+    startTime: string;
+    endTime: string | null;
+    location: string | null;
+    frequency: string;
+    dayOfWeek: number;
+    startDate: string;
+    endDate: string | null;
+    createdBy: string;
+  }) => {
+    const id = crypto.randomUUID() as EventSeries.EventSeriesId;
+    const record: SeriesRecord = {
+      id,
+      team_id: input.teamId as Team.TeamId,
+      training_type_id: input.trainingTypeId,
+      title: input.title,
+      description: input.description,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      location: input.location,
+      frequency: input.frequency as 'weekly' | 'biweekly',
+      day_of_week: input.dayOfWeek,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      status: 'active',
+      training_type_name: null,
+      last_generated_date: null,
+    };
+    seriesStore.set(id, record);
+    return Effect.succeed({
+      id,
+      team_id: record.team_id,
+      training_type_id: record.training_type_id,
+      title: record.title,
+      description: record.description,
+      start_time: record.start_time,
+      end_time: record.end_time,
+      location: record.location,
+      frequency: record.frequency,
+      day_of_week: record.day_of_week,
+      start_date: record.start_date,
+      end_date: record.end_date,
+      status: record.status,
+    });
+  },
+  findByTeamId: (teamId: string) => {
+    const results = Array.from(seriesStore.values()).filter((s) => s.team_id === teamId);
+    return Effect.succeed(results);
+  },
+  findSeriesByTeamId: (teamId: string) => {
+    const results = Array.from(seriesStore.values()).filter((s) => s.team_id === teamId);
+    return Effect.succeed(results);
+  },
+  findById: (id: EventSeries.EventSeriesId) => {
+    const s = seriesStore.get(id);
+    if (!s) return Effect.succeed(Option.none());
+    return Effect.succeed(Option.some(s));
+  },
+  findSeriesById: (id: EventSeries.EventSeriesId) => {
+    const s = seriesStore.get(id);
+    if (!s) return Effect.succeed(Option.none());
+    return Effect.succeed(Option.some(s));
+  },
+  updateSeries: (input: {
+    id: EventSeries.EventSeriesId;
+    title: string;
+    training_type_id: string | null;
+    description: string | null;
+    start_time: string;
+    end_time: string | null;
+    location: string | null;
+    end_date: string | null;
+  }) => {
+    const s = seriesStore.get(input.id);
+    if (!s) return Effect.die(new Error('Not found'));
+    const updated = {
+      ...s,
+      title: input.title,
+      training_type_id: input.training_type_id,
+      description: input.description,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      location: input.location,
+      end_date: input.end_date,
+    };
+    seriesStore.set(input.id, updated);
+    return Effect.succeed({
+      id: updated.id,
+      team_id: updated.team_id,
+      training_type_id: updated.training_type_id,
+      title: updated.title,
+      description: updated.description,
+      start_time: updated.start_time,
+      end_time: updated.end_time,
+      location: updated.location,
+      frequency: updated.frequency,
+      day_of_week: updated.day_of_week,
+      start_date: updated.start_date,
+      end_date: updated.end_date,
+      status: updated.status,
+    });
+  },
+  updateEventSeries: (input: {
+    id: EventSeries.EventSeriesId;
+    title: string;
+    trainingTypeId: string | null;
+    description: string | null;
+    startTime: string;
+    endTime: string | null;
+    location: string | null;
+    endDate: string | null;
+  }) => {
+    const s = seriesStore.get(input.id);
+    if (!s) return Effect.die(new Error('Not found'));
+    const updated = {
+      ...s,
+      title: input.title,
+      training_type_id: input.trainingTypeId,
+      description: input.description,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      location: input.location,
+      end_date: input.endDate,
+    };
+    seriesStore.set(input.id, updated);
+    return Effect.succeed({
+      id: updated.id,
+      team_id: updated.team_id,
+      training_type_id: updated.training_type_id,
+      title: updated.title,
+      description: updated.description,
+      start_time: updated.start_time,
+      end_time: updated.end_time,
+      location: updated.location,
+      frequency: updated.frequency,
+      day_of_week: updated.day_of_week,
+      start_date: updated.start_date,
+      end_date: updated.end_date,
+      status: updated.status,
+    });
+  },
+  cancelSeries: (id: EventSeries.EventSeriesId) => {
+    const s = seriesStore.get(id);
+    if (s) {
+      seriesStore.set(id, { ...s, status: 'cancelled' });
+    }
+    return Effect.void;
+  },
+  cancelEventSeries: (id: EventSeries.EventSeriesId) => {
+    const s = seriesStore.get(id);
+    if (s) {
+      seriesStore.set(id, { ...s, status: 'cancelled' });
+    }
+    return Effect.void;
+  },
+  findActiveForGeneration: () => Effect.succeed([]),
+  getActiveForGeneration: () => Effect.succeed([]),
+  setLastGeneratedDate: () => Effect.void,
+  updateLastGeneratedDate: () => Effect.void,
+} as unknown as EventSeriesRepository);
+
+const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
+  _tag: 'api/TeamSettingsRepository',
+  findByTeam: () => Effect.succeed(Option.none()),
+  findByTeamId: () => Effect.succeed(Option.none()),
+  upsertSettings: () => Effect.succeed({ team_id: TEST_TEAM_ID, event_horizon_days: 30 }),
+  upsert: () => Effect.succeed({ team_id: TEST_TEAM_ID, event_horizon_days: 30 }),
+  getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+  getHorizonDays: () => Effect.succeed(30),
+} as unknown as TeamSettingsRepository);
+
+const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
+  _tag: 'api/RostersRepository',
+  findByTeam: () => Effect.succeed([]),
+  findByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findRosterById: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  delete: () => Effect.void,
+  findMemberEntries: () => Effect.succeed([]),
+  findMemberEntriesById: () => Effect.succeed([]),
+  addMember: () => Effect.void,
+  addMemberById: () => Effect.void,
+  removeMember: () => Effect.void,
+  removeMemberById: () => Effect.void,
+});
+
+const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
+  _tag: 'api/TrainingTypesRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findTrainingTypesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findTrainingTypeById: () => Effect.succeed(Option.none()),
+  findByIdWithGroup: () => Effect.succeed(Option.none()),
+  findTrainingTypeByIdWithGroup: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertTrainingType: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateTrainingType: () => Effect.die(new Error('Not implemented')),
+  deleteTrainingType: () => Effect.void,
+  deleteTrainingTypeById: () => Effect.void,
+} as unknown as TrainingTypesRepository);
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   _tag: 'api/TeamInvitesRepository',
@@ -812,20 +940,6 @@ const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsReposito
   findByGuildId: () => Effect.succeed([]),
 } as unknown as DiscordChannelsRepository);
 
-const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
-  _tag: 'api/EventSeriesRepository',
-  insertSeries: () => Effect.die(new Error('Not implemented')),
-  insertEventSeries: () => Effect.die(new Error('Not implemented')),
-  findByTeamId: () => Effect.succeed([]),
-  findSeriesByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
-  findSeriesById: () => Effect.succeed(Option.none()),
-  updateSeries: () => Effect.die(new Error('Not implemented')),
-  updateEventSeries: () => Effect.die(new Error('Not implemented')),
-  cancelSeries: () => Effect.void,
-  cancelEventSeries: () => Effect.void,
-} as unknown as EventSeriesRepository);
-
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -839,7 +953,12 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
-  Layer.provide(Layer.merge(MockEventsRepositoryLayer, MockEventSeriesRepositoryLayer)),
+  Layer.provide(
+    Layer.merge(
+      Layer.merge(MockEventsRepositoryLayer, MockEventSeriesRepositoryLayer),
+      MockTeamSettingsRepositoryLayer,
+    ),
+  ),
   Layer.provide(MockHttpClientLayer),
   Layer.provide(MockAgeCheckServiceLayer),
   Layer.provide(MockAgeThresholdRepositoryLayer),
@@ -849,26 +968,15 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(
     Layer.merge(
       Layer.merge(
-        Layer.merge(
-          MockDiscordChannelMappingRepositoryLayer,
-          Layer.succeed(BotGuildsRepository, {
-            upsert: () => Effect.void,
-            remove: () => Effect.void,
-            exists: () => Effect.succeed(false),
-            findAll: () => Effect.succeed([]),
-          } as unknown as BotGuildsRepository),
-        ),
-        MockDiscordChannelsRepositoryLayer,
+        MockDiscordChannelMappingRepositoryLayer,
+        Layer.succeed(BotGuildsRepository, {
+          upsert: () => Effect.void,
+          remove: () => Effect.void,
+          exists: () => Effect.succeed(false),
+          findAll: () => Effect.succeed([]),
+        } as unknown as BotGuildsRepository),
       ),
-      Layer.succeed(TeamSettingsRepository, {
-        _tag: 'api/TeamSettingsRepository',
-        findByTeam: () => Effect.succeed(Option.none()),
-        findByTeamId: () => Effect.succeed(Option.none()),
-        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
-        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
-        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
-        getHorizonDays: () => Effect.succeed(30),
-      } as unknown as TeamSettingsRepository),
+      MockDiscordChannelsRepositoryLayer,
     ),
   ),
 );
@@ -890,58 +998,24 @@ beforeEach(() => {
   resetStores();
 });
 
-const BASE = `http://localhost/teams/${TEST_TEAM_ID}/events`;
+const BASE = `http://localhost/teams/${TEST_TEAM_ID}/event-series`;
 
-describe('Events API', () => {
-  describe('GET /teams/:teamId/events (list)', () => {
-    it('returns 401 without auth token', async () => {
-      const response = await handler(new Request(BASE));
-      expect(response.status).toBe(401);
-    });
+describe('Event Series API', () => {
+  const createPayload = {
+    title: 'Weekly Training',
+    trainingTypeId: null,
+    description: 'Regular session',
+    frequency: 'weekly',
+    dayOfWeek: 2,
+    startDate: '2026-03-03',
+    endDate: '2026-03-31',
+    startTime: '18:00',
+    endTime: '20:00',
+    location: 'Main Field',
+  };
 
-    it('returns 200 with canCreate:true for admin', async () => {
-      const response = await handler(
-        new Request(BASE, { headers: { Authorization: 'Bearer admin-token' } }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.canCreate).toBe(true);
-      expect(body.events).toHaveLength(3);
-    });
-
-    it('returns 200 with canCreate:true for captain', async () => {
-      const response = await handler(
-        new Request(BASE, { headers: { Authorization: 'Bearer captain-token' } }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.canCreate).toBe(true);
-    });
-
-    it('returns 200 with canCreate:false for regular player', async () => {
-      const response = await handler(
-        new Request(BASE, { headers: { Authorization: 'Bearer user-token' } }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.canCreate).toBe(false);
-      expect(body.events).toHaveLength(3);
-    });
-  });
-
-  describe('POST /teams/:teamId/events (create)', () => {
-    const createPayload = {
-      title: 'New Training',
-      eventType: 'training',
-      trainingTypeId: null,
-      description: null,
-      eventDate: '2026-03-20',
-      startTime: '18:00',
-      endTime: null,
-      location: null,
-    };
-
-    it('returns 201 for admin creating event', async () => {
+  describe('POST /teams/:teamId/event-series (create)', () => {
+    it('returns 201 for admin creating series', async () => {
       const response = await handler(
         new Request(BASE, {
           method: 'POST',
@@ -954,11 +1028,14 @@ describe('Events API', () => {
       );
       expect(response.status).toBe(201);
       const body = await response.json();
-      expect(body.title).toBe('New Training');
-      expect(body.eventType).toBe('training');
+      expect(body.title).toBe('Weekly Training');
+      expect(body.frequency).toBe('weekly');
+      expect(body.dayOfWeek).toBe(2);
+      // Should also have created materialized events
+      expect(eventsStore.size).toBeGreaterThan(0);
     });
 
-    it('returns 201 for captain creating event', async () => {
+    it('returns 201 for captain creating series', async () => {
       const response = await handler(
         new Request(BASE, {
           method: 'POST',
@@ -972,7 +1049,7 @@ describe('Events API', () => {
       expect(response.status).toBe(201);
     });
 
-    it('returns 403 for player creating event', async () => {
+    it('returns 403 for player creating series', async () => {
       const response = await handler(
         new Request(BASE, {
           method: 'POST',
@@ -985,48 +1062,71 @@ describe('Events API', () => {
       );
       expect(response.status).toBe(403);
     });
+
+    it('captain cannot create series with disallowed training type', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...createPayload,
+            trainingTypeId: TEST_TRAINING_TYPE_B,
+          }),
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it('captain can create series with allowed training type', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...createPayload,
+            trainingTypeId: TEST_TRAINING_TYPE_A,
+          }),
+        }),
+      );
+      expect(response.status).toBe(201);
+    });
   });
 
-  describe('GET /teams/:teamId/events/:eventId (get)', () => {
-    it('returns 200 with canEdit/canCancel for admin on active event', async () => {
+  describe('GET /teams/:teamId/event-series (list)', () => {
+    it('returns series for team', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_1}`, {
+        new Request(BASE, {
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
+      expect(body).toHaveLength(1);
+      expect(body[0].title).toBe('Weekly Training');
+    });
+  });
+
+  describe('GET /teams/:teamId/event-series/:seriesId (get)', () => {
+    it('returns 200 for valid series', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.title).toBe('Weekly Training');
       expect(body.canEdit).toBe(true);
       expect(body.canCancel).toBe(true);
-      expect(body.title).toBe('Tuesday Training');
     });
 
-    it('returns 200 with canEdit:false/canCancel:false on cancelled event', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_2}`, {
-          headers: { Authorization: 'Bearer admin-token' },
-        }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.canEdit).toBe(false);
-      expect(body.canCancel).toBe(false);
-      expect(body.status).toBe('cancelled');
-    });
-
-    it('returns 200 with canEdit:false/canCancel:false for player', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_1}`, {
-          headers: { Authorization: 'Bearer user-token' },
-        }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.canEdit).toBe(false);
-      expect(body.canCancel).toBe(false);
-    });
-
-    it('returns 404 for unknown event', async () => {
+    it('returns 404 for unknown series', async () => {
       const unknownId = '00000000-0000-0000-0000-000000000099';
       const response = await handler(
         new Request(`${BASE}/${unknownId}`, {
@@ -1037,72 +1137,70 @@ describe('Events API', () => {
     });
   });
 
-  describe('PATCH /teams/:teamId/events/:eventId (update)', () => {
-    it('returns 200 for admin updating event', async () => {
+  describe('PATCH /teams/:teamId/event-series/:seriesId (update)', () => {
+    it('returns 200 for admin updating series', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_1}`, {
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
           method: 'PATCH',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            title: 'Renamed Training',
-          }),
+          body: JSON.stringify({ title: 'Updated Training' }),
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.title).toBe('Renamed Training');
+      expect(body.title).toBe('Updated Training');
     });
 
-    it('returns 403 for player updating event', async () => {
+    it('returns 403 for player updating series', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_1}`, {
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
           method: 'PATCH',
           headers: {
             Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            title: 'Should Fail',
-          }),
+          body: JSON.stringify({ title: 'Should Fail' }),
         }),
       );
       expect(response.status).toBe(403);
     });
 
-    it('returns 400 when updating cancelled event', async () => {
+    it('returns 400 when updating cancelled series', async () => {
+      const s = seriesStore.get(TEST_SERIES_1);
+      if (s) seriesStore.set(TEST_SERIES_1, { ...s, status: 'cancelled' });
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_2}`, {
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
           method: 'PATCH',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            title: 'Try Update',
-          }),
+          body: JSON.stringify({ title: 'Try Update' }),
         }),
       );
       expect(response.status).toBe(400);
     });
   });
 
-  describe('POST /teams/:teamId/events/:eventId/cancel', () => {
-    it('returns 204 for admin cancelling event', async () => {
+  describe('POST /teams/:teamId/event-series/:seriesId/cancel', () => {
+    it('returns 204 for admin cancelling series', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_1}/cancel`, {
+        new Request(`${BASE}/${TEST_SERIES_1}/cancel`, {
           method: 'POST',
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(204);
+      const s = seriesStore.get(TEST_SERIES_1);
+      expect(s?.status).toBe('cancelled');
     });
 
-    it('returns 403 for player cancelling event', async () => {
+    it('returns 403 for player cancelling series', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_1}/cancel`, {
+        new Request(`${BASE}/${TEST_SERIES_1}/cancel`, {
           method: 'POST',
           headers: { Authorization: 'Bearer user-token' },
         }),
@@ -1110,130 +1208,16 @@ describe('Events API', () => {
       expect(response.status).toBe(403);
     });
 
-    it('returns 400 when cancelling already cancelled event', async () => {
+    it('returns 400 when cancelling already cancelled series', async () => {
+      const s = seriesStore.get(TEST_SERIES_1);
+      if (s) seriesStore.set(TEST_SERIES_1, { ...s, status: 'cancelled' });
       const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_2}/cancel`, {
+        new Request(`${BASE}/${TEST_SERIES_1}/cancel`, {
           method: 'POST',
           headers: { Authorization: 'Bearer admin-token' },
         }),
       );
       expect(response.status).toBe(400);
-    });
-  });
-
-  describe('Coach scoping', () => {
-    it('captain can create event with allowed training type', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: 'Scoped Event',
-            eventType: 'training',
-            trainingTypeId: TEST_TRAINING_TYPE_A,
-            description: null,
-            eventDate: '2026-03-20',
-            startTime: '18:00',
-            endTime: null,
-            location: null,
-          }),
-        }),
-      );
-      expect(response.status).toBe(201);
-    });
-
-    it('captain cannot create event with disallowed training type', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: 'Blocked Event',
-            eventType: 'training',
-            trainingTypeId: TEST_TRAINING_TYPE_B,
-            description: null,
-            eventDate: '2026-03-20',
-            startTime: '18:00',
-            endTime: null,
-            location: null,
-          }),
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it('captain can update event with allowed training type', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_SCOPED}`, {
-          method: 'PATCH',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: 'Updated Scoped',
-            trainingTypeId: TEST_TRAINING_TYPE_A,
-          }),
-        }),
-      );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.title).toBe('Updated Scoped');
-    });
-
-    it('captain cannot update event to disallowed training type', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_SCOPED}`, {
-          method: 'PATCH',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            trainingTypeId: TEST_TRAINING_TYPE_B,
-          }),
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it('captain can cancel event with allowed training type', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_EVENT_SCOPED}/cancel`, {
-          method: 'POST',
-          headers: { Authorization: 'Bearer captain-token' },
-        }),
-      );
-      expect(response.status).toBe(204);
-    });
-
-    it('admin bypasses coach scoping for disallowed training type', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer admin-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            title: 'Admin Event',
-            eventType: 'training',
-            trainingTypeId: TEST_TRAINING_TYPE_B,
-            description: null,
-            eventDate: '2026-03-20',
-            startTime: '18:00',
-            endTime: null,
-            location: null,
-          }),
-        }),
-      );
-      expect(response.status).toBe(201);
     });
   });
 });

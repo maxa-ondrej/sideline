@@ -30,6 +30,7 @@ export class MembershipWithRole extends Schema.Class<MembershipWithRole>('Member
 export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   member_id: TeamMember.TeamMemberId,
   user_id: User.UserId,
+  discord_id: Schema.String,
   role_names: Schemas.ArrayFromSplitString(),
   permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
   name: Schema.NullOr(Schema.String),
@@ -186,7 +187,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Request: Schema.String,
           Result: RosterEntry,
           execute: (teamId) => sql`
-            SELECT tm.id as member_id, tm.user_id,
+            SELECT tm.id as member_id, tm.user_id, u.discord_id,
                    COALESCE(
                      (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
                       FROM member_roles mr JOIN roles r ON r.id = mr.role_id
@@ -210,7 +211,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
           Request: RosterMemberQuery,
           Result: RosterEntry,
           execute: (input) => sql`
-            SELECT tm.id as member_id, tm.user_id,
+            SELECT tm.id as member_id, tm.user_id, u.discord_id,
                    COALESCE(
                      (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
                       FROM member_roles mr JOIN roles r ON r.id = mr.role_id

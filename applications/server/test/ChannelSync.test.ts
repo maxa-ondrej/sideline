@@ -18,6 +18,7 @@ import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
+import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -28,6 +29,7 @@ import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -382,6 +384,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
         new RosterEntry({
           member_id: member.id,
           user_id: member.user_id,
+          discord_id: user.discord_id,
           role_names: member.role_names,
           permissions: member.permissions,
           name: user.name,
@@ -406,6 +409,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
         new RosterEntry({
           member_id: member.id,
           user_id: member.user_id,
+          discord_id: user.discord_id,
           role_names: member.role_names,
           permissions: member.permissions,
           name: user.name,
@@ -590,6 +594,20 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   getScopedTrainingTypeIds: () => Effect.succeed([]),
 } as unknown as EventsRepository);
 
+const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
+  _tag: 'api/EventSeriesRepository',
+  insertSeries: () => Effect.die(new Error('Not implemented')),
+  insertEventSeries: () => Effect.die(new Error('Not implemented')),
+  findByTeamId: () => Effect.succeed([]),
+  findSeriesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findSeriesById: () => Effect.succeed(Option.none()),
+  updateSeries: () => Effect.die(new Error('Not implemented')),
+  updateEventSeries: () => Effect.die(new Error('Not implemented')),
+  cancelSeries: () => Effect.void,
+  cancelEventSeries: () => Effect.void,
+} as unknown as EventSeriesRepository);
+
 const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {
   upsert: () => Effect.void,
   remove: () => Effect.void,
@@ -624,8 +642,22 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
   Layer.provide(
     Layer.merge(
-      Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
-      MockDiscordChannelsRepositoryLayer,
+      Layer.merge(
+        Layer.merge(
+          Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
+          MockDiscordChannelsRepositoryLayer,
+        ),
+        MockEventSeriesRepositoryLayer,
+      ),
+      Layer.succeed(TeamSettingsRepository, {
+        _tag: 'api/TeamSettingsRepository',
+        findByTeam: () => Effect.succeed(Option.none()),
+        findByTeamId: () => Effect.succeed(Option.none()),
+        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+        getHorizonDays: () => Effect.succeed(30),
+      } as unknown as TeamSettingsRepository),
     ),
   ),
 );

@@ -96,7 +96,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
           Request: RosterMemberEntriesInput,
           Result: RosterEntry,
           execute: (input) => sql`
-            SELECT tm.id AS member_id, tm.user_id,
+            SELECT tm.id AS member_id, tm.user_id, u.discord_id,
                    COALESCE(
                      (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
                       FROM member_roles mr JOIN roles r ON r.id = mr.role_id

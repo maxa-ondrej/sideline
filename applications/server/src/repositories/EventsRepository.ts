@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Event, Team, TeamMember, TrainingType } from '@sideline/domain';
+import { Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
@@ -18,6 +18,8 @@ class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails'
   created_by: TeamMember.TeamMemberId,
   training_type_name: Schema.NullOr(Schema.String),
   created_by_name: Schema.NullOr(Schema.String),
+  series_id: Schema.NullOr(EventSeries.EventSeriesId),
+  series_modified: Schema.Boolean,
 }) {}
 
 class EventRow extends Schema.Class<EventRow>('EventRow')({
@@ -33,6 +35,8 @@ class EventRow extends Schema.Class<EventRow>('EventRow')({
   location: Schema.NullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
+  series_id: Schema.NullOr(EventSeries.EventSeriesId),
+  series_modified: Schema.Boolean,
 }) {}
 
 class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput')({
@@ -46,6 +50,7 @@ class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput'
   end_time: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   created_by: Schema.String,
+  series_id: Schema.NullOr(Schema.String),
 }) {}
 
 class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput')({
@@ -76,13 +81,14 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                    e.description, e.event_date::text, e.start_time::text, e.end_time::text,
                    e.location, e.status, e.created_by,
                    tt.name AS training_type_name,
-                   u.name AS created_by_name
+                   u.name AS created_by_name,
+                   e.series_id, e.series_modified
             FROM events e
             LEFT JOIN training_types tt ON tt.id = e.training_type_id
             LEFT JOIN team_members tm ON tm.id = e.created_by
             LEFT JOIN users u ON u.id = tm.user_id
             WHERE e.team_id = ${teamId}
-            ORDER BY e.event_date DESC, e.start_time DESC
+            ORDER BY e.event_date ASC, e.start_time ASC
           `,
       }),
     ),
@@ -95,7 +101,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                    e.description, e.event_date::text, e.start_time::text, e.end_time::text,
                    e.location, e.status, e.created_by,
                    tt.name AS training_type_name,
-                   u.name AS created_by_name
+                   u.name AS created_by_name,
+                   e.series_id, e.series_modified
             FROM events e
             LEFT JOIN training_types tt ON tt.id = e.training_type_id
             LEFT JOIN team_members tm ON tm.id = e.created_by
@@ -110,12 +117,14 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         Result: EventRow,
         execute: (input) => sql`
             INSERT INTO events (team_id, training_type_id, event_type, title, description,
-                                event_date, start_time, end_time, location, created_by)
+                                event_date, start_time, end_time, location, created_by, series_id)
             VALUES (${input.team_id}, ${input.training_type_id}, ${input.event_type},
                     ${input.title}, ${input.description}, ${input.event_date},
-                    ${input.start_time}, ${input.end_time}, ${input.location}, ${input.created_by})
+                    ${input.start_time}, ${input.end_time}, ${input.location}, ${input.created_by},
+                    ${input.series_id})
             RETURNING id, team_id, training_type_id, event_type, title, description,
-                      event_date::text, start_time::text, end_time::text, location, status, created_by
+                      event_date::text, start_time::text, end_time::text, location, status,
+                      created_by, series_id, series_modified
           `,
       }),
     ),
@@ -136,7 +145,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, event_type, title, description,
-                      event_date::text, start_time::text, end_time::text, location, status, created_by
+                      event_date::text, start_time::text, end_time::text, location, status,
+                      created_by, series_id, series_modified
           `,
       }),
     ),
@@ -157,6 +167,53 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
             JOIN role_training_types rtt ON rtt.role_id = mr.role_id
             WHERE mr.team_member_id = ${teamMemberId}
           `,
+      }),
+    ),
+    Effect.let('markModified', ({ sql }) =>
+      SqlSchema.void({
+        Request: Event.EventId,
+        execute: (id) =>
+          sql`UPDATE events SET series_modified = true, updated_at = now() WHERE id = ${id}`,
+      }),
+    ),
+    Effect.let('cancelFuture', ({ sql }) =>
+      SqlSchema.void({
+        Request: Schema.Struct({
+          series_id: Schema.String,
+          from_date: Schema.String,
+        }),
+        execute: (input) =>
+          sql`UPDATE events SET status = 'cancelled', updated_at = now()
+              WHERE series_id = ${input.series_id}
+                AND event_date >= ${input.from_date}::date
+                AND status = 'active'`,
+      }),
+    ),
+    Effect.let('updateFutureUnmodified', ({ sql }) =>
+      SqlSchema.void({
+        Request: Schema.Struct({
+          series_id: Schema.String,
+          from_date: Schema.String,
+          title: Schema.String,
+          training_type_id: Schema.NullOr(Schema.String),
+          description: Schema.NullOr(Schema.String),
+          start_time: Schema.String,
+          end_time: Schema.NullOr(Schema.String),
+          location: Schema.NullOr(Schema.String),
+        }),
+        execute: (input) =>
+          sql`UPDATE events SET
+                title = ${input.title},
+                training_type_id = ${input.training_type_id},
+                description = ${input.description},
+                start_time = ${input.start_time},
+                end_time = ${input.end_time},
+                location = ${input.location},
+                updated_at = now()
+              WHERE series_id = ${input.series_id}
+                AND event_date >= ${input.from_date}::date
+                AND series_modified = false
+                AND status = 'active'`,
       }),
     ),
     Bind.remove('sql'),
@@ -181,6 +238,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     endTime: string | null;
     location: string | null;
     createdBy: TeamMember.TeamMemberId;
+    seriesId?: string | null;
   }) {
     return this.insert({
       team_id: input.teamId,
@@ -193,6 +251,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       end_time: input.endTime,
       location: input.location,
       created_by: input.createdBy,
+      series_id: input.seriesId ?? null,
     });
   }
 
@@ -226,5 +285,37 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   getScopedTrainingTypeIds(teamMemberId: TeamMember.TeamMemberId) {
     return this.findScopedTrainingTypeIds(teamMemberId);
+  }
+
+  markEventSeriesModified(eventId: Event.EventId) {
+    return this.markModified(eventId);
+  }
+
+  cancelFutureInSeries(seriesId: EventSeries.EventSeriesId, fromDate: string) {
+    return this.cancelFuture({ series_id: seriesId, from_date: fromDate });
+  }
+
+  updateFutureUnmodifiedInSeries(
+    seriesId: EventSeries.EventSeriesId,
+    fromDate: string,
+    fields: {
+      title: string;
+      trainingTypeId: string | null;
+      description: string | null;
+      startTime: string;
+      endTime: string | null;
+      location: string | null;
+    },
+  ) {
+    return this.updateFutureUnmodified({
+      series_id: seriesId,
+      from_date: fromDate,
+      title: fields.title,
+      training_type_id: fields.trainingTypeId,
+      description: fields.description,
+      start_time: fields.startTime,
+      end_time: fields.endTime,
+      location: fields.location,
+    });
   }
 }

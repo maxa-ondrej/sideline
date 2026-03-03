@@ -61,6 +61,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                         endTime: e.end_time,
                         location: e.location,
                         status: e.status,
+                        seriesId: e.series_id,
                       }),
                   ),
                 }),
@@ -109,6 +110,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   endTime: event.end_time,
                   location: event.location,
                   status: event.status,
+                  seriesId: event.series_id,
                 }),
             ),
           ),
@@ -153,6 +155,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   createdByName: event.created_by_name,
                   canEdit: canEdit && event.status === 'active',
                   canCancel: canCancel && event.status === 'active',
+                  seriesId: event.series_id,
+                  seriesModified: event.series_modified,
                 }),
             ),
           ),
@@ -216,6 +220,11 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
+            Effect.tap(({ existing }) =>
+              existing.series_id !== null
+                ? events.markEventSeriesModified(eventId).pipe(Effect.mapError(() => forbidden))
+                : Effect.void,
+            ),
             Effect.bind('detail', () =>
               events.findEventByIdWithDetails(eventId).pipe(
                 Effect.mapError(() => forbidden),
@@ -246,6 +255,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 createdByName: detail.created_by_name,
                 canEdit: canEdit && detail.status === 'active',
                 canCancel: canCancel && detail.status === 'active',
+                seriesId: detail.series_id,
+                seriesModified: detail.series_modified,
               });
             }),
           ),

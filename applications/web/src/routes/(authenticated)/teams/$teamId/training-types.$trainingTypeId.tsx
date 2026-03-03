@@ -1,3 +1,4 @@
+import type { EventSeriesApi } from '@sideline/domain';
 import { Team, TrainingType } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Schema } from 'effect';
@@ -13,7 +14,10 @@ export const Route = createFileRoute(
     const trainingTypeId = Schema.decodeSync(TrainingType.TrainingTypeId)(params.trainingTypeId);
     return ApiClient.pipe(
       Effect.flatMap((api) =>
-        api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
+        Effect.all({
+          trainingType: api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
+          series: api.eventSeries.listEventSeries({ path: { teamId } }),
+        }),
       ),
       warnAndCatchAll,
       context.run,
@@ -23,14 +27,17 @@ export const Route = createFileRoute(
 
 function TrainingTypeDetailRoute() {
   const { teamId: teamIdRaw, trainingTypeId: trainingTypeIdRaw } = Route.useParams();
-  const trainingTypeDetail = Route.useLoaderData();
+  const data = Route.useLoaderData();
 
   return (
     <TrainingTypeDetailPage
       teamId={teamIdRaw}
       trainingTypeId={trainingTypeIdRaw}
-      trainingTypeDetail={trainingTypeDetail}
-      canAdmin={trainingTypeDetail.canAdmin}
+      trainingTypeDetail={data.trainingType}
+      canAdmin={data.trainingType.canAdmin}
+      series={data.series.filter(
+        (s: EventSeriesApi.EventSeriesInfo) => s.trainingTypeId === trainingTypeIdRaw,
+      )}
     />
   );
 }
