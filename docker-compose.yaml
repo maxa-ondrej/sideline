@@ -11,6 +11,7 @@ services:
       WEB_PORT: 3000
       WEB_HOST: ${SERVICE_NAME_WEB}
       SERVER_HOST: ${SERVICE_NAME_SERVER}
+      FRONTEND_URL: ${SERVICE_URL_PROXY}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
