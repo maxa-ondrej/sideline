@@ -42,6 +42,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   }),
   wrapInSuspense: true,
   shellComponent: RootDocumentRoute,
+  ssr: false,
   beforeLoad: async ({ abortController }) => {
     const environment = await fetchEnv(abortController);
     const makeRun = runPromiseServer(environment.SERVER_URL);
