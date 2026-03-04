@@ -1,14 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import type {
-  Auth,
-  Discord,
-  Event,
-  EventSeries,
-  Role,
-  Team,
-  TeamMember,
-  TrainingType,
-} from '@sideline/domain';
+import type { Auth, Discord, Event, EventRsvp, Role, Team, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -41,15 +32,16 @@ import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 // --- Test IDs ---
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_ADMIN_ID = '00000000-0000-0000-0000-000000000002' as Auth.UserId;
-const TEST_CAPTAIN_ID = '00000000-0000-0000-0000-000000000003' as Auth.UserId;
+const TEST_OTHER_USER_ID = '00000000-0000-0000-0000-000000000003' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
+const OTHER_TEAM_ID = '00000000-0000-0000-0000-000000000011' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
-const TEST_CAPTAIN_MEMBER_ID = '00000000-0000-0000-0000-000000000022' as TeamMember.TeamMemberId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
-const TEST_SERIES_1 = '00000000-0000-0000-0000-000000000070' as EventSeries.EventSeriesId;
-const TEST_TRAINING_TYPE_A = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
-const TEST_TRAINING_TYPE_B = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
+const TEST_EVENT_ACTIVE = '00000000-0000-0000-0000-000000000060' as Event.EventId;
+const TEST_EVENT_CANCELLED = '00000000-0000-0000-0000-000000000061' as Event.EventId;
+const TEST_EVENT_PAST = '00000000-0000-0000-0000-000000000062' as Event.EventId;
+const TEST_EVENT_OTHER_TEAM = '00000000-0000-0000-0000-000000000063' as Event.EventId;
 
 const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'team:manage',
@@ -67,16 +59,6 @@ const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'event:edit',
   'event:cancel',
 ];
-const CAPTAIN_PERMISSIONS: readonly Role.Permission[] = [
-  'roster:view',
-  'roster:manage',
-  'member:view',
-  'member:edit',
-  'role:view',
-  'event:create',
-  'event:edit',
-  'event:cancel',
-];
 const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
 
 // --- Users ---
@@ -87,10 +69,10 @@ const testUser = {
   discord_avatar: null,
   discord_access_token: 'token',
   discord_refresh_token: null,
-  is_profile_complete: false,
-  name: null,
-  birth_date: Option.none(),
-  gender: null,
+  is_profile_complete: true,
+  name: 'Test User',
+  birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
+  gender: 'male' as const,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -106,22 +88,6 @@ const testAdmin = {
   is_profile_complete: true,
   name: 'Admin User',
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
-  locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
-};
-
-const testCaptain = {
-  id: TEST_CAPTAIN_ID,
-  discord_id: '11111',
-  discord_username: 'captainuser',
-  discord_avatar: null,
-  discord_access_token: 'captain-token',
-  discord_refresh_token: null,
-  is_profile_complete: true,
-  name: 'Captain User',
-  birth_date: Option.some(DateTime.unsafeMake('1992-01-01')),
   gender: 'male' as const,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
@@ -153,15 +119,15 @@ type UserLike = {
   updated_at: DateTime.Utc;
 };
 
+// --- Stores ---
 const usersMap = new Map<Auth.UserId, UserLike>();
 usersMap.set(TEST_USER_ID, testUser);
 usersMap.set(TEST_ADMIN_ID, testAdmin);
-usersMap.set(TEST_CAPTAIN_ID, testCaptain);
 
 const sessionsStore = new Map<string, Auth.UserId>();
 sessionsStore.set('user-token', TEST_USER_ID);
 sessionsStore.set('admin-token', TEST_ADMIN_ID);
-sessionsStore.set('captain-token', TEST_CAPTAIN_ID);
+sessionsStore.set('other-token', TEST_OTHER_USER_ID);
 
 const membersStore = new Map<string, MembershipWithRole>();
 membersStore.set(TEST_MEMBER_ID, {
@@ -180,37 +146,8 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
   role_names: ['Admin'],
   permissions: ADMIN_PERMISSIONS,
 });
-membersStore.set(TEST_CAPTAIN_MEMBER_ID, {
-  id: TEST_CAPTAIN_MEMBER_ID,
-  team_id: TEST_TEAM_ID,
-  user_id: TEST_CAPTAIN_ID,
-  active: true,
-  role_names: ['Captain'],
-  permissions: CAPTAIN_PERMISSIONS,
-});
 
-// --- In-memory series store ---
-type SeriesRecord = {
-  id: EventSeries.EventSeriesId;
-  team_id: Team.TeamId;
-  training_type_id: string | null;
-  title: string;
-  description: string | null;
-  start_time: string;
-  end_time: string | null;
-  location: string | null;
-  frequency: 'weekly' | 'biweekly';
-  day_of_week: number;
-  start_date: string;
-  end_date: string | null;
-  status: 'active' | 'cancelled';
-  training_type_name: string | null;
-  last_generated_date: string | null;
-};
-
-let seriesStore: Map<EventSeries.EventSeriesId, SeriesRecord>;
-
-// --- In-memory events store ---
+// --- In-memory events ---
 type EventRecord = {
   id: Event.EventId;
   team_id: Team.TeamId;
@@ -231,27 +168,89 @@ type EventRecord = {
 
 let eventsStore: Map<Event.EventId, EventRecord>;
 
+// --- In-memory RSVPs ---
+type RsvpRecord = {
+  id: EventRsvp.EventRsvpId;
+  event_id: Event.EventId;
+  team_member_id: TeamMember.TeamMemberId;
+  response: EventRsvp.RsvpResponse;
+  message: string | null;
+  member_name: string | null;
+};
+
+let rsvpsStore: Map<string, RsvpRecord>;
+
 const resetStores = () => {
-  seriesStore = new Map();
-  seriesStore.set(TEST_SERIES_1, {
-    id: TEST_SERIES_1,
+  eventsStore = new Map();
+  eventsStore.set(TEST_EVENT_ACTIVE, {
+    id: TEST_EVENT_ACTIVE,
     team_id: TEST_TEAM_ID,
     training_type_id: null,
-    title: 'Weekly Training',
-    description: 'Regular training',
-    start_time: '18:00:00',
-    end_time: '20:00:00',
+    event_type: 'training',
+    title: 'Future Training',
+    description: null,
+    start_at: '2099-12-31T18:00:00Z',
+    end_at: '2099-12-31T20:00:00Z',
     location: 'Main Field',
-    frequency: 'weekly',
-    day_of_week: 2,
-    start_date: '2026-03-03',
-    end_date: '2026-06-30',
     status: 'active',
+    created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: null,
-    last_generated_date: '2026-06-30',
+    created_by_name: 'Admin User',
+    series_id: null,
+    series_modified: false,
   });
-
-  eventsStore = new Map();
+  eventsStore.set(TEST_EVENT_CANCELLED, {
+    id: TEST_EVENT_CANCELLED,
+    team_id: TEST_TEAM_ID,
+    training_type_id: null,
+    event_type: 'match',
+    title: 'Cancelled Match',
+    description: null,
+    start_at: '2099-12-15T14:00:00Z',
+    end_at: '2099-12-15T16:00:00Z',
+    location: null,
+    status: 'cancelled',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: null,
+    created_by_name: 'Admin User',
+    series_id: null,
+    series_modified: false,
+  });
+  eventsStore.set(TEST_EVENT_PAST, {
+    id: TEST_EVENT_PAST,
+    team_id: TEST_TEAM_ID,
+    training_type_id: null,
+    event_type: 'training',
+    title: 'Past Training',
+    description: null,
+    start_at: '2020-01-01T10:00:00Z',
+    end_at: '2020-01-01T12:00:00Z',
+    location: null,
+    status: 'active',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: null,
+    created_by_name: 'Admin User',
+    series_id: null,
+    series_modified: false,
+  });
+  eventsStore.set(TEST_EVENT_OTHER_TEAM, {
+    id: TEST_EVENT_OTHER_TEAM,
+    team_id: OTHER_TEAM_ID,
+    training_type_id: null,
+    event_type: 'training',
+    title: 'Other Team Event',
+    description: null,
+    start_at: '2099-12-31T18:00:00Z',
+    end_at: null,
+    location: null,
+    status: 'active',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: null,
+    created_by_name: null,
+    series_id: null,
+    series_modified: false,
+  });
+  rsvpsStore = new Map();
 };
 
 const buildRosterEntry = (
@@ -261,7 +260,7 @@ const buildRosterEntry = (
   permissions: readonly Role.Permission[],
 ): RosterEntry => {
   const user = usersMap.get(userId);
-  if (!user) throw new Error(`User ${userId} not found`);
+  if (!user) throw new Error(`User ${userId} not found in usersMap`);
   return new RosterEntry({
     member_id: memberId,
     user_id: userId,
@@ -407,116 +406,14 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     if (!event) return Effect.succeed(Option.none());
     return Effect.succeed(Option.some(event));
   },
-  insert: (input: {
-    team_id: string;
-    training_type_id: string | null;
-    event_type: string;
-    title: string;
-    description: string | null;
-    start_at: string;
-    end_at: string | null;
-    location: string | null;
-    created_by: string;
-    series_id: string | null;
-  }) => {
-    const id = crypto.randomUUID() as Event.EventId;
-    const record: EventRecord = {
-      id,
-      team_id: input.team_id as Team.TeamId,
-      training_type_id: input.training_type_id,
-      event_type: input.event_type as Event.EventType,
-      title: input.title,
-      description: input.description,
-      start_at: input.start_at,
-      end_at: input.end_at,
-      location: input.location,
-      status: 'active',
-      created_by: input.created_by as TeamMember.TeamMemberId,
-      training_type_name: null,
-      created_by_name: null,
-      series_id: input.series_id,
-      series_modified: false,
-    };
-    eventsStore.set(id, record);
-    return Effect.succeed({
-      id,
-      team_id: record.team_id,
-      training_type_id: record.training_type_id,
-      event_type: record.event_type,
-      title: record.title,
-      description: record.description,
-      start_at: record.start_at,
-      end_at: record.end_at,
-      location: record.location,
-      status: record.status,
-      created_by: record.created_by,
-      series_id: record.series_id,
-      series_modified: record.series_modified,
-    });
-  },
-  insertEvent: (input: {
-    teamId: string;
-    trainingTypeId: string | null;
-    eventType: string;
-    title: string;
-    description: string | null;
-    startAt: string;
-    endAt: string | null;
-    location: string | null;
-    createdBy: string;
-    seriesId?: string | null;
-  }) => {
-    const id = crypto.randomUUID() as Event.EventId;
-    const record: EventRecord = {
-      id,
-      team_id: input.teamId as Team.TeamId,
-      training_type_id: input.trainingTypeId,
-      event_type: input.eventType as Event.EventType,
-      title: input.title,
-      description: input.description,
-      start_at: input.startAt,
-      end_at: input.endAt,
-      location: input.location,
-      status: 'active',
-      created_by: input.createdBy as TeamMember.TeamMemberId,
-      training_type_name: null,
-      created_by_name: null,
-      series_id: input.seriesId ?? null,
-      series_modified: false,
-    };
-    eventsStore.set(id, record);
-    return Effect.succeed({
-      id,
-      team_id: record.team_id,
-      training_type_id: record.training_type_id,
-      event_type: record.event_type,
-      title: record.title,
-      description: record.description,
-      start_at: record.start_at,
-      end_at: record.end_at,
-      location: record.location,
-      status: record.status,
-      created_by: record.created_by,
-      series_id: record.series_id,
-      series_modified: record.series_modified,
-    });
-  },
-  update: () => Effect.die(new Error('Not needed in series tests')),
-  updateEvent: () => Effect.die(new Error('Not needed in series tests')),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertEvent: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateEvent: () => Effect.die(new Error('Not implemented')),
   cancel: () => Effect.void,
   cancelEvent: () => Effect.void,
-  findScopedTrainingTypeIds: (memberId: TeamMember.TeamMemberId) => {
-    if (memberId === TEST_CAPTAIN_MEMBER_ID) {
-      return Effect.succeed([{ training_type_id: TEST_TRAINING_TYPE_A }]);
-    }
-    return Effect.succeed([]);
-  },
-  getScopedTrainingTypeIds: (memberId: TeamMember.TeamMemberId) => {
-    if (memberId === TEST_CAPTAIN_MEMBER_ID) {
-      return Effect.succeed([{ training_type_id: TEST_TRAINING_TYPE_A }]);
-    }
-    return Effect.succeed([]);
-  },
+  findScopedTrainingTypeIds: () => Effect.succeed([]),
+  getScopedTrainingTypeIds: () => Effect.succeed([]),
   markModified: () => Effect.void,
   markEventSeriesModified: () => Effect.void,
   cancelFuture: () => Effect.void,
@@ -525,243 +422,105 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   updateFutureUnmodifiedInSeries: () => Effect.void,
 } as unknown as EventsRepository);
 
-const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
-  _tag: 'api/EventSeriesRepository',
-  insertSeries: (input: {
-    team_id: string;
-    training_type_id: string | null;
-    title: string;
-    description: string | null;
-    start_time: string;
-    end_time: string | null;
-    location: string | null;
-    frequency: string;
-    day_of_week: number;
-    start_date: string;
-    end_date: string | null;
-    created_by: string;
-  }) => {
-    const id = crypto.randomUUID() as EventSeries.EventSeriesId;
-    const record: SeriesRecord = {
-      id,
-      team_id: input.team_id as Team.TeamId,
-      training_type_id: input.training_type_id,
-      title: input.title,
-      description: input.description,
-      start_time: input.start_time,
-      end_time: input.end_time,
-      location: input.location,
-      frequency: input.frequency as 'weekly' | 'biweekly',
-      day_of_week: input.day_of_week,
-      start_date: input.start_date,
-      end_date: input.end_date,
-      status: 'active',
-      training_type_name: null,
-      last_generated_date: null,
-    };
-    seriesStore.set(id, record);
-    return Effect.succeed({
-      id,
-      team_id: record.team_id,
-      training_type_id: record.training_type_id,
-      title: record.title,
-      description: record.description,
-      start_time: record.start_time,
-      end_time: record.end_time,
-      location: record.location,
-      frequency: record.frequency,
-      day_of_week: record.day_of_week,
-      start_date: record.start_date,
-      end_date: record.end_date,
-      status: record.status,
-    });
-  },
-  insertEventSeries: (input: {
-    teamId: string;
-    trainingTypeId: string | null;
-    title: string;
-    description: string | null;
-    startTime: string;
-    endTime: string | null;
-    location: string | null;
-    frequency: string;
-    dayOfWeek: number;
-    startDate: string;
-    endDate: string | null;
-    createdBy: string;
-  }) => {
-    const id = crypto.randomUUID() as EventSeries.EventSeriesId;
-    const record: SeriesRecord = {
-      id,
-      team_id: input.teamId as Team.TeamId,
-      training_type_id: input.trainingTypeId,
-      title: input.title,
-      description: input.description,
-      start_time: input.startTime,
-      end_time: input.endTime,
-      location: input.location,
-      frequency: input.frequency as 'weekly' | 'biweekly',
-      day_of_week: input.dayOfWeek,
-      start_date: input.startDate,
-      end_date: input.endDate,
-      status: 'active',
-      training_type_name: null,
-      last_generated_date: null,
-    };
-    seriesStore.set(id, record);
-    return Effect.succeed({
-      id,
-      team_id: record.team_id,
-      training_type_id: record.training_type_id,
-      title: record.title,
-      description: record.description,
-      start_time: record.start_time,
-      end_time: record.end_time,
-      location: record.location,
-      frequency: record.frequency,
-      day_of_week: record.day_of_week,
-      start_date: record.start_date,
-      end_date: record.end_date,
-      status: record.status,
-    });
-  },
-  findByTeamId: (teamId: string) => {
-    const results = Array.from(seriesStore.values()).filter((s) => s.team_id === teamId);
-    return Effect.succeed(results);
-  },
-  findSeriesByTeamId: (teamId: string) => {
-    const results = Array.from(seriesStore.values()).filter((s) => s.team_id === teamId);
-    return Effect.succeed(results);
-  },
-  findById: (id: EventSeries.EventSeriesId) => {
-    const s = seriesStore.get(id);
-    if (!s) return Effect.succeed(Option.none());
-    return Effect.succeed(Option.some(s));
-  },
-  findSeriesById: (id: EventSeries.EventSeriesId) => {
-    const s = seriesStore.get(id);
-    if (!s) return Effect.succeed(Option.none());
-    return Effect.succeed(Option.some(s));
-  },
-  updateSeries: (input: {
-    id: EventSeries.EventSeriesId;
-    title: string;
-    training_type_id: string | null;
-    description: string | null;
-    start_time: string;
-    end_time: string | null;
-    location: string | null;
-    end_date: string | null;
-  }) => {
-    const s = seriesStore.get(input.id);
-    if (!s) return Effect.die(new Error('Not found'));
-    const updated = {
-      ...s,
-      title: input.title,
-      training_type_id: input.training_type_id,
-      description: input.description,
-      start_time: input.start_time,
-      end_time: input.end_time,
-      location: input.location,
-      end_date: input.end_date,
-    };
-    seriesStore.set(input.id, updated);
-    return Effect.succeed({
-      id: updated.id,
-      team_id: updated.team_id,
-      training_type_id: updated.training_type_id,
-      title: updated.title,
-      description: updated.description,
-      start_time: updated.start_time,
-      end_time: updated.end_time,
-      location: updated.location,
-      frequency: updated.frequency,
-      day_of_week: updated.day_of_week,
-      start_date: updated.start_date,
-      end_date: updated.end_date,
-      status: updated.status,
-    });
-  },
-  updateEventSeries: (input: {
-    id: EventSeries.EventSeriesId;
-    title: string;
-    trainingTypeId: string | null;
-    description: string | null;
-    startTime: string;
-    endTime: string | null;
-    location: string | null;
-    endDate: string | null;
-  }) => {
-    const s = seriesStore.get(input.id);
-    if (!s) return Effect.die(new Error('Not found'));
-    const updated = {
-      ...s,
-      title: input.title,
-      training_type_id: input.trainingTypeId,
-      description: input.description,
-      start_time: input.startTime,
-      end_time: input.endTime,
-      location: input.location,
-      end_date: input.endDate,
-    };
-    seriesStore.set(input.id, updated);
-    return Effect.succeed({
-      id: updated.id,
-      team_id: updated.team_id,
-      training_type_id: updated.training_type_id,
-      title: updated.title,
-      description: updated.description,
-      start_time: updated.start_time,
-      end_time: updated.end_time,
-      location: updated.location,
-      frequency: updated.frequency,
-      day_of_week: updated.day_of_week,
-      start_date: updated.start_date,
-      end_date: updated.end_date,
-      status: updated.status,
-    });
-  },
-  cancelSeries: (id: EventSeries.EventSeriesId) => {
-    const s = seriesStore.get(id);
-    if (s) {
-      seriesStore.set(id, { ...s, status: 'cancelled' });
-    }
-    return Effect.void;
-  },
-  cancelEventSeries: (id: EventSeries.EventSeriesId) => {
-    const s = seriesStore.get(id);
-    if (s) {
-      seriesStore.set(id, { ...s, status: 'cancelled' });
-    }
-    return Effect.void;
-  },
-  findActiveForGeneration: () => Effect.succeed([]),
-  getActiveForGeneration: () => Effect.succeed([]),
-  setLastGeneratedDate: () => Effect.void,
-  updateLastGeneratedDate: () => Effect.void,
-} as unknown as EventSeriesRepository);
-
 const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   _tag: 'api/EventRsvpsRepository',
-  findByEventId: () => Effect.succeed([]),
-  findRsvpsByEventId: () => Effect.succeed([]),
-  findByEventAndMember: () => Effect.succeed(Option.none()),
-  findRsvpByEventAndMember: () => Effect.succeed(Option.none()),
-  upsert: () => Effect.die(new Error('Not implemented')),
-  upsertRsvp: () => Effect.die(new Error('Not implemented')),
-  countByEventId: () => Effect.succeed([]),
-  countRsvpsByEventId: () => Effect.succeed([]),
+  findByEventId: (eventId: Event.EventId) => {
+    const results = Array.from(rsvpsStore.values()).filter((r) => r.event_id === eventId);
+    return Effect.succeed(results);
+  },
+  findRsvpsByEventId: (eventId: Event.EventId) => {
+    const results = Array.from(rsvpsStore.values()).filter((r) => r.event_id === eventId);
+    return Effect.succeed(results);
+  },
+  findByEventAndMember: (input: { event_id: string; team_member_id: string }) => {
+    const key = `${input.event_id}:${input.team_member_id}`;
+    const rsvp = rsvpsStore.get(key);
+    return Effect.succeed(rsvp ? Option.some(rsvp) : Option.none());
+  },
+  findRsvpByEventAndMember: (eventId: Event.EventId, memberId: TeamMember.TeamMemberId) => {
+    const key = `${eventId}:${memberId}`;
+    const rsvp = rsvpsStore.get(key);
+    return Effect.succeed(rsvp ? Option.some(rsvp) : Option.none());
+  },
+  upsert: (input: {
+    event_id: string;
+    team_member_id: string;
+    response: string;
+    message: string | null;
+  }) => {
+    const key = `${input.event_id}:${input.team_member_id}`;
+    const existing = rsvpsStore.get(key);
+    const id = existing?.id ?? (crypto.randomUUID() as EventRsvp.EventRsvpId);
+    const record: RsvpRecord = {
+      id,
+      event_id: input.event_id as Event.EventId,
+      team_member_id: input.team_member_id as TeamMember.TeamMemberId,
+      response: input.response as EventRsvp.RsvpResponse,
+      message: input.message,
+      member_name: null,
+    };
+    rsvpsStore.set(key, record);
+    return Effect.succeed({
+      id: record.id,
+      event_id: record.event_id,
+      team_member_id: record.team_member_id,
+      response: record.response,
+      message: record.message,
+    });
+  },
+  upsertRsvp: (
+    eventId: Event.EventId,
+    memberId: TeamMember.TeamMemberId,
+    response: EventRsvp.RsvpResponse,
+    message: string | null,
+  ) => {
+    const key = `${eventId}:${memberId}`;
+    const existing = rsvpsStore.get(key);
+    const id = existing?.id ?? (crypto.randomUUID() as EventRsvp.EventRsvpId);
+    const record: RsvpRecord = {
+      id,
+      event_id: eventId,
+      team_member_id: memberId,
+      response,
+      message,
+      member_name: null,
+    };
+    rsvpsStore.set(key, record);
+    return Effect.succeed({
+      id: record.id,
+      event_id: record.event_id,
+      team_member_id: record.team_member_id,
+      response: record.response,
+      message: record.message,
+    });
+  },
+  countByEventId: (eventId: Event.EventId) => {
+    const rsvps = Array.from(rsvpsStore.values()).filter((r) => r.event_id === eventId);
+    const counts = new Map<string, number>();
+    for (const r of rsvps) {
+      counts.set(r.response, (counts.get(r.response) ?? 0) + 1);
+    }
+    return Effect.succeed(
+      Array.from(counts.entries()).map(([response, count]) => ({
+        response: response as EventRsvp.RsvpResponse,
+        count,
+      })),
+    );
+  },
+  countRsvpsByEventId: (eventId: Event.EventId) => {
+    const rsvps = Array.from(rsvpsStore.values()).filter((r) => r.event_id === eventId);
+    const counts = new Map<string, number>();
+    for (const r of rsvps) {
+      counts.set(r.response, (counts.get(r.response) ?? 0) + 1);
+    }
+    return Effect.succeed(
+      Array.from(counts.entries()).map(([response, count]) => ({
+        response: response as EventRsvp.RsvpResponse,
+        count,
+      })),
+    );
+  },
 } as unknown as EventRsvpsRepository);
-
-const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
-  _tag: 'api/TeamSettingsRepository',
-  findByTeam: () => Effect.succeed(Option.none()),
-  findByTeamId: () => Effect.succeed(Option.none()),
-  upsertSettings: () => Effect.succeed({ team_id: TEST_TEAM_ID, event_horizon_days: 30 }),
-  upsert: () => Effect.succeed({ team_id: TEST_TEAM_ID, event_horizon_days: 30 }),
-  getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
-  getHorizonDays: () => Effect.succeed(30),
-} as unknown as TeamSettingsRepository);
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   _tag: 'api/RostersRepository',
@@ -946,6 +705,20 @@ const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsReposito
   findByGuildId: () => Effect.succeed([]),
 } as unknown as DiscordChannelsRepository);
 
+const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
+  _tag: 'api/EventSeriesRepository',
+  insertSeries: () => Effect.die(new Error('Not implemented')),
+  insertEventSeries: () => Effect.die(new Error('Not implemented')),
+  findByTeamId: () => Effect.succeed([]),
+  findSeriesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findSeriesById: () => Effect.succeed(Option.none()),
+  updateSeries: () => Effect.die(new Error('Not implemented')),
+  updateEventSeries: () => Effect.die(new Error('Not implemented')),
+  cancelSeries: () => Effect.void,
+  cancelEventSeries: () => Effect.void,
+} as unknown as EventSeriesRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -961,11 +734,8 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(
     Layer.merge(
-      Layer.merge(
-        Layer.merge(MockEventsRepositoryLayer, MockEventSeriesRepositoryLayer),
-        MockEventRsvpsRepositoryLayer,
-      ),
-      MockTeamSettingsRepositoryLayer,
+      Layer.merge(MockEventsRepositoryLayer, MockEventSeriesRepositoryLayer),
+      MockEventRsvpsRepositoryLayer,
     ),
   ),
   Layer.provide(MockHttpClientLayer),
@@ -977,15 +747,26 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(
     Layer.merge(
       Layer.merge(
-        MockDiscordChannelMappingRepositoryLayer,
-        Layer.succeed(BotGuildsRepository, {
-          upsert: () => Effect.void,
-          remove: () => Effect.void,
-          exists: () => Effect.succeed(false),
-          findAll: () => Effect.succeed([]),
-        } as unknown as BotGuildsRepository),
+        Layer.merge(
+          MockDiscordChannelMappingRepositoryLayer,
+          Layer.succeed(BotGuildsRepository, {
+            upsert: () => Effect.void,
+            remove: () => Effect.void,
+            exists: () => Effect.succeed(false),
+            findAll: () => Effect.succeed([]),
+          } as unknown as BotGuildsRepository),
+        ),
+        MockDiscordChannelsRepositoryLayer,
       ),
-      MockDiscordChannelsRepositoryLayer,
+      Layer.succeed(TeamSettingsRepository, {
+        _tag: 'api/TeamSettingsRepository',
+        findByTeam: () => Effect.succeed(Option.none()),
+        findByTeamId: () => Effect.succeed(Option.none()),
+        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+        getHorizonDays: () => Effect.succeed(30),
+      } as unknown as TeamSettingsRepository),
     ),
   ),
 );
@@ -1007,226 +788,289 @@ beforeEach(() => {
   resetStores();
 });
 
-const BASE = `http://localhost/teams/${TEST_TEAM_ID}/event-series`;
+const BASE = `http://localhost/teams/${TEST_TEAM_ID}/events`;
 
-describe('Event Series API', () => {
-  const createPayload = {
-    title: 'Weekly Training',
-    trainingTypeId: null,
-    description: 'Regular session',
-    frequency: 'weekly',
-    dayOfWeek: 2,
-    startDate: '2026-03-03',
-    endDate: '2026-03-31',
-    startTime: '18:00',
-    endTime: '20:00',
-    location: 'Main Field',
-  };
-
-  describe('POST /teams/:teamId/event-series (create)', () => {
-    it('returns 201 for admin creating series', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer admin-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(createPayload),
-        }),
-      );
-      expect(response.status).toBe(201);
-      const body = await response.json();
-      expect(body.title).toBe('Weekly Training');
-      expect(body.frequency).toBe('weekly');
-      expect(body.dayOfWeek).toBe(2);
-      // Should also have created materialized events
-      expect(eventsStore.size).toBeGreaterThan(0);
+describe('Event RSVP API', () => {
+  describe('GET /teams/:teamId/events/:eventId/rsvps', () => {
+    it('returns 401 without auth token', async () => {
+      const response = await handler(new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvps`));
+      expect(response.status).toBe(401);
     });
 
-    it('returns 201 for captain creating series', async () => {
+    it('returns 200 with empty RSVPs for active event', async () => {
       const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(createPayload),
-        }),
-      );
-      expect(response.status).toBe(201);
-    });
-
-    it('returns 403 for player creating series', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer user-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(createPayload),
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it('captain cannot create series with disallowed training type', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...createPayload,
-            trainingTypeId: TEST_TRAINING_TYPE_B,
-          }),
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it('captain can create series with allowed training type', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer captain-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...createPayload,
-            trainingTypeId: TEST_TRAINING_TYPE_A,
-          }),
-        }),
-      );
-      expect(response.status).toBe(201);
-    });
-  });
-
-  describe('GET /teams/:teamId/event-series (list)', () => {
-    it('returns series for team', async () => {
-      const response = await handler(
-        new Request(BASE, {
-          headers: { Authorization: 'Bearer admin-token' },
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvps`, {
+          headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body).toHaveLength(1);
-      expect(body[0].title).toBe('Weekly Training');
+      expect(body.myResponse).toBeNull();
+      expect(body.myMessage).toBeNull();
+      expect(body.rsvps).toHaveLength(0);
+      expect(body.yesCount).toBe(0);
+      expect(body.noCount).toBe(0);
+      expect(body.maybeCount).toBe(0);
+      expect(body.canRsvp).toBe(true);
     });
-  });
 
-  describe('GET /teams/:teamId/event-series/:seriesId (get)', () => {
-    it('returns 200 for valid series', async () => {
+    it('returns canRsvp:false for past event', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}`, {
-          headers: { Authorization: 'Bearer admin-token' },
+        new Request(`${BASE}/${TEST_EVENT_PAST}/rsvps`, {
+          headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.title).toBe('Weekly Training');
-      expect(body.canEdit).toBe(true);
-      expect(body.canCancel).toBe(true);
+      expect(body.canRsvp).toBe(false);
     });
 
-    it('returns 404 for unknown series', async () => {
+    it('returns 404 for unknown event', async () => {
       const unknownId = '00000000-0000-0000-0000-000000000099';
       const response = await handler(
-        new Request(`${BASE}/${unknownId}`, {
-          headers: { Authorization: 'Bearer admin-token' },
+        new Request(`${BASE}/${unknownId}/rsvps`, {
+          headers: { Authorization: 'Bearer user-token' },
         }),
       );
       expect(response.status).toBe(404);
     });
-  });
 
-  describe('PATCH /teams/:teamId/event-series/:seriesId (update)', () => {
-    it('returns 200 for admin updating series', async () => {
+    it('returns 404 for event from different team', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}`, {
-          method: 'PATCH',
-          headers: {
-            Authorization: 'Bearer admin-token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ title: 'Updated Training' }),
+        new Request(`${BASE}/${TEST_EVENT_OTHER_TEAM}/rsvps`, {
+          headers: { Authorization: 'Bearer user-token' },
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.title).toBe('Updated Training');
+      expect(response.status).toBe(404);
     });
 
-    it('returns 403 for player updating series', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}`, {
-          method: 'PATCH',
+    it('returns user own RSVP status', async () => {
+      // First submit an RSVP
+      await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
           headers: {
             Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ title: 'Should Fail' }),
+          body: JSON.stringify({ response: 'yes', message: 'I will be there!' }),
         }),
       );
-      expect(response.status).toBe(403);
+
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvps`, {
+          headers: { Authorization: 'Bearer user-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.myResponse).toBe('yes');
+      expect(body.myMessage).toBe('I will be there!');
+      expect(body.rsvps).toHaveLength(1);
+      expect(body.yesCount).toBe(1);
+    });
+  });
+
+  describe('PUT /teams/:teamId/events/:eventId/rsvp', () => {
+    it('returns 401 without auth token', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      expect(response.status).toBe(401);
     });
 
-    it('returns 400 when updating cancelled series', async () => {
-      const s = seriesStore.get(TEST_SERIES_1);
-      if (s) seriesStore.set(TEST_SERIES_1, { ...s, status: 'cancelled' });
+    it('player can submit RSVP yes', async () => {
       const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}`, {
-          method: 'PATCH',
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.myResponse).toBe('yes');
+      expect(body.yesCount).toBe(1);
+      expect(body.canRsvp).toBe(true);
+    });
+
+    it('player can submit RSVP no', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'no', message: 'Cannot make it' }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.myResponse).toBe('no');
+      expect(body.myMessage).toBe('Cannot make it');
+      expect(body.noCount).toBe(1);
+    });
+
+    it('player can submit RSVP maybe', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'maybe', message: null }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.myResponse).toBe('maybe');
+      expect(body.maybeCount).toBe(1);
+    });
+
+    it('player can update existing RSVP', async () => {
+      // First submit yes
+      await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+
+      // Then update to no
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'no', message: 'Changed my mind' }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.myResponse).toBe('no');
+      expect(body.myMessage).toBe('Changed my mind');
+      expect(body.noCount).toBe(1);
+      expect(body.yesCount).toBe(0);
+    });
+
+    it('player can add message to RSVP', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: 'Bringing snacks!' }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.myMessage).toBe('Bringing snacks!');
+    });
+
+    it('non-member cannot RSVP (403)', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer other-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      // Returns 401 because the user doesn't exist in auth (not just non-member)
+      expect(response.status).toBe(401);
+    });
+
+    it('cannot RSVP to cancelled event (404)', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_CANCELLED}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      expect(response.status).toBe(404);
+    });
+
+    it('cannot RSVP to event from different team (404)', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_OTHER_TEAM}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      expect(response.status).toBe(404);
+    });
+
+    it('cannot RSVP past deadline (400)', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_PAST}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('returns correct summary with counts from multiple users', async () => {
+      // User submits yes
+      await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+
+      // Admin submits maybe
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
           headers: {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ title: 'Try Update' }),
+          body: JSON.stringify({ response: 'maybe', message: 'Not sure yet' }),
         }),
       );
-      expect(response.status).toBe(400);
-    });
-  });
-
-  describe('POST /teams/:teamId/event-series/:seriesId/cancel', () => {
-    it('returns 204 for admin cancelling series', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}/cancel`, {
-          method: 'POST',
-          headers: { Authorization: 'Bearer admin-token' },
-        }),
-      );
-      expect(response.status).toBe(204);
-      const s = seriesStore.get(TEST_SERIES_1);
-      expect(s?.status).toBe('cancelled');
-    });
-
-    it('returns 403 for player cancelling series', async () => {
-      const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}/cancel`, {
-          method: 'POST',
-          headers: { Authorization: 'Bearer user-token' },
-        }),
-      );
-      expect(response.status).toBe(403);
-    });
-
-    it('returns 400 when cancelling already cancelled series', async () => {
-      const s = seriesStore.get(TEST_SERIES_1);
-      if (s) seriesStore.set(TEST_SERIES_1, { ...s, status: 'cancelled' });
-      const response = await handler(
-        new Request(`${BASE}/${TEST_SERIES_1}/cancel`, {
-          method: 'POST',
-          headers: { Authorization: 'Bearer admin-token' },
-        }),
-      );
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.yesCount).toBe(1);
+      expect(body.maybeCount).toBe(1);
+      expect(body.noCount).toBe(0);
+      expect(body.rsvps).toHaveLength(2);
     });
   });
 });

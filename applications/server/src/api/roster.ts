@@ -24,7 +24,7 @@ const toRosterPlayer = (entry: RosterEntry) =>
     roleNames: entry.role_names,
     permissions: entry.permissions,
     name: entry.name,
-    birthYear: entry.birth_year,
+    birthDate: entry.birth_date,
     gender: entry.gender,
     jerseyNumber: entry.jersey_number,
     discordUsername: entry.discord_username,
@@ -111,7 +111,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 .updateAdminProfile({
                   id: entry.user_id,
                   name: payload.name,
-                  birth_year: payload.birthYear,
+                  birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
                   gender: payload.gender,
                 })
                 .pipe(mapDbError(() => new Roster.Forbidden())),
@@ -130,7 +130,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   roleNames: entry.role_names,
                   permissions: entry.permissions,
                   name: updated.name,
-                  birthYear: updated.birth_year,
+                  birthDate: Option.getOrNull(
+                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
+                  ),
                   gender: updated.gender,
                   jerseyNumber: payload.jerseyNumber,
                   discordUsername: entry.discord_username,

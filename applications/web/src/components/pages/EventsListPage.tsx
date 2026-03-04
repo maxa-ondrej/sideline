@@ -2,10 +2,11 @@ import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, TrainingTypeApi } from '@sideline/domain';
 import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
-import { Effect, Option, Schema } from 'effect';
+import { DateTime, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
+import { DatePicker } from '~/components/ui/date-picker';
 import {
   Form,
   FormControl,
@@ -33,13 +34,17 @@ const CreateEventSchema = Schema.Struct({
   eventType: Event.EventType,
   trainingTypeId: Schema.String,
   description: Schema.String,
-  eventDate: Schema.NonEmptyString,
+  startDate: Schema.NonEmptyString,
   startTime: Schema.NonEmptyString,
+  endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
 });
 
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
+
+const toIsoDateTime = (date: string, time: string): string =>
+  DateTime.formatIso(DateTime.unsafeMake(`${date}T${time}:00Z`));
 
 const CreateSeriesSchema = Schema.Struct({
   title: Schema.NonEmptyString,
@@ -96,8 +101,9 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
       eventType: 'training' as Event.EventType,
       trainingTypeId: NONE_VALUE,
       description: '',
-      eventDate: '',
+      startDate: '',
       startTime: '',
+      endDate: '',
       endTime: '',
       location: '',
     },
@@ -121,6 +127,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
   });
 
   const onSubmit = async (values: CreateEventValues) => {
+    const startAt = toIsoDateTime(values.startDate, values.startTime);
+    const endAt = values.endTime
+      ? toIsoDateTime(values.endDate || values.startDate, values.endTime)
+      : null;
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.event.createEvent({
@@ -133,9 +143,8 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                 ? Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId)
                 : null,
             description: values.description || null,
-            eventDate: values.eventDate,
-            startTime: values.startTime,
-            endTime: values.endTime || null,
+            startAt,
+            endAt,
             location: values.location || null,
           },
         }),
@@ -276,12 +285,16 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                 </div>
                 <div className='flex gap-4'>
                   <FormField
-                    {...form.register('eventDate')}
+                    {...form.register('startDate')}
                     render={({ field }) => (
                       <FormItem className='flex-1'>
-                        <FormLabel>{m.event_eventDate()}</FormLabel>
+                        <FormLabel>{m.event_startDate()}</FormLabel>
                         <FormControl>
-                          <Input {...field} type='date' />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_startDate()}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -294,6 +307,24 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                         <FormLabel>{m.event_startTime()}</FormLabel>
                         <FormControl>
                           <Input {...field} type='time' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className='flex gap-4'>
+                  <FormField
+                    {...form.register('endDate')}
+                    render={({ field }) => (
+                      <FormItem className='flex-1'>
+                        <FormLabel>{m.event_endDate()}</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_endDate()}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -439,7 +470,11 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                       <FormItem className='flex-1'>
                         <FormLabel>{m.event_startDate()}</FormLabel>
                         <FormControl>
-                          <Input {...field} type='date' />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_startDate()}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -451,7 +486,11 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                       <FormItem className='flex-1'>
                         <FormLabel>{m.event_endDate()}</FormLabel>
                         <FormControl>
-                          <Input {...field} type='date' />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_endDate()}
+                          />
                         </FormControl>
                         <p className='text-xs text-muted-foreground'>{m.event_endDateHelp()}</p>
                         <FormMessage />
@@ -551,10 +590,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                   {eventTypeLabels[event.eventType]()}
                 </td>
                 <td className='py-2 px-4 text-muted-foreground'>{event.trainingTypeName}</td>
-                <td className='py-2 px-4 text-muted-foreground'>{event.eventDate}</td>
+                <td className='py-2 px-4 text-muted-foreground'>{event.startAt.slice(0, 10)}</td>
                 <td className='py-2 px-4 text-muted-foreground'>
-                  {event.startTime}
-                  {event.endTime ? ` - ${event.endTime}` : ''}
+                  {event.startAt.slice(11, 16)}
+                  {event.endAt ? ` - ${event.endAt.slice(11, 16)}` : ''}
                 </td>
                 <td className='py-2 px-4'>
                   <span

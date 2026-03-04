@@ -1,4 +1,5 @@
 import { Model } from '@effect/sql';
+import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { EventSeriesId } from '~/models/EventSeries.js';
 import { TeamId } from '~/models/Team.js';
@@ -28,9 +29,8 @@ export class Event extends Model.Class<Event>('Event')({
   event_type: EventType,
   title: Schema.String,
   description: Schema.NullOr(Schema.String),
-  event_date: Schema.DateFromSelf,
-  start_time: Schema.String,
-  end_time: Schema.NullOr(Schema.String),
+  start_at: Schemas.DateTimeFromDate,
+  end_at: Schema.NullOr(Schemas.DateTimeFromDate),
   location: Schema.NullOr(Schema.String),
   series_id: Schema.NullOr(EventSeriesId),
   series_modified: Schema.Boolean,

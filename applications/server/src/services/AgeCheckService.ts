@@ -10,7 +10,7 @@ import { Array, Data, Effect, Option, pipe } from 'effect';
 import {
   AgeThresholdRepository,
   type AgeThresholdWithGroupName,
-  type MemberWithBirthYear,
+  type MemberWithBirthDate,
 } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -35,10 +35,18 @@ interface Change {
 
 const makeChange = (change: Change) => change;
 
+const computeAge = (birthDateStr: string, now: Date): number => {
+  const birth = new Date(`${birthDateStr}T00:00:00Z`);
+  let age = now.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDiff = now.getUTCMonth() - birth.getUTCMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < birth.getUTCDate())) age--;
+  return age;
+};
+
 const detectChanges = (
-  currentYear: number,
+  today: Date,
   rules: readonly AgeThresholdWithGroupName[],
-  teamMembers: readonly MemberWithBirthYear[],
+  teamMembers: readonly MemberWithBirthDate[],
 ) =>
   pipe(
     teamMembers,
@@ -48,7 +56,7 @@ const detectChanges = (
         member,
       })),
     ),
-    Array.let('age', ({ member }) => currentYear - member.birth_year),
+    Array.let('age', ({ member }) => computeAge(member.birth_date, today)),
     Array.let('minOk', ({ age, rule }) =>
       rule.min_age.pipe(
         Option.filter((minAge) => age < minAge),
@@ -126,7 +134,7 @@ const notifyAdmins = (
   notifications: NotificationsRepository,
   teamId: Team.TeamId,
   changes: readonly Change[],
-  teamMembers: readonly MemberWithBirthYear[],
+  teamMembers: readonly MemberWithBirthDate[],
 ) =>
   Effect.succeed(teamMembers.filter(({ is_admin }) => is_admin).map((m) => m.user_id)).pipe(
     Effect.map(Array.dedupe),
@@ -161,15 +169,13 @@ const notifyAdmins = (
 
 const evaluateTeam =
   ({ thresholds, groups, notifications, channelSync }: Dependencies) =>
-  (teamId: Team.TeamId, currentYear: number) =>
+  (teamId: Team.TeamId, today: Date) =>
     Effect.Do.pipe(
       Effect.bind('rules', () => thresholds.findRulesByTeamId(teamId).pipe(Effect.orDie)),
       Effect.bind('teamMembers', () =>
-        thresholds.getMembersWithBirthYears(teamId).pipe(Effect.orDie),
+        thresholds.getMembersWithBirthDates(teamId).pipe(Effect.orDie),
       ),
-      Effect.let('changes', ({ rules, teamMembers }) =>
-        detectChanges(currentYear, rules, teamMembers),
-      ),
+      Effect.let('changes', ({ rules, teamMembers }) => detectChanges(today, rules, teamMembers)),
       Effect.tap(({ changes }) =>
         Array.isEmptyArray(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
       ),
@@ -254,7 +260,7 @@ export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeC
     Effect.map(({ evaluateTeam }) => ({ evaluateTeam })),
   ),
 }) {
-  evaluate(teamId: Team.TeamId, currentYear: number) {
-    return this.evaluateTeam(teamId, currentYear);
+  evaluate(teamId: Team.TeamId, today: Date) {
+    return this.evaluateTeam(teamId, today);
   }
 }

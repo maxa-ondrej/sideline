@@ -32,7 +32,10 @@
   "effect": {
     "generateExports": {
       "include": [
-        "index.ts"
+        "index.ts",
+        "Bind.ts",
+        "Runtime.ts",
+        "Schemas.ts"
       ]
     },
     "generateIndex": {

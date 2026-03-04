@@ -42,6 +42,8 @@ const cronEffect = Effect.Do.pipe(
         return Effect.all(
           dates.map((date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
+            const startAt = `${dateStr}T${s.start_time}Z`;
+            const endAt = s.end_time ? `${dateStr}T${s.end_time}Z` : null;
             return eventsRepo
               .insertEvent({
                 teamId: s.team_id,
@@ -49,9 +51,8 @@ const cronEffect = Effect.Do.pipe(
                 eventType: 'training',
                 title: s.title,
                 description: s.description,
-                eventDate: dateStr,
-                startTime: s.start_time,
-                endTime: s.end_time,
+                startAt,
+                endAt,
                 location: s.location,
                 createdBy: s.created_by,
                 seriesId: s.id,

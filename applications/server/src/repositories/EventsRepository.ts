@@ -10,9 +10,8 @@ class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails'
   event_type: Event.EventType,
   title: Schema.String,
   description: Schema.NullOr(Schema.String),
-  event_date: Schema.String,
-  start_time: Schema.String,
-  end_time: Schema.NullOr(Schema.String),
+  start_at: Schema.String,
+  end_at: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
@@ -29,9 +28,8 @@ class EventRow extends Schema.Class<EventRow>('EventRow')({
   event_type: Event.EventType,
   title: Schema.String,
   description: Schema.NullOr(Schema.String),
-  event_date: Schema.String,
-  start_time: Schema.String,
-  end_time: Schema.NullOr(Schema.String),
+  start_at: Schema.String,
+  end_at: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
@@ -45,9 +43,8 @@ class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput'
   event_type: Schema.String,
   title: Schema.String,
   description: Schema.NullOr(Schema.String),
-  event_date: Schema.String,
-  start_time: Schema.String,
-  end_time: Schema.NullOr(Schema.String),
+  start_at: Schema.String,
+  end_at: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   created_by: Schema.String,
   series_id: Schema.NullOr(Schema.String),
@@ -59,9 +56,8 @@ class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput'
   event_type: Schema.String,
   training_type_id: Schema.NullOr(Schema.String),
   description: Schema.NullOr(Schema.String),
-  event_date: Schema.String,
-  start_time: Schema.String,
-  end_time: Schema.NullOr(Schema.String),
+  start_at: Schema.String,
+  end_at: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
 }) {}
 
@@ -78,7 +74,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         Result: EventWithDetails,
         execute: (teamId) => sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
-                   e.description, e.event_date::text, e.start_time::text, e.end_time::text,
+                   e.description, e.start_at::text, e.end_at::text,
                    e.location, e.status, e.created_by,
                    tt.name AS training_type_name,
                    u.name AS created_by_name,
@@ -88,7 +84,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
             LEFT JOIN team_members tm ON tm.id = e.created_by
             LEFT JOIN users u ON u.id = tm.user_id
             WHERE e.team_id = ${teamId}
-            ORDER BY e.event_date ASC, e.start_time ASC
+            ORDER BY e.start_at ASC
           `,
       }),
     ),
@@ -98,7 +94,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         Result: EventWithDetails,
         execute: (id) => sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
-                   e.description, e.event_date::text, e.start_time::text, e.end_time::text,
+                   e.description, e.start_at::text, e.end_at::text,
                    e.location, e.status, e.created_by,
                    tt.name AS training_type_name,
                    u.name AS created_by_name,
@@ -117,13 +113,13 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         Result: EventRow,
         execute: (input) => sql`
             INSERT INTO events (team_id, training_type_id, event_type, title, description,
-                                event_date, start_time, end_time, location, created_by, series_id)
+                                start_at, end_at, location, created_by, series_id)
             VALUES (${input.team_id}, ${input.training_type_id}, ${input.event_type},
-                    ${input.title}, ${input.description}, ${input.event_date},
-                    ${input.start_time}, ${input.end_time}, ${input.location}, ${input.created_by},
+                    ${input.title}, ${input.description}, ${input.start_at},
+                    ${input.end_at}, ${input.location}, ${input.created_by},
                     ${input.series_id})
             RETURNING id, team_id, training_type_id, event_type, title, description,
-                      event_date::text, start_time::text, end_time::text, location, status,
+                      start_at::text, end_at::text, location, status,
                       created_by, series_id, series_modified
           `,
       }),
@@ -138,14 +134,13 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
               event_type = ${input.event_type},
               training_type_id = ${input.training_type_id},
               description = ${input.description},
-              event_date = ${input.event_date},
-              start_time = ${input.start_time},
-              end_time = ${input.end_time},
+              start_at = ${input.start_at},
+              end_at = ${input.end_at},
               location = ${input.location},
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, event_type, title, description,
-                      event_date::text, start_time::text, end_time::text, location, status,
+                      start_at::text, end_at::text, location, status,
                       created_by, series_id, series_modified
           `,
       }),
@@ -185,7 +180,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         execute: (input) =>
           sql`UPDATE events SET status = 'cancelled', updated_at = now()
               WHERE series_id = ${input.series_id}
-                AND event_date >= ${input.from_date}::date
+                AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND status = 'active'`,
       }),
     ),
@@ -206,12 +201,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                 title = ${input.title},
                 training_type_id = ${input.training_type_id},
                 description = ${input.description},
-                start_time = ${input.start_time},
-                end_time = ${input.end_time},
+                start_at = ((start_at AT TIME ZONE 'UTC')::date + ${input.start_time}::time) AT TIME ZONE 'UTC',
+                end_at = CASE WHEN ${input.end_time} IS NOT NULL THEN ((start_at AT TIME ZONE 'UTC')::date + ${input.end_time}::time) AT TIME ZONE 'UTC' ELSE NULL END,
                 location = ${input.location},
                 updated_at = now()
               WHERE series_id = ${input.series_id}
-                AND event_date >= ${input.from_date}::date
+                AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND series_modified = false
                 AND status = 'active'`,
       }),
@@ -233,9 +228,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     eventType: string;
     title: string;
     description: string | null;
-    eventDate: string;
-    startTime: string;
-    endTime: string | null;
+    startAt: string;
+    endAt: string | null;
     location: string | null;
     createdBy: TeamMember.TeamMemberId;
     seriesId?: string | null;
@@ -246,9 +240,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       event_type: input.eventType,
       title: input.title,
       description: input.description,
-      event_date: input.eventDate,
-      start_time: input.startTime,
-      end_time: input.endTime,
+      start_at: input.startAt,
+      end_at: input.endAt,
       location: input.location,
       created_by: input.createdBy,
       series_id: input.seriesId ?? null,
@@ -261,9 +254,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     eventType: string;
     trainingTypeId: string | null;
     description: string | null;
-    eventDate: string;
-    startTime: string;
-    endTime: string | null;
+    startAt: string;
+    endAt: string | null;
     location: string | null;
   }) {
     return this.update({
@@ -272,9 +264,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       event_type: input.eventType,
       training_type_id: input.trainingTypeId,
       description: input.description,
-      event_date: input.eventDate,
-      start_time: input.startTime,
-      end_time: input.endTime,
+      start_at: input.startAt,
+      end_at: input.endAt,
       location: input.location,
     });
   }

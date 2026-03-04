@@ -10,6 +10,7 @@ import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
+import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -57,7 +58,7 @@ const testUser = {
   discord_refresh_token: null,
   is_profile_complete: false,
   name: null,
-  birth_year: null,
+  birth_date: Option.none(),
   gender: null,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
@@ -73,7 +74,7 @@ const testAdmin = {
   discord_refresh_token: null,
   is_profile_complete: true,
   name: 'Admin User',
-  birth_year: 1990,
+  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
   gender: 'male' as const,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
@@ -120,7 +121,7 @@ type UserLike = {
   discord_refresh_token: string | null;
   is_profile_complete: boolean;
   name: string | null;
-  birth_year: number | null;
+  birth_date: Option.Option<DateTime.Utc>;
   gender: 'male' | 'female' | 'other' | null;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
@@ -146,7 +147,7 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
-    birth_year: user.birth_year,
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
     gender: user.gender,
     jersey_number: null,
     discord_username: user.discord_username,
@@ -205,7 +206,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     const updated = {
       ...user,
       name: input.name,
-      birth_year: input.birth_year,
+      birth_date: input.birth_date,
       gender: input.gender,
     };
     usersMap.set(input.id, updated);
@@ -697,6 +698,18 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   cancelEventSeries: () => Effect.void,
 } as unknown as EventSeriesRepository);
 
+const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
+  _tag: 'api/EventRsvpsRepository',
+  findByEventId: () => Effect.succeed([]),
+  findRsvpsByEventId: () => Effect.succeed([]),
+  findByEventAndMember: () => Effect.succeed(Option.none()),
+  findRsvpByEventAndMember: () => Effect.succeed(Option.none()),
+  upsert: () => Effect.die(new Error('Not implemented')),
+  upsertRsvp: () => Effect.die(new Error('Not implemented')),
+  countByEventId: () => Effect.succeed([]),
+  countRsvpsByEventId: () => Effect.succeed([]),
+} as unknown as EventRsvpsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -721,7 +734,10 @@ const TestLayer = ApiLive.pipe(
     Layer.merge(
       Layer.merge(
         Layer.merge(
-          Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
+          Layer.merge(
+            Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer),
+            MockBotGuildsRepositoryLayer,
+          ),
           MockDiscordChannelsRepositoryLayer,
         ),
         MockEventSeriesRepositoryLayer,
@@ -827,7 +843,7 @@ describe('Members API', () => {
           },
           body: JSON.stringify({
             name: 'Updated Name',
-            birthYear: null,
+            birthDate: null,
             gender: null,
             jerseyNumber: null,
           }),
@@ -848,7 +864,7 @@ describe('Members API', () => {
           },
           body: JSON.stringify({
             name: 'Updated Name',
-            birthYear: null,
+            birthDate: null,
             gender: null,
             jerseyNumber: null,
           }),

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
+import { DatePicker } from '~/components/ui/date-picker';
 import {
   Form,
   FormControl,
@@ -27,18 +28,16 @@ import * as m from '~/paraglide/messages.js';
 
 const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - Auth.MIN_AGE;
-const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
 const NONE_VALUE = '__none__';
 
 const ProfileEditSchema = Schema.Struct({
   name: Schema.String,
-  birthYear: Schema.Union(Schema.NumberFromString, Schema.Literal(NONE_VALUE)),
+  birthDate: Schema.String,
   gender: Schema.Union(Schema.Literal('male', 'female', 'other'), Schema.Literal(NONE_VALUE)),
 });
 
 type ProfileEditValues = Schema.Schema.Type<typeof ProfileEditSchema>;
-type ProfileEditEncoded = Schema.Schema.Encoded<typeof ProfileEditSchema>;
 
 const genderOptions = [
   { value: 'male', label: () => m.profile_complete_genderMale() },
@@ -58,13 +57,13 @@ interface MyProfilePageProps {
 export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   const run = useRun();
 
-  const defaultValues: ProfileEditEncoded = {
+  const defaultValues: ProfileEditValues = {
     name: user.name ?? '',
-    birthYear: user.birthYear != null ? String(user.birthYear) : NONE_VALUE,
+    birthDate: user.birthDate ?? '',
     gender: user.gender ?? NONE_VALUE,
   };
 
-  const form = useForm({
+  const form = useForm<ProfileEditValues>({
     resolver: effectTsResolver(ProfileEditSchema),
     mode: 'onChange',
     defaultValues,
@@ -76,7 +75,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
         api.auth.updateProfile({
           payload: {
             name: values.name,
-            birthYear: typeof values.birthYear === 'number' ? values.birthYear : null,
+            birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
             gender: values.gender === NONE_VALUE ? null : values.gender,
           },
         }),
@@ -133,25 +132,19 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
           />
 
           <FormField
-            {...form.register('birthYear')}
+            {...form.register('birthDate')}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{m.profile_complete_birthYear()}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder={m.profile_complete_birthYearPlaceholder()} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value={NONE_VALUE}>—</SelectItem>
-                    {birthYears.map((year) => (
-                      <SelectItem key={year} value={String(year)}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>{m.profile_complete_birthDate()}</FormLabel>
+                <FormControl>
+                  <DatePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder={m.profile_complete_birthDatePlaceholder()}
+                    fromYear={1900}
+                    toYear={maxBirthYear}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

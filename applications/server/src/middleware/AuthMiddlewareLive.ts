@@ -1,6 +1,6 @@
 import { Auth } from '@sideline/domain';
 import type { Redacted as RedactedType } from 'effect';
-import { Effect, Layer, Option, Redacted } from 'effect';
+import { DateTime, Effect, Layer, Option, Redacted } from 'effect';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
@@ -31,7 +31,9 @@ export const AuthMiddlewareLive = Layer.effect(
                             discordAvatar: user.discord_avatar,
                             isProfileComplete: user.is_profile_complete,
                             name: user.name,
-                            birthYear: user.birth_year,
+                            birthDate: Option.getOrNull(
+                              Option.map(user.birth_date, DateTime.formatIsoDateUtc),
+                            ),
                             gender: user.gender,
                             locale: user.locale,
                           }),

@@ -99,6 +99,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               Effect.all(
                 dates.map((date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
+                  const startAt = `${dateStr}T${inserted.start_time}Z`;
+                  const endAt = inserted.end_time ? `${dateStr}T${inserted.end_time}Z` : null;
                   return events
                     .insertEvent({
                       teamId,
@@ -106,9 +108,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       eventType: 'training',
                       title: inserted.title,
                       description: inserted.description,
-                      eventDate: dateStr,
-                      startTime: inserted.start_time,
-                      endTime: inserted.end_time,
+                      startAt,
+                      endAt,
                       location: inserted.location,
                       createdBy: membership.id,
                       seriesId: inserted.id,
@@ -325,6 +326,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   return Effect.all(
                     newDates.map((date) => {
                       const dateStr = DateTime.formatIsoDateUtc(date);
+                      const startAt = `${dateStr}T${existing.start_time}Z`;
+                      const endAt = existing.end_time ? `${dateStr}T${existing.end_time}Z` : null;
                       return events
                         .insertEvent({
                           teamId,
@@ -332,9 +335,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           eventType: 'training',
                           title: existing.title,
                           description: existing.description,
-                          eventDate: dateStr,
-                          startTime: existing.start_time,
-                          endTime: existing.end_time,
+                          startAt,
+                          endAt,
                           location: existing.location,
                           createdBy: membership.id,
                           seriesId: existing.id,

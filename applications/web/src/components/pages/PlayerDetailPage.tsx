@@ -5,6 +5,7 @@ import { Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
+import { DatePicker } from '~/components/ui/date-picker';
 import {
   Form,
   FormControl,
@@ -25,7 +26,7 @@ import * as m from '~/paraglide/messages.js';
 
 const PlayerEditSchema = Schema.Struct({
   name: Schema.NullOr(Schema.String),
-  birthYear: Schema.NullOr(Schema.NumberFromString),
+  birthDate: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(Schema.Literal('male', 'female', 'other')),
   jerseyNumber: Schema.NullOr(Schema.NumberFromString.pipe(Schema.int(), Schema.between(0, 99))),
 });
@@ -58,7 +59,7 @@ export function PlayerDetailPage({
     mode: 'onChange',
     defaultValues: {
       name: player.name,
-      birthYear: player.birthYear !== null ? String(player.birthYear) : null,
+      birthDate: player.birthDate,
       gender: player.gender,
       jerseyNumber: player.jerseyNumber !== null ? String(player.jerseyNumber) : null,
     },
@@ -92,15 +93,17 @@ export function PlayerDetailPage({
               )}
             />
             <FormField
-              {...form.register('birthYear')}
+              {...form.register('birthDate')}
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{m.profile_complete_birthYear()}</FormLabel>
+                  <FormLabel>{m.profile_complete_birthDate()}</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
+                    <DatePicker
                       value={field.value ?? ''}
-                      placeholder={m.profile_complete_birthYearPlaceholder()}
+                      onChange={field.onChange}
+                      placeholder={m.profile_complete_birthDatePlaceholder()}
+                      fromYear={1900}
+                      toYear={new Date().getFullYear()}
                     />
                   </FormControl>
                   <FormMessage />

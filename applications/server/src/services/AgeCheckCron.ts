@@ -13,10 +13,10 @@ const cronEffect = Effect.Do.pipe(
     ),
   ),
   Effect.tap(({ teamIds, ageCheck }) => {
-    const currentYear = new Date().getFullYear();
+    const today = new Date();
     return Effect.all(
       teamIds.map((teamId) =>
-        ageCheck.evaluate(teamId as Parameters<typeof ageCheck.evaluate>[0], currentYear).pipe(
+        ageCheck.evaluate(teamId as Parameters<typeof ageCheck.evaluate>[0], today).pipe(
           Effect.tap((changes) =>
             changes.length > 0
               ? Effect.logInfo(

@@ -46,13 +46,13 @@ export class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
   team_id: Team.TeamId,
 }) {}
 
-export class MemberWithBirthYear extends Schema.Class<MemberWithBirthYear>('MemberWithBirthYear')({
+export class MemberWithBirthDate extends Schema.Class<MemberWithBirthDate>('MemberWithBirthDate')({
   member_id: TeamMember.TeamMemberId,
   user_id: User.UserId,
   member_name: Schema.OptionFromNullOr(Schema.String),
   discord_username: Schema.String,
   discord_id: Discord.Snowflake,
-  birth_year: Schema.Number,
+  birth_date: Schema.String,
   is_admin: Schema.Boolean,
   group_ids: Schemas.ArrayFromSplitString(),
 }) {}
@@ -132,14 +132,14 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           execute: () => sql`SELECT DISTINCT team_id FROM age_threshold_rules`,
         }),
       ),
-      Effect.let('findMembersWithBirthYears', ({ sql }) =>
+      Effect.let('findMembersWithBirthDates', ({ sql }) =>
         SqlSchema.findAll({
           Request: Schema.String,
-          Result: MemberWithBirthYear,
+          Result: MemberWithBirthDate,
           execute: (teamId) => sql`
             SELECT tm.id AS member_id, tm.user_id,
                    u.name AS member_name, u.discord_username, u.discord_id,
-                   u.birth_year,
+                   u.birth_date::text AS birth_date,
                    COALESCE(
                      (SELECT string_agg(gm.group_id::text, ',')
                       FROM group_members gm WHERE gm.team_member_id = tm.id), ''
@@ -151,7 +151,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
                       AND r.name = 'Admin') > 0 AS is_admin
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
-            WHERE tm.team_id = ${teamId} AND tm.active = true AND u.birth_year IS NOT NULL
+            WHERE tm.team_id = ${teamId} AND tm.active = true AND u.birth_date IS NOT NULL
           `,
         }),
       ),
@@ -194,7 +194,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
     );
   }
 
-  getMembersWithBirthYears(teamId: Team.TeamId) {
-    return this.findMembersWithBirthYears(teamId);
+  getMembersWithBirthDates(teamId: Team.TeamId) {
+    return this.findMembersWithBirthDates(teamId);
   }
 }

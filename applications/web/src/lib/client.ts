@@ -9,6 +9,7 @@ import {
   AgeThresholdApi,
   Auth,
   EventApi,
+  EventRsvpApi,
   EventSeriesApi,
   GroupApi,
   Invite,
@@ -39,6 +40,7 @@ class ClientApi extends HttpApi.make('api')
   .add(Roster.RosterApiGroup)
   .add(RoleApi.RoleApiGroup)
   .add(EventApi.EventApiGroup)
+  .add(EventRsvpApi.EventRsvpApiGroup)
   .add(EventSeriesApi.EventSeriesApiGroup)
   .add(GroupApi.GroupApiGroup)
   .add(TeamSettingsApi.TeamSettingsApiGroup)

@@ -10,6 +10,7 @@ import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
+import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -40,7 +41,7 @@ const makeTestUser = (overrides?: Record<string, unknown>) => ({
   discord_refresh_token: null,
   is_profile_complete: false,
   name: null,
-  birth_year: null,
+  birth_date: Option.none(),
   gender: null,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
@@ -81,7 +82,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: (input) => {
     Object.assign(testUser, {
       name: input.name,
-      birth_year: input.birth_year,
+      birth_date: input.birth_date,
       gender: input.gender,
       is_profile_complete: true,
     });
@@ -94,7 +95,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   updateAdminProfile: (input) => {
     Object.assign(testUser, {
       name: input.name,
-      birth_year: input.birth_year,
+      birth_date: input.birth_date,
       gender: input.gender,
     });
     return Effect.succeed(testUser);
@@ -401,6 +402,18 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   cancelEventSeries: () => Effect.void,
 } as unknown as EventSeriesRepository);
 
+const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
+  _tag: 'api/EventRsvpsRepository',
+  findByEventId: () => Effect.succeed([]),
+  findRsvpsByEventId: () => Effect.succeed([]),
+  findByEventAndMember: () => Effect.succeed(Option.none()),
+  findRsvpByEventAndMember: () => Effect.succeed(Option.none()),
+  upsert: () => Effect.die(new Error('Not implemented')),
+  upsertRsvp: () => Effect.die(new Error('Not implemented')),
+  countByEventId: () => Effect.succeed([]),
+  countRsvpsByEventId: () => Effect.succeed([]),
+} as unknown as EventRsvpsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -425,7 +438,10 @@ const TestLayer = ApiLive.pipe(
     Layer.merge(
       Layer.merge(
         Layer.merge(
-          Layer.merge(MockEventsRepositoryLayer, MockBotGuildsRepositoryLayer),
+          Layer.merge(
+            Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer),
+            MockBotGuildsRepositoryLayer,
+          ),
           MockDiscordChannelsRepositoryLayer,
         ),
         MockEventSeriesRepositoryLayer,
@@ -464,7 +480,7 @@ describe('Profile Completion API', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: 'Test User',
-          birthYear: 1995,
+          birthDate: '1995-01-01',
           gender: 'male',
         }),
       }),
@@ -482,7 +498,7 @@ describe('Profile Completion API', () => {
         },
         body: JSON.stringify({
           name: 'Test User',
-          birthYear: 1995,
+          birthDate: '1995-01-01',
           gender: 'male',
         }),
       }),
@@ -490,7 +506,7 @@ describe('Profile Completion API', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.name).toBe('Test User');
-    expect(body.birthYear).toBe(1995);
+    expect(body.birthDate).toBe('1995-01-01');
     expect(body.gender).toBe('male');
     expect(body.isProfileComplete).toBe(true);
   });
@@ -505,7 +521,7 @@ describe('Profile Completion API', () => {
         },
         body: JSON.stringify({
           name: 'Test User',
-          birthYear: 1995,
+          birthDate: '1995-01-01',
           gender: 'female',
         }),
       }),
@@ -525,7 +541,7 @@ describe('Profile Completion API', () => {
         },
         body: JSON.stringify({
           name: 'Test User',
-          birthYear: 1995,
+          birthDate: '1995-01-01',
           gender: 'invalid',
         }),
       }),
@@ -533,7 +549,7 @@ describe('Profile Completion API', () => {
     expect(response.status).toBe(400);
   });
 
-  it('POST /auth/profile with birth year out of range returns 400', async () => {
+  it('POST /auth/profile with birth date out of range returns 400', async () => {
     const response = await handler(
       new Request('http://localhost/auth/profile', {
         method: 'POST',
@@ -543,7 +559,7 @@ describe('Profile Completion API', () => {
         },
         body: JSON.stringify({
           name: 'Test User',
-          birthYear: 1800,
+          birthDate: '1800-01-01',
           gender: 'male',
         }),
       }),
@@ -560,7 +576,7 @@ describe('Profile Update API (PATCH /auth/me)', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: 'Updated Name',
-          birthYear: 1995,
+          birthDate: '1995-01-01',
           gender: 'male',
         }),
       }),
@@ -578,7 +594,7 @@ describe('Profile Update API (PATCH /auth/me)', () => {
         },
         body: JSON.stringify({
           name: 'Updated Name',
-          birthYear: 1990,
+          birthDate: '1990-01-01',
           gender: 'female',
         }),
       }),
@@ -586,7 +602,7 @@ describe('Profile Update API (PATCH /auth/me)', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.name).toBe('Updated Name');
-    expect(body.birthYear).toBe(1990);
+    expect(body.birthDate).toBe('1990-01-01');
     expect(body.gender).toBe('female');
   });
 
@@ -600,7 +616,7 @@ describe('Profile Update API (PATCH /auth/me)', () => {
         },
         body: JSON.stringify({
           name: null,
-          birthYear: null,
+          birthDate: null,
           gender: null,
         }),
       }),
@@ -608,7 +624,7 @@ describe('Profile Update API (PATCH /auth/me)', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.name).toBeNull();
-    expect(body.birthYear).toBeNull();
+    expect(body.birthDate).toBeNull();
     expect(body.gender).toBeNull();
   });
 });

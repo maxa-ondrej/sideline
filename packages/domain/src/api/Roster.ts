@@ -14,7 +14,7 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   roleNames: Schema.Array(Schema.String),
   permissions: Schema.Array(Permission),
   name: Schema.NullOr(Schema.String),
-  birthYear: Schema.NullOr(Schema.Number),
+  birthDate: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(Gender),
   jerseyNumber: Schema.NullOr(Schema.Number),
   discordUsername: Schema.String,
@@ -23,7 +23,7 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
 
 export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('UpdatePlayerRequest')({
   name: Schema.NullOr(Schema.String),
-  birthYear: Schema.NullOr(Schema.Number),
+  birthDate: Schema.OptionFromNullOr(Schema.String),
   gender: Schema.NullOr(Gender),
   jerseyNumber: Schema.NullOr(Schema.Number),
 }) {}
