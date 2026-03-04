@@ -18,7 +18,7 @@ export class User extends Model.Class<User>('User')({
   discord_access_token: Model.Sensitive(Schema.String),
   discord_refresh_token: Model.Sensitive(Schema.NullOr(Schema.String)),
   name: Schema.NullOr(Schema.String),
-  birth_year: Schema.NullOr(Schema.Number),
+  birth_date: Schema.OptionFromNullOr(Schema.DateTimeUtcFromSelf),
   gender: Schema.NullOr(Gender),
   locale: Locale,
   created_at: Model.DateTimeInsertFromDate,

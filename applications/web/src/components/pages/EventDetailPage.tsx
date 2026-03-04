@@ -5,6 +5,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
 import { Button } from '~/components/ui/button';
+import { DatePicker } from '~/components/ui/date-picker';
 import { Input } from '~/components/ui/input';
 import {
   Select,
@@ -321,11 +322,10 @@ export function EventDetailPage({
                 <label htmlFor='event-date' className='text-sm font-medium mb-1 block'>
                   {m.event_eventDate()}
                 </label>
-                <Input
-                  id='event-date'
-                  type='date'
+                <DatePicker
                   value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
+                  onChange={setEventDate}
+                  placeholder={m.event_eventDate()}
                 />
               </div>
               <div className='flex-1'>

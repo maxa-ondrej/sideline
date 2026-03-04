@@ -34,7 +34,7 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   role_names: Schemas.ArrayFromSplitString(),
   permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
   name: Schema.NullOr(Schema.String),
-  birth_year: Schema.NullOr(Schema.Number),
+  birth_date: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(User.Gender),
   jersey_number: Schema.NullOr(Schema.Number),
   discord_username: Schema.String,
@@ -198,7 +198,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                       FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                       WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
-                   u.name, u.birth_year, u.gender, tm.jersey_number,
+                   u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
                    u.discord_username, u.discord_avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
@@ -222,7 +222,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                       FROM member_roles mr JOIN role_permissions rp ON rp.role_id = mr.role_id
                       WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
-                   u.name, u.birth_year, u.gender, tm.jersey_number,
+                   u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
                    u.discord_username, u.discord_avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id

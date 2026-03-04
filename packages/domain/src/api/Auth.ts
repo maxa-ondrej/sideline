@@ -29,7 +29,7 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   discordAvatar: Schema.NullOr(Schema.String),
   isProfileComplete: Schema.Boolean,
   name: Schema.NullOr(Schema.String),
-  birthYear: Schema.NullOr(Schema.Number),
+  birthDate: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(Gender),
   locale: Locale,
 }) {}
@@ -55,11 +55,15 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
   'CompleteProfileRequest',
 )({
   name: Schema.String,
-  birthYear: Schema.Number.pipe(
-    Schema.int(),
-    Schema.greaterThanOrEqualTo(1900),
-    Schema.filter((year) => year <= new Date().getFullYear() - MIN_AGE, {
-      message: () => `Birth year must be at most ${new Date().getFullYear() - MIN_AGE}`,
+  birthDate: Schema.String.pipe(
+    Schema.filter((s) => {
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return 'Invalid date';
+      if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
+      const minDate = new Date();
+      minDate.setFullYear(minDate.getFullYear() - MIN_AGE);
+      if (d > minDate) return `Must be at least ${MIN_AGE} years old`;
+      return true;
     }),
   ),
   gender: Gender,
@@ -69,12 +73,16 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
   'UpdateProfileRequest',
 )({
   name: Schema.NullOr(Schema.String),
-  birthYear: Schema.NullOr(
-    Schema.Number.pipe(
-      Schema.int(),
-      Schema.greaterThanOrEqualTo(1900),
-      Schema.filter((year) => year <= new Date().getFullYear() - MIN_AGE, {
-        message: () => `Birth year must be at most ${new Date().getFullYear() - MIN_AGE}`,
+  birthDate: Schema.OptionFromNullOr(
+    Schema.String.pipe(
+      Schema.filter((s) => {
+        const d = new Date(s);
+        if (Number.isNaN(d.getTime())) return 'Invalid date';
+        if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
+        const minDate = new Date();
+        minDate.setFullYear(minDate.getFullYear() - MIN_AGE);
+        if (d > minDate) return `Must be at least ${MIN_AGE} years old`;
+        return true;
       }),
     ),
   ),

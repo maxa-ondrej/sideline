@@ -6,6 +6,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
+import { DatePicker } from '~/components/ui/date-picker';
 import {
   Form,
   FormControl,
@@ -282,7 +283,11 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                       <FormItem className='flex-1'>
                         <FormLabel>{m.event_eventDate()}</FormLabel>
                         <FormControl>
-                          <Input {...field} type='date' />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_eventDate()}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -440,7 +445,11 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                       <FormItem className='flex-1'>
                         <FormLabel>{m.event_startDate()}</FormLabel>
                         <FormControl>
-                          <Input {...field} type='date' />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_startDate()}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -452,7 +461,11 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                       <FormItem className='flex-1'>
                         <FormLabel>{m.event_endDate()}</FormLabel>
                         <FormControl>
-                          <Input {...field} type='date' />
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_endDate()}
+                          />
                         </FormControl>
                         <p className='text-xs text-muted-foreground'>{m.event_endDateHelp()}</p>
                         <FormMessage />

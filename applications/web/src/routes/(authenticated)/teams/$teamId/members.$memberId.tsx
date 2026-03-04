@@ -50,7 +50,7 @@ function MemberDetailRoute() {
             path: { teamId, memberId },
             payload: {
               name: values.name,
-              birthYear: values.birthYear,
+              birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
               gender: values.gender,
               jerseyNumber: values.jerseyNumber,
             },

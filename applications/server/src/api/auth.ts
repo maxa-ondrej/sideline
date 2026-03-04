@@ -292,7 +292,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   discordAvatar: updated.discord_avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
-                  birthYear: updated.birth_year,
+                  birthDate: Option.getOrNull(
+                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
+                  ),
                   gender: updated.gender,
                   locale: updated.locale,
                 }),
@@ -306,7 +308,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               users.updateAdminProfile({
                 id: currentUser.id,
                 name: payload.name,
-                birth_year: payload.birthYear,
+                birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
                 gender: payload.gender,
               }),
             ),
@@ -320,7 +322,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   discordAvatar: updated.discord_avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
-                  birthYear: updated.birth_year,
+                  birthDate: Option.getOrNull(
+                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
+                  ),
                   gender: updated.gender,
                   locale: updated.locale,
                 }),
@@ -334,7 +338,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               users.completeProfile({
                 id: currentUser.id,
                 name: payload.name,
-                birth_year: payload.birthYear,
+                birth_date: Option.some(DateTime.unsafeMake(payload.birthDate)),
                 gender: payload.gender,
               }),
             ),
@@ -348,7 +352,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   discordAvatar: updated.discord_avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
-                  birthYear: updated.birth_year,
+                  birthDate: Option.getOrNull(
+                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
+                  ),
                   gender: updated.gender,
                   locale: updated.locale,
                 }),

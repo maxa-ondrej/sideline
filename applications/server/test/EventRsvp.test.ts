@@ -71,7 +71,7 @@ const testUser = {
   discord_refresh_token: null,
   is_profile_complete: true,
   name: 'Test User',
-  birth_year: 2000,
+  birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
   gender: 'male' as const,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
@@ -87,7 +87,7 @@ const testAdmin = {
   discord_refresh_token: null,
   is_profile_complete: true,
   name: 'Admin User',
-  birth_year: 1990,
+  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
   gender: 'male' as const,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
@@ -112,7 +112,7 @@ type UserLike = {
   discord_refresh_token: string | null;
   is_profile_complete: boolean;
   name: string | null;
-  birth_year: number | null;
+  birth_date: Option.Option<DateTime.Utc>;
   gender: 'male' | 'female' | 'other' | null;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
@@ -268,7 +268,7 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
-    birth_year: user.birth_year,
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
     gender: user.gender,
     jersey_number: null,
     discord_username: user.discord_username,

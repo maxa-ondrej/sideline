@@ -3,6 +3,7 @@ import { Auth } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
+import { DatePicker } from '~/components/ui/date-picker';
 import {
   Form,
   FormControl,
@@ -24,11 +25,10 @@ import * as m from '~/paraglide/messages.js';
 
 const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - Auth.MIN_AGE;
-const birthYears = Array.from({ length: maxBirthYear - 1900 + 1 }, (_, i) => maxBirthYear - i);
 
 const ProfileFormSchema = Schema.Struct({
   name: Schema.NonEmptyString,
-  birthYear: Schema.NumberFromString,
+  birthDate: Schema.NonEmptyString,
   gender: Schema.Literal('male', 'female', 'other'),
 });
 
@@ -53,6 +53,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
     mode: 'onChange',
     defaultValues: {
       name: initialName,
+      birthDate: '',
     },
   });
 
@@ -88,24 +89,19 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         />
 
         <FormField
-          {...form.register('birthYear')}
+          {...form.register('birthDate')}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{m.profile_complete_birthYear()}</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className='w-full'>
-                    <SelectValue placeholder={m.profile_complete_birthYearPlaceholder()} />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {birthYears.map((year) => (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormLabel>{m.profile_complete_birthDate()}</FormLabel>
+              <FormControl>
+                <DatePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder={m.profile_complete_birthDatePlaceholder()}
+                  fromYear={1900}
+                  toYear={maxBirthYear}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

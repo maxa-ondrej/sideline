@@ -41,7 +41,7 @@ const testUser = {
   discord_refresh_token: null,
   is_profile_complete: false,
   name: null,
-  birth_year: null,
+  birth_date: Option.none(),
   gender: null,
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
