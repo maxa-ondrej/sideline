@@ -21,7 +21,7 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
     Effect.tap(() => sql`DROP INDEX IF EXISTS idx_events_series_date`),
     Effect.tap(
       () =>
-        sql`CREATE UNIQUE INDEX idx_events_series_date ON events(series_id, (start_at::date)) WHERE series_id IS NOT NULL`,
+        sql`CREATE UNIQUE INDEX idx_events_series_date ON events(series_id, ((start_at AT TIME ZONE 'UTC')::date)) WHERE series_id IS NOT NULL`,
     ),
   ),
 );
