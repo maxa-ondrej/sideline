@@ -5,3 +5,7 @@ map $host $var_server_upstream {
 map $host $var_web_upstream {
   default "http://$WEB_HOST:$WEB_PORT";
 }
+
+map $host $var_frontend_url {
+  default "$FRONTEND_URL";
+}

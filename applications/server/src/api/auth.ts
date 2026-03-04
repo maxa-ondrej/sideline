@@ -1,4 +1,3 @@
-import { URL } from 'node:url';
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth, Discord, Role } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
@@ -56,31 +55,6 @@ const LoginSchema = Schema.parseJson(
   }),
 );
 
-type LoginState = Schema.Schema.Type<typeof LoginSchema>;
-
-const redirectForPreviews = ({
-  state,
-  stateRaw,
-  code,
-}: {
-  state: LoginState;
-  stateRaw: string;
-  code: string;
-}) =>
-  Effect.succeed(
-    pipe(
-      Redirect.fromUrl(
-        new URL(
-          env.API_PREFIX + Auth.AuthApiGroup.pipe(ApiGroup.getEndpoint('callback')).path,
-          state.redirectUrl.origin,
-        ),
-      ),
-      Redirect.withSearchParam('state', stateRaw),
-      Redirect.withSearchParam('code', code),
-      Redirect.toResponse,
-    ),
-  );
-
 const handleDiscordLogin = ({
   code,
   state,
@@ -89,7 +63,7 @@ const handleDiscordLogin = ({
   sessions,
 }: {
   code: string;
-  state: LoginState;
+  state: Schema.Schema.Type<typeof LoginSchema>;
   discord: DiscordOAuth;
   users: UsersRepository;
   sessions: SessionsRepository;
@@ -254,11 +228,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 frontendUrl: env.FRONTEND_URL.toString(),
               }),
             ),
-            Effect.andThen(({ state, stateRaw, code }) =>
-              env.NODE_ENV === 'development' &&
-              state.redirectUrl.toString().startsWith(env.FRONTEND_URL.toString())
-                ? handleDiscordLogin({ code, state, discord, users, sessions })
-                : redirectForPreviews({ state, stateRaw, code }),
+            Effect.andThen(({ state, code }) =>
+              handleDiscordLogin({ code, state, discord, users, sessions }),
             ),
             Effect.catchTag('ParseError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>

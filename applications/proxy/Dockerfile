@@ -1,6 +1,7 @@
 FROM nginx
 
-RUN apt-get update && apt-get install -y curl && apt-get clean
+RUN apt-get update && apt-get install -y curl nginx-module-njs && apt-get clean
+COPY applications/proxy/preview_redirect.js /etc/nginx/preview_redirect.js
 COPY applications/proxy/templates /etc/nginx/templates
 COPY applications/proxy/nginx.conf /etc/nginx/nginx.conf
 
