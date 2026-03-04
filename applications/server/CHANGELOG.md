@@ -1,5 +1,11 @@
 # @sideline/server
 
+## 0.6.1
+
+### Patch Changes
+
+- [#56](https://github.com/maxa-ondrej/sideline/pull/56) [`0862067`](https://github.com/maxa-ondrej/sideline/commit/08620678ecfec4626c8d6d48f68b3a4af3852c15) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Move Discord OAuth preview redirect logic from server to nginx proxy via njs module
+
 ## 0.6.0
 
 ### Minor Changes
