@@ -35,3 +35,15 @@ export class RsvpEventNotFound extends Schema.TaggedError<RsvpEventNotFound>()(
   'RsvpEventNotFound',
   {},
 ) {}
+
+export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
+  discord_id: Schema.NullOr(Schema.String),
+  name: Schema.NullOr(Schema.String),
+  response: Schema.Literal('yes', 'no', 'maybe'),
+  message: Schema.NullOr(Schema.String),
+}) {}
+
+export class RsvpAttendeesResult extends Schema.Class<RsvpAttendeesResult>('RsvpAttendeesResult')({
+  attendees: Schema.Array(RsvpAttendeeEntry),
+  total: Schema.Number,
+}) {}

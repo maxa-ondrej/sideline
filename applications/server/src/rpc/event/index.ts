@@ -243,6 +243,41 @@ export const EventsRpcLive = Effect.Do.pipe(
           Effect.catchAll(() => Effect.succeed(Option.none())),
         ),
   ),
+  Effect.let(
+    'Event/GetRsvpAttendees',
+    ({ rsvps }) =>
+      ({
+        event_id,
+        offset,
+        limit,
+      }: {
+        readonly event_id: Event.EventId;
+        readonly offset: number;
+        readonly limit: number;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('attendees', () => rsvps.findRsvpAttendeesPage(event_id, offset, limit)),
+          Effect.bind('total', () => rsvps.countRsvpTotal(event_id)),
+          Effect.map(
+            ({ attendees, total }) =>
+              new EventRpcModels.RsvpAttendeesResult({
+                attendees: attendees.map(
+                  (row) =>
+                    new EventRpcModels.RsvpAttendeeEntry({
+                      discord_id: row.discord_id,
+                      name: row.member_name,
+                      response: row.response,
+                      message: row.message,
+                    }),
+                ),
+                total,
+              }),
+          ),
+          Effect.catchAll(() =>
+            Effect.succeed(new EventRpcModels.RsvpAttendeesResult({ attendees: [], total: 0 })),
+          ),
+        ),
+  ),
   Bind.remove('syncEvents'),
   Bind.remove('events'),
   Bind.remove('rsvps'),

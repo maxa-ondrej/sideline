@@ -77,6 +77,18 @@ export const buildEventEmbed = (opts: {
     });
   }
 
+  components.push({
+    type: 1,
+    components: [
+      {
+        type: 2,
+        style: 2,
+        label: '📋 Attendees',
+        custom_id: `attendees:${opts.teamId}:${opts.eventId}:0`,
+      },
+    ],
+  });
+
   return { embeds, components };
 };
 

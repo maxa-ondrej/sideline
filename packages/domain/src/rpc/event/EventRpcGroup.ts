@@ -5,6 +5,7 @@ import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
   EventDiscordMessage,
   EventEmbedInfo,
+  RsvpAttendeesResult,
   RsvpCountsResult,
   RsvpDeadlinePassed,
   RsvpEventNotFound,
@@ -51,5 +52,9 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('GetEventEmbedInfo', {
     payload: { event_id: Event.EventId },
     success: Schema.OptionFromNullOr(EventEmbedInfo),
+  }),
+  Rpc.make('GetRsvpAttendees', {
+    payload: { event_id: Event.EventId, offset: Schema.Number, limit: Schema.Number },
+    success: RsvpAttendeesResult,
   }),
 ).prefix('Event/');
