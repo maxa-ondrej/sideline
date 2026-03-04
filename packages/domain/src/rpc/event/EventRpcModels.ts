@@ -12,6 +12,15 @@ export class RsvpCountsResult extends Schema.Class<RsvpCountsResult>('RsvpCounts
   canRsvp: Schema.Boolean,
 }) {}
 
+export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({
+  title: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  start_at: Schema.String,
+  end_at: Schema.NullOr(Schema.String),
+  location: Schema.NullOr(Schema.String),
+  event_type: Schema.String,
+}) {}
+
 export class RsvpMemberNotFound extends Schema.TaggedError<RsvpMemberNotFound>()(
   'RsvpMemberNotFound',
   {},

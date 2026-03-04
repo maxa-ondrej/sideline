@@ -222,6 +222,27 @@ export const EventsRpcLive = Effect.Do.pipe(
           ),
         ),
   ),
+  Effect.let(
+    'Event/GetEventEmbedInfo',
+    ({ events }) =>
+      ({ event_id }: { readonly event_id: Event.EventId }) =>
+        events.findEventByIdWithDetails(event_id).pipe(
+          Effect.map(
+            Option.map(
+              (row) =>
+                new EventRpcModels.EventEmbedInfo({
+                  title: row.title,
+                  description: row.description,
+                  start_at: row.start_at,
+                  end_at: row.end_at,
+                  location: row.location,
+                  event_type: row.event_type,
+                }),
+            ),
+          ),
+          Effect.catchAll(() => Effect.succeed(Option.none())),
+        ),
+  ),
   Bind.remove('syncEvents'),
   Bind.remove('events'),
   Bind.remove('rsvps'),

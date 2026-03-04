@@ -94,25 +94,29 @@ export const RsvpModal = Ix.modalSubmit(
         message,
       }).pipe(
         Effect.tap((counts) =>
-          rpc['Event/GetDiscordMessageId']({ event_id: eventId }).pipe(
-            Effect.flatMap((stored) =>
+          Effect.all({
+            stored: rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
+            eventInfo: rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
+          }).pipe(
+            Effect.flatMap(({ stored, eventInfo }) =>
               Option.match(stored, {
                 onNone: () => Effect.void,
                 onSome: (msg) => {
+                  const info = Option.getOrUndefined(eventInfo);
                   const payload = buildEventEmbed({
                     teamId,
                     eventId,
-                    title: '',
-                    description: null,
-                    startAt: '',
-                    endAt: null,
-                    location: null,
-                    eventType: '',
+                    title: info?.title ?? '',
+                    description: info?.description ?? null,
+                    startAt: info?.start_at ?? '',
+                    endAt: info?.end_at ?? null,
+                    location: info?.location ?? null,
+                    eventType: info?.event_type ?? '',
                     counts,
                   });
                   return rest
                     .updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                      embeds: undefined,
+                      embeds: payload.embeds,
                       components: payload.components,
                     })
                     .pipe(

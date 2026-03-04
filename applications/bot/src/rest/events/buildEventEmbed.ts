@@ -4,6 +4,11 @@ import type * as Discord from 'dfx/types';
 const EVENT_COLOR = 0x5865f2;
 const CANCELLED_COLOR = 0xed4245;
 
+const toDiscordTimestamp = (dateStr: string, style: 'F' | 'f' | 't' = 'F'): string => {
+  const unix = Math.floor(new Date(dateStr).getTime() / 1000);
+  return `<t:${unix}:${style}>`;
+};
+
 export const buildEventEmbed = (opts: {
   teamId: string;
   eventId: string;
@@ -20,8 +25,9 @@ export const buildEventEmbed = (opts: {
 } => {
   const fields: Array<Discord.RichEmbedField> = [];
 
-  const when = opts.endAt ? `${opts.startAt} — ${opts.endAt}` : opts.startAt;
-  fields.push({ name: 'When', value: when, inline: true });
+  const startTs = toDiscordTimestamp(opts.startAt, 'F');
+  const when = opts.endAt ? `${startTs} — ${toDiscordTimestamp(opts.endAt, 't')}` : startTs;
+  fields.push({ name: 'When', value: when, inline: false });
 
   if (opts.location) {
     fields.push({ name: 'Where', value: opts.location, inline: true });
