@@ -1,4 +1,4 @@
-import type { EventApi, TrainingTypeApi } from '@sideline/domain';
+import type { EventApi, EventRsvpApi, TrainingTypeApi } from '@sideline/domain';
 import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -33,6 +33,7 @@ interface EventDetailPageProps {
   eventId: string;
   eventDetail: EventApi.EventDetail;
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
+  rsvpDetail: EventRsvpApi.EventRsvpDetail;
 }
 
 export function EventDetailPage({
@@ -40,6 +41,7 @@ export function EventDetailPage({
   eventId,
   eventDetail,
   trainingTypes,
+  rsvpDetail,
 }: EventDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -61,6 +63,11 @@ export function EventDetailPage({
   const [saving, setSaving] = React.useState(false);
   const [showEditScope, setShowEditScope] = React.useState(false);
   const [showCancelScope, setShowCancelScope] = React.useState(false);
+  const [rsvpResponse, setRsvpResponse] = React.useState<'yes' | 'no' | 'maybe' | null>(
+    rsvpDetail.myResponse,
+  );
+  const [rsvpMessage, setRsvpMessage] = React.useState(rsvpDetail.myMessage ?? '');
+  const [rsvpSubmitting, setRsvpSubmitting] = React.useState(false);
 
   const hasSeries = eventDetail.seriesId !== null;
 
@@ -203,6 +210,28 @@ export function EventDetailPage({
       doCancelThisOnly();
     }
   }, [hasSeries, doCancelThisOnly]);
+
+  const handleRsvpSubmit = React.useCallback(async () => {
+    if (!rsvpResponse) return;
+    setRsvpSubmitting(true);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.eventRsvp.submitRsvp({
+          path: { teamId: teamIdBranded, eventId: eventIdBranded },
+          payload: {
+            response: rsvpResponse,
+            message: rsvpMessage || null,
+          },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
+      run,
+    );
+    setRsvpSubmitting(false);
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [teamIdBranded, eventIdBranded, rsvpResponse, rsvpMessage, run, router]);
 
   const isActive = eventDetail.status === 'active';
 
@@ -425,6 +454,109 @@ export function EventDetailPage({
           </>
         )}
       </div>
+
+      {isActive && (
+        <div className='mt-8 max-w-lg'>
+          <h2 className='text-lg font-semibold mb-4'>{m.rsvp_title()}</h2>
+
+          {rsvpDetail.canRsvp ? (
+            <div className='flex flex-col gap-4'>
+              <div className='flex gap-2'>
+                <Button
+                  variant={rsvpResponse === 'yes' ? 'default' : 'outline'}
+                  onClick={() => setRsvpResponse('yes')}
+                >
+                  {m.rsvp_yes()}
+                </Button>
+                <Button
+                  variant={rsvpResponse === 'maybe' ? 'secondary' : 'outline'}
+                  onClick={() => setRsvpResponse('maybe')}
+                >
+                  {m.rsvp_maybe()}
+                </Button>
+                <Button
+                  variant={rsvpResponse === 'no' ? 'destructive' : 'outline'}
+                  onClick={() => setRsvpResponse('no')}
+                >
+                  {m.rsvp_no()}
+                </Button>
+              </div>
+
+              {rsvpResponse && (
+                <>
+                  <div>
+                    <label htmlFor='rsvp-message' className='text-sm font-medium mb-1 block'>
+                      {m.rsvp_message()}
+                    </label>
+                    <Textarea
+                      id='rsvp-message'
+                      value={rsvpMessage}
+                      onChange={(e) => setRsvpMessage(e.target.value)}
+                      placeholder={m.rsvp_messagePlaceholder()}
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Button onClick={handleRsvpSubmit} disabled={rsvpSubmitting}>
+                      {rsvpSubmitting ? m.rsvp_submitting() : m.rsvp_submit()}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className='text-sm text-muted-foreground'>{m.rsvp_deadlinePassed()}</p>
+          )}
+
+          <div className='mt-6'>
+            <h3 className='text-sm font-semibold mb-2'>{m.rsvp_summary()}</h3>
+            <div className='flex gap-4 text-sm mb-4'>
+              <span className='text-green-700'>
+                {m.rsvp_attending({ count: String(rsvpDetail.yesCount) })}
+              </span>
+              <span className='text-yellow-600'>
+                {m.rsvp_undecided({ count: String(rsvpDetail.maybeCount) })}
+              </span>
+              <span className='text-red-600'>
+                {m.rsvp_notAttending({ count: String(rsvpDetail.noCount) })}
+              </span>
+            </div>
+
+            {rsvpDetail.rsvps.length > 0 ? (
+              <ul className='space-y-1 text-sm'>
+                {[...rsvpDetail.rsvps]
+                  .sort((a, b) => {
+                    const order: Record<string, number> = { yes: 0, maybe: 1, no: 2 };
+                    return (order[a.response] ?? 3) - (order[b.response] ?? 3);
+                  })
+                  .map((r) => (
+                    <li key={r.teamMemberId} className='flex items-center gap-2'>
+                      <span
+                        className={
+                          r.response === 'yes'
+                            ? 'text-green-700'
+                            : r.response === 'maybe'
+                              ? 'text-yellow-600'
+                              : 'text-red-600'
+                        }
+                      >
+                        {r.response === 'yes'
+                          ? m.rsvp_yes()
+                          : r.response === 'maybe'
+                            ? m.rsvp_maybe()
+                            : m.rsvp_no()}
+                      </span>
+                      <span>{r.memberName ?? '—'}</span>
+                      {r.message && <span className='text-muted-foreground'>— {r.message}</span>}
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className='text-sm text-muted-foreground'>{m.rsvp_noResponses()}</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

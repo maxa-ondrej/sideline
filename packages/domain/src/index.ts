@@ -6,6 +6,8 @@ export * as Auth from './api/Auth.js';
 
 export * as EventApi from './api/EventApi.js';
 
+export * as EventRsvpApi from './api/EventRsvpApi.js';
+
 export * as EventSeriesApi from './api/EventSeriesApi.js';
 
 export * as GroupApi from './api/GroupApi.js';
@@ -33,6 +35,8 @@ export * as DiscordChannelMapping from './models/DiscordChannelMapping.js';
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
 
 export * as Event from './models/Event.js';
+
+export * as EventRsvp from './models/EventRsvp.js';
 
 export * as EventSeries from './models/EventSeries.js';
 

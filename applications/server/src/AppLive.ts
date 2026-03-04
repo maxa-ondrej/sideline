@@ -16,6 +16,7 @@ import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRep
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
+import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -66,6 +67,7 @@ const Repositories = Layer.mergeAll(
   DiscordChannelMappingRepository.Default,
   DiscordChannelsRepository.Default,
   EventsRepository.Default,
+  EventRsvpsRepository.Default,
   EventSeriesRepository.Default,
   TeamSettingsRepository.Default,
 );

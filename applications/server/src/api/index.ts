@@ -4,6 +4,7 @@ import { AgeThresholdApiLive } from '~/api/age-threshold.js';
 import { Api } from '~/api/api.js';
 import { AuthApiLive } from '~/api/auth.js';
 import { EventApiLive } from '~/api/event.js';
+import { EventRsvpApiLive } from '~/api/event-rsvp.js';
 import { EventSeriesApiLive } from '~/api/event-series.js';
 import { GroupApiLive } from '~/api/group.js';
 import { InviteApiLive } from '~/api/invite.js';
@@ -17,6 +18,7 @@ export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(AgeThresholdApiLive),
   Layer.provide(AuthApiLive),
   Layer.provide(EventApiLive),
+  Layer.provide(EventRsvpApiLive),
   Layer.provide(EventSeriesApiLive),
   Layer.provide(GroupApiLive),
   Layer.provide(InviteApiLive),

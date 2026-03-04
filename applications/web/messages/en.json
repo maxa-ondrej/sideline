@@ -317,5 +317,20 @@
   "teamSettings_horizonDays": "Event generation horizon (days)",
   "teamSettings_horizonDaysHelp": "Events are generated this many days in advance. A daily job extends them automatically.",
   "teamSettings_saved": "Settings saved.",
-  "teamSettings_saveFailed": "Failed to save settings."
+  "teamSettings_saveFailed": "Failed to save settings.",
+  "rsvp_title": "RSVP",
+  "rsvp_yes": "Yes",
+  "rsvp_no": "No",
+  "rsvp_maybe": "Maybe",
+  "rsvp_message": "Message",
+  "rsvp_messagePlaceholder": "Optional message for the team",
+  "rsvp_submit": "Submit RSVP",
+  "rsvp_submitting": "Submitting...",
+  "rsvp_submitFailed": "Failed to submit RSVP.",
+  "rsvp_deadlinePassed": "RSVP deadline has passed.",
+  "rsvp_attending": "{count} going",
+  "rsvp_notAttending": "{count} not going",
+  "rsvp_undecided": "{count} maybe",
+  "rsvp_summary": "Responses",
+  "rsvp_noResponses": "No responses yet."
 }
