@@ -17,6 +17,7 @@ export const Route = createFileRoute(
         Effect.all({
           trainingType: api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
           series: api.eventSeries.listEventSeries({ path: { teamId } }),
+          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -38,6 +39,7 @@ function TrainingTypeDetailRoute() {
       series={data.series.filter(
         (s: EventSeriesApi.EventSeriesInfo) => s.trainingTypeId === trainingTypeIdRaw,
       )}
+      discordChannels={data.discordChannels}
     />
   );
 }

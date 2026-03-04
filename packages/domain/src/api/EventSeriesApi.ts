@@ -25,6 +25,7 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   startTime: Schema.String,
   endTime: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
+  discordChannelId: Schema.NullOr(Schema.String),
 }) {}
 
 export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSeriesDetail')({
@@ -42,6 +43,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   startTime: Schema.String,
   endTime: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
+  discordChannelId: Schema.NullOr(Schema.String),
   canEdit: Schema.Boolean,
   canCancel: Schema.Boolean,
 }) {}
@@ -59,6 +61,7 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   startTime: Schema.String,
   endTime: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
+  discordChannelId: Schema.NullOr(Schema.String),
 }) {}
 
 export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
@@ -71,6 +74,7 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   endDate: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
 export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(

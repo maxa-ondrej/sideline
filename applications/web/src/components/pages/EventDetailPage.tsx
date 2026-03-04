@@ -1,5 +1,5 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { EventApi, EventRsvpApi, TrainingTypeApi } from '@sideline/domain';
+import type { EventApi, EventRsvpApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -49,6 +49,7 @@ const EventEditSchema = Schema.Struct({
   endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
+  discordChannelId: Schema.String,
 });
 
 type EventEditValues = Schema.Schema.Type<typeof EventEditSchema>;
@@ -73,6 +74,7 @@ interface EventDetailPageProps {
   eventId: string;
   eventDetail: EventApi.EventDetail;
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
+  discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
   rsvpDetail: EventRsvpApi.EventRsvpDetail;
 }
 
@@ -81,6 +83,7 @@ export function EventDetailPage({
   eventId,
   eventDetail,
   trainingTypes,
+  discordChannels,
   rsvpDetail,
 }: EventDetailPageProps) {
   const run = useRun();
@@ -103,6 +106,7 @@ export function EventDetailPage({
       endDate: eventDetail.endAt ? eventDetail.endAt.slice(0, 10) : '',
       endTime: eventDetail.endAt ? eventDetail.endAt.slice(11, 16) : '',
       location: eventDetail.location ?? '',
+      discordChannelId: eventDetail.discordChannelId ?? NONE_VALUE,
     },
   });
 
@@ -136,6 +140,11 @@ export function EventDetailPage({
             startAt: Option.some(startAt),
             endAt: Option.some(endAt),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
+            discordChannelId: Option.some(
+              values.discordChannelId && values.discordChannelId !== NONE_VALUE
+                ? Option.some(values.discordChannelId)
+                : Option.none(),
+            ),
           },
         }),
       ),
@@ -169,6 +178,11 @@ export function EventDetailPage({
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             endDate: Option.none(),
+            discordChannelId: Option.some(
+              values.discordChannelId && values.discordChannelId !== NONE_VALUE
+                ? Option.some(values.discordChannelId)
+                : Option.none(),
+            ),
           },
         }),
       ),
@@ -442,6 +456,31 @@ export function EventDetailPage({
                         rows={3}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                {...form.register('discordChannelId')}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{m.event_discordChannel()}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={m.event_useDefault()} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                        {discordChannels.map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>
+                            # {ch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -12,6 +12,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -200,6 +201,7 @@ type EventRecord = {
   created_by_name: string | null;
   series_id: string | null;
   series_modified: boolean;
+  discord_target_channel_id: string | null;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -222,6 +224,7 @@ const resetStores = () => {
     created_by_name: 'Admin User',
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
   eventsStore.set(TEST_EVENT_2, {
     id: TEST_EVENT_2,
@@ -239,6 +242,7 @@ const resetStores = () => {
     created_by_name: 'Admin User',
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
   eventsStore.set(TEST_EVENT_SCOPED, {
     id: TEST_EVENT_SCOPED,
@@ -256,6 +260,7 @@ const resetStores = () => {
     created_by_name: 'Admin User',
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
 };
 
@@ -474,6 +479,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       created_by_name: null,
       series_id: input.series_id,
       series_modified: false,
+      discord_target_channel_id: null,
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -490,6 +496,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       created_by: record.created_by,
       series_id: record.series_id,
       series_modified: record.series_modified,
+      discord_target_channel_id: null,
     });
   },
   insertEvent: (input: {
@@ -521,6 +528,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       created_by_name: null,
       series_id: input.seriesId ?? null,
       series_modified: false,
+      discord_target_channel_id: null,
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -537,6 +545,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       created_by: record.created_by,
       series_id: record.series_id,
       series_modified: record.series_modified,
+      discord_target_channel_id: null,
     });
   },
   update: (input: {
@@ -574,6 +583,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       location: updated.location,
       status: updated.status,
       created_by: updated.created_by,
+      discord_target_channel_id: updated.discord_target_channel_id,
     });
   },
   updateEvent: (input: {
@@ -611,6 +621,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       location: updated.location,
       status: updated.status,
       created_by: updated.created_by,
+      discord_target_channel_id: updated.discord_target_channel_id,
     });
   },
   cancel: (id: Event.EventId) => {
@@ -785,6 +796,13 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
+const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
+  emitIfGuildLinked: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as EventSyncEventsRepository);
+
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: () => Effect.succeed(Option.none()),
   insert: () => Effect.void,
@@ -847,7 +865,9 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockAgeThresholdRepositoryLayer),
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
-  Layer.provide(MockChannelSyncEventsRepositoryLayer),
+  Layer.provide(
+    Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+  ),
   Layer.provide(
     Layer.merge(
       Layer.merge(
@@ -939,6 +959,7 @@ describe('Events API', () => {
       description: null,
       startAt: '2026-03-20T18:00:00',
       endAt: null,
+      discordChannelId: null,
       location: null,
     };
 
@@ -1139,6 +1160,7 @@ describe('Events API', () => {
             startAt: '2026-03-20T18:00:00',
             endAt: null,
             location: null,
+            discordChannelId: null,
           }),
         }),
       );
@@ -1161,6 +1183,7 @@ describe('Events API', () => {
             startAt: '2026-03-20T18:00:00',
             endAt: null,
             location: null,
+            discordChannelId: null,
           }),
         }),
       );
@@ -1228,6 +1251,7 @@ describe('Events API', () => {
             startAt: '2026-03-20T18:00:00',
             endAt: null,
             location: null,
+            discordChannelId: null,
           }),
         }),
       );

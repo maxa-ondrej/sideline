@@ -54,7 +54,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
             Effect.bind('trainingType', () =>
               trainingTypes
-                .insertTrainingType(teamId, payload.name, payload.groupId)
+                .insertTrainingType(teamId, payload.name, payload.groupId, payload.discordChannelId)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(
@@ -99,6 +99,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   name: trainingType.name,
                   groupId: trainingType.group_id,
                   groupName: trainingType.group_name,
+                  discordChannelId: trainingType.discord_channel_id,
                   canAdmin: isAdmin,
                 }),
             ),
@@ -127,9 +128,16 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                 ? Effect.fail(new TrainingTypeApi.TrainingTypeNotFound())
                 : Effect.void,
             ),
-            Effect.bind('updated', () =>
+            Effect.bind('updated', ({ existing }) =>
               trainingTypes
-                .updateTrainingType(trainingTypeId, payload.name)
+                .updateTrainingType(
+                  trainingTypeId,
+                  payload.name,
+                  Option.match(payload.discordChannelId, {
+                    onNone: () => existing.discord_channel_id,
+                    onSome: Option.getOrNull,
+                  }),
+                )
                 .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.map(

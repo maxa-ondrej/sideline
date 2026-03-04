@@ -1,5 +1,5 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { EventSeriesApi, TrainingTypeApi } from '@sideline/domain';
+import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -51,12 +51,15 @@ const CreateScheduleSchema = Schema.Struct({
 
 type CreateScheduleValues = Schema.Schema.Type<typeof CreateScheduleSchema>;
 
+const NONE_VALUE = '__none__';
+
 interface TrainingTypeDetailPageProps {
   teamId: string;
   trainingTypeId: string;
   trainingTypeDetail: TrainingTypeApi.TrainingTypeDetail;
   canAdmin: boolean;
   series: ReadonlyArray<EventSeriesApi.EventSeriesInfo>;
+  discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
 
 export function TrainingTypeDetailPage({
@@ -65,6 +68,7 @@ export function TrainingTypeDetailPage({
   trainingTypeDetail,
   canAdmin,
   series,
+  discordChannels,
 }: TrainingTypeDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -74,6 +78,9 @@ export function TrainingTypeDetailPage({
   const trainingTypeIdBranded = Schema.decodeSync(TrainingType.TrainingTypeId)(trainingTypeId);
 
   const [name, setName] = React.useState(trainingTypeDetail.name);
+  const [channelId, setChannelId] = React.useState(
+    trainingTypeDetail.discordChannelId ?? NONE_VALUE,
+  );
   const [saving, setSaving] = React.useState(false);
   const [showCreateForm, setShowCreateForm] = React.useState(false);
   const [editingSeriesId, setEditingSeriesId] = React.useState<string | null>(null);
@@ -100,7 +107,12 @@ export function TrainingTypeDetailPage({
       Effect.flatMap((api) =>
         api.trainingType.updateTrainingType({
           path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
-          payload: { name },
+          payload: {
+            name,
+            discordChannelId: Option.some(
+              channelId !== NONE_VALUE ? Option.some(channelId) : Option.none(),
+            ),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_updateFailed())),
@@ -110,7 +122,7 @@ export function TrainingTypeDetailPage({
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [teamIdBranded, trainingTypeIdBranded, name, run, router]);
+  }, [teamIdBranded, trainingTypeIdBranded, name, channelId, run, router]);
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.trainingType_deleteConfirm())) return;
@@ -145,6 +157,7 @@ export function TrainingTypeDetailPage({
             startTime: values.startTime,
             endTime: values.endTime || null,
             location: values.location || null,
+            discordChannelId: null,
           },
         }),
       ),
@@ -217,6 +230,7 @@ export function TrainingTypeDetailPage({
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             endDate: Option.some(values.endDate ? Option.some(values.endDate) : Option.none()),
+            discordChannelId: Option.none(),
           },
         }),
       ),
@@ -273,11 +287,43 @@ export function TrainingTypeDetailPage({
               onChange={(e) => setName(e.target.value)}
               className='flex-1'
             />
-            <Button onClick={handleSaveName} disabled={saving || name === trainingTypeDetail.name}>
+            <Button
+              onClick={handleSaveName}
+              disabled={
+                saving ||
+                (name === trainingTypeDetail.name &&
+                  channelId === (trainingTypeDetail.discordChannelId ?? NONE_VALUE))
+              }
+            >
               {saving ? m.trainingType_saving() : m.trainingType_saveChanges()}
             </Button>
           </div>
         </div>
+
+        {/* Default Discord Channel */}
+        {canAdmin && discordChannels.length > 0 && (
+          <div>
+            <label htmlFor='discord-channel' className='text-sm font-medium mb-1 block'>
+              {m.trainingType_discordChannel()}
+            </label>
+            <p className='text-xs text-muted-foreground mb-2'>
+              {m.trainingType_discordChannelHelp()}
+            </p>
+            <Select value={channelId} onValueChange={setChannelId}>
+              <SelectTrigger className='max-w-xs'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                {discordChannels.map((ch) => (
+                  <SelectItem key={ch.id} value={ch.id}>
+                    #{ch.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Recurring Schedules */}
         {canAdmin && (

@@ -10,9 +10,11 @@ import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
 const forbidden = new EventApi.Forbidden();
@@ -45,7 +47,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
     Effect.bind('events', () => EventsRepository),
     Effect.bind('series', () => EventSeriesRepository),
     Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.map(({ members, events, series, teamSettings }) =>
+    Effect.bind('syncEvents', () => EventSyncEventsRepository),
+    Effect.map(({ members, events, series, teamSettings, syncEvents }) =>
       handlers
         .handle('createEventSeries', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
@@ -75,6 +78,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: payload.endTime,
                   location: payload.location,
                   createdBy: membership.id,
+                  discordTargetChannelId: payload.discordChannelId,
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
@@ -113,8 +117,32 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       location: inserted.location,
                       createdBy: membership.id,
                       seriesId: inserted.id,
+                      discordTargetChannelId: inserted.discord_target_channel_id,
                     })
-                    .pipe(Effect.mapError(() => forbidden));
+                    .pipe(
+                      Effect.tap((event) =>
+                        resolveChannel(teamId, event.id).pipe(
+                          Effect.catchAll(() => Effect.succeed(null)),
+                          Effect.flatMap((resolved) =>
+                            syncEvents
+                              .emitIfGuildLinked(
+                                teamId,
+                                'event_created',
+                                event.id,
+                                event.title,
+                                event.description,
+                                event.start_at,
+                                event.end_at,
+                                event.location,
+                                event.event_type,
+                                resolved,
+                              )
+                              .pipe(Effect.catchAll(() => Effect.void)),
+                          ),
+                        ),
+                      ),
+                      Effect.mapError(() => forbidden),
+                    );
                 }),
                 { concurrency: 1 },
               ),
@@ -140,6 +168,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   startTime: inserted.start_time,
                   endTime: inserted.end_time,
                   location: inserted.location,
+                  discordChannelId: inserted.discord_target_channel_id,
                 }),
             ),
           ),
@@ -170,6 +199,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     startTime: s.start_time,
                     endTime: s.end_time,
                     location: s.location,
+                    discordChannelId: s.discord_target_channel_id,
                   }),
               ),
             ),
@@ -214,6 +244,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   startTime: found.start_time,
                   endTime: found.end_time,
                   location: found.location,
+                  discordChannelId: found.discord_target_channel_id,
                   canEdit: canEdit && found.status === 'active',
                   canCancel: canCancel && found.status === 'active',
                 }),
@@ -275,6 +306,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 onNone: () => existing.end_date,
                 onSome: Option.getOrNull,
               }),
+              discordTargetChannelId: Option.match(payload.discordChannelId, {
+                onNone: () => existing.discord_target_channel_id,
+                onSome: Option.getOrNull,
+              }),
             })),
             Effect.tap(({ resolved }) =>
               series
@@ -287,6 +322,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: resolved.endTime,
                   location: resolved.location,
                   endDate: resolved.endDate,
+                  discordTargetChannelId: resolved.discordTargetChannelId,
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
@@ -383,6 +419,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 startTime: detail.start_time,
                 endTime: detail.end_time,
                 location: detail.location,
+                discordChannelId: detail.discord_target_channel_id,
                 canEdit: canEdit && detail.status === 'active',
                 canCancel: canCancel && detail.status === 'active',
               });

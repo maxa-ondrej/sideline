@@ -13,6 +13,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/')({
         Effect.all({
           eventList: api.event.listEvents({ path: { teamId } }),
           trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
+          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -31,6 +32,7 @@ function EventsRoute() {
       events={data.eventList.events}
       canCreate={data.eventList.canCreate}
       trainingTypes={data.trainingTypes.trainingTypes}
+      discordChannels={data.discordChannels}
     />
   );
 }

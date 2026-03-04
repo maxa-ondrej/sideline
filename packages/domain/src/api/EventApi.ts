@@ -36,6 +36,7 @@ export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
   canCancel: Schema.Boolean,
   seriesId: Schema.NullOr(EventSeriesId),
   seriesModified: Schema.Boolean,
+  discordChannelId: Schema.NullOr(Schema.String),
 }) {}
 
 export class EventListResponse extends Schema.Class<EventListResponse>('EventListResponse')({
@@ -51,6 +52,7 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
   startAt: Schema.String,
   endAt: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
+  discordChannelId: Schema.NullOr(Schema.String),
 }) {}
 
 export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
@@ -61,6 +63,7 @@ export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('Update
   startAt: Schema.optionalWith(Schema.String, { as: 'Option' }),
   endAt: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(

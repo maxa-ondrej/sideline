@@ -17,6 +17,7 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   start_date: Schema.String,
   end_date: Schema.NullOr(Schema.String),
   status: EventSeries.EventSeriesStatus,
+  discord_target_channel_id: Schema.NullOr(Schema.String),
 }) {}
 
 class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('EventSeriesWithDetails')(
@@ -36,6 +37,7 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     status: EventSeries.EventSeriesStatus,
     training_type_name: Schema.NullOr(Schema.String),
     last_generated_date: Schema.NullOr(Schema.String),
+    discord_target_channel_id: Schema.NullOr(Schema.String),
   },
 ) {}
 
@@ -55,6 +57,7 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   start_date: Schema.String,
   end_date: Schema.NullOr(Schema.String),
   last_generated_date: Schema.NullOr(Schema.String),
+  discord_target_channel_id: Schema.NullOr(Schema.String),
   created_by: TeamMember.TeamMemberId,
   event_horizon_days: Schema.Number,
 }) {}
@@ -73,6 +76,7 @@ class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('Event
     start_date: Schema.String,
     end_date: Schema.NullOr(Schema.String),
     created_by: Schema.String,
+    discord_target_channel_id: Schema.NullOr(Schema.String),
   },
 ) {}
 
@@ -86,6 +90,7 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
     end_time: Schema.NullOr(Schema.String),
     location: Schema.NullOr(Schema.String),
     end_date: Schema.NullOr(Schema.String),
+    discord_target_channel_id: Schema.NullOr(Schema.String),
   },
 ) {}
 
@@ -101,14 +106,17 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           execute: (input) => sql`
             INSERT INTO event_series (team_id, training_type_id, title, description,
                                       start_time, end_time, location, frequency,
-                                      day_of_week, start_date, end_date, created_by)
+                                      day_of_week, start_date, end_date, created_by,
+                                      discord_target_channel_id)
             VALUES (${input.team_id}, ${input.training_type_id}, ${input.title},
                     ${input.description}, ${input.start_time}, ${input.end_time},
                     ${input.location}, ${input.frequency}, ${input.day_of_week},
-                    ${input.start_date}, ${input.end_date}, ${input.created_by})
+                    ${input.start_date}, ${input.end_date}, ${input.created_by},
+                    ${input.discord_target_channel_id})
             RETURNING id, team_id, training_type_id, title, description,
                       start_time::text, end_time::text, location, frequency,
-                      day_of_week, start_date::text, end_date::text, status
+                      day_of_week, start_date::text, end_date::text, status,
+                      discord_target_channel_id
           `,
         }),
       ),
@@ -120,7 +128,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.day_of_week, es.start_date::text, es.end_date::text, es.status,
-                   tt.name AS training_type_name, es.last_generated_date::text
+                   tt.name AS training_type_name, es.last_generated_date::text,
+                   es.discord_target_channel_id
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
             WHERE es.team_id = ${teamId}
@@ -136,7 +145,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.day_of_week, es.start_date::text, es.end_date::text, es.status,
-                   tt.name AS training_type_name, es.last_generated_date::text
+                   tt.name AS training_type_name, es.last_generated_date::text,
+                   es.discord_target_channel_id
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
             WHERE es.id = ${id}
@@ -151,7 +161,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.day_of_week, es.start_date::text, es.end_date::text,
-                   es.last_generated_date::text, es.created_by,
+                   es.last_generated_date::text, es.discord_target_channel_id,
+                   es.created_by,
                    COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
             FROM event_series es
             LEFT JOIN team_settings ts ON ts.team_id = es.team_id
@@ -183,11 +194,13 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
               end_time = ${input.end_time},
               location = ${input.location},
               end_date = ${input.end_date},
+              discord_target_channel_id = ${input.discord_target_channel_id},
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, title, description,
                       start_time::text, end_time::text, location, frequency,
-                      day_of_week, start_date::text, end_date::text, status
+                      day_of_week, start_date::text, end_date::text, status,
+                      discord_target_channel_id
           `,
         }),
       ),
@@ -215,6 +228,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     startDate: string;
     endDate: string | null;
     createdBy: string;
+    discordTargetChannelId?: string | null;
   }) {
     return this.insertSeries({
       team_id: input.teamId,
@@ -229,6 +243,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       start_date: input.startDate,
       end_date: input.endDate,
       created_by: input.createdBy,
+      discord_target_channel_id: input.discordTargetChannelId ?? null,
     });
   }
 
@@ -249,6 +264,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     endTime: string | null;
     location: string | null;
     endDate: string | null;
+    discordTargetChannelId?: string | null;
   }) {
     return this.updateSeries({
       id: input.id,
@@ -259,6 +275,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       end_time: input.endTime,
       location: input.location,
       end_date: input.endDate,
+      discord_target_channel_id: input.discordTargetChannelId ?? null,
     });
   }
 
