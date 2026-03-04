@@ -1,13 +1,17 @@
 import type { Auth } from '@sideline/domain';
-import { createFileRoute, Outlet } from '@tanstack/react-router';
-import { Effect } from 'effect';
+import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
+import { Effect, Option } from 'effect';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)')({
   component: AuthenticatedLayoutRoute,
-  beforeLoad: ({ context }) =>
-    Effect.Do.pipe(
-      Effect.bind('user', () => context.userOption),
+  beforeLoad: ({ context }) => {
+    const user = Option.getOrNull(context.userOption);
+    if (!user) {
+      throw redirect({ to: '/' });
+    }
+    return Effect.Do.pipe(
+      Effect.let('user', () => user),
       Effect.bind('teams', () =>
         ApiClient.pipe(
           Effect.flatMap((api) => api.auth.myTeams()),
@@ -17,7 +21,8 @@ export const Route = createFileRoute('/(authenticated)')({
       ),
       warnAndCatchAll,
       context.run,
-    ),
+    );
+  },
 });
 
 function AuthenticatedLayoutRoute() {
