@@ -5,6 +5,7 @@ import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)')({
   component: AuthenticatedLayoutRoute,
+  wrapInSuspense: true,
   beforeLoad: ({ context }) => {
     const user = Option.getOrNull(context.userOption);
     if (!user) {

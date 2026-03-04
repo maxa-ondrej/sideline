@@ -40,7 +40,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
     ],
   }),
-  ssr: false,
+  wrapInSuspense: true,
   shellComponent: RootDocumentRoute,
   beforeLoad: async ({ abortController }) => {
     const environment = await fetchEnv(abortController);
