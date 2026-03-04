@@ -4,9 +4,22 @@ import type * as Discord from 'dfx/types';
 const EVENT_COLOR = 0x5865f2;
 const CANCELLED_COLOR = 0xed4245;
 
-const toDiscordTimestamp = (dateStr: string, style: 'F' | 'f' | 't' = 'F'): string => {
+const toDiscordTimestamp = (
+  dateStr: string,
+  style: 'D' | 'F' | 'R' | 'd' | 'f' | 't' = 'f',
+): string => {
   const unix = Math.floor(new Date(dateStr).getTime() / 1000);
   return `<t:${unix}:${style}>`;
+};
+
+const isSameDay = (a: string, b: string): boolean => {
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getUTCFullYear() === db.getUTCFullYear() &&
+    da.getUTCMonth() === db.getUTCMonth() &&
+    da.getUTCDate() === db.getUTCDate()
+  );
 };
 
 export const buildEventEmbed = (opts: {
@@ -23,10 +36,17 @@ export const buildEventEmbed = (opts: {
   embeds: ReadonlyArray<Discord.RichEmbed>;
   components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest>;
 } => {
+  const descParts: string[] = [];
+  if (opts.description) {
+    descParts.push(opts.description);
+  }
+  descParts.push(toDiscordTimestamp(opts.startAt, 'R'));
+
   const fields: Array<Discord.RichEmbedField> = [];
 
-  const startTs = toDiscordTimestamp(opts.startAt, 'F');
-  const when = opts.endAt ? `${startTs} — ${toDiscordTimestamp(opts.endAt, 't')}` : startTs;
+  const startTs = toDiscordTimestamp(opts.startAt, 'f');
+  const endStyle = opts.endAt && isSameDay(opts.startAt, opts.endAt) ? 't' : 'f';
+  const when = opts.endAt ? `${startTs} — ${toDiscordTimestamp(opts.endAt, endStyle)}` : startTs;
   fields.push({ name: 'When', value: when, inline: false });
 
   if (opts.location) {
@@ -43,7 +63,7 @@ export const buildEventEmbed = (opts: {
   const embeds: ReadonlyArray<Discord.RichEmbed> = [
     {
       title: opts.title,
-      description: opts.description ?? undefined,
+      description: descParts.join('\n'),
       color: EVENT_COLOR,
       fields,
     },
