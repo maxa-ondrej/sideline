@@ -12,6 +12,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -649,6 +650,13 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
+const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
+  emitIfGuildLinked: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as EventSyncEventsRepository);
+
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: () => Effect.succeed(Option.none()),
   insert: () => Effect.void,
@@ -728,7 +736,9 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockAgeThresholdRepositoryLayer),
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
-  Layer.provide(MockChannelSyncEventsRepositoryLayer),
+  Layer.provide(
+    Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+  ),
   Layer.provide(MockDiscordChannelMappingRepositoryLayer),
   Layer.provide(
     Layer.merge(

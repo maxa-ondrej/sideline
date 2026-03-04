@@ -3,8 +3,10 @@ import { Auth, EventApi, type TeamMember, type TrainingType } from '@sideline/do
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { resolveChannel } from '~/services/EventChannelResolver.js';
 
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventApi.EventNotFound();
@@ -32,7 +34,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('events', () => EventsRepository),
-    Effect.map(({ members, events }) =>
+    Effect.bind('syncEvents', () => EventSyncEventsRepository),
+    Effect.map(({ members, events, syncEvents }) =>
       handlers
         .handle('listEvents', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -92,8 +95,28 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   endAt: payload.endAt,
                   location: payload.location,
                   createdBy: membership.id,
+                  discordTargetChannelId: payload.discordChannelId,
                 })
                 .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.bind('resolvedChannel', ({ event }) =>
+              resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(null))),
+            ),
+            Effect.tap(({ event, resolvedChannel }) =>
+              syncEvents
+                .emitIfGuildLinked(
+                  teamId,
+                  'event_created',
+                  event.id,
+                  event.title,
+                  event.description,
+                  event.start_at,
+                  event.end_at,
+                  event.location,
+                  event.event_type,
+                  resolvedChannel,
+                )
+                .pipe(Effect.catchAll(() => Effect.void)),
             ),
             Effect.map(
               ({ event }) =>
@@ -153,6 +176,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   canCancel: canCancel && event.status === 'active',
                   seriesId: event.series_id,
                   seriesModified: event.series_modified,
+                  discordChannelId: event.discord_target_channel_id,
                 }),
             ),
           ),
@@ -212,6 +236,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                     onNone: () => existing.location,
                     onSome: Option.getOrNull,
                   }),
+                  discordTargetChannelId: Option.match(payload.discordChannelId, {
+                    onNone: () => existing.discord_target_channel_id,
+                    onSome: Option.getOrNull,
+                  }),
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
@@ -230,6 +258,25 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   }),
                 ),
               ),
+            ),
+            Effect.bind('resolvedChannelForUpdate', ({ detail }) =>
+              resolveChannel(teamId, detail.id).pipe(Effect.catchAll(() => Effect.succeed(null))),
+            ),
+            Effect.tap(({ detail, resolvedChannelForUpdate }) =>
+              syncEvents
+                .emitIfGuildLinked(
+                  teamId,
+                  'event_updated',
+                  detail.id,
+                  detail.title,
+                  detail.description,
+                  detail.start_at,
+                  detail.end_at,
+                  detail.location,
+                  detail.event_type,
+                  resolvedChannelForUpdate,
+                )
+                .pipe(Effect.catchAll(() => Effect.void)),
             ),
             Effect.map(({ detail, membership }) => {
               const canEdit = hasPermission(membership, 'event:edit');
@@ -251,6 +298,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 canCancel: canCancel && detail.status === 'active',
                 seriesId: detail.series_id,
                 seriesModified: detail.series_modified,
+                discordChannelId: detail.discord_target_channel_id,
               });
             }),
           ),
@@ -286,6 +334,21 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
             ),
             Effect.tap(() => events.cancelEvent(eventId).pipe(Effect.mapError(() => forbidden))),
+            Effect.tap(({ existing }) =>
+              syncEvents
+                .emitIfGuildLinked(
+                  teamId,
+                  'event_cancelled',
+                  existing.id,
+                  existing.title,
+                  existing.description,
+                  existing.start_at,
+                  existing.end_at,
+                  existing.location,
+                  existing.event_type,
+                )
+                .pipe(Effect.catchAll(() => Effect.void)),
+            ),
             Effect.asVoid,
           ),
         ),

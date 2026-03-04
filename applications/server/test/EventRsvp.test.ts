@@ -12,6 +12,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -164,6 +165,7 @@ type EventRecord = {
   created_by_name: string | null;
   series_id: string | null;
   series_modified: boolean;
+  discord_target_channel_id: string | null;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -198,6 +200,7 @@ const resetStores = () => {
     created_by_name: 'Admin User',
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
   eventsStore.set(TEST_EVENT_CANCELLED, {
     id: TEST_EVENT_CANCELLED,
@@ -215,6 +218,7 @@ const resetStores = () => {
     created_by_name: 'Admin User',
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
   eventsStore.set(TEST_EVENT_PAST, {
     id: TEST_EVENT_PAST,
@@ -232,6 +236,7 @@ const resetStores = () => {
     created_by_name: 'Admin User',
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
   eventsStore.set(TEST_EVENT_OTHER_TEAM, {
     id: TEST_EVENT_OTHER_TEAM,
@@ -249,6 +254,7 @@ const resetStores = () => {
     created_by_name: null,
     series_id: null,
     series_modified: false,
+    discord_target_channel_id: null,
   });
   rsvpsStore = new Map();
 };
@@ -693,6 +699,13 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
+const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
+  emitIfGuildLinked: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as EventSyncEventsRepository);
+
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: () => Effect.succeed(Option.none()),
   insert: () => Effect.void,
@@ -743,7 +756,9 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockAgeThresholdRepositoryLayer),
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
-  Layer.provide(MockChannelSyncEventsRepositoryLayer),
+  Layer.provide(
+    Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+  ),
   Layer.provide(
     Layer.merge(
       Layer.merge(

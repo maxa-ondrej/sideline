@@ -332,5 +332,19 @@
   "rsvp_notAttending": "{count} not going",
   "rsvp_undecided": "{count} maybe",
   "rsvp_summary": "Responses",
-  "rsvp_noResponses": "No responses yet."
+  "rsvp_noResponses": "No responses yet.",
+  "event_discordChannel": "Discord Channel",
+  "event_discordChannelHelp": "Override the default channel for this event",
+  "event_useDefault": "Use default",
+  "teamSettings_channelTraining": "Default channel: Training",
+  "teamSettings_channelMatch": "Default channel: Match",
+  "teamSettings_channelTournament": "Default channel: Tournament",
+  "teamSettings_channelMeeting": "Default channel: Meeting",
+  "teamSettings_channelSocial": "Default channel: Social",
+  "teamSettings_channelOther": "Default channel: Other",
+  "teamSettings_channelNone": "None",
+  "teamSettings_discordChannels": "Discord Channel Defaults",
+  "teamSettings_discordChannelsHelp": "Default channels for posting events by type.",
+  "trainingType_discordChannel": "Default Discord Channel",
+  "trainingType_discordChannelHelp": "Events of this training type will post here by default."
 }

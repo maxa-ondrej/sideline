@@ -1,5 +1,5 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { EventApi, TrainingTypeApi } from '@sideline/domain';
+import type { EventApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -39,6 +39,7 @@ const CreateEventSchema = Schema.Struct({
   endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
+  discordChannelId: Schema.String,
 });
 
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
@@ -57,6 +58,7 @@ const CreateSeriesSchema = Schema.Struct({
   startTime: Schema.NonEmptyString,
   endTime: Schema.String,
   location: Schema.String,
+  discordChannelId: Schema.String,
 });
 
 type CreateSeriesValues = Schema.Schema.Type<typeof CreateSeriesSchema>;
@@ -85,9 +87,16 @@ interface EventsListPageProps {
   events: ReadonlyArray<EventApi.EventInfo>;
   canCreate: boolean;
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
+  discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
 
-export function EventsListPage({ teamId, events, canCreate, trainingTypes }: EventsListPageProps) {
+export function EventsListPage({
+  teamId,
+  events,
+  canCreate,
+  trainingTypes,
+  discordChannels,
+}: EventsListPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
@@ -106,6 +115,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
       endDate: '',
       endTime: '',
       location: '',
+      discordChannelId: NONE_VALUE,
     },
   });
 
@@ -123,6 +133,7 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
       startTime: '',
       endTime: '',
       location: '',
+      discordChannelId: NONE_VALUE,
     },
   });
 
@@ -146,6 +157,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
             startAt,
             endAt,
             location: values.location || null,
+            discordChannelId:
+              values.discordChannelId && values.discordChannelId !== NONE_VALUE
+                ? values.discordChannelId
+                : null,
           },
         }),
       ),
@@ -177,6 +192,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
             startTime: values.startTime,
             endTime: values.endTime || null,
             location: values.location || null,
+            discordChannelId:
+              values.discordChannelId && values.discordChannelId !== NONE_VALUE
+                ? values.discordChannelId
+                : null,
           },
         }),
       ),
@@ -371,6 +390,33 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                     </FormItem>
                   )}
                 />
+                <FormField
+                  {...form.register('discordChannelId')}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{m.event_discordChannel()}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={m.event_useDefault()} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                          {discordChannels.map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              # {ch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className='text-xs text-muted-foreground'>
+                        {m.event_discordChannelHelp()}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type='submit' disabled={form.formState.isSubmitting} className='self-start'>
                   {m.event_createEvent()}
                 </Button>
@@ -548,6 +594,33 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                           rows={3}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  {...seriesForm.register('discordChannelId')}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{m.event_discordChannel()}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={m.event_useDefault()} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                          {discordChannels.map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              # {ch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className='text-xs text-muted-foreground'>
+                        {m.event_discordChannelHelp()}
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

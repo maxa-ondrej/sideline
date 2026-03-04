@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Event, EventRsvp, TeamMember } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMemberName')({
   id: EventRsvp.EventRsvpId,
@@ -25,6 +25,17 @@ class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
   team_member_id: Schema.String,
   response: Schema.String,
   message: Schema.NullOr(Schema.String),
+}) {}
+
+class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
+  discord_id: Schema.NullOr(Schema.String),
+  member_name: Schema.NullOr(Schema.String),
+  response: EventRsvp.RsvpResponse,
+  message: Schema.NullOr(Schema.String),
+}) {}
+
+class TotalCount extends Schema.Class<TotalCount>('TotalCount')({
+  count: Schema.NumberFromString,
 }) {}
 
 class ResponseCount extends Schema.Class<ResponseCount>('ResponseCount')({
@@ -92,6 +103,36 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
           `,
         }),
       ),
+      Effect.let('findAttendeesPage', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: Schema.Struct({
+            event_id: Schema.String,
+            limit: Schema.Number,
+            offset: Schema.Number,
+          }),
+          Result: RsvpWithDiscordInfo,
+          execute: (input) => sql`
+            SELECT u.discord_id, u.name AS member_name, r.response, r.message
+            FROM event_rsvps r
+            JOIN team_members tm ON tm.id = r.team_member_id
+            LEFT JOIN users u ON u.id = tm.user_id
+            WHERE r.event_id = ${input.event_id}
+            ORDER BY r.response ASC, r.created_at ASC
+            LIMIT ${input.limit} OFFSET ${input.offset}
+          `,
+        }),
+      ),
+      Effect.let('countTotalByEventId', ({ sql }) =>
+        SqlSchema.findOne({
+          Request: Event.EventId,
+          Result: TotalCount,
+          execute: (eventId) => sql`
+            SELECT COUNT(*)::text AS count
+            FROM event_rsvps
+            WHERE event_id = ${eventId}
+          `,
+        }),
+      ),
       Bind.remove('sql'),
     ),
   },
@@ -120,5 +161,15 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
 
   countRsvpsByEventId(eventId: Event.EventId) {
     return this.countByEventId(eventId);
+  }
+
+  findRsvpAttendeesPage(eventId: Event.EventId, offset: number, limit: number) {
+    return this.findAttendeesPage({ event_id: eventId, limit, offset });
+  }
+
+  countRsvpTotal(eventId: Event.EventId) {
+    return this.countTotalByEventId(eventId).pipe(
+      Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
+    );
   }
 }

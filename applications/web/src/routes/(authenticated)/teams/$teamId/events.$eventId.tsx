@@ -15,6 +15,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eve
           event: api.event.getEvent({ path: { teamId, eventId } }),
           trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
           rsvpDetail: api.eventRsvp.getRsvps({ path: { teamId, eventId } }),
+          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -34,6 +35,7 @@ function EventDetailRoute() {
       eventDetail={data.event}
       trainingTypes={data.trainingTypes.trainingTypes}
       rsvpDetail={data.rsvpDetail}
+      discordChannels={data.discordChannels}
     />
   );
 }

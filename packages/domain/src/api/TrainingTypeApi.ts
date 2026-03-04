@@ -18,6 +18,7 @@ export class TrainingTypeDetail extends Schema.Class<TrainingTypeDetail>('Traini
   name: Schema.String,
   groupId: Schema.NullOr(GroupId),
   groupName: Schema.NullOr(Schema.String),
+  discordChannelId: Schema.NullOr(Schema.String),
   canAdmin: Schema.Boolean,
 }) {}
 
@@ -33,12 +34,14 @@ export class CreateTrainingTypeRequest extends Schema.Class<CreateTrainingTypeRe
 )({
   name: Schema.NonEmptyString,
   groupId: Schema.NullOr(GroupId),
+  discordChannelId: Schema.NullOr(Schema.String),
 }) {}
 
 export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRequest>(
   'UpdateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
 export class TrainingTypeNotFound extends Schema.TaggedError<TrainingTypeNotFound>()(

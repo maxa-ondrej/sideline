@@ -71,6 +71,39 @@ export const RunProvider = RunContext.Provider;
 
 export const useRun = () => React.useContext(RunContext);
 
+export class ServerRunner {
+  private serverUrl: string;
+  private abortController?: AbortController;
+
+  constructor(serverUrl: string, abortController?: AbortController) {
+    this.serverUrl = serverUrl;
+    this.abortController = abortController;
+  }
+
+  async run<A>(
+    effect: Effect.Effect<A, Redirect | NotFound, ApiClient | ClientConfig>,
+  ): Promise<A> {
+    const effectResponse = effect.pipe(
+      Effect.either,
+      Effect.provide(AppLayer),
+      Effect.provideService(ClientConfig, {
+        baseUrl: this.serverUrl,
+      }),
+    );
+    const response = await Effect.runPromise(effectResponse, this.abortController);
+    return Either.match(response, {
+      onRight: (d) => d,
+      onLeft: (e) => {
+        throw Match.value(e).pipe(
+          Match.tag('Redirect', (e) => e.redirect()),
+          Match.tag('NotFound', () => notFound()),
+          Match.exhaustive,
+        );
+      },
+    });
+  }
+}
+
 export const runPromiseServer =
   (serverUrl: string) =>
   (abortController?: AbortController) =>

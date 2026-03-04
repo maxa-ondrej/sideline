@@ -49,7 +49,7 @@ export function TrainingTypesListPage({
       Effect.flatMap((api) =>
         api.trainingType.createTrainingType({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name, groupId: null },
+          payload: { name: values.name, groupId: null, discordChannelId: null },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_createFailed())),

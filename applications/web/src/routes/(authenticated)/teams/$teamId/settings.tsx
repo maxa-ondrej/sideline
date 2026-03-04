@@ -14,16 +14,24 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/settings')(
       Effect.mapError(NotFound.make),
       context.run,
     );
-    const settings = await Effect.flatMap(ApiClient, (api) =>
-      api.teamSettings.getTeamSettings({ path: { teamId } }),
-    ).pipe(warnAndCatchAll, context.run);
-    return { settings };
+    return ApiClient.pipe(
+      Effect.flatMap((api) =>
+        Effect.all({
+          settings: api.teamSettings.getTeamSettings({ path: { teamId } }),
+          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
+        }),
+      ),
+      warnAndCatchAll,
+      context.run,
+    );
   },
 });
 
 function TeamSettingsRoute() {
   const { teamId: teamIdRaw } = Route.useParams();
-  const { settings } = Route.useLoaderData();
+  const { settings, discordChannels } = Route.useLoaderData();
 
-  return <TeamSettingsPage teamId={teamIdRaw} settings={settings} />;
+  return (
+    <TeamSettingsPage teamId={teamIdRaw} settings={settings} discordChannels={discordChannels} />
+  );
 }

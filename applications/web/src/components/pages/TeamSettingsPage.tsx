@@ -1,23 +1,49 @@
-import type { TeamSettingsApi } from '@sideline/domain';
+import type { GroupApi, TeamSettingsApi } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import * as m from '~/paraglide/messages.js';
 
 interface TeamSettingsPageProps {
   teamId: string;
   settings: TeamSettingsApi.TeamSettingsInfo;
+  discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
 
-export function TeamSettingsPage({ teamId, settings }: TeamSettingsPageProps) {
+export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSettingsPageProps) {
   const run = useRun();
   const router = useRouter();
   const [horizonDays, setHorizonDays] = React.useState(String(settings.eventHorizonDays));
   const [saving, setSaving] = React.useState(false);
+  const [channelTraining, setChannelTraining] = React.useState(
+    settings.discordChannelTraining ?? '__none__',
+  );
+  const [channelMatch, setChannelMatch] = React.useState(
+    settings.discordChannelMatch ?? '__none__',
+  );
+  const [channelTournament, setChannelTournament] = React.useState(
+    settings.discordChannelTournament ?? '__none__',
+  );
+  const [channelMeeting, setChannelMeeting] = React.useState(
+    settings.discordChannelMeeting ?? '__none__',
+  );
+  const [channelSocial, setChannelSocial] = React.useState(
+    settings.discordChannelSocial ?? '__none__',
+  );
+  const [channelOther, setChannelOther] = React.useState(
+    settings.discordChannelOther ?? '__none__',
+  );
 
   const handleSave = React.useCallback(async () => {
     const parsed = Number.parseInt(horizonDays, 10);
@@ -27,7 +53,27 @@ export function TeamSettingsPage({ teamId, settings }: TeamSettingsPageProps) {
       Effect.flatMap((api) =>
         api.teamSettings.updateTeamSettings({
           path: { teamId: settings.teamId },
-          payload: { eventHorizonDays: parsed },
+          payload: {
+            eventHorizonDays: parsed,
+            discordChannelTraining: Option.some(
+              channelTraining !== '__none__' ? Option.some(channelTraining) : Option.none(),
+            ),
+            discordChannelMatch: Option.some(
+              channelMatch !== '__none__' ? Option.some(channelMatch) : Option.none(),
+            ),
+            discordChannelTournament: Option.some(
+              channelTournament !== '__none__' ? Option.some(channelTournament) : Option.none(),
+            ),
+            discordChannelMeeting: Option.some(
+              channelMeeting !== '__none__' ? Option.some(channelMeeting) : Option.none(),
+            ),
+            discordChannelSocial: Option.some(
+              channelSocial !== '__none__' ? Option.some(channelSocial) : Option.none(),
+            ),
+            discordChannelOther: Option.some(
+              channelOther !== '__none__' ? Option.some(channelOther) : Option.none(),
+            ),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.teamSettings_saveFailed())),
@@ -38,7 +84,18 @@ export function TeamSettingsPage({ teamId, settings }: TeamSettingsPageProps) {
       toast.success(m.teamSettings_saved());
       router.invalidate();
     }
-  }, [settings.teamId, horizonDays, run, router]);
+  }, [
+    settings.teamId,
+    horizonDays,
+    channelTraining,
+    channelMatch,
+    channelTournament,
+    channelMeeting,
+    channelSocial,
+    channelOther,
+    run,
+    router,
+  ]);
 
   return (
     <div>
@@ -68,10 +125,71 @@ export function TeamSettingsPage({ teamId, settings }: TeamSettingsPageProps) {
           />
           <Button
             onClick={handleSave}
-            disabled={saving || horizonDays === String(settings.eventHorizonDays)}
+            disabled={
+              saving ||
+              (horizonDays === String(settings.eventHorizonDays) &&
+                channelTraining === (settings.discordChannelTraining ?? '__none__') &&
+                channelMatch === (settings.discordChannelMatch ?? '__none__') &&
+                channelTournament === (settings.discordChannelTournament ?? '__none__') &&
+                channelMeeting === (settings.discordChannelMeeting ?? '__none__') &&
+                channelSocial === (settings.discordChannelSocial ?? '__none__') &&
+                channelOther === (settings.discordChannelOther ?? '__none__'))
+            }
           >
             {saving ? m.profile_saving() : m.profile_saveChanges()}
           </Button>
+        </div>
+        <div className='mt-8'>
+          <h2 className='text-lg font-semibold mb-2'>{m.teamSettings_discordChannels()}</h2>
+          <p className='text-xs text-muted-foreground mb-4'>
+            {m.teamSettings_discordChannelsHelp()}
+          </p>
+          <div className='flex flex-col gap-4'>
+            {(
+              [
+                [
+                  'channelTraining',
+                  channelTraining,
+                  setChannelTraining,
+                  m.teamSettings_channelTraining(),
+                ],
+                ['channelMatch', channelMatch, setChannelMatch, m.teamSettings_channelMatch()],
+                [
+                  'channelTournament',
+                  channelTournament,
+                  setChannelTournament,
+                  m.teamSettings_channelTournament(),
+                ],
+                [
+                  'channelMeeting',
+                  channelMeeting,
+                  setChannelMeeting,
+                  m.teamSettings_channelMeeting(),
+                ],
+                ['channelSocial', channelSocial, setChannelSocial, m.teamSettings_channelSocial()],
+                ['channelOther', channelOther, setChannelOther, m.teamSettings_channelOther()],
+              ] as const
+            ).map(([key, value, setter, label]) => (
+              <div key={key}>
+                <label htmlFor={`channel-${key}`} className='text-sm font-medium mb-1 block'>
+                  {label}
+                </label>
+                <Select value={value} onValueChange={setter}>
+                  <SelectTrigger id={`channel-${key}`}>
+                    <SelectValue placeholder={m.teamSettings_channelNone()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='__none__'>{m.teamSettings_channelNone()}</SelectItem>
+                    {discordChannels.map((ch) => (
+                      <SelectItem key={ch.id} value={ch.id}>
+                        # {ch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ import {
   Dumbbell,
   Home,
   type LucideIcon,
+  Settings,
   Shield,
   UserCog,
   Users,
@@ -64,6 +65,12 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
       title: 'Age Thresholds',
       icon: CalendarDays,
       to: '/teams/$teamId/age-thresholds',
+      params: { teamId },
+    },
+    {
+      title: 'Settings',
+      icon: Settings,
+      to: '/teams/$teamId/settings',
       params: { teamId },
     },
   ];
