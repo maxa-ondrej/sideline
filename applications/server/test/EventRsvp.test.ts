@@ -155,9 +155,8 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: string | null;
-  event_date: string;
-  start_time: string;
-  end_time: string | null;
+  start_at: string;
+  end_at: string | null;
   location: string | null;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
@@ -190,9 +189,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Future Training',
     description: null,
-    event_date: '2099-12-31',
-    start_time: '18:00:00',
-    end_time: '20:00:00',
+    start_at: '2099-12-31T18:00:00Z',
+    end_at: '2099-12-31T20:00:00Z',
     location: 'Main Field',
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -208,9 +206,8 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: null,
-    event_date: '2099-12-15',
-    start_time: '14:00:00',
-    end_time: '16:00:00',
+    start_at: '2099-12-15T14:00:00Z',
+    end_at: '2099-12-15T16:00:00Z',
     location: null,
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -226,9 +223,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Past Training',
     description: null,
-    event_date: '2020-01-01',
-    start_time: '10:00:00',
-    end_time: '12:00:00',
+    start_at: '2020-01-01T10:00:00Z',
+    end_at: '2020-01-01T12:00:00Z',
     location: null,
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -244,9 +240,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Other Team Event',
     description: null,
-    event_date: '2099-12-31',
-    start_time: '18:00:00',
-    end_time: null,
+    start_at: '2099-12-31T18:00:00Z',
+    end_at: null,
     location: null,
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,

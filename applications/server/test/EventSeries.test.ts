@@ -218,9 +218,8 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: string | null;
-  event_date: string;
-  start_time: string;
-  end_time: string | null;
+  start_at: string;
+  end_at: string | null;
   location: string | null;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
@@ -414,9 +413,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     title: string;
     description: string | null;
-    event_date: string;
-    start_time: string;
-    end_time: string | null;
+    start_at: string;
+    end_at: string | null;
     location: string | null;
     created_by: string;
     series_id: string | null;
@@ -429,9 +427,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.event_type as Event.EventType,
       title: input.title,
       description: input.description,
-      event_date: input.event_date,
-      start_time: input.start_time,
-      end_time: input.end_time,
+      start_at: input.start_at,
+      end_at: input.end_at,
       location: input.location,
       status: 'active',
       created_by: input.created_by as TeamMember.TeamMemberId,
@@ -448,9 +445,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: record.event_type,
       title: record.title,
       description: record.description,
-      event_date: record.event_date,
-      start_time: record.start_time,
-      end_time: record.end_time,
+      start_at: record.start_at,
+      end_at: record.end_at,
       location: record.location,
       status: record.status,
       created_by: record.created_by,
@@ -464,9 +460,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     title: string;
     description: string | null;
-    eventDate: string;
-    startTime: string;
-    endTime: string | null;
+    startAt: string;
+    endAt: string | null;
     location: string | null;
     createdBy: string;
     seriesId?: string | null;
@@ -479,9 +474,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.eventType as Event.EventType,
       title: input.title,
       description: input.description,
-      event_date: input.eventDate,
-      start_time: input.startTime,
-      end_time: input.endTime,
+      start_at: input.startAt,
+      end_at: input.endAt,
       location: input.location,
       status: 'active',
       created_by: input.createdBy as TeamMember.TeamMemberId,
@@ -498,9 +492,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: record.event_type,
       title: record.title,
       description: record.description,
-      event_date: record.event_date,
-      start_time: record.start_time,
-      end_time: record.end_time,
+      start_at: record.start_at,
+      end_at: record.end_at,
       location: record.location,
       status: record.status,
       created_by: record.created_by,

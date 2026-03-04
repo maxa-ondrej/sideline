@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
@@ -11,11 +11,8 @@ const forbidden = new EventRsvpApi.Forbidden();
 const notFound = new EventRsvpApi.EventNotFound();
 const deadlinePassed = new EventRsvpApi.RsvpDeadlinePassed();
 
-const isEventPastDeadline = (eventDate: string, startTime: string): boolean => {
-  const dateTimeStr = `${eventDate}T${startTime}`;
-  const eventStart = new Date(dateTimeStr);
-  return new Date() >= eventStart;
-};
+const isEventPastDeadline = (startAt: string): boolean =>
+  !DateTime.lessThan(DateTime.unsafeNow(), DateTime.unsafeMake(startAt));
 
 const buildRsvpDetail = (
   rsvps: EventRsvpsRepository,
@@ -86,9 +83,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.flatMap(({ event, membership }) => {
-              const canRsvp =
-                event.status === 'active' &&
-                !isEventPastDeadline(event.event_date, event.start_time);
+              const canRsvp = event.status === 'active' && !isEventPastDeadline(event.start_at);
               return buildRsvpDetail(rsvps, eventId, membership.id, canRsvp);
             }),
           ),
@@ -117,9 +112,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               event.status !== 'active' ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ event }) =>
-              isEventPastDeadline(event.event_date, event.start_time)
-                ? Effect.fail(deadlinePassed)
-                : Effect.void,
+              isEventPastDeadline(event.start_at) ? Effect.fail(deadlinePassed) : Effect.void,
             ),
             Effect.tap(({ membership }) =>
               rsvps

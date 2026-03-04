@@ -56,9 +56,11 @@ export function EventDetailPage({
     eventDetail.trainingTypeId ?? NONE_VALUE,
   );
   const [description, setDescription] = React.useState(eventDetail.description ?? '');
-  const [eventDate, setEventDate] = React.useState(eventDetail.eventDate);
-  const [startTime, setStartTime] = React.useState(eventDetail.startTime);
-  const [endTime, setEndTime] = React.useState(eventDetail.endTime ?? '');
+  const [eventDate, setEventDate] = React.useState(eventDetail.startAt.slice(0, 10));
+  const [startTime, setStartTime] = React.useState(eventDetail.startAt.slice(11, 16));
+  const [endTime, setEndTime] = React.useState(
+    eventDetail.endAt ? eventDetail.endAt.slice(11, 16) : '',
+  );
   const [location, setLocation] = React.useState(eventDetail.location ?? '');
   const [saving, setSaving] = React.useState(false);
   const [showEditScope, setShowEditScope] = React.useState(false);
@@ -87,9 +89,8 @@ export function EventDetailPage({
                 : Option.none(),
             ),
             description: Option.some(description ? Option.some(description) : Option.none()),
-            eventDate: Option.some(eventDate),
-            startTime: Option.some(startTime),
-            endTime: Option.some(endTime ? Option.some(endTime) : Option.none()),
+            startAt: Option.some(`${eventDate}T${startTime}:00`),
+            endAt: Option.some(endTime ? Option.some(`${eventDate}T${endTime}:00`) : Option.none()),
             location: Option.some(location ? Option.some(location) : Option.none()),
           },
         }),
@@ -425,12 +426,12 @@ export function EventDetailPage({
             )}
             <p>
               <span className='text-sm font-medium'>{m.event_eventDate()}: </span>
-              {eventDetail.eventDate}
+              {eventDetail.startAt.slice(0, 10)}
             </p>
             <p>
               <span className='text-sm font-medium'>{m.event_startTime()}: </span>
-              {eventDetail.startTime}
-              {eventDetail.endTime ? ` - ${eventDetail.endTime}` : ''}
+              {eventDetail.startAt.slice(11, 16)}
+              {eventDetail.endAt ? ` - ${eventDetail.endAt.slice(11, 16)}` : ''}
             </p>
             {eventDetail.location && (
               <p>

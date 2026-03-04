@@ -121,6 +121,8 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
   });
 
   const onSubmit = async (values: CreateEventValues) => {
+    const startAt = `${values.eventDate}T${values.startTime}:00`;
+    const endAt = values.endTime ? `${values.eventDate}T${values.endTime}:00` : null;
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.event.createEvent({
@@ -133,9 +135,8 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                 ? Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId)
                 : null,
             description: values.description || null,
-            eventDate: values.eventDate,
-            startTime: values.startTime,
-            endTime: values.endTime || null,
+            startAt,
+            endAt,
             location: values.location || null,
           },
         }),
@@ -551,10 +552,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                   {eventTypeLabels[event.eventType]()}
                 </td>
                 <td className='py-2 px-4 text-muted-foreground'>{event.trainingTypeName}</td>
-                <td className='py-2 px-4 text-muted-foreground'>{event.eventDate}</td>
+                <td className='py-2 px-4 text-muted-foreground'>{event.startAt.slice(0, 10)}</td>
                 <td className='py-2 px-4 text-muted-foreground'>
-                  {event.startTime}
-                  {event.endTime ? ` - ${event.endTime}` : ''}
+                  {event.startAt.slice(11, 16)}
+                  {event.endAt ? ` - ${event.endAt.slice(11, 16)}` : ''}
                 </td>
                 <td className='py-2 px-4'>
                   <span

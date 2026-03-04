@@ -1,17 +1,11 @@
 import { Model } from '@effect/sql';
-import { DateTime, Schema } from 'effect';
+import { Schemas } from '@sideline/effect-lib';
+import { Schema } from 'effect';
 import { TeamId } from '~/models/Team.js';
 import { UserId } from '~/models/User.js';
 
 export const TeamInviteId = Schema.String.pipe(Schema.brand('TeamInviteId'));
 export type TeamInviteId = typeof TeamInviteId.Type;
-
-const NullableDateTimeFromDate = Schema.NullOr(
-  Schema.transform(Schema.DateFromSelf, Schema.DateTimeUtcFromSelf, {
-    decode: (date) => DateTime.unsafeFromDate(date),
-    encode: (dt) => new Date(DateTime.toEpochMillis(dt)),
-  }),
-);
 
 export class TeamInvite extends Model.Class<TeamInvite>('TeamInvite')({
   id: Model.Generated(TeamInviteId),
@@ -20,5 +14,5 @@ export class TeamInvite extends Model.Class<TeamInvite>('TeamInvite')({
   active: Schema.Boolean,
   created_by: UserId,
   created_at: Model.DateTimeInsertFromDate,
-  expires_at: NullableDateTimeFromDate,
+  expires_at: Schema.NullOr(Schemas.DateTimeFromDate),
 }) {}

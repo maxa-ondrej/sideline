@@ -191,9 +191,8 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: string | null;
-  event_date: string;
-  start_time: string;
-  end_time: string | null;
+  start_at: string;
+  end_at: string | null;
   location: string | null;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
@@ -214,9 +213,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Tuesday Training',
     description: 'Weekly training session',
-    event_date: '2026-03-10',
-    start_time: '18:00:00',
-    end_time: '20:00:00',
+    start_at: '2026-03-10T18:00:00Z',
+    end_at: '2026-03-10T20:00:00Z',
     location: 'Main Field',
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -232,9 +230,8 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: null,
-    event_date: '2026-03-15',
-    start_time: '14:00:00',
-    end_time: '16:00:00',
+    start_at: '2026-03-15T14:00:00Z',
+    end_at: '2026-03-15T16:00:00Z',
     location: null,
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -250,9 +247,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Scoped Training',
     description: null,
-    event_date: '2026-03-12',
-    start_time: '17:00:00',
-    end_time: '19:00:00',
+    start_at: '2026-03-12T17:00:00Z',
+    end_at: '2026-03-12T19:00:00Z',
     location: null,
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -455,9 +451,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     title: string;
     description: string | null;
-    event_date: string;
-    start_time: string;
-    end_time: string | null;
+    start_at: string;
+    end_at: string | null;
     location: string | null;
     created_by: string;
     series_id: string | null;
@@ -470,9 +465,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.event_type as Event.EventType,
       title: input.title,
       description: input.description,
-      event_date: input.event_date,
-      start_time: input.start_time,
-      end_time: input.end_time,
+      start_at: input.start_at,
+      end_at: input.end_at,
       location: input.location,
       status: 'active',
       created_by: input.created_by as TeamMember.TeamMemberId,
@@ -489,9 +483,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: record.event_type,
       title: record.title,
       description: record.description,
-      event_date: record.event_date,
-      start_time: record.start_time,
-      end_time: record.end_time,
+      start_at: record.start_at,
+      end_at: record.end_at,
       location: record.location,
       status: record.status,
       created_by: record.created_by,
@@ -505,9 +498,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     title: string;
     description: string | null;
-    eventDate: string;
-    startTime: string;
-    endTime: string | null;
+    startAt: string;
+    endAt: string | null;
     location: string | null;
     createdBy: string;
     seriesId?: string | null;
@@ -520,9 +512,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.eventType as Event.EventType,
       title: input.title,
       description: input.description,
-      event_date: input.eventDate,
-      start_time: input.startTime,
-      end_time: input.endTime,
+      start_at: input.startAt,
+      end_at: input.endAt,
       location: input.location,
       status: 'active',
       created_by: input.createdBy as TeamMember.TeamMemberId,
@@ -539,9 +530,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: record.event_type,
       title: record.title,
       description: record.description,
-      event_date: record.event_date,
-      start_time: record.start_time,
-      end_time: record.end_time,
+      start_at: record.start_at,
+      end_at: record.end_at,
       location: record.location,
       status: record.status,
       created_by: record.created_by,
@@ -555,9 +545,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     training_type_id: string | null;
     description: string | null;
-    event_date: string;
-    start_time: string;
-    end_time: string | null;
+    start_at: string;
+    end_at: string | null;
     location: string | null;
   }) => {
     const event = eventsStore.get(input.id);
@@ -568,9 +557,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.event_type as Event.EventType,
       training_type_id: input.training_type_id,
       description: input.description,
-      event_date: input.event_date,
-      start_time: input.start_time,
-      end_time: input.end_time,
+      start_at: input.start_at,
+      end_at: input.end_at,
       location: input.location,
     };
     eventsStore.set(input.id, updated);
@@ -581,9 +569,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: updated.event_type,
       title: updated.title,
       description: updated.description,
-      event_date: updated.event_date,
-      start_time: updated.start_time,
-      end_time: updated.end_time,
+      start_at: updated.start_at,
+      end_at: updated.end_at,
       location: updated.location,
       status: updated.status,
       created_by: updated.created_by,
@@ -595,9 +582,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     trainingTypeId: string | null;
     description: string | null;
-    eventDate: string;
-    startTime: string;
-    endTime: string | null;
+    startAt: string;
+    endAt: string | null;
     location: string | null;
   }) => {
     const event = eventsStore.get(input.id);
@@ -608,9 +594,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.eventType as Event.EventType,
       training_type_id: input.trainingTypeId,
       description: input.description,
-      event_date: input.eventDate,
-      start_time: input.startTime,
-      end_time: input.endTime,
+      start_at: input.startAt,
+      end_at: input.endAt,
       location: input.location,
     };
     eventsStore.set(input.id, updated);
@@ -621,9 +606,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: updated.event_type,
       title: updated.title,
       description: updated.description,
-      event_date: updated.event_date,
-      start_time: updated.start_time,
-      end_time: updated.end_time,
+      start_at: updated.start_at,
+      end_at: updated.end_at,
       location: updated.location,
       status: updated.status,
       created_by: updated.created_by,
@@ -953,9 +937,8 @@ describe('Events API', () => {
       eventType: 'training',
       trainingTypeId: null,
       description: null,
-      eventDate: '2026-03-20',
-      startTime: '18:00',
-      endTime: null,
+      startAt: '2026-03-20T18:00:00',
+      endAt: null,
       location: null,
     };
 
@@ -1153,9 +1136,8 @@ describe('Events API', () => {
             eventType: 'training',
             trainingTypeId: TEST_TRAINING_TYPE_A,
             description: null,
-            eventDate: '2026-03-20',
-            startTime: '18:00',
-            endTime: null,
+            startAt: '2026-03-20T18:00:00',
+            endAt: null,
             location: null,
           }),
         }),
@@ -1176,9 +1158,8 @@ describe('Events API', () => {
             eventType: 'training',
             trainingTypeId: TEST_TRAINING_TYPE_B,
             description: null,
-            eventDate: '2026-03-20',
-            startTime: '18:00',
-            endTime: null,
+            startAt: '2026-03-20T18:00:00',
+            endAt: null,
             location: null,
           }),
         }),
@@ -1244,9 +1225,8 @@ describe('Events API', () => {
             eventType: 'training',
             trainingTypeId: TEST_TRAINING_TYPE_B,
             description: null,
-            eventDate: '2026-03-20',
-            startTime: '18:00',
-            endTime: null,
+            startAt: '2026-03-20T18:00:00',
+            endAt: null,
             location: null,
           }),
         }),

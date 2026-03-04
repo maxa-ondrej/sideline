@@ -1,4 +1,4 @@
-import { Array, flow, Option, Schema, String } from 'effect';
+import { Array, DateTime, flow, Option, Schema, String } from 'effect';
 
 export const NodeEnv = Schema.OptionFromNullishOr(Schema.String, null).pipe(
   Schema.transform(Schema.Literal('production', 'development'), {
@@ -16,6 +16,11 @@ export const Optional =
       decode: (opt) => opt.pipe(Option.getOrElse(lazyDefault), Schema.encodeSync(schema)),
       encode: (_, a) => Option.some(a),
     });
+
+export const DateTimeFromDate = Schema.transform(Schema.DateFromSelf, Schema.DateTimeUtcFromSelf, {
+  decode: (date) => DateTime.unsafeFromDate(date),
+  encode: (dt) => new Date(DateTime.toEpochMillis(dt)),
+});
 
 export const ArrayFromSplitString = (separator: string = ',') =>
   Schema.String.pipe(

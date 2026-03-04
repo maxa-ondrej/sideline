@@ -216,6 +216,8 @@ Key field helpers:
 
 Use **snake_case** field names matching DB columns directly — no `fieldFromKey` mapping needed.
 
+**DateTime convention**: Always use Effect's `DateTime` classes (`DateTime.Utc`, `DateTime.Zoned`) — never raw JS `Date` or string concatenation for date/time manipulation. Store instants as `TIMESTAMPTZ` in the DB and use `Schemas.DateTimeFromDate` from `@sideline/effect-lib` in domain models (nullable: `Schema.NullOr(Schemas.DateTimeFromDate)`).
+
 #### Model.makeRepository
 
 Use `Model.makeRepository` for standard CRUD operations. Returns `findById` (→ `Option<T>`), `insert`, `update`, `delete`.
