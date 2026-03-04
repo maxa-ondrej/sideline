@@ -2,7 +2,7 @@ import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, TrainingTypeApi } from '@sideline/domain';
 import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
-import { Effect, Option, Schema } from 'effect';
+import { DateTime, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
@@ -34,13 +34,17 @@ const CreateEventSchema = Schema.Struct({
   eventType: Event.EventType,
   trainingTypeId: Schema.String,
   description: Schema.String,
-  eventDate: Schema.NonEmptyString,
+  startDate: Schema.NonEmptyString,
   startTime: Schema.NonEmptyString,
+  endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
 });
 
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
+
+const toIsoDateTime = (date: string, time: string): string =>
+  DateTime.formatIso(DateTime.unsafeMake(`${date}T${time}:00Z`));
 
 const CreateSeriesSchema = Schema.Struct({
   title: Schema.NonEmptyString,
@@ -97,8 +101,9 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
       eventType: 'training' as Event.EventType,
       trainingTypeId: NONE_VALUE,
       description: '',
-      eventDate: '',
+      startDate: '',
       startTime: '',
+      endDate: '',
       endTime: '',
       location: '',
     },
@@ -122,8 +127,10 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
   });
 
   const onSubmit = async (values: CreateEventValues) => {
-    const startAt = `${values.eventDate}T${values.startTime}:00`;
-    const endAt = values.endTime ? `${values.eventDate}T${values.endTime}:00` : null;
+    const startAt = toIsoDateTime(values.startDate, values.startTime);
+    const endAt = values.endTime
+      ? toIsoDateTime(values.endDate || values.startDate, values.endTime)
+      : null;
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.event.createEvent({
@@ -278,15 +285,15 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                 </div>
                 <div className='flex gap-4'>
                   <FormField
-                    {...form.register('eventDate')}
+                    {...form.register('startDate')}
                     render={({ field }) => (
                       <FormItem className='flex-1'>
-                        <FormLabel>{m.event_eventDate()}</FormLabel>
+                        <FormLabel>{m.event_startDate()}</FormLabel>
                         <FormControl>
                           <DatePicker
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder={m.event_eventDate()}
+                            placeholder={m.event_startDate()}
                           />
                         </FormControl>
                         <FormMessage />
@@ -300,6 +307,24 @@ export function EventsListPage({ teamId, events, canCreate, trainingTypes }: Eve
                         <FormLabel>{m.event_startTime()}</FormLabel>
                         <FormControl>
                           <Input {...field} type='time' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className='flex gap-4'>
+                  <FormField
+                    {...form.register('endDate')}
+                    render={({ field }) => (
+                      <FormItem className='flex-1'>
+                        <FormLabel>{m.event_endDate()}</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={m.event_endDate()}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
