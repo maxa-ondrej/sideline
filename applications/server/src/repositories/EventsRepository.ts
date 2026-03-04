@@ -180,7 +180,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         execute: (input) =>
           sql`UPDATE events SET status = 'cancelled', updated_at = now()
               WHERE series_id = ${input.series_id}
-                AND start_at::date >= ${input.from_date}::date
+                AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND status = 'active'`,
       }),
     ),
@@ -201,12 +201,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                 title = ${input.title},
                 training_type_id = ${input.training_type_id},
                 description = ${input.description},
-                start_at = (start_at::date + ${input.start_time}::time),
-                end_at = CASE WHEN ${input.end_time} IS NOT NULL THEN (start_at::date + ${input.end_time}::time) ELSE NULL END,
+                start_at = ((start_at AT TIME ZONE 'UTC')::date + ${input.start_time}::time) AT TIME ZONE 'UTC',
+                end_at = CASE WHEN ${input.end_time} IS NOT NULL THEN ((start_at AT TIME ZONE 'UTC')::date + ${input.end_time}::time) AT TIME ZONE 'UTC' ELSE NULL END,
                 location = ${input.location},
                 updated_at = now()
               WHERE series_id = ${input.series_id}
-                AND start_at::date >= ${input.from_date}::date
+                AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND series_modified = false
                 AND status = 'active'`,
       }),

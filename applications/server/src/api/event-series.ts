@@ -99,8 +99,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               Effect.all(
                 dates.map((date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
-                  const startAt = `${dateStr}T${inserted.start_time}`;
-                  const endAt = inserted.end_time ? `${dateStr}T${inserted.end_time}` : null;
+                  const startAt = `${dateStr}T${inserted.start_time}Z`;
+                  const endAt = inserted.end_time ? `${dateStr}T${inserted.end_time}Z` : null;
                   return events
                     .insertEvent({
                       teamId,
@@ -326,8 +326,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   return Effect.all(
                     newDates.map((date) => {
                       const dateStr = DateTime.formatIsoDateUtc(date);
-                      const startAt = `${dateStr}T${existing.start_time}`;
-                      const endAt = existing.end_time ? `${dateStr}T${existing.end_time}` : null;
+                      const startAt = `${dateStr}T${existing.start_time}Z`;
+                      const endAt = existing.end_time ? `${dateStr}T${existing.end_time}Z` : null;
                       return events
                         .insertEvent({
                           teamId,

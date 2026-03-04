@@ -36,10 +36,10 @@ interface Change {
 const makeChange = (change: Change) => change;
 
 const computeAge = (birthDateStr: string, now: Date): number => {
-  const birth = new Date(birthDateStr);
-  let age = now.getFullYear() - birth.getFullYear();
-  const monthDiff = now.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age--;
+  const birth = new Date(`${birthDateStr}T00:00:00Z`);
+  let age = now.getUTCFullYear() - birth.getUTCFullYear();
+  const monthDiff = now.getUTCMonth() - birth.getUTCMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getUTCDate() < birth.getUTCDate())) age--;
   return age;
 };
 
