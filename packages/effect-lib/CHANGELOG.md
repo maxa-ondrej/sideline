@@ -1,5 +1,11 @@
 # @sideline/effect-lib
 
+## 0.0.3
+
+### Patch Changes
+
+- [#54](https://github.com/maxa-ondrej/sideline/pull/54) [`2badaeb`](https://github.com/maxa-ondrej/sideline/commit/2badaebfb5fd221dd84209a2925e5f3c4ead6c75) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Refactor event date/time from separate columns to TIMESTAMPTZ and extract DateTimeFromDate schema to effect-lib
+
 ## 0.0.2
 
 ### Patch Changes
