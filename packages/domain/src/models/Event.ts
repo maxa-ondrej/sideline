@@ -1,5 +1,5 @@
 import { Model } from '@effect/sql';
-import { Schemas } from '@sideline/effect-lib';
+import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { EventSeriesId } from '~/models/EventSeries.js';
 import { TeamId } from '~/models/Team.js';
