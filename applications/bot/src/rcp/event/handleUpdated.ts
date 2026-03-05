@@ -24,10 +24,10 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
                 teamId: event.team_id,
                 eventId: event.event_id,
                 title: event.title,
-                description: event.description,
+                description: Option.fromNullable(event.description),
                 startAt: event.start_at,
-                endAt: event.end_at,
-                location: event.location,
+                endAt: Option.fromNullable(event.end_at),
+                location: Option.fromNullable(event.location),
                 eventType: event.event_type,
                 counts,
               });

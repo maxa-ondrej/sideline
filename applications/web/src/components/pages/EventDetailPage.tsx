@@ -110,6 +110,14 @@ export function EventDetailPage({
     },
   });
 
+  const watchedEventType = form.watch('eventType');
+
+  React.useEffect(() => {
+    if (watchedEventType !== 'training') {
+      form.setValue('trainingTypeId', NONE_VALUE);
+    }
+  }, [watchedEventType, form]);
+
   const [saving, setSaving] = React.useState(false);
   const [showEditScope, setShowEditScope] = React.useState(false);
   const [showCancelScope, setShowCancelScope] = React.useState(false);
@@ -343,30 +351,32 @@ export function EventDetailPage({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  {...form.register('trainingTypeId')}
-                  render={({ field }) => (
-                    <FormItem className='flex-1'>
-                      <FormLabel>{m.event_trainingType()}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={m.event_noTrainingType()} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={NONE_VALUE}>{m.event_noTrainingType()}</SelectItem>
-                          {trainingTypes.map((tt) => (
-                            <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
-                              {tt.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {watchedEventType === 'training' && (
+                  <FormField
+                    {...form.register('trainingTypeId')}
+                    render={({ field }) => (
+                      <FormItem className='flex-1'>
+                        <FormLabel>{m.event_trainingType()}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={m.event_noTrainingType()} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={NONE_VALUE}>{m.event_noTrainingType()}</SelectItem>
+                            {trainingTypes.map((tt) => (
+                              <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
+                                {tt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               <div className='flex gap-4'>
@@ -533,7 +543,7 @@ export function EventDetailPage({
           </Form>
         ) : (
           <>
-            {eventDetail.trainingTypeName && (
+            {eventDetail.eventType === 'training' && eventDetail.trainingTypeName && (
               <p>
                 <span className='text-sm font-medium'>{m.event_trainingType()}: </span>
                 {eventDetail.trainingTypeName}

@@ -43,19 +43,19 @@ export const resolveChannel = (
       if (event === null) return Effect.succeed(null);
 
       // 1. Per-event override
-      if (event.discord_target_channel_id) return Effect.succeed(event.discord_target_channel_id);
+      if (Option.isSome(event.discord_target_channel_id))
+        return Effect.succeed(event.discord_target_channel_id.value);
 
       // 2. Training type default
-      const trainingTypeCheck =
-        event.training_type_id !== null
-          ? trainingTypes.findTrainingTypeById(event.training_type_id).pipe(
-              Effect.map((opt) => {
-                const tt = Option.getOrNull(opt);
-                return tt?.discord_channel_id ?? null;
-              }),
-              Effect.catchAll(() => Effect.succeed(null)),
-            )
-          : Effect.succeed(null);
+      const trainingTypeCheck = Option.isSome(event.training_type_id)
+        ? trainingTypes.findTrainingTypeById(event.training_type_id.value).pipe(
+            Effect.map((opt) => {
+              const tt = Option.getOrNull(opt);
+              return tt?.discord_channel_id ?? null;
+            }),
+            Effect.catchAll(() => Effect.succeed(null)),
+          )
+        : Effect.succeed(null);
 
       return trainingTypeCheck.pipe(
         Effect.flatMap((channelFromTT) => {

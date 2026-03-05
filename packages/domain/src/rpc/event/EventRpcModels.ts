@@ -14,10 +14,10 @@ export class RsvpCountsResult extends Schema.Class<RsvpCountsResult>('RsvpCounts
 
 export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
 }) {}
 

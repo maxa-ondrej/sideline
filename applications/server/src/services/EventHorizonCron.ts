@@ -1,4 +1,4 @@
-import { DateTime, Effect, Schedule } from 'effect';
+import { DateTime, Effect, Option, Schedule } from 'effect';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
@@ -47,15 +47,15 @@ const cronEffect = Effect.Do.pipe(
             return eventsRepo
               .insertEvent({
                 teamId: s.team_id,
-                trainingTypeId: s.training_type_id,
+                trainingTypeId: Option.fromNullable(s.training_type_id),
                 eventType: 'training',
                 title: s.title,
-                description: s.description,
+                description: Option.fromNullable(s.description),
                 startAt,
-                endAt,
-                location: s.location,
+                endAt: Option.fromNullable(endAt),
+                location: Option.fromNullable(s.location),
                 createdBy: s.created_by,
-                seriesId: s.id,
+                seriesId: Option.some(s.id),
               })
               .pipe(
                 Effect.tapError((e) =>

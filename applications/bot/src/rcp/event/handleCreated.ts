@@ -1,6 +1,6 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -21,10 +21,10 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
         teamId: event.team_id,
         eventId: event.event_id,
         title: event.title,
-        description: event.description,
+        description: Option.fromNullable(event.description),
         startAt: event.start_at,
-        endAt: event.end_at,
-        location: event.location,
+        endAt: Option.fromNullable(event.end_at),
+        location: Option.fromNullable(event.location),
         eventType: event.event_type,
         counts,
       });

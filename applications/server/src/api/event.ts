@@ -15,17 +15,17 @@ const cancelled = new EventApi.EventCancelled();
 const checkCoachScoping = (
   events: EventsRepository,
   memberId: TeamMember.TeamMemberId,
-  trainingTypeId: TrainingType.TrainingTypeId | string | null,
+  trainingTypeId: Option.Option<TrainingType.TrainingTypeId | string>,
   isAdmin: boolean,
 ) => {
   if (isAdmin) return Effect.void;
-  if (trainingTypeId === null) return Effect.void;
+  if (Option.isNone(trainingTypeId)) return Effect.void;
   return events.getScopedTrainingTypeIds(memberId).pipe(
     Effect.mapError(() => forbidden),
     Effect.flatMap((scopedIds) => {
       const allowed: readonly string[] = scopedIds.map((s) => s.training_type_id);
       if (allowed.length === 0) return Effect.void;
-      return allowed.includes(trainingTypeId) ? Effect.void : Effect.fail(forbidden);
+      return allowed.includes(trainingTypeId.value) ? Effect.void : Effect.fail(forbidden);
     }),
   );
 };
@@ -58,12 +58,12 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                         teamId: e.team_id,
                         title: e.title,
                         eventType: e.event_type,
-                        trainingTypeName: e.training_type_name,
+                        trainingTypeName: Option.getOrNull(e.training_type_name),
                         startAt: e.start_at,
-                        endAt: e.end_at,
-                        location: e.location,
+                        endAt: Option.getOrNull(e.end_at),
+                        location: Option.getOrNull(e.location),
                         status: e.status,
-                        seriesId: e.series_id,
+                        seriesId: Option.getOrNull(e.series_id),
                       }),
                   ),
                 }),
@@ -81,21 +81,26 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.tap(({ membership, isAdmin }) =>
-              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin),
+              checkCoachScoping(
+                events,
+                membership.id,
+                Option.fromNullable(payload.trainingTypeId),
+                isAdmin,
+              ),
             ),
             Effect.bind('event', ({ membership }) =>
               events
                 .insertEvent({
                   teamId,
-                  trainingTypeId: payload.trainingTypeId,
+                  trainingTypeId: Option.fromNullable(payload.trainingTypeId),
                   eventType: payload.eventType,
                   title: payload.title,
-                  description: payload.description,
+                  description: Option.fromNullable(payload.description),
                   startAt: payload.startAt,
-                  endAt: payload.endAt,
-                  location: payload.location,
+                  endAt: Option.fromNullable(payload.endAt),
+                  location: Option.fromNullable(payload.location),
                   createdBy: membership.id,
-                  discordTargetChannelId: payload.discordChannelId,
+                  discordTargetChannelId: Option.fromNullable(payload.discordChannelId),
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
@@ -109,10 +114,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   'event_created',
                   event.id,
                   event.title,
-                  event.description,
+                  Option.getOrNull(event.description),
                   event.start_at,
-                  event.end_at,
-                  event.location,
+                  Option.getOrNull(event.end_at),
+                  Option.getOrNull(event.location),
                   event.event_type,
                   resolvedChannel,
                 )
@@ -127,10 +132,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   eventType: event.event_type,
                   trainingTypeName: null,
                   startAt: event.start_at,
-                  endAt: event.end_at,
-                  location: event.location,
+                  endAt: Option.getOrNull(event.end_at),
+                  location: Option.getOrNull(event.location),
                   status: event.status,
-                  seriesId: event.series_id,
+                  seriesId: Option.getOrNull(event.series_id),
                 }),
             ),
           ),
@@ -164,19 +169,19 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   teamId: event.team_id,
                   title: event.title,
                   eventType: event.event_type,
-                  trainingTypeId: event.training_type_id,
-                  trainingTypeName: event.training_type_name,
-                  description: event.description,
+                  trainingTypeId: Option.getOrNull(event.training_type_id),
+                  trainingTypeName: Option.getOrNull(event.training_type_name),
+                  description: Option.getOrNull(event.description),
                   startAt: event.start_at,
-                  endAt: event.end_at,
-                  location: event.location,
+                  endAt: Option.getOrNull(event.end_at),
+                  location: Option.getOrNull(event.location),
                   status: event.status,
-                  createdByName: event.created_by_name,
+                  createdByName: Option.getOrNull(event.created_by_name),
                   canEdit: canEdit && event.status === 'active',
                   canCancel: canCancel && event.status === 'active',
-                  seriesId: event.series_id,
+                  seriesId: Option.getOrNull(event.series_id),
                   seriesModified: event.series_modified,
-                  discordChannelId: event.discord_target_channel_id,
+                  discordChannelId: Option.getOrNull(event.discord_target_channel_id),
                 }),
             ),
           ),
@@ -209,7 +214,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.tap(({ existing, isAdmin, membership }) => {
               const newTrainingTypeId = Option.match(payload.trainingTypeId, {
                 onNone: () => existing.training_type_id,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               });
               return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
             }),
@@ -221,30 +226,30 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   eventType: Option.getOrElse(payload.eventType, () => existing.event_type),
                   trainingTypeId: Option.match(payload.trainingTypeId, {
                     onNone: () => existing.training_type_id,
-                    onSome: Option.getOrNull,
+                    onSome: (v) => v,
                   }),
                   description: Option.match(payload.description, {
                     onNone: () => existing.description,
-                    onSome: Option.getOrNull,
+                    onSome: (v) => v,
                   }),
                   startAt: Option.getOrElse(payload.startAt, () => existing.start_at),
                   endAt: Option.match(payload.endAt, {
                     onNone: () => existing.end_at,
-                    onSome: Option.getOrNull,
+                    onSome: (v) => v,
                   }),
                   location: Option.match(payload.location, {
                     onNone: () => existing.location,
-                    onSome: Option.getOrNull,
+                    onSome: (v) => v,
                   }),
                   discordTargetChannelId: Option.match(payload.discordChannelId, {
                     onNone: () => existing.discord_target_channel_id,
-                    onSome: Option.getOrNull,
+                    onSome: (v) => v,
                   }),
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
             Effect.tap(({ existing }) =>
-              existing.series_id !== null
+              Option.isSome(existing.series_id)
                 ? events.markEventSeriesModified(eventId).pipe(Effect.mapError(() => forbidden))
                 : Effect.void,
             ),
@@ -269,10 +274,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   'event_updated',
                   detail.id,
                   detail.title,
-                  detail.description,
+                  Option.getOrNull(detail.description),
                   detail.start_at,
-                  detail.end_at,
-                  detail.location,
+                  Option.getOrNull(detail.end_at),
+                  Option.getOrNull(detail.location),
                   detail.event_type,
                   resolvedChannelForUpdate,
                 )
@@ -286,19 +291,19 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 teamId: detail.team_id,
                 title: detail.title,
                 eventType: detail.event_type,
-                trainingTypeId: detail.training_type_id,
-                trainingTypeName: detail.training_type_name,
-                description: detail.description,
+                trainingTypeId: Option.getOrNull(detail.training_type_id),
+                trainingTypeName: Option.getOrNull(detail.training_type_name),
+                description: Option.getOrNull(detail.description),
                 startAt: detail.start_at,
-                endAt: detail.end_at,
-                location: detail.location,
+                endAt: Option.getOrNull(detail.end_at),
+                location: Option.getOrNull(detail.location),
                 status: detail.status,
-                createdByName: detail.created_by_name,
+                createdByName: Option.getOrNull(detail.created_by_name),
                 canEdit: canEdit && detail.status === 'active',
                 canCancel: canCancel && detail.status === 'active',
-                seriesId: detail.series_id,
+                seriesId: Option.getOrNull(detail.series_id),
                 seriesModified: detail.series_modified,
-                discordChannelId: detail.discord_target_channel_id,
+                discordChannelId: Option.getOrNull(detail.discord_target_channel_id),
               });
             }),
           ),
@@ -341,10 +346,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   'event_cancelled',
                   existing.id,
                   existing.title,
-                  existing.description,
+                  Option.getOrNull(existing.description),
                   existing.start_at,
-                  existing.end_at,
-                  existing.location,
+                  Option.getOrNull(existing.end_at),
+                  Option.getOrNull(existing.location),
                   existing.event_type,
                 )
                 .pipe(Effect.catchAll(() => Effect.void)),

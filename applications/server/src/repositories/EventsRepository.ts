@@ -1,68 +1,68 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails')({
   id: Event.EventId,
   team_id: Team.TeamId,
-  training_type_id: Schema.NullOr(TrainingType.TrainingTypeId),
+  training_type_id: Schema.OptionFromNullOr(TrainingType.TrainingTypeId),
   event_type: Event.EventType,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
-  training_type_name: Schema.NullOr(Schema.String),
-  created_by_name: Schema.NullOr(Schema.String),
-  series_id: Schema.NullOr(EventSeries.EventSeriesId),
+  training_type_name: Schema.OptionFromNullOr(Schema.String),
+  created_by_name: Schema.OptionFromNullOr(Schema.String),
+  series_id: Schema.OptionFromNullOr(EventSeries.EventSeriesId),
   series_modified: Schema.Boolean,
-  discord_target_channel_id: Schema.NullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class EventRow extends Schema.Class<EventRow>('EventRow')({
   id: Event.EventId,
   team_id: Team.TeamId,
-  training_type_id: Schema.NullOr(TrainingType.TrainingTypeId),
+  training_type_id: Schema.OptionFromNullOr(TrainingType.TrainingTypeId),
   event_type: Event.EventType,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
-  series_id: Schema.NullOr(EventSeries.EventSeriesId),
+  series_id: Schema.OptionFromNullOr(EventSeries.EventSeriesId),
   series_modified: Schema.Boolean,
-  discord_target_channel_id: Schema.NullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput')({
   team_id: Schema.String,
-  training_type_id: Schema.NullOr(Schema.String),
+  training_type_id: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   created_by: Schema.String,
-  series_id: Schema.NullOr(Schema.String),
-  discord_target_channel_id: Schema.NullOr(Schema.String),
+  series_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput')({
   id: Event.EventId,
   title: Schema.String,
   event_type: Schema.String,
-  training_type_id: Schema.NullOr(Schema.String),
-  description: Schema.NullOr(Schema.String),
+  training_type_id: Schema.OptionFromNullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
-  discord_target_channel_id: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class ScopedTrainingTypeId extends Schema.Class<ScopedTrainingTypeId>('ScopedTrainingTypeId')({
@@ -187,8 +187,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       SqlSchema.findOne({
         Request: Event.EventId,
         Result: Schema.Struct({
-          discord_channel_id: Schema.NullOr(Schema.String),
-          discord_message_id: Schema.NullOr(Schema.String),
+          discord_channel_id: Schema.OptionFromNullOr(Schema.String),
+          discord_message_id: Schema.OptionFromNullOr(Schema.String),
         }),
         execute: (id) =>
           sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
@@ -220,11 +220,11 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           series_id: Schema.String,
           from_date: Schema.String,
           title: Schema.String,
-          training_type_id: Schema.NullOr(Schema.String),
-          description: Schema.NullOr(Schema.String),
+          training_type_id: Schema.OptionFromNullOr(Schema.String),
+          description: Schema.OptionFromNullOr(Schema.String),
           start_time: Schema.String,
-          end_time: Schema.NullOr(Schema.String),
-          location: Schema.NullOr(Schema.String),
+          end_time: Schema.OptionFromNullOr(Schema.String),
+          location: Schema.OptionFromNullOr(Schema.String),
         }),
         execute: (input) =>
           sql`UPDATE events SET
@@ -254,16 +254,16 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   insertEvent(input: {
     teamId: Team.TeamId;
-    trainingTypeId: string | null;
+    trainingTypeId: Option.Option<string>;
     eventType: string;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     startAt: string;
-    endAt: string | null;
-    location: string | null;
+    endAt: Option.Option<string>;
+    location: Option.Option<string>;
     createdBy: TeamMember.TeamMemberId;
-    seriesId?: string | null;
-    discordTargetChannelId?: string | null;
+    seriesId?: Option.Option<string>;
+    discordTargetChannelId?: Option.Option<string>;
   }) {
     return this.insert({
       team_id: input.teamId,
@@ -275,8 +275,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       end_at: input.endAt,
       location: input.location,
       created_by: input.createdBy,
-      series_id: input.seriesId ?? null,
-      discord_target_channel_id: input.discordTargetChannelId ?? null,
+      series_id: input.seriesId ?? Option.none(),
+      discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
     });
   }
 
@@ -284,12 +284,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     id: Event.EventId;
     title: string;
     eventType: string;
-    trainingTypeId: string | null;
-    description: string | null;
+    trainingTypeId: Option.Option<string>;
+    description: Option.Option<string>;
     startAt: string;
-    endAt: string | null;
-    location: string | null;
-    discordTargetChannelId?: string | null;
+    endAt: Option.Option<string>;
+    location: Option.Option<string>;
+    discordTargetChannelId?: Option.Option<string>;
   }) {
     return this.update({
       id: input.id,
@@ -300,7 +300,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       start_at: input.startAt,
       end_at: input.endAt,
       location: input.location,
-      discord_target_channel_id: input.discordTargetChannelId ?? null,
+      discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
     });
   }
 
@@ -337,11 +337,11 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     fromDate: string,
     fields: {
       title: string;
-      trainingTypeId: string | null;
-      description: string | null;
+      trainingTypeId: Option.Option<string>;
+      description: Option.Option<string>;
       startTime: string;
-      endTime: string | null;
-      location: string | null;
+      endTime: Option.Option<string>;
+      location: Option.Option<string>;
     },
   ) {
     return this.updateFutureUnmodified({

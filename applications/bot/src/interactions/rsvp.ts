@@ -99,19 +99,18 @@ export const RsvpModal = Ix.modalSubmit(
             eventInfo: rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
           }).pipe(
             Effect.flatMap(({ stored, eventInfo }) =>
-              Option.match(stored, {
+              Option.match(Option.all({ stored, eventInfo }), {
                 onNone: () => Effect.void,
-                onSome: (msg) => {
-                  const info = Option.getOrUndefined(eventInfo);
+                onSome: ({ stored: msg, eventInfo: info }) => {
                   const payload = buildEventEmbed({
                     teamId,
                     eventId,
-                    title: info?.title ?? '',
-                    description: info?.description ?? null,
-                    startAt: info?.start_at ?? '',
-                    endAt: info?.end_at ?? null,
-                    location: info?.location ?? null,
-                    eventType: info?.event_type ?? '',
+                    title: info.title,
+                    description: info.description,
+                    startAt: info.start_at,
+                    endAt: info.end_at,
+                    location: info.location,
+                    eventType: info.event_type,
                     counts,
                   });
                   return rest
