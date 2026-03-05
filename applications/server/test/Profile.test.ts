@@ -16,6 +16,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
@@ -38,8 +39,6 @@ const makeTestUser = (overrides?: Record<string, unknown>) => ({
   discord_id: '12345',
   discord_username: 'testuser',
   discord_avatar: null,
-  discord_access_token: 'token',
-  discord_refresh_token: null,
   is_profile_complete: false,
   name: null,
   birth_date: Option.none(),
@@ -101,7 +100,6 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     });
     return Effect.succeed(testUser);
   },
-  getAccessToken: () => Effect.succeed('mock-access-token'),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -136,6 +134,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   _tag: 'api/TeamsRepository',
   findById: () => Effect.succeed(Option.none()),
   insert: () => Effect.succeed(testTeam),
+  findByGuild: () => Effect.succeed(Option.none()),
+  findByGuildId: () => Effect.succeed(Option.none()),
 });
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
@@ -380,6 +380,16 @@ const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsReposito
   findByGuildId: () => Effect.succeed([]),
 } as unknown as DiscordChannelsRepository);
 
+const MockOAuthConnectionsRepositoryLayer = Layer.succeed(OAuthConnectionsRepository, {
+  _tag: 'api/OAuthConnectionsRepository',
+  upsertConnection: () => Effect.die(new Error('Not implemented')),
+  upsert: () => Effect.die(new Error('Not implemented')),
+  findByUserAndProvider: () => Effect.succeed(Option.none()),
+  findByUser: () => Effect.succeed(Option.none()),
+  findAccessToken: () => Effect.succeed(Option.some({ access_token: 'mock-access-token' })),
+  getAccessToken: () => Effect.succeed('mock-access-token'),
+} as unknown as OAuthConnectionsRepository);
+
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   _tag: 'api/EventsRepository',
   findByTeamId: () => Effect.succeed([]),
@@ -449,22 +459,25 @@ const TestLayer = ApiLive.pipe(
       Layer.merge(
         Layer.merge(
           Layer.merge(
-            Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer),
-            MockBotGuildsRepositoryLayer,
+            Layer.merge(
+              Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer),
+              MockBotGuildsRepositoryLayer,
+            ),
+            MockDiscordChannelsRepositoryLayer,
           ),
-          MockDiscordChannelsRepositoryLayer,
+          MockEventSeriesRepositoryLayer,
         ),
-        MockEventSeriesRepositoryLayer,
+        Layer.succeed(TeamSettingsRepository, {
+          _tag: 'api/TeamSettingsRepository',
+          findByTeam: () => Effect.succeed(Option.none()),
+          findByTeamId: () => Effect.succeed(Option.none()),
+          upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+          upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+          getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+          getHorizonDays: () => Effect.succeed(30),
+        } as unknown as TeamSettingsRepository),
       ),
-      Layer.succeed(TeamSettingsRepository, {
-        _tag: 'api/TeamSettingsRepository',
-        findByTeam: () => Effect.succeed(Option.none()),
-        findByTeamId: () => Effect.succeed(Option.none()),
-        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
-        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
-        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
-        getHorizonDays: () => Effect.succeed(30),
-      } as unknown as TeamSettingsRepository),
+      MockOAuthConnectionsRepositoryLayer,
     ),
   ),
 );

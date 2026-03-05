@@ -1,60 +1,208 @@
-import { type Discord, GuildRpcGroup } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
-import { Effect } from 'effect';
+import { type Discord, GuildRpcGroup, type Team, type TeamMember } from '@sideline/domain';
+import { Effect, Option } from 'effect';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
+import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
 
-export const GuildsRpcLive = Effect.Do.pipe(
-  Effect.bind('botGuilds', () => BotGuildsRepository),
-  Effect.bind('discordChannels', () => DiscordChannelsRepository),
-  Effect.let(
-    'Guild/RegisterGuild',
-    ({ botGuilds }) =>
-      ({
-        guild_id,
-        guild_name,
-      }: {
-        readonly guild_id: Discord.Snowflake;
-        readonly guild_name: string;
-      }) =>
-        botGuilds
-          .upsert(guild_id, guild_name)
-          .pipe(Effect.catchAll((error) => Effect.logError('RegisterGuild failed', error))),
+type RegisterMemberPayload = {
+  readonly guild_id: Discord.Snowflake;
+  readonly discord_id: string;
+  readonly discord_username: string;
+  readonly discord_avatar: string | null;
+  readonly roles: ReadonlyArray<string>;
+};
+
+type Deps = {
+  teams: TeamsRepository;
+  users: UsersRepository;
+  members: TeamMembersRepository;
+  roleMappings: DiscordRoleMappingRepository;
+  channelMappings: DiscordChannelMappingRepository;
+  groups: GroupsRepository;
+};
+
+const setupNewMember = (
+  deps: Deps,
+  team: { id: Team.TeamId },
+  newMember: { id: TeamMember.TeamMemberId },
+  roles: ReadonlyArray<string>,
+) =>
+  Effect.Do.pipe(
+    Effect.tap(() =>
+      deps.members.getPlayerRoleId(team.id).pipe(
+        Effect.flatten,
+        Effect.tap((playerRole) => deps.members.assignRole(newMember.id, playerRole.id)),
+        Effect.catchAll(() => Effect.log('No Player role found, skipping')),
+      ),
+    ),
+    Effect.tap(() =>
+      deps.roleMappings.findAllByTeam(team.id).pipe(
+        Effect.tap((mappings) =>
+          Effect.all(
+            mappings
+              .filter((m) => roles.includes(m.discord_role_id))
+              .map((m) => deps.members.assignRole(newMember.id, m.role_id)),
+            { concurrency: 'unbounded' },
+          ),
+        ),
+      ),
+    ),
+    Effect.tap(() =>
+      deps.channelMappings.findAllByTeam(team.id).pipe(
+        Effect.tap((mappings) =>
+          Effect.all(
+            mappings
+              .filter(
+                (m) => Option.isSome(m.discord_role_id) && roles.includes(m.discord_role_id.value),
+              )
+              .map((m) => deps.groups.addMemberById(m.group_id, newMember.id)),
+            { concurrency: 'unbounded' },
+          ),
+        ),
+      ),
+    ),
+  );
+
+const registerMemberLogic =
+  (deps: Deps) =>
+  ({ guild_id, discord_id, discord_username, discord_avatar, roles }: RegisterMemberPayload) =>
+    Effect.Do.pipe(
+      Effect.bind('team', () => deps.teams.findByGuildId(guild_id).pipe(Effect.flatten)),
+      Effect.bind('user', () =>
+        deps.users.upsertFromDiscord({ discord_id, discord_username, discord_avatar }),
+      ),
+      Effect.bind('existingMembership', ({ team, user }) =>
+        deps.members.findMembershipByIds(team.id, user.id),
+      ),
+      Effect.tap(({ existingMembership, team, user }) => {
+        if (Option.isSome(existingMembership) && existingMembership.value.active) {
+          return Effect.log(`Member ${discord_username} already active in team ${team.id}`);
+        }
+        const addMember = Option.isNone(existingMembership)
+          ? deps.members.addMember({
+              team_id: team.id,
+              user_id: user.id,
+              active: true,
+              joined_at: undefined,
+            })
+          : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember);
+        return addMember.pipe(
+          Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
+          Effect.tap(() => Effect.log(`Registered member ${discord_username} in team ${team.id}`)),
+        );
+      }),
+      Effect.catchTag('NoSuchElementException', () =>
+        Effect.log(`No team found for guild ${guild_id}, skipping member registration`),
+      ),
+      Effect.catchAll((error) =>
+        Effect.logError(`RegisterMember failed for ${discord_username}`, error),
+      ),
+    );
+
+export const GuildsRpcLive = Effect.all([
+  BotGuildsRepository,
+  DiscordChannelsRepository,
+  TeamsRepository,
+  UsersRepository,
+  TeamMembersRepository,
+  DiscordRoleMappingRepository,
+  DiscordChannelMappingRepository,
+  GroupsRepository,
+]).pipe(
+  Effect.map(
+    ([
+      botGuilds,
+      discordChannels,
+      teams,
+      users,
+      members,
+      roleMappings,
+      channelMappings,
+      groups,
+    ]) => {
+      const deps: Deps = { teams, users, members, roleMappings, channelMappings, groups };
+      const register = registerMemberLogic(deps);
+
+      return {
+        'Guild/RegisterGuild': ({
+          guild_id,
+          guild_name,
+        }: {
+          readonly guild_id: Discord.Snowflake;
+          readonly guild_name: string;
+        }) =>
+          botGuilds
+            .upsert(guild_id, guild_name)
+            .pipe(Effect.catchAll((error) => Effect.logError('RegisterGuild failed', error))),
+
+        'Guild/UnregisterGuild': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+          botGuilds
+            .remove(guild_id)
+            .pipe(Effect.catchAll((error) => Effect.logError('UnregisterGuild failed', error))),
+
+        'Guild/IsGuildRegistered': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+          botGuilds.exists(guild_id).pipe(Effect.catchAll(() => Effect.succeed(false))),
+
+        'Guild/SyncGuildChannels': ({
+          guild_id,
+          channels,
+        }: {
+          readonly guild_id: Discord.Snowflake;
+          readonly channels: ReadonlyArray<{
+            readonly channel_id: Discord.Snowflake;
+            readonly name: string;
+            readonly type: number;
+            readonly parent_id: Discord.Snowflake | null;
+          }>;
+        }) =>
+          discordChannels
+            .syncChannels(guild_id, channels)
+            .pipe(Effect.catchAll((error) => Effect.logError('SyncGuildChannels failed', error))),
+
+        'Guild/RegisterMember': (payload: RegisterMemberPayload) => register(payload),
+
+        'Guild/ReconcileMembers': ({
+          guild_id,
+          members: membersList,
+        }: {
+          readonly guild_id: Discord.Snowflake;
+          readonly members: ReadonlyArray<{
+            readonly discord_id: string;
+            readonly discord_username: string;
+            readonly discord_avatar: string | null;
+            readonly roles: ReadonlyArray<string>;
+          }>;
+        }) =>
+          Effect.Do.pipe(
+            Effect.tap(() =>
+              Effect.log(`Reconciling ${membersList.length} members for guild ${guild_id}`),
+            ),
+            Effect.tap(() =>
+              Effect.all(
+                membersList.map((member) =>
+                  register({
+                    guild_id,
+                    discord_id: member.discord_id,
+                    discord_username: member.discord_username,
+                    discord_avatar: member.discord_avatar,
+                    roles: member.roles,
+                  }),
+                ),
+                { concurrency: 5 },
+              ),
+            ),
+            Effect.tap(() => Effect.log(`Reconciliation complete for guild ${guild_id}`)),
+            Effect.catchAll((error) =>
+              Effect.logError(`ReconcileMembers failed for guild ${guild_id}`, error),
+            ),
+          ),
+      };
+    },
   ),
-  Effect.let(
-    'Guild/UnregisterGuild',
-    ({ botGuilds }) =>
-      ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
-        botGuilds
-          .remove(guild_id)
-          .pipe(Effect.catchAll((error) => Effect.logError('UnregisterGuild failed', error))),
-  ),
-  Effect.let(
-    'Guild/IsGuildRegistered',
-    ({ botGuilds }) =>
-      ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
-        botGuilds.exists(guild_id).pipe(Effect.catchAll(() => Effect.succeed(false))),
-  ),
-  Effect.let(
-    'Guild/SyncGuildChannels',
-    ({ discordChannels }) =>
-      ({
-        guild_id,
-        channels,
-      }: {
-        readonly guild_id: Discord.Snowflake;
-        readonly channels: ReadonlyArray<{
-          readonly channel_id: Discord.Snowflake;
-          readonly name: string;
-          readonly type: number;
-          readonly parent_id: Discord.Snowflake | null;
-        }>;
-      }) =>
-        discordChannels
-          .syncChannels(guild_id, channels)
-          .pipe(Effect.catchAll((error) => Effect.logError('SyncGuildChannels failed', error))),
-  ),
-  Bind.remove('botGuilds'),
-  Bind.remove('discordChannels'),
   (handlers) => GuildRpcGroup.GuildRpcGroup.toLayer(handlers),
 );

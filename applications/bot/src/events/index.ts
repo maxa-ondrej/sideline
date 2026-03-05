@@ -48,6 +48,32 @@ export const eventHandlers = Effect.Do.pipe(
             ),
           ),
         ),
+        Effect.tap(() =>
+          rest.listGuildMembers(guild.id, { limit: 1000 }).pipe(
+            Effect.map((guildMembers) =>
+              guildMembers.flatMap((m) => {
+                if (!m.user || m.user.bot) return [];
+                return [
+                  {
+                    discord_id: m.user.id,
+                    discord_username: m.user.username,
+                    discord_avatar: m.user.avatar ?? null,
+                    roles: m.roles,
+                  },
+                ];
+              }),
+            ),
+            Effect.tap((members) =>
+              rpc['Guild/ReconcileMembers']({
+                guild_id: decodeSnowflake(guild.id),
+                members,
+              }),
+            ),
+            Effect.catchAll((error) =>
+              Effect.logError(`Failed to reconcile members for guild ${guild.id}`, error),
+            ),
+          ),
+        ),
         Effect.catchAll((error) => Effect.logError(`Failed to register guild ${guild.id}`, error)),
       ),
     ),
@@ -69,10 +95,29 @@ export const eventHandlers = Effect.Do.pipe(
           ),
     ),
   ),
-  Effect.let('guildMemberAdd', ({ gateway }) =>
+  Effect.let('guildMemberAdd', ({ gateway, rpc }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberAdd, (member) =>
-      Effect.log(
-        `Member joined: ${member.user?.username ?? 'unknown'} in guild ${member.guild_id}`,
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Effect.log(
+            `Member joined: ${member.user?.username ?? 'unknown'} in guild ${member.guild_id}`,
+          ),
+        ),
+        Effect.tap(() => {
+          if (!member.user || member.user.bot) {
+            return Effect.log('Skipping bot or missing user');
+          }
+          return rpc['Guild/RegisterMember']({
+            guild_id: decodeSnowflake(member.guild_id),
+            discord_id: member.user.id,
+            discord_username: member.user.username,
+            discord_avatar: member.user.avatar ?? null,
+            roles: member.roles,
+          });
+        }),
+        Effect.catchAll((error) =>
+          Effect.logError(`Failed to register member ${member.user?.username ?? 'unknown'}`, error),
+        ),
       ),
     ),
   ),

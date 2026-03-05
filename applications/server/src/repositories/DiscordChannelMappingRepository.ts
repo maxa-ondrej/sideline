@@ -81,6 +81,17 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
           `,
         }),
       ),
+      Effect.let('findAllByTeamId', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: Schema.String,
+          Result: MappingRow,
+          execute: (teamId) => sql`
+            SELECT id, team_id, group_id, discord_channel_id, discord_role_id
+            FROM discord_channel_mappings
+            WHERE team_id = ${teamId}
+          `,
+        }),
+      ),
       Bind.remove('sql'),
     ),
   },
@@ -117,5 +128,9 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
 
   deleteByGroupId(teamId: Team.TeamId, groupId: GroupModel.GroupId) {
     return this.deleteByGroup({ team_id: teamId, group_id: groupId });
+  }
+
+  findAllByTeam(teamId: Team.TeamId) {
+    return this.findAllByTeamId(teamId);
   }
 }

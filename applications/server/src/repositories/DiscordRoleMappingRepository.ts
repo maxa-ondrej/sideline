@@ -61,6 +61,17 @@ export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMapp
           `,
         }),
       ),
+      Effect.let('findAllByTeamId', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: Schema.String,
+          Result: MappingRow,
+          execute: (teamId) => sql`
+            SELECT id, team_id, role_id, discord_role_id
+            FROM discord_role_mappings
+            WHERE team_id = ${teamId}
+          `,
+        }),
+      ),
       Bind.remove('sql'),
     ),
   },
@@ -75,5 +86,9 @@ export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMapp
 
   deleteByRoleId(teamId: Team.TeamId, roleId: Role.RoleId) {
     return this.deleteByRole({ team_id: teamId, role_id: roleId });
+  }
+
+  findAllByTeam(teamId: Team.TeamId) {
+    return this.findAllByTeamId(teamId);
   }
 }

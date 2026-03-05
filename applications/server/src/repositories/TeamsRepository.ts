@@ -1,7 +1,7 @@
-import { Model, SqlClient } from '@effect/sql';
-import { Team } from '@sideline/domain';
+import { Model, SqlClient, SqlSchema } from '@effect/sql';
+import { type Discord, Team } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Effect } from 'effect';
+import { Effect, Schema } from 'effect';
 
 export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/TeamsRepository', {
   effect: SqlClient.SqlClient.pipe(
@@ -20,7 +20,18 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
           repo.findById(id),
     ),
     Effect.let('insert', ({ repo }) => repo.insert),
+    Effect.let('findByGuild', ({ sql }) =>
+      SqlSchema.findOne({
+        Request: Schema.String,
+        Result: Team.Team,
+        execute: (guildId) => sql`SELECT * FROM teams WHERE guild_id = ${guildId}`,
+      }),
+    ),
     Bind.remove('sql'),
     Bind.remove('repo'),
   ),
-}) {}
+}) {
+  findByGuildId(guildId: Discord.Snowflake) {
+    return this.findByGuild(guildId);
+  }
+}
