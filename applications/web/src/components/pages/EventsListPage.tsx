@@ -1,6 +1,7 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -25,7 +26,6 @@ import {
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 const NONE_VALUE = '__none__';
 

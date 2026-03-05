@@ -1,11 +1,11 @@
 import type { NotificationApi } from '@sideline/domain';
 import { Notification, Team } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 interface NotificationsPageProps {
   notifications: ReadonlyArray<NotificationApi.NotificationInfo>;

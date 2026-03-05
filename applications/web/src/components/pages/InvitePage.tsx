@@ -1,8 +1,8 @@
+import * as m from '@sideline/i18n/messages';
 import { Effect } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 interface InvitePageProps {
   isAuthenticated: boolean;

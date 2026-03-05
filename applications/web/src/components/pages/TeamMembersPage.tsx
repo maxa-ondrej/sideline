@@ -1,10 +1,10 @@
 import type { Roster } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import React from 'react';
 import { PlayerRow } from '~/components/organisms/PlayerRow';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import * as m from '~/paraglide/messages.js';
 
 interface TeamMembersPageProps {
   teamId: string;

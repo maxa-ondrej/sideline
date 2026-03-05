@@ -1,9 +1,9 @@
+import { m } from '@sideline/i18n/messages';
+import { getLocale, setLocale } from '@sideline/i18n/runtime';
 import { Effect } from 'effect';
 import { useCallback } from 'react';
 import { LocaleSelect } from '~/components/molecules/LocaleSelect';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import { m } from '~/paraglide/messages.js';
-import { getLocale, setLocale } from '~/paraglide/runtime.js';
 
 export function LanguageSwitcher({ isAuthenticated }: { isAuthenticated: boolean }) {
   const run = useRun();

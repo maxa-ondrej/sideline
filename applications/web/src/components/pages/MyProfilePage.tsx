@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import { Auth } from '@sideline/domain';
-
+import * as m from '@sideline/i18n/messages';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -24,7 +24,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - Auth.MIN_AGE;

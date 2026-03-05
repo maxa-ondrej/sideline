@@ -1,8 +1,8 @@
 import type { Auth } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import * as m from '~/paraglide/messages.js';
 
 type Step = 'select-guild' | 'invite-bot' | 'name-team';
 

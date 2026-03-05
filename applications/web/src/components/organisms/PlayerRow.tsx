@@ -1,7 +1,7 @@
 import type { Roster } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { Button } from '~/components/ui/button';
-import * as m from '~/paraglide/messages.js';
 
 interface PlayerRowProps {
   player: Roster.RosterPlayer;

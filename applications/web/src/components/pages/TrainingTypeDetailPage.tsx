@@ -1,6 +1,7 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { EventSeries, Team, TrainingType } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -25,7 +26,6 @@ import {
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 const dayOfWeekLabels: Record<number, () => string> = {
   0: m.event_day_0,

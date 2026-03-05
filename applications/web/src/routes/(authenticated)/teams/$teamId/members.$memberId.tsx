@@ -1,12 +1,12 @@
 import type { Auth, Role } from '@sideline/domain';
 import { Team, TeamMember } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import type { PlayerEditValues } from '~/components/pages/PlayerDetailPage';
 import { PlayerDetailPage } from '~/components/pages/PlayerDetailPage';
 import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$memberId')({
   component: MemberDetailRoute,

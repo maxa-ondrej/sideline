@@ -1,5 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { RoleApi, Roster } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { Schema } from 'effect';
 import React from 'react';
@@ -22,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import * as m from '~/paraglide/messages.js';
 
 const PlayerEditSchema = Schema.Struct({
   name: Schema.NullOr(Schema.String),

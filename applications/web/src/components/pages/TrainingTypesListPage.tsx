@@ -1,6 +1,7 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { TrainingTypeApi } from '@sideline/domain';
 import { Team } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
@@ -15,7 +16,6 @@ import {
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 const CreateTrainingTypeSchema = Schema.Struct({
   name: Schema.NonEmptyString,

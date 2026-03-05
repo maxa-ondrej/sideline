@@ -1,6 +1,7 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Option } from 'effect';
+import { guildLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -11,7 +12,8 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
     Effect.bind('stored', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
     ),
-    Effect.flatMap(({ rpc, rest, stored }) =>
+    Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id)),
+    Effect.flatMap(({ rpc, rest, stored, guild }) =>
       Option.match(stored, {
         onNone: () =>
           Effect.logWarning(
@@ -20,6 +22,7 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
         onSome: (msg) =>
           rpc['Event/GetRsvpCounts']({ event_id: event.event_id }).pipe(
             Effect.flatMap((counts) => {
+              const locale = guildLocale({ guild_locale: guild.preferred_locale });
               const payload = buildEventEmbed({
                 teamId: event.team_id,
                 eventId: event.event_id,
@@ -30,6 +33,7 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
                 location: Option.fromNullable(event.location),
                 eventType: event.event_type,
                 counts,
+                locale,
               });
               return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
                 embeds: payload.embeds,

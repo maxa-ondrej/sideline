@@ -1,5 +1,6 @@
 import type { RoleApi } from '@sideline/domain';
 import { Role, Team } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -7,7 +8,6 @@ import { toast } from 'sonner';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 const permissionLabels: Record<Role.Permission, () => string> = {
   'team:manage': m.role_perm_teamManage,

@@ -1,4 +1,5 @@
 import type { GroupApi, TeamSettingsApi } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
@@ -13,7 +14,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 interface TeamSettingsPageProps {
   teamId: string;

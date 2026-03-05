@@ -1,5 +1,6 @@
 import type { Roster as RosterDomain } from '@sideline/domain';
 import { RosterModel, Team, TeamMember } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -13,7 +14,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 interface RosterDetailPageProps {
   teamId: string;

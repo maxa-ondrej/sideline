@@ -1,8 +1,10 @@
 import { Event } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import * as Ix from 'dfx/Interactions/index';
-import { MessageComponentData } from 'dfx/Interactions/index';
+import { Interaction, MessageComponentData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
 import { Effect, Schema } from 'effect';
+import { userLocale } from '~/locale.js';
 import { buildAttendeesEmbed } from '~/rest/events/buildAttendeesEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -13,12 +15,14 @@ export const AttendeesButton = Ix.messageComponent(
   Ix.idStartsWith('attendees:'),
   Effect.Do.pipe(
     Effect.bind('data', () => MessageComponentData),
+    Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.flatMap(({ data, rpc }) => {
+    Effect.flatMap(({ data, interaction, rpc }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
       const eventId = decodeEventId(parts[2]);
       const offset = Number(parts[3]) || 0;
+      const locale = userLocale(interaction);
 
       return rpc['Event/GetRsvpAttendees']({
         event_id: eventId,
@@ -33,6 +37,7 @@ export const AttendeesButton = Ix.messageComponent(
             limit: ATTENDEES_LIMIT,
             teamId,
             eventId,
+            locale,
           });
           return Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -47,7 +52,7 @@ export const AttendeesButton = Ix.messageComponent(
           Effect.succeed(
             Ix.response({
               type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: 'Failed to load attendees.', flags: 64 },
+              data: { content: m.bot_attendees_load_error({}, { locale }), flags: 64 },
             }),
           ),
         ),
@@ -60,12 +65,14 @@ export const AttendeesPageButton = Ix.messageComponent(
   Ix.idStartsWith('attendees-page:'),
   Effect.Do.pipe(
     Effect.bind('data', () => MessageComponentData),
+    Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.flatMap(({ data, rpc }) => {
+    Effect.flatMap(({ data, interaction, rpc }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
       const eventId = decodeEventId(parts[2]);
       const offset = Number(parts[3]) || 0;
+      const locale = userLocale(interaction);
 
       return rpc['Event/GetRsvpAttendees']({
         event_id: eventId,
@@ -80,6 +87,7 @@ export const AttendeesPageButton = Ix.messageComponent(
             limit: ATTENDEES_LIMIT,
             teamId,
             eventId,
+            locale,
           });
           return Ix.response({
             type: Discord.InteractionCallbackTypes.UPDATE_MESSAGE,
@@ -93,7 +101,7 @@ export const AttendeesPageButton = Ix.messageComponent(
           Effect.succeed(
             Ix.response({
               type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: 'Failed to load attendees.', flags: 64 },
+              data: { content: m.bot_attendees_load_error({}, { locale }), flags: 64 },
             }),
           ),
         ),

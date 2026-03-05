@@ -1,6 +1,6 @@
 import type { Auth } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
-import * as m from '~/paraglide/messages.js';
 
 interface TeamDetailPageProps {
   teamId: string;

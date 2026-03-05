@@ -1,9 +1,11 @@
 import { Discord as DiscordSchemas, Event, EventRsvp, Team } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
 import { Effect, Option, Schema } from 'effect';
+import { guildLocale, userLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -24,7 +26,10 @@ export const RsvpButton = Ix.messageComponent(
         type: Discord.InteractionCallbackTypes.MODAL,
         data: {
           custom_id: `rsvp-modal:${teamId}:${eventId}:${response}`,
-          title: `RSVP — ${response.charAt(0).toUpperCase() + response.slice(1)}`,
+          title: m.bot_rsvp_modal_title(
+            { response: response.charAt(0).toUpperCase() + response.slice(1) },
+            { locale: 'en' },
+          ),
           components: [
             {
               type: 1,
@@ -32,7 +37,7 @@ export const RsvpButton = Ix.messageComponent(
                 {
                   type: 4,
                   custom_id: 'rsvp_message',
-                  label: 'Add a message (optional)',
+                  label: m.bot_rsvp_modal_label({}, { locale: 'en' }),
                   style: 2,
                   required: false,
                   max_length: 200,
@@ -77,11 +82,14 @@ export const RsvpModal = Ix.modalSubmit(
       const discordUserId =
         interaction.member?.user?.id ?? ('user' in interaction ? interaction.user?.id : undefined);
 
+      const locale = userLocale(interaction);
+      const embedLocale = guildLocale(interaction);
+
       if (!discordUserId) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: 'Could not identify your Discord user.', flags: 64 },
+            data: { content: m.bot_rsvp_user_error({}, { locale }), flags: 64 },
           }),
         );
       }
@@ -112,6 +120,7 @@ export const RsvpModal = Ix.modalSubmit(
                     location: info.location,
                     eventType: info.event_type,
                     counts,
+                    locale: embedLocale,
                   });
                   return rest
                     .updateMessage(msg.discord_channel_id, msg.discord_message_id, {
@@ -131,7 +140,7 @@ export const RsvpModal = Ix.modalSubmit(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `Your RSVP (**${response}**) has been recorded!`,
+              content: m.bot_rsvp_recorded({ response }, { locale }),
               flags: 64,
             },
           }),
@@ -140,7 +149,7 @@ export const RsvpModal = Ix.modalSubmit(
           Effect.succeed(
             Ix.response({
               type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: 'RSVP deadline has passed.', flags: 64 },
+              data: { content: m.bot_rsvp_deadline_passed({}, { locale }), flags: 64 },
             }),
           ),
         ),
@@ -148,7 +157,7 @@ export const RsvpModal = Ix.modalSubmit(
           Effect.succeed(
             Ix.response({
               type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: 'You are not a member of this team.', flags: 64 },
+              data: { content: m.bot_rsvp_not_member({}, { locale }), flags: 64 },
             }),
           ),
         ),
@@ -156,7 +165,7 @@ export const RsvpModal = Ix.modalSubmit(
           Effect.succeed(
             Ix.response({
               type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: 'Event not found.', flags: 64 },
+              data: { content: m.bot_rsvp_event_not_found({}, { locale }), flags: 64 },
             }),
           ),
         ),

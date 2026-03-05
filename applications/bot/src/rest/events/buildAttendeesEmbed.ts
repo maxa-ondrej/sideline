@@ -1,5 +1,7 @@
 import type { EventRpcModels } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
+import type { Locale } from '~/locale.js';
 
 const EVENT_COLOR = 0x5865f2;
 
@@ -15,10 +17,12 @@ export const buildAttendeesEmbed = (opts: {
   limit: number;
   teamId: string;
   eventId: string;
+  locale: Locale;
 }): {
   embeds: ReadonlyArray<Discord.RichEmbed>;
   components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest>;
 } => {
+  const locale = opts.locale;
   const fields: Array<Discord.RichEmbedField> = [];
 
   const grouped = { yes: [] as string[], no: [] as string[], maybe: [] as string[] };
@@ -27,13 +31,22 @@ export const buildAttendeesEmbed = (opts: {
   }
 
   if (grouped.yes.length > 0) {
-    fields.push({ name: `✅ Yes (${grouped.yes.length})`, value: grouped.yes.join('\n') });
+    fields.push({
+      name: m.bot_attendees_yes({ count: String(grouped.yes.length) }, { locale }),
+      value: grouped.yes.join('\n'),
+    });
   }
   if (grouped.no.length > 0) {
-    fields.push({ name: `❌ No (${grouped.no.length})`, value: grouped.no.join('\n') });
+    fields.push({
+      name: m.bot_attendees_no({ count: String(grouped.no.length) }, { locale }),
+      value: grouped.no.join('\n'),
+    });
   }
   if (grouped.maybe.length > 0) {
-    fields.push({ name: `❓ Maybe (${grouped.maybe.length})`, value: grouped.maybe.join('\n') });
+    fields.push({
+      name: m.bot_attendees_maybe({ count: String(grouped.maybe.length) }, { locale }),
+      value: grouped.maybe.join('\n'),
+    });
   }
 
   const page = Math.floor(opts.offset / opts.limit) + 1;
@@ -41,10 +54,22 @@ export const buildAttendeesEmbed = (opts: {
 
   const embeds: ReadonlyArray<Discord.RichEmbed> = [
     {
-      title: 'Attendees',
+      title: m.bot_attendees_title({}, { locale }),
       color: EVENT_COLOR,
-      fields: fields.length > 0 ? fields : [{ name: 'No responses yet', value: '\u200b' }],
-      footer: { text: `Page ${page} of ${totalPages} · ${opts.total} total responses` },
+      fields:
+        fields.length > 0
+          ? fields
+          : [{ name: m.bot_attendees_empty({}, { locale }), value: '\u200b' }],
+      footer: {
+        text: m.bot_attendees_footer(
+          {
+            page: String(page),
+            totalPages: String(totalPages),
+            total: String(opts.total),
+          },
+          { locale },
+        ),
+      },
     },
   ];
 
@@ -57,14 +82,14 @@ export const buildAttendeesEmbed = (opts: {
         {
           type: 2,
           style: 2,
-          label: '◀ Prev',
+          label: m.bot_btn_prev({}, { locale }),
           custom_id: `attendees-page:${opts.teamId}:${opts.eventId}:${opts.offset - opts.limit}`,
           disabled: opts.offset === 0,
         },
         {
           type: 2,
           style: 2,
-          label: 'Next ▶',
+          label: m.bot_btn_next({}, { locale }),
           custom_id: `attendees-page:${opts.teamId}:${opts.eventId}:${opts.offset + opts.limit}`,
           disabled: opts.offset + opts.limit >= opts.total,
         },
