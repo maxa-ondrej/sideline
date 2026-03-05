@@ -1,5 +1,11 @@
 # @sideline/domain
 
+## 0.7.1
+
+### Patch Changes
+
+- [#69](https://github.com/maxa-ondrej/sideline/pull/69) [`5455854`](https://github.com/maxa-ondrej/sideline/commit/5455854590e40219532403d35dc2e068fd5b62d3) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Reorder Discord event messages by start date after creating or updating events
+
 ## 0.7.0
 
 ### Minor Changes
