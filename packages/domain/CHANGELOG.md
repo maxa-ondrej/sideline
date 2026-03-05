@@ -1,5 +1,11 @@
 # @sideline/domain
 
+## 0.7.0
+
+### Minor Changes
+
+- [#66](https://github.com/maxa-ondrej/sideline/pull/66) [`7c483c5`](https://github.com/maxa-ondrej/sideline/commit/7c483c5a68b9ebf115ccd141d487e334fdee4c2e) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Extract OAuth into oauth_connections table and auto-register Discord guild members as team members
+
 ## 0.6.1
 
 ### Patch Changes
