@@ -148,7 +148,7 @@ export function RosterDetailPage({
           <SelectContent>
             {availableMembers.map((member) => (
               <SelectItem key={member.memberId} value={member.memberId}>
-                {member.name ?? member.discordUsername}
+                {member.name ?? member.username}
               </SelectItem>
             ))}
           </SelectContent>
@@ -164,13 +164,13 @@ export function RosterDetailPage({
         <table className='w-full'>
           <tbody>
             {rosterDetail.members.map((player) => {
-              const displayName = player.name ?? player.discordUsername;
+              const displayName = player.name ?? player.username;
               return (
                 <tr key={player.memberId} className='border-b'>
                   <td className='py-2 px-4'>
-                    {player.discordAvatar ? (
+                    {player.avatar ? (
                       <img
-                        src={`https://cdn.discordapp.com/avatars/${player.userId}/${player.discordAvatar}.png?size=32`}
+                        src={`https://cdn.discordapp.com/avatars/${player.userId}/${player.avatar}.png?size=32`}
                         alt={displayName}
                         className='w-8 h-8 rounded-full inline-block mr-2'
                       />

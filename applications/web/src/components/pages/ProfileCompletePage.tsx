@@ -3,7 +3,7 @@ import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { ProfileCompleteForm } from '~/components/organisms/ProfileCompleteForm';
 
 interface ProfileCompletePageProps {
-  user: { discordUsername: string };
+  user: { username: string };
   onSuccess: () => void;
 }
 
@@ -17,7 +17,7 @@ export function ProfileCompletePage({ user, onSuccess }: ProfileCompletePageProp
         </div>
         <p className='text-muted-foreground'>{m.profile_complete_subtitle()}</p>
       </header>
-      <ProfileCompleteForm initialName={user.discordUsername} onSuccess={onSuccess} />
+      <ProfileCompleteForm initialName={user.username} onSuccess={onSuccess} />
     </div>
   );
 }

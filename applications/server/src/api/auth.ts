@@ -110,8 +110,8 @@ const handleDiscordLogin = ({
     Effect.bind('dbUser', ({ discordUser }) =>
       users.upsertFromDiscord({
         discord_id: discordUser.id,
-        discord_username: discordUser.username,
-        discord_avatar: discordUser.avatar ?? null,
+        username: discordUser.username,
+        avatar: discordUser.avatar ?? null,
       }),
     ),
     Effect.tap(({ dbUser }) =>
@@ -264,8 +264,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 new Auth.CurrentUser({
                   id: updated.id,
                   discordId: updated.discord_id,
-                  discordUsername: updated.discord_username,
-                  discordAvatar: updated.discord_avatar,
+                  username: updated.username,
+                  avatar: updated.avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
                   birthDate: Option.getOrNull(
@@ -294,8 +294,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 new Auth.CurrentUser({
                   id: updated.id,
                   discordId: updated.discord_id,
-                  discordUsername: updated.discord_username,
-                  discordAvatar: updated.discord_avatar,
+                  username: updated.username,
+                  avatar: updated.avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
                   birthDate: Option.getOrNull(
@@ -324,8 +324,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 new Auth.CurrentUser({
                   id: updated.id,
                   discordId: updated.discord_id,
-                  discordUsername: updated.discord_username,
-                  discordAvatar: updated.discord_avatar,
+                  username: updated.username,
+                  avatar: updated.avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
                   birthDate: Option.getOrNull(

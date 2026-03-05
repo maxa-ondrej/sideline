@@ -37,8 +37,8 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   birth_date: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(User.Gender),
   jersey_number: Schema.NullOr(Schema.Number),
-  discord_username: Schema.String,
-  discord_avatar: Schema.NullOr(Schema.String),
+  username: Schema.String,
+  avatar: Schema.NullOr(Schema.String),
 }) {}
 
 export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>()(
@@ -199,7 +199,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                       WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
                    u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-                   u.discord_username, u.discord_avatar
+                   u.username, u.avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ${teamId} AND tm.active = true
@@ -223,7 +223,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
                       WHERE mr.team_member_id = tm.id), ''
                    ) AS permissions,
                    u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-                   u.discord_username, u.discord_avatar
+                   u.username, u.avatar
             FROM team_members tm
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id} AND tm.active = true

@@ -12,15 +12,15 @@ interface PlayerRowProps {
 }
 
 export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: PlayerRowProps) {
-  const displayName = player.name ?? player.discordUsername;
+  const displayName = player.name ?? player.username;
   const roleLabel = player.roleNames.join(', ') || '—';
 
   return (
     <tr className='border-b'>
       <td className='py-2 px-4'>
-        {player.discordAvatar ? (
+        {player.avatar ? (
           <img
-            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.discordAvatar}.png?size=32`}
+            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=32`}
             alt={displayName}
             className='w-8 h-8 rounded-full inline-block mr-2'
           />

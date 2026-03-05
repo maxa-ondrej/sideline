@@ -32,7 +32,7 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
     Schema.Struct({
       memberId: TeamMemberId,
       name: Schema.NullOr(Schema.String),
-      discordUsername: Schema.String,
+      username: Schema.String,
     }),
   ),
 }) {}

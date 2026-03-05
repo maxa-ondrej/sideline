@@ -673,7 +673,7 @@ export function EventDetailPage({
                             ? m.rsvp_maybe()
                             : m.rsvp_no()}
                       </span>
-                      <span>{r.memberName ?? '—'}</span>
+                      <span>{r.memberName ?? r.username ?? '—'}</span>
                       {r.message && <span className='text-muted-foreground'>— {r.message}</span>}
                     </li>
                   ))}

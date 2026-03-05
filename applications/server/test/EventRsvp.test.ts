@@ -67,8 +67,8 @@ const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:v
 const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
-  discord_username: 'testuser',
-  discord_avatar: null,
+  username: 'testuser',
+  avatar: null,
 
   is_profile_complete: true,
   name: 'Test User',
@@ -82,8 +82,8 @@ const testUser = {
 const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
-  discord_username: 'adminuser',
-  discord_avatar: null,
+  username: 'adminuser',
+  avatar: null,
 
   is_profile_complete: true,
   name: 'Admin User',
@@ -106,8 +106,8 @@ const testTeam = {
 type UserLike = {
   id: Auth.UserId;
   discord_id: string;
-  discord_username: string;
-  discord_avatar: string | null;
+  username: string;
+  avatar: string | null;
   is_profile_complete: boolean;
   name: string | null;
   birth_date: Option.Option<DateTime.Utc>;
@@ -175,6 +175,7 @@ type RsvpRecord = {
   response: EventRsvp.RsvpResponse;
   message: string | null;
   member_name: string | null;
+  username: string | null;
 };
 
 let rsvpsStore: Map<string, RsvpRecord>;
@@ -274,8 +275,8 @@ const buildRosterEntry = (
     birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
     gender: user.gender,
     jersey_number: null,
-    discord_username: user.discord_username,
-    discord_avatar: user.discord_avatar,
+    username: user.username,
+    avatar: user.avatar,
   });
 };
 
@@ -462,6 +463,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       response: input.response as EventRsvp.RsvpResponse,
       message: input.message,
       member_name: null,
+      username: null,
     };
     rsvpsStore.set(key, record);
     return Effect.succeed({
@@ -488,6 +490,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       response,
       message,
       member_name: null,
+      username: null,
     };
     rsvpsStore.set(key, record);
     return Effect.succeed({

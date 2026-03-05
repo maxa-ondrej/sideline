@@ -24,7 +24,7 @@ export function TeamMembersPage({
   const [search, setSearch] = React.useState('');
 
   const filtered = players.filter((p) => {
-    const name = (p.name ?? p.discordUsername).toLowerCase();
+    const name = (p.name ?? p.username).toLowerCase();
     return name.includes(search.toLowerCase());
   });
 

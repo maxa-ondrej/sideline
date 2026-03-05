@@ -65,7 +65,7 @@ export function PlayerDetailPage({
     },
   });
 
-  const displayName = player.name ?? player.discordUsername;
+  const displayName = player.name ?? player.username;
 
   return (
     <div>

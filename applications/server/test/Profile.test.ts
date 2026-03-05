@@ -37,8 +37,8 @@ const TEST_ROLE_ID = '00000000-0000-0000-0000-000000000040' as Role.RoleId;
 const makeTestUser = (overrides?: Record<string, unknown>) => ({
   id: TEST_USER_ID,
   discord_id: '12345',
-  discord_username: 'testuser',
-  discord_avatar: null,
+  username: 'testuser',
+  avatar: null,
   is_profile_complete: false,
   name: null,
   birth_date: Option.none(),

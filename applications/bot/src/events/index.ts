@@ -56,8 +56,8 @@ export const eventHandlers = Effect.Do.pipe(
                 return [
                   {
                     discord_id: m.user.id,
-                    discord_username: m.user.username,
-                    discord_avatar: m.user.avatar ?? null,
+                    username: m.user.username,
+                    avatar: m.user.avatar ?? null,
                     roles: m.roles,
                   },
                 ];
@@ -110,8 +110,8 @@ export const eventHandlers = Effect.Do.pipe(
           return rpc['Guild/RegisterMember']({
             guild_id: decodeSnowflake(member.guild_id),
             discord_id: member.user.id,
-            discord_username: member.user.username,
-            discord_avatar: member.user.avatar ?? null,
+            username: member.user.username,
+            avatar: member.user.avatar ?? null,
             roles: member.roles,
           });
         }),

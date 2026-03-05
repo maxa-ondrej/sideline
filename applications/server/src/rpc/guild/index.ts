@@ -12,8 +12,8 @@ import { UsersRepository } from '~/repositories/UsersRepository.js';
 type RegisterMemberPayload = {
   readonly guild_id: Discord.Snowflake;
   readonly discord_id: string;
-  readonly discord_username: string;
-  readonly discord_avatar: string | null;
+  readonly username: string;
+  readonly avatar: string | null;
   readonly roles: ReadonlyArray<string>;
 };
 
@@ -70,18 +70,16 @@ const setupNewMember = (
 
 const registerMemberLogic =
   (deps: Deps) =>
-  ({ guild_id, discord_id, discord_username, discord_avatar, roles }: RegisterMemberPayload) =>
+  ({ guild_id, discord_id, username, avatar, roles }: RegisterMemberPayload) =>
     Effect.Do.pipe(
       Effect.bind('team', () => deps.teams.findByGuildId(guild_id).pipe(Effect.flatten)),
-      Effect.bind('user', () =>
-        deps.users.upsertFromDiscord({ discord_id, discord_username, discord_avatar }),
-      ),
+      Effect.bind('user', () => deps.users.upsertFromDiscord({ discord_id, username, avatar })),
       Effect.bind('existingMembership', ({ team, user }) =>
         deps.members.findMembershipByIds(team.id, user.id),
       ),
       Effect.tap(({ existingMembership, team, user }) => {
         if (Option.isSome(existingMembership) && existingMembership.value.active) {
-          return Effect.log(`Member ${discord_username} already active in team ${team.id}`);
+          return Effect.log(`Member ${username} already active in team ${team.id}`);
         }
         const addMember = Option.isNone(existingMembership)
           ? deps.members.addMember({
@@ -93,15 +91,13 @@ const registerMemberLogic =
           : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember);
         return addMember.pipe(
           Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
-          Effect.tap(() => Effect.log(`Registered member ${discord_username} in team ${team.id}`)),
+          Effect.tap(() => Effect.log(`Registered member ${username} in team ${team.id}`)),
         );
       }),
       Effect.catchTag('NoSuchElementException', () =>
         Effect.log(`No team found for guild ${guild_id}, skipping member registration`),
       ),
-      Effect.catchAll((error) =>
-        Effect.logError(`RegisterMember failed for ${discord_username}`, error),
-      ),
+      Effect.catchAll((error) => Effect.logError(`RegisterMember failed for ${username}`, error)),
     );
 
 export const GuildsRpcLive = Effect.all([
@@ -173,8 +169,8 @@ export const GuildsRpcLive = Effect.all([
           readonly guild_id: Discord.Snowflake;
           readonly members: ReadonlyArray<{
             readonly discord_id: string;
-            readonly discord_username: string;
-            readonly discord_avatar: string | null;
+            readonly username: string;
+            readonly avatar: string | null;
             readonly roles: ReadonlyArray<string>;
           }>;
         }) =>
@@ -188,8 +184,8 @@ export const GuildsRpcLive = Effect.all([
                   register({
                     guild_id,
                     discord_id: member.discord_id,
-                    discord_username: member.discord_username,
-                    discord_avatar: member.discord_avatar,
+                    username: member.username,
+                    avatar: member.avatar,
                     roles: member.roles,
                   }),
                 ),

@@ -39,8 +39,8 @@ const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleI
 const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
-  discord_username: 'testuser',
-  discord_avatar: null,
+  username: 'testuser',
+  avatar: null,
   is_profile_complete: false,
   name: null,
   birth_date: Option.none(),
@@ -53,8 +53,8 @@ const testUser = {
 const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
-  discord_username: 'adminuser',
-  discord_avatar: null,
+  username: 'adminuser',
+  avatar: null,
   is_profile_complete: true,
   name: 'Admin User',
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),

@@ -37,8 +37,8 @@ const TEST_ROLE_ID = '00000000-0000-0000-0000-000000000040' as Role.RoleId;
 const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
-  discord_username: 'testuser',
-  discord_avatar: null,
+  username: 'testuser',
+  avatar: null,
   is_profile_complete: false,
   name: null,
   birth_date: Option.none(),
@@ -499,7 +499,7 @@ describe('Auth API', () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.discordUsername).toBe('testuser');
+    expect(body.username).toBe('testuser');
   });
 
   it('GET /auth/login redirects to Discord OAuth', async () => {

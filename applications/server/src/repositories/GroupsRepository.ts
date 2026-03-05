@@ -24,7 +24,7 @@ class GroupRow extends Schema.Class<GroupRow>('GroupRow')({
 class GroupMemberRow extends Schema.Class<GroupMemberRow>('GroupMemberRow')({
   member_id: TeamMember.TeamMemberId,
   name: Schema.NullOr(Schema.String),
-  discord_username: Schema.String,
+  username: Schema.String,
 }) {}
 
 class GroupRoleRow extends Schema.Class<GroupRoleRow>('GroupRoleRow')({
@@ -131,12 +131,12 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
         Request: GroupModel.GroupId,
         Result: GroupMemberRow,
         execute: (groupId) => sql`
-            SELECT tm.id AS member_id, u.name, u.discord_username
+            SELECT tm.id AS member_id, u.name, u.username
             FROM group_members gm
             JOIN team_members tm ON tm.id = gm.team_member_id
             JOIN users u ON u.id = tm.user_id
             WHERE gm.group_id = ${groupId}
-            ORDER BY u.discord_username ASC
+            ORDER BY u.username ASC
           `,
       }),
     ),

@@ -43,6 +43,7 @@ const buildRsvpDetail = (
             new EventRsvpApi.RsvpEntry({
               teamMemberId: r.team_member_id,
               memberName: r.member_name,
+              username: r.username,
               response: r.response,
               message: r.message,
             }),

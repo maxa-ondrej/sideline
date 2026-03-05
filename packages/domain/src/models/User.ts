@@ -14,8 +14,8 @@ export type Locale = typeof Locale.Type;
 export class User extends Model.Class<User>('User')({
   id: Model.Generated(UserId),
   discord_id: Schema.String,
-  discord_username: Schema.String,
-  discord_avatar: Schema.NullOr(Schema.String),
+  username: Schema.String,
+  avatar: Schema.NullOr(Schema.String),
   name: Schema.NullOr(Schema.String),
   birth_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   gender: Schema.NullOr(Gender),

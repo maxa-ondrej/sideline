@@ -25,8 +25,8 @@ export class UserTeam extends Schema.Class<UserTeam>('UserTeam')({
 export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   id: UserId,
   discordId: Schema.String,
-  discordUsername: Schema.String,
-  discordAvatar: Schema.NullOr(Schema.String),
+  username: Schema.String,
+  avatar: Schema.NullOr(Schema.String),
   isProfileComplete: Schema.Boolean,
   name: Schema.NullOr(Schema.String),
   birthDate: Schema.NullOr(Schema.String),

@@ -9,6 +9,7 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 export class RsvpEntry extends Schema.Class<RsvpEntry>('RsvpEntry')({
   teamMemberId: TeamMemberId,
   memberName: Schema.NullOr(Schema.String),
+  username: Schema.NullOr(Schema.String),
   response: RsvpResponse,
   message: Schema.NullOr(Schema.String),
 }) {}
