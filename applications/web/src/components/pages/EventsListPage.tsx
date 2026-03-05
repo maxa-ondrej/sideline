@@ -119,6 +119,8 @@ export function EventsListPage({
     },
   });
 
+  const watchedEventType = form.watch('eventType');
+
   const seriesForm = useForm({
     resolver: effectTsResolver(CreateSeriesSchema),
     mode: 'onChange',
@@ -136,6 +138,12 @@ export function EventsListPage({
       discordChannelId: NONE_VALUE,
     },
   });
+
+  React.useEffect(() => {
+    if (watchedEventType !== 'training') {
+      form.setValue('trainingTypeId', NONE_VALUE);
+    }
+  }, [watchedEventType, form]);
 
   const onSubmit = async (values: CreateEventValues) => {
     const startAt = toIsoDateTime(values.startDate, values.startTime);
@@ -277,30 +285,32 @@ export function EventsListPage({
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    {...form.register('trainingTypeId')}
-                    render={({ field }) => (
-                      <FormItem className='flex-1'>
-                        <FormLabel>{m.event_trainingType()}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder={m.event_noTrainingType()} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value={NONE_VALUE}>{m.event_noTrainingType()}</SelectItem>
-                            {trainingTypes.map((tt) => (
-                              <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
-                                {tt.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {watchedEventType === 'training' && (
+                    <FormField
+                      {...form.register('trainingTypeId')}
+                      render={({ field }) => (
+                        <FormItem className='flex-1'>
+                          <FormLabel>{m.event_trainingType()}</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={m.event_noTrainingType()} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={NONE_VALUE}>{m.event_noTrainingType()}</SelectItem>
+                              {trainingTypes.map((tt) => (
+                                <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
+                                  {tt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
                 <div className='flex gap-4'>
                   <FormField
