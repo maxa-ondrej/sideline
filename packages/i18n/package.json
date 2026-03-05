@@ -5,11 +5,11 @@
   "type": "module",
   "description": "Shared translation messages for Sideline",
   "scripts": {
-    "build": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --emit-ts-declarations --strategy localStorage cookie baseLocale"
+    "build": "paraglide-js compile --project ./project.inlang --outdir ./dist --emit-ts-declarations --strategy localStorage cookie baseLocale"
   },
   "exports": {
-    "./messages": "./src/paraglide/messages.js",
-    "./runtime": "./src/paraglide/runtime.js"
+    "./messages": "./dist/messages.js",
+    "./runtime": "./dist/runtime.js"
   },
   "devDependencies": {
     "@inlang/paraglide-js": "^2.12.0",
