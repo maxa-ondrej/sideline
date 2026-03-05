@@ -4,6 +4,7 @@ import { Effect, Option } from 'effect';
 import { guildLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+import { reorderChannelMessages } from './reorderChannelMessages.js';
 
 export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
   Effect.Do.pipe(
@@ -45,6 +46,10 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
                 `Updated event message for "${event.title}" in channel ${msg.discord_channel_id}`,
               ),
             ),
+            Effect.tap(() => {
+              const locale = guildLocale({ guild_locale: guild.preferred_locale });
+              return reorderChannelMessages(msg.discord_channel_id, locale);
+            }),
             Effect.asVoid,
           ),
       }),

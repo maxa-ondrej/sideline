@@ -4,6 +4,7 @@ import { Effect, Option } from 'effect';
 import { guildLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+import { reorderChannelMessages } from './reorderChannelMessages.js';
 
 export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
   Effect.Do.pipe(
@@ -47,6 +48,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
           Effect.tap((msg) =>
             Effect.log(`Posted event "${event.title}" to channel ${channelId}, message ${msg.id}`),
           ),
+          Effect.tap(() => reorderChannelMessages(channelId, locale)),
           Effect.asVoid,
         );
     }),

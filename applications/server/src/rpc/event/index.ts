@@ -54,20 +54,6 @@ export const EventsRpcLive = Effect.Do.pipe(
   Effect.bind('events', () => EventsRepository),
   Effect.bind('rsvps', () => EventRsvpsRepository),
   Effect.bind('sql', () => SqlClient.SqlClient),
-  Effect.let('lookupTeamMember', ({ sql }) =>
-    SqlSchema.findOne({
-      Request: Schema.Struct({
-        discord_user_id: Schema.String,
-        team_id: Schema.String,
-      }),
-      Result: TeamMemberLookup,
-      execute: (input) => sql`
-        SELECT tm.id FROM team_members tm
-        JOIN users u ON u.id = tm.user_id
-        WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
-      `,
-    }),
-  ),
   Effect.let(
     'Event/GetUnprocessedEvents',
     ({ syncEvents }) =>
@@ -144,7 +130,7 @@ export const EventsRpcLive = Effect.Do.pipe(
   ),
   Effect.let(
     'Event/SubmitRsvp',
-    ({ rsvps, events, lookupTeamMember }) =>
+    ({ rsvps, events, sql }) =>
       ({
         event_id,
         team_id,
@@ -176,7 +162,18 @@ export const EventsRpcLive = Effect.Do.pipe(
               : Effect.void,
           ),
           Effect.bind('member', () =>
-            lookupTeamMember({
+            SqlSchema.findOne({
+              Request: Schema.Struct({
+                discord_user_id: Schema.String,
+                team_id: Schema.String,
+              }),
+              Result: TeamMemberLookup,
+              execute: (input) => sql`
+                SELECT tm.id FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
+              `,
+            })({
               discord_user_id,
               team_id,
             }).pipe(
@@ -240,6 +237,31 @@ export const EventsRpcLive = Effect.Do.pipe(
         ),
   ),
   Effect.let(
+    'Event/GetChannelEvents',
+    ({ events }) =>
+      ({ discord_channel_id }: { readonly discord_channel_id: string }) =>
+        events.findEventsByChannelId(discord_channel_id).pipe(
+          Effect.map((rows) =>
+            rows.map(
+              (row) =>
+                new EventRpcModels.ChannelEventEntry({
+                  event_id: row.event_id,
+                  team_id: row.team_id,
+                  title: row.title,
+                  description: row.description,
+                  start_at: row.start_at,
+                  end_at: row.end_at,
+                  location: row.location,
+                  event_type: row.event_type,
+                  status: row.status,
+                  discord_message_id: row.discord_message_id,
+                }),
+            ),
+          ),
+          Effect.catchAll(() => Effect.succeed([] as EventRpcModels.ChannelEventEntry[])),
+        ),
+  ),
+  Effect.let(
     'Event/GetRsvpAttendees',
     ({ rsvps }) =>
       ({
@@ -278,6 +300,5 @@ export const EventsRpcLive = Effect.Do.pipe(
   Bind.remove('events'),
   Bind.remove('rsvps'),
   Bind.remove('sql'),
-  Bind.remove('lookupTeamMember'),
   (handlers) => EventRpcGroup.EventRpcGroup.toLayer(handlers),
 );

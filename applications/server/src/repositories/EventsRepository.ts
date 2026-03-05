@@ -194,6 +194,32 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
       }),
     ),
+    Effect.let('findByChannelId', ({ sql }) =>
+      SqlSchema.findAll({
+        Request: Schema.String,
+        Result: Schema.Struct({
+          event_id: Schema.String,
+          team_id: Schema.String,
+          title: Schema.String,
+          description: Schema.NullOr(Schema.String),
+          start_at: Schema.String,
+          end_at: Schema.NullOr(Schema.String),
+          location: Schema.NullOr(Schema.String),
+          event_type: Schema.String,
+          status: Schema.String,
+          discord_message_id: Schema.String,
+        }),
+        execute: (channelId) => sql`
+            SELECT id AS event_id, team_id, title, description,
+                   start_at::text, end_at::text, location, event_type,
+                   status, discord_message_id
+            FROM events
+            WHERE discord_channel_id = ${channelId}
+              AND discord_message_id IS NOT NULL
+            ORDER BY start_at ASC
+          `,
+      }),
+    ),
     Effect.let('markModified', ({ sql }) =>
       SqlSchema.void({
         Request: Event.EventId,
@@ -322,6 +348,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   getDiscordMessageId(eventId: Event.EventId) {
     return this.getDiscordMessage(eventId);
+  }
+
+  findEventsByChannelId(channelId: string) {
+    return this.findByChannelId(channelId);
   }
 
   markEventSeriesModified(eventId: Event.EventId) {

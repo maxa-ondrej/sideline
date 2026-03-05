@@ -3,6 +3,7 @@ import { Schema } from 'effect';
 import { Discord, Event, EventRsvp, Team } from '~/index.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
+  ChannelEventEntry,
   EventDiscordMessage,
   EventEmbedInfo,
   RsvpAttendeesResult,
@@ -52,6 +53,10 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('GetEventEmbedInfo', {
     payload: { event_id: Event.EventId },
     success: Schema.OptionFromNullOr(EventEmbedInfo),
+  }),
+  Rpc.make('GetChannelEvents', {
+    payload: { discord_channel_id: Schema.String },
+    success: Schema.Array(ChannelEventEntry),
   }),
   Rpc.make('GetRsvpAttendees', {
     payload: { event_id: Event.EventId, offset: Schema.Number, limit: Schema.Number },
