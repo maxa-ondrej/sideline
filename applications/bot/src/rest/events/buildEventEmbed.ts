@@ -19,9 +19,7 @@ const toDiscordTimestamp = (
   dateStr: string,
   style: 'D' | 'F' | 'R' | 'd' | 'f' | 't' = 'f',
 ): string => {
-  const unix = Math.floor(
-    Number(DateTime.toEpochMillis(DateTime.unsafeMake(dateStr))) / 1000,
-  );
+  const unix = Math.floor(Number(DateTime.toEpochMillis(DateTime.unsafeMake(dateStr))) / 1000);
   return `<t:${unix}:${style}>`;
 };
 
