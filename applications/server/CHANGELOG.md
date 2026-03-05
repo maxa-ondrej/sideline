@@ -1,5 +1,17 @@
 # @sideline/server
 
+## 0.8.0
+
+### Minor Changes
+
+- [#73](https://github.com/maxa-ondrej/sideline/pull/73) [`bbaec4d`](https://github.com/maxa-ondrej/sideline/commit/bbaec4d84940ca8aad14ac650ea6214b3e6ee645) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Rename discord_username/discord_avatar to username/avatar across the codebase and fix RSVP member name display to fall back to username
+
+### Patch Changes
+
+- Updated dependencies [[`bbaec4d`](https://github.com/maxa-ondrej/sideline/commit/bbaec4d84940ca8aad14ac650ea6214b3e6ee645)]:
+  - @sideline/domain@0.8.0
+  - @sideline/migrations@0.8.0
+
 ## 0.7.1
 
 ### Patch Changes
