@@ -2,9 +2,19 @@
   "name": "@sideline/i18n",
   "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
   "description": "Shared translation messages for Sideline",
+  "repository": {
+    "type": "git",
+    "url": "<PLACEHOLDER>",
+    "directory": "packages/i18n"
+  },
+  "publishConfig": {
+    "access": "public",
+    "directory": "dist"
+  },
   "scripts": {
-    "build": "paraglide-js compile --project ./project.inlang --outdir ./dist --emit-ts-declarations --strategy localStorage cookie baseLocale"
+    "build": "paraglide-js compile --project ./project.inlang --outdir ./dist --emit-ts-declarations --strategy localStorage cookie baseLocale && node scripts/pack.js"
   },
   "exports": {
     "./messages": "./dist/messages.js",
