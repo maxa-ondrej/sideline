@@ -21,6 +21,19 @@ export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo
   event_type: Schema.String,
 }) {}
 
+export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelEventEntry')({
+  event_id: Schema.String,
+  team_id: Schema.String,
+  title: Schema.String,
+  description: Schema.NullOr(Schema.String),
+  start_at: Schema.String,
+  end_at: Schema.NullOr(Schema.String),
+  location: Schema.NullOr(Schema.String),
+  event_type: Schema.String,
+  status: Schema.String,
+  discord_message_id: Schema.String,
+}) {}
+
 export class RsvpMemberNotFound extends Schema.TaggedError<RsvpMemberNotFound>()(
   'RsvpMemberNotFound',
   {},
