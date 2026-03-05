@@ -73,7 +73,7 @@ const detectChanges = (
     Array.let('isInGroup', ({ member, rule }) => Array.contains(member.group_ids, rule.group_id)),
     Array.filter(({ shouldBeInGroup, isInGroup }) => shouldBeInGroup !== isInGroup),
     Array.let('displayName', ({ member }) =>
-      Option.getOrElse(member.member_name, () => member.discord_username),
+      Option.getOrElse(member.member_name, () => member.username),
     ),
     Array.map(({ shouldBeInGroup, member, displayName, rule }) =>
       shouldBeInGroup

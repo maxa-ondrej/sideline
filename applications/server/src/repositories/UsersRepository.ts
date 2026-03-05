@@ -5,8 +5,8 @@ import { Effect, Schema } from 'effect';
 
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
   discord_id: Schema.String,
-  discord_username: Schema.String,
-  discord_avatar: Schema.NullOr(Schema.String),
+  username: Schema.String,
+  avatar: Schema.NullOr(Schema.String),
 }) {}
 
 const CompleteProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
@@ -41,11 +41,11 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         Request: UpsertDiscordInput,
         Result: User.User,
         execute: (input) => sql`
-          INSERT INTO users (discord_id, discord_username, discord_avatar)
-          VALUES (${input.discord_id}, ${input.discord_username}, ${input.discord_avatar})
+          INSERT INTO users (discord_id, username, avatar)
+          VALUES (${input.discord_id}, ${input.username}, ${input.avatar})
           ON CONFLICT (discord_id) DO UPDATE SET
-            discord_username = ${input.discord_username},
-            discord_avatar = ${input.discord_avatar},
+            username = ${input.username},
+            avatar = ${input.avatar},
             updated_at = now()
           RETURNING *
         `,

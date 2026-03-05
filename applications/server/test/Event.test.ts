@@ -78,8 +78,8 @@ const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:v
 const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
-  discord_username: 'testuser',
-  discord_avatar: null,
+  username: 'testuser',
+  avatar: null,
 
   is_profile_complete: false,
   name: null,
@@ -93,8 +93,8 @@ const testUser = {
 const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
-  discord_username: 'adminuser',
-  discord_avatar: null,
+  username: 'adminuser',
+  avatar: null,
 
   is_profile_complete: true,
   name: 'Admin User',
@@ -108,8 +108,8 @@ const testAdmin = {
 const testCaptain = {
   id: TEST_CAPTAIN_ID,
   discord_id: '11111',
-  discord_username: 'captainuser',
-  discord_avatar: null,
+  username: 'captainuser',
+  avatar: null,
 
   is_profile_complete: true,
   name: 'Captain User',
@@ -132,8 +132,8 @@ const testTeam = {
 type UserLike = {
   id: Auth.UserId;
   discord_id: string;
-  discord_username: string;
-  discord_avatar: string | null;
+  username: string;
+  avatar: string | null;
   is_profile_complete: boolean;
   name: string | null;
   birth_date: Option.Option<DateTime.Utc>;
@@ -278,8 +278,8 @@ const buildRosterEntry = (
     birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
     gender: user.gender,
     jersey_number: null,
-    discord_username: user.discord_username,
-    discord_avatar: user.discord_avatar,
+    username: user.username,
+    avatar: user.avatar,
   });
 };
 

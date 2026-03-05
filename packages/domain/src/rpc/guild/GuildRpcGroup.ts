@@ -32,8 +32,8 @@ export const GuildRpcGroup = RpcGroup.make(
       members: Schema.Array(
         Schema.Struct({
           discord_id: Schema.String,
-          discord_username: Schema.String,
-          discord_avatar: Schema.NullOr(Schema.String),
+          username: Schema.String,
+          avatar: Schema.NullOr(Schema.String),
           roles: Schema.Array(Schema.String),
         }),
       ),
@@ -43,8 +43,8 @@ export const GuildRpcGroup = RpcGroup.make(
     payload: {
       guild_id: Discord.Snowflake,
       discord_id: Schema.String,
-      discord_username: Schema.String,
-      discord_avatar: Schema.NullOr(Schema.String),
+      username: Schema.String,
+      avatar: Schema.NullOr(Schema.String),
       roles: Schema.Array(Schema.String),
     },
   }),

@@ -27,8 +27,8 @@ export const AuthMiddlewareLive = Layer.effect(
                           new Auth.CurrentUser({
                             id: user.id,
                             discordId: user.discord_id,
-                            discordUsername: user.discord_username,
-                            discordAvatar: user.discord_avatar,
+                            username: user.username,
+                            avatar: user.avatar,
                             isProfileComplete: user.is_profile_complete,
                             name: user.name,
                             birthDate: Option.getOrNull(

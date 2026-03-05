@@ -421,7 +421,7 @@ export function GroupDetailPage({
               <SelectContent>
                 {availableMembers.map((member) => (
                   <SelectItem key={member.memberId} value={member.memberId}>
-                    {member.name ?? member.discordUsername}
+                    {member.name ?? member.username}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -438,7 +438,7 @@ export function GroupDetailPage({
               <tbody>
                 {groupDetail.members.map((member) => (
                   <tr key={member.memberId} className='border-b'>
-                    <td className='py-2 px-4'>{member.name ?? member.discordUsername}</td>
+                    <td className='py-2 px-4'>{member.name ?? member.username}</td>
                     <td className='py-2 px-4'>
                       <Button
                         variant='outline'

@@ -128,7 +128,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     members: groupMembers.map((m) => ({
                       memberId: m.member_id,
                       name: m.name,
-                      discordUsername: m.discord_username,
+                      username: m.username,
                     })),
                   }),
               ),

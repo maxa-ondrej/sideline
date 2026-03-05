@@ -10,6 +10,7 @@ class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMembe
   response: EventRsvp.RsvpResponse,
   message: Schema.NullOr(Schema.String),
   member_name: Schema.NullOr(Schema.String),
+  username: Schema.NullOr(Schema.String),
 }) {}
 
 class RsvpRow extends Schema.Class<RsvpRow>('RsvpRow')({
@@ -30,6 +31,7 @@ class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
   discord_id: Schema.NullOr(Schema.String),
   member_name: Schema.NullOr(Schema.String),
+  username: Schema.NullOr(Schema.String),
   response: EventRsvp.RsvpResponse,
   message: Schema.NullOr(Schema.String),
 }) {}
@@ -54,7 +56,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
           Result: RsvpWithMemberName,
           execute: (eventId) => sql`
             SELECT r.id, r.event_id, r.team_member_id, r.response, r.message,
-                   u.name AS member_name
+                   u.name AS member_name, u.username
             FROM event_rsvps r
             JOIN team_members tm ON tm.id = r.team_member_id
             LEFT JOIN users u ON u.id = tm.user_id
@@ -112,7 +114,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
           }),
           Result: RsvpWithDiscordInfo,
           execute: (input) => sql`
-            SELECT u.discord_id, u.name AS member_name, r.response, r.message
+            SELECT u.discord_id, u.name AS member_name, u.username, r.response, r.message
             FROM event_rsvps r
             JOIN team_members tm ON tm.id = r.team_member_id
             LEFT JOIN users u ON u.id = tm.user_id

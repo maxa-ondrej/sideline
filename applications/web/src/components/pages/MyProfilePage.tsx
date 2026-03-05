@@ -88,7 +88,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
     }
   };
 
-  const initials = (user.name ?? user.discordUsername).slice(0, 2).toUpperCase();
+  const initials = (user.name ?? user.username).slice(0, 2).toUpperCase();
 
   return (
     <div>
@@ -97,9 +97,9 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
           <LanguageSwitcher isAuthenticated />
         </div>
         <div className='flex items-center gap-4'>
-          {user.discordAvatar ? (
+          {user.avatar ? (
             <img
-              src={discordAvatarUrl(user.discordId, user.discordAvatar)}
+              src={discordAvatarUrl(user.discordId, user.avatar)}
               alt={m.profile_discordAvatar()}
               className='h-16 w-16 rounded-full'
             />
@@ -110,7 +110,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
           )}
           <div>
             <h1 className='text-2xl font-bold'>{m.profile_title()}</h1>
-            <p className='text-muted-foreground text-sm'>@{user.discordUsername}</p>
+            <p className='text-muted-foreground text-sm'>@{user.username}</p>
           </div>
         </div>
       </header>

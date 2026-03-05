@@ -27,8 +27,8 @@ const toRosterPlayer = (entry: RosterEntry) =>
     birthDate: entry.birth_date,
     gender: entry.gender,
     jerseyNumber: entry.jersey_number,
-    discordUsername: entry.discord_username,
-    discordAvatar: entry.discord_avatar,
+    username: entry.username,
+    avatar: entry.avatar,
   });
 
 const toRosterInfo = (r: RosterModel.Roster, memberCount: number): Roster.RosterInfo =>
@@ -135,8 +135,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   ),
                   gender: updated.gender,
                   jerseyNumber: payload.jerseyNumber,
-                  discordUsername: entry.discord_username,
-                  discordAvatar: entry.discord_avatar,
+                  username: entry.username,
+                  avatar: entry.avatar,
                 }),
             ),
           ),

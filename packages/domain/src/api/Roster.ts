@@ -17,8 +17,8 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   birthDate: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(Gender),
   jerseyNumber: Schema.NullOr(Schema.Number),
-  discordUsername: Schema.String,
-  discordAvatar: Schema.NullOr(Schema.String),
+  username: Schema.String,
+  avatar: Schema.NullOr(Schema.String),
 }) {}
 
 export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('UpdatePlayerRequest')({
