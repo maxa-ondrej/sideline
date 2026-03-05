@@ -24,17 +24,17 @@ const cancelled = new EventSeriesApi.EventSeriesCancelled();
 const checkCoachScoping = (
   events: EventsRepository,
   memberId: TeamMember.TeamMemberId,
-  trainingTypeId: TrainingType.TrainingTypeId | string | null,
+  trainingTypeId: Option.Option<TrainingType.TrainingTypeId | string>,
   isAdmin: boolean,
 ) => {
   if (isAdmin) return Effect.void;
-  if (trainingTypeId === null) return Effect.void;
+  if (Option.isNone(trainingTypeId)) return Effect.void;
   return events.getScopedTrainingTypeIds(memberId).pipe(
     Effect.mapError(() => forbidden),
     Effect.flatMap((scopedIds) => {
       const allowed: readonly string[] = scopedIds.map((s) => s.training_type_id);
       if (allowed.length === 0) return Effect.void;
-      return allowed.includes(trainingTypeId) ? Effect.void : Effect.fail(forbidden);
+      return allowed.includes(trainingTypeId.value) ? Effect.void : Effect.fail(forbidden);
     }),
   );
 };
@@ -61,7 +61,12 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.tap(({ membership, isAdmin }) =>
-              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin),
+              checkCoachScoping(
+                events,
+                membership.id,
+                Option.fromNullable(payload.trainingTypeId),
+                isAdmin,
+              ),
             ),
             Effect.bind('inserted', ({ membership }) =>
               series
@@ -108,16 +113,18 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   return events
                     .insertEvent({
                       teamId,
-                      trainingTypeId: inserted.training_type_id,
+                      trainingTypeId: Option.fromNullable(inserted.training_type_id),
                       eventType: 'training',
                       title: inserted.title,
-                      description: inserted.description,
+                      description: Option.fromNullable(inserted.description),
                       startAt,
-                      endAt,
-                      location: inserted.location,
+                      endAt: Option.fromNullable(endAt),
+                      location: Option.fromNullable(inserted.location),
                       createdBy: membership.id,
-                      seriesId: inserted.id,
-                      discordTargetChannelId: inserted.discord_target_channel_id,
+                      seriesId: Option.some(inserted.id),
+                      discordTargetChannelId: Option.fromNullable(
+                        inserted.discord_target_channel_id,
+                      ),
                     })
                     .pipe(
                       Effect.tap((event) =>
@@ -130,10 +137,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                                 'event_created',
                                 event.id,
                                 event.title,
-                                event.description,
+                                Option.getOrNull(event.description),
                                 event.start_at,
-                                event.end_at,
-                                event.location,
+                                Option.getOrNull(event.end_at),
+                                Option.getOrNull(event.location),
                                 event.event_type,
                                 resolved,
                               )
@@ -281,7 +288,12 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 onNone: () => existing.training_type_id,
                 onSome: Option.getOrNull,
               });
-              return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
+              return checkCoachScoping(
+                events,
+                membership.id,
+                Option.fromNullable(newTrainingTypeId),
+                isAdmin,
+              );
             }),
             Effect.let('resolved', ({ existing }) => ({
               title: Option.getOrElse(payload.title, () => existing.title),
@@ -330,11 +342,11 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               events
                 .updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
                   title: resolved.title,
-                  trainingTypeId: resolved.trainingTypeId,
-                  description: resolved.description,
+                  trainingTypeId: Option.fromNullable(resolved.trainingTypeId),
+                  description: Option.fromNullable(resolved.description),
                   startTime: resolved.startTime,
-                  endTime: resolved.endTime,
-                  location: resolved.location,
+                  endTime: Option.fromNullable(resolved.endTime),
+                  location: Option.fromNullable(resolved.location),
                 })
                 .pipe(Effect.mapError(() => forbidden)),
             ),
@@ -367,15 +379,15 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       return events
                         .insertEvent({
                           teamId,
-                          trainingTypeId: existing.training_type_id,
+                          trainingTypeId: Option.fromNullable(existing.training_type_id),
                           eventType: 'training',
                           title: existing.title,
-                          description: existing.description,
+                          description: Option.fromNullable(existing.description),
                           startAt,
-                          endAt,
-                          location: existing.location,
+                          endAt: Option.fromNullable(endAt),
+                          location: Option.fromNullable(existing.location),
                           createdBy: membership.id,
-                          seriesId: existing.id,
+                          seriesId: Option.some(existing.id),
                         })
                         .pipe(Effect.mapError(() => forbidden));
                     }),
@@ -454,7 +466,12 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
             Effect.tap(({ existing, isAdmin, membership }) =>
-              checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
+              checkCoachScoping(
+                events,
+                membership.id,
+                Option.fromNullable(existing.training_type_id),
+                isAdmin,
+              ),
             ),
             Effect.tap(() =>
               series.cancelEventSeries(seriesId).pipe(Effect.mapError(() => forbidden)),

@@ -133,14 +133,10 @@ export const EventsRpcLive = Effect.Do.pipe(
         events.getDiscordMessageId(event_id).pipe(
           Effect.map(
             Option.flatMap((row) =>
-              row.discord_channel_id !== null && row.discord_message_id !== null
-                ? Option.some(
-                    new EventRpcModels.EventDiscordMessage({
-                      discord_channel_id: row.discord_channel_id,
-                      discord_message_id: row.discord_message_id,
-                    }),
-                  )
-                : Option.none(),
+              Option.all({
+                discord_channel_id: row.discord_channel_id,
+                discord_message_id: row.discord_message_id,
+              }).pipe(Option.map((ids) => new EventRpcModels.EventDiscordMessage(ids))),
             ),
           ),
           Effect.catchAll(() => Effect.succeed(Option.none())),

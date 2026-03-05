@@ -216,20 +216,20 @@ let seriesStore: Map<EventSeries.EventSeriesId, SeriesRecord>;
 type EventRecord = {
   id: Event.EventId;
   team_id: Team.TeamId;
-  training_type_id: string | null;
+  training_type_id: Option.Option<string>;
   event_type: Event.EventType;
   title: string;
-  description: string | null;
+  description: Option.Option<string>;
   start_at: string;
-  end_at: string | null;
-  location: string | null;
+  end_at: Option.Option<string>;
+  location: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
-  training_type_name: string | null;
-  created_by_name: string | null;
-  series_id: string | null;
+  training_type_name: Option.Option<string>;
+  created_by_name: Option.Option<string>;
+  series_id: Option.Option<string>;
   series_modified: boolean;
-  discord_target_channel_id: string | null;
+  discord_target_channel_id: Option.Option<string>;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -413,15 +413,15 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   },
   insert: (input: {
     team_id: string;
-    training_type_id: string | null;
+    training_type_id: Option.Option<string>;
     event_type: string;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     start_at: string;
-    end_at: string | null;
-    location: string | null;
+    end_at: Option.Option<string>;
+    location: Option.Option<string>;
     created_by: string;
-    series_id: string | null;
+    series_id: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as Event.EventId;
     const record: EventRecord = {
@@ -436,11 +436,11 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       location: input.location,
       status: 'active',
       created_by: input.created_by as TeamMember.TeamMemberId,
-      training_type_name: null,
-      created_by_name: null,
+      training_type_name: Option.none(),
+      created_by_name: Option.none(),
       series_id: input.series_id,
       series_modified: false,
-      discord_target_channel_id: null,
+      discord_target_channel_id: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -462,15 +462,15 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   },
   insertEvent: (input: {
     teamId: string;
-    trainingTypeId: string | null;
+    trainingTypeId: Option.Option<string>;
     eventType: string;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     startAt: string;
-    endAt: string | null;
-    location: string | null;
+    endAt: Option.Option<string>;
+    location: Option.Option<string>;
     createdBy: string;
-    seriesId?: string | null;
+    seriesId?: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as Event.EventId;
     const record: EventRecord = {
@@ -485,11 +485,11 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       location: input.location,
       status: 'active',
       created_by: input.createdBy as TeamMember.TeamMemberId,
-      training_type_name: null,
-      created_by_name: null,
-      series_id: input.seriesId ?? null,
+      training_type_name: Option.none(),
+      created_by_name: Option.none(),
+      series_id: input.seriesId ?? Option.none(),
       series_modified: false,
-      discord_target_channel_id: null,
+      discord_target_channel_id: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({

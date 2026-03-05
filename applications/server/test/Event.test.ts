@@ -188,20 +188,20 @@ membersStore.set(TEST_CAPTAIN_MEMBER_ID, {
 type EventRecord = {
   id: Event.EventId;
   team_id: Team.TeamId;
-  training_type_id: string | null;
+  training_type_id: Option.Option<string>;
   event_type: Event.EventType;
   title: string;
-  description: string | null;
+  description: Option.Option<string>;
   start_at: string;
-  end_at: string | null;
-  location: string | null;
+  end_at: Option.Option<string>;
+  location: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
-  training_type_name: string | null;
-  created_by_name: string | null;
-  series_id: string | null;
+  training_type_name: Option.Option<string>;
+  created_by_name: Option.Option<string>;
+  series_id: Option.Option<string>;
   series_modified: boolean;
-  discord_target_channel_id: string | null;
+  discord_target_channel_id: Option.Option<string>;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -211,56 +211,56 @@ const resetStores = () => {
   eventsStore.set(TEST_EVENT_1, {
     id: TEST_EVENT_1,
     team_id: TEST_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     event_type: 'training',
     title: 'Tuesday Training',
-    description: 'Weekly training session',
+    description: Option.some('Weekly training session'),
     start_at: '2026-03-10T18:00:00Z',
-    end_at: '2026-03-10T20:00:00Z',
-    location: 'Main Field',
+    end_at: Option.some('2026-03-10T20:00:00Z'),
+    location: Option.some('Main Field'),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
+    training_type_name: Option.none(),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
   eventsStore.set(TEST_EVENT_2, {
     id: TEST_EVENT_2,
     team_id: TEST_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     event_type: 'match',
     title: 'Cancelled Match',
-    description: null,
+    description: Option.none(),
     start_at: '2026-03-15T14:00:00Z',
-    end_at: '2026-03-15T16:00:00Z',
-    location: null,
+    end_at: Option.some('2026-03-15T16:00:00Z'),
+    location: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
+    training_type_name: Option.none(),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
   eventsStore.set(TEST_EVENT_SCOPED, {
     id: TEST_EVENT_SCOPED,
     team_id: TEST_TEAM_ID,
-    training_type_id: TEST_TRAINING_TYPE_A,
+    training_type_id: Option.some(TEST_TRAINING_TYPE_A),
     event_type: 'training',
     title: 'Scoped Training',
-    description: null,
+    description: Option.none(),
     start_at: '2026-03-12T17:00:00Z',
-    end_at: '2026-03-12T19:00:00Z',
-    location: null,
+    end_at: Option.some('2026-03-12T19:00:00Z'),
+    location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: 'Type A',
-    created_by_name: 'Admin User',
-    series_id: null,
+    training_type_name: Option.some('Type A'),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
 };
 
@@ -452,15 +452,15 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   },
   insert: (input: {
     team_id: string;
-    training_type_id: string | null;
+    training_type_id: Option.Option<string>;
     event_type: string;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     start_at: string;
-    end_at: string | null;
-    location: string | null;
+    end_at: Option.Option<string>;
+    location: Option.Option<string>;
     created_by: string;
-    series_id: string | null;
+    series_id: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as Event.EventId;
     const record: EventRecord = {
@@ -475,11 +475,11 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       location: input.location,
       status: 'active',
       created_by: input.created_by as TeamMember.TeamMemberId,
-      training_type_name: null,
-      created_by_name: null,
+      training_type_name: Option.none(),
+      created_by_name: Option.none(),
       series_id: input.series_id,
       series_modified: false,
-      discord_target_channel_id: null,
+      discord_target_channel_id: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -496,20 +496,20 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       created_by: record.created_by,
       series_id: record.series_id,
       series_modified: record.series_modified,
-      discord_target_channel_id: null,
+      discord_target_channel_id: Option.none(),
     });
   },
   insertEvent: (input: {
     teamId: string;
-    trainingTypeId: string | null;
+    trainingTypeId: Option.Option<string>;
     eventType: string;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     startAt: string;
-    endAt: string | null;
-    location: string | null;
+    endAt: Option.Option<string>;
+    location: Option.Option<string>;
     createdBy: string;
-    seriesId?: string | null;
+    seriesId?: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as Event.EventId;
     const record: EventRecord = {
@@ -524,11 +524,11 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       location: input.location,
       status: 'active',
       created_by: input.createdBy as TeamMember.TeamMemberId,
-      training_type_name: null,
-      created_by_name: null,
-      series_id: input.seriesId ?? null,
+      training_type_name: Option.none(),
+      created_by_name: Option.none(),
+      series_id: input.seriesId ?? Option.none(),
       series_modified: false,
-      discord_target_channel_id: null,
+      discord_target_channel_id: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -545,18 +545,18 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       created_by: record.created_by,
       series_id: record.series_id,
       series_modified: record.series_modified,
-      discord_target_channel_id: null,
+      discord_target_channel_id: Option.none(),
     });
   },
   update: (input: {
     id: Event.EventId;
     title: string;
     event_type: string;
-    training_type_id: string | null;
-    description: string | null;
+    training_type_id: Option.Option<string>;
+    description: Option.Option<string>;
     start_at: string;
-    end_at: string | null;
-    location: string | null;
+    end_at: Option.Option<string>;
+    location: Option.Option<string>;
   }) => {
     const event = eventsStore.get(input.id);
     if (!event) return Effect.die(new Error('Not found'));
@@ -590,11 +590,11 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     id: Event.EventId;
     title: string;
     eventType: string;
-    trainingTypeId: string | null;
-    description: string | null;
+    trainingTypeId: Option.Option<string>;
+    description: Option.Option<string>;
     startAt: string;
-    endAt: string | null;
-    location: string | null;
+    endAt: Option.Option<string>;
+    location: Option.Option<string>;
   }) => {
     const event = eventsStore.get(input.id);
     if (!event) return Effect.die(new Error('Not found'));
