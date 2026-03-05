@@ -1,5 +1,14 @@
 # @sideline/bot
 
+## 0.4.1
+
+### Patch Changes
+
+- [#58](https://github.com/maxa-ondrej/sideline/pull/58) [`fc4a030`](https://github.com/maxa-ondrej/sideline/commit/fc4a030319bbe581bf1b82b289711ecdb0731dac) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Migrate EventsRepository schemas from NullOr to OptionFromNullOr for consistent Option types across the repository layer
+
+- Updated dependencies [[`fc4a030`](https://github.com/maxa-ondrej/sideline/commit/fc4a030319bbe581bf1b82b289711ecdb0731dac)]:
+  - @sideline/domain@0.6.1
+
 ## 0.4.0
 
 ### Minor Changes
