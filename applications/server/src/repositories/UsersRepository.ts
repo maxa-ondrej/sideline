@@ -7,8 +7,6 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_id: Schema.String,
   discord_username: Schema.String,
   discord_avatar: Schema.NullOr(Schema.String),
-  discord_access_token: Schema.String,
-  discord_refresh_token: Schema.NullOr(Schema.String),
 }) {}
 
 const CompleteProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
@@ -43,13 +41,11 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
         Request: UpsertDiscordInput,
         Result: User.User,
         execute: (input) => sql`
-          INSERT INTO users (discord_id, discord_username, discord_avatar, discord_access_token, discord_refresh_token)
-          VALUES (${input.discord_id}, ${input.discord_username}, ${input.discord_avatar}, ${input.discord_access_token}, ${input.discord_refresh_token})
+          INSERT INTO users (discord_id, discord_username, discord_avatar)
+          VALUES (${input.discord_id}, ${input.discord_username}, ${input.discord_avatar})
           ON CONFLICT (discord_id) DO UPDATE SET
             discord_username = ${input.discord_username},
             discord_avatar = ${input.discord_avatar},
-            discord_access_token = ${input.discord_access_token},
-            discord_refresh_token = ${input.discord_refresh_token},
             updated_at = now()
           RETURNING *
         `,
@@ -102,11 +98,4 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     Bind.remove('sql'),
     Bind.remove('repo'),
   ),
-}) {
-  getAccessToken(id: User.UserId) {
-    return this.findById(id).pipe(
-      Effect.flatten,
-      Effect.map((user) => user.discord_access_token),
-    );
-  }
-}
+}) {}

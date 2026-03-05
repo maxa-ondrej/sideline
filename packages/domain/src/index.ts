@@ -46,6 +46,8 @@ export * as MemberRole from './models/MemberRole.js';
 
 export * as Notification from './models/Notification.js';
 
+export * as OAuthConnection from './models/OAuthConnection.js';
+
 export * as Role from './models/Role.js';
 
 export * as RoleGroup from './models/RoleGroup.js';

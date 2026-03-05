@@ -16,6 +16,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
+import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
@@ -68,8 +69,7 @@ const testUser = {
   discord_id: '12345',
   discord_username: 'testuser',
   discord_avatar: null,
-  discord_access_token: 'token',
-  discord_refresh_token: null,
+
   is_profile_complete: true,
   name: 'Test User',
   birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
@@ -84,8 +84,7 @@ const testAdmin = {
   discord_id: '67890',
   discord_username: 'adminuser',
   discord_avatar: null,
-  discord_access_token: 'admin-token',
-  discord_refresh_token: null,
+
   is_profile_complete: true,
   name: 'Admin User',
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
@@ -109,8 +108,6 @@ type UserLike = {
   discord_id: string;
   discord_username: string;
   discord_avatar: string | null;
-  discord_access_token: string;
-  discord_refresh_token: string | null;
   is_profile_complete: boolean;
   name: string | null;
   birth_date: Option.Option<DateTime.Utc>;
@@ -304,7 +301,6 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: () => Effect.die(new Error('Not implemented')),
-  getAccessToken: () => Effect.succeed('mock-access-token'),
 });
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -342,6 +338,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
     return Effect.succeed(Option.none());
   },
   insert: () => Effect.succeed(testTeam),
+  findByGuild: () => Effect.succeed(Option.none()),
+  findByGuildId: () => Effect.succeed(Option.none()),
 });
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
@@ -711,7 +709,19 @@ const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMap
   insert: () => Effect.void,
   insertWithoutRole: () => Effect.void,
   deleteByGroupId: () => Effect.void,
+  findAllByTeamId: () => Effect.succeed([]),
+  findAllByTeam: () => Effect.succeed([]),
 } as unknown as DiscordChannelMappingRepository);
+
+const MockOAuthConnectionsRepositoryLayer = Layer.succeed(OAuthConnectionsRepository, {
+  _tag: 'api/OAuthConnectionsRepository',
+  upsertConnection: () => Effect.die(new Error('Not implemented')),
+  upsert: () => Effect.die(new Error('Not implemented')),
+  findByUserAndProvider: () => Effect.succeed(Option.none()),
+  findByUser: () => Effect.succeed(Option.none()),
+  findAccessToken: () => Effect.succeed(Option.some({ access_token: 'mock-access-token' })),
+  getAccessToken: () => Effect.succeed('mock-access-token'),
+} as unknown as OAuthConnectionsRepository);
 
 const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsRepository, {
   syncChannels: () => Effect.void,
@@ -763,25 +773,28 @@ const TestLayer = ApiLive.pipe(
     Layer.merge(
       Layer.merge(
         Layer.merge(
-          MockDiscordChannelMappingRepositoryLayer,
-          Layer.succeed(BotGuildsRepository, {
-            upsert: () => Effect.void,
-            remove: () => Effect.void,
-            exists: () => Effect.succeed(false),
-            findAll: () => Effect.succeed([]),
-          } as unknown as BotGuildsRepository),
+          Layer.merge(
+            MockDiscordChannelMappingRepositoryLayer,
+            Layer.succeed(BotGuildsRepository, {
+              upsert: () => Effect.void,
+              remove: () => Effect.void,
+              exists: () => Effect.succeed(false),
+              findAll: () => Effect.succeed([]),
+            } as unknown as BotGuildsRepository),
+          ),
+          MockDiscordChannelsRepositoryLayer,
         ),
-        MockDiscordChannelsRepositoryLayer,
+        Layer.succeed(TeamSettingsRepository, {
+          _tag: 'api/TeamSettingsRepository',
+          findByTeam: () => Effect.succeed(Option.none()),
+          findByTeamId: () => Effect.succeed(Option.none()),
+          upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+          upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+          getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+          getHorizonDays: () => Effect.succeed(30),
+        } as unknown as TeamSettingsRepository),
       ),
-      Layer.succeed(TeamSettingsRepository, {
-        _tag: 'api/TeamSettingsRepository',
-        findByTeam: () => Effect.succeed(Option.none()),
-        findByTeamId: () => Effect.succeed(Option.none()),
-        upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
-        upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
-        getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
-        getHorizonDays: () => Effect.succeed(30),
-      } as unknown as TeamSettingsRepository),
+      MockOAuthConnectionsRepositoryLayer,
     ),
   ),
 );

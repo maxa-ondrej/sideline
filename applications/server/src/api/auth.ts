@@ -17,6 +17,7 @@ import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
 import { env } from '~/env.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
+import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -61,12 +62,14 @@ const handleDiscordLogin = ({
   discord,
   users,
   sessions,
+  oauthConnections,
 }: {
   code: string;
   state: Schema.Schema.Type<typeof LoginSchema>;
   discord: DiscordOAuth;
   users: UsersRepository;
   sessions: SessionsRepository;
+  oauthConnections: OAuthConnectionsRepository;
 }) =>
   Effect.Do.pipe(
     Effect.bind('oauth', () => discord.validateAuthorizationCode(code)),
@@ -104,17 +107,18 @@ const handleDiscordLogin = ({
     Effect.let('sessionToken', () => crypto.randomUUID()),
     Effect.bind('now', () => DateTime.now),
     Effect.let('expiresAt', ({ now }) => DateTime.add(now, { days: 30 })),
-    Effect.bind('dbUser', ({ discordUser, oauth }) =>
+    Effect.bind('dbUser', ({ discordUser }) =>
       users.upsertFromDiscord({
         discord_id: discordUser.id,
         discord_username: discordUser.username,
         discord_avatar: discordUser.avatar ?? null,
-        discord_access_token: oauth.accessToken(),
-        discord_refresh_token: oauth.refreshToken(),
       }),
     ),
     Effect.tap(({ dbUser }) =>
       Effect.logInfo('[auth/callback] user upserted in db', { userId: dbUser.id }),
+    ),
+    Effect.tap(({ dbUser, oauth }) =>
+      oauthConnections.upsert(dbUser.id, 'discord', oauth.accessToken(), oauth.refreshToken()),
     ),
     Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
       sessions.create({
@@ -180,7 +184,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
     Effect.bind('teams', () => TeamsRepository),
     Effect.bind('roles', () => RolesRepository),
     Effect.bind('botGuilds', () => BotGuildsRepository),
-    Effect.map(({ discord, users, sessions, members, teams, roles, botGuilds }) =>
+    Effect.bind('oauthConnections', () => OAuthConnectionsRepository),
+    Effect.map(({ discord, users, sessions, members, teams, roles, botGuilds, oauthConnections }) =>
       handlers
         .handle('getLogin', () =>
           Effect.succeed(
@@ -229,7 +234,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               }),
             ),
             Effect.andThen(({ state, code }) =>
-              handleDiscordLogin({ code, state, discord, users, sessions }),
+              handleDiscordLogin({ code, state, discord, users, sessions, oauthConnections }),
             ),
             Effect.catchTag('ParseError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>
@@ -364,7 +369,15 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         .handle('myGuilds', () =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('accessToken', ({ currentUser }) => users.getAccessToken(currentUser.id)),
+            Effect.bind('accessToken', ({ currentUser }) =>
+              oauthConnections
+                .getAccessToken(currentUser.id, 'discord')
+                .pipe(
+                  Effect.catchTag('SqlError', 'ParseError', () =>
+                    Effect.fail(new Auth.Unauthorized()),
+                  ),
+                ),
+            ),
             Effect.bind('client', ({ accessToken }) => makeUserDiscordClient(accessToken)),
             Effect.bind('guilds', ({ client }) => client.listMyGuilds()),
             Effect.flatMap(({ guilds }) =>
