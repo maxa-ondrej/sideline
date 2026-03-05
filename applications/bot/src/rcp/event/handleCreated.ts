@@ -1,6 +1,7 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Option } from 'effect';
+import { guildLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -17,6 +18,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
           `Guild ${event.guild_id} has no system channel, skipping event post`,
         );
       }
+      const locale = guildLocale({ guild_locale: guild.preferred_locale });
       const payload = buildEventEmbed({
         teamId: event.team_id,
         eventId: event.event_id,
@@ -27,6 +29,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
         location: Option.fromNullable(event.location),
         eventType: event.event_type,
         counts,
+        locale,
       });
       return rest
         .createMessage(channelId, {

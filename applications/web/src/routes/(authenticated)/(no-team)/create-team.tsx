@@ -1,11 +1,11 @@
 import type { Auth } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
 import { CreateTeamPage } from '~/components/pages/CreateTeamPage';
 import { setLastTeamId } from '~/lib/auth';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 export const Route = createFileRoute('/(authenticated)/(no-team)/create-team')({
   component: CreateTeamRoute,

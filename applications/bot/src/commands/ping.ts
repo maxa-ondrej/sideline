@@ -1,7 +1,9 @@
+import * as m from '@sideline/i18n/messages';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
 import { Effect } from 'effect';
+import { userLocale } from '~/locale.js';
 
 export const PingCommand = Ix.global(
   {
@@ -11,11 +13,10 @@ export const PingCommand = Ix.global(
   },
   Interaction.pipe(
     Effect.map((i) => {
-      const rawLocale = i.guild_locale ?? ('locale' in i ? i.locale : undefined);
-      const locale = (rawLocale ?? 'en').startsWith('cs') ? 'cs' : 'en';
+      const locale = userLocale(i);
       return Ix.response({
         type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: locale === 'cs' ? 'Pong! Bot žije.' : 'Pong!' },
+        data: { content: m.bot_ping({}, { locale }) },
       });
     }),
   ),

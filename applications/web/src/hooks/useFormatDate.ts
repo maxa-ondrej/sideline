@@ -1,5 +1,5 @@
+import { getLocale } from '@sideline/i18n/runtime';
 import { useMemo } from 'react';
-import { getLocale } from '~/paraglide/runtime.js';
 
 export function useFormatDate() {
   const locale = getLocale();

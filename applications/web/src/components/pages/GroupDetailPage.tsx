@@ -1,5 +1,6 @@
 import type { GroupApi, RoleApi, Roster as RosterDomain } from '@sideline/domain';
 import { Discord, GroupModel, Role, Team, TeamMember } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -14,7 +15,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 interface GroupDetailPageProps {
   teamId: string;

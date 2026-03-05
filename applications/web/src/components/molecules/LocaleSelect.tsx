@@ -1,3 +1,4 @@
+import { m } from '@sideline/i18n/messages';
 import {
   Select,
   SelectContent,
@@ -5,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
-import { m } from '~/paraglide/messages.js';
 
 const locales = [
   { value: 'en' as const, flag: '🇬🇧' },

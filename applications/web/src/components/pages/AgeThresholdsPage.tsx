@@ -1,6 +1,7 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { AgeThresholdApi, GroupApi } from '@sideline/domain';
 import { AgeThresholdRule, GroupModel, Team } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
@@ -24,7 +25,6 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-import * as m from '~/paraglide/messages.js';
 
 const OptionalNumber = Schema.transform(Schema.String, Schema.Option(Schema.Number), {
   strict: false,

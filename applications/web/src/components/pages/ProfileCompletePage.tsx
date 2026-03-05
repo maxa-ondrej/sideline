@@ -1,6 +1,6 @@
+import * as m from '@sideline/i18n/messages';
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { ProfileCompleteForm } from '~/components/organisms/ProfileCompleteForm';
-import * as m from '~/paraglide/messages.js';
 
 interface ProfileCompletePageProps {
   user: { discordUsername: string };

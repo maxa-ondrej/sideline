@@ -1,3 +1,4 @@
+import { setLocale } from '@sideline/i18n/runtime';
 import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
@@ -5,7 +6,6 @@ import type React from 'react';
 import { RootDocument } from '~/components/layouts/RootDocument';
 import { fetchEnv } from '~/env.js';
 import { ApiClient, runPromiseClient, runPromiseServer } from '~/lib/runtime';
-import { setLocale } from '~/paraglide/runtime.js';
 import appCss from '../styles.css?url';
 
 const getCurrentUser = ApiClient.pipe(

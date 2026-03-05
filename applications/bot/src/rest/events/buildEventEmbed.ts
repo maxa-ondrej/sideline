@@ -1,6 +1,8 @@
 import type { EventRpcModels } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
 import { DateTime, Option } from 'effect';
+import type { Locale } from '~/locale.js';
 
 const EVENT_TYPE_COLORS: Record<string, number> = {
   training: 0x57f287, // green
@@ -41,10 +43,12 @@ export const buildEventEmbed = (opts: {
   location: Option.Option<string>;
   eventType: string;
   counts: EventRpcModels.RsvpCountsResult;
+  locale: Locale;
 }): {
   embeds: ReadonlyArray<Discord.RichEmbed>;
   components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest>;
 } => {
+  const locale = opts.locale;
   const descParts: string[] = [];
   if (Option.isSome(opts.description)) {
     descParts.push(opts.description.value);
@@ -61,15 +65,26 @@ export const buildEventEmbed = (opts: {
       return `${startTs} — ${toDiscordTimestamp(endAt, endStyle)}`;
     },
   });
-  fields.push({ name: '📅 When', value: when, inline: false });
+  fields.push({ name: m.bot_embed_when({}, { locale }), value: when, inline: false });
 
   if (Option.isSome(opts.location)) {
-    fields.push({ name: '📍 Where', value: opts.location.value, inline: false });
+    fields.push({
+      name: m.bot_embed_where({}, { locale }),
+      value: opts.location.value,
+      inline: false,
+    });
   }
 
   fields.push({
-    name: '📊 RSVPs',
-    value: `✅ ${opts.counts.yesCount}  ·  ❌ ${opts.counts.noCount}  ·  ❓ ${opts.counts.maybeCount}`,
+    name: m.bot_embed_rsvps({}, { locale }),
+    value: m.bot_embed_rsvp_summary(
+      {
+        yes: String(opts.counts.yesCount),
+        no: String(opts.counts.noCount),
+        maybe: String(opts.counts.maybeCount),
+      },
+      { locale },
+    ),
   });
 
   const embeds: ReadonlyArray<Discord.RichEmbed> = [
@@ -90,19 +105,19 @@ export const buildEventEmbed = (opts: {
       {
         type: 2,
         style: 3,
-        label: '✅ Yes',
+        label: m.bot_btn_yes({}, { locale }),
         custom_id: `rsvp:${opts.teamId}:${opts.eventId}:yes`,
       },
       {
         type: 2,
         style: 4,
-        label: '❌ No',
+        label: m.bot_btn_no({}, { locale }),
         custom_id: `rsvp:${opts.teamId}:${opts.eventId}:no`,
       },
       {
         type: 2,
         style: 2,
-        label: '❓ Maybe',
+        label: m.bot_btn_maybe({}, { locale }),
         custom_id: `rsvp:${opts.teamId}:${opts.eventId}:maybe`,
       },
     );
@@ -111,7 +126,7 @@ export const buildEventEmbed = (opts: {
   rowButtons.push({
     type: 2,
     style: 2,
-    label: '📋 Attendees',
+    label: m.bot_btn_attendees({}, { locale }),
     custom_id: `attendees:${opts.teamId}:${opts.eventId}:0`,
   });
 
@@ -122,6 +137,7 @@ export const buildEventEmbed = (opts: {
 
 export const buildCancelledEmbed = (
   title: string,
+  locale: Locale,
 ): {
   embeds: ReadonlyArray<Discord.RichEmbed>;
   components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest>;
@@ -129,7 +145,7 @@ export const buildCancelledEmbed = (
   embeds: [
     {
       title: `~~${title}~~`,
-      description: 'This event has been **CANCELLED**.',
+      description: m.bot_event_cancelled({}, { locale }),
       color: CANCELLED_COLOR,
     },
   ],
