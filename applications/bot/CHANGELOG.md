@@ -1,5 +1,18 @@
 # @sideline/bot
 
+## 0.5.0
+
+### Minor Changes
+
+- [#60](https://github.com/maxa-ondrej/sideline/pull/60) [`48648de`](https://github.com/maxa-ondrej/sideline/commit/48648dea12e25843ce93dadf1275ea06ee3395d8) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add i18n support to Discord bot with shared translation package
+
+- [#66](https://github.com/maxa-ondrej/sideline/pull/66) [`7c483c5`](https://github.com/maxa-ondrej/sideline/commit/7c483c5a68b9ebf115ccd141d487e334fdee4c2e) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Extract OAuth into oauth_connections table and auto-register Discord guild members as team members
+
+### Patch Changes
+
+- Updated dependencies [[`7c483c5`](https://github.com/maxa-ondrej/sideline/commit/7c483c5a68b9ebf115ccd141d487e334fdee4c2e)]:
+  - @sideline/domain@0.7.0
+
 ## 0.4.1
 
 ### Patch Changes
