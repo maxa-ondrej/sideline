@@ -1,5 +1,12 @@
 # @sideline/web
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [[`ca6db57`](https://github.com/maxa-ondrej/sideline/commit/ca6db57efc94442f6a690322ea1ae52355e1d903)]:
+  - @sideline/i18n@0.1.0
+
 ## 0.2.1
 
 ### Patch Changes

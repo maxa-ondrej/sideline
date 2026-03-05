@@ -1,6 +1,6 @@
 {
   "name": "@sideline/i18n",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "description": "Shared translation messages for Sideline",
   "scripts": {
