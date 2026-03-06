@@ -37,6 +37,21 @@ const dayShortLabels: Record<number, () => string> = {
   6: m.event_day_short_6,
 };
 
+const dayFullLabels: Record<number, () => string> = {
+  0: m.event_day_0,
+  1: m.event_day_1,
+  2: m.event_day_2,
+  3: m.event_day_3,
+  4: m.event_day_4,
+  5: m.event_day_5,
+  6: m.event_day_6,
+};
+
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+const sortDays = (days: number[]): number[] =>
+  [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+
 const CreateScheduleSchema = Schema.Struct({
   title: Schema.NonEmptyString,
   description: Schema.String,
@@ -430,7 +445,7 @@ export function TrainingTypeDetailPage({
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_daysOfWeek()}</FormLabel>
                               <div className='flex gap-1'>
-                                {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                                {DAY_ORDER.map((d) => {
                                   const selected = (field.value as number[]).includes(d);
                                   return (
                                     <Button
@@ -439,12 +454,16 @@ export function TrainingTypeDetailPage({
                                       size='sm'
                                       variant={selected ? 'default' : 'outline'}
                                       className='w-10'
+                                      aria-pressed={selected}
+                                      aria-label={dayFullLabels[d]()}
                                       onClick={() => {
                                         const current = field.value as number[];
                                         field.onChange(
-                                          selected
-                                            ? current.filter((v) => v !== d)
-                                            : [...current, d],
+                                          sortDays(
+                                            selected
+                                              ? current.filter((v) => v !== d)
+                                              : [...current, d],
+                                          ),
                                         );
                                       }}
                                     >
