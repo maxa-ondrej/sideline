@@ -155,7 +155,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
             LEFT JOIN users u ON u.id = tm.user_id
             LEFT JOIN event_rsvps er ON er.team_member_id = tm.id AND er.event_id = ${input.event_id}
             WHERE tm.team_id = ${input.team_id}
-              AND tm.is_active = true
+              AND tm.active = true
               AND er.id IS NULL
             ORDER BY u.name ASC
           `,
