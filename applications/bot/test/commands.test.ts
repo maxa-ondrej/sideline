@@ -20,8 +20,8 @@ describe('commands', () => {
   });
 
   describe('commandBuilder', () => {
-    it('contains the ping command', () => {
-      expect(Chunk.size(commandBuilder.definitions)).toBe(1);
+    it('contains all commands', () => {
+      expect(Chunk.size(commandBuilder.definitions)).toBe(2);
     });
   });
 });

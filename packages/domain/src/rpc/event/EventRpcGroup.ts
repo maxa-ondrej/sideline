@@ -4,6 +4,10 @@ import { Discord, Event, EventRsvp, Team } from '~/index.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
   ChannelEventEntry,
+  CreateEventForbidden,
+  CreateEventInvalidDate,
+  CreateEventNotMember,
+  CreateEventResult,
   EventDiscordMessage,
   EventEmbedInfo,
   RsvpAttendeesResult,
@@ -66,5 +70,19 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('GetRsvpReminderSummary', {
     payload: { event_id: Event.EventId },
     success: RsvpReminderSummary,
+  }),
+  Rpc.make('CreateEvent', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+      event_type: Event.EventType,
+      title: Schema.String,
+      start_at: Schema.String,
+      end_at: Schema.NullOr(Schema.String),
+      location: Schema.NullOr(Schema.String),
+      description: Schema.NullOr(Schema.String),
+    },
+    success: CreateEventResult,
+    error: Schema.Union(CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate),
   }),
 ).prefix('Event/');
