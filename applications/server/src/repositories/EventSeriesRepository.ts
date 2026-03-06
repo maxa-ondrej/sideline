@@ -13,7 +13,7 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   end_time: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   frequency: EventSeries.RecurrenceFrequency,
-  day_of_week: EventSeries.DayOfWeek,
+  days_of_week: EventSeries.DaysOfWeek,
   start_date: Schema.String,
   end_date: Schema.NullOr(Schema.String),
   status: EventSeries.EventSeriesStatus,
@@ -31,7 +31,7 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     end_time: Schema.NullOr(Schema.String),
     location: Schema.NullOr(Schema.String),
     frequency: EventSeries.RecurrenceFrequency,
-    day_of_week: EventSeries.DayOfWeek,
+    days_of_week: EventSeries.DaysOfWeek,
     start_date: Schema.String,
     end_date: Schema.NullOr(Schema.String),
     status: EventSeries.EventSeriesStatus,
@@ -53,7 +53,7 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   end_time: Schema.NullOr(Schema.String),
   location: Schema.NullOr(Schema.String),
   frequency: EventSeries.RecurrenceFrequency,
-  day_of_week: EventSeries.DayOfWeek,
+  days_of_week: EventSeries.DaysOfWeek,
   start_date: Schema.String,
   end_date: Schema.NullOr(Schema.String),
   last_generated_date: Schema.NullOr(Schema.String),
@@ -72,7 +72,7 @@ class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('Event
     end_time: Schema.NullOr(Schema.String),
     location: Schema.NullOr(Schema.String),
     frequency: Schema.String,
-    day_of_week: Schema.Number,
+    days_of_week: Schema.Array(Schema.Number),
     start_date: Schema.String,
     end_date: Schema.NullOr(Schema.String),
     created_by: Schema.String,
@@ -86,6 +86,7 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
     title: Schema.String,
     training_type_id: Schema.NullOr(Schema.String),
     description: Schema.NullOr(Schema.String),
+    days_of_week: Schema.Array(Schema.Number),
     start_time: Schema.String,
     end_time: Schema.NullOr(Schema.String),
     location: Schema.NullOr(Schema.String),
@@ -106,16 +107,16 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           execute: (input) => sql`
             INSERT INTO event_series (team_id, training_type_id, title, description,
                                       start_time, end_time, location, frequency,
-                                      day_of_week, start_date, end_date, created_by,
+                                      days_of_week, start_date, end_date, created_by,
                                       discord_target_channel_id)
             VALUES (${input.team_id}, ${input.training_type_id}, ${input.title},
                     ${input.description}, ${input.start_time}, ${input.end_time},
-                    ${input.location}, ${input.frequency}, ${input.day_of_week},
+                    ${input.location}, ${input.frequency}, ${input.days_of_week},
                     ${input.start_date}, ${input.end_date}, ${input.created_by},
                     ${input.discord_target_channel_id})
             RETURNING id, team_id, training_type_id, title, description,
                       start_time::text, end_time::text, location, frequency,
-                      day_of_week, start_date::text, end_date::text, status,
+                      days_of_week, start_date::text, end_date::text, status,
                       discord_target_channel_id
           `,
         }),
@@ -127,7 +128,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           execute: (teamId) => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
-                   es.day_of_week, es.start_date::text, es.end_date::text, es.status,
+                   es.days_of_week, es.start_date::text, es.end_date::text, es.status,
                    tt.name AS training_type_name, es.last_generated_date::text,
                    es.discord_target_channel_id
             FROM event_series es
@@ -144,7 +145,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           execute: (id) => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
-                   es.day_of_week, es.start_date::text, es.end_date::text, es.status,
+                   es.days_of_week, es.start_date::text, es.end_date::text, es.status,
                    tt.name AS training_type_name, es.last_generated_date::text,
                    es.discord_target_channel_id
             FROM event_series es
@@ -160,7 +161,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           execute: () => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
-                   es.day_of_week, es.start_date::text, es.end_date::text,
+                   es.days_of_week, es.start_date::text, es.end_date::text,
                    es.last_generated_date::text, es.discord_target_channel_id,
                    es.created_by,
                    COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
@@ -190,6 +191,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
               title = ${input.title},
               training_type_id = ${input.training_type_id},
               description = ${input.description},
+              days_of_week = ${input.days_of_week},
               start_time = ${input.start_time},
               end_time = ${input.end_time},
               location = ${input.location},
@@ -199,7 +201,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, title, description,
                       start_time::text, end_time::text, location, frequency,
-                      day_of_week, start_date::text, end_date::text, status,
+                      days_of_week, start_date::text, end_date::text, status,
                       discord_target_channel_id
           `,
         }),
@@ -224,7 +226,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     endTime: string | null;
     location: string | null;
     frequency: string;
-    dayOfWeek: number;
+    daysOfWeek: ReadonlyArray<number>;
     startDate: string;
     endDate: string | null;
     createdBy: string;
@@ -239,7 +241,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       end_time: input.endTime,
       location: input.location,
       frequency: input.frequency,
-      day_of_week: input.dayOfWeek,
+      days_of_week: Array.from(input.daysOfWeek),
       start_date: input.startDate,
       end_date: input.endDate,
       created_by: input.createdBy,
@@ -260,6 +262,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     title: string;
     trainingTypeId: string | null;
     description: string | null;
+    daysOfWeek: ReadonlyArray<number>;
     startTime: string;
     endTime: string | null;
     location: string | null;
@@ -271,6 +274,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       title: input.title,
       training_type_id: input.trainingTypeId,
       description: input.description,
+      days_of_week: Array.from(input.daysOfWeek),
       start_time: input.startTime,
       end_time: input.endTime,
       location: input.location,

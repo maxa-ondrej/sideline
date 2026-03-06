@@ -27,7 +27,17 @@ import {
 import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
-const dayOfWeekLabels: Record<number, () => string> = {
+const dayShortLabels: Record<number, () => string> = {
+  0: m.event_day_short_0,
+  1: m.event_day_short_1,
+  2: m.event_day_short_2,
+  3: m.event_day_short_3,
+  4: m.event_day_short_4,
+  5: m.event_day_short_5,
+  6: m.event_day_short_6,
+};
+
+const dayFullLabels: Record<number, () => string> = {
   0: m.event_day_0,
   1: m.event_day_1,
   2: m.event_day_2,
@@ -37,11 +47,16 @@ const dayOfWeekLabels: Record<number, () => string> = {
   6: m.event_day_6,
 };
 
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+const sortDays = (days: number[]): number[] =>
+  [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
+
 const CreateScheduleSchema = Schema.Struct({
   title: Schema.NonEmptyString,
   description: Schema.String,
   frequency: EventSeries.RecurrenceFrequency,
-  dayOfWeek: Schema.NumberFromString,
+  daysOfWeek: EventSeries.DaysOfWeek,
   startDate: Schema.NonEmptyString,
   endDate: Schema.String,
   startTime: Schema.NonEmptyString,
@@ -92,7 +107,7 @@ export function TrainingTypeDetailPage({
       title: trainingTypeDetail.name,
       description: '',
       frequency: 'weekly' as EventSeries.RecurrenceFrequency,
-      dayOfWeek: '1',
+      daysOfWeek: [] as number[],
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       startTime: '',
@@ -151,7 +166,7 @@ export function TrainingTypeDetailPage({
             trainingTypeId: trainingTypeIdBranded,
             description: values.description || null,
             frequency: values.frequency,
-            dayOfWeek: values.dayOfWeek as EventSeries.DayOfWeek,
+            daysOfWeek: values.daysOfWeek,
             startDate: values.startDate,
             endDate: values.endDate || null,
             startTime: values.startTime,
@@ -200,7 +215,7 @@ export function TrainingTypeDetailPage({
         title: s.title,
         description: '',
         frequency: s.frequency,
-        dayOfWeek: String(s.dayOfWeek),
+        daysOfWeek: Array.from(s.daysOfWeek),
         startDate: s.startDate,
         endDate: s.endDate ?? '',
         startTime: s.startTime,
@@ -226,6 +241,7 @@ export function TrainingTypeDetailPage({
             description: Option.some(
               values.description ? Option.some(values.description) : Option.none(),
             ),
+            daysOfWeek: Option.some(values.daysOfWeek),
             startTime: Option.some(values.startTime),
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
@@ -245,7 +261,7 @@ export function TrainingTypeDetailPage({
         title: trainingTypeDetail.name,
         description: '',
         frequency: 'weekly',
-        dayOfWeek: '1',
+        daysOfWeek: [],
         startDate: new Date().toISOString().slice(0, 10),
         endDate: '',
         startTime: '',
@@ -346,7 +362,7 @@ export function TrainingTypeDetailPage({
                           : m.event_frequency_biweekly()}
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
-                        {dayOfWeekLabels[s.dayOfWeek]()}
+                        {s.daysOfWeek.map((d) => dayShortLabels[d]()).join(', ')}
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
                         {s.startTime}
@@ -423,24 +439,39 @@ export function TrainingTypeDetailPage({
                           )}
                         />
                         <FormField
-                          {...scheduleForm.register('dayOfWeek')}
+                          name='daysOfWeek'
+                          control={scheduleForm.control}
                           render={({ field }) => (
                             <FormItem className='flex-1'>
-                              <FormLabel>{m.event_dayOfWeek()}</FormLabel>
-                              <Select onValueChange={field.onChange} value={String(field.value)}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {[1, 2, 3, 4, 5, 6, 0].map((d) => (
-                                    <SelectItem key={d} value={String(d)}>
-                                      {dayOfWeekLabels[d]()}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormLabel>{m.event_daysOfWeek()}</FormLabel>
+                              <div className='flex gap-1'>
+                                {DAY_ORDER.map((d) => {
+                                  const selected = (field.value as number[]).includes(d);
+                                  return (
+                                    <Button
+                                      key={d}
+                                      type='button'
+                                      size='sm'
+                                      variant={selected ? 'default' : 'outline'}
+                                      className='w-10'
+                                      aria-pressed={selected}
+                                      aria-label={dayFullLabels[d]()}
+                                      onClick={() => {
+                                        const current = field.value as number[];
+                                        field.onChange(
+                                          sortDays(
+                                            selected
+                                              ? current.filter((v) => v !== d)
+                                              : [...current, d],
+                                          ),
+                                        );
+                                      }}
+                                    >
+                                      {dayShortLabels[d]()}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -546,7 +577,7 @@ export function TrainingTypeDetailPage({
                             title: trainingTypeDetail.name,
                             description: '',
                             frequency: 'weekly',
-                            dayOfWeek: '1',
+                            daysOfWeek: [],
                             startDate: new Date().toISOString().slice(0, 10),
                             endDate: '',
                             startTime: '',

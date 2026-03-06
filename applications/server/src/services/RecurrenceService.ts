@@ -13,25 +13,43 @@ export const computeHorizonEnd = (params: {
 
 export const generateOccurrenceDates = (params: {
   frequency: 'weekly' | 'biweekly';
-  dayOfWeek: number;
+  daysOfWeek: ReadonlyArray<number>;
   startDate: DateTime.Utc;
   endDate: DateTime.Utc;
 }): ReadonlyArray<DateTime.Utc> => {
-  const { frequency, dayOfWeek, startDate, endDate } = params;
+  const { frequency, daysOfWeek, startDate, endDate } = params;
 
   if (DateTime.greaterThan(startDate, endDate)) return [];
+  if (daysOfWeek.length === 0) return [];
 
-  const step = frequency === 'weekly' ? 7 : 14;
+  const daySet = new Set(daysOfWeek);
   const dates: DateTime.Utc[] = [];
 
-  const currentDay = DateTime.getPartUtc(startDate, 'weekDay');
-  let diff = dayOfWeek - currentDay;
-  if (diff < 0) diff += 7;
-  let current = DateTime.add(startDate, { days: diff });
+  let current = startDate;
+
+  // For biweekly, track which week number we're in relative to start
+  const startDayNumber = Math.floor(DateTime.toEpochMillis(startDate) / (1000 * 60 * 60 * 24));
 
   while (DateTime.lessThanOrEqualTo(current, endDate)) {
-    dates.push(current);
-    current = DateTime.add(current, { days: step });
+    const currentDay = DateTime.getPartUtc(current, 'weekDay');
+
+    if (daySet.has(currentDay)) {
+      if (frequency === 'weekly') {
+        dates.push(current);
+      } else {
+        // biweekly: only include days in even weeks (0, 2, 4, ...)
+        const currentDayNumber = Math.floor(
+          DateTime.toEpochMillis(current) / (1000 * 60 * 60 * 24),
+        );
+        const daysSinceStart = currentDayNumber - startDayNumber;
+        const weekNumber = Math.floor(daysSinceStart / 7);
+        if (weekNumber % 2 === 0) {
+          dates.push(current);
+        }
+      }
+    }
+
+    current = DateTime.add(current, { days: 1 });
   }
 
   return dates;

@@ -3,7 +3,7 @@ import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
 import {
-  DayOfWeek,
+  DaysOfWeek,
   EventSeriesId,
   EventSeriesStatus,
   RecurrenceFrequency,
@@ -16,7 +16,7 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   teamId: TeamId,
   title: Schema.String,
   frequency: RecurrenceFrequency,
-  dayOfWeek: DayOfWeek,
+  daysOfWeek: DaysOfWeek,
   startDate: Schema.String,
   endDate: Schema.NullOr(Schema.String),
   status: EventSeriesStatus,
@@ -34,7 +34,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   title: Schema.String,
   description: Schema.NullOr(Schema.String),
   frequency: RecurrenceFrequency,
-  dayOfWeek: DayOfWeek,
+  daysOfWeek: DaysOfWeek,
   startDate: Schema.String,
   endDate: Schema.NullOr(Schema.String),
   status: EventSeriesStatus,
@@ -55,7 +55,7 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   trainingTypeId: Schema.NullOr(TrainingTypeId),
   description: Schema.NullOr(Schema.String),
   frequency: RecurrenceFrequency,
-  dayOfWeek: DayOfWeek,
+  daysOfWeek: DaysOfWeek,
   startDate: Schema.String,
   endDate: Schema.NullOr(Schema.String),
   startTime: Schema.String,
@@ -70,6 +70,7 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   title: Schema.optionalWith(Schema.NonEmptyString, { as: 'Option' }),
   trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
   description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  daysOfWeek: Schema.optionalWith(DaysOfWeek, { as: 'Option' }),
   startTime: Schema.optionalWith(Schema.String, { as: 'Option' }),
   endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),

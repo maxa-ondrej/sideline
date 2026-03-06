@@ -197,7 +197,7 @@ type SeriesRecord = {
   end_time: string | null;
   location: string | null;
   frequency: 'weekly' | 'biweekly';
-  day_of_week: number;
+  days_of_week: number[];
   start_date: string;
   end_date: string | null;
   status: 'active' | 'cancelled';
@@ -242,7 +242,7 @@ const resetStores = () => {
     end_time: '20:00:00',
     location: 'Main Field',
     frequency: 'weekly',
-    day_of_week: 2,
+    days_of_week: [2],
     start_date: '2026-03-03',
     end_date: '2026-06-30',
     status: 'active',
@@ -541,7 +541,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     end_time: string | null;
     location: string | null;
     frequency: string;
-    day_of_week: number;
+    days_of_week: number[];
     start_date: string;
     end_date: string | null;
     created_by: string;
@@ -557,7 +557,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: input.end_time,
       location: input.location,
       frequency: input.frequency as 'weekly' | 'biweekly',
-      day_of_week: input.day_of_week,
+      days_of_week: input.days_of_week,
       start_date: input.start_date,
       end_date: input.end_date,
       status: 'active',
@@ -576,7 +576,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: record.end_time,
       location: record.location,
       frequency: record.frequency,
-      day_of_week: record.day_of_week,
+      days_of_week: record.days_of_week,
       start_date: record.start_date,
       end_date: record.end_date,
       status: record.status,
@@ -592,7 +592,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     endTime: string | null;
     location: string | null;
     frequency: string;
-    dayOfWeek: number;
+    daysOfWeek: number[];
     startDate: string;
     endDate: string | null;
     createdBy: string;
@@ -608,7 +608,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: input.endTime,
       location: input.location,
       frequency: input.frequency as 'weekly' | 'biweekly',
-      day_of_week: input.dayOfWeek,
+      days_of_week: input.daysOfWeek,
       start_date: input.startDate,
       end_date: input.endDate,
       status: 'active',
@@ -627,7 +627,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: record.end_time,
       location: record.location,
       frequency: record.frequency,
-      day_of_week: record.day_of_week,
+      days_of_week: record.days_of_week,
       start_date: record.start_date,
       end_date: record.end_date,
       status: record.status,
@@ -685,7 +685,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: updated.end_time,
       location: updated.location,
       frequency: updated.frequency,
-      day_of_week: updated.day_of_week,
+      days_of_week: updated.days_of_week,
       start_date: updated.start_date,
       end_date: updated.end_date,
       status: updated.status,
@@ -725,7 +725,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: updated.end_time,
       location: updated.location,
       frequency: updated.frequency,
-      day_of_week: updated.day_of_week,
+      days_of_week: updated.days_of_week,
       start_date: updated.start_date,
       end_date: updated.end_date,
       status: updated.status,
@@ -1050,7 +1050,7 @@ describe('Event Series API', () => {
     trainingTypeId: null,
     description: 'Regular session',
     frequency: 'weekly',
-    dayOfWeek: 2,
+    daysOfWeek: [2],
     startDate: '2026-03-03',
     endDate: '2026-03-31',
     startTime: '18:00',
@@ -1075,7 +1075,7 @@ describe('Event Series API', () => {
       const body = await response.json();
       expect(body.title).toBe('Weekly Training');
       expect(body.frequency).toBe('weekly');
-      expect(body.dayOfWeek).toBe(2);
+      expect(body.daysOfWeek).toEqual([2]);
       // Should also have created materialized events
       expect(eventsStore.size).toBeGreaterThan(0);
     });

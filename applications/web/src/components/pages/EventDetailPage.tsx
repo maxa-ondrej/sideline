@@ -182,6 +182,7 @@ export function EventDetailPage({
             description: Option.some(
               values.description ? Option.some(values.description) : Option.none(),
             ),
+            daysOfWeek: Option.none(),
             startTime: Option.some(values.startTime),
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
