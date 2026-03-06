@@ -396,5 +396,5 @@
   "rsvp_belowMinPlayers": "Pouze {count} potvrzeno — pod minimem {threshold} hráčů.",
   "rsvp_nonRespondersTitle": "Zatím neodpověděli",
   "bot_rsvp_reminder_title": "Připomínka: {title}",
-  "bot_rsvp_reminder_dm": "Zatím jste neodpověděli na **{title}**. Začíná {when}. Potvrďte prosím účast!"
+  "bot_rsvp_reminder_dm": "Zatím jste neodpověděli na **{title}**. Začíná {when}. [Hlasujte zde!]({link})"
 }

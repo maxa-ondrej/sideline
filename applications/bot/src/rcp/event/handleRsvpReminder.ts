@@ -69,7 +69,9 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
         });
       }
 
-      const postChannel = rest
+      const whenText = `${toDiscordTimestamp(event.start_at, 'f')} (${toDiscordTimestamp(event.start_at, 'R')})`;
+
+      return rest
         .createMessage(channelId, {
           embeds: [
             {
@@ -85,43 +87,42 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
               `Posted RSVP reminder for "${event.title}" to channel ${channelId}, message ${msg.id}`,
             ),
           ),
-          Effect.asVoid,
-        );
+          Effect.flatMap((msg) => {
+            const messageLink = `https://discord.com/channels/${event.guild_id}/${channelId}/${msg.id}`;
 
-      const whenText = `${toDiscordTimestamp(event.start_at, 'f')} (${toDiscordTimestamp(event.start_at, 'R')})`;
-
-      const dmNonResponders = summary.nonResponders
-        .filter((nr): nr is typeof nr & { discord_id: string } => nr.discord_id !== null)
-        .map((nr) =>
-          rest.createDm({ recipient_id: nr.discord_id }).pipe(
-            Effect.flatMap((dm) =>
-              rest.createMessage(dm.id, {
-                embeds: [
-                  {
-                    title: m.bot_rsvp_reminder_title({ title: event.title }, { locale }),
-                    description: m.bot_rsvp_reminder_dm(
-                      { title: event.title, when: whenText },
-                      { locale },
+            const dmNonResponders = summary.nonResponders
+              .filter((nr): nr is typeof nr & { discord_id: string } => nr.discord_id !== null)
+              .map((nr) =>
+                rest.createDm({ recipient_id: nr.discord_id }).pipe(
+                  Effect.flatMap((dm) =>
+                    rest.createMessage(dm.id, {
+                      embeds: [
+                        {
+                          title: m.bot_rsvp_reminder_title({ title: event.title }, { locale }),
+                          description: m.bot_rsvp_reminder_dm(
+                            { title: event.title, when: whenText, link: messageLink },
+                            { locale },
+                          ),
+                          color: REMINDER_COLOR,
+                        },
+                      ],
+                    }),
+                  ),
+                  Effect.tap(() =>
+                    Effect.log(`Sent RSVP reminder DM to Discord user ${nr.discord_id}`),
+                  ),
+                  Effect.catchAll((err) =>
+                    Effect.logWarning(
+                      `Failed to send RSVP reminder DM to Discord user ${nr.discord_id}: ${err}`,
                     ),
-                    color: REMINDER_COLOR,
-                  },
-                ],
-              }),
-            ),
-            Effect.tap(() => Effect.log(`Sent RSVP reminder DM to Discord user ${nr.discord_id}`)),
-            Effect.catchAll((err) =>
-              Effect.logWarning(
-                `Failed to send RSVP reminder DM to Discord user ${nr.discord_id}: ${err}`,
-              ),
-            ),
-          ),
+                  ),
+                ),
+              );
+
+            return dmNonResponders.length > 0
+              ? Effect.all(dmNonResponders, { concurrency: 5 }).pipe(Effect.asVoid)
+              : Effect.void;
+          }),
         );
-
-      const sendDms =
-        dmNonResponders.length > 0
-          ? Effect.all(dmNonResponders, { concurrency: 5 }).pipe(Effect.asVoid)
-          : Effect.void;
-
-      return Effect.all([postChannel, sendDms], { concurrency: 'unbounded' }).pipe(Effect.asVoid);
     }),
   );
