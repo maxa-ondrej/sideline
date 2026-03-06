@@ -36,6 +36,13 @@ class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDis
   message: Schema.NullOr(Schema.String),
 }) {}
 
+class NonResponderRow extends Schema.Class<NonResponderRow>('NonResponderRow')({
+  team_member_id: TeamMember.TeamMemberId,
+  member_name: Schema.NullOr(Schema.String),
+  username: Schema.NullOr(Schema.String),
+  discord_id: Schema.NullOr(Schema.String),
+}) {}
+
 class TotalCount extends Schema.Class<TotalCount>('TotalCount')({
   count: Schema.NumberFromString,
 }) {}
@@ -135,6 +142,25 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
           `,
         }),
       ),
+      Effect.let('findNonResponders', ({ sql }) =>
+        SqlSchema.findAll({
+          Request: Schema.Struct({
+            event_id: Schema.String,
+            team_id: Schema.String,
+          }),
+          Result: NonResponderRow,
+          execute: (input) => sql`
+            SELECT tm.id AS team_member_id, u.name AS member_name, u.username, u.discord_id
+            FROM team_members tm
+            LEFT JOIN users u ON u.id = tm.user_id
+            LEFT JOIN event_rsvps er ON er.team_member_id = tm.id AND er.event_id = ${input.event_id}
+            WHERE tm.team_id = ${input.team_id}
+              AND tm.active = true
+              AND er.id IS NULL
+            ORDER BY u.name ASC
+          `,
+        }),
+      ),
       Bind.remove('sql'),
     ),
   },
@@ -167,6 +193,10 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
 
   findRsvpAttendeesPage(eventId: Event.EventId, offset: number, limit: number) {
     return this.findAttendeesPage({ event_id: eventId, limit, offset });
+  }
+
+  findNonRespondersByEventId(eventId: Event.EventId, teamId: string) {
+    return this.findNonResponders({ event_id: eventId, team_id: teamId });
   }
 
   countRsvpTotal(eventId: Event.EventId) {

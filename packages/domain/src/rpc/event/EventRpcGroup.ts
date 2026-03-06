@@ -11,6 +11,7 @@ import {
   RsvpDeadlinePassed,
   RsvpEventNotFound,
   RsvpMemberNotFound,
+  RsvpReminderSummary,
 } from './EventRpcModels.js';
 
 export const EventRpcGroup = RpcGroup.make(
@@ -61,5 +62,9 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('GetRsvpAttendees', {
     payload: { event_id: Event.EventId, offset: Schema.Number, limit: Schema.Number },
     success: RsvpAttendeesResult,
+  }),
+  Rpc.make('GetRsvpReminderSummary', {
+    payload: { event_id: Event.EventId },
+    success: RsvpReminderSummary,
   }),
 ).prefix('Event/');

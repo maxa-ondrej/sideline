@@ -388,5 +388,13 @@
   "bot_attendees_empty": "No responses yet",
   "bot_attendees_footer": "Page {page} of {totalPages} · {total} total responses",
   "bot_event_cancelled": "This event has been **CANCELLED**.",
-  "bot_attendees_load_error": "Failed to load attendees."
+  "bot_attendees_load_error": "Failed to load attendees.",
+  "teamSettings_minPlayersThreshold": "Minimum players threshold",
+  "teamSettings_minPlayersThresholdHelp": "Warn when fewer than this many players have confirmed. Set to 0 to disable.",
+  "teamSettings_rsvpReminderHours": "RSVP reminder (hours before event)",
+  "teamSettings_rsvpReminderHoursHelp": "Send a Discord reminder this many hours before the event. Set to 0 to disable.",
+  "rsvp_belowMinPlayers": "Only {count} confirmed — below the minimum of {threshold} players.",
+  "rsvp_nonRespondersTitle": "Not yet responded",
+  "bot_rsvp_reminder_title": "Reminder: {title}",
+  "bot_rsvp_reminder_dm": "You haven't responded to **{title}** yet. It starts {when}.\nPlease RSVP [here]({link})!"
 }

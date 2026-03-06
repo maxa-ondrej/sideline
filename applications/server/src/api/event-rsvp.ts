@@ -2,10 +2,11 @@ import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi } from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { requireMembership } from '~/api/permissions.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 
 const forbidden = new EventRsvpApi.Forbidden();
 const notFound = new EventRsvpApi.EventNotFound();
@@ -19,6 +20,7 @@ const buildRsvpDetail = (
   eventId: Parameters<EventRsvpsRepository['findRsvpsByEventId']>[0],
   myMemberId: Parameters<EventRsvpsRepository['findRsvpByEventAndMember']>[1],
   canRsvp: boolean,
+  minPlayersThreshold: number,
 ) =>
   Effect.Do.pipe(
     Effect.bind('allRsvps', () =>
@@ -52,6 +54,7 @@ const buildRsvpDetail = (
         noCount,
         maybeCount,
         canRsvp,
+        minPlayersThreshold,
       });
     }),
   );
@@ -61,7 +64,8 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('events', () => EventsRepository),
     Effect.bind('rsvps', () => EventRsvpsRepository),
-    Effect.map(({ members, events, rsvps }) =>
+    Effect.bind('teamSettings', () => TeamSettingsRepository),
+    Effect.map(({ members, events, rsvps, teamSettings }) =>
       handlers
         .handle('getRsvps', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
@@ -83,9 +87,16 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ event }) =>
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
-            Effect.flatMap(({ event, membership }) => {
+            Effect.bind('settings', () =>
+              teamSettings.findByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.flatMap(({ event, membership, settings }) => {
               const canRsvp = event.status === 'active' && !isEventPastDeadline(event.start_at);
-              return buildRsvpDetail(rsvps, eventId, membership.id, canRsvp);
+              const threshold = Option.match(settings, {
+                onNone: () => 0,
+                onSome: (s) => s.min_players_threshold,
+              });
+              return buildRsvpDetail(rsvps, eventId, membership.id, canRsvp, threshold);
             }),
           ),
         )
@@ -120,8 +131,56 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 .upsertRsvp(eventId, membership.id, payload.response, payload.message)
                 .pipe(Effect.mapError(() => forbidden)),
             ),
-            Effect.flatMap(({ membership }) =>
-              buildRsvpDetail(rsvps, eventId, membership.id, true),
+            Effect.bind('settings', () =>
+              teamSettings.findByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.flatMap(({ membership, settings }) => {
+              const threshold = Option.match(settings, {
+                onNone: () => 0,
+                onSome: (s) => s.min_players_threshold,
+              });
+              return buildRsvpDetail(rsvps, eventId, membership.id, true, threshold);
+            }),
+          ),
+        )
+        .handle('getNonResponders', ({ path: { teamId, eventId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'event:edit', forbidden)),
+            Effect.bind('event', () =>
+              events.findEventByIdWithDetails(eventId).pipe(
+                Effect.mapError(() => forbidden),
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(notFound),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ event }) =>
+              event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
+            ),
+            Effect.bind('nonResponders', () =>
+              rsvps
+                .findNonRespondersByEventId(eventId, teamId)
+                .pipe(Effect.mapError(() => forbidden)),
+            ),
+            Effect.map(
+              ({ nonResponders }) =>
+                new EventRsvpApi.NonRespondersResponse({
+                  nonResponders: nonResponders.map(
+                    (nr) =>
+                      new EventRsvpApi.NonResponderEntry({
+                        teamMemberId: nr.team_member_id,
+                        memberName: nr.member_name,
+                        username: nr.username,
+                      }),
+                  ),
+                }),
             ),
           ),
         ),

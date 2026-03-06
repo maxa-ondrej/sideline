@@ -39,10 +39,21 @@ export class EventCancelledEvent extends Schema.TaggedClass<EventCancelledEvent>
   },
 ) {}
 
+export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('rsvp_reminder', {
+  id: Schema.String,
+  team_id: Team.TeamId,
+  guild_id: Discord.Snowflake,
+  event_id: Event.EventId,
+  title: Schema.String,
+  start_at: Schema.String,
+  discord_channel_id: Schema.NullOr(Schema.String),
+}) {}
+
 export const UnprocessedEventSyncEvent = Schema.Union(
   EventCreatedEvent,
   EventUpdatedEvent,
   EventCancelledEvent,
+  RsvpReminderEvent,
 );
 
 export type UnprocessedEventSyncEvent = Schema.Schema.Type<typeof UnprocessedEventSyncEvent>;

@@ -25,6 +25,12 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
   const run = useRun();
   const router = useRouter();
   const [horizonDays, setHorizonDays] = React.useState(String(settings.eventHorizonDays));
+  const [minPlayersThreshold, setMinPlayersThreshold] = React.useState(
+    String(settings.minPlayersThreshold),
+  );
+  const [rsvpReminderHours, setRsvpReminderHours] = React.useState(
+    String(settings.rsvpReminderHours),
+  );
   const [saving, setSaving] = React.useState(false);
   const [channelTraining, setChannelTraining] = React.useState(
     settings.discordChannelTraining ?? '__none__',
@@ -48,6 +54,11 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
   const handleSave = React.useCallback(async () => {
     const parsed = Number.parseInt(horizonDays, 10);
     if (Number.isNaN(parsed) || parsed < 1 || parsed > 365) return;
+    const parsedThreshold = Number.parseInt(minPlayersThreshold, 10);
+    if (Number.isNaN(parsedThreshold) || parsedThreshold < 0 || parsedThreshold > 100) return;
+    const parsedReminderHours = Number.parseInt(rsvpReminderHours, 10);
+    if (Number.isNaN(parsedReminderHours) || parsedReminderHours < 0 || parsedReminderHours > 168)
+      return;
     setSaving(true);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
@@ -55,6 +66,8 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
           path: { teamId: settings.teamId },
           payload: {
             eventHorizonDays: parsed,
+            minPlayersThreshold: Option.some(parsedThreshold),
+            rsvpReminderHours: Option.some(parsedReminderHours),
             discordChannelTraining: Option.some(
               channelTraining !== '__none__' ? Option.some(channelTraining) : Option.none(),
             ),
@@ -87,6 +100,8 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
   }, [
     settings.teamId,
     horizonDays,
+    minPlayersThreshold,
+    rsvpReminderHours,
     channelTraining,
     channelMatch,
     channelTournament,
@@ -128,6 +143,8 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
             disabled={
               saving ||
               (horizonDays === String(settings.eventHorizonDays) &&
+                minPlayersThreshold === String(settings.minPlayersThreshold) &&
+                rsvpReminderHours === String(settings.rsvpReminderHours) &&
                 channelTraining === (settings.discordChannelTraining ?? '__none__') &&
                 channelMatch === (settings.discordChannelMatch ?? '__none__') &&
                 channelTournament === (settings.discordChannelTournament ?? '__none__') &&
@@ -139,6 +156,42 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
             {saving ? m.profile_saving() : m.profile_saveChanges()}
           </Button>
         </div>
+        <div className='mt-6'>
+          <label htmlFor='min-players' className='text-sm font-medium mb-1 block'>
+            {m.teamSettings_minPlayersThreshold()}
+          </label>
+          <p className='text-xs text-muted-foreground mb-2'>
+            {m.teamSettings_minPlayersThresholdHelp()}
+          </p>
+          <Input
+            id='min-players'
+            type='number'
+            min={0}
+            max={100}
+            value={minPlayersThreshold}
+            onChange={(e) => setMinPlayersThreshold(e.target.value)}
+            className='flex-1'
+          />
+        </div>
+
+        <div className='mt-6'>
+          <label htmlFor='rsvp-reminder-hours' className='text-sm font-medium mb-1 block'>
+            {m.teamSettings_rsvpReminderHours()}
+          </label>
+          <p className='text-xs text-muted-foreground mb-2'>
+            {m.teamSettings_rsvpReminderHoursHelp()}
+          </p>
+          <Input
+            id='rsvp-reminder-hours'
+            type='number'
+            min={0}
+            max={168}
+            value={rsvpReminderHours}
+            onChange={(e) => setRsvpReminderHours(e.target.value)}
+            className='flex-1'
+          />
+        </div>
+
         <div className='mt-8'>
           <h2 className='text-lg font-semibold mb-2'>{m.teamSettings_discordChannels()}</h2>
           <p className='text-xs text-muted-foreground mb-4'>

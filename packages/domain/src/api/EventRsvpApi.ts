@@ -22,6 +22,7 @@ export class EventRsvpDetail extends Schema.Class<EventRsvpDetail>('EventRsvpDet
   noCount: Schema.Number,
   maybeCount: Schema.Number,
   canRsvp: Schema.Boolean,
+  minPlayersThreshold: Schema.Number,
 }) {}
 
 export class SubmitRsvpRequest extends Schema.Class<SubmitRsvpRequest>('SubmitRsvpRequest')({
@@ -47,6 +48,18 @@ export class RsvpDeadlinePassed extends Schema.TaggedError<RsvpDeadlinePassed>()
   HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
+export class NonResponderEntry extends Schema.Class<NonResponderEntry>('NonResponderEntry')({
+  teamMemberId: TeamMemberId,
+  memberName: Schema.NullOr(Schema.String),
+  username: Schema.NullOr(Schema.String),
+}) {}
+
+export class NonRespondersResponse extends Schema.Class<NonRespondersResponse>(
+  'NonRespondersResponse',
+)({
+  nonResponders: Schema.Array(NonResponderEntry),
+}) {}
+
 export class EventRsvpApiGroup extends HttpApiGroup.make('eventRsvp')
   .add(
     HttpApiEndpoint.get('getRsvps', '/teams/:teamId/events/:eventId/rsvps')
@@ -64,5 +77,13 @@ export class EventRsvpApiGroup extends HttpApiGroup.make('eventRsvp')
       .addError(RsvpDeadlinePassed, { status: 400 })
       .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
       .setPayload(SubmitRsvpRequest)
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('getNonResponders', '/teams/:teamId/events/:eventId/rsvps/non-responders')
+      .addSuccess(NonRespondersResponse)
+      .addError(Forbidden, { status: 403 })
+      .addError(EventNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
       .middleware(AuthMiddleware),
   ) {}

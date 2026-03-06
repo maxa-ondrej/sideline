@@ -10,6 +10,7 @@ import { AppLive, HealthServerLive } from '~/index.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -17,6 +18,7 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { EventHorizonCron } from '~/services/EventHorizonCron.js';
+import { RsvpReminderCron } from '~/services/RsvpReminderCron.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
@@ -83,11 +85,24 @@ const HorizonCron = EventHorizonCron.pipe(
   Effect.withLogSpan('event-horizon-cron'),
 );
 
+const RsvpReminderRepositoriesLive = Layer.mergeAll(
+  EventsRepository.Default,
+  EventSyncEventsRepository.Default,
+  TeamSettingsRepository.Default,
+);
+
+const ReminderCron = RsvpReminderCron.pipe(
+  Effect.provide(
+    RsvpReminderRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
+  ),
+  Effect.withLogSpan('rsvp-reminder-cron'),
+);
+
 Effect.Do.pipe(
   Effect.tap(() => (env.NODE_ENV === 'development' ? CreateDb : Effect.void)),
   Effect.tap(() => MigrateBefore),
   Effect.andThen(() =>
-    Effect.all([App, Health, MigrateAfter, Cron, HorizonCron], { concurrency: 5 }),
+    Effect.all([App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron], { concurrency: 6 }),
   ),
   Runtime.runMain(env.NODE_ENV),
 );

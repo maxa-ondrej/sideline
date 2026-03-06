@@ -7,6 +7,8 @@ import { TeamId } from '~/models/Team.js';
 export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettingsInfo')({
   teamId: TeamId,
   eventHorizonDays: Schema.Int,
+  minPlayersThreshold: Schema.Int,
+  rsvpReminderHours: Schema.Int,
   discordChannelTraining: Schema.NullOr(Schema.String),
   discordChannelMatch: Schema.NullOr(Schema.String),
   discordChannelTournament: Schema.NullOr(Schema.String),
@@ -19,6 +21,12 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
   'UpdateTeamSettingsRequest',
 )({
   eventHorizonDays: Schema.Int.pipe(Schema.between(1, 365)),
+  minPlayersThreshold: Schema.optionalWith(Schema.Int.pipe(Schema.between(0, 100)), {
+    as: 'Option',
+  }),
+  rsvpReminderHours: Schema.optionalWith(Schema.Int.pipe(Schema.between(0, 168)), {
+    as: 'Option',
+  }),
   discordChannelTraining: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
     as: 'Option',
   }),

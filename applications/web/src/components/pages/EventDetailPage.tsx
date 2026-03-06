@@ -76,6 +76,7 @@ interface EventDetailPageProps {
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
   rsvpDetail: EventRsvpApi.EventRsvpDetail;
+  nonResponders: ReadonlyArray<EventRsvpApi.NonResponderEntry>;
 }
 
 export function EventDetailPage({
@@ -85,6 +86,7 @@ export function EventDetailPage({
   trainingTypes,
   discordChannels,
   rsvpDetail,
+  nonResponders,
 }: EventDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -650,6 +652,16 @@ export function EventDetailPage({
               </span>
             </div>
 
+            {rsvpDetail.minPlayersThreshold > 0 &&
+              rsvpDetail.yesCount < rsvpDetail.minPlayersThreshold && (
+                <div className='mb-4 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-2 text-sm text-yellow-800'>
+                  {m.rsvp_belowMinPlayers({
+                    count: String(rsvpDetail.yesCount),
+                    threshold: String(rsvpDetail.minPlayersThreshold),
+                  })}
+                </div>
+              )}
+
             {rsvpDetail.rsvps.length > 0 ? (
               <ul className='space-y-1 text-sm'>
                 {[...rsvpDetail.rsvps]
@@ -681,6 +693,17 @@ export function EventDetailPage({
               </ul>
             ) : (
               <p className='text-sm text-muted-foreground'>{m.rsvp_noResponses()}</p>
+            )}
+
+            {(eventDetail.canEdit || eventDetail.canCancel) && nonResponders.length > 0 && (
+              <div className='mt-6'>
+                <h3 className='text-sm font-semibold mb-2'>{m.rsvp_nonRespondersTitle()}</h3>
+                <ul className='space-y-1 text-sm text-muted-foreground'>
+                  {nonResponders.map((nr) => (
+                    <li key={nr.teamMemberId}>{nr.memberName ?? nr.username ?? '—'}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>

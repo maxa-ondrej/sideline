@@ -296,6 +296,53 @@ export const EventsRpcLive = Effect.Do.pipe(
           ),
         ),
   ),
+  Effect.let(
+    'Event/GetRsvpReminderSummary',
+    ({ rsvps, events }) =>
+      ({ event_id }: { readonly event_id: Event.EventId }) =>
+        Effect.Do.pipe(
+          Effect.bind('event', () =>
+            events.findEventByIdWithDetails(event_id).pipe(Effect.map(Option.getOrUndefined)),
+          ),
+          Effect.bind('counts', () => rsvps.countRsvpsByEventId(event_id)),
+          Effect.bind('nonResponders', ({ event }) =>
+            event ? rsvps.findNonRespondersByEventId(event_id, event.team_id) : Effect.succeed([]),
+          ),
+          Effect.map(({ counts, nonResponders }) => {
+            let yesCount = 0;
+            let noCount = 0;
+            let maybeCount = 0;
+            for (const c of counts) {
+              if (c.response === 'yes') yesCount = c.count;
+              else if (c.response === 'no') noCount = c.count;
+              else if (c.response === 'maybe') maybeCount = c.count;
+            }
+            return new EventRpcModels.RsvpReminderSummary({
+              yesCount,
+              noCount,
+              maybeCount,
+              nonResponders: nonResponders.map(
+                (nr) =>
+                  new EventRpcModels.NonResponderRpcEntry({
+                    discord_id: nr.discord_id,
+                    name: nr.member_name,
+                    username: nr.username,
+                  }),
+              ),
+            });
+          }),
+          Effect.catchAll(() =>
+            Effect.succeed(
+              new EventRpcModels.RsvpReminderSummary({
+                yesCount: 0,
+                noCount: 0,
+                maybeCount: 0,
+                nonResponders: [],
+              }),
+            ),
+          ),
+        ),
+  ),
   Bind.remove('syncEvents'),
   Bind.remove('events'),
   Bind.remove('rsvps'),
