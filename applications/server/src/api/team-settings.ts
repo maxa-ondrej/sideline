@@ -29,6 +29,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
               return new TeamSettingsApi.TeamSettingsInfo({
                 teamId,
                 eventHorizonDays: s?.event_horizon_days ?? 30,
+                minPlayersThreshold: s?.min_players_threshold ?? 0,
+                rsvpReminderHours: s?.rsvp_reminder_hours ?? 24,
                 discordChannelTraining: s?.discord_channel_training ?? null,
                 discordChannelMatch: s?.discord_channel_match ?? null,
                 discordChannelTournament: s?.discord_channel_tournament ?? null,
@@ -55,6 +57,14 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                 .upsert({
                   teamId,
                   eventHorizonDays: payload.eventHorizonDays,
+                  minPlayersThreshold: Option.match(payload.minPlayersThreshold, {
+                    onNone: () => s?.min_players_threshold ?? 0,
+                    onSome: (v) => v,
+                  }),
+                  rsvpReminderHours: Option.match(payload.rsvpReminderHours, {
+                    onNone: () => s?.rsvp_reminder_hours ?? 24,
+                    onSome: (v) => v,
+                  }),
                   discordChannelTraining: Option.match(payload.discordChannelTraining, {
                     onNone: () => s?.discord_channel_training ?? null,
                     onSome: Option.getOrNull,
@@ -87,6 +97,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                 new TeamSettingsApi.TeamSettingsInfo({
                   teamId: result.team_id,
                   eventHorizonDays: result.event_horizon_days,
+                  minPlayersThreshold: result.min_players_threshold,
+                  rsvpReminderHours: result.rsvp_reminder_hours,
                   discordChannelTraining: result.discord_channel_training,
                   discordChannelMatch: result.discord_channel_match,
                   discordChannelTournament: result.discord_channel_tournament,

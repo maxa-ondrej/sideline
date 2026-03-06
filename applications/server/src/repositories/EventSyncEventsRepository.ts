@@ -3,7 +3,12 @@ import { Discord, Event, Team } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
-const EventSyncEventType = Schema.Literal('event_created', 'event_updated', 'event_cancelled');
+const EventSyncEventType = Schema.Literal(
+  'event_created',
+  'event_updated',
+  'event_cancelled',
+  'rsvp_reminder',
+);
 type EventSyncEventType = typeof EventSyncEventType.Type;
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({

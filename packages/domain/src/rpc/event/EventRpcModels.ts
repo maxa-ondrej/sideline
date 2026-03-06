@@ -60,3 +60,18 @@ export class RsvpAttendeesResult extends Schema.Class<RsvpAttendeesResult>('Rsvp
   attendees: Schema.Array(RsvpAttendeeEntry),
   total: Schema.Number,
 }) {}
+
+export class NonResponderRpcEntry extends Schema.Class<NonResponderRpcEntry>(
+  'NonResponderRpcEntry',
+)({
+  discord_id: Schema.NullOr(Schema.String),
+  name: Schema.NullOr(Schema.String),
+  username: Schema.NullOr(Schema.String),
+}) {}
+
+export class RsvpReminderSummary extends Schema.Class<RsvpReminderSummary>('RsvpReminderSummary')({
+  yesCount: Schema.Number,
+  noCount: Schema.Number,
+  maybeCount: Schema.Number,
+  nonResponders: Schema.Array(NonResponderRpcEntry),
+}) {}

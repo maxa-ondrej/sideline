@@ -220,6 +220,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
       }),
     ),
+    Effect.let('markReminder', ({ sql }) =>
+      SqlSchema.void({
+        Request: Event.EventId,
+        execute: (id) => sql`UPDATE events SET reminder_sent_at = now() WHERE id = ${id}`,
+      }),
+    ),
     Effect.let('markModified', ({ sql }) =>
       SqlSchema.void({
         Request: Event.EventId,
@@ -352,6 +358,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   findEventsByChannelId(channelId: string) {
     return this.findByChannelId(channelId);
+  }
+
+  markReminderSent(eventId: Event.EventId) {
+    return this.markReminder(eventId);
   }
 
   markEventSeriesModified(eventId: Event.EventId) {

@@ -71,5 +71,18 @@ export const constructEvent = Match.type<EventSyncEventRow>().pipe(
       }),
     ),
   ),
+  Match.when({ event_type: 'rsvp_reminder' }, (r) =>
+    Effect.succeed(
+      new EventRpcEvents.RsvpReminderEvent({
+        id: r.id,
+        team_id: r.team_id,
+        guild_id: r.guild_id,
+        event_id: r.event_id,
+        title: r.event_title,
+        start_at: r.event_start_at,
+        discord_channel_id: r.discord_target_channel_id,
+      }),
+    ),
+  ),
   Match.exhaustive,
 );
