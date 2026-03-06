@@ -54,7 +54,7 @@ const CreateSeriesSchema = Schema.Struct({
   trainingTypeId: Schema.String,
   description: Schema.String,
   frequency: EventSeries.RecurrenceFrequency,
-  dayOfWeek: Schema.NumberFromString,
+  daysOfWeek: EventSeries.DaysOfWeek,
   startDate: Schema.NonEmptyString,
   endDate: Schema.String,
   startTime: Schema.NonEmptyString,
@@ -74,14 +74,14 @@ const eventTypeLabels: Record<Event.EventType, () => string> = {
   other: m.event_type_other,
 };
 
-const dayOfWeekLabels: Record<number, () => string> = {
-  0: m.event_day_0,
-  1: m.event_day_1,
-  2: m.event_day_2,
-  3: m.event_day_3,
-  4: m.event_day_4,
-  5: m.event_day_5,
-  6: m.event_day_6,
+const dayShortLabels: Record<number, () => string> = {
+  0: m.event_day_short_0,
+  1: m.event_day_short_1,
+  2: m.event_day_short_2,
+  3: m.event_day_short_3,
+  4: m.event_day_short_4,
+  5: m.event_day_short_5,
+  6: m.event_day_short_6,
 };
 
 interface EventsListPageProps {
@@ -132,7 +132,7 @@ export function EventsListPage({
       trainingTypeId: NONE_VALUE,
       description: '',
       frequency: 'weekly' as EventSeries.RecurrenceFrequency,
-      dayOfWeek: '1',
+      daysOfWeek: [] as number[],
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       startTime: '',
@@ -197,7 +197,7 @@ export function EventsListPage({
                 : null,
             description: values.description || null,
             frequency: values.frequency,
-            dayOfWeek: values.dayOfWeek as EventSeries.DayOfWeek,
+            daysOfWeek: values.daysOfWeek,
             startDate: values.startDate,
             endDate: values.endDate || null,
             startTime: values.startTime,
@@ -536,24 +536,33 @@ export function EventsListPage({
                       />
                     </div>
                     <FormField
-                      {...seriesForm.register('dayOfWeek')}
+                      name='daysOfWeek'
+                      control={seriesForm.control}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{m.event_dayOfWeek()}</FormLabel>
-                          <Select onValueChange={field.onChange} value={String(field.value)}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {[1, 2, 3, 4, 5, 6, 0].map((d) => (
-                                <SelectItem key={d} value={String(d)}>
-                                  {dayOfWeekLabels[d]()}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>{m.event_daysOfWeek()}</FormLabel>
+                          <div className='flex gap-1'>
+                            {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                              const selected = (field.value as number[]).includes(d);
+                              return (
+                                <Button
+                                  key={d}
+                                  type='button'
+                                  size='sm'
+                                  variant={selected ? 'default' : 'outline'}
+                                  className='w-10'
+                                  onClick={() => {
+                                    const current = field.value as number[];
+                                    field.onChange(
+                                      selected ? current.filter((v) => v !== d) : [...current, d],
+                                    );
+                                  }}
+                                >
+                                  {dayShortLabels[d]()}
+                                </Button>
+                              );
+                            })}
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

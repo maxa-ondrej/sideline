@@ -32,7 +32,7 @@ const cronEffect = Effect.Do.pipe(
 
         const dates = generateOccurrenceDates({
           frequency: s.frequency,
-          dayOfWeek: s.day_of_week,
+          daysOfWeek: s.days_of_week,
           startDate: startFrom,
           endDate: effectiveEnd,
         });

@@ -76,7 +76,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   title: payload.title,
                   description: payload.description,
                   frequency: payload.frequency,
-                  dayOfWeek: payload.dayOfWeek,
+                  daysOfWeek: payload.daysOfWeek,
                   startDate: payload.startDate,
                   endDate: payload.endDate,
                   startTime: payload.startTime,
@@ -99,7 +99,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.let('dates', ({ inserted, effectiveEnd }) =>
               generateOccurrenceDates({
                 frequency: inserted.frequency,
-                dayOfWeek: inserted.day_of_week,
+                daysOfWeek: inserted.days_of_week,
                 startDate: DateTime.unsafeMake(inserted.start_date),
                 endDate: effectiveEnd,
               }),
@@ -166,7 +166,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   teamId: inserted.team_id,
                   title: inserted.title,
                   frequency: inserted.frequency,
-                  dayOfWeek: inserted.day_of_week,
+                  daysOfWeek: inserted.days_of_week,
                   startDate: inserted.start_date,
                   endDate: inserted.end_date,
                   status: inserted.status,
@@ -197,7 +197,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     teamId: s.team_id,
                     title: s.title,
                     frequency: s.frequency,
-                    dayOfWeek: s.day_of_week,
+                    daysOfWeek: s.days_of_week,
                     startDate: s.start_date,
                     endDate: s.end_date,
                     status: s.status,
@@ -242,7 +242,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   title: found.title,
                   description: found.description,
                   frequency: found.frequency,
-                  dayOfWeek: found.day_of_week,
+                  daysOfWeek: found.days_of_week,
                   startDate: found.start_date,
                   endDate: found.end_date,
                   status: found.status,
@@ -305,6 +305,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 onNone: () => existing.description,
                 onSome: Option.getOrNull,
               }),
+              daysOfWeek: Option.getOrElse(payload.daysOfWeek, () => existing.days_of_week),
               startTime: Option.getOrElse(payload.startTime, () => existing.start_time),
               endTime: Option.match(payload.endTime, {
                 onNone: () => existing.end_time,
@@ -330,6 +331,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   title: resolved.title,
                   trainingTypeId: resolved.trainingTypeId,
                   description: resolved.description,
+                  daysOfWeek: resolved.daysOfWeek,
                   startTime: resolved.startTime,
                   endTime: resolved.endTime,
                   location: resolved.location,
@@ -365,7 +367,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   const nextDay = DateTime.add(lastGen, { days: 1 });
                   const newDates = generateOccurrenceDates({
                     frequency: existing.frequency,
-                    dayOfWeek: existing.day_of_week,
+                    daysOfWeek: existing.days_of_week,
                     startDate: nextDay,
                     endDate: effectiveEnd,
                   });
@@ -422,7 +424,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 title: detail.title,
                 description: detail.description,
                 frequency: detail.frequency,
-                dayOfWeek: detail.day_of_week,
+                daysOfWeek: detail.days_of_week,
                 startDate: detail.start_date,
                 endDate: detail.end_date,
                 status: detail.status,
