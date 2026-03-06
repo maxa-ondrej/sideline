@@ -395,5 +395,6 @@
   "teamSettings_rsvpReminderHoursHelp": "Send a Discord reminder this many hours before the event. Set to 0 to disable.",
   "rsvp_belowMinPlayers": "Only {count} confirmed — below the minimum of {threshold} players.",
   "rsvp_nonRespondersTitle": "Not yet responded",
-  "bot_rsvp_reminder_title": "Reminder: {title}"
+  "bot_rsvp_reminder_title": "Reminder: {title}",
+  "bot_rsvp_reminder_dm": "You haven't responded to **{title}** yet. It starts {when}. Please RSVP!"
 }
