@@ -52,6 +52,6 @@ const cronEffect = Effect.Do.pipe(
   Effect.asVoid,
 );
 
-const cronSchedule = Schedule.cron('0 * * * *');
+const cronSchedule = Schedule.cron('* * * * *');
 
 export const RsvpReminderCron = cronEffect.pipe(Effect.repeat(cronSchedule), Effect.asVoid);
