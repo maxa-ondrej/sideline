@@ -20,28 +20,39 @@ Pick up a story from the active sprint and implement it end-to-end.
 
 Follow these steps **in order**. Stop and report if any step fails.
 
-### 1. Find the active sprint
+---
+
+### Phase 1: Reconcile
+
+Invoke the `/reconcile` skill to sync Notion statuses with the current git/GitHub state before starting new work. This ensures stale statuses from previous work are cleaned up.
+
+---
+
+### Phase 2: Pick up work
+
+#### 2.1 Find the active sprint
 
 Use `notion-search` to find the sprint with Status = "Active". Fetch the sprint page to get its linked stories.
 
 If no active sprint exists, tell the user and stop.
 
-### 2. Select a story
+#### 2.2 Select a story
 
-From the active sprint's stories, fetch each story to check its status. Pick a story using this priority order:
+From the active sprint's stories, fetch each story to check its status and type. Pick a story using this priority order:
 
 1. **In Progress** — resume work already started (highest priority)
-2. **TODO** — start new work
+2. **TODO Bug** — bugs take priority over features
+3. **TODO** — start new work
 
 Skip stories with status Done, In Review, or In Test.
 
-If multiple candidates exist at the same priority level, prefer higher priority stories (Critical > High > Medium > Low).
+Within the same priority level, prefer higher priority stories (Critical > High > Medium > Low).
 
 If `$ARGUMENTS` is provided, use it to match a specific story by name or keyword instead of auto-selecting.
 
 If no actionable stories remain, tell the user the sprint is complete and stop.
 
-### 3. Fetch story details and tasks
+#### 2.3 Fetch story details and tasks
 
 Fetch the selected story page to get:
 - The story description (page content) for context
@@ -49,7 +60,7 @@ Fetch the selected story page to get:
 
 Fetch each task to get its title, status, type, notes, and estimate.
 
-### 4. Update statuses to In Progress
+#### 2.4 Update statuses to In Progress
 
 Update **ALL** statuses **immediately** when starting work — including during planning, not just coding.
 
@@ -60,7 +71,7 @@ Update **ALL** statuses **immediately** when starting work — including during 
 
 **Do not skip updating tasks.** All tasks must be marked In Progress before proceeding to the next step.
 
-### 5. Present the work summary
+#### 2.5 Present the work summary
 
 Show the user:
 - Sprint name
@@ -68,13 +79,32 @@ Show the user:
 - List of tasks with their status, type, and estimate
 - Which tasks are already done vs remaining
 
-### 6. Plan implementation
+---
+
+### Phase 3: Plan and implement
+
+#### 3.1 Create a feature branch
+
+Before writing any code, ensure you're starting from a clean, up-to-date `main`:
+
+```bash
+git checkout main
+git pull origin main
+git checkout -b feat/story-name
+```
+
+**Branch rules:**
+- Always create a **new branch from `main`** for each story. Never reuse an old feature branch for a new story.
+- If you're resuming in-progress work that already has an **unmerged branch for the same story**, switch to that branch and rebase on main instead.
+- If a previous branch for a different story exists, ignore it — start fresh from `main`.
+
+#### 3.2 Plan implementation
 
 Enter plan mode. For each remaining task (not Done), analyze what code changes are needed by exploring the codebase. Write a concrete implementation plan that covers all remaining tasks.
 
 Present the plan to the user for approval via `ExitPlanMode`.
 
-### 7. Implement tasks
+#### 3.3 Implement tasks
 
 After the plan is approved, work through each remaining task **in order**. For each task:
 
@@ -86,28 +116,92 @@ Leave tasks in **In Progress** after implementation — the commit step handles 
 
 If a task fails (tests break, types don't pass), fix the issue before moving on. If you cannot fix it, leave the task as In Progress and report the blocker to the user.
 
-### 8. Create a feature branch
+---
 
-Before writing any code, ensure you're starting from a clean, up-to-date `main`:
+### Phase 4: Refactor
 
-```bash
-git checkout main
-git pull origin main
-git checkout -b feat/story-name
-```
+Invoke the `/refactor` skill on each file that was changed during implementation. Use `git diff --name-only` to identify changed files.
 
-This must happen **before** step 7 (implementing tasks).
+Focus on:
+- Ensuring Effect-TS code style compliance (see AGENTS.md)
+- Removing unnecessary complexity introduced during implementation
+- Keeping changes minimal — don't refactor unrelated code
 
-**Branch rules:**
-- Always create a **new branch from `main`** for each story. Never reuse an old feature branch for a new story.
-- If you're resuming in-progress work that already has an **unmerged branch for the same story**, switch to that branch and rebase on main instead.
-- If a previous branch for a different story exists, ignore it — start fresh from `main`.
+---
 
-### 9. Commit and push to feature branch
+### Phase 5: Commit and push
 
-After all tasks are complete (or as many as possible):
-
-1. Invoke the `/commit` skill to commit, push, and verify CI
-2. The commit skill will move tasks to **Done** only after CI checks pass, and cascade to the story if applicable
+Invoke the `/commit` skill to:
+- Create a changeset
+- Run all checks (format, codegen, type check, tests)
+- Commit, push, and open a PR
+- Verify CI passes
 
 **Never push directly to `main`.** All work goes through feature branches and pull requests.
+
+---
+
+### Phase 6: Wait for CI and code review
+
+After the PR is created and CI passes:
+
+1. Wait for GitHub Actions pipelines to finish (the `/commit` skill already does this)
+2. Poll for Copilot code review comments on the PR:
+
+```bash
+gh pr view --json number -q '.number'
+gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
+gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
+```
+
+Wait up to 3 minutes for review comments to appear, checking every 30 seconds. If no comments arrive, proceed to the summary.
+
+---
+
+### Phase 7: Address review comments
+
+If Copilot or other reviewers left comments:
+
+1. Read all review comments
+2. Evaluate each comment — fix comments that are:
+   - Pointing out real bugs or issues
+   - Suggesting improvements aligned with AGENTS.md conventions
+   - Highlighting missing error handling or type safety issues
+3. Skip comments that are:
+   - Stylistic preferences that contradict AGENTS.md
+   - Suggestions to add unnecessary complexity
+   - False positives or irrelevant to the change
+4. For each relevant comment, make the fix
+
+Report which comments were addressed and which were skipped (with reasons).
+
+---
+
+### Phase 8: Final refactor and push
+
+If any changes were made in Phase 7:
+
+1. Invoke the `/refactor` skill on the newly changed files
+2. Run all checks: `pnpm format`, `pnpm check`, `pnpm test`
+3. Commit and push the fixes:
+
+```bash
+git add -A
+git commit -m "Address review feedback"
+git push
+```
+
+4. Wait for CI to pass again using `gh run watch`
+5. If new review comments appear, repeat Phase 7-8 (up to 2 additional rounds to avoid infinite loops)
+
+If no changes were made in Phase 7, skip this phase.
+
+---
+
+### Phase 9: Done
+
+Report the final state:
+- PR URL
+- All tasks completed and their Notion statuses
+- Any review comments that were addressed or intentionally skipped
+- Any remaining blockers
