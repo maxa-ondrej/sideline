@@ -64,9 +64,23 @@ class UserLookupResult extends Schema.Class<UserLookupResult>('UserLookupResult'
 const parseDateTime = (input: string): string | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/.exec(input.trim());
   if (!match) return null;
-  const [, year, month, day, hour, minute] = match;
-  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00Z`);
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr] = match;
+  const year = Number.parseInt(yearStr, 10);
+  const month = Number.parseInt(monthStr, 10);
+  const day = Number.parseInt(dayStr, 10);
+  const hour = Number.parseInt(hourStr, 10);
+  const minute = Number.parseInt(minuteStr, 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return null;
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
   if (Number.isNaN(date.getTime())) return null;
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() + 1 !== month ||
+    date.getUTCDate() !== day ||
+    date.getUTCHours() !== hour ||
+    date.getUTCMinutes() !== minute
+  )
+    return null;
   return date.toISOString();
 };
 
@@ -76,7 +90,7 @@ const createEvent = (
   syncEvents: EventSyncEventsRepository,
   members: TeamMembersRepository,
   input: {
-    readonly guild_id: string;
+    readonly guild_id: Discord.Snowflake;
     readonly discord_user_id: Discord.Snowflake;
     readonly event_type: Event.EventType;
     readonly title: string;
@@ -169,7 +183,7 @@ const createEvent = (
           location: Option.fromNullable(input.location),
           createdBy: userLookup.team_member_id as TeamMember.TeamMemberId,
         })
-        .pipe(Effect.mapError(() => new EventRpcModels.CreateEventInvalidDate())),
+        .pipe(Effect.orDie),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) =>
       resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(null))),

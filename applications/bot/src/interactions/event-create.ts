@@ -39,11 +39,20 @@ export const EventCreateModal = Ix.modalSubmit(
         interaction.member?.user?.id ?? ('user' in interaction ? interaction.user?.id : undefined);
       const guildId = interaction.guild_id;
 
-      if (!discordUserId || !guildId) {
+      if (!guildId) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_rsvp_user_error({}, { locale }), flags: 64 },
+            data: { content: m.bot_event_no_guild({}, { locale }), flags: 64 },
+          }),
+        );
+      }
+
+      if (!discordUserId) {
+        return Effect.succeed(
+          Ix.response({
+            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: { content: m.bot_event_error({}, { locale }), flags: 64 },
           }),
         );
       }
@@ -64,7 +73,7 @@ export const EventCreateModal = Ix.modalSubmit(
       }
 
       return rpc['Event/CreateEvent']({
-        guild_id: guildId,
+        guild_id: decodeSnowflake(guildId),
         discord_user_id: decodeSnowflake(discordUserId),
         event_type: eventType as
           | 'training'
@@ -109,6 +118,14 @@ export const EventCreateModal = Ix.modalSubmit(
             Ix.response({
               type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
               data: { content: m.bot_event_invalid_date({}, { locale }), flags: 64 },
+            }),
+          ),
+        ),
+        Effect.catchAll(() =>
+          Effect.succeed(
+            Ix.response({
+              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+              data: { content: m.bot_event_error({}, { locale }), flags: 64 },
             }),
           ),
         ),
