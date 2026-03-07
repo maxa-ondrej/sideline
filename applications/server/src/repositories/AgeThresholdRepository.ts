@@ -7,8 +7,13 @@ import {
   TeamMember,
   User,
 } from '@sideline/domain';
-import { Schemas } from '@sideline/effect-lib';
+import { Schemas, SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
+
+export class AgeThresholdAlreadyExistsError extends Schema.TaggedError<AgeThresholdAlreadyExistsError>()(
+  'AgeThresholdAlreadyExistsError',
+  {},
+) {}
 
 export class AgeThresholdWithGroupName extends Schema.Class<AgeThresholdWithGroupName>(
   'AgeThresholdWithGroupName',
@@ -166,7 +171,10 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       group_id: groupId,
       min_age: minAge,
       max_age: maxAge,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(
+      SqlErrors.catchUniqueViolation(() => new AgeThresholdAlreadyExistsError()),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
   updateRuleById = (
     ruleId: AgeThreshold.AgeThresholdRuleId,

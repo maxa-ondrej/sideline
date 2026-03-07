@@ -65,6 +65,9 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   groupName: null,
                 }),
             ),
+            Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
+              Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
@@ -144,6 +147,9 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   name: updated.name,
                   groupName: null,
                 }),
+            ),
+            Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
+              Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),

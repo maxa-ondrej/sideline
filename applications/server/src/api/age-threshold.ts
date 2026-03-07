@@ -77,6 +77,9 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: rule.max_age,
                 }),
             ),
+            Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
+              Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )

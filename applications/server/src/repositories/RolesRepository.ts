@@ -1,6 +1,12 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team } from '@sideline/domain';
+import { SqlErrors } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+
+export class RoleNameAlreadyTakenError extends Schema.TaggedError<RoleNameAlreadyTakenError>()(
+  'RoleNameAlreadyTakenError',
+  {},
+) {}
 
 class RoleWithPermissionCount extends Schema.Class<RoleWithPermissionCount>(
   'RoleWithPermissionCount',
@@ -200,11 +206,13 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
 
   insertRole = (teamId: Team.TeamId, name: string) =>
     this.insertQuery({ team_id: teamId, name, is_built_in: false }).pipe(
+      SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   updateRole = (roleId: Role.RoleId, name: string | null) =>
     this.updateQuery({ id: roleId, name }).pipe(
+      SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 

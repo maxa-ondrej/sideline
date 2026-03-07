@@ -448,6 +448,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
+            Effect.catchTag('MemberAlreadyExistsError', Effect.die),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),

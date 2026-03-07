@@ -80,6 +80,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount: 0,
                   }),
               ),
+              Effect.catchTag('GroupNameAlreadyTakenError', () =>
+                Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
+              ),
               Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
@@ -166,6 +169,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     emoji: updated.emoji,
                     memberCount,
                   }),
+              ),
+              Effect.catchTag('GroupNameAlreadyTakenError', () =>
+                Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
               Effect.catchTag('NoSuchElementException', Effect.die),
             ),

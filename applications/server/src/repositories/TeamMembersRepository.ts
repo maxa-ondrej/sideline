@@ -1,7 +1,12 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Role, Team, TeamMember, User } from '@sideline/domain';
-import { Schemas } from '@sideline/effect-lib';
+import { Schemas, SqlErrors } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+
+export class MemberAlreadyExistsError extends Schema.TaggedError<MemberAlreadyExistsError>()(
+  'MemberAlreadyExistsError',
+  {},
+) {}
 
 class MembershipQuery extends Schema.Class<MembershipQuery>('MembershipQuery')({
   team_id: Schema.String,
@@ -58,7 +63,10 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
   });
 
   addMember = (input: typeof TeamMember.TeamMember.insert.Type) =>
-    this.addMemberQuery(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.addMemberQuery(input).pipe(
+      SqlErrors.catchUniqueViolation(() => new MemberAlreadyExistsError()),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
   private assignRoleToMemberQuery = SqlSchema.void({
     Request: MemberRoleInput,

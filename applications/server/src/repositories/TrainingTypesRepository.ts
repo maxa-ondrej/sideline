@@ -1,6 +1,12 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Team, TrainingType } from '@sideline/domain';
+import { SqlErrors } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+
+export class TrainingTypeNameAlreadyTakenError extends Schema.TaggedError<TrainingTypeNameAlreadyTakenError>()(
+  'TrainingTypeNameAlreadyTakenError',
+  {},
+) {}
 
 class TrainingTypeWithGroup extends Schema.Class<TrainingTypeWithGroup>('TrainingTypeWithGroup')({
   id: TrainingType.TrainingTypeId,
@@ -126,7 +132,10 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       name,
       group_id: groupId,
       discord_channel_id: discordChannelId ?? null,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(
+      SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   updateTrainingType = (
@@ -138,7 +147,10 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       id: trainingTypeId,
       name,
       discord_channel_id: discordChannelId ?? null,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(
+      SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {

@@ -101,6 +101,12 @@ export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
+export class GroupNameAlreadyTaken extends Schema.TaggedError<GroupNameAlreadyTaken>()(
+  'GroupNameAlreadyTaken',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class GroupApiGroup extends HttpApiGroup.make('group')
   .add(
     HttpApiEndpoint.get('listGroups', '/teams/:teamId/groups')
@@ -113,6 +119,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
     HttpApiEndpoint.post('createGroup', '/teams/:teamId/groups')
       .addSuccess(GroupInfo, { status: 201 })
       .addError(Forbidden, { status: 403 })
+      .addError(GroupNameAlreadyTaken, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .setPayload(CreateGroupRequest)
       .middleware(AuthMiddleware),
@@ -130,6 +137,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .addSuccess(GroupInfo)
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
+      .addError(GroupNameAlreadyTaken, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
       .setPayload(UpdateGroupRequest)
       .middleware(AuthMiddleware),

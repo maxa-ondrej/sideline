@@ -67,6 +67,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   permissions: [...payload.permissions],
                 }),
             ),
+            Effect.catchTag('RoleNameAlreadyTakenError', () =>
+              Effect.fail(new RoleApi.RoleNameAlreadyTaken()),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
@@ -142,6 +145,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   isBuiltIn: updated.is_built_in,
                   permissions: [...permissions],
                 }),
+            ),
+            Effect.catchTag('RoleNameAlreadyTakenError', () =>
+              Effect.fail(new RoleApi.RoleNameAlreadyTaken()),
             ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),

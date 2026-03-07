@@ -101,6 +101,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   isProfileComplete: user.isProfileComplete,
                 }),
             ),
+            Effect.catchTag('MemberAlreadyExistsError', () =>
+              Effect.fail(new Invite.AlreadyMember()),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
