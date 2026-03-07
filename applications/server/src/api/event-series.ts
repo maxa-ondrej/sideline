@@ -170,6 +170,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   discordChannelId: inserted.discord_target_channel_id,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('listEventSeries', ({ path: { teamId } }) =>
@@ -412,6 +413,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 canCancel: canCancel && detail.status === 'active',
               });
             }),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('cancelEventSeries', ({ path: { teamId, seriesId } }) =>

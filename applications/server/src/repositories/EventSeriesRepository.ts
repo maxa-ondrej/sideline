@@ -236,15 +236,15 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       end_date: input.endDate,
       created_by: input.createdBy,
       discord_target_channel_id: input.discordTargetChannelId ?? null,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findSeriesByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeamId(teamId).pipe(Effect.orDie);
+    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findSeriesById = (seriesId: EventSeries.EventSeriesId) => {
-    return this.findById(seriesId).pipe(Effect.orDie);
+    return this.findById(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   updateEventSeries = (input: {
@@ -270,20 +270,22 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       location: input.location,
       end_date: input.endDate,
       discord_target_channel_id: input.discordTargetChannelId ?? null,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   cancelEventSeries = (seriesId: EventSeries.EventSeriesId) => {
-    return this.cancelSeries(seriesId).pipe(Effect.orDie);
+    return this.cancelSeries(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   getActiveForGeneration = () => {
-    return this.findActiveForGeneration(undefined as undefined).pipe(Effect.orDie);
+    return this.findActiveForGeneration(undefined as undefined).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: string) => {
     return this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 }

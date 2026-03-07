@@ -128,13 +128,15 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
         }),
       ),
       Effect.catchTag('NoSuchElementException', () => Effect.void),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
-  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(Effect.orDie);
+  findUnprocessed = (limit: number) =>
+    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  markProcessed = (id: string) => this.markEventProcessed({ id }).pipe(Effect.orDie);
+  markProcessed = (id: string) =>
+    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   markFailed = (id: string, error: string) =>
-    this.markEventFailed({ id, error }).pipe(Effect.orDie);
+    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

@@ -101,6 +101,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelOther: result.discord_channel_other,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),
     ),

@@ -149,10 +149,11 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  findRulesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(Effect.orDie);
+  findRulesByTeamId = (teamId: Team.TeamId) =>
+    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   findRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
-    this.findByIdQuery(ruleId).pipe(Effect.orDie);
+    this.findByIdQuery(ruleId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   insertRule = (
     teamId: Team.TeamId,
@@ -165,23 +166,28 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       group_id: groupId,
       min_age: minAge,
       max_age: maxAge,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   updateRuleById = (
     ruleId: AgeThreshold.AgeThresholdRuleId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
-  ) => this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(Effect.orDie);
+  ) =>
+    this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
   deleteRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
-    this.deleteRule(ruleId).pipe(Effect.orDie);
+    this.deleteRule(ruleId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   getAllTeamsWithRules = () =>
     this.findAllTeamsWithRulesQuery(void 0).pipe(
       Effect.map((rows) => rows.map((r) => r.team_id)),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   getMembersWithBirthDates = (teamId: Team.TeamId) =>
-    this.findMembersWithBirthDatesQuery(teamId).pipe(Effect.orDie);
+    this.findMembersWithBirthDatesQuery(teamId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 }

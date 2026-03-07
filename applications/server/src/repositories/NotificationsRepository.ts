@@ -112,15 +112,19 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
   });
 
   findByUser = (userId: User.UserId) => {
-    return this.findByUserId(userId).pipe(Effect.orDie);
+    return this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findByUserAndTeam = (userId: User.UserId, teamId: Team.TeamId) => {
-    return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(Effect.orDie);
+    return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   markAllAsReadForTeam = (userId: User.UserId, teamId: Team.TeamId) => {
-    return this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(Effect.orDie);
+    return this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   insert = (
@@ -131,7 +135,7 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     body: string,
   ) => {
     return this.insertOne({ team_id: teamId, user_id: userId, type, title, body }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 
@@ -154,18 +158,22 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
           body: n.body,
         }),
       ),
-    ).pipe(Effect.asVoid, Effect.orDie);
+    ).pipe(Effect.asVoid, Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   markAsRead = (notificationId: Notification.NotificationId) => {
-    return this.markOneAsRead({ id: notificationId }).pipe(Effect.orDie);
+    return this.markOneAsRead({ id: notificationId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   markAllAsRead = (userId: User.UserId) => {
-    return this.markAllRead(userId).pipe(Effect.orDie);
+    return this.markAllRead(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findById = (notificationId: Notification.NotificationId) => {
-    return this.findOneById(notificationId).pipe(Effect.orDie);
+    return this.findOneById(notificationId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 }

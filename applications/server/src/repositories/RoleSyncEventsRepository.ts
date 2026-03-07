@@ -104,7 +104,7 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
         }),
       ),
       Effect.catchTag('NoSuchElementException', () => Effect.void),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   emitRoleCreated = (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
@@ -145,11 +145,12 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
       Option.some(discordUserId),
     );
 
-  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(Effect.orDie);
+  findUnprocessed = (limit: number) =>
+    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   markProcessed = (id: RoleSyncEvent.RoleSyncEventId) =>
-    this.markEventProcessed({ id }).pipe(Effect.orDie);
+    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   markFailed = (id: RoleSyncEvent.RoleSyncEventId, error: string) =>
-    this.markEventFailed({ id, error }).pipe(Effect.orDie);
+    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

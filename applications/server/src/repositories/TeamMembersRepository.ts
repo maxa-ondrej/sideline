@@ -58,7 +58,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
   });
 
   addMember = (input: typeof TeamMember.TeamMember.insert.Type) =>
-    this.addMemberQuery(input).pipe(Effect.orDie);
+    this.addMemberQuery(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   private assignRoleToMemberQuery = SqlSchema.void({
     Request: MemberRoleInput,
@@ -132,7 +132,8 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       this.sql`SELECT * FROM team_members WHERE team_id = ${teamId} AND active = true`,
   });
 
-  findByTeam = (teamId: string) => this.findByTeamQuery(teamId).pipe(Effect.orDie);
+  findByTeam = (teamId: string) =>
+    this.findByTeamQuery(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   private findByUserQuery = SqlSchema.findAll({
     Request: Schema.String,
@@ -182,7 +183,8 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
             WHERE tm.user_id = ${userId}`,
   });
 
-  findByUser = (userId: string) => this.findByUserQuery(userId).pipe(Effect.orDie);
+  findByUser = (userId: string) =>
+    this.findByUserQuery(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   private findRosterByTeamQuery = SqlSchema.findAll({
     Request: Schema.String,
@@ -207,7 +209,8 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
     `,
   });
 
-  findRosterByTeam = (teamId: string) => this.findRosterByTeamQuery(teamId).pipe(Effect.orDie);
+  findRosterByTeam = (teamId: string) =>
+    this.findRosterByTeamQuery(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   private findRosterMemberQuery = SqlSchema.findOne({
     Request: RosterMemberQuery,
@@ -262,35 +265,35 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
   });
 
   findMembershipByIds = (teamId: Team.TeamId, userId: User.UserId) =>
-    this.findMembershipQuery({ team_id: teamId, user_id: userId }).pipe(Effect.orDie, Effect.orDie);
+    this.findMembershipQuery({ team_id: teamId, user_id: userId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
   findRosterMemberByIds = (teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) =>
     this.findRosterMemberQuery({ team_id: teamId, member_id: memberId }).pipe(
-      Effect.orDie,
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   deactivateMemberByIds = (teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) =>
     this.deactivateMemberQuery({ team_id: teamId, member_id: memberId }).pipe(
-      Effect.orDie,
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   getPlayerRoleId = (teamId: Team.TeamId) =>
-    this.findPlayerRoleIdQuery(teamId).pipe(Effect.orDie, Effect.orDie);
+    this.findPlayerRoleIdQuery(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   assignRole = (teamMemberId: TeamMember.TeamMemberId, roleId: Role.RoleId) =>
     this.assignRoleToMemberQuery({ team_member_id: teamMemberId, role_id: roleId }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   unassignRole = (teamMemberId: TeamMember.TeamMemberId, roleId: Role.RoleId) =>
     this.unassignRoleFromMemberQuery({ team_member_id: teamMemberId, role_id: roleId }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   setJerseyNumber = (memberId: TeamMember.TeamMemberId, jerseyNumber: number | null) =>
     this.updateJerseyNumberQuery({ member_id: memberId, jersey_number: jerseyNumber }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 }

@@ -14,9 +14,9 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
     ),
   ),
 }) {
-  findById = (id: Team.TeamId) => this.repo.findById(id).pipe(Effect.orDie);
+  findById = (id: Team.TeamId) => this.repo.findById(id);
 
-  insert = (input: typeof Team.Team.insert.Type) => this.repo.insert(input).pipe(Effect.orDie);
+  insert = (input: typeof Team.Team.insert.Type) => this.repo.insert(input);
 
   private findByGuildQuery = SqlSchema.findOne({
     Request: Schema.String,
@@ -25,5 +25,5 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
   });
 
   findByGuildId = (guildId: Discord.Snowflake) =>
-    this.findByGuildQuery(guildId).pipe(Effect.orDie, Effect.orDie);
+    this.findByGuildQuery(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

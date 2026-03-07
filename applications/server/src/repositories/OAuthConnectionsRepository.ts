@@ -67,14 +67,16 @@ export class OAuthConnectionsRepository extends Effect.Service<OAuthConnectionsR
       provider,
       access_token: accessToken,
       refresh_token: refreshToken,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   findByUser = (userId: User.UserId, provider: string) =>
-    this._findByUserAndProvider({ user_id: userId, provider }).pipe(Effect.orDie);
+    this._findByUserAndProvider({ user_id: userId, provider }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
   getAccessToken = (userId: User.UserId, provider: string) =>
     this._findAccessToken({ user_id: userId, provider }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
       Effect.flatten,
       Effect.map((row) => row.access_token),
     );

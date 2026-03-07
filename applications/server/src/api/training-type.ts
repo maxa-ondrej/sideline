@@ -65,6 +65,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   groupName: null,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('getTrainingType', ({ path: { teamId, trainingTypeId } }) =>
@@ -144,6 +145,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   groupName: null,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('deleteTrainingType', ({ path: { teamId, trainingTypeId } }) =>

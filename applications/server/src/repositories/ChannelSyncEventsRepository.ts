@@ -104,14 +104,15 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
         }),
       ),
       Effect.catchTag('NoSuchElementException', () => Effect.void),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
-  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(Effect.orDie);
+  findUnprocessed = (limit: number) =>
+    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   markProcessed = (id: ChannelSyncEvent.ChannelSyncEventId) =>
-    this.markEventProcessed({ id }).pipe(Effect.orDie);
+    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   markFailed = (id: ChannelSyncEvent.ChannelSyncEventId, error: string) =>
-    this.markEventFailed({ id, error }).pipe(Effect.orDie);
+    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

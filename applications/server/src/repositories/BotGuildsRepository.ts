@@ -53,15 +53,19 @@ export class BotGuildsRepository extends Effect.Service<BotGuildsRepository>()(
   });
 
   upsert = (guildId: Discord.Snowflake, guildName: string) =>
-    this._upsertGuild({ guild_id: guildId, guild_name: guildName }).pipe(Effect.orDie);
+    this._upsertGuild({ guild_id: guildId, guild_name: guildName }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
-  remove = (guildId: Discord.Snowflake) => this._removeGuild(guildId).pipe(Effect.orDie);
+  remove = (guildId: Discord.Snowflake) =>
+    this._removeGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   exists = (guildId: Discord.Snowflake) =>
     this._existsGuild(guildId).pipe(
       Effect.map((r) => r.exists),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
-  findAll = () => this._findAllGuilds(undefined).pipe(Effect.orDie);
+  findAll = () =>
+    this._findAllGuilds(undefined).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

@@ -67,6 +67,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   permissions: [...payload.permissions],
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('getRole', ({ path: { teamId, roleId } }) =>
@@ -142,6 +143,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   permissions: [...permissions],
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('deleteRole', ({ path: { teamId, roleId } }) =>
@@ -176,6 +178,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               ),
             ),
             Effect.asVoid,
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('assignRole', ({ path: { teamId, memberId }, payload }) =>

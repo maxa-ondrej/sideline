@@ -69,17 +69,22 @@ export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMapp
   });
 
   findByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
-    this.findByRole({ team_id: teamId, role_id: roleId }).pipe(Effect.orDie);
+    this.findByRole({ team_id: teamId, role_id: roleId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
   insert = (teamId: Team.TeamId, roleId: Role.RoleId, discordRoleId: Discord.Snowflake) =>
     this.insertMapping({
       team_id: teamId,
       role_id: roleId,
       discord_role_id: discordRoleId,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   deleteByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
-    this.deleteByRole({ team_id: teamId, role_id: roleId }).pipe(Effect.orDie);
+    this.deleteByRole({ team_id: teamId, role_id: roleId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
-  findAllByTeam = (teamId: Team.TeamId) => this._findAllByTeamId(teamId).pipe(Effect.orDie);
+  findAllByTeam = (teamId: Team.TeamId) =>
+    this._findAllByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

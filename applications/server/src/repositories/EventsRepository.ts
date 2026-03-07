@@ -261,11 +261,13 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
   });
 
   findEventsByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeamId(teamId).pipe(Effect.orDie);
+    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findEventByIdWithDetails = (eventId: Event.EventId) => {
-    return this.findByIdWithDetails(eventId).pipe(Effect.orDie);
+    return this.findByIdWithDetails(eventId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   insertEvent = (input: {
@@ -293,7 +295,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       created_by: input.createdBy,
       series_id: input.seriesId ?? Option.none(),
       discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   updateEvent = (input: {
@@ -317,15 +319,17 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       end_at: input.endAt,
       location: input.location,
       discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   cancelEvent = (eventId: Event.EventId) => {
-    return this.cancel(eventId).pipe(Effect.orDie);
+    return this.cancel(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   getScopedTrainingTypeIds = (teamMemberId: TeamMember.TeamMemberId) => {
-    return this.findScopedTrainingTypeIds(teamMemberId).pipe(Effect.orDie);
+    return this.findScopedTrainingTypeIds(teamMemberId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   saveDiscordMessageId = (eventId: Event.EventId, channelId: string, messageId: string) => {
@@ -333,27 +337,33 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       event_id: eventId,
       discord_channel_id: channelId,
       discord_message_id: messageId,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   getDiscordMessageId = (eventId: Event.EventId) => {
-    return this.getDiscordMessage(eventId).pipe(Effect.orDie);
+    return this.getDiscordMessage(eventId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   findEventsByChannelId = (channelId: string) => {
-    return this.findByChannelId(channelId).pipe(Effect.orDie);
+    return this.findByChannelId(channelId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   markReminderSent = (eventId: Event.EventId) => {
-    return this.markReminder(eventId).pipe(Effect.orDie);
+    return this.markReminder(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   markEventSeriesModified = (eventId: Event.EventId) => {
-    return this.markModified(eventId).pipe(Effect.orDie);
+    return this.markModified(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: string) => {
-    return this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(Effect.orDie);
+    return this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   updateFutureUnmodifiedInSeries = (
@@ -377,6 +387,6 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       start_time: fields.startTime,
       end_time: fields.endTime,
       location: fields.location,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 }

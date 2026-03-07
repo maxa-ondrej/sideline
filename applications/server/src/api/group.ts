@@ -80,6 +80,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount: 0,
                   }),
               ),
+              Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
           .handle('getGroup', ({ path: { teamId, groupId } }) =>
@@ -166,6 +167,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount,
                   }),
               ),
+              Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
           .handle('deleteGroup', ({ path: { teamId, groupId } }) =>
@@ -411,6 +413,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount,
                   }),
               ),
+              Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
           .handle('getChannelMapping', ({ path: { teamId, groupId } }) =>

@@ -206,11 +206,11 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
   });
 
   findGroupsByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeamId(teamId).pipe(Effect.orDie);
+    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findGroupById = (groupId: GroupModel.GroupId) => {
-    return this.findById(groupId).pipe(Effect.orDie);
+    return this.findById(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   insertGroup = (
@@ -219,61 +219,71 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     parentId: string | null,
     emoji: string | null,
   ) => {
-    return this.insert({ team_id: teamId, parent_id: parentId, name, emoji }).pipe(Effect.orDie);
+    return this.insert({ team_id: teamId, parent_id: parentId, name, emoji }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   updateGroupById = (groupId: GroupModel.GroupId, name: string, emoji: string | null) => {
-    return this.update({ id: groupId, name, emoji }).pipe(Effect.orDie);
+    return this.update({ id: groupId, name, emoji }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   archiveGroupById = (groupId: GroupModel.GroupId) => {
-    return this.archiveGroup(groupId).pipe(Effect.orDie);
+    return this.archiveGroup(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   moveGroup = (groupId: GroupModel.GroupId, parentId: GroupModel.GroupId | null) => {
-    return this.moveGroupParent({ id: groupId, parent_id: parentId }).pipe(Effect.orDie);
+    return this.moveGroupParent({ id: groupId, parent_id: parentId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   findMembersByGroupId = (groupId: GroupModel.GroupId) => {
-    return this.findMembers(groupId).pipe(Effect.orDie);
+    return this.findMembers(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   addMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) => {
-    return this.addMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(Effect.orDie);
+    return this.addMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   removeMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) => {
     return this.removeMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 
   getRolesForGroup = (groupId: GroupModel.GroupId) => {
-    return this.findRolesForGroup(groupId).pipe(Effect.orDie);
+    return this.findRolesForGroup(groupId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   getMemberCount = (groupId: GroupModel.GroupId) => {
     return this.countMembersForGroup(groupId).pipe(
       Effect.map((r) => r.count),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 
   getChildren = (groupId: GroupModel.GroupId) => {
-    return this.findChildren(groupId).pipe(Effect.orDie);
+    return this.findChildren(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   getAncestorIds = (groupId: GroupModel.GroupId) => {
     return this.findAncestors(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.id)),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 
   getDescendantMemberIds = (groupId: GroupModel.GroupId) => {
     return this.findDescendantMembers(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.team_member_id)),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 }

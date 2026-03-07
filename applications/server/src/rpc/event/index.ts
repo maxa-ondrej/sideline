@@ -208,6 +208,7 @@ const createEvent = (
           title: event.title,
         }),
     ),
+    Effect.catchTag('NoSuchElementException', Effect.die),
   );
 
 export const EventsRpcLive = Effect.Do.pipe(
@@ -353,6 +354,7 @@ export const EventsRpcLive = Effect.Do.pipe(
           ),
           Effect.tap(({ member }) => rsvps.upsertRsvp(event_id, member.id, response, message)),
           Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
+          Effect.catchTag('NoSuchElementException', Effect.die),
         ),
   ),
   Effect.let(

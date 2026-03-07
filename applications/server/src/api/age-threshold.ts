@@ -77,6 +77,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: rule.max_age,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
@@ -115,6 +116,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: updated.max_age,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>

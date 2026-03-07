@@ -127,6 +127,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               });
               return buildRsvpDetail(rsvps, eventId, membership.id, true, threshold);
             }),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('getNonResponders', ({ path: { teamId, eventId } }) =>

@@ -133,6 +133,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   seriesId: Option.getOrNull(event.series_id),
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('getEvent', ({ path: { teamId, eventId } }) =>
@@ -296,6 +297,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 discordChannelId: Option.getOrNull(detail.discord_target_channel_id),
               });
             }),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('cancelEvent', ({ path: { teamId, eventId } }) =>

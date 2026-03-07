@@ -45,15 +45,18 @@ export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>
         .sql`UPDATE team_invites SET active = false WHERE team_id = ${teamId} AND active = true AND id != ${excludeId}`,
   });
 
-  findByCode = (code: string) => this._findByCode(code).pipe(Effect.orDie);
+  findByCode = (code: string) =>
+    this._findByCode(code).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findByTeam = (teamId: string) => this._findByTeam(teamId).pipe(Effect.orDie);
+  findByTeam = (teamId: string) =>
+    this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   create = (input: typeof TeamInvite.TeamInvite.insert.Type) =>
-    this._create(input).pipe(Effect.orDie);
+    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  deactivateByTeam = (teamId: string) => this._deactivateByTeam(teamId).pipe(Effect.orDie);
+  deactivateByTeam = (teamId: string) =>
+    this._deactivateByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   deactivateByTeamExcept = (input: { teamId: string; excludeId: string }) =>
-    this._deactivateByTeamExcept(input).pipe(Effect.orDie);
+    this._deactivateByTeamExcept(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

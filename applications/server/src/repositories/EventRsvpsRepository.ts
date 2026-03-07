@@ -155,12 +155,12 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
   });
 
   findRsvpsByEventId = (eventId: Event.EventId) => {
-    return this.findByEventId(eventId).pipe(Effect.orDie);
+    return this.findByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findRsvpByEventAndMember = (eventId: Event.EventId, teamMemberId: TeamMember.TeamMemberId) => {
     return this.findByEventAndMember({ event_id: eventId, team_member_id: teamMemberId }).pipe(
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 
@@ -175,25 +175,29 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
       team_member_id: teamMemberId,
       response,
       message,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   countRsvpsByEventId = (eventId: Event.EventId) => {
-    return this.countByEventId(eventId).pipe(Effect.orDie);
+    return this.countByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findRsvpAttendeesPage = (eventId: Event.EventId, offset: number, limit: number) => {
-    return this.findAttendeesPage({ event_id: eventId, limit, offset }).pipe(Effect.orDie);
+    return this.findAttendeesPage({ event_id: eventId, limit, offset }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   findNonRespondersByEventId = (eventId: Event.EventId, teamId: string) => {
-    return this.findNonResponders({ event_id: eventId, team_id: teamId }).pipe(Effect.orDie);
+    return this.findNonResponders({ event_id: eventId, team_id: teamId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   countRsvpTotal = (eventId: Event.EventId) => {
     return this.countTotalByEventId(eventId).pipe(
       Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
   };
 }

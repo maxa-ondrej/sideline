@@ -123,6 +123,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   avatar: entry.avatar,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('deactivateMember', ({ path: { teamId, memberId } }) =>
@@ -146,6 +147,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
             Effect.asVoid,
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('listRosters', ({ path: { teamId } }) =>
@@ -186,6 +188,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               rosters.insert({ team_id: teamId, name: payload.name, active: true }),
             ),
             Effect.map(({ roster }) => toRosterInfo(roster, 0)),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('getRoster', ({ path: { teamId, rosterId } }) =>
@@ -247,6 +250,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
             ),
             Effect.map(({ updated, memberCount }) => toRosterInfo(updated, memberCount)),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('deleteRoster', ({ path: { teamId, rosterId } }) =>

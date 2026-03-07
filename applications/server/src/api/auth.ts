@@ -147,6 +147,7 @@ const handleDiscordLogin = ({
         Effect.flatMap(() => Effect.fail(AuthError.withReason('rate_limited'))),
       ),
     ),
+    Effect.catchTag('NoSuchElementException', Effect.die),
   );
 
 const MANAGE_GUILD = 0x20n;
@@ -267,6 +268,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('updateProfile', ({ payload }) =>
@@ -297,6 +299,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('completeProfile', ({ payload }) =>
@@ -327,6 +330,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('myTeams', () =>
@@ -437,6 +441,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),
     ),

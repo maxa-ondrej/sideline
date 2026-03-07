@@ -101,6 +101,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   isProfileComplete: user.isProfileComplete,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('regenerateInvite', ({ path: { teamId } }) =>
@@ -132,6 +133,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   active: newInvite.active,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('disableInvite', ({ path: { teamId } }) =>

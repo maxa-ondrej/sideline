@@ -118,7 +118,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     `,
   });
 
-  findByTeamId = (teamId: Team.TeamId) => this._findByTeam(teamId).pipe(Effect.orDie);
+  findByTeamId = (teamId: Team.TeamId) =>
+    this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   upsert = (input: {
     teamId: Team.TeamId;
@@ -143,14 +144,16 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_channel_meeting: input.discordChannelMeeting ?? null,
       discord_channel_social: input.discordChannelSocial ?? null,
       discord_channel_other: input.discordChannelOther ?? null,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   getHorizonDays = (teamId: Team.TeamId) =>
     this._getHorizon(teamId).pipe(
       Effect.map((r) => r.event_horizon_days),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
   findEventsNeedingReminder = () =>
-    this._findEventsForReminder(undefined as undefined).pipe(Effect.orDie);
+    this._findEventsForReminder(undefined as undefined).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 }

@@ -100,15 +100,19 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
   });
 
   findTrainingTypesByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeamId(teamId).pipe(Effect.orDie);
+    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {
-    return this.findById(trainingTypeId).pipe(Effect.orDie);
+    return this.findById(trainingTypeId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) => {
-    return this.findByIdWithGroup(trainingTypeId).pipe(Effect.orDie);
+    return this.findByIdWithGroup(trainingTypeId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 
   insertTrainingType = (
@@ -122,7 +126,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       name,
       group_id: groupId,
       discord_channel_id: discordChannelId ?? null,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   updateTrainingType = (
@@ -134,10 +138,12 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       id: trainingTypeId,
       name,
       discord_channel_id: discordChannelId ?? null,
-    }).pipe(Effect.orDie);
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {
-    return this.deleteOne(trainingTypeId).pipe(Effect.orDie);
+    return this.deleteOne(trainingTypeId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
   };
 }

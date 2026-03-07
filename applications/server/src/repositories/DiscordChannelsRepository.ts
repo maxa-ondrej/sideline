@@ -73,8 +73,9 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
           { concurrency: 1 },
         ),
       ),
-      Effect.orDie,
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
-  findByGuildId = (guildId: Discord.Snowflake) => this.selectByGuild(guildId).pipe(Effect.orDie);
+  findByGuildId = (guildId: Discord.Snowflake) =>
+    this.selectByGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

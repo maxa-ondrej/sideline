@@ -30,9 +30,12 @@ export class SessionsRepository extends Effect.Service<SessionsRepository>()(
     execute: (token) => this.sql`DELETE FROM sessions WHERE token = ${token}`,
   });
 
-  create = (input: typeof Session.Session.insert.Type) => this._create(input).pipe(Effect.orDie);
+  create = (input: typeof Session.Session.insert.Type) =>
+    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findByToken = (token: string) => this._findByToken(token).pipe(Effect.orDie);
+  findByToken = (token: string) =>
+    this._findByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  deleteByToken = (token: string) => this._deleteByToken(token).pipe(Effect.orDie);
+  deleteByToken = (token: string) =>
+    this._deleteByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }
