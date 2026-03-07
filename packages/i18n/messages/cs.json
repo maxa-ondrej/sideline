@@ -396,5 +396,22 @@
   "rsvp_belowMinPlayers": "Pouze {count} potvrzeno — pod minimem {threshold} hráčů.",
   "rsvp_nonRespondersTitle": "Zatím neodpověděli",
   "bot_rsvp_reminder_title": "Připomínka: {title}",
-  "bot_rsvp_reminder_dm": "Zatím jste neodpověděli na **{title}**. Začíná {when}.\nPotvrďte účast [zde]({link})!"
+  "bot_rsvp_reminder_dm": "Zatím jste neodpověděli na **{title}**. Začíná {when}.\nPotvrďte účast [zde]({link})!",
+  "bot_cmd_event_create_desc": "Vytvořit novou událost",
+  "bot_cmd_event_type_desc": "Typ události",
+  "bot_event_modal_title": "Vytvořit událost",
+  "bot_event_title_label": "Název",
+  "bot_event_start_label": "Začátek (RRRR-MM-DD HH:mm)",
+  "bot_event_end_label": "Konec (RRRR-MM-DD HH:mm)",
+  "bot_event_location_label": "Místo",
+  "bot_event_description_label": "Popis",
+  "bot_event_start_placeholder": "2026-03-10 18:00",
+  "bot_event_end_placeholder": "2026-03-10 19:30",
+  "bot_event_location_placeholder": "např. Hlavní hřiště",
+  "bot_event_created": "Událost **{title}** vytvořena! Brzy se zobrazí v kanálu.",
+  "bot_event_no_permission": "Nemáte oprávnění vytvářet události.",
+  "bot_event_not_member": "Nejste členem tohoto týmu.",
+  "bot_event_invalid_date": "Neplatný formát data. Použijte RRRR-MM-DD HH:mm.",
+  "bot_event_error": "Při vytváření události došlo k chybě.",
+  "bot_event_no_guild": "Tento příkaz lze použít pouze na Discord serveru."
 }

@@ -49,6 +49,26 @@ export class RsvpEventNotFound extends Schema.TaggedError<RsvpEventNotFound>()(
   {},
 ) {}
 
+export class CreateEventNotMember extends Schema.TaggedError<CreateEventNotMember>()(
+  'CreateEventNotMember',
+  {},
+) {}
+
+export class CreateEventForbidden extends Schema.TaggedError<CreateEventForbidden>()(
+  'CreateEventForbidden',
+  {},
+) {}
+
+export class CreateEventInvalidDate extends Schema.TaggedError<CreateEventInvalidDate>()(
+  'CreateEventInvalidDate',
+  {},
+) {}
+
+export class CreateEventResult extends Schema.Class<CreateEventResult>('CreateEventResult')({
+  event_id: Schema.String,
+  title: Schema.String,
+}) {}
+
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.NullOr(Schema.String),
   name: Schema.NullOr(Schema.String),

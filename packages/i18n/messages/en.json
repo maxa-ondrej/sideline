@@ -396,5 +396,22 @@
   "rsvp_belowMinPlayers": "Only {count} confirmed — below the minimum of {threshold} players.",
   "rsvp_nonRespondersTitle": "Not yet responded",
   "bot_rsvp_reminder_title": "Reminder: {title}",
-  "bot_rsvp_reminder_dm": "You haven't responded to **{title}** yet. It starts {when}.\nPlease RSVP [here]({link})!"
+  "bot_rsvp_reminder_dm": "You haven't responded to **{title}** yet. It starts {when}.\nPlease RSVP [here]({link})!",
+  "bot_cmd_event_create_desc": "Create a new event",
+  "bot_cmd_event_type_desc": "Type of event",
+  "bot_event_modal_title": "Create Event",
+  "bot_event_title_label": "Title",
+  "bot_event_start_label": "Start (YYYY-MM-DD HH:mm)",
+  "bot_event_end_label": "End (YYYY-MM-DD HH:mm)",
+  "bot_event_location_label": "Location",
+  "bot_event_description_label": "Description",
+  "bot_event_start_placeholder": "2026-03-10 18:00",
+  "bot_event_end_placeholder": "2026-03-10 19:30",
+  "bot_event_location_placeholder": "e.g. Main Field",
+  "bot_event_created": "Event **{title}** created! It will appear in the channel shortly.",
+  "bot_event_no_permission": "You do not have permission to create events.",
+  "bot_event_not_member": "You are not a member of this team.",
+  "bot_event_invalid_date": "Invalid date format. Use YYYY-MM-DD HH:mm.",
+  "bot_event_error": "Something went wrong while creating the event.",
+  "bot_event_no_guild": "This command can only be used in a Discord server."
 }
