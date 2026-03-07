@@ -22,4 +22,4 @@ const MainLive = AppLive.pipe(
   ),
 );
 
-Effect.provide(Bot.program, MainLive).pipe(Runtime.runMain(env.NODE_ENV));
+Effect.provide(Bot.program, MainLive).pipe(Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL));

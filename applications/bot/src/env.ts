@@ -22,6 +22,9 @@ export const env = createEnv({
       Schema.standardSchemaV1,
     ),
     SERVER_URL: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    LOG_LEVEL: Schema.OptionFromNullishOr(Schemas.LogLevelFromString, null).pipe(
+      Schema.standardSchemaV1,
+    ),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
