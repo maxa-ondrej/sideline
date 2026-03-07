@@ -188,7 +188,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () => new GroupApi.GroupNotFound()),
+                  Effect.catchTag('NoSuchElementException', () =>
+                    Effect.fail(new GroupApi.GroupNotFound()),
+                  ),
                 ),
               ),
               Effect.tap(({ existing }) =>

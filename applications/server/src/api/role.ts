@@ -272,7 +272,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               roles.findRoleById(roleId).pipe(
                 Effect.flatMap(
                   Option.match({
-                    onNone: () => Effect.fail(new RoleApi.MemberNotFound()),
+                    onNone: () => Effect.fail(new RoleApi.RoleNotFound()),
                     onSome: Effect.succeed,
                   }),
                 ),
