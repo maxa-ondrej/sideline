@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Team, TrainingType } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class TrainingTypeWithGroup extends Schema.Class<TrainingTypeWithGroup>('TrainingTypeWithGroup')({
@@ -41,112 +40,104 @@ class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
 export class TrainingTypesRepository extends Effect.Service<TrainingTypesRepository>()(
   'api/TrainingTypesRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('findByTeamId', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.String,
-          Result: TrainingTypeWithGroup,
-          execute: (teamId) => sql`
-            SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.discord_channel_id, t.created_at
-            FROM training_types t
-            LEFT JOIN groups g ON g.id = t.group_id
-            WHERE t.team_id = ${teamId}
-            ORDER BY t.name ASC
-          `,
-        }),
-      ),
-      Effect.let('findById', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: TrainingType.TrainingTypeId,
-          Result: TrainingTypeRow,
-          execute: (id) =>
-            sql`SELECT id, team_id, name, group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
-        }),
-      ),
-      Effect.let('findByIdWithGroup', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: TrainingType.TrainingTypeId,
-          Result: TrainingTypeWithGroup,
-          execute: (id) => sql`
-            SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.discord_channel_id, t.created_at
-            FROM training_types t
-            LEFT JOIN groups g ON g.id = t.group_id
-            WHERE t.id = ${id}
-          `,
-        }),
-      ),
-      Effect.let('insert', ({ sql }) =>
-        SqlSchema.single({
-          Request: TrainingTypeInsertInput,
-          Result: TrainingTypeRow,
-          execute: (input) => sql`
-            INSERT INTO training_types (team_id, name, group_id, discord_channel_id)
-            VALUES (${input.team_id}, ${input.name}, ${input.group_id}, ${input.discord_channel_id})
-            RETURNING id, team_id, name, group_id, discord_channel_id
-          `,
-        }),
-      ),
-      Effect.let('update', ({ sql }) =>
-        SqlSchema.single({
-          Request: TrainingTypeUpdateInput,
-          Result: TrainingTypeRow,
-          execute: (input) => sql`
-            UPDATE training_types SET name = ${input.name}, discord_channel_id = ${input.discord_channel_id}
-            WHERE id = ${input.id}
-            RETURNING id, team_id, name, group_id, discord_channel_id
-          `,
-        }),
-      ),
-      Effect.let('deleteTrainingType', ({ sql }) =>
-        SqlSchema.void({
-          Request: TrainingType.TrainingTypeId,
-          execute: (id) => sql`DELETE FROM training_types WHERE id = ${id}`,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  findTrainingTypesByTeamId(teamId: Team.TeamId) {
-    return this.findByTeamId(teamId);
-  }
+  private findByTeamId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: TrainingTypeWithGroup,
+    execute: (teamId) => this.sql`
+      SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.discord_channel_id, t.created_at
+      FROM training_types t
+      LEFT JOIN groups g ON g.id = t.group_id
+      WHERE t.team_id = ${teamId}
+      ORDER BY t.name ASC
+    `,
+  });
 
-  findTrainingTypeById(trainingTypeId: TrainingType.TrainingTypeId) {
-    return this.findById(trainingTypeId);
-  }
+  private findById = SqlSchema.findOne({
+    Request: TrainingType.TrainingTypeId,
+    Result: TrainingTypeRow,
+    execute: (id) =>
+      this
+        .sql`SELECT id, team_id, name, group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
+  });
 
-  findTrainingTypeByIdWithGroup(trainingTypeId: TrainingType.TrainingTypeId) {
-    return this.findByIdWithGroup(trainingTypeId);
-  }
+  private findByIdWithGroup = SqlSchema.findOne({
+    Request: TrainingType.TrainingTypeId,
+    Result: TrainingTypeWithGroup,
+    execute: (id) => this.sql`
+      SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.discord_channel_id, t.created_at
+      FROM training_types t
+      LEFT JOIN groups g ON g.id = t.group_id
+      WHERE t.id = ${id}
+    `,
+  });
 
-  insertTrainingType(
+  private insertOne = SqlSchema.single({
+    Request: TrainingTypeInsertInput,
+    Result: TrainingTypeRow,
+    execute: (input) => this.sql`
+      INSERT INTO training_types (team_id, name, group_id, discord_channel_id)
+      VALUES (${input.team_id}, ${input.name}, ${input.group_id}, ${input.discord_channel_id})
+      RETURNING id, team_id, name, group_id, discord_channel_id
+    `,
+  });
+
+  private updateOne = SqlSchema.single({
+    Request: TrainingTypeUpdateInput,
+    Result: TrainingTypeRow,
+    execute: (input) => this.sql`
+      UPDATE training_types SET name = ${input.name}, discord_channel_id = ${input.discord_channel_id}
+      WHERE id = ${input.id}
+      RETURNING id, team_id, name, group_id, discord_channel_id
+    `,
+  });
+
+  private deleteOne = SqlSchema.void({
+    Request: TrainingType.TrainingTypeId,
+    execute: (id) => this.sql`DELETE FROM training_types WHERE id = ${id}`,
+  });
+
+  findTrainingTypesByTeamId = (teamId: Team.TeamId) => {
+    return this.findByTeamId(teamId).pipe(Effect.orDie);
+  };
+
+  findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {
+    return this.findById(trainingTypeId).pipe(Effect.orDie);
+  };
+
+  findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) => {
+    return this.findByIdWithGroup(trainingTypeId).pipe(Effect.orDie);
+  };
+
+  insertTrainingType = (
     teamId: Team.TeamId,
     name: string,
     groupId: string | null,
     discordChannelId?: string | null,
-  ) {
-    return this.insert({
+  ) => {
+    return this.insertOne({
       team_id: teamId,
       name,
       group_id: groupId,
       discord_channel_id: discordChannelId ?? null,
-    });
-  }
+    }).pipe(Effect.orDie);
+  };
 
-  updateTrainingType(
+  updateTrainingType = (
     trainingTypeId: TrainingType.TrainingTypeId,
     name: string,
     discordChannelId?: string | null,
-  ) {
-    return this.update({
+  ) => {
+    return this.updateOne({
       id: trainingTypeId,
       name,
       discord_channel_id: discordChannelId ?? null,
-    });
-  }
+    }).pipe(Effect.orDie);
+  };
 
-  deleteTrainingTypeById(trainingTypeId: TrainingType.TrainingTypeId) {
-    return this.deleteTrainingType(trainingTypeId);
-  }
+  deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {
+    return this.deleteOne(trainingTypeId).pipe(Effect.orDie);
+  };
 }

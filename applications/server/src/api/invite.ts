@@ -26,7 +26,6 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
       handlers
         .handle('getInvite', ({ path: { code } }) =>
           invites.findByCode(code).pipe(
-            Effect.mapError(() => new Invite.InviteNotFound()),
             Effect.flatMap(
               Option.match({
                 onNone: () => Effect.fail(new Invite.InviteNotFound()),
@@ -36,7 +35,6 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bindTo('invite'),
             Effect.bind('team', ({ invite }) =>
               teams.findById(invite.team_id).pipe(
-                Effect.mapError(() => new Invite.InviteNotFound()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Invite.InviteNotFound()),
@@ -60,7 +58,6 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.bind('user', () => Auth.CurrentUserContext),
             Effect.bind('invite', () =>
               invites.findByCode(code).pipe(
-                Effect.mapError(() => new Invite.InviteNotFound()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Invite.InviteNotFound()),
@@ -70,16 +67,13 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               ),
             ),
             Effect.bind('existing', ({ user, invite }) =>
-              members
-                .findMembershipByIds(invite.team_id, user.id)
-                .pipe(Effect.mapError(() => new Invite.InviteNotFound())),
+              members.findMembershipByIds(invite.team_id, user.id),
             ),
             Effect.tap(({ existing }) =>
               Option.isSome(existing) ? Effect.fail(new Invite.AlreadyMember()) : Effect.void,
             ),
             Effect.bind('playerRole', ({ invite }) =>
               members.getPlayerRoleId(invite.team_id).pipe(
-                Effect.mapError(() => new Invite.InviteNotFound()),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new Invite.InviteNotFound()),
@@ -89,19 +83,15 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               ),
             ),
             Effect.bind('membership', ({ user, invite }) =>
-              members
-                .addMember({
-                  team_id: invite.team_id,
-                  user_id: user.id,
-                  active: true,
-                  joined_at: undefined,
-                })
-                .pipe(Effect.mapError(() => new Invite.InviteNotFound())),
+              members.addMember({
+                team_id: invite.team_id,
+                user_id: user.id,
+                active: true,
+                joined_at: undefined,
+              }),
             ),
             Effect.tap(({ membership, playerRole }) =>
-              members
-                .assignRole(membership.id, playerRole.id)
-                .pipe(Effect.mapError(() => new Invite.InviteNotFound())),
+              members.assignRole(membership.id, playerRole.id),
             ),
             Effect.map(
               ({ user, invite }) =>
@@ -130,15 +120,10 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   expires_at: null,
                   created_at: undefined,
                 }),
-              ).pipe(
-                Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis')),
-                Effect.mapError(() => forbidden),
-              ),
+              ).pipe(Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis'))),
             ),
             Effect.tap(({ newInvite }) =>
-              invites
-                .deactivateByTeamExcept({ teamId, excludeId: newInvite.id })
-                .pipe(Effect.mapError(() => forbidden)),
+              invites.deactivateByTeamExcept({ teamId, excludeId: newInvite.id }),
             ),
             Effect.map(
               ({ newInvite }) =>
@@ -156,9 +141,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               requireMembership(members, teamId, user.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:invite', forbidden)),
-            Effect.tap(() =>
-              invites.deactivateByTeam(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => invites.deactivateByTeam(teamId)),
             Effect.asVoid,
           ),
         ),

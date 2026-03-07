@@ -21,7 +21,6 @@ const checkCoachScoping = (
   if (isAdmin) return Effect.void;
   if (Option.isNone(trainingTypeId)) return Effect.void;
   return events.getScopedTrainingTypeIds(memberId).pipe(
-    Effect.mapError(() => forbidden),
     Effect.flatMap((scopedIds) => {
       const allowed: readonly string[] = scopedIds.map((s) => s.training_type_id);
       if (allowed.length === 0) return Effect.void;
@@ -44,9 +43,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.let('canCreate', ({ membership }) => hasPermission(membership, 'event:create')),
-            Effect.bind('list', () =>
-              events.findEventsByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('list', () => events.findEventsByTeamId(teamId)),
             Effect.map(
               ({ list, canCreate }) =>
                 new EventApi.EventListResponse({
@@ -89,20 +86,18 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               ),
             ),
             Effect.bind('event', ({ membership }) =>
-              events
-                .insertEvent({
-                  teamId,
-                  trainingTypeId: Option.fromNullable(payload.trainingTypeId),
-                  eventType: payload.eventType,
-                  title: payload.title,
-                  description: Option.fromNullable(payload.description),
-                  startAt: payload.startAt,
-                  endAt: Option.fromNullable(payload.endAt),
-                  location: Option.fromNullable(payload.location),
-                  createdBy: membership.id,
-                  discordTargetChannelId: Option.fromNullable(payload.discordChannelId),
-                })
-                .pipe(Effect.mapError(() => forbidden)),
+              events.insertEvent({
+                teamId,
+                trainingTypeId: Option.fromNullable(payload.trainingTypeId),
+                eventType: payload.eventType,
+                title: payload.title,
+                description: Option.fromNullable(payload.description),
+                startAt: payload.startAt,
+                endAt: Option.fromNullable(payload.endAt),
+                location: Option.fromNullable(payload.location),
+                createdBy: membership.id,
+                discordTargetChannelId: Option.fromNullable(payload.discordChannelId),
+              }),
             ),
             Effect.bind('resolvedChannel', ({ event }) =>
               resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(null))),
@@ -150,7 +145,6 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.let('canCancel', ({ membership }) => hasPermission(membership, 'event:cancel')),
             Effect.bind('event', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -196,7 +190,6 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('existing', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -219,43 +212,40 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
             }),
             Effect.bind('updated', ({ existing }) =>
-              events
-                .updateEvent({
-                  id: eventId,
-                  title: Option.getOrElse(payload.title, () => existing.title),
-                  eventType: Option.getOrElse(payload.eventType, () => existing.event_type),
-                  trainingTypeId: Option.match(payload.trainingTypeId, {
-                    onNone: () => existing.training_type_id,
-                    onSome: (v) => v,
-                  }),
-                  description: Option.match(payload.description, {
-                    onNone: () => existing.description,
-                    onSome: (v) => v,
-                  }),
-                  startAt: Option.getOrElse(payload.startAt, () => existing.start_at),
-                  endAt: Option.match(payload.endAt, {
-                    onNone: () => existing.end_at,
-                    onSome: (v) => v,
-                  }),
-                  location: Option.match(payload.location, {
-                    onNone: () => existing.location,
-                    onSome: (v) => v,
-                  }),
-                  discordTargetChannelId: Option.match(payload.discordChannelId, {
-                    onNone: () => existing.discord_target_channel_id,
-                    onSome: (v) => v,
-                  }),
-                })
-                .pipe(Effect.mapError(() => forbidden)),
+              events.updateEvent({
+                id: eventId,
+                title: Option.getOrElse(payload.title, () => existing.title),
+                eventType: Option.getOrElse(payload.eventType, () => existing.event_type),
+                trainingTypeId: Option.match(payload.trainingTypeId, {
+                  onNone: () => existing.training_type_id,
+                  onSome: (v) => v,
+                }),
+                description: Option.match(payload.description, {
+                  onNone: () => existing.description,
+                  onSome: (v) => v,
+                }),
+                startAt: Option.getOrElse(payload.startAt, () => existing.start_at),
+                endAt: Option.match(payload.endAt, {
+                  onNone: () => existing.end_at,
+                  onSome: (v) => v,
+                }),
+                location: Option.match(payload.location, {
+                  onNone: () => existing.location,
+                  onSome: (v) => v,
+                }),
+                discordTargetChannelId: Option.match(payload.discordChannelId, {
+                  onNone: () => existing.discord_target_channel_id,
+                  onSome: (v) => v,
+                }),
+              }),
             ),
             Effect.tap(({ existing }) =>
               Option.isSome(existing.series_id)
-                ? events.markEventSeriesModified(eventId).pipe(Effect.mapError(() => forbidden))
+                ? events.markEventSeriesModified(eventId)
                 : Effect.void,
             ),
             Effect.bind('detail', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -320,7 +310,6 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('existing', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -338,7 +327,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.tap(({ existing, isAdmin, membership }) =>
               checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
             ),
-            Effect.tap(() => events.cancelEvent(eventId).pipe(Effect.mapError(() => forbidden))),
+            Effect.tap(() => events.cancelEvent(eventId)),
             Effect.tap(({ existing }) =>
               syncEvents
                 .emitIfGuildLinked(

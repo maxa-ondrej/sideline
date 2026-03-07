@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({
@@ -21,42 +20,36 @@ class SyncInput extends Schema.Class<SyncInput>('SyncInput')({
 export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRepository>()(
   'api/DiscordChannelsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('deleteByGuild', ({ sql }) =>
-        SqlSchema.void({
-          Request: Discord.Snowflake,
-          execute: (guildId) => sql`
-            DELETE FROM discord_channels WHERE guild_id = ${guildId}
-          `,
-        }),
-      ),
-      Effect.let('insertChannel', ({ sql }) =>
-        SqlSchema.void({
-          Request: SyncInput,
-          execute: (input) => sql`
-            INSERT INTO discord_channels (guild_id, channel_id, name, type, parent_id)
-            VALUES (${input.guild_id}, ${input.channel_id}, ${input.name}, ${input.type}, ${input.parent_id})
-          `,
-        }),
-      ),
-      Effect.let('selectByGuild', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Discord.Snowflake,
-          Result: ChannelRow,
-          execute: (guildId) => sql`
-            SELECT channel_id, name, type, parent_id
-            FROM discord_channels
-            WHERE guild_id = ${guildId}
-            ORDER BY name
-          `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  syncChannels(
+  private deleteByGuild = SqlSchema.void({
+    Request: Discord.Snowflake,
+    execute: (guildId) => this.sql`
+      DELETE FROM discord_channels WHERE guild_id = ${guildId}
+    `,
+  });
+
+  private insertChannel = SqlSchema.void({
+    Request: SyncInput,
+    execute: (input) => this.sql`
+      INSERT INTO discord_channels (guild_id, channel_id, name, type, parent_id)
+      VALUES (${input.guild_id}, ${input.channel_id}, ${input.name}, ${input.type}, ${input.parent_id})
+    `,
+  });
+
+  private selectByGuild = SqlSchema.findAll({
+    Request: Discord.Snowflake,
+    Result: ChannelRow,
+    execute: (guildId) => this.sql`
+      SELECT channel_id, name, type, parent_id
+      FROM discord_channels
+      WHERE guild_id = ${guildId}
+      ORDER BY name
+    `,
+  });
+
+  syncChannels = (
     guildId: Discord.Snowflake,
     channels: ReadonlyArray<{
       readonly channel_id: Discord.Snowflake;
@@ -64,8 +57,8 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
       readonly type: number;
       readonly parent_id: Discord.Snowflake | null;
     }>,
-  ) {
-    return this.deleteByGuild(guildId).pipe(
+  ) =>
+    this.deleteByGuild(guildId).pipe(
       Effect.tap(() =>
         Effect.all(
           channels.map((ch) =>
@@ -80,10 +73,8 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
           { concurrency: 1 },
         ),
       ),
+      Effect.orDie,
     );
-  }
 
-  findByGuildId(guildId: Discord.Snowflake) {
-    return this.selectByGuild(guildId);
-  }
+  findByGuildId = (guildId: Discord.Snowflake) => this.selectByGuild(guildId).pipe(Effect.orDie);
 }

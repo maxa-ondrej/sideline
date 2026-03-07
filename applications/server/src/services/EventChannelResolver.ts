@@ -34,10 +34,7 @@ export const resolveChannel = (
     Effect.bind('trainingTypes', () => TrainingTypesRepository),
     Effect.bind('settings', () => TeamSettingsRepository),
     Effect.bind('event', ({ events }) =>
-      events.findEventByIdWithDetails(eventId).pipe(
-        Effect.map(Option.getOrNull),
-        Effect.catchAll(() => Effect.succeed(null)),
-      ),
+      events.findEventByIdWithDetails(eventId).pipe(Effect.map(Option.getOrNull)),
     ),
     Effect.flatMap(({ event, trainingTypes, settings }) => {
       if (event === null) return Effect.succeed(null);
@@ -53,7 +50,6 @@ export const resolveChannel = (
               const tt = Option.getOrNull(opt);
               return tt?.discord_channel_id ?? null;
             }),
-            Effect.catchAll(() => Effect.succeed(null)),
           )
         : Effect.succeed(null);
 
@@ -69,7 +65,6 @@ export const resolveChannel = (
               const field = eventTypeToSettingsField(event.event_type);
               return s[field];
             }),
-            Effect.catchAll(() => Effect.succeed(null)),
           );
         }),
       );

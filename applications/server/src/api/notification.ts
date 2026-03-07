@@ -15,9 +15,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('list', ({ currentUser }) =>
-              notifications
-                .findByUserAndTeam(currentUser.id, urlParams.teamId)
-                .pipe(Effect.mapError(() => forbidden)),
+              notifications.findByUserAndTeam(currentUser.id, urlParams.teamId),
             ),
             Effect.map(({ list }) =>
               list.map(
@@ -40,7 +38,6 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('notification', () =>
               notifications.findById(notificationId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new NotificationApi.NotificationNotFound()),
@@ -52,9 +49,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
             Effect.tap(({ currentUser, notification }) =>
               notification.user_id !== currentUser.id ? Effect.fail(forbidden) : Effect.void,
             ),
-            Effect.tap(() =>
-              notifications.markAsRead(notificationId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => notifications.markAsRead(notificationId)),
             Effect.asVoid,
           ),
         )
@@ -62,9 +57,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.tap(({ currentUser }) =>
-              notifications
-                .markAllAsReadForTeam(currentUser.id, payload.teamId)
-                .pipe(Effect.mapError(() => forbidden)),
+              notifications.markAllAsReadForTeam(currentUser.id, payload.teamId),
             ),
             Effect.asVoid,
           ),

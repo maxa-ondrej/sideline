@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, Team } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 const EventSyncEventType = Schema.Literal(
@@ -56,58 +55,50 @@ class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
 export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRepository>()(
   'api/EventSyncEventsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('insertEvent', ({ sql }) =>
-        SqlSchema.void({
-          Request: InsertInput,
-          execute: (input) => sql`
-            INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id)
-            VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id})
-          `,
-        }),
-      ),
-      Effect.let('lookupGuildId', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: Schema.String,
-          Result: GuildLookupResult,
-          execute: (teamId) => sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
-        }),
-      ),
-      Effect.let('findUnprocessedEvents', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.Number,
-          Result: EventSyncEventRow,
-          execute: (limit) => sql`
-            SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id
-            FROM event_sync_events
-            WHERE processed_at IS NULL
-            ORDER BY created_at ASC
-            LIMIT ${limit}
-          `,
-        }),
-      ),
-      Effect.let('markEventProcessed', ({ sql }) =>
-        SqlSchema.void({
-          Request: MarkProcessedInput,
-          execute: (input) => sql`
-            UPDATE event_sync_events SET processed_at = now() WHERE id = ${input.id}
-          `,
-        }),
-      ),
-      Effect.let('markEventFailed', ({ sql }) =>
-        SqlSchema.void({
-          Request: MarkFailedInput,
-          execute: (input) => sql`
-            UPDATE event_sync_events SET processed_at = now(), error = ${input.error} WHERE id = ${input.id}
-          `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  emitIfGuildLinked(
+  private insertEvent = SqlSchema.void({
+    Request: InsertInput,
+    execute: (input) => this.sql`
+      INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id})
+    `,
+  });
+
+  private lookupGuildId = SqlSchema.findOne({
+    Request: Schema.String,
+    Result: GuildLookupResult,
+    execute: (teamId) => this.sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
+  });
+
+  private findUnprocessedEvents = SqlSchema.findAll({
+    Request: Schema.Number,
+    Result: EventSyncEventRow,
+    execute: (limit) => this.sql`
+      SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id
+      FROM event_sync_events
+      WHERE processed_at IS NULL
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `,
+  });
+
+  private markEventProcessed = SqlSchema.void({
+    Request: MarkProcessedInput,
+    execute: (input) => this.sql`
+      UPDATE event_sync_events SET processed_at = now() WHERE id = ${input.id}
+    `,
+  });
+
+  private markEventFailed = SqlSchema.void({
+    Request: MarkFailedInput,
+    execute: (input) => this.sql`
+      UPDATE event_sync_events SET processed_at = now(), error = ${input.error} WHERE id = ${input.id}
+    `,
+  });
+
+  emitIfGuildLinked = (
     teamId: Team.TeamId,
     eventType: EventSyncEventType,
     eventId: Event.EventId,
@@ -118,8 +109,8 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     location: string | null,
     eventEventType: string,
     discordTargetChannelId?: string | null,
-  ) {
-    return this.lookupGuildId(teamId).pipe(
+  ) =>
+    this.lookupGuildId(teamId).pipe(
       Effect.flatten,
       Effect.flatMap(({ guild_id }) =>
         this.insertEvent({
@@ -137,18 +128,13 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
         }),
       ),
       Effect.catchTag('NoSuchElementException', () => Effect.void),
+      Effect.orDie,
     );
-  }
 
-  findUnprocessed(limit: number) {
-    return this.findUnprocessedEvents(limit);
-  }
+  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(Effect.orDie);
 
-  markProcessed(id: string) {
-    return this.markEventProcessed({ id });
-  }
+  markProcessed = (id: string) => this.markEventProcessed({ id }).pipe(Effect.orDie);
 
-  markFailed(id: string, error: string) {
-    return this.markEventFailed({ id, error });
-  }
+  markFailed = (id: string, error: string) =>
+    this.markEventFailed({ id, error }).pipe(Effect.orDie);
 }

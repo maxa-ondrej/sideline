@@ -23,15 +23,9 @@ const buildRsvpDetail = (
   minPlayersThreshold: number,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('allRsvps', () =>
-      rsvps.findRsvpsByEventId(eventId).pipe(Effect.mapError(() => forbidden)),
-    ),
-    Effect.bind('myRsvp', () =>
-      rsvps.findRsvpByEventAndMember(eventId, myMemberId).pipe(Effect.mapError(() => forbidden)),
-    ),
-    Effect.bind('counts', () =>
-      rsvps.countRsvpsByEventId(eventId).pipe(Effect.mapError(() => forbidden)),
-    ),
+    Effect.bind('allRsvps', () => rsvps.findRsvpsByEventId(eventId)),
+    Effect.bind('myRsvp', () => rsvps.findRsvpByEventAndMember(eventId, myMemberId)),
+    Effect.bind('counts', () => rsvps.countRsvpsByEventId(eventId)),
     Effect.map(({ allRsvps, myRsvp, counts }) => {
       const yesCount = counts.find((c) => c.response === 'yes')?.count ?? 0;
       const noCount = counts.find((c) => c.response === 'no')?.count ?? 0;
@@ -75,7 +69,6 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
             Effect.bind('event', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -87,9 +80,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ event }) =>
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
-            Effect.bind('settings', () =>
-              teamSettings.findByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
             Effect.flatMap(({ event, membership, settings }) => {
               const canRsvp = event.status === 'active' && !isEventPastDeadline(event.start_at);
               const threshold = Option.match(settings, {
@@ -108,7 +99,6 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
             Effect.bind('event', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -127,13 +117,9 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               isEventPastDeadline(event.start_at) ? Effect.fail(deadlinePassed) : Effect.void,
             ),
             Effect.tap(({ membership }) =>
-              rsvps
-                .upsertRsvp(eventId, membership.id, payload.response, payload.message)
-                .pipe(Effect.mapError(() => forbidden)),
+              rsvps.upsertRsvp(eventId, membership.id, payload.response, payload.message),
             ),
-            Effect.bind('settings', () =>
-              teamSettings.findByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
             Effect.flatMap(({ membership, settings }) => {
               const threshold = Option.match(settings, {
                 onNone: () => 0,
@@ -152,7 +138,6 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ membership }) => requirePermission(membership, 'event:edit', forbidden)),
             Effect.bind('event', () =>
               events.findEventByIdWithDetails(eventId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -164,11 +149,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ event }) =>
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
-            Effect.bind('nonResponders', () =>
-              rsvps
-                .findNonRespondersByEventId(eventId, teamId)
-                .pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('nonResponders', () => rsvps.findNonRespondersByEventId(eventId, teamId)),
             Effect.map(
               ({ nonResponders }) =>
                 new EventRsvpApi.NonRespondersResponse({

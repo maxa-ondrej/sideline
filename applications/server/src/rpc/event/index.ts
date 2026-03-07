@@ -143,7 +143,6 @@ const createEvent = (
     ),
     Effect.bind('membership', ({ teamId, userLookup }) =>
       members.findMembershipByIds(teamId, userLookup.id as User.UserId).pipe(
-        Effect.mapError(() => new EventRpcModels.CreateEventNotMember()),
         Effect.flatMap(
           Option.match({
             onNone: () => Effect.fail(new EventRpcModels.CreateEventNotMember()),
@@ -171,19 +170,17 @@ const createEvent = (
         : Effect.fail(new EventRpcModels.CreateEventInvalidDate());
     }),
     Effect.bind('event', ({ teamId, userLookup, parsedStartAt, parsedEndAt }) =>
-      events
-        .insertEvent({
-          teamId,
-          trainingTypeId: Option.none(),
-          eventType: input.event_type,
-          title: input.title,
-          description: Option.fromNullable(input.description),
-          startAt: parsedStartAt,
-          endAt: Option.fromNullable(parsedEndAt),
-          location: Option.fromNullable(input.location),
-          createdBy: userLookup.team_member_id as TeamMember.TeamMemberId,
-        })
-        .pipe(Effect.orDie),
+      events.insertEvent({
+        teamId,
+        trainingTypeId: Option.none(),
+        eventType: input.event_type,
+        title: input.title,
+        description: Option.fromNullable(input.description),
+        startAt: parsedStartAt,
+        endAt: Option.fromNullable(parsedEndAt),
+        location: Option.fromNullable(input.location),
+        createdBy: userLookup.team_member_id as TeamMember.TeamMemberId,
+      }),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) =>
       resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(null))),
@@ -316,7 +313,6 @@ export const EventsRpcLive = Effect.Do.pipe(
         Effect.Do.pipe(
           Effect.bind('event', () =>
             events.findEventByIdWithDetails(event_id).pipe(
-              Effect.mapError(() => new EventRpcModels.RsvpEventNotFound()),
               Effect.flatMap(
                 Option.match({
                   onNone: () => Effect.fail(new EventRpcModels.RsvpEventNotFound()),
@@ -355,16 +351,8 @@ export const EventsRpcLive = Effect.Do.pipe(
               ),
             ),
           ),
-          Effect.tap(({ member }) =>
-            rsvps
-              .upsertRsvp(event_id, member.id, response, message)
-              .pipe(Effect.mapError(() => new EventRpcModels.RsvpEventNotFound())),
-          ),
-          Effect.flatMap(() =>
-            getRsvpCounts(rsvps, event_id, events).pipe(
-              Effect.mapError(() => new EventRpcModels.RsvpEventNotFound()),
-            ),
-          ),
+          Effect.tap(({ member }) => rsvps.upsertRsvp(event_id, member.id, response, message)),
+          Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
         ),
   ),
   Effect.let(

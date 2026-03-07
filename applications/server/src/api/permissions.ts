@@ -12,8 +12,6 @@ export const requireMembership = <E>(
   forbidden: E,
 ) =>
   members.findMembershipByIds(teamId, userId).pipe(
-    Effect.tapError((e) => Effect.logWarning('Unexpected error in membership check', e)),
-    Effect.mapError(() => forbidden),
     Effect.flatMap(
       Option.match({
         onNone: () =>

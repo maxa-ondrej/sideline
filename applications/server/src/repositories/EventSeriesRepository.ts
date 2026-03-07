@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
@@ -98,13 +97,13 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
 export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>()(
   'api/EventSeriesRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('insertSeries', ({ sql }) =>
-        SqlSchema.single({
-          Request: EventSeriesInsertInput,
-          Result: EventSeriesRow,
-          execute: (input) => sql`
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
+  },
+) {
+  private insertSeries = SqlSchema.single({
+    Request: EventSeriesInsertInput,
+    Result: EventSeriesRow,
+    execute: (input) => this.sql`
             INSERT INTO event_series (team_id, training_type_id, title, description,
                                       start_time, end_time, location, frequency,
                                       days_of_week, start_date, end_date, created_by,
@@ -119,13 +118,12 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
                       days_of_week, start_date::text, end_date::text, status,
                       discord_target_channel_id
           `,
-        }),
-      ),
-      Effect.let('findByTeamId', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.String,
-          Result: EventSeriesWithDetails,
-          execute: (teamId) => sql`
+  });
+
+  private findByTeamId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: EventSeriesWithDetails,
+    execute: (teamId) => this.sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.days_of_week, es.start_date::text, es.end_date::text, es.status,
@@ -136,13 +134,12 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             WHERE es.team_id = ${teamId}
             ORDER BY es.start_date DESC
           `,
-        }),
-      ),
-      Effect.let('findById', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: EventSeries.EventSeriesId,
-          Result: EventSeriesWithDetails,
-          execute: (id) => sql`
+  });
+
+  private findById = SqlSchema.findOne({
+    Request: EventSeries.EventSeriesId,
+    Result: EventSeriesWithDetails,
+    execute: (id) => this.sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.days_of_week, es.start_date::text, es.end_date::text, es.status,
@@ -152,13 +149,12 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
             WHERE es.id = ${id}
           `,
-        }),
-      ),
-      Effect.let('findActiveForGeneration', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.Void,
-          Result: EventSeriesForGeneration,
-          execute: () => sql`
+  });
+
+  private findActiveForGeneration = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: EventSeriesForGeneration,
+    execute: () => this.sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time::text, es.end_time::text, es.location, es.frequency,
                    es.days_of_week, es.start_date::text, es.end_date::text,
@@ -170,23 +166,22 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             WHERE es.status = 'active'
               AND (es.end_date IS NULL OR es.end_date > CURRENT_DATE)
           `,
-        }),
-      ),
-      Effect.let('setLastGeneratedDate', ({ sql }) =>
-        SqlSchema.void({
-          Request: Schema.Struct({
-            id: EventSeries.EventSeriesId,
-            last_generated_date: Schema.String,
-          }),
-          execute: (input) =>
-            sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
-        }),
-      ),
-      Effect.let('updateSeries', ({ sql }) =>
-        SqlSchema.single({
-          Request: EventSeriesUpdateInput,
-          Result: EventSeriesRow,
-          execute: (input) => sql`
+  });
+
+  private setLastGeneratedDate = SqlSchema.void({
+    Request: Schema.Struct({
+      id: EventSeries.EventSeriesId,
+      last_generated_date: Schema.String,
+    }),
+    execute: (input) =>
+      this
+        .sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
+  });
+
+  private updateSeries = SqlSchema.single({
+    Request: EventSeriesUpdateInput,
+    Result: EventSeriesRow,
+    execute: (input) => this.sql`
             UPDATE event_series SET
               title = ${input.title},
               training_type_id = ${input.training_type_id},
@@ -204,20 +199,15 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
                       days_of_week, start_date::text, end_date::text, status,
                       discord_target_channel_id
           `,
-        }),
-      ),
-      Effect.let('cancelSeries', ({ sql }) =>
-        SqlSchema.void({
-          Request: EventSeries.EventSeriesId,
-          execute: (id) =>
-            sql`UPDATE event_series SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
-  },
-) {
-  insertEventSeries(input: {
+  });
+
+  private cancelSeries = SqlSchema.void({
+    Request: EventSeries.EventSeriesId,
+    execute: (id) =>
+      this.sql`UPDATE event_series SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
+  });
+
+  insertEventSeries = (input: {
     teamId: Team.TeamId;
     trainingTypeId: string | null;
     title: string;
@@ -231,7 +221,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     endDate: string | null;
     createdBy: string;
     discordTargetChannelId?: string | null;
-  }) {
+  }) => {
     return this.insertSeries({
       team_id: input.teamId,
       training_type_id: input.trainingTypeId,
@@ -246,18 +236,18 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       end_date: input.endDate,
       created_by: input.createdBy,
       discord_target_channel_id: input.discordTargetChannelId ?? null,
-    });
-  }
+    }).pipe(Effect.orDie);
+  };
 
-  findSeriesByTeamId(teamId: Team.TeamId) {
-    return this.findByTeamId(teamId);
-  }
+  findSeriesByTeamId = (teamId: Team.TeamId) => {
+    return this.findByTeamId(teamId).pipe(Effect.orDie);
+  };
 
-  findSeriesById(seriesId: EventSeries.EventSeriesId) {
-    return this.findById(seriesId);
-  }
+  findSeriesById = (seriesId: EventSeries.EventSeriesId) => {
+    return this.findById(seriesId).pipe(Effect.orDie);
+  };
 
-  updateEventSeries(input: {
+  updateEventSeries = (input: {
     id: EventSeries.EventSeriesId;
     title: string;
     trainingTypeId: string | null;
@@ -268,7 +258,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     location: string | null;
     endDate: string | null;
     discordTargetChannelId?: string | null;
-  }) {
+  }) => {
     return this.updateSeries({
       id: input.id,
       title: input.title,
@@ -280,18 +270,20 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       location: input.location,
       end_date: input.endDate,
       discord_target_channel_id: input.discordTargetChannelId ?? null,
-    });
-  }
+    }).pipe(Effect.orDie);
+  };
 
-  cancelEventSeries(seriesId: EventSeries.EventSeriesId) {
-    return this.cancelSeries(seriesId);
-  }
+  cancelEventSeries = (seriesId: EventSeries.EventSeriesId) => {
+    return this.cancelSeries(seriesId).pipe(Effect.orDie);
+  };
 
-  getActiveForGeneration() {
-    return this.findActiveForGeneration(undefined as undefined);
-  }
+  getActiveForGeneration = () => {
+    return this.findActiveForGeneration(undefined as undefined).pipe(Effect.orDie);
+  };
 
-  updateLastGeneratedDate(seriesId: EventSeries.EventSeriesId, date: string) {
-    return this.setLastGeneratedDate({ id: seriesId, last_generated_date: date });
-  }
+  updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: string) => {
+    return this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(
+      Effect.orDie,
+    );
+  };
 }

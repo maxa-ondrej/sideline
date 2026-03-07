@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Event, Team } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
@@ -43,94 +42,85 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
 export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepository>()(
   'api/TeamSettingsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('findByTeam', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: Schema.String,
-          Result: TeamSettingsRow,
-          execute: (teamId) => sql`
-            SELECT team_id, event_horizon_days,
-                   min_players_threshold, rsvp_reminder_hours,
-                   discord_channel_training, discord_channel_match,
-                   discord_channel_tournament, discord_channel_meeting,
-                   discord_channel_social, discord_channel_other
-            FROM team_settings
-            WHERE team_id = ${teamId}
-          `,
-        }),
-      ),
-      Effect.let('upsertSettings', ({ sql }) =>
-        SqlSchema.single({
-          Request: TeamSettingsUpsertInput,
-          Result: TeamSettingsRow,
-          execute: (input) => sql`
-            INSERT INTO team_settings (team_id, event_horizon_days,
-                                       min_players_threshold, rsvp_reminder_hours,
-                                       discord_channel_training, discord_channel_match,
-                                       discord_channel_tournament, discord_channel_meeting,
-                                       discord_channel_social, discord_channel_other)
-            VALUES (${input.team_id}, ${input.event_horizon_days},
-                    ${input.min_players_threshold}, ${input.rsvp_reminder_hours},
-                    ${input.discord_channel_training}, ${input.discord_channel_match},
-                    ${input.discord_channel_tournament}, ${input.discord_channel_meeting},
-                    ${input.discord_channel_social}, ${input.discord_channel_other})
-            ON CONFLICT (team_id) DO UPDATE SET
-              event_horizon_days = ${input.event_horizon_days},
-              min_players_threshold = ${input.min_players_threshold},
-              rsvp_reminder_hours = ${input.rsvp_reminder_hours},
-              discord_channel_training = ${input.discord_channel_training},
-              discord_channel_match = ${input.discord_channel_match},
-              discord_channel_tournament = ${input.discord_channel_tournament},
-              discord_channel_meeting = ${input.discord_channel_meeting},
-              discord_channel_social = ${input.discord_channel_social},
-              discord_channel_other = ${input.discord_channel_other},
-              updated_at = now()
-            RETURNING team_id, event_horizon_days,
-                      min_players_threshold, rsvp_reminder_hours,
-                      discord_channel_training, discord_channel_match,
-                      discord_channel_tournament, discord_channel_meeting,
-                      discord_channel_social, discord_channel_other
-          `,
-        }),
-      ),
-      Effect.let('getHorizon', ({ sql }) =>
-        SqlSchema.single({
-          Request: Schema.String,
-          Result: Schema.Struct({ event_horizon_days: Schema.Number }),
-          execute: (teamId) => sql`
-            SELECT COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
-            FROM (SELECT ${teamId}::uuid AS id) t
-            LEFT JOIN team_settings ts ON ts.team_id = t.id
-          `,
-        }),
-      ),
-      Effect.let('findEventsForReminder', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.Void,
-          Result: EventNeedingReminder,
-          execute: () => sql`
-            SELECT e.id AS event_id, e.team_id, e.title, e.start_at::text, e.event_type,
-                   e.discord_target_channel_id
-            FROM events e
-            JOIN team_settings ts ON ts.team_id = e.team_id
-            WHERE e.status = 'active'
-              AND e.reminder_sent_at IS NULL
-              AND ts.rsvp_reminder_hours > 0
-              AND e.start_at > NOW()
-              AND e.start_at <= NOW() + (ts.rsvp_reminder_hours || ' hours')::interval
-          `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  findByTeamId(teamId: Team.TeamId) {
-    return this.findByTeam(teamId);
-  }
+  private _findByTeam = SqlSchema.findOne({
+    Request: Schema.String,
+    Result: TeamSettingsRow,
+    execute: (teamId) => this.sql`
+      SELECT team_id, event_horizon_days,
+             min_players_threshold, rsvp_reminder_hours,
+             discord_channel_training, discord_channel_match,
+             discord_channel_tournament, discord_channel_meeting,
+             discord_channel_social, discord_channel_other
+      FROM team_settings
+      WHERE team_id = ${teamId}
+    `,
+  });
 
-  upsert(input: {
+  private _upsertSettings = SqlSchema.single({
+    Request: TeamSettingsUpsertInput,
+    Result: TeamSettingsRow,
+    execute: (input) => this.sql`
+      INSERT INTO team_settings (team_id, event_horizon_days,
+                                 min_players_threshold, rsvp_reminder_hours,
+                                 discord_channel_training, discord_channel_match,
+                                 discord_channel_tournament, discord_channel_meeting,
+                                 discord_channel_social, discord_channel_other)
+      VALUES (${input.team_id}, ${input.event_horizon_days},
+              ${input.min_players_threshold}, ${input.rsvp_reminder_hours},
+              ${input.discord_channel_training}, ${input.discord_channel_match},
+              ${input.discord_channel_tournament}, ${input.discord_channel_meeting},
+              ${input.discord_channel_social}, ${input.discord_channel_other})
+      ON CONFLICT (team_id) DO UPDATE SET
+        event_horizon_days = ${input.event_horizon_days},
+        min_players_threshold = ${input.min_players_threshold},
+        rsvp_reminder_hours = ${input.rsvp_reminder_hours},
+        discord_channel_training = ${input.discord_channel_training},
+        discord_channel_match = ${input.discord_channel_match},
+        discord_channel_tournament = ${input.discord_channel_tournament},
+        discord_channel_meeting = ${input.discord_channel_meeting},
+        discord_channel_social = ${input.discord_channel_social},
+        discord_channel_other = ${input.discord_channel_other},
+        updated_at = now()
+      RETURNING team_id, event_horizon_days,
+                min_players_threshold, rsvp_reminder_hours,
+                discord_channel_training, discord_channel_match,
+                discord_channel_tournament, discord_channel_meeting,
+                discord_channel_social, discord_channel_other
+    `,
+  });
+
+  private _getHorizon = SqlSchema.single({
+    Request: Schema.String,
+    Result: Schema.Struct({ event_horizon_days: Schema.Number }),
+    execute: (teamId) => this.sql`
+      SELECT COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
+      FROM (SELECT ${teamId}::uuid AS id) t
+      LEFT JOIN team_settings ts ON ts.team_id = t.id
+    `,
+  });
+
+  private _findEventsForReminder = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: EventNeedingReminder,
+    execute: () => this.sql`
+      SELECT e.id AS event_id, e.team_id, e.title, e.start_at::text, e.event_type,
+             e.discord_target_channel_id
+      FROM events e
+      JOIN team_settings ts ON ts.team_id = e.team_id
+      WHERE e.status = 'active'
+        AND e.reminder_sent_at IS NULL
+        AND ts.rsvp_reminder_hours > 0
+        AND e.start_at > NOW()
+        AND e.start_at <= NOW() + (ts.rsvp_reminder_hours || ' hours')::interval
+    `,
+  });
+
+  findByTeamId = (teamId: Team.TeamId) => this._findByTeam(teamId).pipe(Effect.orDie);
+
+  upsert = (input: {
     teamId: Team.TeamId;
     eventHorizonDays: number;
     minPlayersThreshold: number;
@@ -141,8 +131,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordChannelMeeting?: string | null;
     discordChannelSocial?: string | null;
     discordChannelOther?: string | null;
-  }) {
-    return this.upsertSettings({
+  }) =>
+    this._upsertSettings({
       team_id: input.teamId,
       event_horizon_days: input.eventHorizonDays,
       min_players_threshold: input.minPlayersThreshold,
@@ -153,14 +143,14 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_channel_meeting: input.discordChannelMeeting ?? null,
       discord_channel_social: input.discordChannelSocial ?? null,
       discord_channel_other: input.discordChannelOther ?? null,
-    });
-  }
+    }).pipe(Effect.orDie);
 
-  getHorizonDays(teamId: Team.TeamId) {
-    return this.getHorizon(teamId).pipe(Effect.map((r) => r.event_horizon_days));
-  }
+  getHorizonDays = (teamId: Team.TeamId) =>
+    this._getHorizon(teamId).pipe(
+      Effect.map((r) => r.event_horizon_days),
+      Effect.orDie,
+    );
 
-  findEventsNeedingReminder() {
-    return this.findEventsForReminder(undefined as undefined);
-  }
+  findEventsNeedingReminder = () =>
+    this._findEventsForReminder(undefined as undefined).pipe(Effect.orDie);
 }

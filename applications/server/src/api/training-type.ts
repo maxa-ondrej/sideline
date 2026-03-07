@@ -21,11 +21,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
-            Effect.bind('list', () =>
-              trainingTypes
-                .findTrainingTypesByTeamId(teamId)
-                .pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('list', () => trainingTypes.findTrainingTypesByTeamId(teamId)),
             Effect.map(
               ({ list, isAdmin }) =>
                 new TrainingTypeApi.TrainingTypeListResponse({
@@ -53,9 +49,12 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               requirePermission(membership, 'training-type:create', forbidden),
             ),
             Effect.bind('trainingType', () =>
-              trainingTypes
-                .insertTrainingType(teamId, payload.name, payload.groupId, payload.discordChannelId)
-                .pipe(Effect.mapError(() => forbidden)),
+              trainingTypes.insertTrainingType(
+                teamId,
+                payload.name,
+                payload.groupId,
+                payload.discordChannelId,
+              ),
             ),
             Effect.map(
               ({ trainingType }) =>
@@ -77,7 +76,6 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('trainingType', () =>
               trainingTypes.findTrainingTypeByIdWithGroup(trainingTypeId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new TrainingTypeApi.TrainingTypeNotFound()),
@@ -114,7 +112,6 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('existing', () =>
               trainingTypes.findTrainingTypeById(trainingTypeId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new TrainingTypeApi.TrainingTypeNotFound()),
@@ -129,16 +126,14 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                 : Effect.void,
             ),
             Effect.bind('updated', ({ existing }) =>
-              trainingTypes
-                .updateTrainingType(
-                  trainingTypeId,
-                  payload.name,
-                  Option.match(payload.discordChannelId, {
-                    onNone: () => existing.discord_channel_id,
-                    onSome: Option.getOrNull,
-                  }),
-                )
-                .pipe(Effect.mapError(() => forbidden)),
+              trainingTypes.updateTrainingType(
+                trainingTypeId,
+                payload.name,
+                Option.match(payload.discordChannelId, {
+                  onNone: () => existing.discord_channel_id,
+                  onSome: Option.getOrNull,
+                }),
+              ),
             ),
             Effect.map(
               ({ updated }) =>
@@ -162,7 +157,6 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
             Effect.bind('existing', () =>
               trainingTypes.findTrainingTypeById(trainingTypeId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new TrainingTypeApi.TrainingTypeNotFound()),
@@ -176,11 +170,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                 ? Effect.fail(new TrainingTypeApi.TrainingTypeNotFound())
                 : Effect.void,
             ),
-            Effect.tap(() =>
-              trainingTypes
-                .deleteTrainingTypeById(trainingTypeId)
-                .pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => trainingTypes.deleteTrainingTypeById(trainingTypeId)),
             Effect.asVoid,
           ),
         ),
