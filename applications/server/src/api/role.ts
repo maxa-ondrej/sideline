@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, type Discord, RoleApi } from '@sideline/domain';
+import { Auth, RoleApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -235,7 +235,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                     payload.roleId,
                     role.name,
                     memberId,
-                    user.discord_id as Discord.Snowflake,
+                    user.discord_id,
                   ),
                 ),
                 Effect.catchTag('NoSuchElementException', () => Effect.void),
@@ -298,7 +298,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                     roleId,
                     role.name,
                     memberId,
-                    user.discord_id as Discord.Snowflake,
+                    user.discord_id,
                   ),
                 ),
                 Effect.catchTag('NoSuchElementException', () => Effect.void),

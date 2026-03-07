@@ -139,23 +139,23 @@ type ChannelSyncEventCall = {
   teamId: Team.TeamId;
   eventType: ChannelSyncEvent.ChannelSyncEventType;
   groupId: GroupModel.GroupId;
-  groupName: Option.Option<string>;
-  teamMemberId: Option.Option<TeamMember.TeamMemberId>;
-  discordUserId: Option.Option<string>;
+  groupName: string;
+  teamMemberId: TeamMember.TeamMemberId | undefined;
+  discordUserId: string | undefined;
 };
 
 const channelSyncEventCalls: ChannelSyncEventCall[] = [];
 
-const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
-  _tag: 'api/ChannelSyncEventsRepository',
-  emitIfGuildLinked: (
-    teamId: Team.TeamId,
-    eventType: ChannelSyncEvent.ChannelSyncEventType,
-    groupId: GroupModel.GroupId,
-    groupName: Option.Option<string> = Option.none(),
-    teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
-    discordUserId: Option.Option<string> = Option.none(),
-  ) => {
+const recordCall =
+  (eventType: ChannelSyncEvent.ChannelSyncEventType) =>
+  (...args: readonly unknown[]) => {
+    const [teamId, groupId, groupName, teamMemberId, discordUserId] = args as [
+      Team.TeamId,
+      GroupModel.GroupId,
+      string,
+      TeamMember.TeamMemberId?,
+      string?,
+    ];
     channelSyncEventCalls.push({
       teamId,
       eventType,
@@ -165,19 +165,24 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
       discordUserId,
     });
     return Effect.void;
-  },
+  };
+
+const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
+  _tag: 'api/ChannelSyncEventsRepository',
+  emitChannelCreated: recordCall('channel_created'),
+  emitChannelDeleted: recordCall('channel_deleted'),
+  emitMemberAdded: recordCall('member_added'),
+  emitMemberRemoved: recordCall('member_removed'),
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-  insertEvent: () => Effect.die('Not implemented'),
-  lookupGuildId: () => Effect.die('Not implemented'),
-  findUnprocessedEvents: () => Effect.die('Not implemented'),
-  markEventProcessed: () => Effect.die('Not implemented'),
-  markEventFailed: () => Effect.die('Not implemented'),
 } as unknown as ChannelSyncEventsRepository);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitEventCreated: () => Effect.void,
+  emitEventUpdated: () => Effect.void,
+  emitEventCancelled: () => Effect.void,
+  emitRsvpReminder: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
@@ -459,7 +464,10 @@ const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
 } as unknown as AgeCheckService);
 
 const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitRoleCreated: () => Effect.void,
+  emitRoleDeleted: () => Effect.void,
+  emitRoleAssigned: () => Effect.void,
+  emitRoleUnassigned: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
@@ -623,9 +631,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'channel_created',
         groupId: body.groupId,
-        groupName: Option.some('Goalkeepers'),
-        teamMemberId: Option.none(),
-        discordUserId: Option.none(),
+        groupName: 'Goalkeepers',
+        teamMemberId: undefined,
+        discordUserId: undefined,
       });
     });
   });
@@ -658,9 +666,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'channel_deleted',
         groupId: created.groupId,
-        groupName: Option.some('ToDelete'),
-        teamMemberId: Option.none(),
-        discordUserId: Option.none(),
+        groupName: 'ToDelete',
+        teamMemberId: undefined,
+        discordUserId: undefined,
       });
     });
   });
@@ -697,9 +705,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'member_added',
         groupId: created.groupId,
-        groupName: Option.some('WithMembers'),
-        teamMemberId: Option.some(TEST_MEMBER_ID),
-        discordUserId: Option.some('12345'),
+        groupName: 'WithMembers',
+        teamMemberId: TEST_MEMBER_ID,
+        discordUserId: '12345',
       });
     });
   });
@@ -747,9 +755,9 @@ describe('Channel Sync Events', () => {
         teamId: TEST_TEAM_ID,
         eventType: 'member_removed',
         groupId: created.groupId,
-        groupName: Option.some('ForRemoval'),
-        teamMemberId: Option.some(TEST_MEMBER_ID),
-        discordUserId: Option.some('12345'),
+        groupName: 'ForRemoval',
+        teamMemberId: TEST_MEMBER_ID,
+        discordUserId: '12345',
       });
     });
   });

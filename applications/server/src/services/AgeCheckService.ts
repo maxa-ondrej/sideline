@@ -27,7 +27,7 @@ interface Change {
   userId: User.UserId;
   memberId: TeamMember.TeamMemberId;
   memberName: string;
-  discordId: string;
+  discordId: Discord.Snowflake;
   groupId: GroupModel.GroupId;
   groupName: string;
   action: 'added' | 'removed';
@@ -213,23 +213,21 @@ const evaluateTeam =
           changes.map((change) =>
             change.action === 'added'
               ? channelSync
-                  .emitIfGuildLinked(
+                  .emitMemberAdded(
                     teamId,
-                    'member_added',
                     change.groupId,
-                    Option.some(change.groupName),
-                    Option.some(change.memberId),
-                    Option.some(change.discordId as Discord.Snowflake),
+                    change.groupName,
+                    change.memberId,
+                    change.discordId,
                   )
                   .pipe(Effect.catchAll((e) => Effect.logError('channel sync event failed', e)))
               : channelSync
-                  .emitIfGuildLinked(
+                  .emitMemberRemoved(
                     teamId,
-                    'member_removed',
                     change.groupId,
-                    Option.some(change.groupName),
-                    Option.some(change.memberId),
-                    Option.some(change.discordId as Discord.Snowflake),
+                    change.groupName,
+                    change.memberId,
+                    change.discordId,
                   )
                   .pipe(Effect.catchAll((e) => Effect.logError('channel sync event failed', e))),
           ),

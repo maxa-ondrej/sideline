@@ -368,7 +368,14 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('accessToken', ({ currentUser }) =>
-              oauthConnections.getAccessToken(currentUser.id, 'discord'),
+              oauthConnections.getAccessToken(currentUser.id, 'discord').pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new Auth.Unauthorized()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
             ),
             Effect.bind('client', ({ accessToken }) => makeUserDiscordClient(accessToken)),
             Effect.bind('guilds', ({ client }) => client.listMyGuilds()),

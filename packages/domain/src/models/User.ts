@@ -1,6 +1,7 @@
 import { Model } from '@effect/sql';
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
+import { Snowflake } from '~/models/Discord.js';
 
 export const UserId = Schema.String.pipe(Schema.brand('UserId'));
 export type UserId = typeof UserId.Type;
@@ -13,7 +14,7 @@ export type Locale = typeof Locale.Type;
 
 export class User extends Model.Class<User>('User')({
   id: Model.Generated(UserId),
-  discord_id: Schema.String,
+  discord_id: Snowflake,
   username: Schema.String,
   avatar: Schema.NullOr(Schema.String),
   name: Schema.NullOr(Schema.String),

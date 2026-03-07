@@ -5,9 +5,9 @@ import {
   EventRpcGroup,
   EventRpcModels,
   type EventRsvp,
-  type Team,
+  Team,
   TeamMember,
-  type User,
+  User,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { Array, Data, Effect, flow, Option, Schema } from 'effect';
@@ -53,12 +53,12 @@ const getRsvpCounts = (
   );
 
 class TeamLookupResult extends Schema.Class<TeamLookupResult>('TeamLookupResult')({
-  id: Schema.String,
+  id: Team.TeamId,
 }) {}
 
 class UserLookupResult extends Schema.Class<UserLookupResult>('UserLookupResult')({
-  id: Schema.String,
-  team_member_id: Schema.String,
+  id: User.UserId,
+  team_member_id: TeamMember.TeamMemberId,
 }) {}
 
 const parseDateTime = (input: string): string | null => {
@@ -111,7 +111,7 @@ const createEvent = (
         Effect.flatMap(
           Option.match({
             onNone: () => Effect.fail(new EventRpcModels.CreateEventNotMember()),
-            onSome: (r) => Effect.succeed(r.id as Team.TeamId),
+            onSome: (r) => Effect.succeed(r.id),
           }),
         ),
       ),
@@ -142,7 +142,7 @@ const createEvent = (
       ),
     ),
     Effect.bind('membership', ({ teamId, userLookup }) =>
-      members.findMembershipByIds(teamId, userLookup.id as User.UserId).pipe(
+      members.findMembershipByIds(teamId, userLookup.id).pipe(
         Effect.flatMap(
           Option.match({
             onNone: () => Effect.fail(new EventRpcModels.CreateEventNotMember()),
@@ -179,7 +179,7 @@ const createEvent = (
         startAt: parsedStartAt,
         endAt: Option.fromNullable(parsedEndAt),
         location: Option.fromNullable(input.location),
-        createdBy: userLookup.team_member_id as TeamMember.TeamMemberId,
+        createdBy: userLookup.team_member_id,
       }),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) =>
@@ -187,9 +187,8 @@ const createEvent = (
     ),
     Effect.tap(({ teamId, event, resolvedChannel }) =>
       syncEvents
-        .emitIfGuildLinked(
+        .emitEventCreated(
           teamId,
-          'event_created',
           event.id,
           event.title,
           Option.getOrNull(event.description),

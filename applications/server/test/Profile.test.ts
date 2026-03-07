@@ -304,21 +304,30 @@ const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
 } as unknown as AgeCheckService);
 
 const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitRoleCreated: () => Effect.void,
+  emitRoleDeleted: () => Effect.void,
+  emitRoleAssigned: () => Effect.void,
+  emitRoleUnassigned: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
 } as unknown as RoleSyncEventsRepository);
 
 const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitChannelCreated: () => Effect.void,
+  emitChannelDeleted: () => Effect.void,
+  emitMemberAdded: () => Effect.void,
+  emitMemberRemoved: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitEventCreated: () => Effect.void,
+  emitEventUpdated: () => Effect.void,
+  emitEventCancelled: () => Effect.void,
+  emitRsvpReminder: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,

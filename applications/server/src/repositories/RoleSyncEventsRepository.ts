@@ -91,19 +91,21 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
     discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this.lookupGuildId(teamId).pipe(
-      Effect.flatten,
-      Effect.flatMap(({ guild_id }) =>
-        this.insertEvent({
-          team_id: teamId,
-          guild_id,
-          event_type: eventType,
-          role_id: roleId,
-          role_name: Option.some(roleName),
-          team_member_id: teamMemberId,
-          discord_user_id: discordUserId,
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            this.insertEvent({
+              team_id: teamId,
+              guild_id,
+              event_type: eventType,
+              role_id: roleId,
+              role_name: Option.some(roleName),
+              team_member_id: teamMemberId,
+              discord_user_id: discordUserId,
+            }),
         }),
       ),
-      Effect.catchTag('NoSuchElementException', () => Effect.void),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 

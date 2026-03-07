@@ -18,9 +18,8 @@ const cronEffect = Effect.Do.pipe(
     Effect.all(
       events.map((event) =>
         syncRepo
-          .emitIfGuildLinked(
+          .emitRsvpReminder(
             event.team_id,
-            'rsvp_reminder',
             event.event_id,
             event.title,
             null,

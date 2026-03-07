@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, type Discord, GroupApi } from '@sideline/domain';
+import { Auth, GroupApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -66,7 +66,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.tap(({ group }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_created', group.id, Option.some(group.name))
+                  .emitChannelCreated(teamId, group.id, group.name)
                   .pipe(Effect.catchAll(() => Effect.void)),
               ),
               Effect.map(
@@ -199,7 +199,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.tap(() => groups.archiveGroupById(groupId)),
               Effect.tap(({ existing }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_deleted', groupId, Option.some(existing.name))
+                  .emitChannelDeleted(teamId, groupId, existing.name)
                   .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
               ),
               Effect.asVoid,
@@ -244,13 +244,12 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     Option.match({
                       onNone: () => Effect.void,
                       onSome: (user) =>
-                        channelSync.emitIfGuildLinked(
+                        channelSync.emitMemberAdded(
                           teamId,
-                          'member_added',
                           groupId,
-                          Option.some(_group.name),
-                          Option.some(payload.memberId),
-                          Option.some(user.discord_id as Discord.Snowflake),
+                          _group.name,
+                          payload.memberId,
+                          user.discord_id,
                         ),
                     }),
                   ),
@@ -299,13 +298,12 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     Option.match({
                       onNone: () => Effect.void,
                       onSome: (user) =>
-                        channelSync.emitIfGuildLinked(
+                        channelSync.emitMemberRemoved(
                           teamId,
-                          'member_removed',
                           groupId,
-                          Option.some(_group.name),
-                          Option.some(memberId),
-                          Option.some(user.discord_id as Discord.Snowflake),
+                          _group.name,
+                          memberId,
+                          user.discord_id,
                         ),
                     }),
                   ),
@@ -492,7 +490,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.tap(({ _group }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(_group.name))
+                  .emitChannelCreated(teamId, groupId, _group.name)
                   .pipe(Effect.catchAll(() => Effect.void)),
               ),
               Effect.bind('team', () =>
@@ -568,7 +566,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.tap(({ group }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(group.name))
+                  .emitChannelCreated(teamId, groupId, group.name)
                   .pipe(
                     Effect.catchAll((e) => Effect.logError('Failed to emit channel_created', e)),
                   ),

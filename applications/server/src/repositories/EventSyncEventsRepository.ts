@@ -1,6 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, Team } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 const EventSyncEventType = Schema.Literal(
   'event_created',
@@ -98,7 +98,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     `,
   });
 
-  emitIfGuildLinked = (
+  private _emitIfGuildLinked = (
     teamId: Team.TeamId,
     eventType: EventSyncEventType,
     eventId: Event.EventId,
@@ -111,24 +111,122 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     discordTargetChannelId?: string | null,
   ) =>
     this.lookupGuildId(teamId).pipe(
-      Effect.flatten,
-      Effect.flatMap(({ guild_id }) =>
-        this.insertEvent({
-          team_id: teamId,
-          guild_id,
-          event_type: eventType,
-          event_id: eventId,
-          event_title: title,
-          event_description: description,
-          event_start_at: startAt,
-          event_end_at: endAt,
-          event_location: location,
-          event_event_type: eventEventType,
-          discord_target_channel_id: discordTargetChannelId ?? null,
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            this.insertEvent({
+              team_id: teamId,
+              guild_id,
+              event_type: eventType,
+              event_id: eventId,
+              event_title: title,
+              event_description: description,
+              event_start_at: startAt,
+              event_end_at: endAt,
+              event_location: location,
+              event_event_type: eventEventType,
+              discord_target_channel_id: discordTargetChannelId ?? null,
+            }),
         }),
       ),
-      Effect.catchTag('NoSuchElementException', () => Effect.void),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  emitEventCreated = (
+    teamId: Team.TeamId,
+    eventId: Event.EventId,
+    title: string,
+    description: string | null,
+    startAt: string,
+    endAt: string | null,
+    location: string | null,
+    eventEventType: string,
+    discordTargetChannelId?: string | null,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'event_created',
+      eventId,
+      title,
+      description,
+      startAt,
+      endAt,
+      location,
+      eventEventType,
+      discordTargetChannelId,
+    );
+
+  emitEventUpdated = (
+    teamId: Team.TeamId,
+    eventId: Event.EventId,
+    title: string,
+    description: string | null,
+    startAt: string,
+    endAt: string | null,
+    location: string | null,
+    eventEventType: string,
+    discordTargetChannelId?: string | null,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'event_updated',
+      eventId,
+      title,
+      description,
+      startAt,
+      endAt,
+      location,
+      eventEventType,
+      discordTargetChannelId,
+    );
+
+  emitEventCancelled = (
+    teamId: Team.TeamId,
+    eventId: Event.EventId,
+    title: string,
+    description: string | null,
+    startAt: string,
+    endAt: string | null,
+    location: string | null,
+    eventEventType: string,
+    discordTargetChannelId?: string | null,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'event_cancelled',
+      eventId,
+      title,
+      description,
+      startAt,
+      endAt,
+      location,
+      eventEventType,
+      discordTargetChannelId,
+    );
+
+  emitRsvpReminder = (
+    teamId: Team.TeamId,
+    eventId: Event.EventId,
+    title: string,
+    description: string | null,
+    startAt: string,
+    endAt: string | null,
+    location: string | null,
+    eventEventType: string,
+    discordTargetChannelId?: string | null,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'rsvp_reminder',
+      eventId,
+      title,
+      description,
+      startAt,
+      endAt,
+      location,
+      eventEventType,
+      discordTargetChannelId,
     );
 
   findUnprocessed = (limit: number) =>

@@ -104,9 +104,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
             Effect.tap(({ event, resolvedChannel }) =>
               syncEvents
-                .emitIfGuildLinked(
+                .emitEventCreated(
                   teamId,
-                  'event_created',
                   event.id,
                   event.title,
                   Option.getOrNull(event.description),
@@ -260,9 +259,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
             Effect.tap(({ detail, resolvedChannelForUpdate }) =>
               syncEvents
-                .emitIfGuildLinked(
+                .emitEventUpdated(
                   teamId,
-                  'event_updated',
                   detail.id,
                   detail.title,
                   Option.getOrNull(detail.description),
@@ -332,9 +330,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             Effect.tap(() => events.cancelEvent(eventId)),
             Effect.tap(({ existing }) =>
               syncEvents
-                .emitIfGuildLinked(
+                .emitEventCancelled(
                   teamId,
-                  'event_cancelled',
                   existing.id,
                   existing.title,
                   Option.getOrNull(existing.description),

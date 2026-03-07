@@ -82,7 +82,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     `,
   });
 
-  emitIfGuildLinked = (
+  private _emitIfGuildLinked = (
     teamId: Team.TeamId,
     eventType: ChannelSyncEvent.ChannelSyncEventType,
     groupId: GroupModel.GroupId,
@@ -91,20 +91,60 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this.lookupGuildId(teamId).pipe(
-      Effect.flatten,
-      Effect.flatMap(({ guild_id }) =>
-        this.insertEvent({
-          team_id: teamId,
-          guild_id,
-          event_type: eventType,
-          group_id: groupId,
-          group_name: groupName,
-          team_member_id: teamMemberId,
-          discord_user_id: discordUserId,
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            this.insertEvent({
+              team_id: teamId,
+              guild_id,
+              event_type: eventType,
+              group_id: groupId,
+              group_name: groupName,
+              team_member_id: teamMemberId,
+              discord_user_id: discordUserId,
+            }),
         }),
       ),
-      Effect.catchTag('NoSuchElementException', () => Effect.void),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  emitChannelCreated = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
+    this._emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(groupName));
+
+  emitChannelDeleted = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
+    this._emitIfGuildLinked(teamId, 'channel_deleted', groupId, Option.some(groupName));
+
+  emitMemberAdded = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    groupName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'member_added',
+      groupId,
+      Option.some(groupName),
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
+    );
+
+  emitMemberRemoved = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    groupName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'member_removed',
+      groupId,
+      Option.some(groupName),
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
     );
 
   findUnprocessed = (limit: number) =>

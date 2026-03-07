@@ -127,9 +127,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           Effect.catchAll(() => Effect.succeed(null)),
                           Effect.flatMap((resolved) =>
                             syncEvents
-                              .emitIfGuildLinked(
+                              .emitEventCreated(
                                 teamId,
-                                'event_created',
                                 event.id,
                                 event.title,
                                 Option.getOrNull(event.description),
