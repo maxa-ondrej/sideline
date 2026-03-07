@@ -1,6 +1,6 @@
 ---
 name: work
-description: Fetches the next story from the active Notion sprint (preferring in-progress work) and implements it task by task. Creates a plan, gets approval, then codes, commits, and updates Notion statuses.
+description: Fetches the next bug or story from the active Notion sprint (bugs always before stories, preferring in-progress work) and implements it task by task. Creates a plan, gets approval, then codes, commits, and updates Notion statuses.
 ---
 
 # Work Skill
@@ -39,15 +39,16 @@ If no active sprint exists, tell the user and stop.
 
 #### 2.2 Select a story
 
-From the active sprint's stories, fetch each story to check its status and type. Pick a story using this priority order:
+Also fetch bugs from the Bugs database that are linked to the active sprint. Combine bugs and stories, then pick work using this priority order:
 
-1. **In Progress** — resume work already started (highest priority)
-2. **TODO Bug** — bugs take priority over features
-3. **TODO** — start new work
+1. **In Progress Bug** — resume bug work already started (highest priority)
+2. **TODO Bug** — new bugs always come before stories
+3. **In Progress Story** — resume story work already started
+4. **TODO Story** — start new story work
 
-Skip stories with status Done, In Review, or In Test.
+Skip items with status Done, In Review, or In Test.
 
-Within the same priority level, prefer higher priority stories (Critical > High > Medium > Low).
+Within the same priority level, prefer higher priority items (Critical > High > Medium > Low).
 
 If `$ARGUMENTS` is provided, use it to match a specific story by name or keyword instead of auto-selecting.
 
