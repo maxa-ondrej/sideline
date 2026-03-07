@@ -99,7 +99,7 @@ const ReminderCron = RsvpReminderCron.pipe(
 );
 
 Effect.Do.pipe(
-  Effect.tap(() => (env.NODE_ENV === 'development' ? CreateDb : Effect.void)),
+  Effect.tap(() => (env.DATABASE_MAIN !== env.DATABASE_NAME ? CreateDb : Effect.void)),
   Effect.tap(() => MigrateBefore),
   Effect.andThen(() =>
     Effect.all([App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron], { concurrency: 6 }),
