@@ -8,7 +8,7 @@ import { Redirect } from '~/lib/runtime';
 export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complete')({
   component: ProfileCompleteRoute,
   beforeLoad: ({ context }) =>
-    context.user.isProfileComplete
+    context.user?.isProfileComplete
       ? Effect.Do.pipe(
           Effect.flatMap(() => getLastTeamId),
           Effect.flatten,

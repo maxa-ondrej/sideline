@@ -15,6 +15,7 @@ Pick up a story from the active sprint and implement it end-to-end.
 | Stories    | `collection://6ae03d12-a6d6-45b1-bead-094f0c225e42` |
 | Tasks      | `collection://df8fe05e-456c-429d-a6da-f45fb3303dcf` |
 | Epics      | `collection://2020f137-79a6-43b7-9609-309d0aaa8450` |
+| Bugs       | `collection://798a152b-94f1-4fef-b5c1-f171f031d248` |
 
 ## Steps
 

@@ -10,7 +10,7 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 export const Route = createFileRoute('/(authenticated)/(no-team)/create-team')({
   component: CreateTeamRoute,
   beforeLoad: ({ context }) => {
-    if (!context.user.isProfileComplete) {
+    if (!context.user?.isProfileComplete) {
       throw redirect({ to: '/profile/complete' });
     }
   },
@@ -55,8 +55,8 @@ function CreateTeamRoute() {
       if (Option.isSome(result)) {
         const teamId = result.value.teamId;
         Effect.runSync(setLastTeamId(teamId));
-        router.invalidate();
-        navigate({ to: '/teams/$teamId', params: { teamId } });
+        await router.invalidate();
+        await navigate({ to: '/teams/$teamId', params: { teamId } });
         return true;
       }
       return false;
