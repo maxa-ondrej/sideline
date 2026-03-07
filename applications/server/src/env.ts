@@ -38,6 +38,9 @@ export const env = createEnv({
     ),
     DISCORD_REDIRECT: Schema.URL.pipe(Schema.standardSchemaV1),
     FRONTEND_URL: Schema.URL.pipe(Schema.standardSchemaV1),
+    LOG_LEVEL: Schema.OptionFromNullishOr(Schemas.LogLevelFromString, null).pipe(
+      Schema.standardSchemaV1,
+    ),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

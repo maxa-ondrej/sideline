@@ -104,5 +104,5 @@ Effect.Do.pipe(
   Effect.andThen(() =>
     Effect.all([App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron], { concurrency: 6 }),
   ),
-  Runtime.runMain(env.NODE_ENV),
+  Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL),
 );

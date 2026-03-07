@@ -1,4 +1,4 @@
-import { Array, DateTime, flow, Option, Schema, String } from 'effect';
+import { Array, DateTime, flow, LogLevel, Option, Schema, String } from 'effect';
 
 export const NodeEnv = Schema.OptionFromNullishOr(Schema.String, null).pipe(
   Schema.transform(Schema.Literal('production', 'development'), {
@@ -30,3 +30,27 @@ export const ArrayFromSplitString = (separator: string = ',') =>
       encode: Array.join(separator),
     }),
   );
+
+const LogLevelLiteral = Schema.Literal(
+  'All',
+  'Fatal',
+  'Error',
+  'Warning',
+  'Info',
+  'Debug',
+  'Trace',
+  'None',
+);
+
+export const LogLevelFromString = Schema.transform(
+  LogLevelLiteral,
+  Schema.declare(
+    (u): u is LogLevel.LogLevel =>
+      typeof u === 'object' && u !== null && '_tag' in u && 'ordinal' in u,
+  ),
+  {
+    strict: true,
+    decode: (s) => LogLevel.fromLiteral(s),
+    encode: (level) => level._tag as typeof LogLevelLiteral.Type,
+  },
+);

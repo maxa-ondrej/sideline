@@ -22,7 +22,8 @@ services:
     build:
       dockerfile: applications/server/Dockerfile
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-Info}
       DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_PORT: ${DATABASE_PORT}
       DATABASE_NAME: ${SERVICE_FQDN_PROXY}
@@ -49,7 +50,8 @@ services:
       server:
         condition: service_healthy
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
+      LOG_LEVEL: ${LOG_LEVEL:-Info}
       SERVER_URL: http://${SERVICE_NAME_SERVER}:80
       RPC_PREFIX: /rpc/sync
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
