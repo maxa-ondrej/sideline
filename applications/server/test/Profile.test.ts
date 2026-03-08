@@ -71,7 +71,7 @@ const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
     Effect.succeed(
       new OAuth2Tokens({ access_token: 'mock-access-token', refresh_token: 'mock-refresh-token' }),
     ),
-});
+} as unknown as DiscordOAuth);
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   _tag: 'api/UsersRepository',
@@ -79,7 +79,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     Effect.succeed(id === TEST_USER_ID ? Option.some(testUser) : Option.none()),
   findByDiscordId: () => Effect.succeed(Option.none()),
   upsertFromDiscord: () => Effect.succeed(testUser),
-  completeProfile: (input) => {
+  completeProfile: (input: { name: string | null; birth_date: unknown; gender: string | null }) => {
     Object.assign(testUser, {
       name: input.name,
       birth_date: input.birth_date,
@@ -88,11 +88,15 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     });
     return Effect.succeed(testUser);
   },
-  updateLocale: (input) => {
+  updateLocale: (input: { locale: string }) => {
     Object.assign(testUser, { locale: input.locale });
     return Effect.succeed(testUser);
   },
-  updateAdminProfile: (input) => {
+  updateAdminProfile: (input: {
+    name: string | null;
+    birth_date: unknown;
+    gender: string | null;
+  }) => {
     Object.assign(testUser, {
       name: input.name,
       birth_date: input.birth_date,
@@ -100,11 +104,11 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
     });
     return Effect.succeed(testUser);
   },
-});
+} as unknown as UsersRepository);
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
   _tag: 'api/SessionsRepository',
-  create: (input) => {
+  create: (input: { token: string; user_id: Auth.UserId }) => {
     sessionsStore.set(input.token, input.user_id);
     return Effect.succeed({
       id: 'session-1',
@@ -114,7 +118,7 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       created_at: DateTime.unsafeNow(),
     });
   },
-  findByToken: (token) => {
+  findByToken: (token: string) => {
     const userId = sessionsStore.get(token);
     if (!userId) return Effect.succeed(Option.none());
     return Effect.succeed(
@@ -128,19 +132,18 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
     );
   },
   deleteByToken: () => Effect.void,
-});
+} as unknown as SessionsRepository);
 
 const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   _tag: 'api/TeamsRepository',
   findById: () => Effect.succeed(Option.none()),
   insert: () => Effect.succeed(testTeam),
-  findByGuild: () => Effect.succeed(Option.none()),
   findByGuildId: () => Effect.succeed(Option.none()),
-});
+} as unknown as TeamsRepository);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   _tag: 'api/TeamMembersRepository',
-  addMember: (input) =>
+  addMember: (input: { team_id: string; user_id: string }) =>
     Effect.succeed({
       id: '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId,
       team_id: input.team_id,
@@ -149,56 +152,35 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       jersey_number: null,
       joined_at: DateTime.unsafeNow(),
     }),
-  findMembership: () => Effect.succeed(Option.none()),
   findMembershipByIds: () => Effect.succeed(Option.none()),
   findByTeam: () => Effect.succeed([]),
   findByUser: () => Effect.succeed([]),
   findRosterByTeam: () => Effect.succeed([]),
-  findRosterMember: () => Effect.succeed(Option.none()),
   findRosterMemberByIds: () => Effect.succeed(Option.none()),
-  deactivateMember: () => Effect.die(new Error('Not implemented')),
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
-  findPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
   getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
-  assignRoleToMember: () => Effect.void,
-  unassignRoleFromMember: () => Effect.void,
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
-  updateJerseyNumber: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-});
+} as unknown as TeamMembersRepository);
 
 const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   _tag: 'api/RolesRepository',
-  findByTeamId: () => Effect.succeed([]),
   findRolesByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
   findRoleById: () => Effect.succeed(Option.none()),
-  findPermissions: () => Effect.succeed([]),
   getPermissionsForRoleId: () => Effect.succeed([]),
-  insert: () => Effect.die(new Error('Not implemented')),
   insertRole: () => Effect.die(new Error('Not implemented')),
-  update: () => Effect.die(new Error('Not implemented')),
   updateRole: () => Effect.die(new Error('Not implemented')),
-  archiveRole: () => Effect.void,
   archiveRoleById: () => Effect.void,
-  deletePermissions: () => Effect.void,
-  insertPermission: () => Effect.void,
   setRolePermissions: () => Effect.void,
-  initTeamRoles: () => Effect.void,
   initializeTeamRoles: () => Effect.void,
-  findByTeamAndName: () => Effect.succeed(Option.none()),
   findRoleByTeamAndName: () => Effect.succeed(Option.none()),
   seedTeamRolesWithPermissions: () => Effect.succeed([]),
-  countMembersForRole: () => Effect.succeed({ count: 0 }),
   getMemberCountForRole: () => Effect.succeed(0),
-  findGroupsForRoleId: () => Effect.succeed([]),
   findGroupsForRole: () => Effect.succeed([]),
-  assignRoleGroup: () => Effect.void,
   assignRoleToGroup: () => Effect.void,
-  unassignRoleGroup: () => Effect.void,
   unassignRoleFromGroup: () => Effect.void,
-});
+} as unknown as RolesRepository);
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   _tag: 'api/TeamInvitesRepository',
@@ -216,7 +198,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
     }),
   deactivateByTeam: () => Effect.void,
   deactivateByTeamExcept: () => Effect.void,
-});
+} as unknown as TeamInvitesRepository);
 
 const MockHttpClientLayer = Layer.succeed(
   HttpClient.HttpClient,
@@ -235,52 +217,33 @@ const MockHttpClientLayer = Layer.succeed(
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   _tag: 'api/RostersRepository',
-  findByTeam: () => Effect.succeed([]),
   findByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
   findRosterById: () => Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
   update: () => Effect.die(new Error('Not implemented')),
   delete: () => Effect.void,
-  findMemberEntries: () => Effect.succeed([]),
   findMemberEntriesById: () => Effect.succeed([]),
-  addMember: () => Effect.void,
   addMemberById: () => Effect.void,
-  removeMember: () => Effect.void,
   removeMemberById: () => Effect.void,
-});
+} as unknown as RostersRepository);
 
 const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
   _tag: 'api/GroupsRepository',
-  findByTeamId: () => Effect.succeed([]),
   findGroupsByTeamId: () => Effect.succeed([]),
-  findById: () => Effect.succeed(Option.none()),
   findGroupById: () => Effect.succeed(Option.none()),
-  insert: () => Effect.die(new Error('Not implemented')),
   insertGroup: () => Effect.die(new Error('Not implemented')),
-  update: () => Effect.die(new Error('Not implemented')),
   updateGroupById: () => Effect.die(new Error('Not implemented')),
-  archiveGroup: () => Effect.void,
   archiveGroupById: () => Effect.void,
-  moveGroupParent: () => Effect.die(new Error('Not implemented')),
   moveGroup: () => Effect.die(new Error('Not implemented')),
-  findMembers: () => Effect.succeed([]),
   findMembersByGroupId: () => Effect.succeed([]),
-  addMember: () => Effect.void,
   addMemberById: () => Effect.void,
-  removeMember: () => Effect.void,
   removeMemberById: () => Effect.void,
-  findRolesForGroup: () => Effect.succeed([]),
   getRolesForGroup: () => Effect.succeed([]),
-  countMembersForGroup: () => Effect.succeed({ count: 0 }),
   getMemberCount: () => Effect.succeed(0),
-  findChildren: () => Effect.succeed([]),
   getChildren: () => Effect.succeed([]),
-  findAncestors: () => Effect.succeed([]),
   getAncestorIds: () => Effect.succeed([]),
-  findDescendantMembers: () => Effect.succeed([]),
   getDescendantMemberIds: () => Effect.succeed([]),
-});
+} as unknown as GroupsRepository);
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   _tag: 'api/TrainingTypesRepository',
@@ -341,21 +304,30 @@ const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
 } as unknown as AgeCheckService);
 
 const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitRoleCreated: () => Effect.void,
+  emitRoleDeleted: () => Effect.void,
+  emitRoleAssigned: () => Effect.void,
+  emitRoleUnassigned: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
 } as unknown as RoleSyncEventsRepository);
 
 const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitChannelCreated: () => Effect.void,
+  emitChannelDeleted: () => Effect.void,
+  emitMemberAdded: () => Effect.void,
+  emitMemberRemoved: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
 } as unknown as ChannelSyncEventsRepository);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
-  emitIfGuildLinked: () => Effect.void,
+  emitEventCreated: () => Effect.void,
+  emitEventUpdated: () => Effect.void,
+  emitEventCancelled: () => Effect.void,
+  emitRsvpReminder: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,

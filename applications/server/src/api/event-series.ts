@@ -30,7 +30,6 @@ const checkCoachScoping = (
   if (isAdmin) return Effect.void;
   if (Option.isNone(trainingTypeId)) return Effect.void;
   return events.getScopedTrainingTypeIds(memberId).pipe(
-    Effect.mapError(() => forbidden),
     Effect.flatMap((scopedIds) => {
       const allowed: readonly string[] = scopedIds.map((s) => s.training_type_id);
       if (allowed.length === 0) return Effect.void;
@@ -69,27 +68,23 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               ),
             ),
             Effect.bind('inserted', ({ membership }) =>
-              series
-                .insertEventSeries({
-                  teamId,
-                  trainingTypeId: payload.trainingTypeId,
-                  title: payload.title,
-                  description: payload.description,
-                  frequency: payload.frequency,
-                  daysOfWeek: payload.daysOfWeek,
-                  startDate: payload.startDate,
-                  endDate: payload.endDate,
-                  startTime: payload.startTime,
-                  endTime: payload.endTime,
-                  location: payload.location,
-                  createdBy: membership.id,
-                  discordTargetChannelId: payload.discordChannelId,
-                })
-                .pipe(Effect.mapError(() => forbidden)),
+              series.insertEventSeries({
+                teamId,
+                trainingTypeId: payload.trainingTypeId,
+                title: payload.title,
+                description: payload.description,
+                frequency: payload.frequency,
+                daysOfWeek: payload.daysOfWeek,
+                startDate: payload.startDate,
+                endDate: payload.endDate,
+                startTime: payload.startTime,
+                endTime: payload.endTime,
+                location: payload.location,
+                createdBy: membership.id,
+                discordTargetChannelId: payload.discordChannelId,
+              }),
             ),
-            Effect.bind('horizonDays', () =>
-              teamSettings.getHorizonDays(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('horizonDays', () => teamSettings.getHorizonDays(teamId)),
             Effect.let('effectiveEnd', ({ inserted, horizonDays }) =>
               computeHorizonEnd({
                 seriesEndDate: inserted.end_date,
@@ -132,9 +127,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           Effect.catchAll(() => Effect.succeed(null)),
                           Effect.flatMap((resolved) =>
                             syncEvents
-                              .emitIfGuildLinked(
+                              .emitEventCreated(
                                 teamId,
-                                'event_created',
                                 event.id,
                                 event.title,
                                 Option.getOrNull(event.description),
@@ -148,16 +142,13 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           ),
                         ),
                       ),
-                      Effect.mapError(() => forbidden),
                     );
                 }),
                 { concurrency: 1 },
               ),
             ),
             Effect.tap(({ inserted, effectiveEnd }) =>
-              series
-                .updateLastGeneratedDate(inserted.id, DateTime.formatIsoDateUtc(effectiveEnd))
-                .pipe(Effect.mapError(() => forbidden)),
+              series.updateLastGeneratedDate(inserted.id, DateTime.formatIsoDateUtc(effectiveEnd)),
             ),
             Effect.map(
               ({ inserted }) =>
@@ -178,6 +169,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   discordChannelId: inserted.discord_target_channel_id,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('listEventSeries', ({ path: { teamId } }) =>
@@ -186,9 +178,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
-            Effect.bind('list', () =>
-              series.findSeriesByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('list', () => series.findSeriesByTeamId(teamId)),
             Effect.map(({ list }) =>
               list.map(
                 (s) =>
@@ -222,7 +212,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.let('canCancel', ({ membership }) => hasPermission(membership, 'event:cancel')),
             Effect.bind('found', () =>
               series.findSeriesById(seriesId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -268,7 +257,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('existing', () =>
               series.findSeriesById(seriesId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -325,36 +313,31 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               }),
             })),
             Effect.tap(({ resolved }) =>
-              series
-                .updateEventSeries({
-                  id: seriesId,
-                  title: resolved.title,
-                  trainingTypeId: resolved.trainingTypeId,
-                  description: resolved.description,
-                  daysOfWeek: resolved.daysOfWeek,
-                  startTime: resolved.startTime,
-                  endTime: resolved.endTime,
-                  location: resolved.location,
-                  endDate: resolved.endDate,
-                  discordTargetChannelId: resolved.discordTargetChannelId,
-                })
-                .pipe(Effect.mapError(() => forbidden)),
+              series.updateEventSeries({
+                id: seriesId,
+                title: resolved.title,
+                trainingTypeId: resolved.trainingTypeId,
+                description: resolved.description,
+                daysOfWeek: resolved.daysOfWeek,
+                startTime: resolved.startTime,
+                endTime: resolved.endTime,
+                location: resolved.location,
+                endDate: resolved.endDate,
+                discordTargetChannelId: resolved.discordTargetChannelId,
+              }),
             ),
             Effect.tap(({ resolved }) =>
-              events
-                .updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
-                  title: resolved.title,
-                  trainingTypeId: Option.fromNullable(resolved.trainingTypeId),
-                  description: Option.fromNullable(resolved.description),
-                  startTime: resolved.startTime,
-                  endTime: Option.fromNullable(resolved.endTime),
-                  location: Option.fromNullable(resolved.location),
-                })
-                .pipe(Effect.mapError(() => forbidden)),
+              events.updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
+                title: resolved.title,
+                trainingTypeId: Option.fromNullable(resolved.trainingTypeId),
+                description: Option.fromNullable(resolved.description),
+                startTime: resolved.startTime,
+                endTime: Option.fromNullable(resolved.endTime),
+                location: Option.fromNullable(resolved.location),
+              }),
             ),
             Effect.tap(({ existing, resolved, membership }) =>
               teamSettings.getHorizonDays(teamId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap((horizonDays) => {
                   const effectiveEnd = computeHorizonEnd({
                     seriesEndDate: resolved.endDate,
@@ -378,35 +361,26 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       const dateStr = DateTime.formatIsoDateUtc(date);
                       const startAt = `${dateStr}T${existing.start_time}Z`;
                       const endAt = existing.end_time ? `${dateStr}T${existing.end_time}Z` : null;
-                      return events
-                        .insertEvent({
-                          teamId,
-                          trainingTypeId: Option.fromNullable(existing.training_type_id),
-                          eventType: 'training',
-                          title: existing.title,
-                          description: Option.fromNullable(existing.description),
-                          startAt,
-                          endAt: Option.fromNullable(endAt),
-                          location: Option.fromNullable(existing.location),
-                          createdBy: membership.id,
-                          seriesId: Option.some(existing.id),
-                        })
-                        .pipe(Effect.mapError(() => forbidden));
+                      return events.insertEvent({
+                        teamId,
+                        trainingTypeId: Option.fromNullable(existing.training_type_id),
+                        eventType: 'training',
+                        title: existing.title,
+                        description: Option.fromNullable(existing.description),
+                        startAt,
+                        endAt: Option.fromNullable(endAt),
+                        location: Option.fromNullable(existing.location),
+                        createdBy: membership.id,
+                        seriesId: Option.some(existing.id),
+                      });
                     }),
                     { concurrency: 1 },
-                  ).pipe(
-                    Effect.tap(() =>
-                      series
-                        .updateLastGeneratedDate(existing.id, lastDate)
-                        .pipe(Effect.mapError(() => forbidden)),
-                    ),
-                  );
+                  ).pipe(Effect.tap(() => series.updateLastGeneratedDate(existing.id, lastDate)));
                 }),
               ),
             ),
             Effect.bind('detail', () =>
               series.findSeriesById(seriesId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -438,6 +412,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 canCancel: canCancel && detail.status === 'active',
               });
             }),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('cancelEventSeries', ({ path: { teamId, seriesId } }) =>
@@ -452,7 +427,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.bind('existing', () =>
               series.findSeriesById(seriesId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(notFound),
@@ -475,14 +449,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 isAdmin,
               ),
             ),
-            Effect.tap(() =>
-              series.cancelEventSeries(seriesId).pipe(Effect.mapError(() => forbidden)),
-            ),
-            Effect.tap(() =>
-              events
-                .cancelFutureInSeries(seriesId, todayStr())
-                .pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => series.cancelEventSeries(seriesId)),
+            Effect.tap(() => events.cancelFutureInSeries(seriesId, todayStr())),
             Effect.asVoid,
           ),
         ),

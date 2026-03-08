@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Notification, Team, User } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class NotificationRow extends Schema.Class<NotificationRow>('NotificationRow')({
@@ -43,106 +42,104 @@ class MarkReadInput extends Schema.Class<MarkReadInput>('MarkReadInput')({
 export class NotificationsRepository extends Effect.Service<NotificationsRepository>()(
   'api/NotificationsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('findByUserId', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.String,
-          Result: NotificationRow,
-          execute: (userId) => sql`
-            SELECT id, team_id, user_id, type, title, body, is_read,
-                   created_at::text AS created_at
-            FROM notifications
-            WHERE user_id = ${userId}
-            ORDER BY created_at DESC
-            LIMIT 50
-          `,
-        }),
-      ),
-      Effect.let('findByUserIdAndTeamId', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: FindByUserAndTeamInput,
-          Result: NotificationRow,
-          execute: (input) => sql`
-            SELECT id, team_id, user_id, type, title, body, is_read,
-                   created_at::text AS created_at
-            FROM notifications
-            WHERE user_id = ${input.user_id} AND team_id = ${input.team_id}
-            ORDER BY created_at DESC
-            LIMIT 50
-          `,
-        }),
-      ),
-      Effect.let('markAllReadForTeam', ({ sql }) =>
-        SqlSchema.void({
-          Request: MarkAllReadForTeamInput,
-          execute: (input) =>
-            sql`UPDATE notifications SET is_read = true WHERE user_id = ${input.user_id} AND team_id = ${input.team_id} AND is_read = false`,
-        }),
-      ),
-      Effect.let('insertOne', ({ sql }) =>
-        SqlSchema.single({
-          Request: InsertInput,
-          Result: NotificationRow,
-          execute: (input) => sql`
-            INSERT INTO notifications (team_id, user_id, type, title, body)
-            VALUES (${input.team_id}, ${input.user_id}, ${input.type}, ${input.title}, ${input.body})
-            RETURNING id, team_id, user_id, type, title, body, is_read,
-                      created_at::text AS created_at
-          `,
-        }),
-      ),
-      Effect.let('markOneAsRead', ({ sql }) =>
-        SqlSchema.void({
-          Request: MarkReadInput,
-          execute: (input) => sql`UPDATE notifications SET is_read = true WHERE id = ${input.id}`,
-        }),
-      ),
-      Effect.let('markAllRead', ({ sql }) =>
-        SqlSchema.void({
-          Request: Schema.String,
-          execute: (userId) =>
-            sql`UPDATE notifications SET is_read = true WHERE user_id = ${userId} AND is_read = false`,
-        }),
-      ),
-      Effect.let('findOneById', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: Notification.NotificationId,
-          Result: NotificationRow,
-          execute: (id) => sql`
-            SELECT id, team_id, user_id, type, title, body, is_read,
-                   created_at::text AS created_at
-            FROM notifications WHERE id = ${id}
-          `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  findByUser(userId: User.UserId) {
-    return this.findByUserId(userId);
-  }
+  private findByUserId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: NotificationRow,
+    execute: (userId) => this.sql`
+      SELECT id, team_id, user_id, type, title, body, is_read,
+             created_at::text AS created_at
+      FROM notifications
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `,
+  });
 
-  findByUserAndTeam(userId: User.UserId, teamId: Team.TeamId) {
-    return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId });
-  }
+  private findByUserIdAndTeamId = SqlSchema.findAll({
+    Request: FindByUserAndTeamInput,
+    Result: NotificationRow,
+    execute: (input) => this.sql`
+      SELECT id, team_id, user_id, type, title, body, is_read,
+             created_at::text AS created_at
+      FROM notifications
+      WHERE user_id = ${input.user_id} AND team_id = ${input.team_id}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `,
+  });
 
-  markAllAsReadForTeam(userId: User.UserId, teamId: Team.TeamId) {
-    return this.markAllReadForTeam({ user_id: userId, team_id: teamId });
-  }
+  private markAllReadForTeam = SqlSchema.void({
+    Request: MarkAllReadForTeamInput,
+    execute: (input) =>
+      this
+        .sql`UPDATE notifications SET is_read = true WHERE user_id = ${input.user_id} AND team_id = ${input.team_id} AND is_read = false`,
+  });
 
-  insert(
+  private insertOne = SqlSchema.single({
+    Request: InsertInput,
+    Result: NotificationRow,
+    execute: (input) => this.sql`
+      INSERT INTO notifications (team_id, user_id, type, title, body)
+      VALUES (${input.team_id}, ${input.user_id}, ${input.type}, ${input.title}, ${input.body})
+      RETURNING id, team_id, user_id, type, title, body, is_read,
+                created_at::text AS created_at
+    `,
+  });
+
+  private markOneAsRead = SqlSchema.void({
+    Request: MarkReadInput,
+    execute: (input) => this.sql`UPDATE notifications SET is_read = true WHERE id = ${input.id}`,
+  });
+
+  private markAllRead = SqlSchema.void({
+    Request: Schema.String,
+    execute: (userId) =>
+      this
+        .sql`UPDATE notifications SET is_read = true WHERE user_id = ${userId} AND is_read = false`,
+  });
+
+  private findOneById = SqlSchema.findOne({
+    Request: Notification.NotificationId,
+    Result: NotificationRow,
+    execute: (id) => this.sql`
+      SELECT id, team_id, user_id, type, title, body, is_read,
+             created_at::text AS created_at
+      FROM notifications WHERE id = ${id}
+    `,
+  });
+
+  findByUser = (userId: User.UserId) => {
+    return this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
+
+  findByUserAndTeam = (userId: User.UserId, teamId: Team.TeamId) => {
+    return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
+
+  markAllAsReadForTeam = (userId: User.UserId, teamId: Team.TeamId) => {
+    return this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
+
+  insert = (
     teamId: Team.TeamId,
     userId: User.UserId,
     type: Notification.NotificationType,
     title: string,
     body: string,
-  ) {
-    return this.insertOne({ team_id: teamId, user_id: userId, type, title, body });
-  }
+  ) => {
+    return this.insertOne({ team_id: teamId, user_id: userId, type, title, body }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
-  insertBulk(
+  insertBulk = (
     notifications: ReadonlyArray<{
       teamId: Team.TeamId;
       userId: User.UserId;
@@ -150,7 +147,7 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
       title: string;
       body: string;
     }>,
-  ) {
+  ) => {
     return Effect.all(
       notifications.map((n) =>
         this.insertOne({
@@ -161,18 +158,22 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
           body: n.body,
         }),
       ),
-    ).pipe(Effect.asVoid);
-  }
+    ).pipe(Effect.asVoid, Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  markAsRead(notificationId: Notification.NotificationId) {
-    return this.markOneAsRead({ id: notificationId });
-  }
+  markAsRead = (notificationId: Notification.NotificationId) => {
+    return this.markOneAsRead({ id: notificationId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
-  markAllAsRead(userId: User.UserId) {
-    return this.markAllRead(userId);
-  }
+  markAllAsRead = (userId: User.UserId) => {
+    return this.markAllRead(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  findById(notificationId: Notification.NotificationId) {
-    return this.findOneById(notificationId);
-  }
+  findById = (notificationId: Notification.NotificationId) => {
+    return this.findOneById(notificationId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 }

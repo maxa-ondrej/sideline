@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
@@ -20,59 +19,53 @@ class ExistsResult extends Schema.Class<ExistsResult>('ExistsResult')({
 export class BotGuildsRepository extends Effect.Service<BotGuildsRepository>()(
   'api/BotGuildsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('upsertGuild', ({ sql }) =>
-        SqlSchema.void({
-          Request: UpsertInput,
-          execute: (input) => sql`
-            INSERT INTO bot_guilds (guild_id, guild_name)
-            VALUES (${input.guild_id}, ${input.guild_name})
-            ON CONFLICT (guild_id) DO UPDATE SET guild_name = ${input.guild_name}
-          `,
-        }),
-      ),
-      Effect.let('removeGuild', ({ sql }) =>
-        SqlSchema.void({
-          Request: Discord.Snowflake,
-          execute: (guildId) => sql`
-            DELETE FROM bot_guilds WHERE guild_id = ${guildId}
-          `,
-        }),
-      ),
-      Effect.let('existsGuild', ({ sql }) =>
-        SqlSchema.single({
-          Request: Discord.Snowflake,
-          Result: ExistsResult,
-          execute: (guildId) => sql`
-            SELECT EXISTS(SELECT 1 FROM bot_guilds WHERE guild_id = ${guildId}) AS exists
-          `,
-        }),
-      ),
-      Effect.let('findAllGuilds', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.Void,
-          Result: BotGuildRow,
-          execute: () => sql`SELECT guild_id, guild_name FROM bot_guilds ORDER BY guild_name`,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  upsert(guildId: Discord.Snowflake, guildName: string) {
-    return this.upsertGuild({ guild_id: guildId, guild_name: guildName });
-  }
+  private _upsertGuild = SqlSchema.void({
+    Request: UpsertInput,
+    execute: (input) => this.sql`
+      INSERT INTO bot_guilds (guild_id, guild_name)
+      VALUES (${input.guild_id}, ${input.guild_name})
+      ON CONFLICT (guild_id) DO UPDATE SET guild_name = ${input.guild_name}
+    `,
+  });
 
-  remove(guildId: Discord.Snowflake) {
-    return this.removeGuild(guildId);
-  }
+  private _removeGuild = SqlSchema.void({
+    Request: Discord.Snowflake,
+    execute: (guildId) => this.sql`
+      DELETE FROM bot_guilds WHERE guild_id = ${guildId}
+    `,
+  });
 
-  exists(guildId: Discord.Snowflake) {
-    return this.existsGuild(guildId).pipe(Effect.map((r) => r.exists));
-  }
+  private _existsGuild = SqlSchema.single({
+    Request: Discord.Snowflake,
+    Result: ExistsResult,
+    execute: (guildId) => this.sql`
+      SELECT EXISTS(SELECT 1 FROM bot_guilds WHERE guild_id = ${guildId}) AS exists
+    `,
+  });
 
-  findAll() {
-    return this.findAllGuilds(undefined);
-  }
+  private _findAllGuilds = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: BotGuildRow,
+    execute: () => this.sql`SELECT guild_id, guild_name FROM bot_guilds ORDER BY guild_name`,
+  });
+
+  upsert = (guildId: Discord.Snowflake, guildName: string) =>
+    this._upsertGuild({ guild_id: guildId, guild_name: guildName }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  remove = (guildId: Discord.Snowflake) =>
+    this._removeGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  exists = (guildId: Discord.Snowflake) =>
+    this._existsGuild(guildId).pipe(
+      Effect.map((r) => r.exists),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  findAll = () =>
+    this._findAllGuilds(undefined).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

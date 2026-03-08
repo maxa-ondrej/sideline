@@ -129,15 +129,7 @@ const handleDiscordLogin = ({
       }),
     ),
     Effect.tap(() => Effect.logInfo('[auth/callback] session created, redirecting')),
-    Effect.catchTag(
-      'RequestError',
-      'ResponseError',
-      'DiscordOAuthError',
-      'SqlError',
-      'ParseError',
-      'NoSuchElementException',
-      AuthError.failCause,
-    ),
+    Effect.catchTag('RequestError', 'ResponseError', 'DiscordOAuthError', AuthError.failCause),
     Effect.map(({ sessionToken }) =>
       pipe(
         Redirect.fromUrl(state.redirectUrl),
@@ -155,6 +147,7 @@ const handleDiscordLogin = ({
         Effect.flatMap(() => Effect.fail(AuthError.withReason('rate_limited'))),
       ),
     ),
+    Effect.catchTag('NoSuchElementException', Effect.die),
   );
 
 const MANAGE_GUILD = 0x20n;
@@ -258,7 +251,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 locale: payload.locale,
               }),
             ),
-            Effect.mapError(() => new Auth.Unauthorized()),
+
             Effect.map(
               ({ updated }) =>
                 new Auth.CurrentUser({
@@ -275,6 +268,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('updateProfile', ({ payload }) =>
@@ -288,7 +282,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 gender: payload.gender,
               }),
             ),
-            Effect.mapError(() => new Auth.Unauthorized()),
+
             Effect.map(
               ({ updated }) =>
                 new Auth.CurrentUser({
@@ -305,6 +299,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('completeProfile', ({ payload }) =>
@@ -318,7 +313,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 gender: payload.gender,
               }),
             ),
-            Effect.mapError(() => new Auth.Unauthorized()),
+
             Effect.map(
               ({ updated }) =>
                 new Auth.CurrentUser({
@@ -335,21 +330,24 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('myTeams', () =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('memberships', ({ currentUser }) =>
-              members.findByUser(currentUser.id).pipe(Effect.orDie),
-            ),
+            Effect.bind('memberships', ({ currentUser }) => members.findByUser(currentUser.id)),
             Effect.flatMap(
               flow(
                 Struct.get('memberships'),
                 Array.map((m) =>
                   teams.findById(m.team_id).pipe(
-                    Effect.flatten,
-                    Effect.catchTag('NoSuchElementException', () => new Auth.Unauthorized()),
+                    Effect.flatMap(
+                      Option.match({
+                        onNone: () => Effect.fail(new Auth.Unauthorized()),
+                        onSome: Effect.succeed,
+                      }),
+                    ),
                     Effect.map(
                       (team) =>
                         new Auth.UserTeam({
@@ -370,13 +368,14 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext),
             Effect.bind('accessToken', ({ currentUser }) =>
-              oauthConnections
-                .getAccessToken(currentUser.id, 'discord')
-                .pipe(
-                  Effect.catchTag('SqlError', 'ParseError', () =>
-                    Effect.fail(new Auth.Unauthorized()),
-                  ),
+              oauthConnections.getAccessToken(currentUser.id, 'discord').pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new Auth.Unauthorized()),
+                    onSome: Effect.succeed,
+                  }),
                 ),
+              ),
             ),
             Effect.bind('client', ({ accessToken }) => makeUserDiscordClient(accessToken)),
             Effect.bind('guilds', ({ client }) => client.listMyGuilds()),
@@ -399,7 +398,6 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                             botPresent: present,
                           }),
                       ),
-                      Effect.catchTag('SqlError', 'ParseError', Effect.die),
                     ),
                   ),
                 { concurrency: 'unbounded' },
@@ -450,7 +448,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
-            Effect.mapError(() => new Auth.Unauthorized()),
+            Effect.catchTag('MemberAlreadyExistsError', Effect.die),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),
     ),

@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ChannelSyncEvent, Discord, GroupModel, Team, TeamMember } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
@@ -40,91 +39,120 @@ class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
 export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEventsRepository>()(
   'api/ChannelSyncEventsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('insertEvent', ({ sql }) =>
-        SqlSchema.void({
-          Request: InsertInput,
-          execute: (input) => sql`
-            INSERT INTO channel_sync_events (team_id, guild_id, event_type, group_id, group_name, team_member_id, discord_user_id)
-            VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id})
-          `,
-        }),
-      ),
-      Effect.let('lookupGuildId', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: Schema.String,
-          Result: GuildLookupResult,
-          execute: (teamId) => sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
-        }),
-      ),
-      Effect.let('findUnprocessedEvents', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.Number,
-          Result: EventRow,
-          execute: (limit) => sql`
-            SELECT id, team_id, guild_id, event_type, group_id, group_name, team_member_id, discord_user_id
-            FROM channel_sync_events
-            WHERE processed_at IS NULL
-            ORDER BY created_at ASC
-            LIMIT ${limit}
-          `,
-        }),
-      ),
-      Effect.let('markEventProcessed', ({ sql }) =>
-        SqlSchema.void({
-          Request: MarkProcessedInput,
-          execute: (input) => sql`
-            UPDATE channel_sync_events SET processed_at = now() WHERE id = ${input.id}
-          `,
-        }),
-      ),
-      Effect.let('markEventFailed', ({ sql }) =>
-        SqlSchema.void({
-          Request: MarkFailedInput,
-          execute: (input) => sql`
-            UPDATE channel_sync_events SET processed_at = now(), error = ${input.error} WHERE id = ${input.id}
-          `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  emitIfGuildLinked(
+  private insertEvent = SqlSchema.void({
+    Request: InsertInput,
+    execute: (input) => this.sql`
+      INSERT INTO channel_sync_events (team_id, guild_id, event_type, group_id, group_name, team_member_id, discord_user_id)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id})
+    `,
+  });
+
+  private lookupGuildId = SqlSchema.findOne({
+    Request: Schema.String,
+    Result: GuildLookupResult,
+    execute: (teamId) => this.sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
+  });
+
+  private findUnprocessedEvents = SqlSchema.findAll({
+    Request: Schema.Number,
+    Result: EventRow,
+    execute: (limit) => this.sql`
+      SELECT id, team_id, guild_id, event_type, group_id, group_name, team_member_id, discord_user_id
+      FROM channel_sync_events
+      WHERE processed_at IS NULL
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `,
+  });
+
+  private markEventProcessed = SqlSchema.void({
+    Request: MarkProcessedInput,
+    execute: (input) => this.sql`
+      UPDATE channel_sync_events SET processed_at = now() WHERE id = ${input.id}
+    `,
+  });
+
+  private markEventFailed = SqlSchema.void({
+    Request: MarkFailedInput,
+    execute: (input) => this.sql`
+      UPDATE channel_sync_events SET processed_at = now(), error = ${input.error} WHERE id = ${input.id}
+    `,
+  });
+
+  private _emitIfGuildLinked = (
     teamId: Team.TeamId,
     eventType: ChannelSyncEvent.ChannelSyncEventType,
     groupId: GroupModel.GroupId,
     groupName: Option.Option<string> = Option.none(),
     teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
     discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
-  ) {
-    return this.lookupGuildId(teamId).pipe(
-      Effect.flatten,
-      Effect.flatMap(({ guild_id }) =>
-        this.insertEvent({
-          team_id: teamId,
-          guild_id,
-          event_type: eventType,
-          group_id: groupId,
-          group_name: groupName,
-          team_member_id: teamMemberId,
-          discord_user_id: discordUserId,
+  ) =>
+    this.lookupGuildId(teamId).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            this.insertEvent({
+              team_id: teamId,
+              guild_id,
+              event_type: eventType,
+              group_id: groupId,
+              group_name: groupName,
+              team_member_id: teamMemberId,
+              discord_user_id: discordUserId,
+            }),
         }),
       ),
-      Effect.catchTag('NoSuchElementException', () => Effect.void),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  }
 
-  findUnprocessed(limit: number) {
-    return this.findUnprocessedEvents(limit);
-  }
+  emitChannelCreated = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
+    this._emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(groupName));
 
-  markProcessed(id: ChannelSyncEvent.ChannelSyncEventId) {
-    return this.markEventProcessed({ id });
-  }
+  emitChannelDeleted = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
+    this._emitIfGuildLinked(teamId, 'channel_deleted', groupId, Option.some(groupName));
 
-  markFailed(id: ChannelSyncEvent.ChannelSyncEventId, error: string) {
-    return this.markEventFailed({ id, error });
-  }
+  emitMemberAdded = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    groupName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'member_added',
+      groupId,
+      Option.some(groupName),
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
+    );
+
+  emitMemberRemoved = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    groupName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'member_removed',
+      groupId,
+      Option.some(groupName),
+      Option.some(teamMemberId),
+      Option.some(discordUserId),
+    );
+
+  findUnprocessed = (limit: number) =>
+    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  markProcessed = (id: ChannelSyncEvent.ChannelSyncEventId) =>
+    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  markFailed = (id: ChannelSyncEvent.ChannelSyncEventId, error: string) =>
+    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

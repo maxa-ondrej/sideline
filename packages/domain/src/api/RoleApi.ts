@@ -65,6 +65,12 @@ export class RoleInUse extends Schema.TaggedError<RoleInUse>()(
   HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
+export class RoleNameAlreadyTaken extends Schema.TaggedError<RoleNameAlreadyTaken>()(
+  'RoleNameAlreadyTaken',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class RoleApiGroup extends HttpApiGroup.make('role')
   .add(
     HttpApiEndpoint.get('listRoles', '/teams/:teamId/roles')
@@ -77,6 +83,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
     HttpApiEndpoint.post('createRole', '/teams/:teamId/roles')
       .addSuccess(RoleDetail, { status: 201 })
       .addError(Forbidden, { status: 403 })
+      .addError(RoleNameAlreadyTaken, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .setPayload(CreateRoleRequest)
       .middleware(AuthMiddleware),
@@ -95,6 +102,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
       .addError(Forbidden, { status: 403 })
       .addError(RoleNotFound, { status: 404 })
       .addError(CannotModifyBuiltIn, { status: 400 })
+      .addError(RoleNameAlreadyTaken, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
       .setPayload(UpdateRoleRequest)
       .middleware(AuthMiddleware),

@@ -56,6 +56,12 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()(
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
+export class TrainingTypeNameAlreadyTaken extends Schema.TaggedError<TrainingTypeNameAlreadyTaken>()(
+  'TrainingTypeNameAlreadyTaken',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
   .add(
     HttpApiEndpoint.get('listTrainingTypes', '/teams/:teamId/training-types')
@@ -68,6 +74,7 @@ export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
     HttpApiEndpoint.post('createTrainingType', '/teams/:teamId/training-types')
       .addSuccess(TrainingTypeInfo, { status: 201 })
       .addError(Forbidden, { status: 403 })
+      .addError(TrainingTypeNameAlreadyTaken, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .setPayload(CreateTrainingTypeRequest)
       .middleware(AuthMiddleware),
@@ -85,6 +92,7 @@ export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
       .addSuccess(TrainingTypeInfo)
       .addError(Forbidden, { status: 403 })
       .addError(TrainingTypeNotFound, { status: 404 })
+      .addError(TrainingTypeNameAlreadyTaken, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId, trainingTypeId: TrainingTypeId }))
       .setPayload(UpdateTrainingTypeRequest)
       .middleware(AuthMiddleware),

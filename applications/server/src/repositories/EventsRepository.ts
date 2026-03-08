@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails')({
@@ -70,13 +69,12 @@ class ScopedTrainingTypeId extends Schema.Class<ScopedTrainingTypeId>('ScopedTra
 }) {}
 
 export class EventsRepository extends Effect.Service<EventsRepository>()('api/EventsRepository', {
-  effect: SqlClient.SqlClient.pipe(
-    Effect.bindTo('sql'),
-    Effect.let('findByTeamId', ({ sql }) =>
-      SqlSchema.findAll({
-        Request: Schema.String,
-        Result: EventWithDetails,
-        execute: (teamId) => sql`
+  effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
+}) {
+  private findByTeamId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: EventWithDetails,
+    execute: (teamId) => this.sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
                    e.description, e.start_at::text, e.end_at::text,
                    e.location, e.status, e.created_by,
@@ -91,13 +89,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
             WHERE e.team_id = ${teamId}
             ORDER BY e.start_at ASC
           `,
-      }),
-    ),
-    Effect.let('findByIdWithDetails', ({ sql }) =>
-      SqlSchema.findOne({
-        Request: Event.EventId,
-        Result: EventWithDetails,
-        execute: (id) => sql`
+  });
+
+  private findByIdWithDetails = SqlSchema.findOne({
+    Request: Event.EventId,
+    Result: EventWithDetails,
+    execute: (id) => this.sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
                    e.description, e.start_at::text, e.end_at::text,
                    e.location, e.status, e.created_by,
@@ -111,13 +108,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
             LEFT JOIN users u ON u.id = tm.user_id
             WHERE e.id = ${id}
           `,
-      }),
-    ),
-    Effect.let('insert', ({ sql }) =>
-      SqlSchema.single({
-        Request: EventInsertInput,
-        Result: EventRow,
-        execute: (input) => sql`
+  });
+
+  private insert = SqlSchema.single({
+    Request: EventInsertInput,
+    Result: EventRow,
+    execute: (input) => this.sql`
             INSERT INTO events (team_id, training_type_id, event_type, title, description,
                                 start_at, end_at, location, created_by, series_id,
                                 discord_target_channel_id)
@@ -129,13 +125,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                       start_at::text, end_at::text, location, status,
                       created_by, series_id, series_modified, discord_target_channel_id
           `,
-      }),
-    ),
-    Effect.let('update', ({ sql }) =>
-      SqlSchema.single({
-        Request: EventUpdateInput,
-        Result: EventRow,
-        execute: (input) => sql`
+  });
+
+  private update = SqlSchema.single({
+    Request: EventUpdateInput,
+    Result: EventRow,
+    execute: (input) => this.sql`
             UPDATE events SET
               title = ${input.title},
               event_type = ${input.event_type},
@@ -151,65 +146,61 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                       start_at::text, end_at::text, location, status,
                       created_by, series_id, series_modified, discord_target_channel_id
           `,
-      }),
-    ),
-    Effect.let('cancel', ({ sql }) =>
-      SqlSchema.void({
-        Request: Event.EventId,
-        execute: (id) =>
-          sql`UPDATE events SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
-      }),
-    ),
-    Effect.let('findScopedTrainingTypeIds', ({ sql }) =>
-      SqlSchema.findAll({
-        Request: TeamMember.TeamMemberId,
-        Result: ScopedTrainingTypeId,
-        execute: (teamMemberId) => sql`
+  });
+
+  private cancel = SqlSchema.void({
+    Request: Event.EventId,
+    execute: (id) =>
+      this.sql`UPDATE events SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
+  });
+
+  private findScopedTrainingTypeIds = SqlSchema.findAll({
+    Request: TeamMember.TeamMemberId,
+    Result: ScopedTrainingTypeId,
+    execute: (teamMemberId) => this.sql`
             SELECT DISTINCT rtt.training_type_id
             FROM member_roles mr
             JOIN role_training_types rtt ON rtt.role_id = mr.role_id
             WHERE mr.team_member_id = ${teamMemberId}
           `,
-      }),
-    ),
-    Effect.let('saveDiscordMessage', ({ sql }) =>
-      SqlSchema.void({
-        Request: Schema.Struct({
-          event_id: Event.EventId,
-          discord_channel_id: Schema.String,
-          discord_message_id: Schema.String,
-        }),
-        execute: (input) =>
-          sql`UPDATE events SET discord_channel_id = ${input.discord_channel_id}, discord_message_id = ${input.discord_message_id} WHERE id = ${input.event_id}`,
-      }),
-    ),
-    Effect.let('getDiscordMessage', ({ sql }) =>
-      SqlSchema.findOne({
-        Request: Event.EventId,
-        Result: Schema.Struct({
-          discord_channel_id: Schema.OptionFromNullOr(Schema.String),
-          discord_message_id: Schema.OptionFromNullOr(Schema.String),
-        }),
-        execute: (id) =>
-          sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
-      }),
-    ),
-    Effect.let('findByChannelId', ({ sql }) =>
-      SqlSchema.findAll({
-        Request: Schema.String,
-        Result: Schema.Struct({
-          event_id: Schema.String,
-          team_id: Schema.String,
-          title: Schema.String,
-          description: Schema.NullOr(Schema.String),
-          start_at: Schema.String,
-          end_at: Schema.NullOr(Schema.String),
-          location: Schema.NullOr(Schema.String),
-          event_type: Schema.String,
-          status: Schema.String,
-          discord_message_id: Schema.String,
-        }),
-        execute: (channelId) => sql`
+  });
+
+  private saveDiscordMessage = SqlSchema.void({
+    Request: Schema.Struct({
+      event_id: Event.EventId,
+      discord_channel_id: Schema.String,
+      discord_message_id: Schema.String,
+    }),
+    execute: (input) =>
+      this
+        .sql`UPDATE events SET discord_channel_id = ${input.discord_channel_id}, discord_message_id = ${input.discord_message_id} WHERE id = ${input.event_id}`,
+  });
+
+  private getDiscordMessage = SqlSchema.findOne({
+    Request: Event.EventId,
+    Result: Schema.Struct({
+      discord_channel_id: Schema.OptionFromNullOr(Schema.String),
+      discord_message_id: Schema.OptionFromNullOr(Schema.String),
+    }),
+    execute: (id) =>
+      this.sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
+  });
+
+  private findByChannelId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: Schema.Struct({
+      event_id: Schema.String,
+      team_id: Schema.String,
+      title: Schema.String,
+      description: Schema.NullOr(Schema.String),
+      start_at: Schema.String,
+      end_at: Schema.NullOr(Schema.String),
+      location: Schema.NullOr(Schema.String),
+      event_type: Schema.String,
+      status: Schema.String,
+      discord_message_id: Schema.String,
+    }),
+    execute: (channelId) => this.sql`
             SELECT id AS event_id, team_id, title, description,
                    start_at::text, end_at::text, location, event_type,
                    status, discord_message_id
@@ -218,48 +209,44 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
               AND discord_message_id IS NOT NULL
             ORDER BY start_at ASC
           `,
-      }),
-    ),
-    Effect.let('markReminder', ({ sql }) =>
-      SqlSchema.void({
-        Request: Event.EventId,
-        execute: (id) => sql`UPDATE events SET reminder_sent_at = now() WHERE id = ${id}`,
-      }),
-    ),
-    Effect.let('markModified', ({ sql }) =>
-      SqlSchema.void({
-        Request: Event.EventId,
-        execute: (id) =>
-          sql`UPDATE events SET series_modified = true, updated_at = now() WHERE id = ${id}`,
-      }),
-    ),
-    Effect.let('cancelFuture', ({ sql }) =>
-      SqlSchema.void({
-        Request: Schema.Struct({
-          series_id: Schema.String,
-          from_date: Schema.String,
-        }),
-        execute: (input) =>
-          sql`UPDATE events SET status = 'cancelled', updated_at = now()
+  });
+
+  private markReminder = SqlSchema.void({
+    Request: Event.EventId,
+    execute: (id) => this.sql`UPDATE events SET reminder_sent_at = now() WHERE id = ${id}`,
+  });
+
+  private markModified = SqlSchema.void({
+    Request: Event.EventId,
+    execute: (id) =>
+      this.sql`UPDATE events SET series_modified = true, updated_at = now() WHERE id = ${id}`,
+  });
+
+  private cancelFuture = SqlSchema.void({
+    Request: Schema.Struct({
+      series_id: Schema.String,
+      from_date: Schema.String,
+    }),
+    execute: (input) =>
+      this.sql`UPDATE events SET status = 'cancelled', updated_at = now()
               WHERE series_id = ${input.series_id}
                 AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND status = 'active'`,
-      }),
-    ),
-    Effect.let('updateFutureUnmodified', ({ sql }) =>
-      SqlSchema.void({
-        Request: Schema.Struct({
-          series_id: Schema.String,
-          from_date: Schema.String,
-          title: Schema.String,
-          training_type_id: Schema.OptionFromNullOr(Schema.String),
-          description: Schema.OptionFromNullOr(Schema.String),
-          start_time: Schema.String,
-          end_time: Schema.OptionFromNullOr(Schema.String),
-          location: Schema.OptionFromNullOr(Schema.String),
-        }),
-        execute: (input) =>
-          sql`UPDATE events SET
+  });
+
+  private updateFutureUnmodified = SqlSchema.void({
+    Request: Schema.Struct({
+      series_id: Schema.String,
+      from_date: Schema.String,
+      title: Schema.String,
+      training_type_id: Schema.OptionFromNullOr(Schema.String),
+      description: Schema.OptionFromNullOr(Schema.String),
+      start_time: Schema.String,
+      end_time: Schema.OptionFromNullOr(Schema.String),
+      location: Schema.OptionFromNullOr(Schema.String),
+    }),
+    execute: (input) =>
+      this.sql`UPDATE events SET
                 title = ${input.title},
                 training_type_id = ${input.training_type_id},
                 description = ${input.description},
@@ -271,20 +258,19 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                 AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND series_modified = false
                 AND status = 'active'`,
-      }),
-    ),
-    Bind.remove('sql'),
-  ),
-}) {
-  findEventsByTeamId(teamId: Team.TeamId) {
-    return this.findByTeamId(teamId);
-  }
+  });
 
-  findEventByIdWithDetails(eventId: Event.EventId) {
-    return this.findByIdWithDetails(eventId);
-  }
+  findEventsByTeamId = (teamId: Team.TeamId) => {
+    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  insertEvent(input: {
+  findEventByIdWithDetails = (eventId: Event.EventId) => {
+    return this.findByIdWithDetails(eventId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
+
+  insertEvent = (input: {
     teamId: Team.TeamId;
     trainingTypeId: Option.Option<string>;
     eventType: string;
@@ -296,7 +282,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     createdBy: TeamMember.TeamMemberId;
     seriesId?: Option.Option<string>;
     discordTargetChannelId?: Option.Option<string>;
-  }) {
+  }) => {
     return this.insert({
       team_id: input.teamId,
       training_type_id: input.trainingTypeId,
@@ -309,10 +295,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       created_by: input.createdBy,
       series_id: input.seriesId ?? Option.none(),
       discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
-    });
-  }
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  updateEvent(input: {
+  updateEvent = (input: {
     id: Event.EventId;
     title: string;
     eventType: string;
@@ -322,7 +308,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     endAt: Option.Option<string>;
     location: Option.Option<string>;
     discordTargetChannelId?: Option.Option<string>;
-  }) {
+  }) => {
     return this.update({
       id: input.id,
       title: input.title,
@@ -333,46 +319,54 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       end_at: input.endAt,
       location: input.location,
       discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
-    });
-  }
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  cancelEvent(eventId: Event.EventId) {
-    return this.cancel(eventId);
-  }
+  cancelEvent = (eventId: Event.EventId) => {
+    return this.cancel(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  getScopedTrainingTypeIds(teamMemberId: TeamMember.TeamMemberId) {
-    return this.findScopedTrainingTypeIds(teamMemberId);
-  }
+  getScopedTrainingTypeIds = (teamMemberId: TeamMember.TeamMemberId) => {
+    return this.findScopedTrainingTypeIds(teamMemberId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
-  saveDiscordMessageId(eventId: Event.EventId, channelId: string, messageId: string) {
+  saveDiscordMessageId = (eventId: Event.EventId, channelId: string, messageId: string) => {
     return this.saveDiscordMessage({
       event_id: eventId,
       discord_channel_id: channelId,
       discord_message_id: messageId,
-    });
-  }
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  getDiscordMessageId(eventId: Event.EventId) {
-    return this.getDiscordMessage(eventId);
-  }
+  getDiscordMessageId = (eventId: Event.EventId) => {
+    return this.getDiscordMessage(eventId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
-  findEventsByChannelId(channelId: string) {
-    return this.findByChannelId(channelId);
-  }
+  findEventsByChannelId = (channelId: string) => {
+    return this.findByChannelId(channelId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
-  markReminderSent(eventId: Event.EventId) {
-    return this.markReminder(eventId);
-  }
+  markReminderSent = (eventId: Event.EventId) => {
+    return this.markReminder(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  markEventSeriesModified(eventId: Event.EventId) {
-    return this.markModified(eventId);
-  }
+  markEventSeriesModified = (eventId: Event.EventId) => {
+    return this.markModified(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 
-  cancelFutureInSeries(seriesId: EventSeries.EventSeriesId, fromDate: string) {
-    return this.cancelFuture({ series_id: seriesId, from_date: fromDate });
-  }
+  cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: string) => {
+    return this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
-  updateFutureUnmodifiedInSeries(
+  updateFutureUnmodifiedInSeries = (
     seriesId: EventSeries.EventSeriesId,
     fromDate: string,
     fields: {
@@ -383,7 +377,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       endTime: Option.Option<string>;
       location: Option.Option<string>;
     },
-  ) {
+  ) => {
     return this.updateFutureUnmodified({
       series_id: seriesId,
       from_date: fromDate,
@@ -393,6 +387,6 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       start_time: fields.startTime,
       end_time: fields.endTime,
       location: fields.location,
-    });
-  }
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  };
 }

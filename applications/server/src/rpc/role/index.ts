@@ -26,7 +26,6 @@ export const RolesRpcLive = Effect.Do.pipe(
     ({ syncEvents }) =>
       ({ limit }: { readonly limit: number }) =>
         syncEvents.findUnprocessed(limit).pipe(
-          Effect.orDie,
           Effect.map(
             Array.map(
               flow(

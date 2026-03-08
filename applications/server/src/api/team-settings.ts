@@ -21,9 +21,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
-            Effect.bind('row', () =>
-              settings.findByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('row', () => settings.findByTeamId(teamId)),
             Effect.map(({ row }) => {
               const s = Option.getOrNull(row);
               return new TeamSettingsApi.TeamSettingsInfo({
@@ -48,49 +46,45 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
-            Effect.bind('existing', () =>
-              settings.findByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('existing', () => settings.findByTeamId(teamId)),
             Effect.bind('result', ({ existing }) => {
               const s = Option.getOrNull(existing);
-              return settings
-                .upsert({
-                  teamId,
-                  eventHorizonDays: payload.eventHorizonDays,
-                  minPlayersThreshold: Option.match(payload.minPlayersThreshold, {
-                    onNone: () => s?.min_players_threshold ?? 0,
-                    onSome: (v) => v,
-                  }),
-                  rsvpReminderHours: Option.match(payload.rsvpReminderHours, {
-                    onNone: () => s?.rsvp_reminder_hours ?? 24,
-                    onSome: (v) => v,
-                  }),
-                  discordChannelTraining: Option.match(payload.discordChannelTraining, {
-                    onNone: () => s?.discord_channel_training ?? null,
-                    onSome: Option.getOrNull,
-                  }),
-                  discordChannelMatch: Option.match(payload.discordChannelMatch, {
-                    onNone: () => s?.discord_channel_match ?? null,
-                    onSome: Option.getOrNull,
-                  }),
-                  discordChannelTournament: Option.match(payload.discordChannelTournament, {
-                    onNone: () => s?.discord_channel_tournament ?? null,
-                    onSome: Option.getOrNull,
-                  }),
-                  discordChannelMeeting: Option.match(payload.discordChannelMeeting, {
-                    onNone: () => s?.discord_channel_meeting ?? null,
-                    onSome: Option.getOrNull,
-                  }),
-                  discordChannelSocial: Option.match(payload.discordChannelSocial, {
-                    onNone: () => s?.discord_channel_social ?? null,
-                    onSome: Option.getOrNull,
-                  }),
-                  discordChannelOther: Option.match(payload.discordChannelOther, {
-                    onNone: () => s?.discord_channel_other ?? null,
-                    onSome: Option.getOrNull,
-                  }),
-                })
-                .pipe(Effect.mapError(() => forbidden));
+              return settings.upsert({
+                teamId,
+                eventHorizonDays: payload.eventHorizonDays,
+                minPlayersThreshold: Option.match(payload.minPlayersThreshold, {
+                  onNone: () => s?.min_players_threshold ?? 0,
+                  onSome: (v) => v,
+                }),
+                rsvpReminderHours: Option.match(payload.rsvpReminderHours, {
+                  onNone: () => s?.rsvp_reminder_hours ?? 24,
+                  onSome: (v) => v,
+                }),
+                discordChannelTraining: Option.match(payload.discordChannelTraining, {
+                  onNone: () => s?.discord_channel_training ?? null,
+                  onSome: Option.getOrNull,
+                }),
+                discordChannelMatch: Option.match(payload.discordChannelMatch, {
+                  onNone: () => s?.discord_channel_match ?? null,
+                  onSome: Option.getOrNull,
+                }),
+                discordChannelTournament: Option.match(payload.discordChannelTournament, {
+                  onNone: () => s?.discord_channel_tournament ?? null,
+                  onSome: Option.getOrNull,
+                }),
+                discordChannelMeeting: Option.match(payload.discordChannelMeeting, {
+                  onNone: () => s?.discord_channel_meeting ?? null,
+                  onSome: Option.getOrNull,
+                }),
+                discordChannelSocial: Option.match(payload.discordChannelSocial, {
+                  onNone: () => s?.discord_channel_social ?? null,
+                  onSome: Option.getOrNull,
+                }),
+                discordChannelOther: Option.match(payload.discordChannelOther, {
+                  onNone: () => s?.discord_channel_other ?? null,
+                  onSome: Option.getOrNull,
+                }),
+              });
             }),
             Effect.map(
               ({ result }) =>
@@ -107,6 +101,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelOther: result.discord_channel_other,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),
     ),

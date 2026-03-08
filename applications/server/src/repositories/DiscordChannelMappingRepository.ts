@@ -1,6 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, DiscordChannelMapping, GroupModel, Team } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
@@ -39,98 +38,89 @@ class DeleteByGroupInput extends Schema.Class<DeleteByGroupInput>('DeleteByGroup
 export class DiscordChannelMappingRepository extends Effect.Service<DiscordChannelMappingRepository>()(
   'api/DiscordChannelMappingRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('findByGroup', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: FindByGroupInput,
-          Result: MappingRow,
-          execute: (input) => sql`
-            SELECT id, team_id, group_id, discord_channel_id, discord_role_id
-            FROM discord_channel_mappings
-            WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
-          `,
-        }),
-      ),
-      Effect.let('insertMapping', ({ sql }) =>
-        SqlSchema.void({
-          Request: InsertInput,
-          execute: (input) => sql`
-            INSERT INTO discord_channel_mappings (team_id, group_id, discord_channel_id, discord_role_id)
-            VALUES (${input.team_id}, ${input.group_id}, ${input.discord_channel_id}, ${input.discord_role_id})
-            ON CONFLICT (team_id, group_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}, discord_role_id = ${input.discord_role_id}
-          `,
-        }),
-      ),
-      Effect.let('upsertWithoutRole', ({ sql }) =>
-        SqlSchema.void({
-          Request: InsertWithoutRoleInput,
-          execute: (input) => sql`
-            INSERT INTO discord_channel_mappings (team_id, group_id, discord_channel_id)
-            VALUES (${input.team_id}, ${input.group_id}, ${input.discord_channel_id})
-            ON CONFLICT (team_id, group_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}, discord_role_id = NULL
-          `,
-        }),
-      ),
-      Effect.let('deleteByGroup', ({ sql }) =>
-        SqlSchema.void({
-          Request: DeleteByGroupInput,
-          execute: (input) => sql`
-            DELETE FROM discord_channel_mappings
-            WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
-          `,
-        }),
-      ),
-      Effect.let('findAllByTeamId', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.String,
-          Result: MappingRow,
-          execute: (teamId) => sql`
-            SELECT id, team_id, group_id, discord_channel_id, discord_role_id
-            FROM discord_channel_mappings
-            WHERE team_id = ${teamId}
-          `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  findByGroupId(teamId: Team.TeamId, groupId: GroupModel.GroupId) {
-    return this.findByGroup({ team_id: teamId, group_id: groupId });
-  }
+  private findByGroup = SqlSchema.findOne({
+    Request: FindByGroupInput,
+    Result: MappingRow,
+    execute: (input) => this.sql`
+      SELECT id, team_id, group_id, discord_channel_id, discord_role_id
+      FROM discord_channel_mappings
+      WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
+    `,
+  });
 
-  insert(
+  private insertMapping = SqlSchema.void({
+    Request: InsertInput,
+    execute: (input) => this.sql`
+      INSERT INTO discord_channel_mappings (team_id, group_id, discord_channel_id, discord_role_id)
+      VALUES (${input.team_id}, ${input.group_id}, ${input.discord_channel_id}, ${input.discord_role_id})
+      ON CONFLICT (team_id, group_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}, discord_role_id = ${input.discord_role_id}
+    `,
+  });
+
+  private _upsertWithoutRole = SqlSchema.void({
+    Request: InsertWithoutRoleInput,
+    execute: (input) => this.sql`
+      INSERT INTO discord_channel_mappings (team_id, group_id, discord_channel_id)
+      VALUES (${input.team_id}, ${input.group_id}, ${input.discord_channel_id})
+      ON CONFLICT (team_id, group_id) DO UPDATE SET discord_channel_id = ${input.discord_channel_id}, discord_role_id = NULL
+    `,
+  });
+
+  private deleteByGroup = SqlSchema.void({
+    Request: DeleteByGroupInput,
+    execute: (input) => this.sql`
+      DELETE FROM discord_channel_mappings
+      WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
+    `,
+  });
+
+  private _findAllByTeamId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: MappingRow,
+    execute: (teamId) => this.sql`
+      SELECT id, team_id, group_id, discord_channel_id, discord_role_id
+      FROM discord_channel_mappings
+      WHERE team_id = ${teamId}
+    `,
+  });
+
+  findByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
+    this.findByGroup({ team_id: teamId, group_id: groupId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  insert = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
     discordChannelId: Discord.Snowflake,
     discordRoleId: Discord.Snowflake,
-  ) {
-    return this.insertMapping({
+  ) =>
+    this.insertMapping({
       team_id: teamId,
       group_id: groupId,
       discord_channel_id: discordChannelId,
       discord_role_id: discordRoleId,
-    });
-  }
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  insertWithoutRole(
+  insertWithoutRole = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
     discordChannelId: Discord.Snowflake,
-  ) {
-    return this.upsertWithoutRole({
+  ) =>
+    this._upsertWithoutRole({
       team_id: teamId,
       group_id: groupId,
       discord_channel_id: discordChannelId,
-    });
-  }
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  deleteByGroupId(teamId: Team.TeamId, groupId: GroupModel.GroupId) {
-    return this.deleteByGroup({ team_id: teamId, group_id: groupId });
-  }
+  deleteByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
+    this.deleteByGroup({ team_id: teamId, group_id: groupId }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
-  findAllByTeam(teamId: Team.TeamId) {
-    return this.findAllByTeamId(teamId);
-  }
+  findAllByTeam = (teamId: Team.TeamId) =>
+    this._findAllByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

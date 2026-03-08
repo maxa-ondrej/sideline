@@ -1,5 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, type Discord, GroupApi } from '@sideline/domain';
+import { Auth, GroupApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -36,7 +36,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.tap(({ membership }) =>
                 requirePermission(membership, 'team:manage', forbidden),
               ),
-              Effect.bind('list', () => groups.findGroupsByTeamId(teamId).pipe(Effect.orDie)),
+              Effect.bind('list', () => groups.findGroupsByTeamId(teamId)),
               Effect.map(({ list }) =>
                 list.map(
                   (g) =>
@@ -62,13 +62,11 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requirePermission(membership, 'team:manage', forbidden),
               ),
               Effect.bind('group', () =>
-                groups
-                  .insertGroup(teamId, payload.name, payload.parentId, payload.emoji)
-                  .pipe(Effect.mapError(() => forbidden)),
+                groups.insertGroup(teamId, payload.name, payload.parentId, payload.emoji),
               ),
               Effect.tap(({ group }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_created', group.id, Option.some(group.name))
+                  .emitChannelCreated(teamId, group.id, group.name)
                   .pipe(Effect.catchAll(() => Effect.void)),
               ),
               Effect.map(
@@ -82,6 +80,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount: 0,
                   }),
               ),
+              Effect.catchTag('GroupNameAlreadyTakenError', () =>
+                Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
+              ),
+              Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
           .handle('getGroup', ({ path: { teamId, groupId } }) =>
@@ -95,7 +97,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -107,12 +108,8 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.tap(({ group }) =>
                 group.team_id !== teamId ? Effect.fail(new GroupApi.GroupNotFound()) : Effect.void,
               ),
-              Effect.bind('groupMembers', () =>
-                groups.findMembersByGroupId(groupId).pipe(Effect.mapError(() => forbidden)),
-              ),
-              Effect.bind('groupRoles', () =>
-                groups.getRolesForGroup(groupId).pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.bind('groupMembers', () => groups.findMembersByGroupId(groupId)),
+              Effect.bind('groupRoles', () => groups.getRolesForGroup(groupId)),
               Effect.map(
                 ({ group, groupMembers, groupRoles }) =>
                   new GroupApi.GroupDetail({
@@ -145,7 +142,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -160,13 +156,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   : Effect.void,
               ),
               Effect.bind('updated', () =>
-                groups
-                  .updateGroupById(groupId, payload.name, payload.emoji)
-                  .pipe(Effect.mapError(() => forbidden)),
+                groups.updateGroupById(groupId, payload.name, payload.emoji),
               ),
-              Effect.bind('memberCount', () =>
-                groups.getMemberCount(groupId).pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.bind('memberCount', () => groups.getMemberCount(groupId)),
               Effect.map(
                 ({ updated, memberCount }) =>
                   new GroupApi.GroupInfo({
@@ -178,6 +170,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount,
                   }),
               ),
+              Effect.catchTag('GroupNameAlreadyTakenError', () =>
+                Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
+              ),
+              Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
           .handle('deleteGroup', ({ path: { teamId, groupId } }) =>
@@ -191,9 +187,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.orDie,
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () => new GroupApi.GroupNotFound()),
+                  Effect.catchTag('NoSuchElementException', () =>
+                    Effect.fail(new GroupApi.GroupNotFound()),
+                  ),
                 ),
               ),
               Effect.tap(({ existing }) =>
@@ -207,10 +204,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     )
                   : Effect.void,
               ),
-              Effect.tap(() => groups.archiveGroupById(groupId).pipe(Effect.orDie)),
+              Effect.tap(() => groups.archiveGroupById(groupId)),
               Effect.tap(({ existing }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_deleted', groupId, Option.some(existing.name))
+                  .emitChannelDeleted(teamId, groupId, existing.name)
                   .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
               ),
               Effect.asVoid,
@@ -227,7 +224,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -241,7 +237,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_member', () =>
                 members.findRosterMemberByIds(teamId, payload.memberId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.MemberNotFound()),
@@ -250,24 +245,19 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(() =>
-                groups
-                  .addMemberById(groupId, payload.memberId)
-                  .pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.tap(() => groups.addMemberById(groupId, payload.memberId)),
               Effect.tap(({ _group, _member }) =>
                 users.findById(_member.user_id).pipe(
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.void,
                       onSome: (user) =>
-                        channelSync.emitIfGuildLinked(
+                        channelSync.emitMemberAdded(
                           teamId,
-                          'member_added',
                           groupId,
-                          Option.some(_group.name),
-                          Option.some(payload.memberId),
-                          Option.some(user.discord_id as Discord.Snowflake),
+                          _group.name,
+                          payload.memberId,
+                          user.discord_id,
                         ),
                     }),
                   ),
@@ -288,7 +278,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -302,7 +291,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_member', () =>
                 members.findRosterMemberByIds(teamId, memberId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.MemberNotFound()),
@@ -311,22 +299,19 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(() =>
-                groups.removeMemberById(groupId, memberId).pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.tap(() => groups.removeMemberById(groupId, memberId)),
               Effect.tap(({ _group, _member }) =>
                 users.findById(_member.user_id).pipe(
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.void,
                       onSome: (user) =>
-                        channelSync.emitIfGuildLinked(
+                        channelSync.emitMemberRemoved(
                           teamId,
-                          'member_removed',
                           groupId,
-                          Option.some(_group.name),
-                          Option.some(memberId),
-                          Option.some(user.discord_id as Discord.Snowflake),
+                          _group.name,
+                          memberId,
+                          user.discord_id,
                         ),
                     }),
                   ),
@@ -347,7 +332,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -359,7 +343,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(() => roles.assignRoleToGroup(payload.roleId, groupId).pipe(Effect.orDie)),
+              Effect.tap(() => roles.assignRoleToGroup(payload.roleId, groupId)),
               Effect.asVoid,
             ),
           )
@@ -374,7 +358,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -386,7 +369,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(() => roles.unassignRoleFromGroup(roleId, groupId).pipe(Effect.orDie)),
+              Effect.tap(() => roles.unassignRoleFromGroup(roleId, groupId)),
               Effect.asVoid,
             ),
           )
@@ -401,7 +384,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -424,12 +406,8 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     )
                   : Effect.void,
               ),
-              Effect.bind('updated', () =>
-                groups.moveGroup(groupId, payload.parentId).pipe(Effect.mapError(() => forbidden)),
-              ),
-              Effect.bind('memberCount', () =>
-                groups.getMemberCount(groupId).pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.bind('updated', () => groups.moveGroup(groupId, payload.parentId)),
+              Effect.bind('memberCount', () => groups.getMemberCount(groupId)),
               Effect.map(
                 ({ updated, memberCount }) =>
                   new GroupApi.GroupInfo({
@@ -441,6 +419,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount,
                   }),
               ),
+              Effect.catchTag('NoSuchElementException', Effect.die),
             ),
           )
           .handle('getChannelMapping', ({ path: { teamId, groupId } }) =>
@@ -454,7 +433,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -466,14 +444,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.bind('mapping', () =>
-                channelMappings
-                  .findByGroupId(teamId, groupId)
-                  .pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.bind('mapping', () => channelMappings.findByGroupId(teamId, groupId)),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
-                  Effect.orDie,
                   Effect.flatten,
                   Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
                 ),
@@ -509,7 +482,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -522,18 +494,15 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.tap(() =>
-                channelMappings
-                  .insertWithoutRole(teamId, groupId, payload.discordChannelId)
-                  .pipe(Effect.mapError(() => forbidden)),
+                channelMappings.insertWithoutRole(teamId, groupId, payload.discordChannelId),
               ),
               Effect.tap(({ _group }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(_group.name))
+                  .emitChannelCreated(teamId, groupId, _group.name)
                   .pipe(Effect.catchAll(() => Effect.void)),
               ),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
-                  Effect.orDie,
                   Effect.flatten,
                   Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
                 ),
@@ -566,7 +535,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -578,11 +546,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(() =>
-                channelMappings
-                  .deleteByGroupId(teamId, groupId)
-                  .pipe(Effect.mapError(() => forbidden)),
-              ),
+              Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
               Effect.asVoid,
             ),
           )
@@ -597,7 +561,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('group', () =>
                 groups.findGroupById(groupId).pipe(
-                  Effect.mapError(() => forbidden),
                   Effect.flatMap(
                     Option.match({
                       onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
@@ -611,7 +574,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.tap(({ group }) =>
                 channelSync
-                  .emitIfGuildLinked(teamId, 'channel_created', groupId, Option.some(group.name))
+                  .emitChannelCreated(teamId, groupId, group.name)
                   .pipe(
                     Effect.catchAll((e) => Effect.logError('Failed to emit channel_created', e)),
                   ),
@@ -630,7 +593,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
-                  Effect.orDie,
                   Effect.flatten,
                   Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
                 ),

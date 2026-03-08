@@ -7,8 +7,13 @@ import {
   TeamMember,
   User,
 } from '@sideline/domain';
-import { Bind, Schemas } from '@sideline/effect-lib';
+import { Schemas, SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
+
+export class AgeThresholdAlreadyExistsError extends Schema.TaggedError<AgeThresholdAlreadyExistsError>()(
+  'AgeThresholdAlreadyExistsError',
+  {},
+) {}
 
 export class AgeThresholdWithGroupName extends Schema.Class<AgeThresholdWithGroupName>(
   'AgeThresholdWithGroupName',
@@ -29,20 +34,20 @@ export class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThreshold
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-export class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   team_id: Schema.String,
   group_id: Schema.String,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-export class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
+class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
   id: AgeThreshold.AgeThresholdRuleId,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-export class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
+class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
   team_id: Team.TeamId,
 }) {}
 
@@ -60,13 +65,13 @@ export class MemberWithBirthDate extends Schema.Class<MemberWithBirthDate>('Memb
 export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepository>()(
   'api/AgeThresholdRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('findByTeamId', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.String,
-          Result: AgeThresholdWithGroupName,
-          execute: (teamId) => sql`
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
+  },
+) {
+  private findByTeamId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: AgeThresholdWithGroupName,
+    execute: (teamId) => this.sql`
             SELECT atr.id, atr.team_id, atr.group_id, g.name AS group_name,
                    atr.min_age, atr.max_age
             FROM age_threshold_rules atr
@@ -74,23 +79,21 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
             WHERE atr.team_id = ${teamId}
             ORDER BY g.name ASC
           `,
-        }),
-      ),
-      Effect.let('findById', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: AgeThreshold.AgeThresholdRuleId,
-          Result: AgeThresholdRow,
-          execute: (id) => sql`
+  });
+
+  private findByIdQuery = SqlSchema.findOne({
+    Request: AgeThreshold.AgeThresholdRuleId,
+    Result: AgeThresholdRow,
+    execute: (id) => this.sql`
             SELECT id, team_id, group_id, min_age, max_age
             FROM age_threshold_rules WHERE id = ${id}
           `,
-        }),
-      ),
-      Effect.let('insert', ({ sql }) =>
-        SqlSchema.single({
-          Request: InsertInput,
-          Result: AgeThresholdWithGroupName,
-          execute: (input) => sql`
+  });
+
+  private insertQuery = SqlSchema.single({
+    Request: InsertInput,
+    Result: AgeThresholdWithGroupName,
+    execute: (input) => this.sql`
             WITH inserted AS (
               INSERT INTO age_threshold_rules (team_id, group_id, min_age, max_age)
               VALUES (${input.team_id}, ${input.group_id}, ${input.min_age}, ${input.max_age})
@@ -100,13 +103,12 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
             FROM inserted i
             JOIN groups g ON g.id = i.group_id
           `,
-        }),
-      ),
-      Effect.let('updateRule', ({ sql }) =>
-        SqlSchema.single({
-          Request: UpdateInput,
-          Result: AgeThresholdWithGroupName,
-          execute: (input) => sql`
+  });
+
+  private updateRule = SqlSchema.single({
+    Request: UpdateInput,
+    Result: AgeThresholdWithGroupName,
+    execute: (input) => this.sql`
             WITH updated AS (
               UPDATE age_threshold_rules
               SET min_age = ${input.min_age}, max_age = ${input.max_age}
@@ -117,26 +119,23 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
             FROM updated u
             JOIN groups g ON g.id = u.group_id
           `,
-        }),
-      ),
-      Effect.let('deleteRule', ({ sql }) =>
-        SqlSchema.void({
-          Request: AgeThreshold.AgeThresholdRuleId,
-          execute: (id) => sql`DELETE FROM age_threshold_rules WHERE id = ${id}`,
-        }),
-      ),
-      Effect.let('findAllTeamsWithRules', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.Void,
-          Result: TeamIdResult,
-          execute: () => sql`SELECT DISTINCT team_id FROM age_threshold_rules`,
-        }),
-      ),
-      Effect.let('findMembersWithBirthDates', ({ sql }) =>
-        SqlSchema.findAll({
-          Request: Schema.String,
-          Result: MemberWithBirthDate,
-          execute: (teamId) => sql`
+  });
+
+  private deleteRule = SqlSchema.void({
+    Request: AgeThreshold.AgeThresholdRuleId,
+    execute: (id) => this.sql`DELETE FROM age_threshold_rules WHERE id = ${id}`,
+  });
+
+  private findAllTeamsWithRulesQuery = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: TeamIdResult,
+    execute: () => this.sql`SELECT DISTINCT team_id FROM age_threshold_rules`,
+  });
+
+  private findMembersWithBirthDatesQuery = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: MemberWithBirthDate,
+    execute: (teamId) => this.sql`
             SELECT tm.id AS member_id, tm.user_id,
                    u.name AS member_name, u.username, u.discord_id,
                    u.birth_date::text AS birth_date,
@@ -153,48 +152,50 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
             JOIN users u ON u.id = tm.user_id
             WHERE tm.team_id = ${teamId} AND tm.active = true AND u.birth_date IS NOT NULL
           `,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
-  },
-) {
-  findRulesByTeamId(teamId: Team.TeamId) {
-    return this.findByTeamId(teamId);
-  }
+  });
 
-  findRuleById(ruleId: AgeThreshold.AgeThresholdRuleId) {
-    return this.findById(ruleId);
-  }
+  findRulesByTeamId = (teamId: Team.TeamId) =>
+    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  insertRule(
+  findRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
+    this.findByIdQuery(ruleId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  insertRule = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
-  ) {
-    return this.insert({ team_id: teamId, group_id: groupId, min_age: minAge, max_age: maxAge });
-  }
+  ) =>
+    this.insertQuery({
+      team_id: teamId,
+      group_id: groupId,
+      min_age: minAge,
+      max_age: maxAge,
+    }).pipe(
+      SqlErrors.catchUniqueViolation(() => new AgeThresholdAlreadyExistsError()),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 
-  updateRuleById(
+  updateRuleById = (
     ruleId: AgeThreshold.AgeThresholdRuleId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
-  ) {
-    return this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge });
-  }
-
-  deleteRuleById(ruleId: AgeThreshold.AgeThresholdRuleId) {
-    return this.deleteRule(ruleId);
-  }
-
-  getAllTeamsWithRules() {
-    return this.findAllTeamsWithRules(undefined as undefined).pipe(
-      Effect.map((rows) => rows.map((r) => r.team_id)),
+  ) =>
+    this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  }
 
-  getMembersWithBirthDates(teamId: Team.TeamId) {
-    return this.findMembersWithBirthDates(teamId);
-  }
+  deleteRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
+    this.deleteRule(ruleId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  getAllTeamsWithRules = () =>
+    this.findAllTeamsWithRulesQuery(void 0).pipe(
+      Effect.map((rows) => rows.map((r) => r.team_id)),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  getMembersWithBirthDates = (teamId: Team.TeamId) =>
+    this.findMembersWithBirthDatesQuery(teamId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
 }

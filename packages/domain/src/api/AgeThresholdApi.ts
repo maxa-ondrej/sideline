@@ -56,6 +56,12 @@ export class GroupNotFound extends Schema.TaggedError<GroupNotFound>()(
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
+export class AgeThresholdAlreadyExists extends Schema.TaggedError<AgeThresholdAlreadyExists>()(
+  'AgeThresholdAlreadyExists',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
   .add(
     HttpApiEndpoint.get('listAgeThresholds', '/teams/:teamId/age-thresholds')
@@ -69,6 +75,7 @@ export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
       .addSuccess(AgeThresholdInfo, { status: 201 })
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
+      .addError(AgeThresholdAlreadyExists, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .setPayload(CreateAgeThresholdRequest)
       .middleware(AuthMiddleware),

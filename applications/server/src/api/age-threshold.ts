@@ -25,9 +25,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
-            Effect.bind('rules', () =>
-              thresholds.findRulesByTeamId(teamId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.bind('rules', () => thresholds.findRulesByTeamId(teamId)),
             Effect.map(({ rules }) =>
               rules.map(
                 (r) =>
@@ -52,7 +50,6 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('group', () =>
               groups.findGroupById(payload.groupId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new AgeThresholdApi.GroupNotFound()),
@@ -67,9 +64,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 : Effect.void,
             ),
             Effect.bind('rule', () =>
-              thresholds
-                .insertRule(teamId, payload.groupId, payload.minAge, payload.maxAge)
-                .pipe(Effect.mapError(() => forbidden)),
+              thresholds.insertRule(teamId, payload.groupId, payload.minAge, payload.maxAge),
             ),
             Effect.map(
               ({ rule }) =>
@@ -82,6 +77,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: rule.max_age,
                 }),
             ),
+            Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
+              Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
+            ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
@@ -93,7 +92,6 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('existing', () =>
               thresholds.findRuleById(ruleId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new AgeThresholdApi.RuleNotFound()),
@@ -108,9 +106,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 : Effect.void,
             ),
             Effect.bind('updated', () =>
-              thresholds
-                .updateRuleById(ruleId, payload.minAge, payload.maxAge)
-                .pipe(Effect.mapError(() => forbidden)),
+              thresholds.updateRuleById(ruleId, payload.minAge, payload.maxAge),
             ),
             Effect.map(
               ({ updated }) =>
@@ -123,6 +119,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: updated.max_age,
                 }),
             ),
+            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>
@@ -134,7 +131,6 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('existing', () =>
               thresholds.findRuleById(ruleId).pipe(
-                Effect.mapError(() => forbidden),
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new AgeThresholdApi.RuleNotFound()),
@@ -148,9 +144,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 ? Effect.fail(new AgeThresholdApi.RuleNotFound())
                 : Effect.void,
             ),
-            Effect.tap(() =>
-              thresholds.deleteRuleById(ruleId).pipe(Effect.mapError(() => forbidden)),
-            ),
+            Effect.tap(() => thresholds.deleteRuleById(ruleId)),
             Effect.asVoid,
           ),
         )
@@ -163,7 +157,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('changes', () => {
               const today = new Date();
-              return ageCheck.evaluate(teamId, today).pipe(Effect.mapError(() => forbidden));
+              return ageCheck.evaluate(teamId, today);
             }),
             Effect.map(({ changes }) => changes),
           ),

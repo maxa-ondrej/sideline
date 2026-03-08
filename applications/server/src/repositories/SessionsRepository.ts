@@ -1,39 +1,41 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Session } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 export class SessionsRepository extends Effect.Service<SessionsRepository>()(
   'api/SessionsRepository',
   {
-    effect: SqlClient.SqlClient.pipe(
-      Effect.bindTo('sql'),
-      Effect.let('create', ({ sql }) =>
-        SqlSchema.single({
-          Request: Session.Session.insert,
-          Result: Session.Session,
-          execute: (input) => sql`
-            INSERT INTO sessions (user_id, token, expires_at)
-            VALUES (${input.user_id}, ${input.token}, ${input.expires_at})
-            RETURNING *
-          `,
-        }),
-      ),
-      Effect.let('findByToken', ({ sql }) =>
-        SqlSchema.findOne({
-          Request: Schema.String,
-          Result: Session.Session,
-          execute: (token) =>
-            sql`SELECT * FROM sessions WHERE token = ${token} AND expires_at > now()`,
-        }),
-      ),
-      Effect.let('deleteByToken', ({ sql }) =>
-        SqlSchema.void({
-          Request: Schema.String,
-          execute: (token) => sql`DELETE FROM sessions WHERE token = ${token}`,
-        }),
-      ),
-      Bind.remove('sql'),
-    ),
+    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
-) {}
+) {
+  private _create = SqlSchema.single({
+    Request: Session.Session.insert,
+    Result: Session.Session,
+    execute: (input) => this.sql`
+      INSERT INTO sessions (user_id, token, expires_at)
+      VALUES (${input.user_id}, ${input.token}, ${input.expires_at})
+      RETURNING *
+    `,
+  });
+
+  private _findByToken = SqlSchema.findOne({
+    Request: Schema.String,
+    Result: Session.Session,
+    execute: (token) =>
+      this.sql`SELECT * FROM sessions WHERE token = ${token} AND expires_at > now()`,
+  });
+
+  private _deleteByToken = SqlSchema.void({
+    Request: Schema.String,
+    execute: (token) => this.sql`DELETE FROM sessions WHERE token = ${token}`,
+  });
+
+  create = (input: typeof Session.Session.insert.Type) =>
+    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  findByToken = (token: string) =>
+    this._findByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  deleteByToken = (token: string) =>
+    this._deleteByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+}

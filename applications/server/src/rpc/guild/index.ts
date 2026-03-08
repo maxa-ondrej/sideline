@@ -35,9 +35,13 @@ const setupNewMember = (
   Effect.Do.pipe(
     Effect.tap(() =>
       deps.members.getPlayerRoleId(team.id).pipe(
-        Effect.flatten,
-        Effect.tap((playerRole) => deps.members.assignRole(newMember.id, playerRole.id)),
-        Effect.catchAll(() => Effect.log('No Player role found, skipping')),
+        Effect.flatMap(
+          Option.match({
+            onNone: () => Effect.log('No Player role found, skipping'),
+            onSome: (playerRole) => deps.members.assignRole(newMember.id, playerRole.id),
+          }),
+        ),
+        Effect.catchAll(() => Effect.log('Failed to assign Player role, skipping')),
       ),
     ),
     Effect.tap(() =>
@@ -72,30 +76,38 @@ const registerMemberLogic =
   (deps: Deps) =>
   ({ guild_id, discord_id, username, avatar, roles }: RegisterMemberPayload) =>
     Effect.Do.pipe(
-      Effect.bind('team', () => deps.teams.findByGuildId(guild_id).pipe(Effect.flatten)),
-      Effect.bind('user', () => deps.users.upsertFromDiscord({ discord_id, username, avatar })),
-      Effect.bind('existingMembership', ({ team, user }) =>
-        deps.members.findMembershipByIds(team.id, user.id),
-      ),
-      Effect.tap(({ existingMembership, team, user }) => {
-        if (Option.isSome(existingMembership) && existingMembership.value.active) {
-          return Effect.log(`Member ${username} already active in team ${team.id}`);
-        }
-        const addMember = Option.isNone(existingMembership)
-          ? deps.members.addMember({
-              team_id: team.id,
-              user_id: user.id,
-              active: true,
-              joined_at: undefined,
-            })
-          : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember);
-        return addMember.pipe(
-          Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
-          Effect.tap(() => Effect.log(`Registered member ${username} in team ${team.id}`)),
-        );
-      }),
-      Effect.catchTag('NoSuchElementException', () =>
-        Effect.log(`No team found for guild ${guild_id}, skipping member registration`),
+      Effect.bind('teamOption', () => deps.teams.findByGuildId(guild_id)),
+      Effect.flatMap(({ teamOption }) =>
+        Option.match(teamOption, {
+          onNone: () =>
+            Effect.log(`No team found for guild ${guild_id}, skipping member registration`),
+          onSome: (team) =>
+            Effect.Do.pipe(
+              Effect.bind('user', () =>
+                deps.users.upsertFromDiscord({ discord_id, username, avatar }),
+              ),
+              Effect.bind('existingMembership', ({ user }) =>
+                deps.members.findMembershipByIds(team.id, user.id),
+              ),
+              Effect.tap(({ existingMembership, user }) => {
+                if (Option.isSome(existingMembership) && existingMembership.value.active) {
+                  return Effect.log(`Member ${username} already active in team ${team.id}`);
+                }
+                const addMember = Option.isNone(existingMembership)
+                  ? deps.members.addMember({
+                      team_id: team.id,
+                      user_id: user.id,
+                      active: true,
+                      joined_at: undefined,
+                    })
+                  : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember);
+                return addMember.pipe(
+                  Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
+                  Effect.tap(() => Effect.log(`Registered member ${username} in team ${team.id}`)),
+                );
+              }),
+            ),
+        }),
       ),
       Effect.catchAll((error) => Effect.logError(`RegisterMember failed for ${username}`, error)),
     );
