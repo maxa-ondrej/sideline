@@ -160,7 +160,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_createFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       form.reset();

@@ -6,7 +6,7 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -131,7 +131,7 @@ export function TrainingTypeDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_updateFailed())),
-      run,
+      run(),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -148,10 +148,9 @@ export function TrainingTypeDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_deleteFailed())),
-      run,
+      run({ success: m.trainingType_deleted() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.trainingType_deleted());
       navigate({ to: '/teams/$teamId/training-types', params: { teamId } });
     }
   }, [teamId, teamIdBranded, trainingTypeIdBranded, run, navigate]);
@@ -177,7 +176,7 @@ export function TrainingTypeDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_createScheduleFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       scheduleForm.reset({ ...scheduleForm.formState.defaultValues } as Record<string, string>);
@@ -199,10 +198,9 @@ export function TrainingTypeDetailPage({
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
-        run,
+        run({ success: m.trainingType_scheduleCancelled() }),
       );
       if (Option.isSome(result)) {
-        toast.success(m.trainingType_scheduleCancelled());
         router.invalidate();
       }
     },
@@ -251,10 +249,9 @@ export function TrainingTypeDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_updateScheduleFailed())),
-      run,
+      run({ success: m.trainingType_scheduleUpdated() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.trainingType_scheduleUpdated());
       setEditingSeriesId(null);
       setShowCreateForm(false);
       scheduleForm.reset({

@@ -49,7 +49,7 @@ export function RostersListPage({ teamId, rosters }: RostersListPageProps) {
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_createFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       form.reset();

@@ -3,7 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import React from 'react';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import {
@@ -90,11 +90,10 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.teamSettings_saveFailed())),
-      run,
+      run({ success: m.teamSettings_saved() }),
     );
     setSaving(false);
     if (Option.isSome(result)) {
-      toast.success(m.teamSettings_saved());
       router.invalidate();
     }
   }, [

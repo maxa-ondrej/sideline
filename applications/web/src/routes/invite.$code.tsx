@@ -37,7 +37,7 @@ function InviteRoute() {
   const handleSignIn = React.useCallback(() => {
     Effect.runSync(setPendingInvite(code));
     getLogin()
-      .pipe(Effect.option, run)
+      .pipe(Effect.option, run())
       .then((url) => {
         if (Option.isSome(url)) {
           navigate({ href: url.value.toString() });

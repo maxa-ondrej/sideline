@@ -6,7 +6,7 @@ import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
 import {
@@ -159,7 +159,7 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_updateFailed())),
-      run,
+      run(),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -198,7 +198,7 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_updateSeriesFailed())),
-      run,
+      run(),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -221,10 +221,9 @@ export function EventDetailPage({
         api.event.cancelEvent({ path: { teamId: teamIdBranded, eventId: eventIdBranded } }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
-      run,
+      run({ success: m.event_cancelled() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.event_cancelled());
       navigate({ to: '/teams/$teamId/events', params: { teamId } });
     }
   }, [teamId, teamIdBranded, eventIdBranded, run, navigate]);
@@ -240,10 +239,9 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
-      run,
+      run({ success: m.event_seriesCancelled() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.event_seriesCancelled());
       navigate({ to: '/teams/$teamId/events', params: { teamId } });
     }
   }, [teamId, teamIdBranded, eventDetail.seriesId, run, navigate]);
@@ -271,7 +269,7 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
-      run,
+      run(),
     );
     setRsvpSubmitting(false);
     if (Option.isSome(result)) {

@@ -34,7 +34,7 @@ export function RootDocument({ run, children }: RootDocumentProps) {
             TanStackQueryDevtools,
           ]}
         />
-        <Toaster />
+        <Toaster position='top-right' richColors closeButton />
         <Scripts />
       </body>
     </html>

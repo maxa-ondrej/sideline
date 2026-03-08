@@ -4,7 +4,7 @@ import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
@@ -60,7 +60,7 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_updateFailed())),
-      run,
+      run(),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -75,10 +75,9 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
         api.role.deleteRole({ path: { teamId: teamIdBranded, roleId: roleIdBranded } }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_deleteFailed())),
-      run,
+      run({ success: m.role_roleDeleted() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.role_roleDeleted());
       navigate({ to: '/teams/$teamId/roles', params: { teamId } });
     }
   }, [teamIdBranded, roleIdBranded, teamId, navigate, run]);

@@ -17,7 +17,7 @@ export function LanguageSwitcher({ isAuthenticated }: { isAuthenticated: boolean
         ApiClient.pipe(
           Effect.flatMap((api) => api.auth.updateLocale({ payload: { locale } })),
           Effect.catchAll(() => ClientError.make(m.auth_errors_profileFailed())),
-          run,
+          run(),
         );
       }
     },

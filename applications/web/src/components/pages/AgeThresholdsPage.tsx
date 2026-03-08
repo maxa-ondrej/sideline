@@ -6,7 +6,7 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -73,7 +73,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.ageThreshold_createFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       form.reset();
@@ -92,10 +92,9 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.ageThreshold_deleteFailed())),
-        run,
+        run({ success: m.ageThreshold_deleted() }),
       );
       if (Option.isSome(result)) {
-        toast.success(m.ageThreshold_deleted());
         router.invalidate();
       }
     },
@@ -111,7 +110,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.ageThreshold_evaluateFailed())),
-      run,
+      run(),
     );
     setEvaluating(false);
     if (Option.isSome(result)) {
