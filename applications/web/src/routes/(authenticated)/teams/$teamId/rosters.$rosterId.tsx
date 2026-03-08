@@ -5,6 +5,7 @@ import { RosterDetailPage } from '~/components/pages/RosterDetailPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$rosterId')({
+  ssr: false,
   component: RosterDetailRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);

@@ -22,7 +22,7 @@ interface GroupDetailPageProps {
   groupDetail: GroupApi.GroupDetail;
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
   allRoles: ReadonlyArray<RoleApi.RoleInfo>;
-  channelMapping: GroupApi.ChannelMappingInfo | null;
+  channelMapping: Option.Option<GroupApi.ChannelMappingInfo>;
   allGroups: ReadonlyArray<GroupApi.GroupInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
@@ -367,18 +367,18 @@ export function GroupDetailPage({
         {/* Discord Channel */}
         <div>
           <p className='text-sm font-medium mb-2'>{m.group_discordChannel()}</p>
-          {channelMapping ? (
+          {Option.isSome(channelMapping) ? (
             <div className='flex items-center gap-2'>
-              <span className='text-sm' title={channelMapping.discordChannelId}>
+              <span className='text-sm' title={channelMapping.value.discordChannelId}>
                 #{' '}
                 {Option.getOrElse(
-                  channelMapping.discordChannelName,
-                  () => channelMapping.discordChannelId,
+                  channelMapping.value.discordChannelName,
+                  () => channelMapping.value.discordChannelId,
                 )}
-                {Option.isSome(channelMapping.discordRoleId) && (
+                {Option.isSome(channelMapping.value.discordRoleId) && (
                   <>
                     {' '}
-                    (Role: <code title={channelMapping.discordRoleId.value}>synced</code>)
+                    (Role: <code title={channelMapping.value.discordRoleId.value}>synced</code>)
                   </>
                 )}
               </span>

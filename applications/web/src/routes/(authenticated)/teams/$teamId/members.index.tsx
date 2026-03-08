@@ -9,6 +9,7 @@ import { TeamMembersPage } from '~/components/pages/TeamMembersPage';
 import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/')({
+  ssr: false,
   component: MembersRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);

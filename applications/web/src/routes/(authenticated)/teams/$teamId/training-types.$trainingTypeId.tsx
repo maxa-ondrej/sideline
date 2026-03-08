@@ -8,6 +8,7 @@ import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 export const Route = createFileRoute(
   '/(authenticated)/teams/$teamId/training-types/$trainingTypeId',
 )({
+  ssr: false,
   component: TrainingTypeDetailRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
