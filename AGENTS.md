@@ -319,6 +319,10 @@ Internal packages use scoped aliases:
 - **Always use `Effect.asVoid`** instead of `Effect.map(() => undefined as undefined)`
 - **Never cast types** (`as X`) and **never use `any`** — fix the types properly instead
 - **Never use `Schema.optional`** — always use `Schema.optionalWith({ as: 'Option' })` or `Schema.OptionFromNullOr(...)` so optional values are represented as `Option<T>` instead of `T | undefined`
+- **Use `Schema.OptionFromNullOr`** for nullable API/DB fields — decodes `null`/`undefined` → `Option.none()`, values → `Option.some(value)`. Encoded type is `T | null | undefined`, decoded type is `Option<T>`.
+- **Use branded types** (e.g. `Discord.Snowflake`, `Team.TeamId`) instead of raw `Schema.String` for IDs. Use `.make()` for known-valid literals, `Schema.decodeSync()` at system boundaries.
+- **Use `Effect.void`** instead of `Effect.succeed(undefined)` or `Effect.unit`
+- **Use Effect `Array` module** instead of native JS array methods (`.map`, `.filter`, `.find`, etc.) in Effect pipelines
 - **Type narrow errors** - use discriminated unions for error types
 - **Document complex Effect chains** - explain the business logic, not the syntax
 
@@ -580,11 +584,11 @@ The `check.yml` workflow runs on pushes to `main` and on pull requests. It has f
 | Job             | Command                    | Purpose                                          |
 |-----------------|----------------------------|--------------------------------------------------|
 | **Lint & Format** | `pnpm lint`              | Enforces formatting and lint rules via Biome     |
-| **Build**       | `pnpm codegen`             | Verifies codegen output is committed and current |
+| **Build**       | `pnpm codegen && pnpm build` | Verifies codegen output is committed and current, then builds all packages |
 | **Types**       | `pnpm check`               | Type-checks all packages individually            |
 | **Test**        | `pnpm build && pnpm test`| Builds packages, then runs Vitest tests          |
 
-> **Why Test needs `pnpm build` first:** Workspace packages use `publishConfig.directory: "dist"`, so pnpm symlinks consumers to `packages/*/dist`. Vitest resolves imports through these symlinks, meaning built artifacts must exist before tests can run.
+> **Why Build is critical:** Workspace packages use `publishConfig.directory: "dist"`, so pnpm symlinks consumers to `packages/*/dist`. Both `tsc -b` (type checking) and Vitest resolve `@sideline/domain` through `node_modules` symlink → `packages/domain/dist/`. If `dist/` contains stale `.d.ts` files (e.g. after a schema migration), `pnpm check` will show false type errors and tests will fail with cryptic errors like `Cannot read properties of undefined (reading 'middlewares')`. **Always rebuild `packages/domain` after changing domain source files.**
 
 All jobs use the shared `.github/actions/setup` composite action (pnpm + Node.js install with caching).
 
@@ -601,10 +605,17 @@ The `snapshot.yml` workflow runs on pull requests and manual dispatch. It:
 
 ```bash
 pnpm lint                  # Lint & format check
-pnpm codegen && git diff --exit-code  # Verify codegen is up to date
+pnpm codegen               # Regenerate generated code
+pnpm build                 # Build all packages (critical: updates dist/ types)
 pnpm check                 # Type check all packages
 pnpm test                  # Run tests
 ```
+
+> **Full clean verification** (use when type errors seem wrong or after large refactors):
+> ```bash
+> pnpm codegen && pnpm build && find . -name '*.tsbuildinfo' -delete && pnpm check && pnpm test
+> ```
+> Deleting `.tsbuildinfo` files forces `tsc -b` to re-check from scratch, catching errors masked by stale incremental build cache.
 
 ## Best Practices
 
@@ -846,6 +857,15 @@ const program = Effect.gen(function* () {
 - Run `pnpm clean` to remove stale artifacts
 - Check `tsconfig.build.json` includes all necessary files
 - Ensure project references are correctly configured
+
+**Stale domain `dist/` causing mysterious type errors**
+- `tsc -b` resolves `@sideline/domain` through `node_modules` symlink → `packages/domain/dist/`. If you changed domain source files but didn't rebuild, the stale `.d.ts` files in `dist/` will cause false type errors in server/bot/web.
+- Fix: run `pnpm build` in the repo root (or `pnpm -C packages/domain build`) to regenerate `dist/`.
+- Also delete `.tsbuildinfo` files (`find . -name '*.tsbuildinfo' -delete`) if incremental cache is masking the real state.
+
+**TanStack Router serialization errors with Effect `Option`**
+- Effect's `Option<T>` type includes `[TypeId]._A: Covariant<T>` which fails TanStack Router's compile-time serialization check (`ValidateSerializableLifecycleResult`).
+- Fix: add `ssr: false` to every route's `createFileRoute(...)({...})` options when the loader returns types containing `Option`. The root route already has `ssr: false` at runtime, but child routes need it explicitly for the type system to short-circuit the serialization check.
 
 ## Resources
 
@@ -1138,6 +1158,7 @@ Route files (`routes/**/*.tsx`) contain TanStack Router config (`createFileRoute
 ```typescript
 // routes/(authenticated)/dashboard.tsx
 export const Route = createFileRoute('/(authenticated)/dashboard')({
+  ssr: false, // Required: Effect Option types fail TanStack's serialization check
   component: DashboardRoute,
   beforeLoad: ...,
   loader: ...,
@@ -1196,7 +1217,11 @@ routes/(authenticated)/
         ├── rosters.index.tsx      — /teams/:teamId/rosters
         ├── rosters.$rosterId.tsx  — /teams/:teamId/rosters/:rosterId
         ├── groups.index.tsx       — /teams/:teamId/groups
-        └── groups.$groupId.tsx   — /teams/:teamId/groups/:groupId
+        ├── groups.$groupId.tsx    — /teams/:teamId/groups/:groupId
+        ├── events.index.tsx       — /teams/:teamId/events
+        ├── events.$eventId.tsx    — /teams/:teamId/events/:eventId
+        ├── training-types.index.tsx      — /teams/:teamId/training-types
+        └── training-types.$trainingTypeId.tsx — /teams/:teamId/training-types/:trainingTypeId
 ```
 
 ### Auth store — `lib/auth.ts`
