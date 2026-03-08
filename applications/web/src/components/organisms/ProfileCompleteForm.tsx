@@ -25,7 +25,7 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - Auth.MIN_AGE;
-const defaultBirthMonth = new Date(currentYear - 18, 0);
+const defaultBirthMonth = new Date(currentYear - Auth.DEFAULT_BIRTH_YEAR_OFFSET, 0);
 
 const ProfileFormSchema = Schema.Struct({
   name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
