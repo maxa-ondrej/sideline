@@ -26,12 +26,23 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - Auth.MIN_AGE;
+const defaultBirthMonth = new Date(currentYear - 18, 0);
 
 const NONE_VALUE = '__none__';
 
 const ProfileEditSchema = Schema.Struct({
   name: Schema.String,
-  birthDate: Schema.String,
+  birthDate: Schema.String.pipe(
+    Schema.filter((s) => {
+      if (s === '') return true;
+      const d = new Date(s);
+      if (Number.isNaN(d.getTime())) return m.validation_required();
+      const minDate = new Date();
+      minDate.setFullYear(minDate.getFullYear() - Auth.MIN_AGE);
+      if (d > minDate) return m.validation_minAge({ minAge: Auth.MIN_AGE });
+      return true;
+    }),
+  ),
   gender: Schema.Union(
     Schema.Literal('male', 'female', 'other'),
     Schema.Literal(NONE_VALUE),
@@ -140,6 +151,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
                     placeholder={m.profile_complete_birthDatePlaceholder()}
                     fromYear={1900}
                     toYear={maxBirthYear}
+                    defaultMonth={defaultBirthMonth}
                   />
                 </FormControl>
                 <FormMessage />
