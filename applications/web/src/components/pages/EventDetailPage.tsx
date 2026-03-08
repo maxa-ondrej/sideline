@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, EventRsvpApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -157,7 +157,7 @@ export function EventDetailPage({
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(values.discordChannelId)
+                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
                 : Option.none(),
             ),
           },
@@ -198,7 +198,7 @@ export function EventDetailPage({
             endDate: Option.none(),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(values.discordChannelId)
+                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
                 : Option.none(),
             ),
           },

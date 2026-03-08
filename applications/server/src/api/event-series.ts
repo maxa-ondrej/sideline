@@ -117,21 +117,18 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     .pipe(
                       Effect.tap((event) =>
                         resolveChannel(teamId, event.id).pipe(
-                          Effect.catchAll(() => Effect.succeed(Option.none())),
                           Effect.flatMap((resolved) =>
-                            syncEvents
-                              .emitEventCreated(
-                                teamId,
-                                event.id,
-                                event.title,
-                                event.description,
-                                event.start_at,
-                                event.end_at,
-                                event.location,
-                                event.event_type,
-                                resolved,
-                              )
-                              .pipe(Effect.catchAll(() => Effect.void)),
+                            syncEvents.emitEventCreated(
+                              teamId,
+                              event.id,
+                              event.title,
+                              event.description,
+                              event.start_at,
+                              event.end_at,
+                              event.location,
+                              event.event_type,
+                              resolved,
+                            ),
                           ),
                         ),
                       ),

@@ -111,7 +111,7 @@ export const eventHandlers = Effect.Do.pipe(
             discord_id: user.id,
             username: user.username,
             avatar: user.avatar,
-            roles: member.roles,
+            roles: Arr.map(member.roles, (r) => decodeSnowflake(r)),
           });
         }),
         Effect.catchAll((error) =>

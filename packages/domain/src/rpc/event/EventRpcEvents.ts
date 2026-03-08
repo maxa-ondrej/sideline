@@ -12,7 +12,7 @@ export class EventCreatedEvent extends Schema.TaggedClass<EventCreatedEvent>()('
   end_at: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
-  discord_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class EventUpdatedEvent extends Schema.TaggedClass<EventUpdatedEvent>()('event_updated', {
@@ -26,7 +26,7 @@ export class EventUpdatedEvent extends Schema.TaggedClass<EventUpdatedEvent>()('
   end_at: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
-  discord_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class EventCancelledEvent extends Schema.TaggedClass<EventCancelledEvent>()(
@@ -46,7 +46,7 @@ export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('
   event_id: Event.EventId,
   title: Schema.String,
   start_at: Schema.String,
-  discord_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export const UnprocessedEventSyncEvent = Schema.Union(

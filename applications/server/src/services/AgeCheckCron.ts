@@ -6,29 +6,22 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('thresholds', () => AgeThresholdRepository),
   Effect.bind('ageCheck', () => AgeCheckService),
   Effect.tap(() => Effect.logInfo('AgeCheckCron: starting evaluation cycle')),
-  Effect.bind('teamIds', ({ thresholds }) =>
-    thresholds.getAllTeamsWithRules().pipe(
-      Effect.tapError((e) => Effect.logWarning('AgeCheckCron: failed to load teams', e)),
-      Effect.catchAll(() => Effect.succeed([] as ReadonlyArray<string>)),
-    ),
-  ),
+  Effect.bind('teamIds', ({ thresholds }) => thresholds.getAllTeamsWithRules()),
   Effect.tap(({ teamIds, ageCheck }) => {
     const today = new Date();
     return Effect.all(
       teamIds.map((teamId) =>
-        ageCheck.evaluate(teamId as Parameters<typeof ageCheck.evaluate>[0], today).pipe(
-          Effect.tap((changes) =>
-            changes.length > 0
-              ? Effect.logInfo(
-                  `AgeCheckCron: team ${teamId} — ${String(changes.length)} role changes applied`,
-                )
-              : Effect.void,
+        ageCheck
+          .evaluate(teamId as Parameters<typeof ageCheck.evaluate>[0], today)
+          .pipe(
+            Effect.tap((changes) =>
+              changes.length > 0
+                ? Effect.logInfo(
+                    `AgeCheckCron: team ${teamId} — ${String(changes.length)} role changes applied`,
+                  )
+                : Effect.void,
+            ),
           ),
-          Effect.tapError((e) =>
-            Effect.logWarning(`AgeCheckCron: failed evaluation for team ${teamId}`, e),
-          ),
-          Effect.catchAll(() => Effect.succeed([] as ReadonlyArray<unknown>)),
-        ),
       ),
     );
   }),

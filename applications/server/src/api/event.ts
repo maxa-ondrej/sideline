@@ -94,25 +94,19 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 discordTargetChannelId: payload.discordChannelId,
               }),
             ),
-            Effect.bind('resolvedChannel', ({ event }) =>
-              resolveChannel(teamId, event.id).pipe(
-                Effect.catchAll(() => Effect.succeed(Option.none())),
-              ),
-            ),
+            Effect.bind('resolvedChannel', ({ event }) => resolveChannel(teamId, event.id)),
             Effect.tap(({ event, resolvedChannel }) =>
-              syncEvents
-                .emitEventCreated(
-                  teamId,
-                  event.id,
-                  event.title,
-                  event.description,
-                  event.start_at,
-                  event.end_at,
-                  event.location,
-                  event.event_type,
-                  resolvedChannel,
-                )
-                .pipe(Effect.catchAll(() => Effect.void)),
+              syncEvents.emitEventCreated(
+                teamId,
+                event.id,
+                event.title,
+                event.description,
+                event.start_at,
+                event.end_at,
+                event.location,
+                event.event_type,
+                resolvedChannel,
+              ),
             ),
             Effect.map(
               ({ event }) =>
@@ -252,24 +246,20 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               ),
             ),
             Effect.bind('resolvedChannelForUpdate', ({ detail }) =>
-              resolveChannel(teamId, detail.id).pipe(
-                Effect.catchAll(() => Effect.succeed(Option.none())),
-              ),
+              resolveChannel(teamId, detail.id),
             ),
             Effect.tap(({ detail, resolvedChannelForUpdate }) =>
-              syncEvents
-                .emitEventUpdated(
-                  teamId,
-                  detail.id,
-                  detail.title,
-                  detail.description,
-                  detail.start_at,
-                  detail.end_at,
-                  detail.location,
-                  detail.event_type,
-                  resolvedChannelForUpdate,
-                )
-                .pipe(Effect.catchAll(() => Effect.void)),
+              syncEvents.emitEventUpdated(
+                teamId,
+                detail.id,
+                detail.title,
+                detail.description,
+                detail.start_at,
+                detail.end_at,
+                detail.location,
+                detail.event_type,
+                resolvedChannelForUpdate,
+              ),
             ),
             Effect.map(({ detail, membership }) => {
               const canEdit = hasPermission(membership, 'event:edit');
@@ -328,18 +318,16 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
             Effect.tap(() => events.cancelEvent(eventId)),
             Effect.tap(({ existing }) =>
-              syncEvents
-                .emitEventCancelled(
-                  teamId,
-                  existing.id,
-                  existing.title,
-                  existing.description,
-                  existing.start_at,
-                  existing.end_at,
-                  existing.location,
-                  existing.event_type,
-                )
-                .pipe(Effect.catchAll(() => Effect.void)),
+              syncEvents.emitEventCancelled(
+                teamId,
+                existing.id,
+                existing.title,
+                existing.description,
+                existing.start_at,
+                existing.end_at,
+                existing.location,
+                existing.event_type,
+              ),
             ),
             Effect.asVoid,
           ),

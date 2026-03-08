@@ -1,8 +1,9 @@
 import { Schema } from 'effect';
+import { Snowflake } from '~/models/Discord.js';
 
 export class EventDiscordMessage extends Schema.Class<EventDiscordMessage>('EventDiscordMessage')({
-  discord_channel_id: Schema.String,
-  discord_message_id: Schema.String,
+  discord_channel_id: Snowflake,
+  discord_message_id: Snowflake,
 }) {}
 
 export class RsvpCountsResult extends Schema.Class<RsvpCountsResult>('RsvpCountsResult')({
@@ -31,7 +32,7 @@ export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelE
   location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   status: Schema.String,
-  discord_message_id: Schema.String,
+  discord_message_id: Snowflake,
 }) {}
 
 export class RsvpMemberNotFound extends Schema.TaggedError<RsvpMemberNotFound>()(
@@ -70,7 +71,7 @@ export class CreateEventResult extends Schema.Class<CreateEventResult>('CreateEv
 }) {}
 
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
-  discord_id: Schema.OptionFromNullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
   response: Schema.Literal('yes', 'no', 'maybe'),
   message: Schema.OptionFromNullOr(Schema.String),
@@ -84,7 +85,7 @@ export class RsvpAttendeesResult extends Schema.Class<RsvpAttendeesResult>('Rsvp
 export class NonResponderRpcEntry extends Schema.Class<NonResponderRpcEntry>(
   'NonResponderRpcEntry',
 )({
-  discord_id: Schema.OptionFromNullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
 }) {}

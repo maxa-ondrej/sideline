@@ -32,8 +32,8 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('SaveDiscordMessageId', {
     payload: {
       event_id: Event.EventId,
-      discord_channel_id: Schema.String,
-      discord_message_id: Schema.String,
+      discord_channel_id: Discord.Snowflake,
+      discord_message_id: Discord.Snowflake,
     },
   }),
   Rpc.make('GetDiscordMessageId', {
@@ -60,7 +60,7 @@ export const EventRpcGroup = RpcGroup.make(
     success: Schema.OptionFromNullOr(EventEmbedInfo),
   }),
   Rpc.make('GetChannelEvents', {
-    payload: { discord_channel_id: Schema.String },
+    payload: { discord_channel_id: Discord.Snowflake },
     success: Schema.Array(ChannelEventEntry),
   }),
   Rpc.make('GetRsvpAttendees', {

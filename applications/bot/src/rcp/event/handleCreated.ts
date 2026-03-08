@@ -1,4 +1,4 @@
-import type { EventRpcEvents } from '@sideline/domain';
+import { Discord, type EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Option, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
@@ -8,6 +8,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 import { reorderChannelMessages } from './reorderChannelMessages.js';
 
 const decodeGuild = Schema.decodeUnknownSync(DfxGuild);
+const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
 
 export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
   Effect.Do.pipe(
@@ -47,7 +48,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
             rpc['Event/SaveDiscordMessageId']({
               event_id: event.event_id,
               discord_channel_id: channelId,
-              discord_message_id: msg.id,
+              discord_message_id: decodeSnowflake(msg.id),
             }),
           ),
           Effect.tap((msg) =>

@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
+import { Snowflake } from '~/models/Discord.js';
 import { TeamId } from '~/models/Team.js';
 
 export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettingsInfo')({
@@ -9,12 +10,12 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   eventHorizonDays: Schema.Int,
   minPlayersThreshold: Schema.Int,
   rsvpReminderHours: Schema.Int,
-  discordChannelTraining: Schema.OptionFromNullOr(Schema.String),
-  discordChannelMatch: Schema.OptionFromNullOr(Schema.String),
-  discordChannelTournament: Schema.OptionFromNullOr(Schema.String),
-  discordChannelMeeting: Schema.OptionFromNullOr(Schema.String),
-  discordChannelSocial: Schema.OptionFromNullOr(Schema.String),
-  discordChannelOther: Schema.OptionFromNullOr(Schema.String),
+  discordChannelTraining: Schema.OptionFromNullOr(Snowflake),
+  discordChannelMatch: Schema.OptionFromNullOr(Snowflake),
+  discordChannelTournament: Schema.OptionFromNullOr(Snowflake),
+  discordChannelMeeting: Schema.OptionFromNullOr(Snowflake),
+  discordChannelSocial: Schema.OptionFromNullOr(Snowflake),
+  discordChannelOther: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
@@ -27,22 +28,22 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
   rsvpReminderHours: Schema.optionalWith(Schema.Int.pipe(Schema.between(0, 168)), {
     as: 'Option',
   }),
-  discordChannelTraining: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
+  discordChannelTraining: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
-  discordChannelMatch: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
+  discordChannelMatch: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
-  discordChannelTournament: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
+  discordChannelTournament: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
-  discordChannelMeeting: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
+  discordChannelMeeting: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
-  discordChannelSocial: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
+  discordChannelSocial: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
-  discordChannelOther: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), {
+  discordChannelOther: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
 }) {}

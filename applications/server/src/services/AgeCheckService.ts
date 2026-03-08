@@ -212,24 +212,20 @@ const evaluateTeam =
         Effect.allSuccesses(
           changes.map((change) =>
             change.action === 'added'
-              ? channelSync
-                  .emitMemberAdded(
-                    teamId,
-                    change.groupId,
-                    change.groupName,
-                    change.memberId,
-                    change.discordId,
-                  )
-                  .pipe(Effect.catchAll((e) => Effect.logError('channel sync event failed', e)))
-              : channelSync
-                  .emitMemberRemoved(
-                    teamId,
-                    change.groupId,
-                    change.groupName,
-                    change.memberId,
-                    change.discordId,
-                  )
-                  .pipe(Effect.catchAll((e) => Effect.logError('channel sync event failed', e))),
+              ? channelSync.emitMemberAdded(
+                  teamId,
+                  change.groupId,
+                  change.groupName,
+                  change.memberId,
+                  change.discordId,
+                )
+              : channelSync.emitMemberRemoved(
+                  teamId,
+                  change.groupId,
+                  change.groupName,
+                  change.memberId,
+                  change.discordId,
+                ),
           ),
         ).pipe(Effect.asVoid),
       ),

@@ -8,12 +8,7 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('eventsRepo', () => EventsRepository),
   Effect.bind('syncRepo', () => EventSyncEventsRepository),
   Effect.tap(() => Effect.logInfo('RsvpReminderCron: starting reminder cycle')),
-  Effect.bind('events', ({ settingsRepo }) =>
-    settingsRepo.findEventsNeedingReminder().pipe(
-      Effect.tapError((e) => Effect.logWarning('RsvpReminderCron: failed to find events', e)),
-      Effect.catchAll(() => Effect.succeed([] as const)),
-    ),
-  ),
+  Effect.bind('events', ({ settingsRepo }) => settingsRepo.findEventsNeedingReminder()),
   Effect.tap(({ events, syncRepo, eventsRepo }) =>
     Effect.all(
       events.map((event) =>
@@ -36,10 +31,6 @@ const cronEffect = Effect.Do.pipe(
                 `RsvpReminderCron: queued reminder for event "${event.title}" (${event.event_id})`,
               ),
             ),
-            Effect.tapError((e) =>
-              Effect.logWarning(`RsvpReminderCron: failed for event ${event.event_id}`, e),
-            ),
-            Effect.catchAll(() => Effect.void),
           ),
       ),
       { concurrency: 1 },

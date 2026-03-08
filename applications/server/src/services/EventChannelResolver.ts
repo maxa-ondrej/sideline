@@ -1,4 +1,4 @@
-import type { Event, Team } from '@sideline/domain';
+import type { Discord, Event, Team } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -25,7 +25,7 @@ export const resolveChannel = (
   teamId: Team.TeamId,
   eventId: Event.EventId,
 ): Effect.Effect<
-  Option.Option<string>,
+  Option.Option<Discord.Snowflake>,
   never,
   EventsRepository | TrainingTypesRepository | TeamSettingsRepository
 > =>
@@ -48,7 +48,7 @@ export const resolveChannel = (
         ? trainingTypes
             .findTrainingTypeById(ev.training_type_id.value)
             .pipe(Effect.map((opt) => Option.flatMap(opt, (tt) => tt.discord_channel_id)))
-        : Effect.succeed(Option.none<string>());
+        : Effect.succeed(Option.none<Discord.Snowflake>());
 
       return trainingTypeCheck.pipe(
         Effect.flatMap((channelFromTT) => {

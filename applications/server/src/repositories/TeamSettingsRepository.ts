@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Event, Team } from '@sideline/domain';
+import { Discord, Event, Team } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 
 class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
@@ -7,12 +7,12 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   event_horizon_days: Schema.Number,
   min_players_threshold: Schema.Number,
   rsvp_reminder_hours: Schema.Number,
-  discord_channel_training: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_match: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_tournament: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_meeting: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_social: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_other: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_training: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_match: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_tournament: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_meeting: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_social: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_other: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
@@ -22,12 +22,12 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   event_horizon_days: Schema.Number,
   min_players_threshold: Schema.Number,
   rsvp_reminder_hours: Schema.Number,
-  discord_channel_training: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_match: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_tournament: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_meeting: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_social: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_other: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_training: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_match: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_tournament: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_meeting: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_social: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_other: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeedingReminder')({
@@ -36,7 +36,7 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
   title: Schema.String,
   start_at: Schema.String,
   event_type: Schema.String,
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepository>()(
@@ -121,29 +121,40 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
   findByTeamId = (teamId: Team.TeamId) =>
     this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  upsert = (input: {
+  upsert = ({
+    teamId,
+    eventHorizonDays,
+    minPlayersThreshold,
+    rsvpReminderHours,
+    discordChannelTraining = Option.none(),
+    discordChannelMatch = Option.none(),
+    discordChannelTournament = Option.none(),
+    discordChannelMeeting = Option.none(),
+    discordChannelSocial = Option.none(),
+    discordChannelOther = Option.none(),
+  }: {
     teamId: Team.TeamId;
     eventHorizonDays: number;
     minPlayersThreshold: number;
     rsvpReminderHours: number;
-    discordChannelTraining?: Option.Option<string>;
-    discordChannelMatch?: Option.Option<string>;
-    discordChannelTournament?: Option.Option<string>;
-    discordChannelMeeting?: Option.Option<string>;
-    discordChannelSocial?: Option.Option<string>;
-    discordChannelOther?: Option.Option<string>;
+    discordChannelTraining?: Option.Option<Discord.Snowflake>;
+    discordChannelMatch?: Option.Option<Discord.Snowflake>;
+    discordChannelTournament?: Option.Option<Discord.Snowflake>;
+    discordChannelMeeting?: Option.Option<Discord.Snowflake>;
+    discordChannelSocial?: Option.Option<Discord.Snowflake>;
+    discordChannelOther?: Option.Option<Discord.Snowflake>;
   }) =>
     this._upsertSettings({
-      team_id: input.teamId,
-      event_horizon_days: input.eventHorizonDays,
-      min_players_threshold: input.minPlayersThreshold,
-      rsvp_reminder_hours: input.rsvpReminderHours,
-      discord_channel_training: input.discordChannelTraining ?? Option.none(),
-      discord_channel_match: input.discordChannelMatch ?? Option.none(),
-      discord_channel_tournament: input.discordChannelTournament ?? Option.none(),
-      discord_channel_meeting: input.discordChannelMeeting ?? Option.none(),
-      discord_channel_social: input.discordChannelSocial ?? Option.none(),
-      discord_channel_other: input.discordChannelOther ?? Option.none(),
+      team_id: teamId,
+      event_horizon_days: eventHorizonDays,
+      min_players_threshold: minPlayersThreshold,
+      rsvp_reminder_hours: rsvpReminderHours,
+      discord_channel_training: discordChannelTraining,
+      discord_channel_match: discordChannelMatch,
+      discord_channel_tournament: discordChannelTournament,
+      discord_channel_meeting: discordChannelMeeting,
+      discord_channel_social: discordChannelSocial,
+      discord_channel_other: discordChannelOther,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   getHorizonDays = (teamId: Team.TeamId) =>

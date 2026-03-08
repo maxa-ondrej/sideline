@@ -65,9 +65,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 groups.insertGroup(teamId, payload.name, payload.parentId, payload.emoji),
               ),
               Effect.tap(({ group }) =>
-                channelSync
-                  .emitChannelCreated(teamId, group.id, group.name)
-                  .pipe(Effect.catchAll(() => Effect.void)),
+                channelSync.emitChannelCreated(teamId, group.id, group.name),
               ),
               Effect.map(
                 ({ group }) =>
@@ -206,9 +204,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.tap(() => groups.archiveGroupById(groupId)),
               Effect.tap(({ existing }) =>
-                channelSync
-                  .emitChannelDeleted(teamId, groupId, existing.name)
-                  .pipe(Effect.catchAll((e) => Effect.logError('Failed to notify guilds', e))),
+                channelSync.emitChannelDeleted(teamId, groupId, existing.name),
               ),
               Effect.asVoid,
             ),
@@ -261,7 +257,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                         ),
                     }),
                   ),
-                  Effect.catchAll(() => Effect.void),
                 ),
               ),
               Effect.asVoid,
@@ -315,7 +310,6 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                         ),
                     }),
                   ),
-                  Effect.catchAll(() => Effect.void),
                 ),
               ),
               Effect.asVoid,
@@ -454,9 +448,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
-                discordChannels
-                  .findByGuildId(team.guild_id)
-                  .pipe(Effect.catchAll(() => Effect.succeed([]))),
+                discordChannels.findByGuildId(team.guild_id),
               ),
               Effect.map(({ mapping, allChannels }) =>
                 Option.match(mapping, {
@@ -502,9 +494,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 channelMappings.insertWithoutRole(teamId, groupId, payload.discordChannelId),
               ),
               Effect.tap(({ _group }) =>
-                channelSync
-                  .emitChannelCreated(teamId, groupId, _group.name)
-                  .pipe(Effect.catchAll(() => Effect.void)),
+                channelSync.emitChannelCreated(teamId, groupId, _group.name),
               ),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
@@ -513,9 +503,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
-                discordChannels
-                  .findByGuildId(team.guild_id)
-                  .pipe(Effect.catchAll(() => Effect.succeed([]))),
+                discordChannels.findByGuildId(team.guild_id),
               ),
               Effect.map(
                 ({ allChannels }) =>
@@ -579,11 +567,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.tap(({ group }) =>
-                channelSync
-                  .emitChannelCreated(teamId, groupId, group.name)
-                  .pipe(
-                    Effect.catchAll((e) => Effect.logError('Failed to emit channel_created', e)),
-                  ),
+                channelSync.emitChannelCreated(teamId, groupId, group.name),
               ),
               Effect.asVoid,
             ),
@@ -603,11 +587,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
                 ),
               ),
-              Effect.bind('channels', ({ team }) =>
-                discordChannels
-                  .findByGuildId(team.guild_id)
-                  .pipe(Effect.catchAll(() => Effect.succeed([]))),
-              ),
+              Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
               Effect.map(({ channels }) =>
                 channels.map(
                   (ch) =>

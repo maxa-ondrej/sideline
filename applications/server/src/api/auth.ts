@@ -402,7 +402,6 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 { concurrency: 'unbounded' },
               ),
             ),
-            Effect.catchTag('NoSuchElementException', () => Effect.fail(new Auth.Unauthorized())),
             Effect.catchTag('RequestError', 'ResponseError', () =>
               Effect.fail(new Auth.Unauthorized()),
             ),

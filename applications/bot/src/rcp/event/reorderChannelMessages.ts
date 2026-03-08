@@ -1,19 +1,19 @@
-import { Event, type EventRpcModels } from '@sideline/domain';
+import { type Discord, Event, type EventRpcModels } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect } from 'effect';
+import { Array as Arr, Effect, Option } from 'effect';
 import type { Locale } from '~/locale.js';
 import { buildCancelledEmbed, buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-const sortSnowflakes = (ids: ReadonlyArray<string>): Array<string> =>
+const sortSnowflakes = (ids: ReadonlyArray<Discord.Snowflake>): Array<Discord.Snowflake> =>
   [...ids].sort((a, b) => {
     if (a.length !== b.length) return a.length - b.length;
     return a < b ? -1 : a > b ? 1 : 0;
   });
 
 const editMessage = (
-  channelId: string,
-  targetMessageId: string,
+  channelId: Discord.Snowflake,
+  targetMessageId: Discord.Snowflake,
   entry: EventRpcModels.ChannelEventEntry,
   locale: Locale,
 ) =>
@@ -57,32 +57,31 @@ const editMessage = (
     Effect.asVoid,
   );
 
-export const reorderChannelMessages = (channelId: string, locale: Locale) =>
+export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Locale) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('entries', ({ rpc }) =>
       rpc['Event/GetChannelEvents']({ discord_channel_id: channelId }),
     ),
     Effect.flatMap(({ entries }) => {
-      if (entries.length === 0) return Effect.void;
+      if (Arr.isEmptyReadonlyArray(entries)) return Effect.void;
 
-      const messageIds = entries.map((e) => e.discord_message_id);
+      const messageIds = Arr.map(entries, (e) => e.discord_message_id);
       const sortedMessageIds = sortSnowflakes(messageIds);
 
-      const edits: Array<Effect.Effect<void, unknown, SyncRpc | DiscordREST>> = [];
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        const targetMessageId = sortedMessageIds[i];
-        if (entry.discord_message_id !== targetMessageId) {
-          edits.push(editMessage(channelId, targetMessageId, entry, locale));
-        }
-      }
+      const edits = Arr.filterMap(
+        Arr.zip(Arr.fromIterable(entries), sortedMessageIds),
+        ([entry, targetMessageId]) =>
+          entry.discord_message_id !== targetMessageId
+            ? Option.some(editMessage(channelId, targetMessageId, entry, locale))
+            : Option.none(),
+      );
 
-      if (edits.length === 0) return Effect.void;
+      if (Arr.isEmptyReadonlyArray(edits)) return Effect.void;
 
       return Effect.all(edits, { concurrency: 1 }).pipe(
         Effect.tap(() =>
-          Effect.log(`Reordered ${edits.length} message(s) in channel ${channelId}`),
+          Effect.log(`Reordered ${Arr.length(edits)} message(s) in channel ${channelId}`),
         ),
         Effect.asVoid,
       );

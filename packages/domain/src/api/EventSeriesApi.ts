@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
+import { Snowflake } from '~/models/Discord.js';
 import {
   DaysOfWeek,
   EventSeriesId,
@@ -25,7 +26,7 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   startTime: Schema.String,
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
-  discordChannelId: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSeriesDetail')({
@@ -43,7 +44,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   startTime: Schema.String,
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
-  discordChannelId: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
   canEdit: Schema.Boolean,
   canCancel: Schema.Boolean,
 }) {}
@@ -61,7 +62,7 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   startTime: Schema.String,
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
-  discordChannelId: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
@@ -75,7 +76,7 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   endDate: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
 export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(

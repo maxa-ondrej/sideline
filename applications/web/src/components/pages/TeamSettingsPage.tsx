@@ -1,4 +1,5 @@
 import type { GroupApi, TeamSettingsApi } from '@sideline/domain';
+import { Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
@@ -69,22 +70,34 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
             minPlayersThreshold: Option.some(parsedThreshold),
             rsvpReminderHours: Option.some(parsedReminderHours),
             discordChannelTraining: Option.some(
-              channelTraining !== '__none__' ? Option.some(channelTraining) : Option.none(),
+              channelTraining !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelTraining))
+                : Option.none(),
             ),
             discordChannelMatch: Option.some(
-              channelMatch !== '__none__' ? Option.some(channelMatch) : Option.none(),
+              channelMatch !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelMatch))
+                : Option.none(),
             ),
             discordChannelTournament: Option.some(
-              channelTournament !== '__none__' ? Option.some(channelTournament) : Option.none(),
+              channelTournament !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelTournament))
+                : Option.none(),
             ),
             discordChannelMeeting: Option.some(
-              channelMeeting !== '__none__' ? Option.some(channelMeeting) : Option.none(),
+              channelMeeting !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelMeeting))
+                : Option.none(),
             ),
             discordChannelSocial: Option.some(
-              channelSocial !== '__none__' ? Option.some(channelSocial) : Option.none(),
+              channelSocial !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelSocial))
+                : Option.none(),
             ),
             discordChannelOther: Option.some(
-              channelOther !== '__none__' ? Option.some(channelOther) : Option.none(),
+              channelOther !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelOther))
+                : Option.none(),
             ),
           },
         }),

@@ -14,7 +14,7 @@ export const DfxTextChannel = Schema.Struct({
 
 /** Subset of dfx UserResponse. */
 export const DfxUser = Schema.Struct({
-  id: Schema.String,
+  id: Discord.Snowflake,
   username: Schema.String,
   avatar: Nullish(Schema.String),
   bot: Schema.optionalWith(Schema.Boolean, { default: () => false }),
@@ -23,12 +23,12 @@ export const DfxUser = Schema.Struct({
 /** Subset of dfx GuildMemberResponse for member sync. */
 export const DfxGuildMember = Schema.Struct({
   user: DfxUser,
-  roles: Schema.Array(Schema.String),
+  roles: Schema.Array(Discord.Snowflake),
 });
 
 /** Subset of dfx GuildWithCountsResponse from getGuild. */
 export const DfxGuild = Schema.Struct({
-  system_channel_id: Nullish(Schema.String),
+  system_channel_id: Nullish(Discord.Snowflake),
   preferred_locale: Schema.String,
 });
 
@@ -36,5 +36,8 @@ export const DfxGuild = Schema.Struct({
 export const interactionUserId = (interaction: {
   member?: { user?: { id: string } } | null;
   user?: { id: string } | null;
-}): Option.Option<string> =>
-  Option.fromNullable(interaction.member?.user?.id ?? interaction.user?.id);
+}): Option.Option<Discord.Snowflake> =>
+  Option.map(
+    Option.fromNullable(interaction.member?.user?.id ?? interaction.user?.id),
+    Discord.Snowflake.make,
+  );

@@ -21,7 +21,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   event_end_at: Schema.OptionFromNullOr(Schema.String),
   event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
@@ -40,7 +40,7 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   event_end_at: Schema.OptionFromNullOr(Schema.String),
   event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
@@ -108,7 +108,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     endAt: Option.Option<string>,
     location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: Option.Option<string>,
+    discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this.lookupGuildId(teamId).pipe(
       Effect.flatMap(
@@ -126,7 +126,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
               event_end_at: endAt,
               event_location: location,
               event_event_type: eventEventType,
-              discord_target_channel_id: discordTargetChannelId ?? Option.none(),
+              discord_target_channel_id: discordTargetChannelId,
             }),
         }),
       ),
@@ -142,7 +142,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     endAt: Option.Option<string>,
     location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: Option.Option<string>,
+    discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this._emitIfGuildLinked(
       teamId,
@@ -166,7 +166,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     endAt: Option.Option<string>,
     location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: Option.Option<string>,
+    discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this._emitIfGuildLinked(
       teamId,
@@ -190,7 +190,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     endAt: Option.Option<string>,
     location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: Option.Option<string>,
+    discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this._emitIfGuildLinked(
       teamId,
@@ -214,7 +214,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     endAt: Option.Option<string>,
     location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: Option.Option<string>,
+    discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     this._emitIfGuildLinked(
       teamId,

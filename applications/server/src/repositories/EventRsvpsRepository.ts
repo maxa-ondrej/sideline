@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Event, EventRsvp, TeamMember } from '@sideline/domain';
+import { Discord, Event, EventRsvp, TeamMember } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 
 class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMemberName')({
@@ -28,7 +28,7 @@ class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
 }) {}
 
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
-  discord_id: Schema.OptionFromNullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
   member_name: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
   response: EventRsvp.RsvpResponse,
@@ -39,7 +39,7 @@ class NonResponderRow extends Schema.Class<NonResponderRow>('NonResponderRow')({
   team_member_id: TeamMember.TeamMemberId,
   member_name: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
-  discord_id: Schema.OptionFromNullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class TotalCount extends Schema.Class<TotalCount>('TotalCount')({

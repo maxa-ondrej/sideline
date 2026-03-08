@@ -186,23 +186,19 @@ const createEvent = (
         createdBy: userLookup.team_member_id,
       }),
     ),
-    Effect.bind('resolvedChannel', ({ teamId, event }) =>
-      resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(Option.none()))),
-    ),
+    Effect.bind('resolvedChannel', ({ teamId, event }) => resolveChannel(teamId, event.id)),
     Effect.tap(({ teamId, event, resolvedChannel }) =>
-      syncEvents
-        .emitEventCreated(
-          teamId,
-          event.id,
-          event.title,
-          event.description,
-          event.start_at,
-          event.end_at,
-          event.location,
-          event.event_type,
-          resolvedChannel,
-        )
-        .pipe(Effect.catchAll(() => Effect.void)),
+      syncEvents.emitEventCreated(
+        teamId,
+        event.id,
+        event.title,
+        event.description,
+        event.start_at,
+        event.end_at,
+        event.location,
+        event.event_type,
+        resolvedChannel,
+      ),
     ),
     Effect.map(
       ({ event }) =>
@@ -247,24 +243,19 @@ export const EventsRpcLive = Effect.Do.pipe(
             Effect.logInfo(`Successfully mapped ${events.length} event sync events from database.`),
           ),
           Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
-          Effect.catchAll((error) =>
-            Effect.logError('GetUnprocessedEventSyncEvents failed', error).pipe(
-              Effect.map(() => []),
-            ),
-          ),
         ),
   ),
   Effect.let(
     'Event/MarkEventProcessed',
     ({ deps: { syncEvents } }) =>
       ({ id }: { readonly id: string }) =>
-        syncEvents.markProcessed(id).pipe(Effect.catchAll(() => Effect.void)),
+        syncEvents.markProcessed(id),
   ),
   Effect.let(
     'Event/MarkEventFailed',
     ({ deps: { syncEvents } }) =>
       ({ id, error }: { readonly id: string; readonly error: string }) =>
-        syncEvents.markFailed(id, error).pipe(Effect.catchAll(() => Effect.void)),
+        syncEvents.markFailed(id, error),
   ),
   Effect.let(
     'Event/SaveDiscordMessageId',
@@ -275,12 +266,10 @@ export const EventsRpcLive = Effect.Do.pipe(
         discord_message_id,
       }: {
         readonly event_id: Event.EventId;
-        readonly discord_channel_id: string;
-        readonly discord_message_id: string;
+        readonly discord_channel_id: Discord.Snowflake;
+        readonly discord_message_id: Discord.Snowflake;
       }) =>
-        events
-          .saveDiscordMessageId(event_id, discord_channel_id, discord_message_id)
-          .pipe(Effect.catchAll(() => Effect.void)),
+        events.saveDiscordMessageId(event_id, discord_channel_id, discord_message_id),
   ),
   Effect.let(
     'Event/GetDiscordMessageId',
@@ -295,7 +284,6 @@ export const EventsRpcLive = Effect.Do.pipe(
               }).pipe(Option.map((ids) => new EventRpcModels.EventDiscordMessage(ids))),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed(Option.none())),
         ),
   ),
   Effect.let(
@@ -364,18 +352,7 @@ export const EventsRpcLive = Effect.Do.pipe(
     'Event/GetRsvpCounts',
     ({ rsvps, events }) =>
       ({ event_id }: { readonly event_id: Event.EventId }) =>
-        getRsvpCounts(rsvps, event_id, events).pipe(
-          Effect.catchAll(() =>
-            Effect.succeed(
-              new EventRpcModels.RsvpCountsResult({
-                yesCount: 0,
-                noCount: 0,
-                maybeCount: 0,
-                canRsvp: false,
-              }),
-            ),
-          ),
-        ),
+        getRsvpCounts(rsvps, event_id, events),
   ),
   Effect.let(
     'Event/GetEventEmbedInfo',
@@ -395,13 +372,12 @@ export const EventsRpcLive = Effect.Do.pipe(
                 }),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed(Option.none())),
         ),
   ),
   Effect.let(
     'Event/GetChannelEvents',
     ({ events }) =>
-      ({ discord_channel_id }: { readonly discord_channel_id: string }) =>
+      ({ discord_channel_id }: { readonly discord_channel_id: Discord.Snowflake }) =>
         events.findEventsByChannelId(discord_channel_id).pipe(
           Effect.map((rows) =>
             rows.map(
@@ -420,7 +396,6 @@ export const EventsRpcLive = Effect.Do.pipe(
                 }),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed([] as EventRpcModels.ChannelEventEntry[])),
         ),
   ),
   Effect.let(
@@ -452,9 +427,6 @@ export const EventsRpcLive = Effect.Do.pipe(
                 ),
                 total,
               }),
-          ),
-          Effect.catchAll(() =>
-            Effect.succeed(new EventRpcModels.RsvpAttendeesResult({ attendees: [], total: 0 })),
           ),
         ),
   ),
@@ -493,16 +465,6 @@ export const EventsRpcLive = Effect.Do.pipe(
               ),
             });
           }),
-          Effect.catchAll(() =>
-            Effect.succeed(
-              new EventRpcModels.RsvpReminderSummary({
-                yesCount: 0,
-                noCount: 0,
-                maybeCount: 0,
-                nonResponders: [],
-              }),
-            ),
-          ),
         ),
   ),
   Effect.let(

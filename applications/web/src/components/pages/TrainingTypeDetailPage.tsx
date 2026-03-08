@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, EventSeries, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -127,7 +127,9 @@ export function TrainingTypeDetailPage({
           payload: {
             name,
             discordChannelId: Option.some(
-              channelId !== NONE_VALUE ? Option.some(channelId) : Option.none(),
+              channelId !== NONE_VALUE
+                ? Option.some(Discord.Snowflake.make(channelId))
+                : Option.none(),
             ),
           },
         }),

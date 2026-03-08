@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
+import { Discord, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 
 class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
@@ -16,7 +16,7 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   start_date: Schema.String,
   end_date: Schema.OptionFromNullOr(Schema.String),
   status: EventSeries.EventSeriesStatus,
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('EventSeriesWithDetails')(
@@ -36,7 +36,7 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     status: EventSeries.EventSeriesStatus,
     training_type_name: Schema.OptionFromNullOr(Schema.String),
     last_generated_date: Schema.OptionFromNullOr(Schema.String),
-    discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 
@@ -56,7 +56,7 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   start_date: Schema.String,
   end_date: Schema.OptionFromNullOr(Schema.String),
   last_generated_date: Schema.OptionFromNullOr(Schema.String),
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   created_by: TeamMember.TeamMemberId,
   event_horizon_days: Schema.Number,
 }) {}
@@ -75,7 +75,7 @@ class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('Event
     start_date: Schema.String,
     end_date: Schema.OptionFromNullOr(Schema.String),
     created_by: Schema.String,
-    discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 
@@ -90,7 +90,7 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
     end_time: Schema.OptionFromNullOr(Schema.String),
     location: Schema.OptionFromNullOr(Schema.String),
     end_date: Schema.OptionFromNullOr(Schema.String),
-    discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 
@@ -207,7 +207,21 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       this.sql`UPDATE event_series SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
   });
 
-  insertEventSeries = (input: {
+  insertEventSeries = ({
+    teamId,
+    trainingTypeId,
+    title,
+    description,
+    startTime,
+    endTime,
+    location,
+    frequency,
+    daysOfWeek,
+    startDate,
+    endDate,
+    createdBy,
+    discordTargetChannelId = Option.none(),
+  }: {
     teamId: Team.TeamId;
     trainingTypeId: Option.Option<string>;
     title: string;
@@ -220,22 +234,22 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     startDate: string;
     endDate: Option.Option<string>;
     createdBy: string;
-    discordTargetChannelId?: Option.Option<string>;
+    discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
     return this.insertSeries({
-      team_id: input.teamId,
-      training_type_id: input.trainingTypeId,
-      title: input.title,
-      description: input.description,
-      start_time: input.startTime,
-      end_time: input.endTime,
-      location: input.location,
-      frequency: input.frequency,
-      days_of_week: Array.from(input.daysOfWeek),
-      start_date: input.startDate,
-      end_date: input.endDate,
-      created_by: input.createdBy,
-      discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
+      team_id: teamId,
+      training_type_id: trainingTypeId,
+      title,
+      description,
+      start_time: startTime,
+      end_time: endTime,
+      location,
+      frequency,
+      days_of_week: Array.from(daysOfWeek),
+      start_date: startDate,
+      end_date: endDate,
+      created_by: createdBy,
+      discord_target_channel_id: discordTargetChannelId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
@@ -247,7 +261,18 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     return this.findById(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
-  updateEventSeries = (input: {
+  updateEventSeries = ({
+    id,
+    title,
+    trainingTypeId,
+    description,
+    daysOfWeek,
+    startTime,
+    endTime,
+    location,
+    endDate,
+    discordTargetChannelId = Option.none(),
+  }: {
     id: EventSeries.EventSeriesId;
     title: string;
     trainingTypeId: Option.Option<string>;
@@ -257,19 +282,19 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     endTime: Option.Option<string>;
     location: Option.Option<string>;
     endDate: Option.Option<string>;
-    discordTargetChannelId?: Option.Option<string>;
+    discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
     return this.updateSeries({
-      id: input.id,
-      title: input.title,
-      training_type_id: input.trainingTypeId,
-      description: input.description,
-      days_of_week: Array.from(input.daysOfWeek),
-      start_time: input.startTime,
-      end_time: input.endTime,
-      location: input.location,
-      end_date: input.endDate,
-      discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
+      id,
+      title,
+      training_type_id: trainingTypeId,
+      description,
+      days_of_week: Array.from(daysOfWeek),
+      start_time: startTime,
+      end_time: endTime,
+      location,
+      end_date: endDate,
+      discord_target_channel_id: discordTargetChannelId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
