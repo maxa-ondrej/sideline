@@ -57,7 +57,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
-        run,
+        run(),
       );
       if (Option.isSome(result)) {
         navigate({ to: '/teams/$teamId/members', params: { teamId: teamIdRaw } });
@@ -76,7 +76,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roles_assignFailed())),
-        run,
+        run(),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -94,7 +94,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roles_unassignFailed())),
-        run,
+        run(),
       );
       if (Option.isSome(result)) {
         router.invalidate();

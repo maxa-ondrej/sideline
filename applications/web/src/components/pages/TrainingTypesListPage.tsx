@@ -53,7 +53,7 @@ export function TrainingTypesListPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_createFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       form.reset();

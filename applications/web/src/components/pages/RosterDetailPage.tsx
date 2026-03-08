@@ -4,7 +4,7 @@ import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import {
   Select,
@@ -48,7 +48,7 @@ export function RosterDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       router.invalidate();
@@ -66,11 +66,10 @@ export function RosterDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
-      run,
+      run({ success: m.roster_memberAdded() }),
     );
     if (Option.isSome(result)) {
       setSelectedMemberId('');
-      toast.success(m.roster_memberAdded());
       router.invalidate();
     }
   }, [selectedMemberId, teamIdBranded, rosterIdBranded, run, router]);
@@ -85,10 +84,9 @@ export function RosterDetailPage({
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
-        run,
+        run({ success: m.roster_memberRemoved() }),
       );
       if (Option.isSome(result)) {
-        toast.success(m.roster_memberRemoved());
         router.invalidate();
       }
     },
@@ -104,10 +102,9 @@ export function RosterDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
-      run,
+      run({ success: m.roster_rosterDeleted() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.roster_rosterDeleted());
       router.navigate({ to: '/teams/$teamId/rosters', params: { teamId } });
     }
   }, [teamId, teamIdBranded, rosterIdBranded, run, router]);

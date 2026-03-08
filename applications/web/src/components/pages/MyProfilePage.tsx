@@ -3,7 +3,7 @@ import { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
+
 import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
@@ -80,10 +80,9 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.profile_updateFailed())),
-      run,
+      run({ success: m.profile_saveSuccess() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.profile_saveSuccess());
       onUpdated();
     }
   };

@@ -22,7 +22,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
       const result = await ApiClient.pipe(
         Effect.flatMap((api) => api.notification.markAsRead({ path: { notificationId } })),
         Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
-        run,
+        run(),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -38,7 +38,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
         api.notification.markAllAsRead({ payload: { teamId: decodedTeamId } }),
       ),
       Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       router.invalidate();

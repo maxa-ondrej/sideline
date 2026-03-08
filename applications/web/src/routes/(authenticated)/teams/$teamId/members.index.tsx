@@ -4,7 +4,7 @@ import * as m from '@sideline/i18n/messages';
 import { createFileRoute } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
-import { toast } from 'sonner';
+
 import { TeamMembersPage } from '~/components/pages/TeamMembersPage';
 import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 
@@ -39,11 +39,10 @@ function MembersRoute() {
       const result = await ApiClient.pipe(
         Effect.flatMap((api) => api.roster.deactivateMember({ path: { teamId, memberId } })),
         Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
-        run,
+        run({ success: m.members_deactivated() }),
       );
       if (Option.isSome(result)) {
         setPlayers((prev) => prev.filter((p) => p.memberId !== memberId));
-        toast.success(m.members_deactivated());
       }
     },
     [teamId, run],

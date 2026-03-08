@@ -4,7 +4,7 @@ import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
-import { toast } from 'sonner';
+
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import {
@@ -70,7 +70,7 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-      run,
+      run(),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -89,11 +89,10 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-      run,
+      run({ success: m.group_memberAdded() }),
     );
     if (Option.isSome(result)) {
       setSelectedMemberId('');
-      toast.success(m.group_memberAdded());
       router.invalidate();
     }
   }, [selectedMemberId, teamIdBranded, groupIdBranded, run, router]);
@@ -108,10 +107,9 @@ export function GroupDetailPage({
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-        run,
+        run({ success: m.group_memberRemoved() }),
       );
       if (Option.isSome(result)) {
-        toast.success(m.group_memberRemoved());
         router.invalidate();
       }
     },
@@ -129,7 +127,7 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       setSelectedRoleId('');
@@ -147,7 +145,7 @@ export function GroupDetailPage({
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-        run,
+        run(),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -165,10 +163,9 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_deleteFailed())),
-      run,
+      run({ success: m.group_groupDeleted() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.group_groupDeleted());
       navigate({ to: '/teams/$teamId/groups', params: { teamId } });
     }
   }, [teamId, teamIdBranded, groupIdBranded, run, navigate]);
@@ -184,11 +181,10 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
-      run,
+      run({ success: m.group_channelLinked() }),
     );
     if (Option.isSome(result)) {
       setSelectedChannelId('');
-      toast.success(m.group_channelLinked());
       router.invalidate();
     }
   }, [selectedChannelId, teamIdBranded, groupIdBranded, run, router]);
@@ -201,10 +197,9 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
-      run,
+      run({ success: m.group_channelUnlinked() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.group_channelUnlinked());
       router.invalidate();
     }
   }, [teamIdBranded, groupIdBranded, run, router]);
@@ -221,10 +216,9 @@ export function GroupDetailPage({
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.group_moveGroupFailed())),
-        run,
+        run({ success: m.group_parentChanged() }),
       );
       if (Option.isSome(result)) {
-        toast.success(m.group_parentChanged());
         router.invalidate();
       }
     },
@@ -239,10 +233,9 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_channelCreateFailed())),
-      run,
+      run({ success: m.group_channelCreateRequested() }),
     );
     if (Option.isSome(result)) {
-      toast.success(m.group_channelCreateRequested());
       router.invalidate();
     }
   }, [teamIdBranded, groupIdBranded, run, router]);

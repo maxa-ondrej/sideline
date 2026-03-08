@@ -29,7 +29,7 @@ function CreateTeamRoute() {
     const result = await ApiClient.pipe(
       Effect.flatMap((api) => api.auth.myGuilds()),
       Effect.catchAll(() => Effect.succeed([] as readonly Auth.DiscordGuild[])),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       setGuilds(result.value);
@@ -50,7 +50,7 @@ function CreateTeamRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.dashboard_createFailed())),
-        run,
+        run(),
       );
       if (Option.isSome(result)) {
         const teamId = result.value.teamId;

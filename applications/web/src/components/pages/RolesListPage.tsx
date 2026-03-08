@@ -48,7 +48,7 @@ export function RolesListPage({ teamId, roles }: RolesListPageProps) {
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_createFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       form.reset();

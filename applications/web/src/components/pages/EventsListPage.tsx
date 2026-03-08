@@ -191,7 +191,7 @@ export function EventsListPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_createFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       form.reset();
@@ -226,7 +226,7 @@ export function EventsListPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_createSeriesFailed())),
-      run,
+      run(),
     );
     if (Option.isSome(result)) {
       seriesForm.reset();

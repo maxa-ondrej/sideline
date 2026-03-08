@@ -59,12 +59,16 @@ const AppLayer = Layer.mergeAll(
   Logger.minimumLogLevel(LogLevel.Info),
 );
 
-export type Run = <A>(
+export type RunOptions = { readonly success?: string; readonly loading?: string };
+
+export type Run = (
+  options?: RunOptions,
+) => <A>(
   effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
 ) => Promise<Option.Option<A>>;
 
 const RunContext = React.createContext<Run>(
-  () => new Promise((_, reject) => reject('Not implemented')),
+  () => () => new Promise((_, reject) => reject('Not implemented')),
 );
 
 export const RunProvider = RunContext.Provider;
@@ -132,15 +136,32 @@ export const runPromiseServer =
 
 export const runPromiseClient =
   (serverUrl: string) =>
+  (options?: RunOptions) =>
   async <A>(
     effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
   ): Promise<Option.Option<A>> => {
+    const toastId = options ? toast.loading(options.loading ?? 'Loading...') : undefined;
     const effectResponse = effect.pipe(
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
         baseUrl: serverUrl,
       }),
-      Effect.tapError((e) => Effect.sync(() => toast.error(e.message))),
+      Effect.tapError((e) =>
+        Effect.sync(() => {
+          if (toastId !== undefined) {
+            toast.error(e.message, { id: toastId });
+          } else {
+            toast.error(e.message);
+          }
+        }),
+      ),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          if (toastId !== undefined) {
+            toast.success(options?.success ?? 'Done', { id: toastId });
+          }
+        }),
+      ),
       Effect.option,
     );
     return await Effect.runPromise(effectResponse);
