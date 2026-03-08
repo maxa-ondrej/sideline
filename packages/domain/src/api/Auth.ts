@@ -27,11 +27,11 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   id: UserId,
   discordId: Schema.String,
   username: Schema.String,
-  avatar: Schema.NullOr(Schema.String),
+  avatar: Schema.OptionFromNullOr(Schema.String),
   isProfileComplete: Schema.Boolean,
-  name: Schema.NullOr(Schema.String),
-  birthDate: Schema.NullOr(Schema.String),
-  gender: Schema.NullOr(Gender),
+  name: Schema.OptionFromNullOr(Schema.String),
+  birthDate: Schema.OptionFromNullOr(Schema.String),
+  gender: Schema.OptionFromNullOr(Gender),
   locale: Locale,
 }) {}
 
@@ -47,7 +47,7 @@ export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTe
 export class DiscordGuild extends Schema.Class<DiscordGuild>('DiscordGuild')({
   id: Snowflake,
   name: Schema.String,
-  icon: Schema.NullOr(Schema.String),
+  icon: Schema.OptionFromNullOr(Schema.String),
   owner: Schema.Boolean,
   botPresent: Schema.Boolean,
 }) {}
@@ -73,7 +73,7 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
 export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
   'UpdateProfileRequest',
 )({
-  name: Schema.NullOr(Schema.String),
+  name: Schema.OptionFromNullOr(Schema.String),
   birthDate: Schema.OptionFromNullOr(
     Schema.String.pipe(
       Schema.filter((s) => {
@@ -87,7 +87,7 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
       }),
     ),
   ),
-  gender: Schema.NullOr(Gender),
+  gender: Schema.OptionFromNullOr(Gender),
 }) {}
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(

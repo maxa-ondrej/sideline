@@ -1,13 +1,20 @@
 import type { EventRpcModels } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
+import { Option } from 'effect';
 import type { Locale } from '~/locale.js';
 
 const EVENT_COLOR = 0x5865f2;
 
 const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string => {
-  const name = entry.discord_id ? `<@${entry.discord_id}>` : (entry.name ?? 'Unknown');
-  return entry.message ? `${name} — "${entry.message}"` : name;
+  const name = entry.discord_id.pipe(
+    Option.map((id) => `<@${id}>`),
+    Option.getOrElse(() => Option.getOrElse(entry.name, () => 'Unknown')),
+  );
+  return entry.message.pipe(
+    Option.map((msg) => `${name} — "${msg}"`),
+    Option.getOrElse(() => name),
+  );
 };
 
 export const buildAttendeesEmbed = (opts: {

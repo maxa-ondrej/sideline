@@ -16,12 +16,12 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   event_type: EventSyncEventType,
   event_id: Schema.String,
   event_title: Schema.String,
-  event_description: Schema.NullOr(Schema.String),
+  event_description: Schema.OptionFromNullOr(Schema.String),
   event_start_at: Schema.String,
-  event_end_at: Schema.NullOr(Schema.String),
-  event_location: Schema.NullOr(Schema.String),
+  event_end_at: Schema.OptionFromNullOr(Schema.String),
+  event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
-  discord_target_channel_id: Schema.NullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
@@ -35,12 +35,12 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   event_type: EventSyncEventType,
   event_id: Event.EventId,
   event_title: Schema.String,
-  event_description: Schema.NullOr(Schema.String),
+  event_description: Schema.OptionFromNullOr(Schema.String),
   event_start_at: Schema.String,
-  event_end_at: Schema.NullOr(Schema.String),
-  event_location: Schema.NullOr(Schema.String),
+  event_end_at: Schema.OptionFromNullOr(Schema.String),
+  event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
-  discord_target_channel_id: Schema.NullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
@@ -103,12 +103,12 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     eventType: EventSyncEventType,
     eventId: Event.EventId,
     title: string,
-    description: string | null,
+    description: Option.Option<string>,
     startAt: string,
-    endAt: string | null,
-    location: string | null,
+    endAt: Option.Option<string>,
+    location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: string | null,
+    discordTargetChannelId?: Option.Option<string>,
   ) =>
     this.lookupGuildId(teamId).pipe(
       Effect.flatMap(
@@ -126,7 +126,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
               event_end_at: endAt,
               event_location: location,
               event_event_type: eventEventType,
-              discord_target_channel_id: discordTargetChannelId ?? null,
+              discord_target_channel_id: discordTargetChannelId ?? Option.none(),
             }),
         }),
       ),
@@ -137,12 +137,12 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
-    description: string | null,
+    description: Option.Option<string>,
     startAt: string,
-    endAt: string | null,
-    location: string | null,
+    endAt: Option.Option<string>,
+    location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: string | null,
+    discordTargetChannelId?: Option.Option<string>,
   ) =>
     this._emitIfGuildLinked(
       teamId,
@@ -161,12 +161,12 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
-    description: string | null,
+    description: Option.Option<string>,
     startAt: string,
-    endAt: string | null,
-    location: string | null,
+    endAt: Option.Option<string>,
+    location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: string | null,
+    discordTargetChannelId?: Option.Option<string>,
   ) =>
     this._emitIfGuildLinked(
       teamId,
@@ -185,12 +185,12 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
-    description: string | null,
+    description: Option.Option<string>,
     startAt: string,
-    endAt: string | null,
-    location: string | null,
+    endAt: Option.Option<string>,
+    location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: string | null,
+    discordTargetChannelId?: Option.Option<string>,
   ) =>
     this._emitIfGuildLinked(
       teamId,
@@ -209,12 +209,12 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
-    description: string | null,
+    description: Option.Option<string>,
     startAt: string,
-    endAt: string | null,
-    location: string | null,
+    endAt: Option.Option<string>,
+    location: Option.Option<string>,
     eventEventType: string,
-    discordTargetChannelId?: string | null,
+    discordTargetChannelId?: Option.Option<string>,
   ) =>
     this._emitIfGuildLinked(
       teamId,

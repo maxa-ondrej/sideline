@@ -179,16 +179,16 @@ export function EventsListPage({
             eventType: values.eventType,
             trainingTypeId:
               values.trainingTypeId && values.trainingTypeId !== NONE_VALUE
-                ? Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId)
-                : null,
-            description: values.description || null,
+                ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId))
+                : Option.none(),
+            description: values.description ? Option.some(values.description) : Option.none(),
             startAt,
-            endAt,
-            location: values.location || null,
+            endAt: endAt ? Option.some(endAt) : Option.none(),
+            location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? values.discordChannelId
-                : null,
+                ? Option.some(values.discordChannelId)
+                : Option.none(),
           },
         }),
       ),
@@ -210,20 +210,20 @@ export function EventsListPage({
             title: values.title,
             trainingTypeId:
               values.trainingTypeId && values.trainingTypeId !== NONE_VALUE
-                ? Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId)
-                : null,
-            description: values.description || null,
+                ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId))
+                : Option.none(),
+            description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
             startDate: values.startDate,
-            endDate: values.endDate || null,
+            endDate: values.endDate ? Option.some(values.endDate) : Option.none(),
             startTime: values.startTime,
-            endTime: values.endTime || null,
-            location: values.location || null,
+            endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
+            location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? values.discordChannelId
-                : null,
+                ? Option.some(values.discordChannelId)
+                : Option.none(),
           },
         }),
       ),
@@ -732,7 +732,7 @@ export function EventsListPage({
                       >
                         {event.title}
                       </Link>
-                      {event.seriesId !== null && (
+                      {Option.isSome(event.seriesId) && (
                         <span className='ml-2 text-xs text-muted-foreground'>
                           {m.event_recurring()}
                         </span>
@@ -741,13 +741,18 @@ export function EventsListPage({
                     <td className='py-2 px-4 text-muted-foreground'>
                       {eventTypeLabels[event.eventType]()}
                     </td>
-                    <td className='py-2 px-4 text-muted-foreground'>{event.trainingTypeName}</td>
+                    <td className='py-2 px-4 text-muted-foreground'>
+                      {Option.getOrNull(event.trainingTypeName)}
+                    </td>
                     <td className='py-2 px-4 text-muted-foreground'>
                       {event.startAt.slice(0, 10)}
                     </td>
                     <td className='py-2 px-4 text-muted-foreground'>
                       {event.startAt.slice(11, 16)}
-                      {event.endAt ? ` - ${event.endAt.slice(11, 16)}` : ''}
+                      {event.endAt.pipe(
+                        Option.map((v) => ` - ${v.slice(11, 16)}`),
+                        Option.getOrElse(() => ''),
+                      )}
                     </td>
                     <td className='py-2 px-4'>
                       <span

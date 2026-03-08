@@ -9,12 +9,12 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   eventHorizonDays: Schema.Int,
   minPlayersThreshold: Schema.Int,
   rsvpReminderHours: Schema.Int,
-  discordChannelTraining: Schema.NullOr(Schema.String),
-  discordChannelMatch: Schema.NullOr(Schema.String),
-  discordChannelTournament: Schema.NullOr(Schema.String),
-  discordChannelMeeting: Schema.NullOr(Schema.String),
-  discordChannelSocial: Schema.NullOr(Schema.String),
-  discordChannelOther: Schema.NullOr(Schema.String),
+  discordChannelTraining: Schema.OptionFromNullOr(Schema.String),
+  discordChannelMatch: Schema.OptionFromNullOr(Schema.String),
+  discordChannelTournament: Schema.OptionFromNullOr(Schema.String),
+  discordChannelMeeting: Schema.OptionFromNullOr(Schema.String),
+  discordChannelSocial: Schema.OptionFromNullOr(Schema.String),
+  discordChannelOther: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(

@@ -10,18 +10,18 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 export class GroupInfo extends Schema.Class<GroupInfo>('GroupInfo')({
   groupId: GroupId,
   teamId: TeamId,
-  parentId: Schema.NullOr(GroupId),
+  parentId: Schema.OptionFromNullOr(GroupId),
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   memberCount: Schema.Number,
 }) {}
 
 export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
   groupId: GroupId,
   teamId: TeamId,
-  parentId: Schema.NullOr(GroupId),
+  parentId: Schema.OptionFromNullOr(GroupId),
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   roles: Schema.Array(
     Schema.Struct({
       roleId: RoleId,
@@ -31,7 +31,7 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
   members: Schema.Array(
     Schema.Struct({
       memberId: TeamMemberId,
-      name: Schema.NullOr(Schema.String),
+      name: Schema.OptionFromNullOr(Schema.String),
       username: Schema.String,
     }),
   ),
@@ -39,13 +39,13 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
 
 export class CreateGroupRequest extends Schema.Class<CreateGroupRequest>('CreateGroupRequest')({
   name: Schema.NonEmptyString,
-  parentId: Schema.NullOr(GroupId),
-  emoji: Schema.NullOr(Schema.String),
+  parentId: Schema.OptionFromNullOr(GroupId),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class UpdateGroupRequest extends Schema.Class<UpdateGroupRequest>('UpdateGroupRequest')({
   name: Schema.NonEmptyString,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class AddGroupMemberRequest extends Schema.Class<AddGroupMemberRequest>(
@@ -61,13 +61,13 @@ export class AssignGroupRoleRequest extends Schema.Class<AssignGroupRoleRequest>
 }) {}
 
 export class MoveGroupRequest extends Schema.Class<MoveGroupRequest>('MoveGroupRequest')({
-  parentId: Schema.NullOr(GroupId),
+  parentId: Schema.OptionFromNullOr(GroupId),
 }) {}
 
 export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('ChannelMappingInfo')({
   discordChannelId: Snowflake,
-  discordChannelName: Schema.NullOr(Schema.String),
-  discordRoleId: Schema.NullOr(Snowflake),
+  discordChannelName: Schema.OptionFromNullOr(Schema.String),
+  discordRoleId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class SetChannelMappingRequest extends Schema.Class<SetChannelMappingRequest>(
@@ -80,7 +80,7 @@ export class DiscordChannelInfo extends Schema.Class<DiscordChannelInfo>('Discor
   id: Snowflake,
   name: Schema.String,
   type: Schema.Number,
-  parentId: Schema.NullOr(Snowflake),
+  parentId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class GroupNotFound extends Schema.TaggedError<GroupNotFound>()(
@@ -197,7 +197,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
   )
   .add(
     HttpApiEndpoint.get('getChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
-      .addSuccess(Schema.NullOr(ChannelMappingInfo))
+      .addSuccess(Schema.OptionFromNullOr(ChannelMappingInfo))
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))

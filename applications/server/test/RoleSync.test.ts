@@ -53,12 +53,12 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: false,
-  name: null,
+  name: Option.none<string>(),
   birth_date: Option.none(),
-  gender: null,
+  gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -68,12 +68,12 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -92,11 +92,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -347,9 +347,9 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
           role_names: member.role_names,
           permissions: member.permissions,
           name: user.name,
-          birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+          birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
           gender: user.gender,
-          jersey_number: null,
+          jersey_number: Option.none(),
           username: user.username,
           avatar: user.avatar,
         }),

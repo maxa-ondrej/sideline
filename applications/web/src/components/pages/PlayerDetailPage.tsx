@@ -2,7 +2,7 @@ import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { RoleApi, Roster } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
-import { Schema } from 'effect';
+import { Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
@@ -62,14 +62,17 @@ export function PlayerDetailPage({
     resolver: effectTsResolver(PlayerEditSchema),
     mode: 'onChange',
     defaultValues: {
-      name: player.name,
-      birthDate: player.birthDate,
-      gender: player.gender,
-      jerseyNumber: player.jerseyNumber !== null ? String(player.jerseyNumber) : null,
+      name: Option.getOrNull(player.name),
+      birthDate: Option.getOrNull(player.birthDate),
+      gender: Option.getOrNull(player.gender),
+      jerseyNumber: player.jerseyNumber.pipe(
+        Option.map((v) => String(v)),
+        Option.getOrNull,
+      ),
     },
   });
 
-  const displayName = player.name ?? player.username;
+  const displayName = Option.getOrElse(player.name, () => player.username);
 
   return (
     <div>
@@ -160,7 +163,10 @@ export function PlayerDetailPage({
         <div className='flex flex-col gap-2'>
           <p>
             <strong>{m.profile_complete_jerseyNumber()}:</strong>{' '}
-            {player.jerseyNumber !== null ? `#${player.jerseyNumber}` : '—'}
+            {player.jerseyNumber.pipe(
+              Option.map((v) => `#${v}`),
+              Option.getOrElse(() => '—'),
+            )}
           </p>
         </div>
       )}

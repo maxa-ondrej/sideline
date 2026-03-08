@@ -10,7 +10,7 @@ export class OAuthConnection extends Model.Class<OAuthConnection>('OAuthConnecti
   user_id: UserId,
   provider: Schema.String,
   access_token: Model.Sensitive(Schema.String),
-  refresh_token: Model.Sensitive(Schema.NullOr(Schema.String)),
+  refresh_token: Model.Sensitive(Schema.OptionFromNullOr(Schema.String)),
   created_at: Model.DateTimeInsertFromDate,
   updated_at: Model.DateTimeUpdateFromDate,
 }) {}

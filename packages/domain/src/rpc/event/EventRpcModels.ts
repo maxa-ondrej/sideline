@@ -25,10 +25,10 @@ export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelE
   event_id: Schema.String,
   team_id: Schema.String,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   status: Schema.String,
   discord_message_id: Schema.String,
@@ -70,10 +70,10 @@ export class CreateEventResult extends Schema.Class<CreateEventResult>('CreateEv
 }) {}
 
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
-  discord_id: Schema.NullOr(Schema.String),
-  name: Schema.NullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Schema.String),
+  name: Schema.OptionFromNullOr(Schema.String),
   response: Schema.Literal('yes', 'no', 'maybe'),
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class RsvpAttendeesResult extends Schema.Class<RsvpAttendeesResult>('RsvpAttendeesResult')({
@@ -84,9 +84,9 @@ export class RsvpAttendeesResult extends Schema.Class<RsvpAttendeesResult>('Rsvp
 export class NonResponderRpcEntry extends Schema.Class<NonResponderRpcEntry>(
   'NonResponderRpcEntry',
 )({
-  discord_id: Schema.NullOr(Schema.String),
-  name: Schema.NullOr(Schema.String),
-  username: Schema.NullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Schema.String),
+  name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class RsvpReminderSummary extends Schema.Class<RsvpReminderSummary>('RsvpReminderSummary')({

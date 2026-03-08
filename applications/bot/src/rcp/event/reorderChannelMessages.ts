@@ -1,6 +1,6 @@
 import { Event, type EventRpcModels } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect, Option } from 'effect';
+import { Effect } from 'effect';
 import type { Locale } from '~/locale.js';
 import { buildCancelledEmbed, buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -31,10 +31,10 @@ const editMessage = (
               teamId: entry.team_id,
               eventId: entry.event_id,
               title: entry.title,
-              description: Option.fromNullable(entry.description),
+              description: entry.description,
               startAt: entry.start_at,
-              endAt: Option.fromNullable(entry.end_at),
-              location: Option.fromNullable(entry.location),
+              endAt: entry.end_at,
+              location: entry.location,
               eventType: entry.event_type,
               counts,
               locale,

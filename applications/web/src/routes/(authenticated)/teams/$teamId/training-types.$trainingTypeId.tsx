@@ -1,7 +1,7 @@
 import type { EventSeriesApi } from '@sideline/domain';
 import { Team, TrainingType } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { TrainingTypeDetailPage } from '~/components/pages/TrainingTypeDetailPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
@@ -37,7 +37,8 @@ function TrainingTypeDetailRoute() {
       trainingTypeDetail={data.trainingType}
       canAdmin={data.trainingType.canAdmin}
       series={data.series.filter(
-        (s: EventSeriesApi.EventSeriesInfo) => s.trainingTypeId === trainingTypeIdRaw,
+        (s: EventSeriesApi.EventSeriesInfo) =>
+          Option.getOrNull(s.trainingTypeId) === trainingTypeIdRaw,
       )}
       discordChannels={data.discordChannels}
     />

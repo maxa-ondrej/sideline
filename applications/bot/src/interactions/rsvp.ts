@@ -68,16 +68,18 @@ export const RsvpButton = Ix.messageComponent(
 const modalValueOption = (
   submission: Discord.APIModalSubmission,
   customId: string,
-): string | null => {
+): Option.Option<string> => {
   for (const row of submission.components ?? []) {
     if (row.type !== 1) continue;
     for (const comp of row.components) {
       if (comp.custom_id === customId) {
-        return comp.value && comp.value.trim().length > 0 ? comp.value.trim() : null;
+        return comp.value && comp.value.trim().length > 0
+          ? Option.some(comp.value.trim())
+          : Option.none();
       }
     }
   }
-  return null;
+  return Option.none();
 };
 
 export const RsvpModal = Ix.modalSubmit(

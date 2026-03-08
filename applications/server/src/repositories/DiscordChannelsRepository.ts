@@ -1,12 +1,12 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Effect, type Option, Schema } from 'effect';
 
 class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({
   channel_id: Discord.Snowflake,
   name: Schema.String,
   type: Schema.Number,
-  parent_id: Schema.NullOr(Discord.Snowflake),
+  parent_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class SyncInput extends Schema.Class<SyncInput>('SyncInput')({
@@ -14,7 +14,7 @@ class SyncInput extends Schema.Class<SyncInput>('SyncInput')({
   channel_id: Discord.Snowflake,
   name: Schema.String,
   type: Schema.Number,
-  parent_id: Schema.NullOr(Discord.Snowflake),
+  parent_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRepository>()(
@@ -55,7 +55,7 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
       readonly channel_id: Discord.Snowflake;
       readonly name: string;
       readonly type: number;
-      readonly parent_id: Discord.Snowflake | null;
+      readonly parent_id: Option.Option<Discord.Snowflake>;
     }>,
   ) =>
     this.deleteByGuild(guildId).pipe(

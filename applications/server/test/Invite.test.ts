@@ -40,11 +40,11 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none(),
   is_profile_complete: false,
-  name: null,
+  name: Option.none(),
   birth_date: Option.none(),
-  gender: null,
+  gender: Option.none(),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -54,11 +54,11 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none(),
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -106,7 +106,7 @@ const invitesStore = new Map<
     active: boolean;
     created_by: Auth.UserId;
     created_at: DateTime.Utc;
-    expires_at: DateTime.Utc | null;
+    expires_at: Option.Option<DateTime.Utc>;
   }
 >();
 invitesStore.set('valid-invite', {
@@ -116,7 +116,7 @@ invitesStore.set('valid-invite', {
   active: true,
   created_by: TEST_ADMIN_ID,
   created_at: DateTime.unsafeNow(),
-  expires_at: null,
+  expires_at: Option.none(),
 });
 invitesStore.set('inactive-invite', {
   id: '00000000-0000-0000-0000-000000000031' as TeamInvite.TeamInviteId,
@@ -125,7 +125,7 @@ invitesStore.set('inactive-invite', {
   active: false,
   created_by: TEST_ADMIN_ID,
   created_at: DateTime.unsafeNow(),
-  expires_at: null,
+  expires_at: Option.none(),
 });
 
 const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
@@ -208,7 +208,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id,
       user_id: input.user_id,
       active: input.active,
-      jersey_number: null,
+      jersey_number: Option.none(),
       joined_at: DateTime.unsafeNow(),
     });
   },
@@ -242,7 +242,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
     code: string;
     active: boolean;
     created_by: Auth.UserId;
-    expires_at: DateTime.Utc | null;
+    expires_at: Option.Option<DateTime.Utc>;
   }) => {
     const invite = {
       id: crypto.randomUUID() as TeamInvite.TeamInviteId,

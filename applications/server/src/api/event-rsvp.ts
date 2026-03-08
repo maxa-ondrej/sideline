@@ -30,10 +30,9 @@ const buildRsvpDetail = (
       const yesCount = counts.find((c) => c.response === 'yes')?.count ?? 0;
       const noCount = counts.find((c) => c.response === 'no')?.count ?? 0;
       const maybeCount = counts.find((c) => c.response === 'maybe')?.count ?? 0;
-      const my = Option.getOrNull(myRsvp);
       return new EventRsvpApi.EventRsvpDetail({
-        myResponse: my?.response ?? null,
-        myMessage: my?.message ?? null,
+        myResponse: Option.map(myRsvp, (my) => my.response),
+        myMessage: Option.flatMap(myRsvp, (my) => my.message),
         rsvps: allRsvps.map(
           (r) =>
             new EventRsvpApi.RsvpEntry({

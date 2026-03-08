@@ -1,4 +1,4 @@
-import { Effect, Schedule } from 'effect';
+import { Effect, Option, Schedule } from 'effect';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -22,12 +22,12 @@ const cronEffect = Effect.Do.pipe(
             event.team_id,
             event.event_id,
             event.title,
-            null,
+            Option.none(),
             event.start_at,
-            null,
-            null,
+            Option.none(),
+            Option.none(),
             event.event_type,
-            event.discord_target_channel_id ?? undefined,
+            event.discord_target_channel_id,
           )
           .pipe(
             Effect.tap(() => eventsRepo.markReminderSent(event.event_id)),

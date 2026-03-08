@@ -11,6 +11,6 @@ export class TeamMember extends Model.Class<TeamMember>('TeamMember')({
   team_id: TeamId,
   user_id: UserId,
   active: Schema.Boolean,
-  jersey_number: Model.FieldExcept('insert')(Schema.NullOr(Schema.Number)),
+  jersey_number: Model.FieldExcept('insert')(Schema.OptionFromNullOr(Schema.Number)),
   joined_at: Model.DateTimeInsertFromDate,
 }) {}

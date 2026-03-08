@@ -49,10 +49,10 @@ function MemberDetailRoute() {
           api.roster.updateMember({
             path: { teamId, memberId },
             payload: {
-              name: values.name,
+              name: Option.fromNullable(values.name),
               birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
-              gender: values.gender,
-              jerseyNumber: values.jerseyNumber,
+              gender: Option.fromNullable(values.gender),
+              jerseyNumber: Option.fromNullable(values.jerseyNumber),
             },
           }),
         ),

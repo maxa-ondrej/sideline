@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Role, Team, TeamMember, User } from '@sideline/domain';
 import { Schemas, SqlErrors } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, type Option, Schema } from 'effect';
 
 export class MemberAlreadyExistsError extends Schema.TaggedError<MemberAlreadyExistsError>()(
   'MemberAlreadyExistsError',
@@ -38,12 +38,12 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   discord_id: Schema.String,
   role_names: Schemas.ArrayFromSplitString(),
   permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
-  name: Schema.NullOr(Schema.String),
-  birth_date: Schema.NullOr(Schema.String),
-  gender: Schema.NullOr(User.Gender),
-  jersey_number: Schema.NullOr(Schema.Number),
+  name: Schema.OptionFromNullOr(Schema.String),
+  birth_date: Schema.OptionFromNullOr(Schema.String),
+  gender: Schema.OptionFromNullOr(User.Gender),
+  jersey_number: Schema.OptionFromNullOr(Schema.Number),
   username: Schema.String,
-  avatar: Schema.NullOr(Schema.String),
+  avatar: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>()(
@@ -256,7 +256,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
   private updateJerseyNumberQuery = SqlSchema.void({
     Request: Schema.Struct({
       member_id: TeamMember.TeamMemberId,
-      jersey_number: Schema.NullOr(Schema.Number),
+      jersey_number: Schema.OptionFromNullOr(Schema.Number),
     }),
     execute: (input) => this.sql`
       UPDATE team_members SET jersey_number = ${input.jersey_number}
@@ -300,7 +300,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
-  setJerseyNumber = (memberId: TeamMember.TeamMemberId, jerseyNumber: number | null) =>
+  setJerseyNumber = (memberId: TeamMember.TeamMemberId, jerseyNumber: Option.Option<number>) =>
     this.updateJerseyNumberQuery({ member_id: memberId, jersey_number: jerseyNumber }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );

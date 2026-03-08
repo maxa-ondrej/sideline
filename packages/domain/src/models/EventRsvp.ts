@@ -14,7 +14,7 @@ export class EventRsvp extends Model.Class<EventRsvp>('EventRsvp')({
   event_id: EventId,
   team_member_id: TeamMemberId,
   response: RsvpResponse,
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
   updated_at: Model.DateTimeUpdateFromDate,
 }) {}

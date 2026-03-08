@@ -95,9 +95,9 @@ const createEvent = (
     readonly event_type: Event.EventType;
     readonly title: string;
     readonly start_at: string;
-    readonly end_at: string | null;
-    readonly location: string | null;
-    readonly description: string | null;
+    readonly end_at: Option.Option<string>;
+    readonly location: Option.Option<string>;
+    readonly description: Option.Option<string>;
   },
 ) =>
   Effect.Do.pipe(
@@ -162,28 +162,32 @@ const createEvent = (
         ? Effect.succeed(parsed)
         : Effect.fail(new EventRpcModels.CreateEventInvalidDate());
     }),
-    Effect.bind('parsedEndAt', () => {
-      if (input.end_at === null) return Effect.succeed(null);
-      const parsed = parseDateTime(input.end_at);
-      return parsed
-        ? Effect.succeed(parsed)
-        : Effect.fail(new EventRpcModels.CreateEventInvalidDate());
-    }),
+    Effect.bind('parsedEndAt', () =>
+      Option.match(input.end_at, {
+        onNone: () => Effect.succeed(Option.none<string>()),
+        onSome: (endAt) => {
+          const parsed = parseDateTime(endAt);
+          return parsed
+            ? Effect.succeed(Option.some(parsed))
+            : Effect.fail(new EventRpcModels.CreateEventInvalidDate());
+        },
+      }),
+    ),
     Effect.bind('event', ({ teamId, userLookup, parsedStartAt, parsedEndAt }) =>
       events.insertEvent({
         teamId,
         trainingTypeId: Option.none(),
         eventType: input.event_type,
         title: input.title,
-        description: Option.fromNullable(input.description),
+        description: input.description,
         startAt: parsedStartAt,
-        endAt: Option.fromNullable(parsedEndAt),
-        location: Option.fromNullable(input.location),
+        endAt: parsedEndAt,
+        location: input.location,
         createdBy: userLookup.team_member_id,
       }),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) =>
-      resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(null))),
+      resolveChannel(teamId, event.id).pipe(Effect.catchAll(() => Effect.succeed(Option.none()))),
     ),
     Effect.tap(({ teamId, event, resolvedChannel }) =>
       syncEvents
@@ -191,10 +195,10 @@ const createEvent = (
           teamId,
           event.id,
           event.title,
-          Option.getOrNull(event.description),
+          event.description,
           event.start_at,
-          Option.getOrNull(event.end_at),
-          Option.getOrNull(event.location),
+          event.end_at,
+          event.location,
           event.event_type,
           resolvedChannel,
         )
@@ -308,7 +312,7 @@ export const EventsRpcLive = Effect.Do.pipe(
         readonly team_id: Team.TeamId;
         readonly discord_user_id: Discord.Snowflake;
         readonly response: EventRsvp.RsvpResponse;
-        readonly message: string | null;
+        readonly message: Option.Option<string>;
       }) =>
         Effect.Do.pipe(
           Effect.bind('event', () =>
@@ -510,9 +514,9 @@ export const EventsRpcLive = Effect.Do.pipe(
         readonly event_type: Event.EventType;
         readonly title: string;
         readonly start_at: string;
-        readonly end_at: string | null;
-        readonly location: string | null;
-        readonly description: string | null;
+        readonly end_at: Option.Option<string>;
+        readonly location: Option.Option<string>;
+        readonly description: Option.Option<string>;
       }) =>
         createEvent(sql, events, syncEvents, members, input),
   ),

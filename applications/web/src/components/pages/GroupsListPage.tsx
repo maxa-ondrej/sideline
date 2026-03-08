@@ -47,8 +47,8 @@ function buildTree(groups: ReadonlyArray<GroupApi.GroupInfo>): TreeNode[] {
   for (const g of groups) {
     const node = byId.get(g.groupId);
     if (!node) continue;
-    if (g.parentId !== null && byId.has(g.parentId)) {
-      byId.get(g.parentId)?.children.push(node);
+    if (Option.isSome(g.parentId) && byId.has(g.parentId.value)) {
+      byId.get(g.parentId.value)?.children.push(node);
     } else {
       roots.push(node);
     }
@@ -92,7 +92,9 @@ function GroupTreeNode({ node, teamId, depth, onCreateSubgroup }: GroupTreeNodeP
               params={{ teamId, groupId: node.group.groupId }}
               className='font-medium hover:underline'
             >
-              {node.group.emoji ? `${node.group.emoji} ${node.group.name}` : node.group.name}
+              {Option.isSome(node.group.emoji)
+                ? `${node.group.emoji.value} ${node.group.name}`
+                : node.group.name}
             </Link>
           </div>
         </td>
@@ -151,13 +153,13 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
   const onSubmit = async (values: CreateGroupValues) => {
     const parentId =
       selectedParentId === '__root__'
-        ? null
-        : Schema.decodeSync(GroupModel.GroupId)(selectedParentId);
+        ? Option.none()
+        : Option.some(Schema.decodeSync(GroupModel.GroupId)(selectedParentId));
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.group.createGroup({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name, parentId, emoji: null },
+          payload: { name: values.name, parentId, emoji: Option.none() },
         }),
       ),
       withFieldErrors(form, [
@@ -219,7 +221,10 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
                 <SelectItem value='__root__'>{m.group_rootGroup()}</SelectItem>
                 {groups.map((g) => (
                   <SelectItem key={g.groupId} value={g.groupId}>
-                    {g.emoji ? `${g.emoji} ${g.name}` : g.name}
+                    {g.emoji.pipe(
+                      Option.map((v) => `${v} ${g.name}`),
+                      Option.getOrElse(() => g.name),
+                    )}
                   </SelectItem>
                 ))}
               </SelectContent>

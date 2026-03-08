@@ -3,7 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -12,16 +12,18 @@ const decodeSnowflake = Schema.decodeUnknownSync(DiscordSchemas.Snowflake);
 const modalValueOption = (
   submission: Discord.APIModalSubmission,
   customId: string,
-): string | null => {
+): Option.Option<string> => {
   for (const row of submission.components ?? []) {
     if (row.type !== 1) continue;
     for (const comp of row.components) {
       if (comp.custom_id === customId) {
-        return comp.value && comp.value.trim().length > 0 ? comp.value.trim() : null;
+        return comp.value && comp.value.trim().length > 0
+          ? Option.some(comp.value.trim())
+          : Option.none();
       }
     }
   }
-  return null;
+  return Option.none();
 };
 
 export const EventCreateModal = Ix.modalSubmit(
@@ -63,7 +65,7 @@ export const EventCreateModal = Ix.modalSubmit(
       const location = modalValueOption(data, 'event_location');
       const description = modalValueOption(data, 'event_description');
 
-      if (!title || !startAt) {
+      if (Option.isNone(title) || Option.isNone(startAt)) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -82,8 +84,8 @@ export const EventCreateModal = Ix.modalSubmit(
           | 'meeting'
           | 'social'
           | 'other',
-        title,
-        start_at: startAt,
+        title: title.value,
+        start_at: startAt.value,
         end_at: endAt,
         location,
         description,

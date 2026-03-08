@@ -27,8 +27,8 @@ export class CreateRoleRequest extends Schema.Class<CreateRoleRequest>('CreateRo
 }) {}
 
 export class UpdateRoleRequest extends Schema.Class<UpdateRoleRequest>('UpdateRoleRequest')({
-  name: Schema.NullOr(Schema.NonEmptyString),
-  permissions: Schema.NullOr(Schema.Array(Permission)),
+  name: Schema.OptionFromNullOr(Schema.NonEmptyString),
+  permissions: Schema.OptionFromNullOr(Schema.Array(Permission)),
 }) {}
 
 export class RoleNotFound extends Schema.TaggedError<RoleNotFound>()(

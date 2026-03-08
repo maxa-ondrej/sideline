@@ -13,7 +13,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
     Effect.bind('counts', ({ rpc }) => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
     Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id)),
     Effect.flatMap(({ rpc, rest, counts, guild }) => {
-      const channelId = event.discord_channel_id ?? guild.system_channel_id;
+      const channelId = Option.getOrUndefined(event.discord_channel_id) ?? guild.system_channel_id;
       if (!channelId) {
         return Effect.logWarning(
           `Guild ${event.guild_id} has no system channel, skipping event post`,
@@ -24,10 +24,10 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
         teamId: event.team_id,
         eventId: event.event_id,
         title: event.title,
-        description: Option.fromNullable(event.description),
+        description: event.description,
         startAt: event.start_at,
-        endAt: Option.fromNullable(event.end_at),
-        location: Option.fromNullable(event.location),
+        endAt: event.end_at,
+        location: event.location,
         eventType: event.event_type,
         counts,
         locale,

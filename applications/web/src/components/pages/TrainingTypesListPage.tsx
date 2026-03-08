@@ -50,7 +50,7 @@ export function TrainingTypesListPage({
       Effect.flatMap((api) =>
         api.trainingType.createTrainingType({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name, groupId: null, discordChannelId: null },
+          payload: { name: values.name, groupId: Option.none(), discordChannelId: Option.none() },
         }),
       ),
       withFieldErrors(form, [
@@ -119,7 +119,7 @@ export function TrainingTypesListPage({
                   </Link>
                 </td>
                 <td className='py-2 px-4 text-muted-foreground'>
-                  {tt.groupName ?? m.trainingType_noGroup()}
+                  {Option.getOrElse(tt.groupName, () => m.trainingType_noGroup())}
                 </td>
                 <td className='py-2 px-4'>
                   <Button asChild variant='outline' size='sm'>

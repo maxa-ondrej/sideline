@@ -61,12 +61,12 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: false,
-  name: null,
+  name: Option.none<string>(),
   birth_date: Option.none(),
-  gender: null,
+  gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -76,12 +76,12 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -100,11 +100,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -142,9 +142,9 @@ type TrainingTypeRecord = {
   id: TrainingType.TrainingTypeId;
   team_id: Team.TeamId;
   name: string;
-  group_id: string | null;
-  group_name: string | null;
-  discord_channel_id: string | null;
+  group_id: Option.Option<string>;
+  group_name: Option.Option<string>;
+  discord_channel_id: Option.Option<string>;
   created_at: Date;
 };
 
@@ -156,18 +156,18 @@ const resetStores = () => {
     id: TEST_TT_1,
     team_id: TEST_TEAM_ID,
     name: 'Training Type 1',
-    group_id: null,
-    group_name: null,
-    discord_channel_id: null,
+    group_id: Option.none(),
+    group_name: Option.none(),
+    discord_channel_id: Option.none(),
     created_at: new Date(),
   });
   trainingTypesStore.set(TEST_TT_2, {
     id: TEST_TT_2,
     team_id: TEST_TEAM_ID,
     name: 'Training Type 2',
-    group_id: null,
-    group_name: null,
-    discord_channel_id: null,
+    group_id: Option.none(),
+    group_name: Option.none(),
+    discord_channel_id: Option.none(),
     created_at: new Date(),
   });
 };
@@ -187,9 +187,9 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
-    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
     gender: user.gender,
-    jersey_number: null,
+    jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
   });
@@ -371,15 +371,15 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
     if (!tt) return Effect.succeed(Option.none());
     return Effect.succeed(Option.some(tt));
   },
-  insert: (input: { team_id: string; name: string; group_id: string | null }) => {
+  insert: (input: { team_id: string; name: string; group_id: Option.Option<string> }) => {
     const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
       name: input.name,
       group_id: input.group_id,
-      group_name: null,
-      discord_channel_id: null,
+      group_name: Option.none(),
+      discord_channel_id: Option.none(),
       created_at: new Date(),
     };
     trainingTypesStore.set(id, record);
@@ -391,15 +391,15 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       discord_channel_id: record.discord_channel_id,
     });
   },
-  insertTrainingType: (teamId: Team.TeamId, name: string, groupId: string | null) => {
+  insertTrainingType: (teamId: Team.TeamId, name: string, groupId: Option.Option<string>) => {
     const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: teamId,
       name,
       group_id: groupId,
-      group_name: null,
-      discord_channel_id: null,
+      group_name: Option.none(),
+      discord_channel_id: Option.none(),
       created_at: new Date(),
     };
     trainingTypesStore.set(id, record);
@@ -408,7 +408,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       team_id: teamId,
       name,
       group_id: groupId,
-      discord_channel_id: null,
+      discord_channel_id: Option.none(),
     });
   },
   update: (input: { id: TrainingType.TrainingTypeId; name: string }) => {

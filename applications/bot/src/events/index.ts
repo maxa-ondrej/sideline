@@ -2,7 +2,7 @@ import { Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
@@ -32,7 +32,7 @@ export const eventHandlers = Effect.Do.pipe(
                     channel_id: decodeSnowflake(ch.id),
                     name: ch.name,
                     type: ch.type,
-                    parent_id: parentId ? decodeSnowflake(parentId) : null,
+                    parent_id: Option.fromNullable(parentId ? decodeSnowflake(parentId) : null),
                   },
                 ];
               }),
@@ -57,7 +57,7 @@ export const eventHandlers = Effect.Do.pipe(
                   {
                     discord_id: m.user.id,
                     username: m.user.username,
-                    avatar: m.user.avatar ?? null,
+                    avatar: Option.fromNullable(m.user.avatar),
                     roles: m.roles,
                   },
                 ];
@@ -111,7 +111,7 @@ export const eventHandlers = Effect.Do.pipe(
             guild_id: decodeSnowflake(member.guild_id),
             discord_id: member.user.id,
             username: member.user.username,
-            avatar: member.user.avatar ?? null,
+            avatar: Option.fromNullable(member.user.avatar),
             roles: member.roles,
           });
         }),

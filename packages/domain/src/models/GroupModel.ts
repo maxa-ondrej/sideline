@@ -8,8 +8,8 @@ export type GroupId = typeof GroupId.Type;
 export class Group extends Model.Class<Group>('Group')({
   id: Model.Generated(GroupId),
   team_id: TeamId,
-  parent_id: Schema.NullOr(GroupId),
+  parent_id: Schema.OptionFromNullOr(GroupId),
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

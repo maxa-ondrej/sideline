@@ -200,7 +200,7 @@ export type UserId = typeof UserId.Type;
 export class User extends Model.Class<User>('User')({
   id: Model.Generated(UserId),           // excluded from insert (DB generates)
   discord_id: Schema.String,
-  discord_avatar: Schema.NullOr(Schema.String),
+  discord_avatar: Schema.OptionFromNullOr(Schema.String),
   discord_access_token: Model.Sensitive(Schema.String),  // excluded from json variants
   created_at: Model.DateTimeInsertFromDate,  // auto-managed insert timestamp
   updated_at: Model.DateTimeUpdateFromDate,  // auto-managed update timestamp
@@ -212,11 +212,11 @@ Key field helpers:
 - **`Model.Sensitive(schema)`** — fields excluded from `json` variants (tokens, secrets)
 - **`Model.DateTimeInsertFromDate`** — auto-managed insert timestamp (`Date` → `DateTime.Utc`)
 - **`Model.DateTimeUpdateFromDate`** — auto-managed timestamp for both insert and update
-- **`Schema.NullOr(schema)`** — nullable DB columns (simpler than `Model.FieldOption`)
+- **`Schema.OptionFromNullOr(schema)`** — nullable DB columns (decodes `T | null` → `Option<T>`, encodes back to `T | null`)
 
 Use **snake_case** field names matching DB columns directly — no `fieldFromKey` mapping needed.
 
-**DateTime convention**: Always use Effect's `DateTime` classes (`DateTime.Utc`, `DateTime.Zoned`) — never raw JS `Date` or string concatenation for date/time manipulation. Store instants as `TIMESTAMPTZ` in the DB and use `Schemas.DateTimeFromDate` from `@sideline/effect-lib` in domain models (nullable: `Schema.NullOr(Schemas.DateTimeFromDate)`).
+**DateTime convention**: Always use Effect's `DateTime` classes (`DateTime.Utc`, `DateTime.Zoned`) — never raw JS `Date` or string concatenation for date/time manipulation. Store instants as `TIMESTAMPTZ` in the DB and use `Schemas.DateTimeFromDate` from `@sideline/effect-lib` in domain models (nullable: `Schema.OptionFromNullOr(Schemas.DateTimeFromDate)`).
 
 #### Model.makeRepository
 

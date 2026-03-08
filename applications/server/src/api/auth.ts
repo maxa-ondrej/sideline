@@ -111,14 +111,19 @@ const handleDiscordLogin = ({
       users.upsertFromDiscord({
         discord_id: discordUser.id,
         username: discordUser.username,
-        avatar: discordUser.avatar ?? null,
+        avatar: Option.fromNullable(discordUser.avatar),
       }),
     ),
     Effect.tap(({ dbUser }) =>
       Effect.logInfo('[auth/callback] user upserted in db', { userId: dbUser.id }),
     ),
     Effect.tap(({ dbUser, oauth }) =>
-      oauthConnections.upsert(dbUser.id, 'discord', oauth.accessToken(), oauth.refreshToken()),
+      oauthConnections.upsert(
+        dbUser.id,
+        'discord',
+        oauth.accessToken(),
+        Option.fromNullable(oauth.refreshToken()),
+      ),
     ),
     Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
       sessions.create({
@@ -261,9 +266,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   avatar: updated.avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
-                  birthDate: Option.getOrNull(
-                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
-                  ),
+                  birthDate: Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
                   gender: updated.gender,
                   locale: updated.locale,
                 }),
@@ -292,9 +295,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   avatar: updated.avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
-                  birthDate: Option.getOrNull(
-                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
-                  ),
+                  birthDate: Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
                   gender: updated.gender,
                   locale: updated.locale,
                 }),
@@ -308,9 +309,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.bind('updated', ({ currentUser }) =>
               users.completeProfile({
                 id: currentUser.id,
-                name: payload.name,
+                name: Option.some(payload.name),
                 birth_date: Option.some(DateTime.unsafeMake(payload.birthDate)),
-                gender: payload.gender,
+                gender: Option.some(payload.gender),
               }),
             ),
 
@@ -323,9 +324,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   avatar: updated.avatar,
                   isProfileComplete: updated.is_profile_complete,
                   name: updated.name,
-                  birthDate: Option.getOrNull(
-                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
-                  ),
+                  birthDate: Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
                   gender: updated.gender,
                   locale: updated.locale,
                 }),
@@ -393,7 +392,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                           new Auth.DiscordGuild({
                             id: Schema.decodeSync(Discord.Snowflake)(g.id),
                             name: g.name,
-                            icon: g.icon ?? null,
+                            icon: Option.fromNullable(g.icon),
                             owner: g.owner,
                             botPresent: present,
                           }),

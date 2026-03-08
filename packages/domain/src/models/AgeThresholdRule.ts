@@ -10,7 +10,7 @@ export class AgeThresholdRule extends Model.Class<AgeThresholdRule>('AgeThreshol
   id: Model.Generated(AgeThresholdRuleId),
   team_id: TeamId,
   group_id: GroupId,
-  min_age: Schema.NullOr(Schema.Number),
-  max_age: Schema.NullOr(Schema.Number),
+  min_age: Schema.OptionFromNullOr(Schema.Number),
+  max_age: Schema.OptionFromNullOr(Schema.Number),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

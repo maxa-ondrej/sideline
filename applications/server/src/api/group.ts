@@ -397,14 +397,16 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               // Validate no circular refs if moving to a new parent
               Effect.tap(() =>
-                payload.parentId !== null
-                  ? groups.getAncestorIds(payload.parentId).pipe(
+                Option.match(payload.parentId, {
+                  onNone: () => Effect.void,
+                  onSome: (pid) =>
+                    groups.getAncestorIds(pid).pipe(
                       Effect.flatMap((ancestors) =>
                         ancestors.includes(groupId) ? Effect.fail(forbidden) : Effect.void,
                       ),
                       Effect.catchAll(() => Effect.void),
-                    )
-                  : Effect.void,
+                    ),
+                }),
               ),
               Effect.bind('updated', () => groups.moveGroup(groupId, payload.parentId)),
               Effect.bind('memberCount', () => groups.getMemberCount(groupId)),
@@ -458,15 +460,18 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.map(({ mapping, allChannels }) =>
                 Option.match(mapping, {
-                  onNone: () => null,
+                  onNone: () => Option.none(),
                   onSome: (row) =>
-                    new GroupApi.ChannelMappingInfo({
-                      discordChannelId: row.discord_channel_id,
-                      discordChannelName:
-                        allChannels.find((ch) => ch.channel_id === row.discord_channel_id)?.name ??
-                        null,
-                      discordRoleId: Option.getOrNull(row.discord_role_id),
-                    }),
+                    Option.some(
+                      new GroupApi.ChannelMappingInfo({
+                        discordChannelId: row.discord_channel_id,
+                        discordChannelName: Option.fromNullable(
+                          allChannels.find((ch) => ch.channel_id === row.discord_channel_id)
+                            ?.name ?? null,
+                        ),
+                        discordRoleId: row.discord_role_id,
+                      }),
+                    ),
                 }),
               ),
             ),
@@ -516,10 +521,11 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ({ allChannels }) =>
                   new GroupApi.ChannelMappingInfo({
                     discordChannelId: payload.discordChannelId,
-                    discordChannelName:
+                    discordChannelName: Option.fromNullable(
                       allChannels.find((ch) => ch.channel_id === payload.discordChannelId)?.name ??
-                      null,
-                    discordRoleId: null,
+                        null,
+                    ),
+                    discordRoleId: Option.none(),
                   }),
               ),
             ),

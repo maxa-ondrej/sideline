@@ -20,13 +20,14 @@ const cronEffect = Effect.Do.pipe(
     Effect.all(
       allSeries.map((s) => {
         const effectiveEnd = computeHorizonEnd({
-          seriesEndDate: s.end_date,
+          seriesEndDate: Option.getOrNull(s.end_date),
           horizonDays: s.event_horizon_days,
         });
 
-        const startFrom = s.last_generated_date
-          ? DateTime.add(toUtc(s.last_generated_date), { days: 1 })
-          : toUtc(s.start_date);
+        const startFrom = Option.match(s.last_generated_date, {
+          onNone: () => toUtc(s.start_date),
+          onSome: (d) => DateTime.add(toUtc(d), { days: 1 }),
+        });
 
         if (DateTime.greaterThan(startFrom, effectiveEnd)) return Effect.void;
 
@@ -43,17 +44,17 @@ const cronEffect = Effect.Do.pipe(
           dates.map((date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
             const startAt = `${dateStr}T${s.start_time}Z`;
-            const endAt = s.end_time ? `${dateStr}T${s.end_time}Z` : null;
+            const endAt = Option.map(s.end_time, (t) => `${dateStr}T${t}Z`);
             return eventsRepo
               .insertEvent({
                 teamId: s.team_id,
-                trainingTypeId: Option.fromNullable(s.training_type_id),
+                trainingTypeId: s.training_type_id,
                 eventType: 'training',
                 title: s.title,
-                description: Option.fromNullable(s.description),
+                description: s.description,
                 startAt,
-                endAt: Option.fromNullable(endAt),
-                location: Option.fromNullable(s.location),
+                endAt,
+                location: s.location,
                 createdBy: s.created_by,
                 seriesId: Option.some(s.id),
               })
