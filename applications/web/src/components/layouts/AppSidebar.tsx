@@ -1,4 +1,5 @@
 import type { Auth } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
   Bell,
@@ -38,37 +39,42 @@ interface NavItem {
 
 function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
   return [
-    { title: 'Overview', icon: Home, to: '/teams/$teamId', params: { teamId } },
+    { title: m.sidebar_overview(), icon: Home, to: '/teams/$teamId', params: { teamId } },
     {
-      title: 'Notifications',
+      title: m.notification_title(),
       icon: Bell,
       to: '/teams/$teamId/notifications',
       params: { teamId },
     },
-    { title: 'Members', icon: Users, to: '/teams/$teamId/members', params: { teamId } },
-    { title: 'Roles', icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
-    { title: 'Rosters', icon: UsersRound, to: '/teams/$teamId/rosters', params: { teamId } },
-    { title: 'Groups', icon: UserCog, to: '/teams/$teamId/groups', params: { teamId } },
+    { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
+    { title: m.team_roles(), icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
     {
-      title: 'Training Types',
+      title: m.team_rosters(),
+      icon: UsersRound,
+      to: '/teams/$teamId/rosters',
+      params: { teamId },
+    },
+    { title: m.team_groups(), icon: UserCog, to: '/teams/$teamId/groups', params: { teamId } },
+    {
+      title: m.team_trainingTypes(),
       icon: Dumbbell,
       to: '/teams/$teamId/training-types',
       params: { teamId },
     },
     {
-      title: 'Events',
+      title: m.event_events(),
       icon: Calendar,
       to: '/teams/$teamId/events',
       params: { teamId },
     },
     {
-      title: 'Age Thresholds',
+      title: m.team_ageThresholds(),
       icon: CalendarDays,
       to: '/teams/$teamId/age-thresholds',
       params: { teamId },
     },
     {
-      title: 'Settings',
+      title: m.team_settings(),
       icon: Settings,
       to: '/teams/$teamId/settings',
       params: { teamId },
@@ -95,7 +101,7 @@ export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppS
       <SidebarContent>
         {
           <SidebarGroup>
-            <SidebarGroupLabel>Team</SidebarGroupLabel>
+            <SidebarGroupLabel>{m.sidebar_team()}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {teamItems.map((item) => (

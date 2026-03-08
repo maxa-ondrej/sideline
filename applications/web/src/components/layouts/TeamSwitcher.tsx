@@ -1,4 +1,5 @@
 import type { Auth } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { ChevronsUpDown, Plus, Users } from 'lucide-react';
 import {
@@ -40,7 +41,7 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
               </div>
               <div className='grid flex-1 text-left text-sm leading-tight'>
                 <span className='truncate font-semibold'>
-                  {activeTeam?.teamName ?? 'Select team'}
+                  {activeTeam?.teamName ?? m.nav_selectTeam()}
                 </span>
                 {activeTeam && (
                   <span className='truncate text-xs'>{activeTeam.roleNames.join(', ')}</span>
@@ -55,7 +56,9 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
             side={isMobile ? 'bottom' : 'right'}
             sideOffset={4}
           >
-            <DropdownMenuLabel className='text-xs text-muted-foreground'>Teams</DropdownMenuLabel>
+            <DropdownMenuLabel className='text-xs text-muted-foreground'>
+              {m.nav_teams()}
+            </DropdownMenuLabel>
             {teams.map((team, index) => (
               <DropdownMenuItem key={team.teamId} className='gap-2 p-2' asChild>
                 <Link to='/teams/$teamId' params={{ teamId: team.teamId }}>
@@ -78,7 +81,7 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
                 <div className='flex size-6 items-center justify-center rounded-md border bg-background'>
                   <Plus className='size-4' />
                 </div>
-                <div className='font-medium text-muted-foreground'>Add team</div>
+                <div className='font-medium text-muted-foreground'>{m.nav_addTeam()}</div>
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
