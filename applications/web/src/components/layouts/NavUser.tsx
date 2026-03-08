@@ -1,6 +1,10 @@
 import type { Auth } from '@sideline/domain';
+import { m } from '@sideline/i18n/messages';
+import { getLocale, setLocale } from '@sideline/i18n/runtime';
 import { Link } from '@tanstack/react-router';
-import { Bell, ChevronsUpDown, LogOut, UserIcon } from 'lucide-react';
+import { Effect } from 'effect';
+import { Bell, Check, ChevronsUpDown, Languages, LogOut, UserIcon } from 'lucide-react';
+import { useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import {
   DropdownMenu,
@@ -9,6 +13,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import {
@@ -17,6 +24,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '~/components/ui/sidebar';
+import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 function discordAvatarUrl(discordId: string, avatar: string): string {
   return `https://cdn.discordapp.com/avatars/${discordId}/${avatar}.png?size=64`;
@@ -40,9 +48,28 @@ interface NavUserProps {
   onLogout: () => void;
 }
 
+const localeOptions = [
+  { value: 'en' as const, flag: '🇬🇧', label: () => m.language_en() },
+  { value: 'cs' as const, flag: '🇨🇿', label: () => m.language_cs() },
+] as const;
+
 export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar();
+  const run = useRun();
   const displayName = user.name ?? user.username;
+  const currentLocale = getLocale();
+
+  const handleLocaleChange = useCallback(
+    (locale: 'en' | 'cs') => {
+      setLocale(locale);
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.auth.updateLocale({ payload: { locale } })),
+        Effect.catchAll(() => ClientError.make(m.auth_errors_profileFailed())),
+        run(),
+      );
+    },
+    [run],
+  );
 
   return (
     <SidebarMenu>
@@ -108,6 +135,23 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
                   </Link>
                 </DropdownMenuItem>
               )}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Languages />
+                  {m.language_label()}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {localeOptions.map((loc) => (
+                    <DropdownMenuItem key={loc.value} onClick={() => handleLocaleChange(loc.value)}>
+                      {loc.flag} {loc.label()}
+                      {currentLocale === loc.value && <Check className='ml-auto h-4 w-4' />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

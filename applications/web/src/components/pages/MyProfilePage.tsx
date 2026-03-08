@@ -4,7 +4,6 @@ import * as m from '@sideline/i18n/messages';
 import { Effect, Option, Schema } from 'effect';
 import { useForm } from 'react-hook-form';
 
-import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
 import {
@@ -95,9 +94,6 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   return (
     <div>
       <header className='mb-8'>
-        <div className='flex items-center justify-end mb-2'>
-          <LanguageSwitcher isAuthenticated />
-        </div>
         <div className='flex items-center gap-4'>
           {user.avatar ? (
             <img
