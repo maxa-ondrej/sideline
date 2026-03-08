@@ -12,6 +12,7 @@ interface DatePickerProps {
   disabled?: boolean;
   fromYear?: number;
   toYear?: number;
+  defaultMonth?: Date;
 }
 
 function DatePicker({
@@ -21,6 +22,7 @@ function DatePicker({
   disabled,
   fromYear,
   toYear,
+  defaultMonth: defaultMonthProp,
 }: DatePickerProps) {
   const selected = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
 
@@ -48,7 +50,7 @@ function DatePicker({
           captionLayout={fromYear || toYear ? 'dropdown' : 'label'}
           startMonth={fromYear ? new Date(fromYear, 0) : undefined}
           endMonth={toYear ? new Date(toYear, 11) : undefined}
-          defaultMonth={selected}
+          defaultMonth={selected ?? defaultMonthProp}
           autoFocus
         />
       </PopoverContent>

@@ -14,6 +14,7 @@ import { Gender, Locale, UserId } from '~/models/User.js';
 export { UserId } from '~/models/User.js';
 
 export const MIN_AGE = 6;
+export const DEFAULT_BIRTH_YEAR_OFFSET = 18;
 
 export class UserTeam extends Schema.Class<UserTeam>('UserTeam')({
   teamId: TeamId,
