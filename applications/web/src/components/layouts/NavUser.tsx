@@ -124,14 +124,14 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
               <DropdownMenuItem asChild>
                 <Link to='/profile'>
                   <UserIcon />
-                  Profile
+                  {m.nav_profile()}
                 </Link>
               </DropdownMenuItem>
               {activeTeamId && (
                 <DropdownMenuItem asChild>
                   <Link to='/teams/$teamId/notifications' params={{ teamId: activeTeamId }}>
                     <Bell />
-                    Notifications
+                    {m.nav_notifications()}
                   </Link>
                 </DropdownMenuItem>
               )}
@@ -156,7 +156,7 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>
               <LogOut />
-              Log out
+              {m.nav_logOut()}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
