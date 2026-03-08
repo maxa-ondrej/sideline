@@ -495,7 +495,7 @@ pnpm changeset-publish
 - **patch** — small features, bug fixes, refactors
 - **minor** — larger features, significant new functionality
 - **major** — never bump major. This project does not use major version bumps.
-- **Always include `@sideline/web`** in changesets when there are frontend/UI changes (new routes, components, UI rework), even though it is a private package. Explicitly list every package that had meaningful code changes.
+- **Include all `@sideline/*` packages** in changesets — private packages are not excluded. Explicitly list every package that had meaningful code changes (e.g. `@sideline/web`, `@sideline/bot`, `@sideline/server`, `@sideline/proxy`, `@sideline/migrations`, `@sideline/domain`, `@sideline/effect-lib`, `@sideline/i18n`).
 
 ## Vitest Configuration
 

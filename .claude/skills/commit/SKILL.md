@@ -19,13 +19,12 @@ Run `git status` and `git diff` to understand what changed. If there are no chan
 
 If any package source code changed (not just docs/config), create a changeset file in `.changeset/`:
 
-- Determine which packages were affected (`@sideline/bot`, `@sideline/server`, `@sideline/domain`, `@sideline/migrations`)
+- Determine which packages were affected — include all `@sideline/*` packages with meaningful code changes (e.g. `@sideline/web`, `@sideline/bot`, `@sideline/server`, `@sideline/proxy`, `@sideline/migrations`, `@sideline/domain`, `@sideline/effect-lib`, `@sideline/i18n`). Private packages are NOT excluded.
 - Apply bump rules:
   - **patch** — small features, bug fixes, refactors
   - **minor** — larger features, significant new functionality
   - **major** — NEVER. Do not bump major.
 - Write a short summary of the changes in the changeset body
-- The `@sideline/web` package is private and should NOT be included in changesets
 
 ### 3. Run all checks
 
