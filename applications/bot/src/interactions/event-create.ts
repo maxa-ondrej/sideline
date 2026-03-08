@@ -5,6 +5,7 @@ import { Interaction, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
 import { Effect, Option, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
+import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeUnknownSync(DiscordSchemas.Snowflake);
@@ -37,8 +38,7 @@ export const EventCreateModal = Ix.modalSubmit(
       const eventType = parts[1] ?? 'other';
       const locale = userLocale(interaction);
 
-      const discordUserId =
-        interaction.member?.user?.id ?? ('user' in interaction ? interaction.user?.id : undefined);
+      const discordUserId = interactionUserId(interaction);
       const guildId = interaction.guild_id;
 
       if (!guildId) {
@@ -50,7 +50,7 @@ export const EventCreateModal = Ix.modalSubmit(
         );
       }
 
-      if (!discordUserId) {
+      if (Option.isNone(discordUserId)) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -76,7 +76,7 @@ export const EventCreateModal = Ix.modalSubmit(
 
       return rpc['Event/CreateEvent']({
         guild_id: decodeSnowflake(guildId),
-        discord_user_id: decodeSnowflake(discordUserId),
+        discord_user_id: decodeSnowflake(discordUserId.value),
         event_type: eventType as
           | 'training'
           | 'match'

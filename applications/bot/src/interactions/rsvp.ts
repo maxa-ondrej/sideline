@@ -7,6 +7,7 @@ import * as Discord from 'dfx/types';
 import { Effect, Option, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const localizeRsvpResponse = (response: EventRsvp.RsvpResponse, locale: Locale): string => {
@@ -95,13 +96,12 @@ export const RsvpModal = Ix.modalSubmit(
       const eventId = decodeEventId(parts[2]);
       const response = decodeRsvpResponse(parts[3]);
       const message = modalValueOption(data, 'rsvp_message');
-      const discordUserId =
-        interaction.member?.user?.id ?? ('user' in interaction ? interaction.user?.id : undefined);
+      const discordUserId = interactionUserId(interaction);
 
       const locale = userLocale(interaction);
       const embedLocale = guildLocale(interaction);
 
-      if (!discordUserId) {
+      if (Option.isNone(discordUserId)) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -113,7 +113,7 @@ export const RsvpModal = Ix.modalSubmit(
       return rpc['Event/SubmitRsvp']({
         event_id: eventId,
         team_id: teamId,
-        discord_user_id: decodeSnowflake(discordUserId),
+        discord_user_id: decodeSnowflake(discordUserId.value),
         response,
         message,
       }).pipe(

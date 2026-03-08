@@ -2,10 +2,14 @@ import { Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Option, Schema } from 'effect';
+import { Array as Arr, Effect, Option, Schema } from 'effect';
+import { DfxGuildMember, DfxTextChannel, DfxUser } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
+const decodeTextChannel = Schema.decodeUnknownOption(DfxTextChannel);
+const decodeGuildMember = Schema.decodeUnknownOption(DfxGuildMember);
+const decodeUser = Schema.decodeUnknownSync(DfxUser);
 
 export const eventHandlers = Effect.Do.pipe(
   Effect.bind('gateway', () => DiscordGateway),
@@ -24,18 +28,16 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.tap(() =>
           rest.listGuildChannels(guild.id).pipe(
             Effect.map((channels) =>
-              channels.flatMap((ch) => {
-                if (ch.type !== 0 || !('name' in ch)) return [];
-                const parentId = 'parent_id' in ch && ch.parent_id ? String(ch.parent_id) : null;
-                return [
-                  {
-                    channel_id: decodeSnowflake(ch.id),
-                    name: ch.name,
-                    type: ch.type,
-                    parent_id: Option.fromNullable(parentId ? decodeSnowflake(parentId) : null),
-                  },
-                ];
-              }),
+              Arr.filterMap(channels, (ch) =>
+                decodeTextChannel(ch).pipe(
+                  Option.map((decoded) => ({
+                    channel_id: decoded.id,
+                    name: decoded.name,
+                    type: decoded.type,
+                    parent_id: decoded.parent_id,
+                  })),
+                ),
+              ),
             ),
             Effect.tap((channels) =>
               rpc['Guild/SyncGuildChannels']({
@@ -51,17 +53,17 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.tap(() =>
           rest.listGuildMembers(guild.id, { limit: 1000 }).pipe(
             Effect.map((guildMembers) =>
-              guildMembers.flatMap((m) => {
-                if (!m.user || m.user.bot) return [];
-                return [
-                  {
-                    discord_id: m.user.id,
-                    username: m.user.username,
-                    avatar: Option.fromNullable(m.user.avatar),
-                    roles: m.roles,
-                  },
-                ];
-              }),
+              Arr.filterMap(guildMembers, (m) =>
+                decodeGuildMember(m).pipe(
+                  Option.filter((decoded) => !decoded.user.bot),
+                  Option.map((decoded) => ({
+                    discord_id: decoded.user.id,
+                    username: decoded.user.username,
+                    avatar: decoded.user.avatar,
+                    roles: decoded.roles,
+                  })),
+                ),
+              ),
             ),
             Effect.tap((members) =>
               rpc['Guild/ReconcileMembers']({
@@ -96,30 +98,27 @@ export const eventHandlers = Effect.Do.pipe(
     ),
   ),
   Effect.let('guildMemberAdd', ({ gateway, rpc }) =>
-    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberAdd, (member) =>
-      Effect.Do.pipe(
-        Effect.tap(() =>
-          Effect.log(
-            `Member joined: ${member.user?.username ?? 'unknown'} in guild ${member.guild_id}`,
-          ),
-        ),
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberAdd, (member) => {
+      const user = decodeUser(member.user);
+      return Effect.Do.pipe(
+        Effect.tap(() => Effect.log(`Member joined: ${user.username} in guild ${member.guild_id}`)),
         Effect.tap(() => {
-          if (!member.user || member.user.bot) {
-            return Effect.log('Skipping bot or missing user');
+          if (user.bot) {
+            return Effect.log('Skipping bot');
           }
           return rpc['Guild/RegisterMember']({
             guild_id: decodeSnowflake(member.guild_id),
-            discord_id: member.user.id,
-            username: member.user.username,
-            avatar: Option.fromNullable(member.user.avatar),
+            discord_id: user.id,
+            username: user.username,
+            avatar: user.avatar,
             roles: member.roles,
           });
         }),
         Effect.catchAll((error) =>
-          Effect.logError(`Failed to register member ${member.user?.username ?? 'unknown'}`, error),
+          Effect.logError(`Failed to register member ${user.username}`, error),
         ),
-      ),
-    ),
+      );
+    }),
   ),
   Effect.let('guildMemberRemove', ({ gateway }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberRemove, (member) =>

@@ -1,19 +1,24 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect, Option } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { reorderChannelMessages } from './reorderChannelMessages.js';
+
+const decodeGuild = Schema.decodeUnknownSync(DfxGuild);
 
 export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('counts', ({ rpc }) => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
-    Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id)),
+    Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id).pipe(Effect.map(decodeGuild))),
     Effect.flatMap(({ rpc, rest, counts, guild }) => {
-      const channelId = Option.getOrUndefined(event.discord_channel_id) ?? guild.system_channel_id;
+      const channelId = Option.getOrUndefined(
+        Option.orElse(event.discord_channel_id, () => guild.system_channel_id),
+      );
       if (!channelId) {
         return Effect.logWarning(
           `Guild ${event.guild_id} has no system channel, skipping event post`,

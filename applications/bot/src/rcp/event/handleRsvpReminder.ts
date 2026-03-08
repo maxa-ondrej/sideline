@@ -1,9 +1,12 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { DateTime, Effect, Option } from 'effect';
+import { DateTime, Effect, Option, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
+import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+
+const decodeGuild = Schema.decodeUnknownSync(DfxGuild);
 
 const REMINDER_COLOR = 0xfee75c; // yellow
 
@@ -19,12 +22,14 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
     Effect.bind('summary', ({ rpc }) =>
       rpc['Event/GetRsvpReminderSummary']({ event_id: event.event_id }),
     ),
-    Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id)),
+    Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id).pipe(Effect.map(decodeGuild))),
     Effect.bind('votingMessage', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
     ),
     Effect.flatMap(({ rest, summary, guild, votingMessage }) => {
-      const channelId = Option.getOrUndefined(event.discord_channel_id) ?? guild.system_channel_id;
+      const channelId = Option.getOrUndefined(
+        Option.orElse(event.discord_channel_id, () => guild.system_channel_id),
+      );
       if (!channelId) {
         return Effect.logWarning(
           `Guild ${event.guild_id} has no system channel, skipping RSVP reminder`,
