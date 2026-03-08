@@ -16,6 +16,10 @@ export class ClientError extends Data.TaggedError('ClientError')<{
   static make = (message: string) => new ClientError({ message });
 }
 
+export class SilentClientError extends Data.TaggedError('SilentClientError')<{
+  readonly message: string;
+}> {}
+
 type Client = Effect.Effect.Success<typeof client>;
 
 export class ApiClient extends Context.Tag('ApiClient')<ApiClient, Client>() {}
@@ -64,7 +68,7 @@ export type RunOptions = { readonly success?: string; readonly loading?: string 
 export type Run = (
   options?: RunOptions,
 ) => <A>(
-  effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
+  effect: Effect.Effect<A, ClientError | SilentClientError, ApiClient | ClientConfig>,
 ) => Promise<Option.Option<A>>;
 
 const RunContext = React.createContext<Run>(
@@ -138,7 +142,7 @@ export const runPromiseClient =
   (serverUrl: string) =>
   (options?: RunOptions) =>
   async <A>(
-    effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
+    effect: Effect.Effect<A, ClientError | SilentClientError, ApiClient | ClientConfig>,
   ): Promise<Option.Option<A>> => {
     const toastId = options ? toast.loading(options.loading ?? 'Loading...') : undefined;
     const effectResponse = effect.pipe(
@@ -148,6 +152,7 @@ export const runPromiseClient =
       }),
       Effect.tapError((e) =>
         Effect.sync(() => {
+          if (e._tag === 'SilentClientError') return;
           if (toastId !== undefined) {
             toast.error(e.message, { id: toastId });
           } else {

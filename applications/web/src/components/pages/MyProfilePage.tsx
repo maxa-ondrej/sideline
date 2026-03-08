@@ -33,7 +33,10 @@ const NONE_VALUE = '__none__';
 const ProfileEditSchema = Schema.Struct({
   name: Schema.String,
   birthDate: Schema.String,
-  gender: Schema.Union(Schema.Literal('male', 'female', 'other'), Schema.Literal(NONE_VALUE)),
+  gender: Schema.Union(
+    Schema.Literal('male', 'female', 'other'),
+    Schema.Literal(NONE_VALUE),
+  ).annotations({ message: () => m.validation_invalidOption() }),
 });
 
 type ProfileEditValues = Schema.Schema.Type<typeof ProfileEditSchema>;

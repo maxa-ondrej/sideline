@@ -15,10 +15,11 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
+import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateTrainingTypeSchema = Schema.Struct({
-  name: Schema.NonEmptyString,
+  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
 });
 
 type CreateTrainingTypeValues = Schema.Schema.Type<typeof CreateTrainingTypeSchema>;
@@ -52,6 +53,13 @@ export function TrainingTypesListPage({
           payload: { name: values.name, groupId: null, discordChannelId: null },
         }),
       ),
+      withFieldErrors(form, [
+        {
+          tag: 'TrainingTypeNameAlreadyTaken',
+          field: 'name',
+          message: m.trainingType_nameAlreadyTaken(),
+        },
+      ]),
       Effect.catchAll(() => ClientError.make(m.trainingType_createFailed())),
       run(),
     );

@@ -53,13 +53,15 @@ const sortDays = (days: number[]): number[] =>
   [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
 
 const CreateScheduleSchema = Schema.Struct({
-  title: Schema.NonEmptyString,
+  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   description: Schema.String,
-  frequency: EventSeries.RecurrenceFrequency,
+  frequency: EventSeries.RecurrenceFrequency.annotations({
+    message: () => m.validation_invalidOption(),
+  }),
   daysOfWeek: EventSeries.DaysOfWeek,
-  startDate: Schema.NonEmptyString,
+  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   endDate: Schema.String,
-  startTime: Schema.NonEmptyString,
+  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   endTime: Schema.String,
   location: Schema.String,
 });
