@@ -413,5 +413,11 @@
   "bot_event_not_member": "You are not a member of this team.",
   "bot_event_invalid_date": "Invalid date format. Use YYYY-MM-DD HH:mm.",
   "bot_event_error": "Something went wrong while creating the event.",
-  "bot_event_no_guild": "This command can only be used in a Discord server."
+  "bot_event_no_guild": "This command can only be used in a Discord server.",
+  "validation_required": "This field is required.",
+  "validation_invalidOption": "Please select a valid option.",
+  "validation_jerseyNumber": "Must be between 0 and 99.",
+  "role_nameAlreadyTaken": "A role with this name already exists.",
+  "group_nameAlreadyTaken": "A group with this name already exists.",
+  "trainingType_nameAlreadyTaken": "A training type with this name already exists."
 }

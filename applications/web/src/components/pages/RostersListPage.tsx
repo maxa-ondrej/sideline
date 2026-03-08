@@ -18,7 +18,7 @@ import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateRosterSchema = Schema.Struct({
-  name: Schema.NonEmptyString,
+  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
 });
 
 type CreateRosterValues = Schema.Schema.Type<typeof CreateRosterSchema>;

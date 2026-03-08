@@ -413,5 +413,11 @@
   "bot_event_not_member": "Nejste členem tohoto týmu.",
   "bot_event_invalid_date": "Neplatný formát data. Použijte RRRR-MM-DD HH:mm.",
   "bot_event_error": "Při vytváření události došlo k chybě.",
-  "bot_event_no_guild": "Tento příkaz lze použít pouze na Discord serveru."
+  "bot_event_no_guild": "Tento příkaz lze použít pouze na Discord serveru.",
+  "validation_required": "Toto pole je povinné.",
+  "validation_invalidOption": "Vyberte platnou možnost.",
+  "validation_jerseyNumber": "Musí být mezi 0 a 99.",
+  "role_nameAlreadyTaken": "Role s tímto názvem již existuje.",
+  "group_nameAlreadyTaken": "Skupina s tímto názvem již existuje.",
+  "trainingType_nameAlreadyTaken": "Typ tréninku s tímto názvem již existuje."
 }

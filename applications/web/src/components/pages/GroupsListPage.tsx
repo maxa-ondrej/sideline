@@ -24,10 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateGroupSchema = Schema.Struct({
-  name: Schema.NonEmptyString,
+  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
 });
 
 type CreateGroupValues = Schema.Schema.Type<typeof CreateGroupSchema>;
@@ -159,6 +160,9 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
           payload: { name: values.name, parentId, emoji: null },
         }),
       ),
+      withFieldErrors(form, [
+        { tag: 'GroupNameAlreadyTaken', field: 'name', message: m.group_nameAlreadyTaken() },
+      ]),
       Effect.catchAll(() => ClientError.make(m.group_createFailed())),
       run(),
     );

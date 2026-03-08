@@ -15,10 +15,11 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
+import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateRoleSchema = Schema.Struct({
-  name: Schema.NonEmptyString,
+  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
 });
 
 type CreateRoleValues = Schema.Schema.Type<typeof CreateRoleSchema>;
@@ -47,6 +48,9 @@ export function RolesListPage({ teamId, roles }: RolesListPageProps) {
           payload: { name: values.name, permissions: [] },
         }),
       ),
+      withFieldErrors(form, [
+        { tag: 'RoleNameAlreadyTaken', field: 'name', message: m.role_nameAlreadyTaken() },
+      ]),
       Effect.catchAll(() => ClientError.make(m.role_createFailed())),
       run(),
     );

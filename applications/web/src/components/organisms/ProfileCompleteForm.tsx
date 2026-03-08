@@ -27,9 +27,11 @@ const currentYear = new Date().getFullYear();
 const maxBirthYear = currentYear - Auth.MIN_AGE;
 
 const ProfileFormSchema = Schema.Struct({
-  name: Schema.NonEmptyString,
-  birthDate: Schema.NonEmptyString,
-  gender: Schema.Literal('male', 'female', 'other'),
+  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  birthDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  gender: Schema.Literal('male', 'female', 'other').annotations({
+    message: () => m.validation_invalidOption(),
+  }),
 });
 
 type ProfileFormValues = Schema.Schema.Type<typeof ProfileFormSchema>;

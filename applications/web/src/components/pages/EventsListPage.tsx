@@ -32,12 +32,12 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 const NONE_VALUE = '__none__';
 
 const CreateEventSchema = Schema.Struct({
-  title: Schema.NonEmptyString,
-  eventType: Event.EventType,
+  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  eventType: Event.EventType.annotations({ message: () => m.validation_invalidOption() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
-  startDate: Schema.NonEmptyString,
-  startTime: Schema.NonEmptyString,
+  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
@@ -50,14 +50,16 @@ const toIsoDateTime = (date: string, time: string): string =>
   DateTime.formatIso(DateTime.unsafeMake(`${date}T${time}:00Z`));
 
 const CreateSeriesSchema = Schema.Struct({
-  title: Schema.NonEmptyString,
+  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
-  frequency: EventSeries.RecurrenceFrequency,
+  frequency: EventSeries.RecurrenceFrequency.annotations({
+    message: () => m.validation_invalidOption(),
+  }),
   daysOfWeek: EventSeries.DaysOfWeek,
-  startDate: Schema.NonEmptyString,
+  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   endDate: Schema.String,
-  startTime: Schema.NonEmptyString,
+  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   endTime: Schema.String,
   location: Schema.String,
   discordChannelId: Schema.String,

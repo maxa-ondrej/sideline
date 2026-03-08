@@ -40,12 +40,12 @@ const eventTypeLabels: Record<Event.EventType, () => string> = {
 };
 
 const EventEditSchema = Schema.Struct({
-  title: Schema.NonEmptyString,
-  eventType: Event.EventType,
+  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  eventType: Event.EventType.annotations({ message: () => m.validation_invalidOption() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
-  startDate: Schema.NonEmptyString,
-  startTime: Schema.NonEmptyString,
+  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
