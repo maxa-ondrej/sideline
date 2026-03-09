@@ -1,4 +1,4 @@
-import type { Event, Team } from '@sideline/domain';
+import type { Discord, Event, Team } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -25,7 +25,7 @@ export const resolveChannel = (
   teamId: Team.TeamId,
   eventId: Event.EventId,
 ): Effect.Effect<
-  string | null,
+  Option.Option<Discord.Snowflake>,
   never,
   EventsRepository | TrainingTypesRepository | TeamSettingsRepository
 > =>
@@ -33,38 +33,35 @@ export const resolveChannel = (
     Effect.bind('events', () => EventsRepository),
     Effect.bind('trainingTypes', () => TrainingTypesRepository),
     Effect.bind('settings', () => TeamSettingsRepository),
-    Effect.bind('event', ({ events }) =>
-      events.findEventByIdWithDetails(eventId).pipe(Effect.map(Option.getOrNull)),
-    ),
+    Effect.bind('event', ({ events }) => events.findEventByIdWithDetails(eventId)),
     Effect.flatMap(({ event, trainingTypes, settings }) => {
-      if (event === null) return Effect.succeed(null);
+      if (Option.isNone(event)) return Effect.succeed(Option.none());
+
+      const ev = event.value;
 
       // 1. Per-event override
-      if (Option.isSome(event.discord_target_channel_id))
-        return Effect.succeed(event.discord_target_channel_id.value);
+      if (Option.isSome(ev.discord_target_channel_id))
+        return Effect.succeed(ev.discord_target_channel_id);
 
       // 2. Training type default
-      const trainingTypeCheck = Option.isSome(event.training_type_id)
-        ? trainingTypes.findTrainingTypeById(event.training_type_id.value).pipe(
-            Effect.map((opt) => {
-              const tt = Option.getOrNull(opt);
-              return tt?.discord_channel_id ?? null;
-            }),
-          )
-        : Effect.succeed(null);
+      const trainingTypeCheck = Option.isSome(ev.training_type_id)
+        ? trainingTypes
+            .findTrainingTypeById(ev.training_type_id.value)
+            .pipe(Effect.map((opt) => Option.flatMap(opt, (tt) => tt.discord_channel_id)))
+        : Effect.succeed(Option.none<Discord.Snowflake>());
 
       return trainingTypeCheck.pipe(
         Effect.flatMap((channelFromTT) => {
-          if (channelFromTT) return Effect.succeed(channelFromTT);
+          if (Option.isSome(channelFromTT)) return Effect.succeed(channelFromTT);
 
           // 3. Team settings event-type default
           return settings.findByTeamId(teamId).pipe(
-            Effect.map((opt) => {
-              const s = Option.getOrNull(opt);
-              if (!s) return null;
-              const field = eventTypeToSettingsField(event.event_type);
-              return s[field];
-            }),
+            Effect.map((opt) =>
+              Option.flatMap(opt, (s) => {
+                const field = eventTypeToSettingsField(ev.event_type);
+                return s[field];
+              }),
+            ),
           );
         }),
       );

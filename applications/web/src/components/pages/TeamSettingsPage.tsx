@@ -1,4 +1,5 @@
 import type { GroupApi, TeamSettingsApi } from '@sideline/domain';
+import { Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
@@ -33,22 +34,22 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
   );
   const [saving, setSaving] = React.useState(false);
   const [channelTraining, setChannelTraining] = React.useState(
-    settings.discordChannelTraining ?? '__none__',
+    Option.getOrElse(settings.discordChannelTraining, () => '__none__'),
   );
   const [channelMatch, setChannelMatch] = React.useState(
-    settings.discordChannelMatch ?? '__none__',
+    Option.getOrElse(settings.discordChannelMatch, () => '__none__'),
   );
   const [channelTournament, setChannelTournament] = React.useState(
-    settings.discordChannelTournament ?? '__none__',
+    Option.getOrElse(settings.discordChannelTournament, () => '__none__'),
   );
   const [channelMeeting, setChannelMeeting] = React.useState(
-    settings.discordChannelMeeting ?? '__none__',
+    Option.getOrElse(settings.discordChannelMeeting, () => '__none__'),
   );
   const [channelSocial, setChannelSocial] = React.useState(
-    settings.discordChannelSocial ?? '__none__',
+    Option.getOrElse(settings.discordChannelSocial, () => '__none__'),
   );
   const [channelOther, setChannelOther] = React.useState(
-    settings.discordChannelOther ?? '__none__',
+    Option.getOrElse(settings.discordChannelOther, () => '__none__'),
   );
 
   const handleSave = React.useCallback(async () => {
@@ -69,22 +70,34 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
             minPlayersThreshold: Option.some(parsedThreshold),
             rsvpReminderHours: Option.some(parsedReminderHours),
             discordChannelTraining: Option.some(
-              channelTraining !== '__none__' ? Option.some(channelTraining) : Option.none(),
+              channelTraining !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelTraining))
+                : Option.none(),
             ),
             discordChannelMatch: Option.some(
-              channelMatch !== '__none__' ? Option.some(channelMatch) : Option.none(),
+              channelMatch !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelMatch))
+                : Option.none(),
             ),
             discordChannelTournament: Option.some(
-              channelTournament !== '__none__' ? Option.some(channelTournament) : Option.none(),
+              channelTournament !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelTournament))
+                : Option.none(),
             ),
             discordChannelMeeting: Option.some(
-              channelMeeting !== '__none__' ? Option.some(channelMeeting) : Option.none(),
+              channelMeeting !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelMeeting))
+                : Option.none(),
             ),
             discordChannelSocial: Option.some(
-              channelSocial !== '__none__' ? Option.some(channelSocial) : Option.none(),
+              channelSocial !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelSocial))
+                : Option.none(),
             ),
             discordChannelOther: Option.some(
-              channelOther !== '__none__' ? Option.some(channelOther) : Option.none(),
+              channelOther !== '__none__'
+                ? Option.some(Discord.Snowflake.make(channelOther))
+                : Option.none(),
             ),
           },
         }),
@@ -144,12 +157,16 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
               (horizonDays === String(settings.eventHorizonDays) &&
                 minPlayersThreshold === String(settings.minPlayersThreshold) &&
                 rsvpReminderHours === String(settings.rsvpReminderHours) &&
-                channelTraining === (settings.discordChannelTraining ?? '__none__') &&
-                channelMatch === (settings.discordChannelMatch ?? '__none__') &&
-                channelTournament === (settings.discordChannelTournament ?? '__none__') &&
-                channelMeeting === (settings.discordChannelMeeting ?? '__none__') &&
-                channelSocial === (settings.discordChannelSocial ?? '__none__') &&
-                channelOther === (settings.discordChannelOther ?? '__none__'))
+                channelTraining ===
+                  Option.getOrElse(settings.discordChannelTraining, () => '__none__') &&
+                channelMatch === Option.getOrElse(settings.discordChannelMatch, () => '__none__') &&
+                channelTournament ===
+                  Option.getOrElse(settings.discordChannelTournament, () => '__none__') &&
+                channelMeeting ===
+                  Option.getOrElse(settings.discordChannelMeeting, () => '__none__') &&
+                channelSocial ===
+                  Option.getOrElse(settings.discordChannelSocial, () => '__none__') &&
+                channelOther === Option.getOrElse(settings.discordChannelOther, () => '__none__'))
             }
           >
             {saving ? m.profile_saving() : m.profile_saveChanges()}

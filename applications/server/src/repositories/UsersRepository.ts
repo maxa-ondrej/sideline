@@ -5,7 +5,7 @@ import { Effect, Schema } from 'effect';
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
   discord_id: Schema.String,
   username: Schema.String,
-  avatar: Schema.NullOr(Schema.String),
+  avatar: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 const CompleteProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));

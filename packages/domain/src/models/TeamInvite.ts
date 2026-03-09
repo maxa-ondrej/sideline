@@ -14,5 +14,5 @@ export class TeamInvite extends Model.Class<TeamInvite>('TeamInvite')({
   active: Schema.Boolean,
   created_by: UserId,
   created_at: Model.DateTimeInsertFromDate,
-  expires_at: Schema.NullOr(Schemas.DateTimeFromDate),
+  expires_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
 }) {}

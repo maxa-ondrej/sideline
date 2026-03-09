@@ -13,19 +13,19 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   discordId: Schema.String,
   roleNames: Schema.Array(Schema.String),
   permissions: Schema.Array(Permission),
-  name: Schema.NullOr(Schema.String),
-  birthDate: Schema.NullOr(Schema.String),
-  gender: Schema.NullOr(Gender),
-  jerseyNumber: Schema.NullOr(Schema.Number),
+  name: Schema.OptionFromNullOr(Schema.String),
+  birthDate: Schema.OptionFromNullOr(Schema.String),
+  gender: Schema.OptionFromNullOr(Gender),
+  jerseyNumber: Schema.OptionFromNullOr(Schema.Number),
   username: Schema.String,
-  avatar: Schema.NullOr(Schema.String),
+  avatar: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('UpdatePlayerRequest')({
-  name: Schema.NullOr(Schema.String),
+  name: Schema.OptionFromNullOr(Schema.String),
   birthDate: Schema.OptionFromNullOr(Schema.String),
-  gender: Schema.NullOr(Gender),
-  jerseyNumber: Schema.NullOr(Schema.Number),
+  gender: Schema.OptionFromNullOr(Gender),
+  jerseyNumber: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 export class PlayerNotFound extends Schema.TaggedError<PlayerNotFound>()(
@@ -69,8 +69,8 @@ export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('Crea
 }) {}
 
 export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('UpdateRosterRequest')({
-  name: Schema.NullOr(Schema.String),
-  active: Schema.NullOr(Schema.Boolean),
+  name: Schema.OptionFromNullOr(Schema.String),
+  active: Schema.OptionFromNullOr(Schema.Boolean),
 }) {}
 
 export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>(

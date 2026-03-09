@@ -51,12 +51,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('role', () => roles.insertRole(teamId, payload.name)),
             Effect.tap(({ role }) => roles.setRolePermissions(role.id, payload.permissions)),
-            Effect.tap(({ role }) =>
-              syncEvents.emitRoleCreated(teamId, role.id, role.name).pipe(
-                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
-                Effect.catchAll(() => Effect.void),
-              ),
-            ),
+            Effect.tap(({ role }) => syncEvents.emitRoleCreated(teamId, role.id, role.name)),
             Effect.map(
               ({ role }) =>
                 new RoleApi.RoleDetail({
@@ -121,19 +116,21 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               ),
             ),
             Effect.tap(({ existing }) =>
-              existing.is_built_in && payload.name !== null
+              existing.is_built_in && Option.isSome(payload.name)
                 ? Effect.fail(new RoleApi.CannotModifyBuiltIn())
                 : Effect.void,
             ),
             Effect.bind('updated', ({ existing }) =>
-              payload.name !== null
-                ? roles.updateRole(roleId, payload.name)
-                : Effect.succeed(existing),
+              Option.match(payload.name, {
+                onNone: () => Effect.succeed(existing),
+                onSome: (name) => roles.updateRole(roleId, Option.some(name)),
+              }),
             ),
             Effect.tap(() =>
-              payload.permissions !== null
-                ? roles.setRolePermissions(roleId, payload.permissions)
-                : Effect.void,
+              Option.match(payload.permissions, {
+                onNone: () => Effect.void,
+                onSome: (perms) => roles.setRolePermissions(roleId, perms),
+              }),
             ),
             Effect.bind('permissions', () => roles.getPermissionsForRoleId(roleId)),
             Effect.map(
@@ -178,10 +175,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.tap(() => roles.archiveRoleById(roleId)),
             Effect.tap(({ existing }) =>
-              syncEvents.emitRoleDeleted(teamId, existing.id, existing.name).pipe(
-                Effect.tapError((e) => Effect.logWarning('Failed to emit sync event', e)),
-                Effect.catchAll(() => Effect.void),
-              ),
+              syncEvents.emitRoleDeleted(teamId, existing.id, existing.name),
             ),
             Effect.asVoid,
             Effect.catchTag('NoSuchElementException', Effect.die),
@@ -245,7 +239,6 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   ),
                 ),
                 Effect.catchTag('NoSuchElementException', () => Effect.void),
-                Effect.catchAll((e) => Effect.logWarning('Failed to emit sync event', e)),
               ),
             ),
             Effect.asVoid,
@@ -308,7 +301,6 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   ),
                 ),
                 Effect.catchTag('NoSuchElementException', () => Effect.void),
-                Effect.catchAll((e) => Effect.logWarning('Failed to emit sync event', e)),
               ),
             ),
             Effect.asVoid,

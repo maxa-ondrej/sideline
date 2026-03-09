@@ -9,6 +9,7 @@ import { PlayerDetailPage } from '~/components/pages/PlayerDetailPage';
 import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$memberId')({
+  ssr: false,
   component: MemberDetailRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
@@ -49,10 +50,10 @@ function MemberDetailRoute() {
           api.roster.updateMember({
             path: { teamId, memberId },
             payload: {
-              name: values.name,
+              name: Option.fromNullable(values.name),
               birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
-              gender: values.gender,
-              jerseyNumber: values.jerseyNumber,
+              gender: Option.fromNullable(values.gender),
+              jerseyNumber: Option.fromNullable(values.jerseyNumber),
             },
           }),
         ),

@@ -31,9 +31,7 @@ export const AuthMiddlewareLive = Layer.effect(
                             avatar: user.avatar,
                             isProfileComplete: user.is_profile_complete,
                             name: user.name,
-                            birthDate: Option.getOrNull(
-                              Option.map(user.birth_date, DateTime.formatIsoDateUtc),
-                            ),
+                            birthDate: Option.map(user.birth_date, DateTime.formatIsoDateUtc),
                             gender: user.gender,
                             locale: user.locale,
                           }),

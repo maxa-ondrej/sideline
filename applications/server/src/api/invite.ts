@@ -121,7 +121,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   code: generateInviteCode(),
                   active: true,
                   created_by: user.id,
-                  expires_at: null,
+                  expires_at: Option.none(),
                   created_at: undefined,
                 }),
               ).pipe(Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis'))),

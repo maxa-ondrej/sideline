@@ -56,7 +56,7 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
       Effect.flatMap((api) =>
         api.role.updateRole({
           path: { teamId: teamIdBranded, roleId: roleIdBranded },
-          payload: { name, permissions: [...permissions] },
+          payload: { name: Option.some(name), permissions: Option.some([...permissions]) },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_updateFailed())),

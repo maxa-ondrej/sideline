@@ -2,7 +2,7 @@ import type { Auth } from '@sideline/domain';
 import { m } from '@sideline/i18n/messages';
 import { getLocale, setLocale } from '@sideline/i18n/runtime';
 import { Link } from '@tanstack/react-router';
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { Bell, Check, ChevronsUpDown, Languages, LogOut, UserIcon } from 'lucide-react';
 import { useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
@@ -31,10 +31,10 @@ function discordAvatarUrl(discordId: string, avatar: string): string {
 }
 
 function userInitials(user: Auth.CurrentUser): string {
-  if (user.name) {
-    return user.name
+  if (Option.isSome(user.name)) {
+    return user.name.value
       .split(' ')
-      .map((part) => part[0])
+      .map((part: string) => part[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
@@ -56,7 +56,7 @@ const localeOptions = [
 export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar();
   const run = useRun();
-  const displayName = user.name ?? user.username;
+  const displayName = Option.getOrElse(user.name, () => user.username);
   const currentLocale = getLocale();
 
   const handleLocaleChange = useCallback(
@@ -81,9 +81,9 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
               className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
             >
               <Avatar className='h-8 w-8 rounded-lg'>
-                {user.avatar && (
+                {Option.isSome(user.avatar) && (
                   <AvatarImage
-                    src={discordAvatarUrl(user.discordId, user.avatar)}
+                    src={discordAvatarUrl(user.discordId, user.avatar.value)}
                     alt={displayName}
                   />
                 )}
@@ -105,9 +105,9 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
             <DropdownMenuLabel className='p-0 font-normal'>
               <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
                 <Avatar className='h-8 w-8 rounded-lg'>
-                  {user.avatar && (
+                  {Option.isSome(user.avatar) && (
                     <AvatarImage
-                      src={discordAvatarUrl(user.discordId, user.avatar)}
+                      src={discordAvatarUrl(user.discordId, user.avatar.value)}
                       alt={displayName}
                     />
                   )}

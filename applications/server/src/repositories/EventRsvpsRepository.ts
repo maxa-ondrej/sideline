@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Event, EventRsvp, TeamMember } from '@sideline/domain';
+import { Discord, Event, EventRsvp, TeamMember } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 
 class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMemberName')({
@@ -7,9 +7,9 @@ class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMembe
   event_id: Event.EventId,
   team_member_id: TeamMember.TeamMemberId,
   response: EventRsvp.RsvpResponse,
-  message: Schema.NullOr(Schema.String),
-  member_name: Schema.NullOr(Schema.String),
-  username: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
+  member_name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class RsvpRow extends Schema.Class<RsvpRow>('RsvpRow')({
@@ -17,29 +17,29 @@ class RsvpRow extends Schema.Class<RsvpRow>('RsvpRow')({
   event_id: Event.EventId,
   team_member_id: TeamMember.TeamMemberId,
   response: EventRsvp.RsvpResponse,
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
   event_id: Schema.String,
   team_member_id: Schema.String,
   response: Schema.String,
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
-  discord_id: Schema.NullOr(Schema.String),
-  member_name: Schema.NullOr(Schema.String),
-  username: Schema.NullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  member_name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
   response: EventRsvp.RsvpResponse,
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class NonResponderRow extends Schema.Class<NonResponderRow>('NonResponderRow')({
   team_member_id: TeamMember.TeamMemberId,
-  member_name: Schema.NullOr(Schema.String),
-  username: Schema.NullOr(Schema.String),
-  discord_id: Schema.NullOr(Schema.String),
+  member_name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
+  discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class TotalCount extends Schema.Class<TotalCount>('TotalCount')({
@@ -168,7 +168,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     eventId: Event.EventId,
     teamMemberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
-    message: string | null,
+    message: Option.Option<string>,
   ) => {
     return this.upsert({
       event_id: eventId,

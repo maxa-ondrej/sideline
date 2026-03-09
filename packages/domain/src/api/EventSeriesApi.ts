@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
+import { Snowflake } from '~/models/Discord.js';
 import {
   DaysOfWeek,
   EventSeriesId,
@@ -18,32 +19,32 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   frequency: RecurrenceFrequency,
   daysOfWeek: DaysOfWeek,
   startDate: Schema.String,
-  endDate: Schema.NullOr(Schema.String),
+  endDate: Schema.OptionFromNullOr(Schema.String),
   status: EventSeriesStatus,
-  trainingTypeId: Schema.NullOr(TrainingTypeId),
-  trainingTypeName: Schema.NullOr(Schema.String),
+  trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
+  trainingTypeName: Schema.OptionFromNullOr(Schema.String),
   startTime: Schema.String,
-  endTime: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
-  discordChannelId: Schema.NullOr(Schema.String),
+  endTime: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSeriesDetail')({
   seriesId: EventSeriesId,
   teamId: TeamId,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   frequency: RecurrenceFrequency,
   daysOfWeek: DaysOfWeek,
   startDate: Schema.String,
-  endDate: Schema.NullOr(Schema.String),
+  endDate: Schema.OptionFromNullOr(Schema.String),
   status: EventSeriesStatus,
-  trainingTypeId: Schema.NullOr(TrainingTypeId),
-  trainingTypeName: Schema.NullOr(Schema.String),
+  trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
+  trainingTypeName: Schema.OptionFromNullOr(Schema.String),
   startTime: Schema.String,
-  endTime: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
-  discordChannelId: Schema.NullOr(Schema.String),
+  endTime: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
   canEdit: Schema.Boolean,
   canCancel: Schema.Boolean,
 }) {}
@@ -52,16 +53,16 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   'CreateEventSeriesRequest',
 )({
   title: Schema.NonEmptyString,
-  trainingTypeId: Schema.NullOr(TrainingTypeId),
-  description: Schema.NullOr(Schema.String),
+  trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
+  description: Schema.OptionFromNullOr(Schema.String),
   frequency: RecurrenceFrequency,
   daysOfWeek: DaysOfWeek,
   startDate: Schema.String,
-  endDate: Schema.NullOr(Schema.String),
+  endDate: Schema.OptionFromNullOr(Schema.String),
   startTime: Schema.String,
-  endTime: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
-  discordChannelId: Schema.NullOr(Schema.String),
+  endTime: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
@@ -75,7 +76,7 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   endDate: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
 export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(

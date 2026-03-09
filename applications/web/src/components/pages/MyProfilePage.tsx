@@ -70,9 +70,9 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   const run = useRun();
 
   const defaultValues: ProfileEditValues = {
-    name: user.name ?? '',
-    birthDate: user.birthDate ?? '',
-    gender: user.gender ?? NONE_VALUE,
+    name: Option.getOrElse(user.name, () => ''),
+    birthDate: Option.getOrElse(user.birthDate, () => ''),
+    gender: Option.getOrElse(user.gender, () => NONE_VALUE),
   };
 
   const form = useForm<ProfileEditValues>({
@@ -86,9 +86,9 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
       Effect.flatMap((api) =>
         api.auth.updateProfile({
           payload: {
-            name: values.name,
+            name: values.name ? Option.some(values.name) : Option.none(),
             birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
-            gender: values.gender === NONE_VALUE ? null : values.gender,
+            gender: values.gender === NONE_VALUE ? Option.none() : Option.some(values.gender),
           },
         }),
       ),
@@ -100,15 +100,17 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
     }
   };
 
-  const initials = (user.name ?? user.username).slice(0, 2).toUpperCase();
+  const initials = Option.getOrElse(user.name, () => user.username)
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
     <div>
       <header className='mb-8'>
         <div className='flex items-center gap-4'>
-          {user.avatar ? (
+          {Option.isSome(user.avatar) ? (
             <img
-              src={discordAvatarUrl(user.discordId, user.avatar)}
+              src={discordAvatarUrl(user.discordId, user.avatar.value)}
               alt={m.profile_discordAvatar()}
               className='h-16 w-16 rounded-full'
             />

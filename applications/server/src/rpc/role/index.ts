@@ -61,13 +61,13 @@ export const RolesRpcLive = Effect.Do.pipe(
     'Role/MarkEventProcessed',
     ({ syncEvents }) =>
       ({ id }: { readonly id: RoleSyncEvent.RoleSyncEventId }) =>
-        syncEvents.markProcessed(id).pipe(Effect.catchAll(() => Effect.void)),
+        syncEvents.markProcessed(id),
   ),
   Effect.let(
     'Role/MarkEventFailed',
     ({ syncEvents }) =>
       ({ id, error }: { readonly id: RoleSyncEvent.RoleSyncEventId; readonly error: string }) =>
-        syncEvents.markFailed(id, error).pipe(Effect.catchAll(() => Effect.void)),
+        syncEvents.markFailed(id, error),
   ),
   Effect.let(
     'Role/GetMapping',
@@ -85,7 +85,6 @@ export const RolesRpcLive = Effect.Do.pipe(
                 }),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed(Option.none())),
         ),
   ),
   Effect.let(
@@ -100,13 +99,13 @@ export const RolesRpcLive = Effect.Do.pipe(
         readonly role_id: Role.RoleId;
         readonly discord_role_id: Discord.Snowflake;
       }) =>
-        mappings.insert(team_id, role_id, discord_role_id).pipe(Effect.catchAll(() => Effect.void)),
+        mappings.insert(team_id, role_id, discord_role_id),
   ),
   Effect.let(
     'Role/DeleteMapping',
     ({ mappings }) =>
       ({ team_id, role_id }: { readonly team_id: Team.TeamId; readonly role_id: Role.RoleId }) =>
-        mappings.deleteByRoleId(team_id, role_id).pipe(Effect.catchAll(() => Effect.void)),
+        mappings.deleteByRoleId(team_id, role_id),
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),

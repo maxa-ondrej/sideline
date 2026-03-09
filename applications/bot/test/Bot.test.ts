@@ -34,7 +34,7 @@ const MockDiscordRESTLayer = Layer.succeed(
         if (prop === 'listMyGuilds') {
           return () => Effect.succeed([]);
         }
-        return () => Effect.succeed(undefined);
+        return () => Effect.void;
       },
     },
   ) as never,

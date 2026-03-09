@@ -22,7 +22,7 @@ interface GroupDetailPageProps {
   groupDetail: GroupApi.GroupDetail;
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
   allRoles: ReadonlyArray<RoleApi.RoleInfo>;
-  channelMapping: GroupApi.ChannelMappingInfo | null;
+  channelMapping: Option.Option<GroupApi.ChannelMappingInfo>;
   allGroups: ReadonlyArray<GroupApi.GroupInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
@@ -45,13 +45,13 @@ export function GroupDetailPage({
   const groupIdBranded = Schema.decodeSync(GroupModel.GroupId)(groupId);
 
   const [name, setName] = React.useState(groupDetail.name);
-  const [emoji, setEmoji] = React.useState(groupDetail.emoji ?? '');
+  const [emoji, setEmoji] = React.useState(Option.getOrElse(groupDetail.emoji, () => ''));
   const [saving, setSaving] = React.useState(false);
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = React.useState<string>('');
   const [selectedChannelId, setSelectedChannelId] = React.useState('');
   const [parentGroupId, setParentGroupId] = React.useState<string>(
-    groupDetail.parentId ?? '__root__',
+    Option.getOrElse(groupDetail.parentId, () => '__root__'),
   );
 
   const memberIdsInGroup = new Set(groupDetail.members.map((m) => m.memberId));
@@ -66,7 +66,7 @@ export function GroupDetailPage({
       Effect.flatMap((api) =>
         api.group.updateGroup({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
-          payload: { name, emoji: emoji || null },
+          payload: { name, emoji: emoji ? Option.some(emoji) : Option.none() },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
@@ -207,7 +207,9 @@ export function GroupDetailPage({
   const handleMoveGroup = React.useCallback(
     async (newParentId: string) => {
       const parentId =
-        newParentId === '__root__' ? null : Schema.decodeSync(GroupModel.GroupId)(newParentId);
+        newParentId === '__root__'
+          ? Option.none()
+          : Option.some(Schema.decodeSync(GroupModel.GroupId)(newParentId));
       const result = await ApiClient.pipe(
         Effect.flatMap((api) =>
           api.group.moveGroup({
@@ -274,7 +276,9 @@ export function GroupDetailPage({
             <Button
               onClick={handleSaveName}
               disabled={
-                saving && name === groupDetail.name && (emoji || null) === groupDetail.emoji
+                saving &&
+                name === groupDetail.name &&
+                (emoji || null) === Option.getOrNull(groupDetail.emoji)
               }
             >
               {saving ? m.group_saving() : m.group_saveChanges()}
@@ -304,7 +308,10 @@ export function GroupDetailPage({
                   .filter((g) => g.groupId !== groupId)
                   .map((g) => (
                     <SelectItem key={g.groupId} value={g.groupId}>
-                      {g.emoji ? `${g.emoji} ${g.name}` : g.name}
+                      {g.emoji.pipe(
+                        Option.map((v) => `${v} ${g.name}`),
+                        Option.getOrElse(() => g.name),
+                      )}
                     </SelectItem>
                   ))}
               </SelectContent>
@@ -360,14 +367,18 @@ export function GroupDetailPage({
         {/* Discord Channel */}
         <div>
           <p className='text-sm font-medium mb-2'>{m.group_discordChannel()}</p>
-          {channelMapping ? (
+          {Option.isSome(channelMapping) ? (
             <div className='flex items-center gap-2'>
-              <span className='text-sm' title={channelMapping.discordChannelId}>
-                # {channelMapping.discordChannelName ?? channelMapping.discordChannelId}
-                {channelMapping.discordRoleId && (
+              <span className='text-sm' title={channelMapping.value.discordChannelId}>
+                #{' '}
+                {Option.getOrElse(
+                  channelMapping.value.discordChannelName,
+                  () => channelMapping.value.discordChannelId,
+                )}
+                {Option.isSome(channelMapping.value.discordRoleId) && (
                   <>
                     {' '}
-                    (Role: <code title={channelMapping.discordRoleId}>synced</code>)
+                    (Role: <code title={channelMapping.value.discordRoleId.value}>synced</code>)
                   </>
                 )}
               </span>
@@ -414,7 +425,7 @@ export function GroupDetailPage({
               <SelectContent>
                 {availableMembers.map((member) => (
                   <SelectItem key={member.memberId} value={member.memberId}>
-                    {member.name ?? member.username}
+                    {Option.getOrElse(member.name, () => member.username)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -431,7 +442,9 @@ export function GroupDetailPage({
               <tbody>
                 {groupDetail.members.map((member) => (
                   <tr key={member.memberId} className='border-b'>
-                    <td className='py-2 px-4'>{member.name ?? member.username}</td>
+                    <td className='py-2 px-4'>
+                      {Option.getOrElse(member.name, () => member.username)}
+                    </td>
                     <td className='py-2 px-4'>
                       <Button
                         variant='outline'

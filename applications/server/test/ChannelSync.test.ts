@@ -61,12 +61,12 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: false,
-  name: null,
+  name: Option.none<string>(),
   birth_date: Option.none(),
-  gender: null,
+  gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -76,12 +76,12 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -100,11 +100,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -193,9 +193,9 @@ let nextGroupId = 100;
 type GroupLike = {
   id: GroupModel.GroupId;
   team_id: Team.TeamId;
-  parent_id: GroupModel.GroupId | null;
+  parent_id: Option.Option<GroupModel.GroupId>;
   name: string;
-  emoji: string | null;
+  emoji: Option.Option<string>;
 };
 
 const groupsStore = new Map<GroupModel.GroupId, GroupLike>();
@@ -217,13 +217,18 @@ const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
     const g = groupsStore.get(id);
     return Effect.succeed(g ? Option.some(g) : Option.none());
   },
-  insertGroup: (teamId: string, name: string, parentId: string | null, emoji: string | null) => {
+  insertGroup: (
+    teamId: string,
+    name: string,
+    parentId: Option.Option<GroupModel.GroupId>,
+    emoji: Option.Option<string>,
+  ) => {
     const id =
       `00000000-0000-0000-0000-${String(nextGroupId++).padStart(12, '0')}` as GroupModel.GroupId;
     const g: GroupLike = {
       id,
       team_id: teamId as Team.TeamId,
-      parent_id: parentId as GroupModel.GroupId | null,
+      parent_id: parentId,
       name,
       emoji,
     };
@@ -335,9 +340,9 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
           role_names: member.role_names,
           permissions: member.permissions,
           name: user.name,
-          birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+          birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
           gender: user.gender,
-          jersey_number: null,
+          jersey_number: Option.none(),
           username: user.username,
           avatar: user.avatar,
         }),

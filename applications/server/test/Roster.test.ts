@@ -55,11 +55,11 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
   is_profile_complete: false,
-  name: null,
+  name: Option.none<string>(),
   birth_date: Option.none(),
-  gender: null,
+  gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -69,11 +69,11 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -114,11 +114,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -143,9 +143,9 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
-    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
     gender: user.gender,
-    jersey_number: null,
+    jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
   });
@@ -198,9 +198,9 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: (input: {
     id: Auth.UserId;
-    name: string;
+    name: Option.Option<string>;
     birth_date: Option.Option<DateTime.Utc>;
-    gender: 'male' | 'female' | 'other' | null;
+    gender: Option.Option<'male' | 'female' | 'other'>;
   }) => {
     const user = usersMap.get(input.id);
     if (!user) return Effect.die(new Error('User not found'));
@@ -271,7 +271,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: input.team_id,
       user_id: input.user_id,
       active: input.active,
-      jersey_number: null,
+      jersey_number: Option.none(),
       joined_at: DateTime.unsafeNow(),
     });
   },
@@ -290,7 +290,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
           team_id: m.team_id,
           user_id: m.user_id,
           active: m.active,
-          jersey_number: null,
+          jersey_number: Option.none(),
           joined_at: DateTime.unsafeNow(),
         })),
     ),
@@ -323,7 +323,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       team_id: updated.team_id,
       user_id: updated.user_id,
       active: updated.active,
-      jersey_number: null,
+      jersey_number: Option.none(),
       joined_at: DateTime.unsafeNow(),
     });
   },
@@ -365,13 +365,17 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     rostersStore.set(id, roster);
     return Effect.succeed(roster);
   },
-  update: (input: { id: RosterModel.RosterId; name: string | null; active: boolean | null }) => {
+  update: (input: {
+    id: RosterModel.RosterId;
+    name: Option.Option<string>;
+    active: Option.Option<boolean>;
+  }) => {
     const roster = rostersStore.get(input.id);
     if (!roster) return Effect.die(new Error('Roster not found'));
     const updated = {
       ...roster,
-      name: input.name ?? roster.name,
-      active: input.active ?? roster.active,
+      name: Option.getOrElse(input.name, () => roster.name),
+      active: Option.getOrElse(input.active, () => roster.active),
     };
     rostersStore.set(input.id, updated);
     return Effect.succeed(updated);

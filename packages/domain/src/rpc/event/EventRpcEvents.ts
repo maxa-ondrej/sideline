@@ -7,12 +7,12 @@ export class EventCreatedEvent extends Schema.TaggedClass<EventCreatedEvent>()('
   guild_id: Discord.Snowflake,
   event_id: Event.EventId,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
-  discord_channel_id: Schema.NullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class EventUpdatedEvent extends Schema.TaggedClass<EventUpdatedEvent>()('event_updated', {
@@ -21,12 +21,12 @@ export class EventUpdatedEvent extends Schema.TaggedClass<EventUpdatedEvent>()('
   guild_id: Discord.Snowflake,
   event_id: Event.EventId,
   title: Schema.String,
-  description: Schema.NullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   start_at: Schema.String,
-  end_at: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  end_at: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
-  discord_channel_id: Schema.NullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class EventCancelledEvent extends Schema.TaggedClass<EventCancelledEvent>()(
@@ -46,7 +46,7 @@ export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('
   event_id: Event.EventId,
   title: Schema.String,
   start_at: Schema.String,
-  discord_channel_id: Schema.NullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export const UnprocessedEventSyncEvent = Schema.Union(

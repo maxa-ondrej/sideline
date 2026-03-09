@@ -60,12 +60,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.tap(({ membership, isAdmin }) =>
-              checkCoachScoping(
-                events,
-                membership.id,
-                Option.fromNullable(payload.trainingTypeId),
-                isAdmin,
-              ),
+              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin),
             ),
             Effect.bind('inserted', ({ membership }) =>
               series.insertEventSeries({
@@ -87,7 +82,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.bind('horizonDays', () => teamSettings.getHorizonDays(teamId)),
             Effect.let('effectiveEnd', ({ inserted, horizonDays }) =>
               computeHorizonEnd({
-                seriesEndDate: inserted.end_date,
+                seriesEndDate: Option.getOrNull(inserted.end_date),
                 horizonDays,
               }),
             ),
@@ -104,41 +99,36 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 dates.map((date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
                   const startAt = `${dateStr}T${inserted.start_time}Z`;
-                  const endAt = inserted.end_time ? `${dateStr}T${inserted.end_time}Z` : null;
+                  const endAt = Option.map(inserted.end_time, (t) => `${dateStr}T${t}Z`);
                   return events
                     .insertEvent({
                       teamId,
-                      trainingTypeId: Option.fromNullable(inserted.training_type_id),
+                      trainingTypeId: inserted.training_type_id,
                       eventType: 'training',
                       title: inserted.title,
-                      description: Option.fromNullable(inserted.description),
+                      description: inserted.description,
                       startAt,
-                      endAt: Option.fromNullable(endAt),
-                      location: Option.fromNullable(inserted.location),
+                      endAt,
+                      location: inserted.location,
                       createdBy: membership.id,
                       seriesId: Option.some(inserted.id),
-                      discordTargetChannelId: Option.fromNullable(
-                        inserted.discord_target_channel_id,
-                      ),
+                      discordTargetChannelId: inserted.discord_target_channel_id,
                     })
                     .pipe(
                       Effect.tap((event) =>
                         resolveChannel(teamId, event.id).pipe(
-                          Effect.catchAll(() => Effect.succeed(null)),
                           Effect.flatMap((resolved) =>
-                            syncEvents
-                              .emitEventCreated(
-                                teamId,
-                                event.id,
-                                event.title,
-                                Option.getOrNull(event.description),
-                                event.start_at,
-                                Option.getOrNull(event.end_at),
-                                Option.getOrNull(event.location),
-                                event.event_type,
-                                resolved,
-                              )
-                              .pipe(Effect.catchAll(() => Effect.void)),
+                            syncEvents.emitEventCreated(
+                              teamId,
+                              event.id,
+                              event.title,
+                              event.description,
+                              event.start_at,
+                              event.end_at,
+                              event.location,
+                              event.event_type,
+                              resolved,
+                            ),
                           ),
                         ),
                       ),
@@ -162,7 +152,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endDate: inserted.end_date,
                   status: inserted.status,
                   trainingTypeId: inserted.training_type_id,
-                  trainingTypeName: null,
+                  trainingTypeName: Option.none(),
                   startTime: inserted.start_time,
                   endTime: inserted.end_time,
                   location: inserted.location,
@@ -274,42 +264,37 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ existing, isAdmin, membership }) => {
               const newTrainingTypeId = Option.match(payload.trainingTypeId, {
                 onNone: () => existing.training_type_id,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               });
-              return checkCoachScoping(
-                events,
-                membership.id,
-                Option.fromNullable(newTrainingTypeId),
-                isAdmin,
-              );
+              return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
             }),
             Effect.let('resolved', ({ existing }) => ({
               title: Option.getOrElse(payload.title, () => existing.title),
               trainingTypeId: Option.match(payload.trainingTypeId, {
                 onNone: () => existing.training_type_id,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               }),
               description: Option.match(payload.description, {
                 onNone: () => existing.description,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               }),
               daysOfWeek: Option.getOrElse(payload.daysOfWeek, () => existing.days_of_week),
               startTime: Option.getOrElse(payload.startTime, () => existing.start_time),
               endTime: Option.match(payload.endTime, {
                 onNone: () => existing.end_time,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               }),
               location: Option.match(payload.location, {
                 onNone: () => existing.location,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               }),
               endDate: Option.match(payload.endDate, {
                 onNone: () => existing.end_date,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               }),
               discordTargetChannelId: Option.match(payload.discordChannelId, {
                 onNone: () => existing.discord_target_channel_id,
-                onSome: Option.getOrNull,
+                onSome: (v) => v,
               }),
             })),
             Effect.tap(({ resolved }) =>
@@ -329,53 +314,58 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ resolved }) =>
               events.updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
                 title: resolved.title,
-                trainingTypeId: Option.fromNullable(resolved.trainingTypeId),
-                description: Option.fromNullable(resolved.description),
+                trainingTypeId: resolved.trainingTypeId,
+                description: resolved.description,
                 startTime: resolved.startTime,
-                endTime: Option.fromNullable(resolved.endTime),
-                location: Option.fromNullable(resolved.location),
+                endTime: resolved.endTime,
+                location: resolved.location,
               }),
             ),
             Effect.tap(({ existing, resolved, membership }) =>
               teamSettings.getHorizonDays(teamId).pipe(
                 Effect.flatMap((horizonDays) => {
                   const effectiveEnd = computeHorizonEnd({
-                    seriesEndDate: resolved.endDate,
+                    seriesEndDate: Option.getOrNull(resolved.endDate),
                     horizonDays,
                   });
-                  const lastGenStr = existing.last_generated_date;
-                  if (lastGenStr === null) return Effect.void;
-                  const lastGen = DateTime.unsafeMake(lastGenStr);
-                  if (!DateTime.greaterThan(effectiveEnd, lastGen)) return Effect.void;
-                  const nextDay = DateTime.add(lastGen, { days: 1 });
-                  const newDates = generateOccurrenceDates({
-                    frequency: existing.frequency,
-                    daysOfWeek: existing.days_of_week,
-                    startDate: nextDay,
-                    endDate: effectiveEnd,
-                  });
-                  if (newDates.length === 0) return Effect.void;
-                  const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
-                  return Effect.all(
-                    newDates.map((date) => {
-                      const dateStr = DateTime.formatIsoDateUtc(date);
-                      const startAt = `${dateStr}T${existing.start_time}Z`;
-                      const endAt = existing.end_time ? `${dateStr}T${existing.end_time}Z` : null;
-                      return events.insertEvent({
-                        teamId,
-                        trainingTypeId: Option.fromNullable(existing.training_type_id),
-                        eventType: 'training',
-                        title: existing.title,
-                        description: Option.fromNullable(existing.description),
-                        startAt,
-                        endAt: Option.fromNullable(endAt),
-                        location: Option.fromNullable(existing.location),
-                        createdBy: membership.id,
-                        seriesId: Option.some(existing.id),
+                  return Option.match(existing.last_generated_date, {
+                    onNone: () => Effect.void,
+                    onSome: (lastGenStr) => {
+                      const lastGen = DateTime.unsafeMake(lastGenStr);
+                      if (!DateTime.greaterThan(effectiveEnd, lastGen)) return Effect.void;
+                      const nextDay = DateTime.add(lastGen, { days: 1 });
+                      const newDates = generateOccurrenceDates({
+                        frequency: existing.frequency,
+                        daysOfWeek: existing.days_of_week,
+                        startDate: nextDay,
+                        endDate: effectiveEnd,
                       });
-                    }),
-                    { concurrency: 1 },
-                  ).pipe(Effect.tap(() => series.updateLastGeneratedDate(existing.id, lastDate)));
+                      if (newDates.length === 0) return Effect.void;
+                      const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
+                      return Effect.all(
+                        newDates.map((date) => {
+                          const dateStr = DateTime.formatIsoDateUtc(date);
+                          const startAt = `${dateStr}T${existing.start_time}Z`;
+                          const endAt = Option.map(existing.end_time, (t) => `${dateStr}T${t}Z`);
+                          return events.insertEvent({
+                            teamId,
+                            trainingTypeId: existing.training_type_id,
+                            eventType: 'training',
+                            title: existing.title,
+                            description: existing.description,
+                            startAt,
+                            endAt,
+                            location: existing.location,
+                            createdBy: membership.id,
+                            seriesId: Option.some(existing.id),
+                          });
+                        }),
+                        { concurrency: 1 },
+                      ).pipe(
+                        Effect.tap(() => series.updateLastGeneratedDate(existing.id, lastDate)),
+                      );
+                    },
+                  });
                 }),
               ),
             ),
@@ -442,12 +432,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
             Effect.tap(({ existing, isAdmin, membership }) =>
-              checkCoachScoping(
-                events,
-                membership.id,
-                Option.fromNullable(existing.training_type_id),
-                isAdmin,
-              ),
+              checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
             ),
             Effect.tap(() => series.cancelEventSeries(seriesId)),
             Effect.tap(() => events.cancelFutureInSeries(seriesId, todayStr())),

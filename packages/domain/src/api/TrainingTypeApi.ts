@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { Snowflake } from '~/models/Discord.js';
 import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
@@ -9,16 +10,16 @@ export class TrainingTypeInfo extends Schema.Class<TrainingTypeInfo>('TrainingTy
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
-  groupName: Schema.NullOr(Schema.String),
+  groupName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class TrainingTypeDetail extends Schema.Class<TrainingTypeDetail>('TrainingTypeDetail')({
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
-  groupId: Schema.NullOr(GroupId),
-  groupName: Schema.NullOr(Schema.String),
-  discordChannelId: Schema.NullOr(Schema.String),
+  groupId: Schema.OptionFromNullOr(GroupId),
+  groupName: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
   canAdmin: Schema.Boolean,
 }) {}
 
@@ -33,15 +34,15 @@ export class CreateTrainingTypeRequest extends Schema.Class<CreateTrainingTypeRe
   'CreateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
-  groupId: Schema.NullOr(GroupId),
-  discordChannelId: Schema.NullOr(Schema.String),
+  groupId: Schema.OptionFromNullOr(GroupId),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRequest>(
   'UpdateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
 export class TrainingTypeNotFound extends Schema.TaggedError<TrainingTypeNotFound>()(

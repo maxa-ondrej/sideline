@@ -5,6 +5,7 @@ import { EventsListPage } from '~/components/pages/EventsListPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/')({
+  ssr: false,
   component: EventsRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);

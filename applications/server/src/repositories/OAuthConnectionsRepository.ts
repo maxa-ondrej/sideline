@@ -6,7 +6,7 @@ class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
   user_id: User.UserId,
   provider: Schema.String,
   access_token: Schema.String,
-  refresh_token: Schema.NullOr(Schema.String),
+  refresh_token: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class FindInput extends Schema.Class<FindInput>('FindInput')({
@@ -60,7 +60,7 @@ export class OAuthConnectionsRepository extends Effect.Service<OAuthConnectionsR
     userId: User.UserId,
     provider: string,
     accessToken: string,
-    refreshToken: string | null,
+    refreshToken: Option.Option<string>,
   ) =>
     this._upsertConnection({
       user_id: userId,

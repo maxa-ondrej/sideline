@@ -63,7 +63,7 @@ export class BotGuildsRepository extends Effect.Service<BotGuildsRepository>()(
   exists = (guildId: Discord.Snowflake) =>
     this._existsGuild(guildId).pipe(
       Effect.map((r) => r.exists),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
     );
 
   findAll = () =>

@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, type Option, Schema } from 'effect';
 
 export class RoleNameAlreadyTakenError extends Schema.TaggedError<RoleNameAlreadyTakenError>()(
   'RoleNameAlreadyTakenError',
@@ -37,7 +37,7 @@ class RoleInsertInput extends Schema.Class<RoleInsertInput>('RoleInsertInput')({
 
 class RoleUpdateInput extends Schema.Class<RoleUpdateInput>('RoleUpdateInput')({
   id: Role.RoleId,
-  name: Schema.NullOr(Schema.String),
+  name: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class InsertPermissionInput extends Schema.Class<InsertPermissionInput>('InsertPermissionInput')({
@@ -210,7 +210,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
-  updateRole = (roleId: Role.RoleId, name: string | null) =>
+  updateRole = (roleId: Role.RoleId, name: Option.Option<string>) =>
     this.updateQuery({ id: roleId, name }).pipe(
       SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),

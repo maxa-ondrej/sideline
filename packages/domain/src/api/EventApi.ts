@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { Snowflake } from '~/models/Discord.js';
 import { EventId, EventStatus, EventType } from '~/models/Event.js';
 import { EventSeriesId } from '~/models/EventSeries.js';
 import { TeamId } from '~/models/Team.js';
@@ -11,12 +12,12 @@ export class EventInfo extends Schema.Class<EventInfo>('EventInfo')({
   teamId: TeamId,
   title: Schema.String,
   eventType: EventType,
-  trainingTypeName: Schema.NullOr(Schema.String),
+  trainingTypeName: Schema.OptionFromNullOr(Schema.String),
   startAt: Schema.String,
-  endAt: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  endAt: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   status: EventStatus,
-  seriesId: Schema.NullOr(EventSeriesId),
+  seriesId: Schema.OptionFromNullOr(EventSeriesId),
 }) {}
 
 export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
@@ -24,19 +25,19 @@ export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
   teamId: TeamId,
   title: Schema.String,
   eventType: EventType,
-  trainingTypeId: Schema.NullOr(TrainingTypeId),
-  trainingTypeName: Schema.NullOr(Schema.String),
-  description: Schema.NullOr(Schema.String),
+  trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
+  trainingTypeName: Schema.OptionFromNullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
   startAt: Schema.String,
-  endAt: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
+  endAt: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
   status: EventStatus,
-  createdByName: Schema.NullOr(Schema.String),
+  createdByName: Schema.OptionFromNullOr(Schema.String),
   canEdit: Schema.Boolean,
   canCancel: Schema.Boolean,
-  seriesId: Schema.NullOr(EventSeriesId),
+  seriesId: Schema.OptionFromNullOr(EventSeriesId),
   seriesModified: Schema.Boolean,
-  discordChannelId: Schema.NullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class EventListResponse extends Schema.Class<EventListResponse>('EventListResponse')({
@@ -47,12 +48,12 @@ export class EventListResponse extends Schema.Class<EventListResponse>('EventLis
 export class CreateEventRequest extends Schema.Class<CreateEventRequest>('CreateEventRequest')({
   title: Schema.NonEmptyString,
   eventType: EventType,
-  trainingTypeId: Schema.NullOr(TrainingTypeId),
-  description: Schema.NullOr(Schema.String),
+  trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
+  description: Schema.OptionFromNullOr(Schema.String),
   startAt: Schema.String,
-  endAt: Schema.NullOr(Schema.String),
-  location: Schema.NullOr(Schema.String),
-  discordChannelId: Schema.NullOr(Schema.String),
+  endAt: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
 export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
@@ -63,7 +64,7 @@ export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('Update
   startAt: Schema.optionalWith(Schema.String, { as: 'Option' }),
   endAt: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(

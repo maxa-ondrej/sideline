@@ -22,21 +22,36 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('row', () => settings.findByTeamId(teamId)),
-            Effect.map(({ row }) => {
-              const s = Option.getOrNull(row);
-              return new TeamSettingsApi.TeamSettingsInfo({
-                teamId,
-                eventHorizonDays: s?.event_horizon_days ?? 30,
-                minPlayersThreshold: s?.min_players_threshold ?? 0,
-                rsvpReminderHours: s?.rsvp_reminder_hours ?? 24,
-                discordChannelTraining: s?.discord_channel_training ?? null,
-                discordChannelMatch: s?.discord_channel_match ?? null,
-                discordChannelTournament: s?.discord_channel_tournament ?? null,
-                discordChannelMeeting: s?.discord_channel_meeting ?? null,
-                discordChannelSocial: s?.discord_channel_social ?? null,
-                discordChannelOther: s?.discord_channel_other ?? null,
-              });
-            }),
+            Effect.map(({ row }) =>
+              Option.match(row, {
+                onNone: () =>
+                  new TeamSettingsApi.TeamSettingsInfo({
+                    teamId,
+                    eventHorizonDays: 30,
+                    minPlayersThreshold: 0,
+                    rsvpReminderHours: 24,
+                    discordChannelTraining: Option.none(),
+                    discordChannelMatch: Option.none(),
+                    discordChannelTournament: Option.none(),
+                    discordChannelMeeting: Option.none(),
+                    discordChannelSocial: Option.none(),
+                    discordChannelOther: Option.none(),
+                  }),
+                onSome: (s) =>
+                  new TeamSettingsApi.TeamSettingsInfo({
+                    teamId,
+                    eventHorizonDays: s.event_horizon_days,
+                    minPlayersThreshold: s.min_players_threshold,
+                    rsvpReminderHours: s.rsvp_reminder_hours,
+                    discordChannelTraining: s.discord_channel_training,
+                    discordChannelMatch: s.discord_channel_match,
+                    discordChannelTournament: s.discord_channel_tournament,
+                    discordChannelMeeting: s.discord_channel_meeting,
+                    discordChannelSocial: s.discord_channel_social,
+                    discordChannelOther: s.discord_channel_other,
+                  }),
+              }),
+            ),
           ),
         )
         .handle('updateTeamSettings', ({ path: { teamId }, payload }) =>
@@ -47,60 +62,74 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('existing', () => settings.findByTeamId(teamId)),
-            Effect.bind('result', ({ existing }) => {
-              const s = Option.getOrNull(existing);
-              return settings.upsert({
-                teamId,
-                eventHorizonDays: payload.eventHorizonDays,
-                minPlayersThreshold: Option.match(payload.minPlayersThreshold, {
-                  onNone: () => s?.min_players_threshold ?? 0,
-                  onSome: (v) => v,
-                }),
-                rsvpReminderHours: Option.match(payload.rsvpReminderHours, {
-                  onNone: () => s?.rsvp_reminder_hours ?? 24,
-                  onSome: (v) => v,
-                }),
-                discordChannelTraining: Option.match(payload.discordChannelTraining, {
-                  onNone: () => s?.discord_channel_training ?? null,
-                  onSome: Option.getOrNull,
-                }),
-                discordChannelMatch: Option.match(payload.discordChannelMatch, {
-                  onNone: () => s?.discord_channel_match ?? null,
-                  onSome: Option.getOrNull,
-                }),
-                discordChannelTournament: Option.match(payload.discordChannelTournament, {
-                  onNone: () => s?.discord_channel_tournament ?? null,
-                  onSome: Option.getOrNull,
-                }),
-                discordChannelMeeting: Option.match(payload.discordChannelMeeting, {
-                  onNone: () => s?.discord_channel_meeting ?? null,
-                  onSome: Option.getOrNull,
-                }),
-                discordChannelSocial: Option.match(payload.discordChannelSocial, {
-                  onNone: () => s?.discord_channel_social ?? null,
-                  onSome: Option.getOrNull,
-                }),
-                discordChannelOther: Option.match(payload.discordChannelOther, {
-                  onNone: () => s?.discord_channel_other ?? null,
-                  onSome: Option.getOrNull,
-                }),
+            Effect.bind('result', ({ existing }) =>
+              Option.match(existing, {
+                onNone: () =>
+                  settings.upsert({
+                    teamId,
+                    eventHorizonDays: payload.eventHorizonDays,
+                    minPlayersThreshold: Option.getOrElse(payload.minPlayersThreshold, () => 0),
+                    rsvpReminderHours: Option.getOrElse(payload.rsvpReminderHours, () => 24),
+                    discordChannelTraining: Option.flatten(payload.discordChannelTraining),
+                    discordChannelMatch: Option.flatten(payload.discordChannelMatch),
+                    discordChannelTournament: Option.flatten(payload.discordChannelTournament),
+                    discordChannelMeeting: Option.flatten(payload.discordChannelMeeting),
+                    discordChannelSocial: Option.flatten(payload.discordChannelSocial),
+                    discordChannelOther: Option.flatten(payload.discordChannelOther),
+                  }),
+                onSome: (s) =>
+                  settings.upsert({
+                    teamId,
+                    eventHorizonDays: payload.eventHorizonDays,
+                    minPlayersThreshold: Option.getOrElse(
+                      payload.minPlayersThreshold,
+                      () => s.min_players_threshold,
+                    ),
+                    rsvpReminderHours: Option.getOrElse(
+                      payload.rsvpReminderHours,
+                      () => s.rsvp_reminder_hours,
+                    ),
+                    discordChannelTraining: Option.match(payload.discordChannelTraining, {
+                      onNone: () => s.discord_channel_training,
+                      onSome: (v) => v,
+                    }),
+                    discordChannelMatch: Option.match(payload.discordChannelMatch, {
+                      onNone: () => s.discord_channel_match,
+                      onSome: (v) => v,
+                    }),
+                    discordChannelTournament: Option.match(payload.discordChannelTournament, {
+                      onNone: () => s.discord_channel_tournament,
+                      onSome: (v) => v,
+                    }),
+                    discordChannelMeeting: Option.match(payload.discordChannelMeeting, {
+                      onNone: () => s.discord_channel_meeting,
+                      onSome: (v) => v,
+                    }),
+                    discordChannelSocial: Option.match(payload.discordChannelSocial, {
+                      onNone: () => s.discord_channel_social,
+                      onSome: (v) => v,
+                    }),
+                    discordChannelOther: Option.match(payload.discordChannelOther, {
+                      onNone: () => s.discord_channel_other,
+                      onSome: (v) => v,
+                    }),
+                  }),
+              }),
+            ),
+            Effect.map(({ result }) => {
+              return new TeamSettingsApi.TeamSettingsInfo({
+                teamId: result.team_id,
+                eventHorizonDays: result.event_horizon_days,
+                minPlayersThreshold: result.min_players_threshold,
+                rsvpReminderHours: result.rsvp_reminder_hours,
+                discordChannelTraining: result.discord_channel_training,
+                discordChannelMatch: result.discord_channel_match,
+                discordChannelTournament: result.discord_channel_tournament,
+                discordChannelMeeting: result.discord_channel_meeting,
+                discordChannelSocial: result.discord_channel_social,
+                discordChannelOther: result.discord_channel_other,
               });
             }),
-            Effect.map(
-              ({ result }) =>
-                new TeamSettingsApi.TeamSettingsInfo({
-                  teamId: result.team_id,
-                  eventHorizonDays: result.event_horizon_days,
-                  minPlayersThreshold: result.min_players_threshold,
-                  rsvpReminderHours: result.rsvp_reminder_hours,
-                  discordChannelTraining: result.discord_channel_training,
-                  discordChannelMatch: result.discord_channel_match,
-                  discordChannelTournament: result.discord_channel_tournament,
-                  discordChannelMeeting: result.discord_channel_meeting,
-                  discordChannelSocial: result.discord_channel_social,
-                  discordChannelOther: result.discord_channel_other,
-                }),
-            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),

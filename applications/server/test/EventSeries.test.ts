@@ -86,12 +86,12 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: false,
-  name: null,
+  name: Option.none<string>(),
   birth_date: Option.none(),
-  gender: null,
+  gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -101,12 +101,12 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -116,12 +116,12 @@ const testCaptain = {
   id: TEST_CAPTAIN_ID,
   discord_id: '11111',
   username: 'captainuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Captain User',
+  name: Option.some('Captain User'),
   birth_date: Option.some(DateTime.unsafeMake('1992-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -140,11 +140,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -190,20 +190,20 @@ membersStore.set(TEST_CAPTAIN_MEMBER_ID, {
 type SeriesRecord = {
   id: EventSeries.EventSeriesId;
   team_id: Team.TeamId;
-  training_type_id: string | null;
+  training_type_id: Option.Option<string>;
   title: string;
-  description: string | null;
+  description: Option.Option<string>;
   start_time: string;
-  end_time: string | null;
-  location: string | null;
+  end_time: Option.Option<string>;
+  location: Option.Option<string>;
   frequency: 'weekly' | 'biweekly';
   days_of_week: number[];
   start_date: string;
-  end_date: string | null;
+  end_date: Option.Option<string>;
   status: 'active' | 'cancelled';
-  training_type_name: string | null;
-  last_generated_date: string | null;
-  discord_target_channel_id: string | null;
+  training_type_name: Option.Option<string>;
+  last_generated_date: Option.Option<string>;
+  discord_target_channel_id: Option.Option<string>;
 };
 
 let seriesStore: Map<EventSeries.EventSeriesId, SeriesRecord>;
@@ -235,20 +235,20 @@ const resetStores = () => {
   seriesStore.set(TEST_SERIES_1, {
     id: TEST_SERIES_1,
     team_id: TEST_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     title: 'Weekly Training',
-    description: 'Regular training',
+    description: Option.some('Regular training'),
     start_time: '18:00:00',
-    end_time: '20:00:00',
-    location: 'Main Field',
+    end_time: Option.some('20:00:00'),
+    location: Option.some('Main Field'),
     frequency: 'weekly',
     days_of_week: [2],
     start_date: '2026-03-03',
-    end_date: '2026-06-30',
+    end_date: Option.some('2026-06-30'),
     status: 'active',
-    training_type_name: null,
-    last_generated_date: '2026-06-30',
-    discord_target_channel_id: null,
+    training_type_name: Option.none(),
+    last_generated_date: Option.some('2026-06-30'),
+    discord_target_channel_id: Option.none(),
   });
 
   eventsStore = new Map();
@@ -269,9 +269,9 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
-    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
     gender: user.gender,
-    jersey_number: null,
+    jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
   });
@@ -521,16 +521,16 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   _tag: 'api/EventSeriesRepository',
   insertSeries: (input: {
     team_id: string;
-    training_type_id: string | null;
+    training_type_id: Option.Option<string>;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     start_time: string;
-    end_time: string | null;
-    location: string | null;
+    end_time: Option.Option<string>;
+    location: Option.Option<string>;
     frequency: string;
     days_of_week: number[];
     start_date: string;
-    end_date: string | null;
+    end_date: Option.Option<string>;
     created_by: string;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
@@ -548,9 +548,9 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_date: input.start_date,
       end_date: input.end_date,
       status: 'active',
-      training_type_name: null,
-      last_generated_date: null,
-      discord_target_channel_id: null,
+      training_type_name: Option.none(),
+      last_generated_date: Option.none(),
+      discord_target_channel_id: Option.none(),
     };
     seriesStore.set(id, record);
     return Effect.succeed({
@@ -572,16 +572,16 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   },
   insertEventSeries: (input: {
     teamId: string;
-    trainingTypeId: string | null;
+    trainingTypeId: Option.Option<string>;
     title: string;
-    description: string | null;
+    description: Option.Option<string>;
     startTime: string;
-    endTime: string | null;
-    location: string | null;
+    endTime: Option.Option<string>;
+    location: Option.Option<string>;
     frequency: string;
     daysOfWeek: number[];
     startDate: string;
-    endDate: string | null;
+    endDate: Option.Option<string>;
     createdBy: string;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
@@ -599,9 +599,9 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_date: input.startDate,
       end_date: input.endDate,
       status: 'active',
-      training_type_name: null,
-      last_generated_date: null,
-      discord_target_channel_id: null,
+      training_type_name: Option.none(),
+      last_generated_date: Option.none(),
+      discord_target_channel_id: Option.none(),
     };
     seriesStore.set(id, record);
     return Effect.succeed({
@@ -642,12 +642,12 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   updateSeries: (input: {
     id: EventSeries.EventSeriesId;
     title: string;
-    training_type_id: string | null;
-    description: string | null;
+    training_type_id: Option.Option<string>;
+    description: Option.Option<string>;
     start_time: string;
-    end_time: string | null;
-    location: string | null;
-    end_date: string | null;
+    end_time: Option.Option<string>;
+    location: Option.Option<string>;
+    end_date: Option.Option<string>;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));
@@ -682,12 +682,12 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   updateEventSeries: (input: {
     id: EventSeries.EventSeriesId;
     title: string;
-    trainingTypeId: string | null;
-    description: string | null;
+    trainingTypeId: Option.Option<string>;
+    description: Option.Option<string>;
     startTime: string;
-    endTime: string | null;
-    location: string | null;
-    endDate: string | null;
+    endTime: Option.Option<string>;
+    location: Option.Option<string>;
+    endDate: Option.Option<string>;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));

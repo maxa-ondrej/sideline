@@ -114,9 +114,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   roleNames: entry.role_names,
                   permissions: entry.permissions,
                   name: updated.name,
-                  birthDate: Option.getOrNull(
-                    Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
-                  ),
+                  birthDate: Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
                   gender: updated.gender,
                   jerseyNumber: payload.jerseyNumber,
                   username: entry.username,

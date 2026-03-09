@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, EventSeries, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -96,7 +96,7 @@ export function TrainingTypeDetailPage({
 
   const [name, setName] = React.useState(trainingTypeDetail.name);
   const [channelId, setChannelId] = React.useState(
-    trainingTypeDetail.discordChannelId ?? NONE_VALUE,
+    Option.getOrElse(trainingTypeDetail.discordChannelId, () => NONE_VALUE),
   );
   const [saving, setSaving] = React.useState(false);
   const [showCreateForm, setShowCreateForm] = React.useState(false);
@@ -127,7 +127,9 @@ export function TrainingTypeDetailPage({
           payload: {
             name,
             discordChannelId: Option.some(
-              channelId !== NONE_VALUE ? Option.some(channelId) : Option.none(),
+              channelId !== NONE_VALUE
+                ? Option.some(Discord.Snowflake.make(channelId))
+                : Option.none(),
             ),
           },
         }),
@@ -164,16 +166,16 @@ export function TrainingTypeDetailPage({
           path: { teamId: teamIdBranded },
           payload: {
             title: values.title,
-            trainingTypeId: trainingTypeIdBranded,
-            description: values.description || null,
+            trainingTypeId: Option.some(trainingTypeIdBranded),
+            description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
             startDate: values.startDate,
-            endDate: values.endDate || null,
+            endDate: values.endDate ? Option.some(values.endDate) : Option.none(),
             startTime: values.startTime,
-            endTime: values.endTime || null,
-            location: values.location || null,
-            discordChannelId: null,
+            endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
+            location: values.location ? Option.some(values.location) : Option.none(),
+            discordChannelId: Option.none(),
           },
         }),
       ),
@@ -217,10 +219,10 @@ export function TrainingTypeDetailPage({
         frequency: s.frequency,
         daysOfWeek: Array.from(s.daysOfWeek),
         startDate: s.startDate,
-        endDate: s.endDate ?? '',
+        endDate: Option.getOrElse(s.endDate, () => ''),
         startTime: s.startTime,
-        endTime: s.endTime ?? '',
-        location: s.location ?? '',
+        endTime: Option.getOrElse(s.endTime, () => ''),
+        location: Option.getOrElse(s.location, () => ''),
       });
       setEditingSeriesId(s.seriesId);
       setShowCreateForm(true);
@@ -282,9 +284,9 @@ export function TrainingTypeDetailPage({
           </Link>
         </Button>
         <h1 className='text-2xl font-bold'>{trainingTypeDetail.name}</h1>
-        {trainingTypeDetail.groupName && (
+        {Option.isSome(trainingTypeDetail.groupName) && (
           <p className='text-muted-foreground'>
-            {m.trainingType_groupName()}: {trainingTypeDetail.groupName}
+            {m.trainingType_groupName()}: {trainingTypeDetail.groupName.value}
           </p>
         )}
       </header>
@@ -307,7 +309,8 @@ export function TrainingTypeDetailPage({
               disabled={
                 saving ||
                 (name === trainingTypeDetail.name &&
-                  channelId === (trainingTypeDetail.discordChannelId ?? NONE_VALUE))
+                  channelId ===
+                    Option.getOrElse(trainingTypeDetail.discordChannelId, () => NONE_VALUE))
               }
             >
               {saving ? m.trainingType_saving() : m.trainingType_saveChanges()}
@@ -365,10 +368,13 @@ export function TrainingTypeDetailPage({
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
                         {s.startTime}
-                        {s.endTime ? ` - ${s.endTime}` : ''}
+                        {s.endTime.pipe(
+                          Option.map((v) => ` - ${v}`),
+                          Option.getOrElse(() => ''),
+                        )}
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
-                        {s.startDate} → {s.endDate ?? m.event_ongoing()}
+                        {s.startDate} → {Option.getOrElse(s.endDate, () => m.event_ongoing())}
                       </td>
                       <td className='py-2 px-4'>
                         <div className='flex gap-2'>

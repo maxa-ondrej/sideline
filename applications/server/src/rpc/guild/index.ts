@@ -13,7 +13,7 @@ type RegisterMemberPayload = {
   readonly guild_id: Discord.Snowflake;
   readonly discord_id: string;
   readonly username: string;
-  readonly avatar: string | null;
+  readonly avatar: Option.Option<string>;
   readonly roles: ReadonlyArray<string>;
 };
 
@@ -41,7 +41,6 @@ const setupNewMember = (
             onSome: (playerRole) => deps.members.assignRole(newMember.id, playerRole.id),
           }),
         ),
-        Effect.catchAll(() => Effect.log('Failed to assign Player role, skipping')),
       ),
     ),
     Effect.tap(() =>
@@ -84,7 +83,11 @@ const registerMemberLogic =
           onSome: (team) =>
             Effect.Do.pipe(
               Effect.bind('user', () =>
-                deps.users.upsertFromDiscord({ discord_id, username, avatar }),
+                deps.users.upsertFromDiscord({
+                  discord_id,
+                  username,
+                  avatar,
+                }),
               ),
               Effect.bind('existingMembership', ({ user }) =>
                 deps.members.findMembershipByIds(team.id, user.id),
@@ -143,18 +146,13 @@ export const GuildsRpcLive = Effect.all([
         }: {
           readonly guild_id: Discord.Snowflake;
           readonly guild_name: string;
-        }) =>
-          botGuilds
-            .upsert(guild_id, guild_name)
-            .pipe(Effect.catchAll((error) => Effect.logError('RegisterGuild failed', error))),
+        }) => botGuilds.upsert(guild_id, guild_name),
 
         'Guild/UnregisterGuild': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
-          botGuilds
-            .remove(guild_id)
-            .pipe(Effect.catchAll((error) => Effect.logError('UnregisterGuild failed', error))),
+          botGuilds.remove(guild_id),
 
         'Guild/IsGuildRegistered': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
-          botGuilds.exists(guild_id).pipe(Effect.catchAll(() => Effect.succeed(false))),
+          botGuilds.exists(guild_id),
 
         'Guild/SyncGuildChannels': ({
           guild_id,
@@ -165,12 +163,18 @@ export const GuildsRpcLive = Effect.all([
             readonly channel_id: Discord.Snowflake;
             readonly name: string;
             readonly type: number;
-            readonly parent_id: Discord.Snowflake | null;
+            readonly parent_id: Option.Option<Discord.Snowflake>;
           }>;
         }) =>
-          discordChannels
-            .syncChannels(guild_id, channels)
-            .pipe(Effect.catchAll((error) => Effect.logError('SyncGuildChannels failed', error))),
+          discordChannels.syncChannels(
+            guild_id,
+            channels.map((c) => ({
+              channel_id: c.channel_id,
+              name: c.name,
+              type: c.type,
+              parent_id: c.parent_id,
+            })),
+          ),
 
         'Guild/RegisterMember': (payload: RegisterMemberPayload) => register(payload),
 
@@ -182,7 +186,7 @@ export const GuildsRpcLive = Effect.all([
           readonly members: ReadonlyArray<{
             readonly discord_id: string;
             readonly username: string;
-            readonly avatar: string | null;
+            readonly avatar: Option.Option<string>;
             readonly roles: ReadonlyArray<string>;
           }>;
         }) =>
@@ -205,9 +209,6 @@ export const GuildsRpcLive = Effect.all([
               ),
             ),
             Effect.tap(() => Effect.log(`Reconciliation complete for guild ${guild_id}`)),
-            Effect.catchAll((error) =>
-              Effect.logError(`ReconcileMembers failed for guild ${guild_id}`, error),
-            ),
           ),
       };
     },

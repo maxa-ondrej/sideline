@@ -1,6 +1,7 @@
 import type { Roster } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
+import { Option } from 'effect';
 import { Button } from '~/components/ui/button';
 
 interface PlayerRowProps {
@@ -12,15 +13,15 @@ interface PlayerRowProps {
 }
 
 export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: PlayerRowProps) {
-  const displayName = player.name ?? player.username;
+  const displayName = Option.getOrElse(player.name, () => player.username);
   const roleLabel = player.roleNames.join(', ') || '—';
 
   return (
     <tr className='border-b'>
       <td className='py-2 px-4'>
-        {player.avatar ? (
+        {Option.isSome(player.avatar) ? (
           <img
-            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar}.png?size=32`}
+            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar.value}.png?size=32`}
             alt={displayName}
             className='w-8 h-8 rounded-full inline-block mr-2'
           />
@@ -28,7 +29,10 @@ export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: 
         {displayName}
       </td>
       <td className='py-2 px-4'>
-        {player.jerseyNumber !== null ? `#${player.jerseyNumber}` : '—'}
+        {player.jerseyNumber.pipe(
+          Option.map((v) => `#${v}`),
+          Option.getOrElse(() => '—'),
+        )}
       </td>
       <td className='py-2 px-4'>{roleLabel}</td>
       {canEdit || canRemove ? (

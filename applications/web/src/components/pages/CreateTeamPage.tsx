@@ -1,5 +1,6 @@
 import type { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
+import { Option } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -14,9 +15,9 @@ interface CreateTeamPageProps {
   onRefreshGuilds: () => Promise<void>;
 }
 
-function guildIconUrl(guildId: string, icon: string | null): string | undefined {
-  if (!icon) return undefined;
-  return `https://cdn.discordapp.com/icons/${guildId}/${icon}.png?size=64`;
+function guildIconUrl(guildId: string, icon: Option.Option<string>): string | undefined {
+  if (Option.isNone(icon)) return undefined;
+  return `https://cdn.discordapp.com/icons/${guildId}/${icon.value}.png?size=64`;
 }
 
 export function CreateTeamPage({

@@ -51,16 +51,13 @@ export const ChannelsRpcLive = Effect.Do.pipe(
             Effect.logInfo(`Successfully mapped ${events.length} channel events from database.`),
           ),
           Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
-          Effect.catchAll((error) =>
-            Effect.logError('GetUnprocessedChannelEvents failed', error).pipe(Effect.map(() => [])),
-          ),
         ),
   ),
   Effect.let(
     'Channel/MarkEventProcessed',
     ({ syncEvents }) =>
       ({ id }: { readonly id: ChannelSyncEvent.ChannelSyncEventId }) =>
-        syncEvents.markProcessed(id).pipe(Effect.catchAll(() => Effect.void)),
+        syncEvents.markProcessed(id),
   ),
   Effect.let(
     'Channel/MarkEventFailed',
@@ -72,7 +69,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         readonly id: ChannelSyncEvent.ChannelSyncEventId;
         readonly error: string;
       }) =>
-        syncEvents.markFailed(id, error).pipe(Effect.catchAll(() => Effect.void)),
+        syncEvents.markFailed(id, error),
   ),
   Effect.let(
     'Channel/GetMapping',
@@ -97,7 +94,6 @@ export const ChannelsRpcLive = Effect.Do.pipe(
                 }),
             ),
           ),
-          Effect.catchAll(() => Effect.succeed(Option.none())),
         ),
   ),
   Effect.let(
@@ -114,9 +110,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         readonly discord_channel_id: Discord.Snowflake;
         readonly discord_role_id: Discord.Snowflake;
       }) =>
-        mappings
-          .insert(team_id, group_id, discord_channel_id, discord_role_id)
-          .pipe(Effect.catchAll(() => Effect.void)),
+        mappings.insert(team_id, group_id, discord_channel_id, discord_role_id),
   ),
   Effect.let(
     'Channel/DeleteMapping',
@@ -128,7 +122,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         readonly team_id: Team.TeamId;
         readonly group_id: GroupModel.GroupId;
       }) =>
-        mappings.deleteByGroupId(team_id, group_id).pipe(Effect.catchAll(() => Effect.void)),
+        mappings.deleteByGroupId(team_id, group_id),
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),

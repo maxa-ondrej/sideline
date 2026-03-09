@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { GroupModel, Team, TrainingType } from '@sideline/domain';
+import { Discord, GroupModel, Team, TrainingType } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 
 export class TrainingTypeNameAlreadyTakenError extends Schema.TaggedError<TrainingTypeNameAlreadyTakenError>()(
   'TrainingTypeNameAlreadyTakenError',
@@ -12,9 +12,9 @@ class TrainingTypeWithGroup extends Schema.Class<TrainingTypeWithGroup>('Trainin
   id: TrainingType.TrainingTypeId,
   team_id: Team.TeamId,
   name: Schema.String,
-  group_id: Schema.NullOr(GroupModel.GroupId),
-  group_name: Schema.NullOr(Schema.String),
-  discord_channel_id: Schema.NullOr(Schema.String),
+  group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  group_name: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   created_at: Schema.DateFromSelf,
 }) {}
 
@@ -22,8 +22,8 @@ class TrainingTypeRow extends Schema.Class<TrainingTypeRow>('TrainingTypeRow')({
   id: TrainingType.TrainingTypeId,
   team_id: Team.TeamId,
   name: Schema.String,
-  group_id: Schema.NullOr(GroupModel.GroupId),
-  discord_channel_id: Schema.NullOr(Schema.String),
+  group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class TrainingTypeInsertInput extends Schema.Class<TrainingTypeInsertInput>(
@@ -31,8 +31,8 @@ class TrainingTypeInsertInput extends Schema.Class<TrainingTypeInsertInput>(
 )({
   team_id: Schema.String,
   name: Schema.String,
-  group_id: Schema.NullOr(Schema.String),
-  discord_channel_id: Schema.NullOr(Schema.String),
+  group_id: Schema.OptionFromNullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
@@ -40,7 +40,7 @@ class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
 )({
   id: TrainingType.TrainingTypeId,
   name: Schema.String,
-  discord_channel_id: Schema.NullOr(Schema.String),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class TrainingTypesRepository extends Effect.Service<TrainingTypesRepository>()(
@@ -124,14 +124,14 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
   insertTrainingType = (
     teamId: Team.TeamId,
     name: string,
-    groupId: string | null,
-    discordChannelId?: string | null,
+    groupId: Option.Option<string>,
+    discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) => {
     return this.insertOne({
       team_id: teamId,
       name,
       group_id: groupId,
-      discord_channel_id: discordChannelId ?? null,
+      discord_channel_id: discordChannelId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
@@ -141,12 +141,12 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
   updateTrainingType = (
     trainingTypeId: TrainingType.TrainingTypeId,
     name: string,
-    discordChannelId?: string | null,
+    discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) => {
     return this.updateOne({
       id: trainingTypeId,
       name,
-      discord_channel_id: discordChannelId ?? null,
+      discord_channel_id: discordChannelId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),

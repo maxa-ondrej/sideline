@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, EventRsvpApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { Event, EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, Event, EventSeries, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -101,14 +101,17 @@ export function EventDetailPage({
     defaultValues: {
       title: eventDetail.title,
       eventType: eventDetail.eventType,
-      trainingTypeId: eventDetail.trainingTypeId ?? NONE_VALUE,
-      description: eventDetail.description ?? '',
+      trainingTypeId: Option.getOrElse(eventDetail.trainingTypeId, () => NONE_VALUE),
+      description: Option.getOrElse(eventDetail.description, () => ''),
       startDate: eventDetail.startAt.slice(0, 10),
       startTime: eventDetail.startAt.slice(11, 16),
-      endDate: eventDetail.endAt ? eventDetail.endAt.slice(0, 10) : '',
-      endTime: eventDetail.endAt ? eventDetail.endAt.slice(11, 16) : '',
-      location: eventDetail.location ?? '',
-      discordChannelId: eventDetail.discordChannelId ?? NONE_VALUE,
+      endDate: Option.match(eventDetail.endAt, { onNone: () => '', onSome: (v) => v.slice(0, 10) }),
+      endTime: Option.match(eventDetail.endAt, {
+        onNone: () => '',
+        onSome: (v) => v.slice(11, 16),
+      }),
+      location: Option.getOrElse(eventDetail.location, () => ''),
+      discordChannelId: Option.getOrElse(eventDetail.discordChannelId, () => NONE_VALUE),
     },
   });
 
@@ -124,12 +127,14 @@ export function EventDetailPage({
   const [showEditScope, setShowEditScope] = React.useState(false);
   const [showCancelScope, setShowCancelScope] = React.useState(false);
   const [rsvpResponse, setRsvpResponse] = React.useState<'yes' | 'no' | 'maybe' | null>(
-    rsvpDetail.myResponse,
+    Option.getOrNull(rsvpDetail.myResponse),
   );
-  const [rsvpMessage, setRsvpMessage] = React.useState(rsvpDetail.myMessage ?? '');
+  const [rsvpMessage, setRsvpMessage] = React.useState(
+    Option.getOrElse(rsvpDetail.myMessage, () => ''),
+  );
   const [rsvpSubmitting, setRsvpSubmitting] = React.useState(false);
 
-  const hasSeries = eventDetail.seriesId !== null;
+  const hasSeries = Option.isSome(eventDetail.seriesId);
 
   const doSaveThisOnly = React.useCallback(async () => {
     const values = form.getValues();
@@ -152,7 +157,7 @@ export function EventDetailPage({
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(values.discordChannelId)
+                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
                 : Option.none(),
             ),
           },
@@ -168,12 +173,14 @@ export function EventDetailPage({
   }, [form, teamIdBranded, eventIdBranded, run, router]);
 
   const doSaveAllFuture = React.useCallback(async () => {
-    if (!eventDetail.seriesId) return;
+    if (Option.isNone(eventDetail.seriesId)) return;
     const values = form.getValues();
     setSaving(true);
     setShowEditScope(false);
     const { trainingTypeIdOption } = buildPayload(values);
-    const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(eventDetail.seriesId);
+    const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
+      eventDetail.seriesId.value,
+    );
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
@@ -191,7 +198,7 @@ export function EventDetailPage({
             endDate: Option.none(),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(values.discordChannelId)
+                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
                 : Option.none(),
             ),
           },
@@ -229,9 +236,11 @@ export function EventDetailPage({
   }, [teamId, teamIdBranded, eventIdBranded, run, navigate]);
 
   const doCancelAllFuture = React.useCallback(async () => {
-    if (!eventDetail.seriesId) return;
+    if (Option.isNone(eventDetail.seriesId)) return;
     setShowCancelScope(false);
-    const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(eventDetail.seriesId);
+    const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
+      eventDetail.seriesId.value,
+    );
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.eventSeries.cancelEventSeries({
@@ -264,7 +273,7 @@ export function EventDetailPage({
           path: { teamId: teamIdBranded, eventId: eventIdBranded },
           payload: {
             response: rsvpResponse,
-            message: rsvpMessage || null,
+            message: rsvpMessage ? Option.some(rsvpMessage) : Option.none(),
           },
         }),
       ),
@@ -297,9 +306,9 @@ export function EventDetailPage({
           >
             {isActive ? m.event_status_active() : m.event_status_cancelled()}
           </span>
-          {eventDetail.createdByName && (
+          {Option.isSome(eventDetail.createdByName) && (
             <span>
-              {m.event_createdBy()}: {eventDetail.createdByName}
+              {m.event_createdBy()}: {eventDetail.createdByName.value}
             </span>
           )}
         </div>
@@ -544,32 +553,33 @@ export function EventDetailPage({
           </Form>
         ) : (
           <>
-            {eventDetail.eventType === 'training' && eventDetail.trainingTypeName && (
-              <p>
-                <span className='text-sm font-medium'>{m.event_trainingType()}: </span>
-                {eventDetail.trainingTypeName}
-              </p>
-            )}
+            {eventDetail.eventType === 'training' &&
+              Option.isSome(eventDetail.trainingTypeName) && (
+                <p>
+                  <span className='text-sm font-medium'>{m.event_trainingType()}: </span>
+                  {eventDetail.trainingTypeName.value}
+                </p>
+              )}
             <p>
               <span className='text-sm font-medium'>{m.event_startDate()}: </span>
               {eventDetail.startAt.slice(0, 10)} {eventDetail.startAt.slice(11, 16)}
             </p>
-            {eventDetail.endAt && (
+            {Option.isSome(eventDetail.endAt) && (
               <p>
                 <span className='text-sm font-medium'>{m.event_endDate()}: </span>
-                {eventDetail.endAt.slice(0, 10)} {eventDetail.endAt.slice(11, 16)}
+                {eventDetail.endAt.value.slice(0, 10)} {eventDetail.endAt.value.slice(11, 16)}
               </p>
             )}
-            {eventDetail.location && (
+            {Option.isSome(eventDetail.location) && (
               <p>
                 <span className='text-sm font-medium'>{m.event_location()}: </span>
-                {eventDetail.location}
+                {eventDetail.location.value}
               </p>
             )}
-            {eventDetail.description && (
+            {Option.isSome(eventDetail.description) && (
               <p>
                 <span className='text-sm font-medium'>{m.event_description()}: </span>
-                {eventDetail.description}
+                {eventDetail.description.value}
               </p>
             )}
             {eventDetail.canCancel && isActive && (
@@ -684,8 +694,14 @@ export function EventDetailPage({
                             ? m.rsvp_maybe()
                             : m.rsvp_no()}
                       </span>
-                      <span>{r.memberName ?? r.username ?? '—'}</span>
-                      {r.message && <span className='text-muted-foreground'>— {r.message}</span>}
+                      <span>
+                        {Option.getOrElse(r.memberName, () =>
+                          Option.getOrElse(r.username, () => '—'),
+                        )}
+                      </span>
+                      {Option.isSome(r.message) && (
+                        <span className='text-muted-foreground'>— {r.message.value}</span>
+                      )}
                     </li>
                   ))}
               </ul>
@@ -698,7 +714,11 @@ export function EventDetailPage({
                 <h3 className='text-sm font-semibold mb-2'>{m.rsvp_nonRespondersTitle()}</h3>
                 <ul className='space-y-1 text-sm text-muted-foreground'>
                   {nonResponders.map((nr) => (
-                    <li key={nr.teamMemberId}>{nr.memberName ?? nr.username ?? '—'}</li>
+                    <li key={nr.teamMemberId}>
+                      {Option.getOrElse(nr.memberName, () =>
+                        Option.getOrElse(nr.username, () => '—'),
+                      )}
+                    </li>
                   ))}
                 </ul>
               </div>

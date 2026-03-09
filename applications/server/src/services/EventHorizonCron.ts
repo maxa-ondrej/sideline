@@ -10,23 +10,19 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('seriesRepo', () => EventSeriesRepository),
   Effect.bind('eventsRepo', () => EventsRepository),
   Effect.tap(() => Effect.logInfo('EventHorizonCron: starting generation cycle')),
-  Effect.bind('allSeries', ({ seriesRepo }) =>
-    seriesRepo.getActiveForGeneration().pipe(
-      Effect.tapError((e) => Effect.logWarning('EventHorizonCron: failed to load series', e)),
-      Effect.catchAll(() => Effect.succeed([] as const)),
-    ),
-  ),
+  Effect.bind('allSeries', ({ seriesRepo }) => seriesRepo.getActiveForGeneration()),
   Effect.tap(({ allSeries, seriesRepo, eventsRepo }) =>
     Effect.all(
       allSeries.map((s) => {
         const effectiveEnd = computeHorizonEnd({
-          seriesEndDate: s.end_date,
+          seriesEndDate: Option.getOrNull(s.end_date),
           horizonDays: s.event_horizon_days,
         });
 
-        const startFrom = s.last_generated_date
-          ? DateTime.add(toUtc(s.last_generated_date), { days: 1 })
-          : toUtc(s.start_date);
+        const startFrom = Option.match(s.last_generated_date, {
+          onNone: () => toUtc(s.start_date),
+          onSome: (d) => DateTime.add(toUtc(d), { days: 1 }),
+        });
 
         if (DateTime.greaterThan(startFrom, effectiveEnd)) return Effect.void;
 
@@ -43,53 +39,32 @@ const cronEffect = Effect.Do.pipe(
           dates.map((date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
             const startAt = `${dateStr}T${s.start_time}Z`;
-            const endAt = s.end_time ? `${dateStr}T${s.end_time}Z` : null;
-            return eventsRepo
-              .insertEvent({
-                teamId: s.team_id,
-                trainingTypeId: Option.fromNullable(s.training_type_id),
-                eventType: 'training',
-                title: s.title,
-                description: Option.fromNullable(s.description),
-                startAt,
-                endAt: Option.fromNullable(endAt),
-                location: Option.fromNullable(s.location),
-                createdBy: s.created_by,
-                seriesId: Option.some(s.id),
-              })
-              .pipe(
-                Effect.tapError((e) =>
-                  Effect.logWarning(
-                    `EventHorizonCron: failed to insert event for series ${s.id}`,
-                    e,
-                  ),
-                ),
-                Effect.catchAll(() => Effect.void),
-              );
+            const endAt = Option.map(s.end_time, (t) => `${dateStr}T${t}Z`);
+            return eventsRepo.insertEvent({
+              teamId: s.team_id,
+              trainingTypeId: s.training_type_id,
+              eventType: 'training',
+              title: s.title,
+              description: s.description,
+              startAt,
+              endAt,
+              location: s.location,
+              createdBy: s.created_by,
+              seriesId: Option.some(s.id),
+              discordTargetChannelId: s.discord_target_channel_id,
+            });
           }),
           { concurrency: 1 },
         ).pipe(
           Effect.tap(() => {
             const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
-            return seriesRepo.updateLastGeneratedDate(s.id, lastDate).pipe(
-              Effect.tapError((e) =>
-                Effect.logWarning(
-                  `EventHorizonCron: failed to update last_generated_date for series ${s.id}`,
-                  e,
-                ),
-              ),
-              Effect.catchAll(() => Effect.void),
-            );
+            return seriesRepo.updateLastGeneratedDate(s.id, lastDate);
           }),
           Effect.tap(() =>
             Effect.logInfo(
               `EventHorizonCron: series ${s.id} — ${String(dates.length)} events generated`,
             ),
           ),
-          Effect.tapError((e) =>
-            Effect.logWarning(`EventHorizonCron: failed for series ${s.id}`, e),
-          ),
-          Effect.catchAll(() => Effect.void),
         );
       }),
     ),

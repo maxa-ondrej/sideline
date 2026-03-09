@@ -2,6 +2,7 @@ import type { Event, EventApi, TrainingTypeApi } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { format } from 'date-fns';
+import { Option } from 'effect';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
 import { Button } from '~/components/ui/button';
@@ -59,7 +60,7 @@ export function EventCalendarView({ teamId, events, trainingTypes }: EventCalend
 
   const filteredEvents = React.useMemo(() => {
     if (filterTrainingType === FILTER_ALL) return events;
-    return events.filter((e) => e.trainingTypeName === filterTrainingType);
+    return events.filter((e) => Option.getOrNull(e.trainingTypeName) === filterTrainingType);
   }, [events, filterTrainingType]);
 
   const monthGrid = React.useMemo(
@@ -255,7 +256,11 @@ function MonthDayCell({
       {/* Mobile: dots */}
       <div className='flex sm:hidden gap-0.5 flex-wrap'>
         {day.events.map((event) => {
-          const color = getEventColor(event.eventType, event.trainingTypeName, colorMap);
+          const color = getEventColor(
+            event.eventType,
+            Option.getOrNull(event.trainingTypeName),
+            colorMap,
+          );
           return (
             <Link
               key={event.eventId}
@@ -279,7 +284,7 @@ function EventChip({
   teamId: string;
   colorMap: TrainingTypeColorMap;
 }) {
-  const color = getEventColor(event.eventType, event.trainingTypeName, colorMap);
+  const color = getEventColor(event.eventType, Option.getOrNull(event.trainingTypeName), colorMap);
   const isCancelled = event.status === 'cancelled';
   const time = event.startAt.slice(11, 16);
 
@@ -392,10 +397,10 @@ function WeekEventCard({
   teamId: string;
   colorMap: TrainingTypeColorMap;
 }) {
-  const color = getEventColor(event.eventType, event.trainingTypeName, colorMap);
+  const color = getEventColor(event.eventType, Option.getOrNull(event.trainingTypeName), colorMap);
   const isCancelled = event.status === 'cancelled';
   const time = event.startAt.slice(11, 16);
-  const endTime = event.endAt ? event.endAt.slice(11, 16) : null;
+  const endTime = Option.map(event.endAt, (v) => v.slice(11, 16));
 
   return (
     <Link
@@ -411,11 +416,18 @@ function WeekEventCard({
       <div className={cn('text-sm font-medium', color.text)}>{event.title}</div>
       <div className='text-xs text-muted-foreground'>
         {time}
-        {endTime ? ` – ${endTime}` : ''} · {eventTypeLabels[event.eventType]()}
-        {event.trainingTypeName ? ` · ${event.trainingTypeName}` : ''}
+        {endTime.pipe(
+          Option.map((v) => ` – ${v}`),
+          Option.getOrElse(() => ''),
+        )}{' '}
+        · {eventTypeLabels[event.eventType]()}
+        {event.trainingTypeName.pipe(
+          Option.map((v) => ` · ${v}`),
+          Option.getOrElse(() => ''),
+        )}
       </div>
-      {event.location && (
-        <div className='text-xs text-muted-foreground mt-0.5'>{event.location}</div>
+      {Option.isSome(event.location) && (
+        <div className='text-xs text-muted-foreground mt-0.5'>{event.location.value}</div>
       )}
     </Link>
   );

@@ -5,6 +5,7 @@ import { GroupDetailPage } from '~/components/pages/GroupDetailPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$groupId')({
+  ssr: false,
   component: GroupDetailRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);

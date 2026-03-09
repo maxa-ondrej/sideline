@@ -20,8 +20,8 @@ class RosterInsertInput extends Schema.Class<RosterInsertInput>('RosterInsertInp
 
 class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInput')({
   id: RosterModel.RosterId,
-  name: Schema.NullOr(Schema.String),
-  active: Schema.NullOr(Schema.Boolean),
+  name: Schema.OptionFromNullOr(Schema.String),
+  active: Schema.OptionFromNullOr(Schema.Boolean),
 }) {}
 
 class RosterMemberInput extends Schema.Class<RosterMemberInput>('RosterMemberInput')({

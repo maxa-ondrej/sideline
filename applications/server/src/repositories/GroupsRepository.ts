@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Effect, Schema } from 'effect';
+import { Effect, type Option, Schema } from 'effect';
 
 export class GroupNameAlreadyTakenError extends Schema.TaggedError<GroupNameAlreadyTakenError>()(
   'GroupNameAlreadyTakenError',
@@ -11,9 +11,9 @@ export class GroupNameAlreadyTakenError extends Schema.TaggedError<GroupNameAlre
 class GroupWithCount extends Schema.Class<GroupWithCount>('GroupWithCount')({
   id: GroupModel.GroupId,
   team_id: Team.TeamId,
-  parent_id: Schema.NullOr(GroupModel.GroupId),
+  parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   created_at: Schema.DateFromSelf,
   member_count: Schema.Number,
 }) {}
@@ -21,14 +21,14 @@ class GroupWithCount extends Schema.Class<GroupWithCount>('GroupWithCount')({
 class GroupRow extends Schema.Class<GroupRow>('GroupRow')({
   id: GroupModel.GroupId,
   team_id: Team.TeamId,
-  parent_id: Schema.NullOr(GroupModel.GroupId),
+  parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupMemberRow extends Schema.Class<GroupMemberRow>('GroupMemberRow')({
   member_id: TeamMember.TeamMemberId,
-  name: Schema.NullOr(Schema.String),
+  name: Schema.OptionFromNullOr(Schema.String),
   username: Schema.String,
 }) {}
 
@@ -39,15 +39,15 @@ class GroupRoleRow extends Schema.Class<GroupRoleRow>('GroupRoleRow')({
 
 class GroupInsertInput extends Schema.Class<GroupInsertInput>('GroupInsertInput')({
   team_id: Schema.String,
-  parent_id: Schema.NullOr(Schema.String),
+  parent_id: Schema.OptionFromNullOr(Schema.String),
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupUpdateInput extends Schema.Class<GroupUpdateInput>('GroupUpdateInput')({
   id: GroupModel.GroupId,
   name: Schema.String,
-  emoji: Schema.NullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupMemberInput extends Schema.Class<GroupMemberInput>('GroupMemberInput')({
@@ -57,7 +57,7 @@ class GroupMemberInput extends Schema.Class<GroupMemberInput>('GroupMemberInput'
 
 class MoveGroupInput extends Schema.Class<MoveGroupInput>('MoveGroupInput')({
   id: GroupModel.GroupId,
-  parent_id: Schema.NullOr(GroupModel.GroupId),
+  parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
 class AncestorRow extends Schema.Class<AncestorRow>('AncestorRow')({
@@ -222,8 +222,8 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
   insertGroup = (
     teamId: Team.TeamId,
     name: string,
-    parentId: string | null,
-    emoji: string | null,
+    parentId: Option.Option<string>,
+    emoji: Option.Option<string>,
   ) => {
     return this.insert({ team_id: teamId, parent_id: parentId, name, emoji }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
@@ -231,7 +231,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     );
   };
 
-  updateGroupById = (groupId: GroupModel.GroupId, name: string, emoji: string | null) => {
+  updateGroupById = (groupId: GroupModel.GroupId, name: string, emoji: Option.Option<string>) => {
     return this.update({ id: groupId, name, emoji }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
@@ -242,7 +242,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     return this.archiveGroup(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
-  moveGroup = (groupId: GroupModel.GroupId, parentId: GroupModel.GroupId | null) => {
+  moveGroup = (groupId: GroupModel.GroupId, parentId: Option.Option<GroupModel.GroupId>) => {
     return this.moveGroupParent({ id: groupId, parent_id: parentId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );

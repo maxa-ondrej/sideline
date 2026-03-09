@@ -62,11 +62,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -76,11 +76,11 @@ const testUser: UserLike = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
   is_profile_complete: true,
-  name: 'Test User',
+  name: Option.some('Test User'),
   birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
-  gender: 'male',
+  gender: Option.some('male' as const),
   locale: 'en',
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -90,11 +90,11 @@ const testAdmin: UserLike = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male',
+  gender: Option.some('male' as const),
   locale: 'en',
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -131,9 +131,9 @@ type RsvpRecord = {
   event_id: Event.EventId;
   team_member_id: TeamMember.TeamMemberId;
   response: EventRsvp.RsvpResponse;
-  message: string | null;
-  member_name: string | null;
-  username: string | null;
+  message: Option.Option<string>;
+  member_name: Option.Option<string>;
+  username: Option.Option<string>;
 };
 
 let rsvpsStore: Map<string, RsvpRecord>;
@@ -167,9 +167,9 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions,
     name: user.name,
-    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
     gender: user.gender,
-    jersey_number: null,
+    jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
   });
@@ -373,7 +373,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
     eventId: Event.EventId,
     memberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
-    message: string | null,
+    message: Option.Option<string>,
   ) => {
     const key = `${eventId}:${memberId}`;
     const existing = rsvpsStore.get(key);
@@ -384,8 +384,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       team_member_id: memberId,
       response,
       message,
-      member_name: null,
-      username: null,
+      member_name: Option.none(),
+      username: Option.none(),
     };
     rsvpsStore.set(key, record);
     return Effect.succeed(record);
@@ -424,9 +424,9 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
         const user = usersMap.get(m.user_id);
         return {
           team_member_id: m.id,
-          member_name: user?.name ?? null,
-          username: user?.username ?? null,
-          discord_id: user?.discord_id ?? null,
+          member_name: user ? user.name : Option.none(),
+          username: user ? Option.some(user.username) : Option.none(),
+          discord_id: user ? Option.some(user.discord_id) : Option.none(),
         };
       });
     return Effect.succeed(nonResponders);
@@ -443,9 +443,9 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
         const user = usersMap.get(m.user_id);
         return {
           team_member_id: m.id,
-          member_name: user?.name ?? null,
-          username: user?.username ?? null,
-          discord_id: user?.discord_id ?? null,
+          member_name: user ? user.name : Option.none(),
+          username: user ? Option.some(user.username) : Option.none(),
+          discord_id: user ? Option.some(user.discord_id) : Option.none(),
         };
       });
     return Effect.succeed(nonResponders);
@@ -461,12 +461,12 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         event_horizon_days: teamSettingsStore.event_horizon_days,
         min_players_threshold: teamSettingsStore.min_players_threshold,
         rsvp_reminder_hours: teamSettingsStore.rsvp_reminder_hours,
-        discord_channel_training: null,
-        discord_channel_match: null,
-        discord_channel_tournament: null,
-        discord_channel_meeting: null,
-        discord_channel_social: null,
-        discord_channel_other: null,
+        discord_channel_training: Option.none(),
+        discord_channel_match: Option.none(),
+        discord_channel_tournament: Option.none(),
+        discord_channel_meeting: Option.none(),
+        discord_channel_social: Option.none(),
+        discord_channel_other: Option.none(),
       }),
     ),
   findByTeamId: () =>
@@ -476,12 +476,12 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         event_horizon_days: teamSettingsStore.event_horizon_days,
         min_players_threshold: teamSettingsStore.min_players_threshold,
         rsvp_reminder_hours: teamSettingsStore.rsvp_reminder_hours,
-        discord_channel_training: null,
-        discord_channel_match: null,
-        discord_channel_tournament: null,
-        discord_channel_meeting: null,
-        discord_channel_social: null,
-        discord_channel_other: null,
+        discord_channel_training: Option.none(),
+        discord_channel_match: Option.none(),
+        discord_channel_tournament: Option.none(),
+        discord_channel_meeting: Option.none(),
+        discord_channel_social: Option.none(),
+        discord_channel_other: Option.none(),
       }),
     ),
   upsertSettings: (input: {
@@ -489,36 +489,36 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
     event_horizon_days: number;
     min_players_threshold: number;
     rsvp_reminder_hours: number;
-    discord_channel_training: string | null;
-    discord_channel_match: string | null;
-    discord_channel_tournament: string | null;
-    discord_channel_meeting: string | null;
-    discord_channel_social: string | null;
-    discord_channel_other: string | null;
+    discord_channel_training: Option.Option<string>;
+    discord_channel_match: Option.Option<string>;
+    discord_channel_tournament: Option.Option<string>;
+    discord_channel_meeting: Option.Option<string>;
+    discord_channel_social: Option.Option<string>;
+    discord_channel_other: Option.Option<string>;
   }) =>
     Effect.succeed({
       team_id: TEST_TEAM_ID,
       event_horizon_days: input.event_horizon_days,
       min_players_threshold: input.min_players_threshold,
       rsvp_reminder_hours: input.rsvp_reminder_hours,
-      discord_channel_training: null,
-      discord_channel_match: null,
-      discord_channel_tournament: null,
-      discord_channel_meeting: null,
-      discord_channel_social: null,
-      discord_channel_other: null,
+      discord_channel_training: Option.none(),
+      discord_channel_match: Option.none(),
+      discord_channel_tournament: Option.none(),
+      discord_channel_meeting: Option.none(),
+      discord_channel_social: Option.none(),
+      discord_channel_other: Option.none(),
     }),
   upsert: (input: {
     teamId: string;
     eventHorizonDays: number;
     minPlayersThreshold: number;
     rsvpReminderHours: number;
-    discordChannelTraining?: string | null;
-    discordChannelMatch?: string | null;
-    discordChannelTournament?: string | null;
-    discordChannelMeeting?: string | null;
-    discordChannelSocial?: string | null;
-    discordChannelOther?: string | null;
+    discordChannelTraining?: Option.Option<string>;
+    discordChannelMatch?: Option.Option<string>;
+    discordChannelTournament?: Option.Option<string>;
+    discordChannelMeeting?: Option.Option<string>;
+    discordChannelSocial?: Option.Option<string>;
+    discordChannelOther?: Option.Option<string>;
   }) => {
     teamSettingsStore.min_players_threshold = input.minPlayersThreshold;
     teamSettingsStore.rsvp_reminder_hours = input.rsvpReminderHours;
@@ -528,12 +528,12 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       event_horizon_days: input.eventHorizonDays,
       min_players_threshold: input.minPlayersThreshold,
       rsvp_reminder_hours: input.rsvpReminderHours,
-      discord_channel_training: null,
-      discord_channel_match: null,
-      discord_channel_tournament: null,
-      discord_channel_meeting: null,
-      discord_channel_social: null,
-      discord_channel_other: null,
+      discord_channel_training: Option.none(),
+      discord_channel_match: Option.none(),
+      discord_channel_tournament: Option.none(),
+      discord_channel_meeting: Option.none(),
+      discord_channel_social: Option.none(),
+      discord_channel_other: Option.none(),
     });
   },
   getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),

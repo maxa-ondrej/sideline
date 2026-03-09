@@ -68,12 +68,12 @@ const testUser = {
   id: TEST_USER_ID,
   discord_id: '12345',
   username: 'testuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Test User',
+  name: Option.some('Test User'),
   birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -83,12 +83,12 @@ const testAdmin = {
   id: TEST_ADMIN_ID,
   discord_id: '67890',
   username: 'adminuser',
-  avatar: null,
+  avatar: Option.none<string>(),
 
   is_profile_complete: true,
-  name: 'Admin User',
+  name: Option.some('Admin User'),
   birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
-  gender: 'male' as const,
+  gender: Option.some('male' as const),
   locale: 'en' as const,
   created_at: DateTime.unsafeNow(),
   updated_at: DateTime.unsafeNow(),
@@ -107,11 +107,11 @@ type UserLike = {
   id: Auth.UserId;
   discord_id: string;
   username: string;
-  avatar: string | null;
+  avatar: Option.Option<string>;
   is_profile_complete: boolean;
-  name: string | null;
+  name: Option.Option<string>;
   birth_date: Option.Option<DateTime.Utc>;
-  gender: 'male' | 'female' | 'other' | null;
+  gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
@@ -149,20 +149,20 @@ membersStore.set(TEST_ADMIN_MEMBER_ID, {
 type EventRecord = {
   id: Event.EventId;
   team_id: Team.TeamId;
-  training_type_id: string | null;
+  training_type_id: Option.Option<string>;
   event_type: Event.EventType;
   title: string;
-  description: string | null;
+  description: Option.Option<string>;
   start_at: string;
-  end_at: string | null;
-  location: string | null;
+  end_at: Option.Option<string>;
+  location: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
-  training_type_name: string | null;
-  created_by_name: string | null;
-  series_id: string | null;
+  training_type_name: Option.Option<string>;
+  created_by_name: Option.Option<string>;
+  series_id: Option.Option<string>;
   series_modified: boolean;
-  discord_target_channel_id: string | null;
+  discord_target_channel_id: Option.Option<string>;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -173,9 +173,9 @@ type RsvpRecord = {
   event_id: Event.EventId;
   team_member_id: TeamMember.TeamMemberId;
   response: EventRsvp.RsvpResponse;
-  message: string | null;
-  member_name: string | null;
-  username: string | null;
+  message: Option.Option<string>;
+  member_name: Option.Option<string>;
+  username: Option.Option<string>;
 };
 
 let rsvpsStore: Map<string, RsvpRecord>;
@@ -185,74 +185,74 @@ const resetStores = () => {
   eventsStore.set(TEST_EVENT_ACTIVE, {
     id: TEST_EVENT_ACTIVE,
     team_id: TEST_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     event_type: 'training',
     title: 'Future Training',
-    description: null,
+    description: Option.none(),
     start_at: '2099-12-31T18:00:00Z',
-    end_at: '2099-12-31T20:00:00Z',
-    location: 'Main Field',
+    end_at: Option.some('2099-12-31T20:00:00Z'),
+    location: Option.some('Main Field'),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
+    training_type_name: Option.none(),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
   eventsStore.set(TEST_EVENT_CANCELLED, {
     id: TEST_EVENT_CANCELLED,
     team_id: TEST_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     event_type: 'match',
     title: 'Cancelled Match',
-    description: null,
+    description: Option.none(),
     start_at: '2099-12-15T14:00:00Z',
-    end_at: '2099-12-15T16:00:00Z',
-    location: null,
+    end_at: Option.some('2099-12-15T16:00:00Z'),
+    location: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
+    training_type_name: Option.none(),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
   eventsStore.set(TEST_EVENT_PAST, {
     id: TEST_EVENT_PAST,
     team_id: TEST_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     event_type: 'training',
     title: 'Past Training',
-    description: null,
+    description: Option.none(),
     start_at: '2020-01-01T10:00:00Z',
-    end_at: '2020-01-01T12:00:00Z',
-    location: null,
+    end_at: Option.some('2020-01-01T12:00:00Z'),
+    location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: 'Admin User',
-    series_id: null,
+    training_type_name: Option.none(),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
   eventsStore.set(TEST_EVENT_OTHER_TEAM, {
     id: TEST_EVENT_OTHER_TEAM,
     team_id: OTHER_TEAM_ID,
-    training_type_id: null,
+    training_type_id: Option.none(),
     event_type: 'training',
     title: 'Other Team Event',
-    description: null,
+    description: Option.none(),
     start_at: '2099-12-31T18:00:00Z',
-    end_at: null,
-    location: null,
+    end_at: Option.none(),
+    location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
-    training_type_name: null,
-    created_by_name: null,
-    series_id: null,
+    training_type_name: Option.none(),
+    created_by_name: Option.none(),
+    series_id: Option.none(),
     series_modified: false,
-    discord_target_channel_id: null,
+    discord_target_channel_id: Option.none(),
   });
   rsvpsStore = new Map();
 };
@@ -272,9 +272,9 @@ const buildRosterEntry = (
     role_names: roleNames,
     permissions: permissions,
     name: user.name,
-    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc), Option.getOrNull),
+    birth_date: user.birth_date.pipe(Option.map(DateTime.formatIsoDateUtc)),
     gender: user.gender,
-    jersey_number: null,
+    jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
   });
@@ -438,7 +438,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
     event_id: string;
     team_member_id: string;
     response: string;
-    message: string | null;
+    message: Option.Option<string>;
   }) => {
     const key = `${input.event_id}:${input.team_member_id}`;
     const existing = rsvpsStore.get(key);
@@ -449,8 +449,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       team_member_id: input.team_member_id as TeamMember.TeamMemberId,
       response: input.response as EventRsvp.RsvpResponse,
       message: input.message,
-      member_name: null,
-      username: null,
+      member_name: Option.none(),
+      username: Option.none(),
     };
     rsvpsStore.set(key, record);
     return Effect.succeed({
@@ -465,7 +465,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
     eventId: Event.EventId,
     memberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
-    message: string | null,
+    message: Option.Option<string>,
   ) => {
     const key = `${eventId}:${memberId}`;
     const existing = rsvpsStore.get(key);
@@ -476,8 +476,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       team_member_id: memberId,
       response,
       message,
-      member_name: null,
-      username: null,
+      member_name: Option.none(),
+      username: Option.none(),
     };
     rsvpsStore.set(key, record);
     return Effect.succeed({

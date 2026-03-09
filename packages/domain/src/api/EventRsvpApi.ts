@@ -8,15 +8,15 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 
 export class RsvpEntry extends Schema.Class<RsvpEntry>('RsvpEntry')({
   teamMemberId: TeamMemberId,
-  memberName: Schema.NullOr(Schema.String),
-  username: Schema.NullOr(Schema.String),
+  memberName: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
   response: RsvpResponse,
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class EventRsvpDetail extends Schema.Class<EventRsvpDetail>('EventRsvpDetail')({
-  myResponse: Schema.NullOr(RsvpResponse),
-  myMessage: Schema.NullOr(Schema.String),
+  myResponse: Schema.OptionFromNullOr(RsvpResponse),
+  myMessage: Schema.OptionFromNullOr(Schema.String),
   rsvps: Schema.Array(RsvpEntry),
   yesCount: Schema.Number,
   noCount: Schema.Number,
@@ -27,7 +27,7 @@ export class EventRsvpDetail extends Schema.Class<EventRsvpDetail>('EventRsvpDet
 
 export class SubmitRsvpRequest extends Schema.Class<SubmitRsvpRequest>('SubmitRsvpRequest')({
   response: RsvpResponse,
-  message: Schema.NullOr(Schema.String),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
@@ -50,8 +50,8 @@ export class RsvpDeadlinePassed extends Schema.TaggedError<RsvpDeadlinePassed>()
 
 export class NonResponderEntry extends Schema.Class<NonResponderEntry>('NonResponderEntry')({
   teamMemberId: TeamMemberId,
-  memberName: Schema.NullOr(Schema.String),
-  username: Schema.NullOr(Schema.String),
+  memberName: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class NonRespondersResponse extends Schema.Class<NonRespondersResponse>(

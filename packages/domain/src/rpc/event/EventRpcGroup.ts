@@ -32,8 +32,8 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('SaveDiscordMessageId', {
     payload: {
       event_id: Event.EventId,
-      discord_channel_id: Schema.String,
-      discord_message_id: Schema.String,
+      discord_channel_id: Discord.Snowflake,
+      discord_message_id: Discord.Snowflake,
     },
   }),
   Rpc.make('GetDiscordMessageId', {
@@ -46,7 +46,7 @@ export const EventRpcGroup = RpcGroup.make(
       team_id: Team.TeamId,
       discord_user_id: Discord.Snowflake,
       response: EventRsvp.RsvpResponse,
-      message: Schema.NullOr(Schema.String),
+      message: Schema.OptionFromNullOr(Schema.String),
     },
     success: RsvpCountsResult,
     error: Schema.Union(RsvpMemberNotFound, RsvpDeadlinePassed, RsvpEventNotFound),
@@ -60,7 +60,7 @@ export const EventRpcGroup = RpcGroup.make(
     success: Schema.OptionFromNullOr(EventEmbedInfo),
   }),
   Rpc.make('GetChannelEvents', {
-    payload: { discord_channel_id: Schema.String },
+    payload: { discord_channel_id: Discord.Snowflake },
     success: Schema.Array(ChannelEventEntry),
   }),
   Rpc.make('GetRsvpAttendees', {
@@ -78,9 +78,9 @@ export const EventRpcGroup = RpcGroup.make(
       event_type: Event.EventType,
       title: Schema.String,
       start_at: Schema.String,
-      end_at: Schema.NullOr(Schema.String),
-      location: Schema.NullOr(Schema.String),
-      description: Schema.NullOr(Schema.String),
+      end_at: Schema.OptionFromNullOr(Schema.String),
+      location: Schema.OptionFromNullOr(Schema.String),
+      description: Schema.OptionFromNullOr(Schema.String),
     },
     success: CreateEventResult,
     error: Schema.Union(CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate),

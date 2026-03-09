@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
+import { Discord, Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
 
 class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails')({
@@ -18,7 +18,7 @@ class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails'
   created_by_name: Schema.OptionFromNullOr(Schema.String),
   series_id: Schema.OptionFromNullOr(EventSeries.EventSeriesId),
   series_modified: Schema.Boolean,
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class EventRow extends Schema.Class<EventRow>('EventRow')({
@@ -35,7 +35,7 @@ class EventRow extends Schema.Class<EventRow>('EventRow')({
   created_by: TeamMember.TeamMemberId,
   series_id: Schema.OptionFromNullOr(EventSeries.EventSeriesId),
   series_modified: Schema.Boolean,
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput')({
@@ -49,7 +49,7 @@ class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput'
   location: Schema.OptionFromNullOr(Schema.String),
   created_by: Schema.String,
   series_id: Schema.OptionFromNullOr(Schema.String),
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput')({
@@ -61,7 +61,7 @@ class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput'
   start_at: Schema.String,
   end_at: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
-  discord_target_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class ScopedTrainingTypeId extends Schema.Class<ScopedTrainingTypeId>('ScopedTrainingTypeId')({
@@ -168,8 +168,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
   private saveDiscordMessage = SqlSchema.void({
     Request: Schema.Struct({
       event_id: Event.EventId,
-      discord_channel_id: Schema.String,
-      discord_message_id: Schema.String,
+      discord_channel_id: Discord.Snowflake,
+      discord_message_id: Discord.Snowflake,
     }),
     execute: (input) =>
       this
@@ -179,26 +179,26 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
   private getDiscordMessage = SqlSchema.findOne({
     Request: Event.EventId,
     Result: Schema.Struct({
-      discord_channel_id: Schema.OptionFromNullOr(Schema.String),
-      discord_message_id: Schema.OptionFromNullOr(Schema.String),
+      discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+      discord_message_id: Schema.OptionFromNullOr(Discord.Snowflake),
     }),
     execute: (id) =>
       this.sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
   });
 
   private findByChannelId = SqlSchema.findAll({
-    Request: Schema.String,
+    Request: Discord.Snowflake,
     Result: Schema.Struct({
       event_id: Schema.String,
       team_id: Schema.String,
       title: Schema.String,
-      description: Schema.NullOr(Schema.String),
+      description: Schema.OptionFromNullOr(Schema.String),
       start_at: Schema.String,
-      end_at: Schema.NullOr(Schema.String),
-      location: Schema.NullOr(Schema.String),
+      end_at: Schema.OptionFromNullOr(Schema.String),
+      location: Schema.OptionFromNullOr(Schema.String),
       event_type: Schema.String,
       status: Schema.String,
-      discord_message_id: Schema.String,
+      discord_message_id: Discord.Snowflake,
     }),
     execute: (channelId) => this.sql`
             SELECT id AS event_id, team_id, title, description,
@@ -270,7 +270,19 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     );
   };
 
-  insertEvent = (input: {
+  insertEvent = ({
+    teamId,
+    trainingTypeId,
+    eventType,
+    title,
+    description,
+    startAt,
+    endAt,
+    location,
+    createdBy,
+    seriesId = Option.none(),
+    discordTargetChannelId = Option.none(),
+  }: {
     teamId: Team.TeamId;
     trainingTypeId: Option.Option<string>;
     eventType: string;
@@ -281,24 +293,34 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     location: Option.Option<string>;
     createdBy: TeamMember.TeamMemberId;
     seriesId?: Option.Option<string>;
-    discordTargetChannelId?: Option.Option<string>;
+    discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
     return this.insert({
-      team_id: input.teamId,
-      training_type_id: input.trainingTypeId,
-      event_type: input.eventType,
-      title: input.title,
-      description: input.description,
-      start_at: input.startAt,
-      end_at: input.endAt,
-      location: input.location,
-      created_by: input.createdBy,
-      series_id: input.seriesId ?? Option.none(),
-      discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
+      team_id: teamId,
+      training_type_id: trainingTypeId,
+      event_type: eventType,
+      title,
+      description,
+      start_at: startAt,
+      end_at: endAt,
+      location,
+      created_by: createdBy,
+      series_id: seriesId,
+      discord_target_channel_id: discordTargetChannelId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
-  updateEvent = (input: {
+  updateEvent = ({
+    id,
+    title,
+    eventType,
+    trainingTypeId,
+    description,
+    startAt,
+    endAt,
+    location,
+    discordTargetChannelId = Option.none(),
+  }: {
     id: Event.EventId;
     title: string;
     eventType: string;
@@ -307,18 +329,18 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     startAt: string;
     endAt: Option.Option<string>;
     location: Option.Option<string>;
-    discordTargetChannelId?: Option.Option<string>;
+    discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
     return this.update({
-      id: input.id,
-      title: input.title,
-      event_type: input.eventType,
-      training_type_id: input.trainingTypeId,
-      description: input.description,
-      start_at: input.startAt,
-      end_at: input.endAt,
-      location: input.location,
-      discord_target_channel_id: input.discordTargetChannelId ?? Option.none(),
+      id,
+      title,
+      event_type: eventType,
+      training_type_id: trainingTypeId,
+      description,
+      start_at: startAt,
+      end_at: endAt,
+      location,
+      discord_target_channel_id: discordTargetChannelId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
@@ -332,7 +354,11 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     );
   };
 
-  saveDiscordMessageId = (eventId: Event.EventId, channelId: string, messageId: string) => {
+  saveDiscordMessageId = (
+    eventId: Event.EventId,
+    channelId: Discord.Snowflake,
+    messageId: Discord.Snowflake,
+  ) => {
     return this.saveDiscordMessage({
       event_id: eventId,
       discord_channel_id: channelId,
@@ -346,7 +372,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     );
   };
 
-  findEventsByChannelId = (channelId: string) => {
+  findEventsByChannelId = (channelId: Discord.Snowflake) => {
     return this.findByChannelId(channelId).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );

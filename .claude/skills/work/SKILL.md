@@ -112,9 +112,15 @@ After the plan is approved, work through each remaining task **in order**. For e
 
 1. Update the task status to **In Progress** in Notion using `notion-update-page`
 2. Implement the changes described in the plan
-3. Run `pnpm check` and `pnpm test` to verify the changes compile and pass tests
+3. If any files in `packages/domain/` were changed, rebuild with `pnpm build` before checking types (stale `dist/` causes false type errors)
+4. Run `pnpm check` and `pnpm test` to verify the changes compile and pass tests
+5. If type errors seem wrong after domain changes, run the full clean verification: `pnpm codegen && pnpm build && find . -name '*.tsbuildinfo' -delete && pnpm check`
 
 Leave tasks in **In Progress** after implementation — the commit step handles pushing and moving them to **Done**.
+
+**Important implementation notes:**
+- When creating new TanStack Router route files, always add `ssr: false` to `createFileRoute(...)({...})` options — Effect `Option` types fail TanStack's serialization check without it.
+- When changing `packages/domain/` source files, always rebuild (`pnpm build`) before running `pnpm check` or `pnpm test`. The `dist/` directory must be up to date.
 
 If a task fails (tests break, types don't pass), fix the issue before moving on. If you cannot fix it, leave the task as In Progress and report the blocker to the user.
 

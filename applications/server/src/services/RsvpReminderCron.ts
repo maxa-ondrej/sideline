@@ -1,4 +1,4 @@
-import { Effect, Schedule } from 'effect';
+import { Effect, Option, Schedule } from 'effect';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -8,12 +8,7 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('eventsRepo', () => EventsRepository),
   Effect.bind('syncRepo', () => EventSyncEventsRepository),
   Effect.tap(() => Effect.logInfo('RsvpReminderCron: starting reminder cycle')),
-  Effect.bind('events', ({ settingsRepo }) =>
-    settingsRepo.findEventsNeedingReminder().pipe(
-      Effect.tapError((e) => Effect.logWarning('RsvpReminderCron: failed to find events', e)),
-      Effect.catchAll(() => Effect.succeed([] as const)),
-    ),
-  ),
+  Effect.bind('events', ({ settingsRepo }) => settingsRepo.findEventsNeedingReminder()),
   Effect.tap(({ events, syncRepo, eventsRepo }) =>
     Effect.all(
       events.map((event) =>
@@ -22,12 +17,12 @@ const cronEffect = Effect.Do.pipe(
             event.team_id,
             event.event_id,
             event.title,
-            null,
+            Option.none(),
             event.start_at,
-            null,
-            null,
+            Option.none(),
+            Option.none(),
             event.event_type,
-            event.discord_target_channel_id ?? undefined,
+            event.discord_target_channel_id,
           )
           .pipe(
             Effect.tap(() => eventsRepo.markReminderSent(event.event_id)),
@@ -36,10 +31,6 @@ const cronEffect = Effect.Do.pipe(
                 `RsvpReminderCron: queued reminder for event "${event.title}" (${event.event_id})`,
               ),
             ),
-            Effect.tapError((e) =>
-              Effect.logWarning(`RsvpReminderCron: failed for event ${event.event_id}`, e),
-            ),
-            Effect.catchAll(() => Effect.void),
           ),
       ),
       { concurrency: 1 },
