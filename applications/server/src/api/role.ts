@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, RoleApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -29,7 +29,8 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:view', forbidden)),
             Effect.bind('roleList', () => roles.findRolesByTeamId(teamId)),
             Effect.map(({ roleList }) =>
-              roleList.map(
+              Array.map(
+                roleList,
                 (r) =>
                   new RoleApi.RoleInfo({
                     roleId: r.id,

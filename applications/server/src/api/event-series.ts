@@ -6,7 +6,7 @@ import {
   type TeamMember,
   type TrainingType,
 } from '@sideline/domain';
-import { DateTime, Effect, Option } from 'effect';
+import { Array, DateTime, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
@@ -31,9 +31,14 @@ const checkCoachScoping = (
   if (Option.isNone(trainingTypeId)) return Effect.void;
   return events.getScopedTrainingTypeIds(memberId).pipe(
     Effect.flatMap((scopedIds) => {
-      const allowed: readonly string[] = scopedIds.map((s) => s.training_type_id);
-      if (allowed.length === 0) return Effect.void;
-      return allowed.includes(trainingTypeId.value) ? Effect.void : Effect.fail(forbidden);
+      const allowed = pipe(
+        scopedIds,
+        Array.map((s) => s.training_type_id),
+      );
+      if (Array.isEmptyArray(allowed)) return Effect.void;
+      return pipe(allowed, Array.contains(trainingTypeId.value))
+        ? Effect.void
+        : Effect.fail(forbidden);
     }),
   );
 };
@@ -96,7 +101,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
             Effect.tap(({ inserted, dates, membership }) =>
               Effect.all(
-                dates.map((date) => {
+                Array.map(dates, (date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
                   const startAt = `${dateStr}T${inserted.start_time}Z`;
                   const endAt = Option.map(inserted.end_time, (t) => `${dateStr}T${t}Z`);
@@ -170,7 +175,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
             Effect.bind('list', () => series.findSeriesByTeamId(teamId)),
             Effect.map(({ list }) =>
-              list.map(
+              Array.map(
+                list,
                 (s) =>
                   new EventSeriesApi.EventSeriesInfo({
                     seriesId: s.id,
@@ -343,7 +349,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       if (newDates.length === 0) return Effect.void;
                       const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
                       return Effect.all(
-                        newDates.map((date) => {
+                        Array.map(newDates, (date) => {
                           const dateStr = DateTime.formatIsoDateUtc(date);
                           const startAt = `${dateStr}T${existing.start_time}Z`;
                           const endAt = Option.map(existing.end_time, (t) => `${dateStr}T${t}Z`);

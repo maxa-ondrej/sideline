@@ -136,7 +136,13 @@ const notifyAdmins = (
   changes: readonly Change[],
   teamMembers: readonly MemberWithBirthDate[],
 ) =>
-  Effect.succeed(teamMembers.filter(({ is_admin }) => is_admin).map((m) => m.user_id)).pipe(
+  Effect.succeed(
+    pipe(
+      teamMembers,
+      Array.filter(({ is_admin }) => is_admin),
+      Array.map((m) => m.user_id),
+    ),
+  ).pipe(
     Effect.map(Array.dedupe),
     Effect.map(
       Array.flatMap((userId) =>
@@ -209,8 +215,9 @@ const evaluateTeam =
         notifyAdmins(notifications, teamId, changes, teamMembers),
       ),
       Effect.tap(({ changes }) =>
-        Effect.allSuccesses(
-          changes.map((change) =>
+        pipe(
+          changes,
+          Array.map((change) =>
             change.action === 'added'
               ? channelSync.emitMemberAdded(
                   teamId,
@@ -227,10 +234,12 @@ const evaluateTeam =
                   change.discordId,
                 ),
           ),
+          Effect.allSuccesses,
         ).pipe(Effect.asVoid),
       ),
       Effect.map(({ changes }) =>
-        changes.map(
+        Array.map(
+          changes,
           (c) =>
             new AgeThresholdApi.AgeGroupChange({
               memberId: c.memberId,

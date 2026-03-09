@@ -1,4 +1,4 @@
-import { Effect, Option, Schedule } from 'effect';
+import { Array, Effect, Option, Schedule } from 'effect';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -11,7 +11,7 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('events', ({ settingsRepo }) => settingsRepo.findEventsNeedingReminder()),
   Effect.tap(({ events, syncRepo, eventsRepo }) =>
     Effect.all(
-      events.map((event) =>
+      Array.map(events, (event) =>
         syncRepo
           .emitRsvpReminder(
             event.team_id,

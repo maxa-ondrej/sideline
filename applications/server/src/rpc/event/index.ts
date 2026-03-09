@@ -379,8 +379,8 @@ export const EventsRpcLive = Effect.Do.pipe(
     ({ events }) =>
       ({ discord_channel_id }: { readonly discord_channel_id: Discord.Snowflake }) =>
         events.findEventsByChannelId(discord_channel_id).pipe(
-          Effect.map((rows) =>
-            rows.map(
+          Effect.map(
+            Array.map(
               (row) =>
                 new EventRpcModels.ChannelEventEntry({
                   event_id: row.event_id,
@@ -416,7 +416,8 @@ export const EventsRpcLive = Effect.Do.pipe(
           Effect.map(
             ({ attendees, total }) =>
               new EventRpcModels.RsvpAttendeesResult({
-                attendees: attendees.map(
+                attendees: Array.map(
+                  attendees,
                   (row) =>
                     new EventRpcModels.RsvpAttendeeEntry({
                       discord_id: row.discord_id,
@@ -455,7 +456,8 @@ export const EventsRpcLive = Effect.Do.pipe(
               yesCount,
               noCount,
               maybeCount,
-              nonResponders: nonResponders.map(
+              nonResponders: Array.map(
+                nonResponders,
                 (nr) =>
                   new EventRpcModels.NonResponderRpcEntry({
                     discord_id: nr.discord_id,

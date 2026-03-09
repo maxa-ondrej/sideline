@@ -1,6 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
-import { Effect, type Option, Schema } from 'effect';
+import { Array, Effect, type Option, Schema } from 'effect';
 
 class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({
   channel_id: Discord.Snowflake,
@@ -61,7 +61,7 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
     this.deleteByGuild(guildId).pipe(
       Effect.tap(() =>
         Effect.all(
-          channels.map((ch) =>
+          Array.map(channels, (ch) =>
             this.insertChannel({
               guild_id: guildId,
               channel_id: ch.channel_id,

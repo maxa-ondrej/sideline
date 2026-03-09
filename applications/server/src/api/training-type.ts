@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, TrainingTypeApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -26,7 +26,8 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               ({ list, isAdmin }) =>
                 new TrainingTypeApi.TrainingTypeListResponse({
                   canAdmin: isAdmin,
-                  trainingTypes: list.map(
+                  trainingTypes: Array.map(
+                    list,
                     (t) =>
                       new TrainingTypeApi.TrainingTypeInfo({
                         trainingTypeId: t.id,
