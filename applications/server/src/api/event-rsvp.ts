@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi } from '@sideline/domain';
-import { DateTime, Effect, Option } from 'effect';
+import { Array, DateTime, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
@@ -27,13 +27,29 @@ const buildRsvpDetail = (
     Effect.bind('myRsvp', () => rsvps.findRsvpByEventAndMember(eventId, myMemberId)),
     Effect.bind('counts', () => rsvps.countRsvpsByEventId(eventId)),
     Effect.map(({ allRsvps, myRsvp, counts }) => {
-      const yesCount = counts.find((c) => c.response === 'yes')?.count ?? 0;
-      const noCount = counts.find((c) => c.response === 'no')?.count ?? 0;
-      const maybeCount = counts.find((c) => c.response === 'maybe')?.count ?? 0;
+      const yesCount = pipe(
+        counts,
+        Array.findFirst((c) => c.response === 'yes'),
+        Option.map((c) => c.count),
+        Option.getOrElse(() => 0),
+      );
+      const noCount = pipe(
+        counts,
+        Array.findFirst((c) => c.response === 'no'),
+        Option.map((c) => c.count),
+        Option.getOrElse(() => 0),
+      );
+      const maybeCount = pipe(
+        counts,
+        Array.findFirst((c) => c.response === 'maybe'),
+        Option.map((c) => c.count),
+        Option.getOrElse(() => 0),
+      );
       return new EventRsvpApi.EventRsvpDetail({
         myResponse: Option.map(myRsvp, (my) => my.response),
         myMessage: Option.flatMap(myRsvp, (my) => my.message),
-        rsvps: allRsvps.map(
+        rsvps: Array.map(
+          allRsvps,
           (r) =>
             new EventRsvpApi.RsvpEntry({
               teamMemberId: r.team_member_id,
@@ -153,7 +169,8 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.map(
               ({ nonResponders }) =>
                 new EventRsvpApi.NonRespondersResponse({
-                  nonResponders: nonResponders.map(
+                  nonResponders: Array.map(
+                    nonResponders,
                     (nr) =>
                       new EventRsvpApi.NonResponderEntry({
                         teamMemberId: nr.team_member_id,

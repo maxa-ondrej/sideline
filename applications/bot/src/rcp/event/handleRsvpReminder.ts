@@ -1,7 +1,7 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { DateTime, Effect, Option, Schema } from 'effect';
+import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -37,17 +37,26 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       }
       const locale = guildLocale({ guild_locale: guild.preferred_locale });
 
-      const nonResponderMentions = summary.nonResponders
-        .filter((nr) => Option.isSome(nr.discord_id))
-        .map((nr) => `<@${Option.getOrElse(nr.discord_id, () => '')}>`)
-        .join(', ');
+      const nonResponderMentions = pipe(
+        summary.nonResponders,
+        Array.filterMap((nr) => Option.map(nr.discord_id, (id) => `<@${id}>`)),
+        Array.join(', '),
+      );
 
-      const nonResponderNames = summary.nonResponders
-        .filter((nr) => Option.isNone(nr.discord_id))
-        .map((nr) => Option.getOrElse(nr.name, () => Option.getOrElse(nr.username, () => '?')))
-        .join(', ');
+      const nonResponderNames = pipe(
+        summary.nonResponders,
+        Array.filter((nr) => Option.isNone(nr.discord_id)),
+        Array.map((nr) =>
+          Option.getOrElse(nr.name, () => Option.getOrElse(nr.username, () => '?')),
+        ),
+        Array.join(', '),
+      );
 
-      const nonResponderText = [nonResponderMentions, nonResponderNames].filter(Boolean).join(', ');
+      const nonResponderText = pipe(
+        [nonResponderMentions, nonResponderNames],
+        Array.filter(Boolean),
+        Array.join(', '),
+      );
 
       const fields = [
         {
@@ -104,10 +113,11 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
           `https://discord.com/channels/${event.guild_id}/${msg.discord_channel_id}/${msg.discord_message_id}`,
       });
 
-      const dmNonResponders = summary.nonResponders
-        .filter((nr) => Option.isSome(nr.discord_id))
-        .map((nr) =>
-          rest.createDm({ recipient_id: Option.getOrElse(nr.discord_id, () => '') }).pipe(
+      const dmNonResponders = pipe(
+        summary.nonResponders,
+        Array.filterMap((nr) => nr.discord_id),
+        Array.map((discordId) =>
+          rest.createDm({ recipient_id: discordId }).pipe(
             Effect.flatMap((dm) =>
               rest.createMessage(dm.id, {
                 embeds: [
@@ -122,23 +132,19 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
                 ],
               }),
             ),
-            Effect.tap(() =>
-              Effect.log(
-                `Sent RSVP reminder DM to Discord user ${Option.getOrElse(nr.discord_id, () => '?')}`,
-              ),
-            ),
+            Effect.tap(() => Effect.log(`Sent RSVP reminder DM to Discord user ${discordId}`)),
             Effect.catchAll((err) =>
               Effect.logWarning(
-                `Failed to send RSVP reminder DM to Discord user ${Option.getOrElse(nr.discord_id, () => '?')}: ${err}`,
+                `Failed to send RSVP reminder DM to Discord user ${discordId}: ${err}`,
               ),
             ),
           ),
-        );
+        ),
+      );
 
-      const sendDms =
-        dmNonResponders.length > 0
-          ? Effect.all(dmNonResponders, { concurrency: 5 }).pipe(Effect.asVoid)
-          : Effect.void;
+      const sendDms = Array.isEmptyArray(dmNonResponders)
+        ? Effect.void
+        : Effect.all(dmNonResponders, { concurrency: 5 }).pipe(Effect.asVoid);
 
       return Effect.all([postChannel, sendDms], { concurrency: 'unbounded' }).pipe(Effect.asVoid);
     }),

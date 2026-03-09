@@ -1,4 +1,4 @@
-import { DateTime, Effect, Option, Schedule } from 'effect';
+import { Array, DateTime, Effect, Option, Schedule } from 'effect';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
@@ -13,7 +13,7 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('allSeries', ({ seriesRepo }) => seriesRepo.getActiveForGeneration()),
   Effect.tap(({ allSeries, seriesRepo, eventsRepo }) =>
     Effect.all(
-      allSeries.map((s) => {
+      Array.map(allSeries, (s) => {
         const effectiveEnd = computeHorizonEnd({
           seriesEndDate: Option.getOrNull(s.end_date),
           horizonDays: s.event_horizon_days,
@@ -36,7 +36,7 @@ const cronEffect = Effect.Do.pipe(
         if (dates.length === 0) return Effect.void;
 
         return Effect.all(
-          dates.map((date) => {
+          Array.map(dates, (date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
             const startAt = `${dateStr}T${s.start_time}Z`;
             const endAt = Option.map(s.end_time, (t) => `${dateStr}T${t}Z`);

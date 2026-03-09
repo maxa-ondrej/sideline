@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Effect, type Option, Schema } from 'effect';
+import { Array, Effect, type Option, Schema } from 'effect';
 
 export class RoleNameAlreadyTakenError extends Schema.TaggedError<RoleNameAlreadyTakenError>()(
   'RoleNameAlreadyTakenError',
@@ -200,7 +200,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
 
   getPermissionsForRoleId = (roleId: Role.RoleId) =>
     this.findPermissions(roleId).pipe(
-      Effect.map((rows) => rows.map((r) => r.permission)),
+      Effect.map(Array.map((r) => r.permission)),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 
@@ -223,7 +223,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     this.deletePermissions(roleId).pipe(
       Effect.flatMap(() =>
         Effect.all(
-          permissions.map((p) => this.insertPermission({ role_id: roleId, permission: p })),
+          Array.map(permissions, (p) => this.insertPermission({ role_id: roleId, permission: p })),
         ),
       ),
       Effect.asVoid,
@@ -245,7 +245,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
       Effect.flatMap(() => this.findByTeamId(teamId)),
       Effect.tap((roles) =>
         Effect.all(
-          roles.map((role) => {
+          Array.map(roles, (role) => {
             const perms = Role.defaultPermissions[role.name];
             return perms ? this.setRolePermissions(role.id, perms) : Effect.void;
           }),

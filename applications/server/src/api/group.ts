@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, GroupApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -38,7 +38,8 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('list', () => groups.findGroupsByTeamId(teamId)),
               Effect.map(({ list }) =>
-                list.map(
+                Array.map(
+                  list,
                   (g) =>
                     new GroupApi.GroupInfo({
                       groupId: g.id,
@@ -116,11 +117,11 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     parentId: group.parent_id,
                     name: group.name,
                     emoji: group.emoji,
-                    roles: groupRoles.map((r) => ({
+                    roles: Array.map(groupRoles, (r) => ({
                       roleId: r.role_id,
                       roleName: r.role_name,
                     })),
-                    members: groupMembers.map((m) => ({
+                    members: Array.map(groupMembers, (m) => ({
                       memberId: m.member_id,
                       name: m.name,
                       username: m.username,
@@ -396,7 +397,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   onSome: (pid) =>
                     groups.getAncestorIds(pid).pipe(
                       Effect.flatMap((ancestors) =>
-                        ancestors.includes(groupId) ? Effect.fail(forbidden) : Effect.void,
+                        pipe(ancestors, Array.contains(groupId))
+                          ? Effect.fail(forbidden)
+                          : Effect.void,
                       ),
                       Effect.catchAll(() => Effect.void),
                     ),
@@ -589,7 +592,8 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
               Effect.map(({ channels }) =>
-                channels.map(
+                Array.map(
+                  channels,
                   (ch) =>
                     new GroupApi.DiscordChannelInfo({
                       id: ch.channel_id,

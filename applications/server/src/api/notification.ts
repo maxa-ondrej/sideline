@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, NotificationApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 
@@ -18,7 +18,8 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
               notifications.findByUserAndTeam(currentUser.id, urlParams.teamId),
             ),
             Effect.map(({ list }) =>
-              list.map(
+              Array.map(
+                list,
                 (n) =>
                   new NotificationApi.NotificationInfo({
                     notificationId: n.id,

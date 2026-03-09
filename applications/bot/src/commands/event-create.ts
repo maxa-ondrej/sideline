@@ -2,7 +2,7 @@ import * as m from '@sideline/i18n/messages';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect } from 'effect';
+import { Array, Effect, Option, pipe } from 'effect';
 import { userLocale } from '~/locale.js';
 
 export const EventCreateCommand = Ix.global(
@@ -43,11 +43,12 @@ export const EventCreateCommand = Ix.global(
       const data = interaction.data;
       const eventType =
         data && 'options' in data
-          ? ((
-              data.options?.find((o: { name: string }) => o.name === 'type') as
-                | { value: string }
-                | undefined
-            )?.value ?? 'other')
+          ? pipe(
+              [...(data.options ?? [])],
+              Array.findFirst((o) => o.name === 'type'),
+              Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
+              Option.getOrElse(() => 'other'),
+            )
           : 'other';
 
       return Ix.response({

@@ -380,12 +380,13 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.bind('guilds', ({ client }) => client.listMyGuilds()),
             Effect.flatMap(({ guilds }) =>
               Effect.all(
-                guilds
-                  .filter((g) => {
+                pipe(
+                  guilds,
+                  Array.filter((g) => {
                     const perms = BigInt(g.permissions);
                     return (perms & ADMINISTRATOR) !== 0n || (perms & MANAGE_GUILD) !== 0n;
-                  })
-                  .map((g) =>
+                  }),
+                  Array.map((g) =>
                     botGuilds.exists(Schema.decodeSync(Discord.Snowflake)(g.id)).pipe(
                       Effect.map(
                         (present) =>
@@ -399,6 +400,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                       ),
                     ),
                   ),
+                ),
                 { concurrency: 'unbounded' },
               ),
             ),
@@ -422,10 +424,16 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               }),
             ),
             Effect.bind('seededRoles', ({ team }) => roles.seedTeamRolesWithPermissions(team.id)),
-            Effect.bind('adminRole', ({ seededRoles }) => {
-              const admin = seededRoles.find((r) => r.name === 'Admin');
-              return admin ? Effect.succeed(admin) : Effect.fail(new Auth.Unauthorized());
-            }),
+            Effect.bind('adminRole', ({ seededRoles }) =>
+              pipe(
+                seededRoles,
+                Array.findFirst((r) => r.name === 'Admin'),
+                Option.match({
+                  onNone: () => Effect.fail(new Auth.Unauthorized()),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
             Effect.bind('newMember', ({ team, currentUser }) =>
               members.addMember({
                 team_id: team.id,

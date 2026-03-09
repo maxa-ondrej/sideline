@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Roster, type RosterModel } from '@sideline/domain';
-import { DateTime, Effect, Option } from 'effect';
+import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
@@ -50,7 +50,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               requirePermission(membership, 'member:view', new Roster.Forbidden()),
             ),
             Effect.bind('roster', () => members.findRosterByTeam(teamId)),
-            Effect.map(({ roster }) => roster.map(toRosterPlayer)),
+            Effect.map(({ roster }) => Array.map(roster, toRosterPlayer)),
           ),
         )
         .handle('getMember', ({ path: { teamId, memberId } }) =>
@@ -159,7 +159,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
             Effect.map(({ rosterList }) =>
-              rosterList.map(
+              Array.map(
+                rosterList,
                 (r) =>
                   new Roster.RosterInfo({
                     rosterId: r.id,
@@ -217,7 +218,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   name: roster.name,
                   active: roster.active,
                   createdAt: DateTime.formatIso(roster.created_at),
-                  members: rosterMembers.map(toRosterPlayer),
+                  members: Array.map(rosterMembers, toRosterPlayer),
                 }),
             ),
           ),

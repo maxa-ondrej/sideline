@@ -1,5 +1,5 @@
 import type { Auth, Role, Team } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option, pipe } from 'effect';
 import type {
   MembershipWithRole,
   TeamMembersRepository,
@@ -28,14 +28,14 @@ export const requireMembership = <E>(
 export const hasPermission = (
   membership: MembershipWithRole,
   permission: Role.Permission,
-): boolean => membership.permissions.includes(permission);
+): boolean => pipe(membership.permissions, Array.contains(permission));
 
 export const requirePermission = <E>(
   membership: MembershipWithRole,
   permission: Role.Permission,
   forbidden: E,
 ) =>
-  membership.permissions.includes(permission)
+  pipe(membership.permissions, Array.contains(permission))
     ? Effect.void
     : Effect.fail(forbidden).pipe(
         Effect.tapError(() =>

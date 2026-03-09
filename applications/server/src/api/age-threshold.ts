@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { AgeThresholdApi, Auth } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
@@ -27,7 +27,8 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('rules', () => thresholds.findRulesByTeamId(teamId)),
             Effect.map(({ rules }) =>
-              rules.map(
+              Array.map(
+                rules,
                 (r) =>
                   new AgeThresholdApi.AgeThresholdInfo({
                     ruleId: r.id,

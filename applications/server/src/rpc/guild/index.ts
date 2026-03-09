@@ -1,5 +1,5 @@
 import { type Discord, GuildRpcGroup, type Team, type TeamMember } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option, pipe } from 'effect';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -47,9 +47,11 @@ const setupNewMember = (
       deps.roleMappings.findAllByTeam(team.id).pipe(
         Effect.tap((mappings) =>
           Effect.all(
-            mappings
-              .filter((m) => roles.includes(m.discord_role_id))
-              .map((m) => deps.members.assignRole(newMember.id, m.role_id)),
+            pipe(
+              mappings,
+              Array.filter((m) => roles.includes(m.discord_role_id)),
+              Array.map((m) => deps.members.assignRole(newMember.id, m.role_id)),
+            ),
             { concurrency: 'unbounded' },
           ),
         ),
@@ -59,11 +61,13 @@ const setupNewMember = (
       deps.channelMappings.findAllByTeam(team.id).pipe(
         Effect.tap((mappings) =>
           Effect.all(
-            mappings
-              .filter(
+            pipe(
+              mappings,
+              Array.filter(
                 (m) => Option.isSome(m.discord_role_id) && roles.includes(m.discord_role_id.value),
-              )
-              .map((m) => deps.groups.addMemberById(m.group_id, newMember.id)),
+              ),
+              Array.map((m) => deps.groups.addMemberById(m.group_id, newMember.id)),
+            ),
             { concurrency: 'unbounded' },
           ),
         ),
@@ -196,7 +200,7 @@ export const GuildsRpcLive = Effect.all([
             ),
             Effect.tap(() =>
               Effect.all(
-                membersList.map((member) =>
+                Array.map(membersList, (member) =>
                   register({
                     guild_id,
                     discord_id: member.discord_id,

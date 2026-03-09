@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventApi, type TeamMember, type TrainingType } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
@@ -22,9 +22,14 @@ const checkCoachScoping = (
   if (Option.isNone(trainingTypeId)) return Effect.void;
   return events.getScopedTrainingTypeIds(memberId).pipe(
     Effect.flatMap((scopedIds) => {
-      const allowed: readonly string[] = scopedIds.map((s) => s.training_type_id);
-      if (allowed.length === 0) return Effect.void;
-      return allowed.includes(trainingTypeId.value) ? Effect.void : Effect.fail(forbidden);
+      const allowed = pipe(
+        scopedIds,
+        Array.map((s) => s.training_type_id),
+      );
+      if (Array.isEmptyArray(allowed)) return Effect.void;
+      return pipe(allowed, Array.contains(trainingTypeId.value))
+        ? Effect.void
+        : Effect.fail(forbidden);
     }),
   );
 };
@@ -48,7 +53,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               ({ list, canCreate }) =>
                 new EventApi.EventListResponse({
                   canCreate,
-                  events: list.map(
+                  events: Array.map(
+                    list,
                     (e) =>
                       new EventApi.EventInfo({
                         eventId: e.id,

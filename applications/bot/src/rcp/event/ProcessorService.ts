@@ -1,7 +1,7 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect, Match } from 'effect';
+import { Array, Effect, Match } from 'effect';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { handleCancelled } from './handleCancelled.js';
@@ -54,7 +54,7 @@ export const ProcessorService = Effect.Do.pipe(
       Effect.flatMap((events) =>
         events.length === 0
           ? Effect.void
-          : Effect.all(events.map(processEvent), { concurrency: 1 }).pipe(
+          : Effect.all(Array.map(events, processEvent), { concurrency: 1 }).pipe(
               Effect.tap(() => Effect.log(`Processed ${events.length} event sync event(s)`)),
               Effect.asVoid,
             ),
