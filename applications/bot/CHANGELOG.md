@@ -1,5 +1,28 @@
 # @sideline/bot
 
+## 0.7.1
+
+### Patch Changes
+
+- [#91](https://github.com/maxa-ondrej/sideline/pull/91) [`dbe2a0b`](https://github.com/maxa-ondrej/sideline/commit/dbe2a0b480314845e45bcae95ea100ce0d06cf25) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Replace plain string dates with proper DateTime.Utc types throughout the stack
+
+- [#90](https://github.com/maxa-ondrej/sideline/pull/90) [`c885234`](https://github.com/maxa-ondrej/sideline/commit/c885234c8f89088b1cc49a4619b69a617a8e9976) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Replace native JS array methods with Effect Array module in server and bot
+
+- [#96](https://github.com/maxa-ondrej/sideline/pull/96) [`b49b814`](https://github.com/maxa-ondrej/sideline/commit/b49b814c7166d2ae2d95b00a95ec87a55cb8e9b6) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add /event-list Discord slash command with paginated upcoming events embed
+
+- [#100](https://github.com/maxa-ondrej/sideline/pull/100) [`b63f5b0`](https://github.com/maxa-ondrej/sideline/commit/b63f5b017ace088eca0480b814252e2d268137ca) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Group /event-create and /event-list into /event create and /event list subcommands
+
+- [#89](https://github.com/maxa-ondrej/sideline/pull/89) [`4d2ce92`](https://github.com/maxa-ondrej/sideline/commit/4d2ce92b94498e0683756fb4e1439cda51001abc) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Use Discord.Snowflake branded type across the entire stack, remove catchAll on unfailable effects, and refactor repository methods to use destructuring with default values
+
+- [#81](https://github.com/maxa-ondrej/sideline/pull/81) [`e9809ab`](https://github.com/maxa-ondrej/sideline/commit/e9809ab5ee687de7db088da83a06dce0790adec2) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add LOG_LEVEL environment variable to override default log levels
+
+- [#97](https://github.com/maxa-ondrej/sideline/pull/97) [`0230c98`](https://github.com/maxa-ondrej/sideline/commit/0230c98db317f20800485a0ad758020236ff2f77) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Remove /ping slash command from Discord bot
+
+- Updated dependencies [[`3b20ab1`](https://github.com/maxa-ondrej/sideline/commit/3b20ab1ed4d61dffc0d136d6ee6a055672e65788), [`dbe2a0b`](https://github.com/maxa-ondrej/sideline/commit/dbe2a0b480314845e45bcae95ea100ce0d06cf25), [`b49b814`](https://github.com/maxa-ondrej/sideline/commit/b49b814c7166d2ae2d95b00a95ec87a55cb8e9b6), [`c12900d`](https://github.com/maxa-ondrej/sideline/commit/c12900da82a09999081325bccbb29a39f93f3215), [`3b16731`](https://github.com/maxa-ondrej/sideline/commit/3b1673170ea6bb9b44b298fc3566415f016ea654), [`4d2ce92`](https://github.com/maxa-ondrej/sideline/commit/4d2ce92b94498e0683756fb4e1439cda51001abc), [`e9809ab`](https://github.com/maxa-ondrej/sideline/commit/e9809ab5ee687de7db088da83a06dce0790adec2), [`0230c98`](https://github.com/maxa-ondrej/sideline/commit/0230c98db317f20800485a0ad758020236ff2f77), [`38381e3`](https://github.com/maxa-ondrej/sideline/commit/38381e3695b8d2d5fc6704df9dfa8d29e55e2e0a), [`381d85d`](https://github.com/maxa-ondrej/sideline/commit/381d85d6f47deb87f68bcebd5a266e0f29bb71f3), [`38381e3`](https://github.com/maxa-ondrej/sideline/commit/38381e3695b8d2d5fc6704df9dfa8d29e55e2e0a)]:
+  - @sideline/i18n@0.2.0
+  - @sideline/domain@0.10.0
+  - @sideline/effect-lib@0.0.4
+
 ## 0.7.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @sideline/effect-lib
 
+## 0.0.4
+
+### Patch Changes
+
+- [#91](https://github.com/maxa-ondrej/sideline/pull/91) [`dbe2a0b`](https://github.com/maxa-ondrej/sideline/commit/dbe2a0b480314845e45bcae95ea100ce0d06cf25) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Replace plain string dates with proper DateTime.Utc types throughout the stack
+
+- [#81](https://github.com/maxa-ondrej/sideline/pull/81) [`e9809ab`](https://github.com/maxa-ondrej/sideline/commit/e9809ab5ee687de7db088da83a06dce0790adec2) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add LOG_LEVEL environment variable to override default log levels
+
+- [#83](https://github.com/maxa-ondrej/sideline/pull/83) [`38381e3`](https://github.com/maxa-ondrej/sideline/commit/38381e3695b8d2d5fc6704df9dfa8d29e55e2e0a) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add typed business errors for unique constraint violations in repositories
+
 ## 0.0.3
 
 ### Patch Changes

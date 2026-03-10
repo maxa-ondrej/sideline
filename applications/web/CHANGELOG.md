@@ -1,5 +1,31 @@
 # @sideline/web
 
+## 0.4.0
+
+### Minor Changes
+
+- [#98](https://github.com/maxa-ondrej/sideline/pull/98) [`c12900d`](https://github.com/maxa-ondrej/sideline/commit/c12900da82a09999081325bccbb29a39f93f3215) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add iCal subscription feature allowing players to subscribe to team events via webcal URL in Google Calendar, Apple Calendar, and Outlook
+
+### Patch Changes
+
+- [#88](https://github.com/maxa-ondrej/sideline/pull/88) [`3b20ab1`](https://github.com/maxa-ondrej/sideline/commit/3b20ab1ed4d61dffc0d136d6ee6a055672e65788) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add client-side age validation with localized error message and preselect birth year to 18 years ago in date picker
+
+- [#94](https://github.com/maxa-ondrej/sideline/pull/94) [`3c51350`](https://github.com/maxa-ondrej/sideline/commit/3c51350f4f069f12241369ffe027471079c3b7f6) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Set calendar date picker week start to Monday
+
+- [#91](https://github.com/maxa-ondrej/sideline/pull/91) [`dbe2a0b`](https://github.com/maxa-ondrej/sideline/commit/dbe2a0b480314845e45bcae95ea100ce0d06cf25) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Replace plain string dates with proper DateTime.Utc types throughout the stack
+
+- [#92](https://github.com/maxa-ondrej/sideline/pull/92) [`fe5c2ac`](https://github.com/maxa-ondrej/sideline/commit/fe5c2ac0acd4b9d3ad39baf7961e2127373a6d47) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Disable name editing for built-in roles to prevent rejected save attempts
+
+- [#93](https://github.com/maxa-ondrej/sideline/pull/93) [`7fe506e`](https://github.com/maxa-ondrej/sideline/commit/7fe506e367762bd084ca1d5c7d8604b48efd5c62) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Move Save changes button to bottom of team settings page so it clearly applies to all fields
+
+- [#89](https://github.com/maxa-ondrej/sideline/pull/89) [`4d2ce92`](https://github.com/maxa-ondrej/sideline/commit/4d2ce92b94498e0683756fb4e1439cda51001abc) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Use Discord.Snowflake branded type across the entire stack, remove catchAll on unfailable effects, and refactor repository methods to use destructuring with default values
+
+- [#84](https://github.com/maxa-ondrej/sideline/pull/84) [`b1d7909`](https://github.com/maxa-ondrej/sideline/commit/b1d79090d6d9b001f6fe2b60341c7862c709be91) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Improve client error handling with loading/success/error toast transitions, rich colors, close button, and top-right positioning
+
+- Updated dependencies [[`3b20ab1`](https://github.com/maxa-ondrej/sideline/commit/3b20ab1ed4d61dffc0d136d6ee6a055672e65788), [`dbe2a0b`](https://github.com/maxa-ondrej/sideline/commit/dbe2a0b480314845e45bcae95ea100ce0d06cf25), [`b49b814`](https://github.com/maxa-ondrej/sideline/commit/b49b814c7166d2ae2d95b00a95ec87a55cb8e9b6), [`c12900d`](https://github.com/maxa-ondrej/sideline/commit/c12900da82a09999081325bccbb29a39f93f3215), [`3b16731`](https://github.com/maxa-ondrej/sideline/commit/3b1673170ea6bb9b44b298fc3566415f016ea654), [`4d2ce92`](https://github.com/maxa-ondrej/sideline/commit/4d2ce92b94498e0683756fb4e1439cda51001abc), [`0230c98`](https://github.com/maxa-ondrej/sideline/commit/0230c98db317f20800485a0ad758020236ff2f77), [`38381e3`](https://github.com/maxa-ondrej/sideline/commit/38381e3695b8d2d5fc6704df9dfa8d29e55e2e0a), [`381d85d`](https://github.com/maxa-ondrej/sideline/commit/381d85d6f47deb87f68bcebd5a266e0f29bb71f3), [`38381e3`](https://github.com/maxa-ondrej/sideline/commit/38381e3695b8d2d5fc6704df9dfa8d29e55e2e0a)]:
+  - @sideline/i18n@0.2.0
+  - @sideline/domain@0.10.0
+
 ## 0.3.1
 
 ### Patch Changes
