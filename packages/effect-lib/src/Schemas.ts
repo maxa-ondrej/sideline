@@ -22,6 +22,11 @@ export const DateTimeFromDate = Schema.transform(Schema.DateFromSelf, Schema.Dat
   encode: (dt) => new Date(DateTime.toEpochMillis(dt)),
 });
 
+export const DateTimeFromIsoString = Schema.transform(Schema.String, Schema.DateTimeUtcFromSelf, {
+  decode: (str) => DateTime.unsafeMake(str),
+  encode: (dt) => DateTime.formatIso(dt),
+});
+
 export const ArrayFromSplitString = (separator: string = ',') =>
   Schema.String.pipe(
     Schema.transform(Schema.Array(Schema.NonEmptyString), {

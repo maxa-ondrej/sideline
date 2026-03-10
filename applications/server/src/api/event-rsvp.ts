@@ -12,8 +12,8 @@ const forbidden = new EventRsvpApi.Forbidden();
 const notFound = new EventRsvpApi.EventNotFound();
 const deadlinePassed = new EventRsvpApi.RsvpDeadlinePassed();
 
-const isEventPastDeadline = (startAt: string): boolean =>
-  !DateTime.lessThan(DateTime.unsafeNow(), DateTime.unsafeMake(startAt));
+const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
+  !DateTime.lessThan(DateTime.unsafeNow(), startAt);
 
 const buildRsvpDetail = (
   rsvps: EventRsvpsRepository,

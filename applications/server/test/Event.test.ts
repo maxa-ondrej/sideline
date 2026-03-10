@@ -188,8 +188,8 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: Option.Option<string>;
-  start_at: string;
-  end_at: Option.Option<string>;
+  start_at: DateTime.Utc;
+  end_at: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
@@ -211,8 +211,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Tuesday Training',
     description: Option.some('Weekly training session'),
-    start_at: '2026-03-10T18:00:00Z',
-    end_at: Option.some('2026-03-10T20:00:00Z'),
+    start_at: DateTime.unsafeMake('2026-03-10T18:00:00Z'),
+    end_at: Option.some(DateTime.unsafeMake('2026-03-10T20:00:00Z')),
     location: Option.some('Main Field'),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -229,8 +229,8 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: Option.none(),
-    start_at: '2026-03-15T14:00:00Z',
-    end_at: Option.some('2026-03-15T16:00:00Z'),
+    start_at: DateTime.unsafeMake('2026-03-15T14:00:00Z'),
+    end_at: Option.some(DateTime.unsafeMake('2026-03-15T16:00:00Z')),
     location: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -247,8 +247,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Scoped Training',
     description: Option.none(),
-    start_at: '2026-03-12T17:00:00Z',
-    end_at: Option.some('2026-03-12T19:00:00Z'),
+    start_at: DateTime.unsafeMake('2026-03-12T17:00:00Z'),
+    end_at: Option.some(DateTime.unsafeMake('2026-03-12T19:00:00Z')),
     location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -434,8 +434,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     title: string;
     description: Option.Option<string>;
-    start_at: string;
-    end_at: Option.Option<string>;
+    start_at: DateTime.Utc;
+    end_at: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
     created_by: string;
     series_id: Option.Option<string>;
@@ -483,8 +483,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     title: string;
     description: Option.Option<string>;
-    startAt: string;
-    endAt: Option.Option<string>;
+    startAt: DateTime.Utc;
+    endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
     createdBy: string;
     seriesId?: Option.Option<string>;
@@ -532,8 +532,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     training_type_id: Option.Option<string>;
     description: Option.Option<string>;
-    start_at: string;
-    end_at: Option.Option<string>;
+    start_at: DateTime.Utc;
+    end_at: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
   }) => {
     const event = eventsStore.get(input.id);
@@ -570,8 +570,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     trainingTypeId: Option.Option<string>;
     description: Option.Option<string>;
-    startAt: string;
-    endAt: Option.Option<string>;
+    startAt: DateTime.Utc;
+    endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
   }) => {
     const event = eventsStore.get(input.id);

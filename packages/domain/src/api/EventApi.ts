@@ -1,4 +1,5 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
+import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Snowflake } from '~/models/Discord.js';
@@ -13,8 +14,8 @@ export class EventInfo extends Schema.Class<EventInfo>('EventInfo')({
   title: Schema.String,
   eventType: EventType,
   trainingTypeName: Schema.OptionFromNullOr(Schema.String),
-  startAt: Schema.String,
-  endAt: Schema.OptionFromNullOr(Schema.String),
+  startAt: Schemas.DateTimeFromIsoString,
+  endAt: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
   status: EventStatus,
   seriesId: Schema.OptionFromNullOr(EventSeriesId),
@@ -28,8 +29,8 @@ export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
   trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
   trainingTypeName: Schema.OptionFromNullOr(Schema.String),
   description: Schema.OptionFromNullOr(Schema.String),
-  startAt: Schema.String,
-  endAt: Schema.OptionFromNullOr(Schema.String),
+  startAt: Schemas.DateTimeFromIsoString,
+  endAt: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
   status: EventStatus,
   createdByName: Schema.OptionFromNullOr(Schema.String),
@@ -50,8 +51,8 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
   eventType: EventType,
   trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
   description: Schema.OptionFromNullOr(Schema.String),
-  startAt: Schema.String,
-  endAt: Schema.OptionFromNullOr(Schema.String),
+  startAt: Schemas.DateTimeFromIsoString,
+  endAt: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
@@ -61,8 +62,10 @@ export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('Update
   eventType: Schema.optionalWith(EventType, { as: 'Option' }),
   trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
   description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  startAt: Schema.optionalWith(Schema.String, { as: 'Option' }),
-  endAt: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  startAt: Schema.optionalWith(Schemas.DateTimeFromIsoString, { as: 'Option' }),
+  endAt: Schema.optionalWith(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString), {
+    as: 'Option',
+  }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}

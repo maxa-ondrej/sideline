@@ -9,12 +9,12 @@ import {
   isSameDay,
   isSameMonth,
   isToday,
-  parseISO,
   startOfMonth,
   startOfWeek,
   subMonths,
   subWeeks,
 } from 'date-fns';
+import { DateTime } from 'effect';
 
 export interface CalendarDay {
   date: Date;
@@ -27,7 +27,7 @@ function eventsForDay(
   date: Date,
   events: ReadonlyArray<EventApi.EventInfo>,
 ): ReadonlyArray<EventApi.EventInfo> {
-  return events.filter((e) => isSameDay(parseISO(e.startAt), date));
+  return events.filter((e) => isSameDay(new Date(DateTime.toEpochMillis(e.startAt)), date));
 }
 
 export function buildMonthGrid(

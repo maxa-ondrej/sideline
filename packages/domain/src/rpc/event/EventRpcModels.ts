@@ -1,3 +1,4 @@
+import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { Snowflake } from '~/models/Discord.js';
 
@@ -16,8 +17,8 @@ export class RsvpCountsResult extends Schema.Class<RsvpCountsResult>('RsvpCounts
 export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
-  start_at: Schema.String,
-  end_at: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromIsoString,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
 }) {}
@@ -27,8 +28,8 @@ export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelE
   team_id: Schema.String,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
-  start_at: Schema.String,
-  end_at: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromIsoString,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   status: Schema.String,

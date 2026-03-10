@@ -2,7 +2,7 @@ import type { Event, EventApi, TrainingTypeApi } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { format } from 'date-fns';
-import { Option } from 'effect';
+import { DateTime, Option } from 'effect';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
 import { Button } from '~/components/ui/button';
@@ -286,7 +286,9 @@ function EventChip({
 }) {
   const color = getEventColor(event.eventType, Option.getOrNull(event.trainingTypeName), colorMap);
   const isCancelled = event.status === 'cancelled';
-  const time = event.startAt.slice(11, 16);
+  const h = String(DateTime.getPartUtc(event.startAt, 'hours')).padStart(2, '0');
+  const mins = String(DateTime.getPartUtc(event.startAt, 'minutes')).padStart(2, '0');
+  const time = `${h}:${mins}`;
 
   return (
     <Link
@@ -399,8 +401,14 @@ function WeekEventCard({
 }) {
   const color = getEventColor(event.eventType, Option.getOrNull(event.trainingTypeName), colorMap);
   const isCancelled = event.status === 'cancelled';
-  const time = event.startAt.slice(11, 16);
-  const endTime = Option.map(event.endAt, (v) => v.slice(11, 16));
+  const hW = String(DateTime.getPartUtc(event.startAt, 'hours')).padStart(2, '0');
+  const mW = String(DateTime.getPartUtc(event.startAt, 'minutes')).padStart(2, '0');
+  const time = `${hW}:${mW}`;
+  const endTime = Option.map(event.endAt, (v) => {
+    const eh = String(DateTime.getPartUtc(v, 'hours')).padStart(2, '0');
+    const em = String(DateTime.getPartUtc(v, 'minutes')).padStart(2, '0');
+    return `${eh}:${em}`;
+  });
 
   return (
     <Link

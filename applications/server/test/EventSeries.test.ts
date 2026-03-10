@@ -198,11 +198,11 @@ type SeriesRecord = {
   location: Option.Option<string>;
   frequency: 'weekly' | 'biweekly';
   days_of_week: number[];
-  start_date: string;
-  end_date: Option.Option<string>;
+  start_date: DateTime.Utc;
+  end_date: Option.Option<DateTime.Utc>;
   status: 'active' | 'cancelled';
   training_type_name: Option.Option<string>;
-  last_generated_date: Option.Option<string>;
+  last_generated_date: Option.Option<DateTime.Utc>;
   discord_target_channel_id: Option.Option<string>;
 };
 
@@ -216,8 +216,8 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: Option.Option<string>;
-  start_at: string;
-  end_at: Option.Option<string>;
+  start_at: DateTime.Utc;
+  end_at: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
@@ -243,11 +243,11 @@ const resetStores = () => {
     location: Option.some('Main Field'),
     frequency: 'weekly',
     days_of_week: [2],
-    start_date: '2026-03-03',
-    end_date: Option.some('2026-06-30'),
+    start_date: DateTime.unsafeMake('2026-03-03T00:00:00Z'),
+    end_date: Option.some(DateTime.unsafeMake('2026-06-30T00:00:00Z')),
     status: 'active',
     training_type_name: Option.none(),
-    last_generated_date: Option.some('2026-06-30'),
+    last_generated_date: Option.some(DateTime.unsafeMake('2026-06-30T00:00:00Z')),
     discord_target_channel_id: Option.none(),
   });
 
@@ -401,8 +401,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     title: string;
     description: Option.Option<string>;
-    start_at: string;
-    end_at: Option.Option<string>;
+    start_at: DateTime.Utc;
+    end_at: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
     created_by: string;
     series_id: Option.Option<string>;
@@ -450,8 +450,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     title: string;
     description: Option.Option<string>;
-    startAt: string;
-    endAt: Option.Option<string>;
+    startAt: DateTime.Utc;
+    endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
     createdBy: string;
     seriesId?: Option.Option<string>;
@@ -529,8 +529,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     location: Option.Option<string>;
     frequency: string;
     days_of_week: number[];
-    start_date: string;
-    end_date: Option.Option<string>;
+    start_date: DateTime.Utc;
+    end_date: Option.Option<DateTime.Utc>;
     created_by: string;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
@@ -580,8 +580,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     location: Option.Option<string>;
     frequency: string;
     daysOfWeek: number[];
-    startDate: string;
-    endDate: Option.Option<string>;
+    startDate: DateTime.Utc;
+    endDate: Option.Option<DateTime.Utc>;
     createdBy: string;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
@@ -647,7 +647,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     start_time: string;
     end_time: Option.Option<string>;
     location: Option.Option<string>;
-    end_date: Option.Option<string>;
+    end_date: Option.Option<DateTime.Utc>;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));
@@ -687,7 +687,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     startTime: string;
     endTime: Option.Option<string>;
     location: Option.Option<string>;
-    endDate: Option.Option<string>;
+    endDate: Option.Option<DateTime.Utc>;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));

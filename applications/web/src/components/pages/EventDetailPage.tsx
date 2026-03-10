@@ -54,17 +54,23 @@ const EventEditSchema = Schema.Struct({
 
 type EventEditValues = Schema.Schema.Type<typeof EventEditSchema>;
 
-const toIsoDateTime = (date: string, time: string): string =>
-  DateTime.formatIso(DateTime.unsafeMake(`${date}T${time}:00Z`));
+const toDateTime = (date: string, time: string): DateTime.Utc =>
+  DateTime.unsafeMake(`${date}T${time}:00Z`);
+
+const formatTimeUtc = (dt: DateTime.Utc): string => {
+  const h = String(DateTime.getPartUtc(dt, 'hours')).padStart(2, '0');
+  const mins = String(DateTime.getPartUtc(dt, 'minutes')).padStart(2, '0');
+  return `${h}:${mins}`;
+};
 
 const buildPayload = (values: EventEditValues) => {
   const trainingTypeIdOption =
     values.trainingTypeId && values.trainingTypeId !== NONE_VALUE
       ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId))
       : Option.none();
-  const startAt = toIsoDateTime(values.startDate, values.startTime);
+  const startAt = toDateTime(values.startDate, values.startTime);
   const endAt = values.endTime
-    ? Option.some(toIsoDateTime(values.endDate || values.startDate, values.endTime))
+    ? Option.some(toDateTime(values.endDate || values.startDate, values.endTime))
     : Option.none();
   return { trainingTypeIdOption, startAt, endAt };
 };
@@ -103,12 +109,15 @@ export function EventDetailPage({
       eventType: eventDetail.eventType,
       trainingTypeId: Option.getOrElse(eventDetail.trainingTypeId, () => NONE_VALUE),
       description: Option.getOrElse(eventDetail.description, () => ''),
-      startDate: eventDetail.startAt.slice(0, 10),
-      startTime: eventDetail.startAt.slice(11, 16),
-      endDate: Option.match(eventDetail.endAt, { onNone: () => '', onSome: (v) => v.slice(0, 10) }),
+      startDate: DateTime.formatIsoDateUtc(eventDetail.startAt),
+      startTime: formatTimeUtc(eventDetail.startAt),
+      endDate: Option.match(eventDetail.endAt, {
+        onNone: () => '',
+        onSome: (v) => DateTime.formatIsoDateUtc(v),
+      }),
       endTime: Option.match(eventDetail.endAt, {
         onNone: () => '',
-        onSome: (v) => v.slice(11, 16),
+        onSome: (v) => formatTimeUtc(v),
       }),
       location: Option.getOrElse(eventDetail.location, () => ''),
       discordChannelId: Option.getOrElse(eventDetail.discordChannelId, () => NONE_VALUE),
@@ -562,12 +571,13 @@ export function EventDetailPage({
               )}
             <p>
               <span className='text-sm font-medium'>{m.event_startDate()}: </span>
-              {eventDetail.startAt.slice(0, 10)} {eventDetail.startAt.slice(11, 16)}
+              {DateTime.formatIsoDateUtc(eventDetail.startAt)} {formatTimeUtc(eventDetail.startAt)}
             </p>
             {Option.isSome(eventDetail.endAt) && (
               <p>
                 <span className='text-sm font-medium'>{m.event_endDate()}: </span>
-                {eventDetail.endAt.value.slice(0, 10)} {eventDetail.endAt.value.slice(11, 16)}
+                {DateTime.formatIsoDateUtc(eventDetail.endAt.value)}{' '}
+                {formatTimeUtc(eventDetail.endAt.value)}
               </p>
             )}
             {Option.isSome(eventDetail.location) && (

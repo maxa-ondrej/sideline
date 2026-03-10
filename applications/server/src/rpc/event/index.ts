@@ -10,7 +10,7 @@ import {
   User,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Array, Data, Effect, flow, Option, Schema } from 'effect';
+import { Array, Data, DateTime, Effect, flow, Option, Schema } from 'effect';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -61,7 +61,7 @@ class UserLookupResult extends Schema.Class<UserLookupResult>('UserLookupResult'
   team_member_id: TeamMember.TeamMemberId,
 }) {}
 
-const parseDateTime = (input: string): string | null => {
+const parseDateTime = (input: string): DateTime.Utc | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/.exec(input.trim());
   if (!match) return null;
   const [, yearStr, monthStr, dayStr, hourStr, minuteStr] = match;
@@ -81,7 +81,7 @@ const parseDateTime = (input: string): string | null => {
     date.getUTCMinutes() !== minute
   )
     return null;
-  return date.toISOString();
+  return DateTime.unsafeFromDate(date);
 };
 
 const createEvent = (
@@ -164,7 +164,7 @@ const createEvent = (
     }),
     Effect.bind('parsedEndAt', () =>
       Option.match(input.end_at, {
-        onNone: () => Effect.succeed(Option.none<string>()),
+        onNone: () => Effect.succeed(Option.none<DateTime.Utc>()),
         onSome: (endAt) => {
           const parsed = parseDateTime(endAt);
           return parsed

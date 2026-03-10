@@ -1,6 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Schemas } from '@sideline/effect-lib';
+import { type DateTime, Effect, Option, Schema } from 'effect';
 
 class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails')({
   id: Event.EventId,
@@ -9,8 +10,8 @@ class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails'
   event_type: Event.EventType,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
-  start_at: Schema.String,
-  end_at: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromDate,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
@@ -28,8 +29,8 @@ class EventRow extends Schema.Class<EventRow>('EventRow')({
   event_type: Event.EventType,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
-  start_at: Schema.String,
-  end_at: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromDate,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),
   status: Event.EventStatus,
   created_by: TeamMember.TeamMemberId,
@@ -44,8 +45,8 @@ class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput'
   event_type: Schema.String,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
-  start_at: Schema.String,
-  end_at: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromDate,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),
   created_by: Schema.String,
   series_id: Schema.OptionFromNullOr(Schema.String),
@@ -58,8 +59,8 @@ class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput'
   event_type: Schema.String,
   training_type_id: Schema.OptionFromNullOr(Schema.String),
   description: Schema.OptionFromNullOr(Schema.String),
-  start_at: Schema.String,
-  end_at: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromDate,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
@@ -76,7 +77,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     Result: EventWithDetails,
     execute: (teamId) => this.sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
-                   e.description, e.start_at::text, e.end_at::text,
+                   e.description, e.start_at, e.end_at,
                    e.location, e.status, e.created_by,
                    tt.name AS training_type_name,
                    u.name AS created_by_name,
@@ -96,7 +97,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     Result: EventWithDetails,
     execute: (id) => this.sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
-                   e.description, e.start_at::text, e.end_at::text,
+                   e.description, e.start_at, e.end_at,
                    e.location, e.status, e.created_by,
                    tt.name AS training_type_name,
                    u.name AS created_by_name,
@@ -122,7 +123,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                     ${input.end_at}, ${input.location}, ${input.created_by},
                     ${input.series_id}, ${input.discord_target_channel_id})
             RETURNING id, team_id, training_type_id, event_type, title, description,
-                      start_at::text, end_at::text, location, status,
+                      start_at, end_at, location, status,
                       created_by, series_id, series_modified, discord_target_channel_id
           `,
   });
@@ -143,7 +144,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, event_type, title, description,
-                      start_at::text, end_at::text, location, status,
+                      start_at, end_at, location, status,
                       created_by, series_id, series_modified, discord_target_channel_id
           `,
   });
@@ -193,8 +194,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       team_id: Schema.String,
       title: Schema.String,
       description: Schema.OptionFromNullOr(Schema.String),
-      start_at: Schema.String,
-      end_at: Schema.OptionFromNullOr(Schema.String),
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
       location: Schema.OptionFromNullOr(Schema.String),
       event_type: Schema.String,
       status: Schema.String,
@@ -202,7 +203,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     }),
     execute: (channelId) => this.sql`
             SELECT id AS event_id, team_id, title, description,
-                   start_at::text, end_at::text, location, event_type,
+                   start_at, end_at, location, event_type,
                    status, discord_message_id
             FROM events
             WHERE discord_channel_id = ${channelId}
@@ -225,7 +226,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
   private cancelFuture = SqlSchema.void({
     Request: Schema.Struct({
       series_id: Schema.String,
-      from_date: Schema.String,
+      from_date: Schema.DateFromSelf,
     }),
     execute: (input) =>
       this.sql`UPDATE events SET status = 'cancelled', updated_at = now()
@@ -237,7 +238,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
   private updateFutureUnmodified = SqlSchema.void({
     Request: Schema.Struct({
       series_id: Schema.String,
-      from_date: Schema.String,
+      from_date: Schema.DateFromSelf,
       title: Schema.String,
       training_type_id: Schema.OptionFromNullOr(Schema.String),
       description: Schema.OptionFromNullOr(Schema.String),
@@ -288,8 +289,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     eventType: string;
     title: string;
     description: Option.Option<string>;
-    startAt: string;
-    endAt: Option.Option<string>;
+    startAt: DateTime.Utc;
+    endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
     createdBy: TeamMember.TeamMemberId;
     seriesId?: Option.Option<string>;
@@ -326,8 +327,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     eventType: string;
     trainingTypeId: Option.Option<string>;
     description: Option.Option<string>;
-    startAt: string;
-    endAt: Option.Option<string>;
+    startAt: DateTime.Utc;
+    endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
@@ -386,7 +387,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     return this.markModified(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
-  cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: string) => {
+  cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: Date) => {
     return this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
@@ -394,7 +395,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   updateFutureUnmodifiedInSeries = (
     seriesId: EventSeries.EventSeriesId,
-    fromDate: string,
+    fromDate: Date,
     fields: {
       title: string;
       trainingTypeId: Option.Option<string>;
