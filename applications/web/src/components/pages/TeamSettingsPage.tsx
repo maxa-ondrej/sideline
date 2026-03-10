@@ -140,38 +140,15 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
           {m.teamSettings_horizonDays()}
         </label>
         <p className='text-xs text-muted-foreground mb-2'>{m.teamSettings_horizonDaysHelp()}</p>
-        <div className='flex gap-2'>
-          <Input
-            id='horizon-days'
-            type='number'
-            min={1}
-            max={365}
-            value={horizonDays}
-            onChange={(e) => setHorizonDays(e.target.value)}
-            className='flex-1'
-          />
-          <Button
-            onClick={handleSave}
-            disabled={
-              saving ||
-              (horizonDays === String(settings.eventHorizonDays) &&
-                minPlayersThreshold === String(settings.minPlayersThreshold) &&
-                rsvpReminderHours === String(settings.rsvpReminderHours) &&
-                channelTraining ===
-                  Option.getOrElse(settings.discordChannelTraining, () => '__none__') &&
-                channelMatch === Option.getOrElse(settings.discordChannelMatch, () => '__none__') &&
-                channelTournament ===
-                  Option.getOrElse(settings.discordChannelTournament, () => '__none__') &&
-                channelMeeting ===
-                  Option.getOrElse(settings.discordChannelMeeting, () => '__none__') &&
-                channelSocial ===
-                  Option.getOrElse(settings.discordChannelSocial, () => '__none__') &&
-                channelOther === Option.getOrElse(settings.discordChannelOther, () => '__none__'))
-            }
-          >
-            {saving ? m.profile_saving() : m.profile_saveChanges()}
-          </Button>
-        </div>
+        <Input
+          id='horizon-days'
+          type='number'
+          min={1}
+          max={365}
+          value={horizonDays}
+          onChange={(e) => setHorizonDays(e.target.value)}
+          className='flex-1'
+        />
         <div className='mt-6'>
           <label htmlFor='min-players' className='text-sm font-medium mb-1 block'>
             {m.teamSettings_minPlayersThreshold()}
@@ -259,6 +236,29 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
               </div>
             ))}
           </div>
+        </div>
+        <div className='mt-8'>
+          <Button
+            onClick={handleSave}
+            disabled={
+              saving ||
+              (horizonDays === String(settings.eventHorizonDays) &&
+                minPlayersThreshold === String(settings.minPlayersThreshold) &&
+                rsvpReminderHours === String(settings.rsvpReminderHours) &&
+                channelTraining ===
+                  Option.getOrElse(settings.discordChannelTraining, () => '__none__') &&
+                channelMatch === Option.getOrElse(settings.discordChannelMatch, () => '__none__') &&
+                channelTournament ===
+                  Option.getOrElse(settings.discordChannelTournament, () => '__none__') &&
+                channelMeeting ===
+                  Option.getOrElse(settings.discordChannelMeeting, () => '__none__') &&
+                channelSocial ===
+                  Option.getOrElse(settings.discordChannelSocial, () => '__none__') &&
+                channelOther === Option.getOrElse(settings.discordChannelOther, () => '__none__'))
+            }
+          >
+            {saving ? m.profile_saving() : m.profile_saveChanges()}
+          </Button>
         </div>
       </div>
     </div>
