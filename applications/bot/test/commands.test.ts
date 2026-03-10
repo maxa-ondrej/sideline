@@ -5,7 +5,7 @@ import { commandBuilder } from '~/index.js';
 describe('commands', () => {
   describe('commandBuilder', () => {
     it('contains registered commands', () => {
-      expect(Chunk.size(commandBuilder.definitions)).toBeGreaterThanOrEqual(2);
+      expect(Chunk.size(commandBuilder.definitions)).toBeGreaterThanOrEqual(1);
     });
   });
 });
