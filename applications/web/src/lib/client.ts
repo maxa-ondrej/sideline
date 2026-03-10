@@ -12,6 +12,7 @@ import {
   EventRsvpApi,
   EventSeriesApi,
   GroupApi,
+  ICalApi,
   Invite,
   NotificationApi,
   RoleApi,
@@ -43,6 +44,7 @@ class ClientApi extends HttpApi.make('api')
   .add(EventRsvpApi.EventRsvpApiGroup)
   .add(EventSeriesApi.EventSeriesApiGroup)
   .add(GroupApi.GroupApiGroup)
+  .add(ICalApi.ICalApiGroup)
   .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 

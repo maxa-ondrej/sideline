@@ -21,6 +21,7 @@ import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { ICalTokensRepository } from '~/repositories/ICalTokensRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -71,6 +72,7 @@ const Repositories = Layer.mergeAll(
   DiscordChannelsRepository.Default,
   EventsRepository.Default,
   EventRsvpsRepository.Default,
+  ICalTokensRepository.Default,
   EventSeriesRepository.Default,
   TeamSettingsRepository.Default,
   OAuthConnectionsRepository.Default,

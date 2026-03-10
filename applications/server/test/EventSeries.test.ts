@@ -24,6 +24,7 @@ import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { ICalTokensRepository } from '~/repositories/ICalTokensRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -937,6 +938,26 @@ const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsReposito
   findByGuildId: () => Effect.succeed([]),
 } as unknown as DiscordChannelsRepository);
 
+const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
+  _tag: 'api/ICalTokensRepository',
+  findByToken: () => Effect.succeed(Option.none()),
+  findByUserId: () => Effect.succeed(Option.none()),
+  create: () =>
+    Effect.succeed({
+      id: 'ical-id',
+      user_id: 'user-id',
+      token: 'ical-token',
+      created_at: new Date(),
+    }),
+  regenerate: () =>
+    Effect.succeed({
+      id: 'ical-id',
+      user_id: 'user-id',
+      token: 'ical-token-new',
+      created_at: new Date(),
+    }),
+} as unknown as ICalTokensRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -965,7 +986,10 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockNotificationsRepositoryLayer),
   Layer.provide(MockRoleSyncEventsRepositoryLayer),
   Layer.provide(
-    Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+    Layer.merge(
+      Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+      MockICalTokensRepositoryLayer,
+    ),
   ),
   Layer.provide(
     Layer.merge(

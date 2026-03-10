@@ -295,6 +295,35 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
+  private findByUserId = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: Schema.Struct({
+      id: Schema.String,
+      title: Schema.String,
+      description: Schema.OptionFromNullOr(Schema.String),
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+      location: Schema.OptionFromNullOr(Schema.String),
+      status: Schema.String,
+      event_type: Schema.String,
+      team_name: Schema.String,
+      rsvp_response: Schema.String,
+    }),
+    execute: (userId) => this.sql`
+            SELECT e.id, e.title, e.description, e.start_at, e.end_at,
+                   e.location, e.status, e.event_type, t.name AS team_name,
+                   er.response AS rsvp_response
+            FROM events e
+            JOIN teams t ON t.id = e.team_id
+            JOIN team_members tm ON tm.team_id = t.id AND tm.active = true
+            JOIN event_rsvps er ON er.event_id = e.id AND er.team_member_id = tm.id
+            WHERE tm.user_id = ${userId}
+              AND e.status = 'active'
+              AND er.response IN ('yes', 'maybe')
+            ORDER BY e.start_at ASC
+          `,
+  });
+
   private countUpcomingByGuild = SqlSchema.findOne({
     Request: Schema.String,
     Result: Schema.Struct({ count: Schema.Number }),
@@ -319,6 +348,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       Effect.map(Option.getOrElse(() => 0)),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
+  };
+
+  findEventsByUserId = (userId: string) => {
+    return this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   findEventsByTeamId = (teamId: Team.TeamId) => {

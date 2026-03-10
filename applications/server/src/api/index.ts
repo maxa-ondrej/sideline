@@ -7,6 +7,7 @@ import { EventApiLive } from '~/api/event.js';
 import { EventRsvpApiLive } from '~/api/event-rsvp.js';
 import { EventSeriesApiLive } from '~/api/event-series.js';
 import { GroupApiLive } from '~/api/group.js';
+import { ICalApiLive } from '~/api/ical.js';
 import { InviteApiLive } from '~/api/invite.js';
 import { NotificationApiLive } from '~/api/notification.js';
 import { RoleApiLive } from '~/api/role.js';
@@ -21,6 +22,7 @@ export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(EventRsvpApiLive),
   Layer.provide(EventSeriesApiLive),
   Layer.provide(GroupApiLive),
+  Layer.provide(ICalApiLive),
   Layer.provide(InviteApiLive),
   Layer.provide(NotificationApiLive),
   Layer.provide(RosterApiLive),
