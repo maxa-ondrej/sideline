@@ -26,7 +26,7 @@ export class ICalApiGroup extends HttpApiGroup.make('ical')
   )
   .add(
     HttpApiEndpoint.get('getICalFeed', '/ical/:token')
-      .addSuccess(Schema.String)
+      .addSuccess(Schema.Void)
       .addError(ICalTokenNotFound, { status: 404 })
       .setPath(Schema.Struct({ token: Schema.String })),
   ) {}

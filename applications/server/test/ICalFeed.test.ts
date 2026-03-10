@@ -395,6 +395,7 @@ describe('iCal Subscription API', () => {
     };
     const response = await handler(new Request('http://localhost/ical/feed-token'));
     expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/calendar');
     const text = await response.text();
     expect(text).toContain('BEGIN:VCALENDAR');
     expect(text).toContain('BEGIN:VEVENT');

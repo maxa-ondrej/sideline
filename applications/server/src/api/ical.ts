@@ -1,4 +1,4 @@
-import { HttpApiBuilder } from '@effect/platform';
+import { HttpApiBuilder, HttpServerResponse } from '@effect/platform';
 import { Auth, ICalApi } from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
@@ -114,7 +114,11 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
             Effect.bind('userEvents', ({ tokenRow }) =>
               events.findEventsByUserId(tokenRow.user_id),
             ),
-            Effect.map(({ userEvents }) => buildICalFeed(userEvents)),
+            Effect.map(({ userEvents }) =>
+              HttpServerResponse.text(buildICalFeed(userEvents), {
+                contentType: 'text/calendar; charset=utf-8',
+              }),
+            ),
           ),
         ),
     ),
