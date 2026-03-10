@@ -29,9 +29,10 @@ const permissionLabels: Record<Role.Permission, () => string> = {
 interface RoleDetailPageProps {
   teamId: string;
   role: RoleApi.RoleDetail;
+  canManage: boolean;
 }
 
-export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
+export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps) {
   const run = useRun();
   const router = useRouter();
   const navigate = useNavigate();
@@ -108,8 +109,8 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
             id='role-name'
             value={name}
             onChange={(e) => setName(e.target.value)}
-            disabled={role.isBuiltIn}
-            className={role.isBuiltIn ? 'text-muted-foreground' : undefined}
+            disabled={role.isBuiltIn || !canManage}
+            className={role.isBuiltIn || !canManage ? 'text-muted-foreground' : undefined}
           />
         </div>
 
@@ -122,6 +123,7 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
                   type='checkbox'
                   checked={permissions.includes(perm)}
                   onChange={() => togglePermission(perm)}
+                  disabled={!canManage}
                   className='rounded'
                 />
                 <span className='text-sm'>{permissionLabels[perm]()}</span>
@@ -130,16 +132,18 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
           </div>
         </div>
 
-        <div className='flex gap-2'>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? m.role_saving() : m.role_saveChanges()}
-          </Button>
-          {!role.isBuiltIn ? (
-            <Button variant='destructive' onClick={handleDelete}>
-              {m.role_deleteRole()}
+        {canManage && (
+          <div className='flex gap-2'>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? m.role_saving() : m.role_saveChanges()}
             </Button>
-          ) : null}
-        </div>
+            {!role.isBuiltIn ? (
+              <Button variant='destructive' onClick={handleDelete}>
+                {m.role_deleteRole()}
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );

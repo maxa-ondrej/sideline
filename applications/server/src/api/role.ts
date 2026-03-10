@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform';
 import { Auth, RoleApi } from '@sideline/domain';
 import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
@@ -27,19 +27,24 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:view', forbidden)),
+            Effect.let('canManage', ({ membership }) => hasPermission(membership, 'role:manage')),
             Effect.bind('roleList', () => roles.findRolesByTeamId(teamId)),
-            Effect.map(({ roleList }) =>
-              Array.map(
-                roleList,
-                (r) =>
-                  new RoleApi.RoleInfo({
-                    roleId: r.id,
-                    teamId: teamId,
-                    name: r.name,
-                    isBuiltIn: r.is_built_in,
-                    permissionCount: r.permission_count,
-                  }),
-              ),
+            Effect.map(
+              ({ roleList, canManage }) =>
+                new RoleApi.RoleListResponse({
+                  canManage,
+                  roles: Array.map(
+                    roleList,
+                    (r) =>
+                      new RoleApi.RoleInfo({
+                        roleId: r.id,
+                        teamId: teamId,
+                        name: r.name,
+                        isBuiltIn: r.is_built_in,
+                        permissionCount: r.permission_count,
+                      }),
+                  ),
+                }),
             ),
           ),
         )
@@ -61,6 +66,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   name: role.name,
                   isBuiltIn: role.is_built_in,
                   permissions: [...payload.permissions],
+                  canManage: true,
                 }),
             ),
             Effect.catchTag('RoleNameAlreadyTakenError', () =>
@@ -76,6 +82,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:view', forbidden)),
+            Effect.let('canManage', ({ membership }) => hasPermission(membership, 'role:manage')),
             Effect.bind('role', () =>
               roles.findRoleById(roleId).pipe(
                 Effect.flatMap(
@@ -88,13 +95,14 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
             Effect.bind('permissions', ({ role }) => roles.getPermissionsForRoleId(role.id)),
             Effect.map(
-              ({ role, permissions }) =>
+              ({ role, permissions, canManage }) =>
                 new RoleApi.RoleDetail({
                   roleId: role.id,
                   teamId: teamId,
                   name: role.name,
                   isBuiltIn: role.is_built_in,
                   permissions: [...permissions],
+                  canManage,
                 }),
             ),
           ),
@@ -142,6 +150,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   name: updated.name,
                   isBuiltIn: updated.is_built_in,
                   permissions: [...permissions],
+                  canManage: true,
                 }),
             ),
             Effect.catchTag('RoleNameAlreadyTakenError', () =>

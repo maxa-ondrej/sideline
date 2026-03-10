@@ -27,9 +27,10 @@ type CreateRoleValues = Schema.Schema.Type<typeof CreateRoleSchema>;
 interface RolesListPageProps {
   teamId: string;
   roles: ReadonlyArray<RoleApi.RoleInfo>;
+  canManage: boolean;
 }
 
-export function RolesListPage({ teamId, roles }: RolesListPageProps) {
+export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
@@ -71,25 +72,27 @@ export function RolesListPage({ teamId, roles }: RolesListPageProps) {
         <h1 className='text-2xl font-bold'>{m.role_roles()}</h1>
       </header>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
-          <FormField
-            {...form.register('name')}
-            render={({ field }) => (
-              <FormItem className='flex-1'>
-                <FormLabel>{m.role_roleName()}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={m.role_roleNamePlaceholder()} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
-            {m.role_createRole()}
-          </Button>
-        </form>
-      </Form>
+      {canManage && (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
+            <FormField
+              {...form.register('name')}
+              render={({ field }) => (
+                <FormItem className='flex-1'>
+                  <FormLabel>{m.role_roleName()}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={m.role_roleNamePlaceholder()} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
+              {m.role_createRole()}
+            </Button>
+          </form>
+        </Form>
+      )}
 
       {roles.length === 0 ? (
         <p className='text-muted-foreground'>{m.role_noRoles()}</p>

@@ -21,5 +21,5 @@ function RoleDetailRoute() {
   const { teamId: teamIdRaw } = Route.useParams();
   const role = Route.useLoaderData();
 
-  return <RoleDetailPage teamId={teamIdRaw} role={role} />;
+  return <RoleDetailPage teamId={teamIdRaw} role={role} canManage={role.canManage} />;
 }
