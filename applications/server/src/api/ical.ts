@@ -16,8 +16,7 @@ const escapeICalText = (text: string): string =>
 
 const buildWebcalUrl = (token: string): string => {
   const serverUrl = env.SERVER_URL.toString().replace(/\/$/, '');
-  const prefix = env.API_PREFIX || '';
-  return `webcal://${serverUrl.replace(/^https?:\/\//, '')}${prefix}/ical/${token}`;
+  return `webcal://${serverUrl.replace(/^https?:\/\//, '')}/ical/${token}`;
 };
 
 const buildICalFeed = (
