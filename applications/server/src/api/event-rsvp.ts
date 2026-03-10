@@ -4,6 +4,7 @@ import { Array, DateTime, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -73,8 +74,9 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('events', () => EventsRepository),
     Effect.bind('rsvps', () => EventRsvpsRepository),
+    Effect.bind('syncEvents', () => EventSyncEventsRepository),
     Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.map(({ members, events, rsvps, teamSettings }) =>
+    Effect.map(({ members, events, rsvps, syncEvents, teamSettings }) =>
       handlers
         .handle('getRsvps', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
@@ -133,6 +135,18 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
             Effect.tap(({ membership }) =>
               rsvps.upsertRsvp(eventId, membership.id, payload.response, payload.message),
+            ),
+            Effect.tap(({ event }) =>
+              syncEvents.emitEventUpdated(
+                teamId,
+                event.id,
+                event.title,
+                event.description,
+                event.start_at,
+                event.end_at,
+                event.location,
+                event.event_type,
+              ),
             ),
             Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
             Effect.flatMap(({ membership, settings }) => {
