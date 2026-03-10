@@ -261,6 +261,66 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                 AND status = 'active'`,
   });
 
+  private findUpcomingByGuild = SqlSchema.findAll({
+    Request: Schema.Struct({
+      guild_id: Schema.String,
+      offset: Schema.Number,
+      limit: Schema.Number,
+    }),
+    Result: Schema.Struct({
+      event_id: Schema.String,
+      title: Schema.String,
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+      location: Schema.OptionFromNullOr(Schema.String),
+      event_type: Schema.String,
+      yes_count: Schema.Number,
+      no_count: Schema.Number,
+      maybe_count: Schema.Number,
+    }),
+    execute: (input) => this.sql`
+            SELECT e.id AS event_id, e.title, e.start_at, e.end_at,
+                   e.location, e.event_type,
+                   COALESCE(SUM(CASE WHEN er.response = 'yes' THEN 1 ELSE 0 END), 0)::int AS yes_count,
+                   COALESCE(SUM(CASE WHEN er.response = 'no' THEN 1 ELSE 0 END), 0)::int AS no_count,
+                   COALESCE(SUM(CASE WHEN er.response = 'maybe' THEN 1 ELSE 0 END), 0)::int AS maybe_count
+            FROM events e
+            LEFT JOIN event_rsvps er ON er.event_id = e.id
+            WHERE e.team_id = (SELECT id FROM teams WHERE guild_id = ${input.guild_id})
+              AND e.status = 'active'
+              AND e.start_at >= now()
+            GROUP BY e.id
+            ORDER BY e.start_at ASC
+            LIMIT ${input.limit} OFFSET ${input.offset}
+          `,
+  });
+
+  private countUpcomingByGuild = SqlSchema.findOne({
+    Request: Schema.String,
+    Result: Schema.Struct({ count: Schema.Number }),
+    execute: (guildId) => this.sql`
+            SELECT COUNT(*)::int AS count
+            FROM events
+            WHERE team_id = (SELECT id FROM teams WHERE guild_id = ${guildId})
+              AND status = 'active'
+              AND start_at >= now()
+          `,
+  });
+
+  findUpcomingByGuildId = (guildId: Discord.Snowflake, offset: number, limit: number) => {
+    return this.findUpcomingByGuild({ guild_id: guildId, offset, limit }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
+
+  countUpcomingByGuildId = (guildId: Discord.Snowflake) => {
+    return this.countUpcomingByGuild(guildId).pipe(
+      Effect.map(Option.map((r) => r.count)),
+      Effect.map(Option.getOrElse(() => 0)),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
+
   findEventsByTeamId = (teamId: Team.TeamId) => {
     return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };

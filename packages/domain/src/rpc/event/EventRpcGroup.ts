@@ -10,6 +10,8 @@ import {
   CreateEventResult,
   EventDiscordMessage,
   EventEmbedInfo,
+  GuildEventListResult,
+  GuildNotFound,
   RsvpAttendeesResult,
   RsvpCountsResult,
   RsvpDeadlinePassed,
@@ -70,6 +72,15 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('GetRsvpReminderSummary', {
     payload: { event_id: Event.EventId },
     success: RsvpReminderSummary,
+  }),
+  Rpc.make('GetUpcomingGuildEvents', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      offset: Schema.Number,
+      limit: Schema.Number,
+    },
+    success: GuildEventListResult,
+    error: GuildNotFound,
   }),
   Rpc.make('CreateEvent', {
     payload: {

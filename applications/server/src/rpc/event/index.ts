@@ -470,6 +470,60 @@ export const EventsRpcLive = Effect.Do.pipe(
         ),
   ),
   Effect.let(
+    'Event/GetUpcomingGuildEvents',
+    ({ events, deps: { sql } }) =>
+      ({
+        guild_id,
+        offset,
+        limit,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly offset: number;
+        readonly limit: number;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('teamId', () =>
+            SqlSchema.findOne({
+              Request: Schema.String,
+              Result: TeamLookupResult,
+              execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
+            })(guild_id).pipe(
+              Effect.mapError(() => new EventRpcModels.GuildNotFound()),
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
+                  onSome: (r) => Effect.succeed(r.id),
+                }),
+              ),
+            ),
+          ),
+          Effect.bind('rows', () => events.findUpcomingByGuildId(guild_id, offset, limit)),
+          Effect.bind('total', () => events.countUpcomingByGuildId(guild_id)),
+          Effect.map(
+            ({ teamId, rows, total }) =>
+              new EventRpcModels.GuildEventListResult({
+                events: Array.map(
+                  rows,
+                  (row) =>
+                    new EventRpcModels.GuildEventListEntry({
+                      event_id: row.event_id,
+                      title: row.title,
+                      start_at: row.start_at,
+                      end_at: row.end_at,
+                      location: row.location,
+                      event_type: row.event_type,
+                      yes_count: row.yes_count,
+                      no_count: row.no_count,
+                      maybe_count: row.maybe_count,
+                    }),
+                ),
+                total,
+                team_id: teamId,
+              }),
+          ),
+        ),
+  ),
+  Effect.let(
     'Event/CreateEvent',
     ({ deps: { sql, members, syncEvents }, events }) =>
       (input: {

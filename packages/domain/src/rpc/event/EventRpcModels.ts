@@ -71,6 +71,28 @@ export class CreateEventResult extends Schema.Class<CreateEventResult>('CreateEv
   title: Schema.String,
 }) {}
 
+export class GuildEventListEntry extends Schema.Class<GuildEventListEntry>('GuildEventListEntry')({
+  event_id: Schema.String,
+  title: Schema.String,
+  start_at: Schemas.DateTimeFromIsoString,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
+  location: Schema.OptionFromNullOr(Schema.String),
+  event_type: Schema.String,
+  yes_count: Schema.Number,
+  no_count: Schema.Number,
+  maybe_count: Schema.Number,
+}) {}
+
+export class GuildEventListResult extends Schema.Class<GuildEventListResult>(
+  'GuildEventListResult',
+)({
+  events: Schema.Array(GuildEventListEntry),
+  total: Schema.Number,
+  team_id: Schema.String,
+}) {}
+
+export class GuildNotFound extends Schema.TaggedError<GuildNotFound>()('GuildNotFound', {}) {}
+
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
