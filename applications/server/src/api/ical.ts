@@ -30,24 +30,28 @@ const buildICalFeed = (
     status: string;
     event_type: string;
     team_name: string;
+    rsvp_response: string;
   }>,
 ): string => {
+  const teamName = events.length > 0 ? events[0].team_name : 'Sideline';
+  const calName = `${teamName} - Sideline events`;
   const lines: Array<string> = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Sideline//Events//EN',
-    'CALNAME:Sideline Events',
-    'X-WR-CALNAME:Sideline Events',
+    `CALNAME:${escapeICalText(calName)}`,
+    `X-WR-CALNAME:${escapeICalText(calName)}`,
   ];
 
   for (const event of events) {
+    const prefix = event.rsvp_response === 'maybe' ? '[Maybe] ' : '';
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${event.id}@sideline`);
     lines.push(`DTSTART:${formatDateTimeUtc(event.start_at)}`);
     Option.map(event.end_at, (endAt) => {
       lines.push(`DTEND:${formatDateTimeUtc(endAt)}`);
     });
-    lines.push(`SUMMARY:${escapeICalText(`[${event.team_name}] ${event.title}`)}`);
+    lines.push(`SUMMARY:${escapeICalText(`${prefix}${event.title}`)}`);
     Option.map(event.description, (desc) => {
       lines.push(`DESCRIPTION:${escapeICalText(desc)}`);
     });

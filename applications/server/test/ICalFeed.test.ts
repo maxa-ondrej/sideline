@@ -124,6 +124,7 @@ const testEvents = [
     status: 'active',
     event_type: 'training',
     team_name: 'Test FC',
+    rsvp_response: 'yes',
   },
   {
     id: '00000000-0000-0000-0000-000000000061',
@@ -135,6 +136,7 @@ const testEvents = [
     status: 'active',
     event_type: 'match',
     team_name: 'Test FC',
+    rsvp_response: 'maybe',
   },
 ];
 
@@ -398,11 +400,14 @@ describe('iCal Subscription API', () => {
     expect(response.headers.get('content-type')).toContain('text/calendar');
     const text = await response.text();
     expect(text).toContain('BEGIN:VCALENDAR');
+    expect(text).toContain('CALNAME:Test FC - Sideline events');
+    expect(text).toContain('X-WR-CALNAME:Test FC - Sideline events');
     expect(text).toContain('BEGIN:VEVENT');
-    expect(text).toContain('SUMMARY:[Test FC] Tuesday Training');
+    expect(text).toContain('SUMMARY:Tuesday Training');
+    expect(text).not.toContain('SUMMARY:[Test FC]');
     expect(text).toContain('DESCRIPTION:Bring your boots');
     expect(text).toContain('LOCATION:Main Field');
-    expect(text).toContain('SUMMARY:[Test FC] Match vs Rivals');
+    expect(text).toContain('SUMMARY:[Maybe] Match vs Rivals');
     expect(text).toContain('END:VCALENDAR');
     expect(text).toContain('STATUS:CONFIRMED');
   });
