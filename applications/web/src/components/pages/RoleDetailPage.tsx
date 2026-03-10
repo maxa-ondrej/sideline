@@ -56,7 +56,10 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
       Effect.flatMap((api) =>
         api.role.updateRole({
           path: { teamId: teamIdBranded, roleId: roleIdBranded },
-          payload: { name: Option.some(name), permissions: Option.some([...permissions]) },
+          payload: {
+            name: role.isBuiltIn ? Option.none() : Option.some(name),
+            permissions: Option.some([...permissions]),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_updateFailed())),
@@ -66,7 +69,7 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [teamIdBranded, roleIdBranded, name, permissions, run, router]);
+  }, [teamIdBranded, roleIdBranded, name, permissions, run, router, role.isBuiltIn]);
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.role_deleteRoleConfirm())) return;
@@ -101,7 +104,13 @@ export function RoleDetailPage({ teamId, role }: RoleDetailPageProps) {
           <label htmlFor='role-name' className='text-sm font-medium mb-1 block'>
             {m.role_roleName()}
           </label>
-          <Input id='role-name' value={name} onChange={(e) => setName(e.target.value)} />
+          <Input
+            id='role-name'
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={role.isBuiltIn}
+            className={role.isBuiltIn ? 'text-muted-foreground' : undefined}
+          />
         </div>
 
         <div>
