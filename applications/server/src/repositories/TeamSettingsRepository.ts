@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, Team } from '@sideline/domain';
+import { Schemas } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
@@ -34,7 +35,7 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
   event_id: Event.EventId,
   team_id: Team.TeamId,
   title: Schema.String,
-  start_at: Schema.String,
+  start_at: Schemas.DateTimeFromDate,
   event_type: Schema.String,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
@@ -106,7 +107,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     Request: Schema.Void,
     Result: EventNeedingReminder,
     execute: () => this.sql`
-      SELECT e.id AS event_id, e.team_id, e.title, e.start_at::text, e.event_type,
+      SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.event_type,
              e.discord_target_channel_id
       FROM events e
       JOIN team_settings ts ON ts.team_id = e.team_id

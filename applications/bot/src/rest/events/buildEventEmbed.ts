@@ -18,18 +18,16 @@ const DEFAULT_COLOR = 0x99aab5;
 const CANCELLED_COLOR = 0xed4245;
 
 const toDiscordTimestamp = (
-  dateStr: string,
+  dt: DateTime.Utc,
   style: 'D' | 'F' | 'R' | 'd' | 'f' | 't' = 'f',
 ): string => {
-  const unix = Math.floor(Number(DateTime.toEpochMillis(DateTime.unsafeMake(dateStr))) / 1000);
+  const unix = Math.floor(Number(DateTime.toEpochMillis(dt)) / 1000);
   return `<t:${unix}:${style}>`;
 };
 
-const isSameDay = (a: string, b: string): boolean => {
-  const da = DateTime.unsafeMake(a);
-  const db = DateTime.unsafeMake(b);
-  const pa = DateTime.toParts(da);
-  const pb = DateTime.toParts(db);
+const isSameDay = (a: DateTime.Utc, b: DateTime.Utc): boolean => {
+  const pa = DateTime.toParts(a);
+  const pb = DateTime.toParts(b);
   return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day;
 };
 
@@ -38,8 +36,8 @@ export const buildEventEmbed = (opts: {
   eventId: string;
   title: string;
   description: Option.Option<string>;
-  startAt: string;
-  endAt: Option.Option<string>;
+  startAt: DateTime.Utc;
+  endAt: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
   eventType: string;
   counts: EventRpcModels.RsvpCountsResult;

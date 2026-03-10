@@ -43,8 +43,6 @@ const checkCoachScoping = (
   );
 };
 
-const todayStr = () => DateTime.formatIsoDateUtc(DateTime.unsafeNow());
-
 export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
@@ -95,7 +93,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               generateOccurrenceDates({
                 frequency: inserted.frequency,
                 daysOfWeek: inserted.days_of_week,
-                startDate: DateTime.unsafeMake(inserted.start_date),
+                startDate: inserted.start_date,
                 endDate: effectiveEnd,
               }),
             ),
@@ -103,8 +101,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               Effect.all(
                 Array.map(dates, (date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
-                  const startAt = `${dateStr}T${inserted.start_time}Z`;
-                  const endAt = Option.map(inserted.end_time, (t) => `${dateStr}T${t}Z`);
+                  const startAt = DateTime.unsafeMake(`${dateStr}T${inserted.start_time}Z`);
+                  const endAt = Option.map(inserted.end_time, (t) =>
+                    DateTime.unsafeMake(`${dateStr}T${t}Z`),
+                  );
                   return events
                     .insertEvent({
                       teamId,
@@ -143,7 +143,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               ),
             ),
             Effect.tap(({ inserted, effectiveEnd }) =>
-              series.updateLastGeneratedDate(inserted.id, DateTime.formatIsoDateUtc(effectiveEnd)),
+              series.updateLastGeneratedDate(inserted.id, effectiveEnd),
             ),
             Effect.map(
               ({ inserted }) =>
@@ -318,7 +318,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               }),
             ),
             Effect.tap(({ resolved }) =>
-              events.updateFutureUnmodifiedInSeries(seriesId, todayStr(), {
+              events.updateFutureUnmodifiedInSeries(seriesId, new Date(), {
                 title: resolved.title,
                 trainingTypeId: resolved.trainingTypeId,
                 description: resolved.description,
@@ -336,8 +336,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   });
                   return Option.match(existing.last_generated_date, {
                     onNone: () => Effect.void,
-                    onSome: (lastGenStr) => {
-                      const lastGen = DateTime.unsafeMake(lastGenStr);
+                    onSome: (lastGen) => {
                       if (!DateTime.greaterThan(effectiveEnd, lastGen)) return Effect.void;
                       const nextDay = DateTime.add(lastGen, { days: 1 });
                       const newDates = generateOccurrenceDates({
@@ -347,12 +346,13 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                         endDate: effectiveEnd,
                       });
                       if (newDates.length === 0) return Effect.void;
-                      const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
                       return Effect.all(
                         Array.map(newDates, (date) => {
                           const dateStr = DateTime.formatIsoDateUtc(date);
-                          const startAt = `${dateStr}T${existing.start_time}Z`;
-                          const endAt = Option.map(existing.end_time, (t) => `${dateStr}T${t}Z`);
+                          const startAt = DateTime.unsafeMake(`${dateStr}T${existing.start_time}Z`);
+                          const endAt = Option.map(existing.end_time, (t) =>
+                            DateTime.unsafeMake(`${dateStr}T${t}Z`),
+                          );
                           return events.insertEvent({
                             teamId,
                             trainingTypeId: existing.training_type_id,
@@ -368,7 +368,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                         }),
                         { concurrency: 1 },
                       ).pipe(
-                        Effect.tap(() => series.updateLastGeneratedDate(existing.id, lastDate)),
+                        Effect.tap(() => series.updateLastGeneratedDate(existing.id, effectiveEnd)),
                       );
                     },
                   });
@@ -441,7 +441,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
             ),
             Effect.tap(() => series.cancelEventSeries(seriesId)),
-            Effect.tap(() => events.cancelFutureInSeries(seriesId, todayStr())),
+            Effect.tap(() => events.cancelFutureInSeries(seriesId, new Date())),
             Effect.asVoid,
           ),
         ),

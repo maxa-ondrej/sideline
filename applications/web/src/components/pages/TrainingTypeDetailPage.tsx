@@ -3,7 +3,7 @@ import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain
 import { Discord, EventSeries, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
-import { Effect, Option, Schema } from 'effect';
+import { DateTime, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -170,8 +170,10 @@ export function TrainingTypeDetailPage({
             description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
-            startDate: values.startDate,
-            endDate: values.endDate ? Option.some(values.endDate) : Option.none(),
+            startDate: DateTime.unsafeMake(`${values.startDate}T00:00:00Z`),
+            endDate: values.endDate
+              ? Option.some(DateTime.unsafeMake(`${values.endDate}T00:00:00Z`))
+              : Option.none(),
             startTime: values.startTime,
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
@@ -218,8 +220,11 @@ export function TrainingTypeDetailPage({
         description: '',
         frequency: s.frequency,
         daysOfWeek: Array.from(s.daysOfWeek),
-        startDate: s.startDate,
-        endDate: Option.getOrElse(s.endDate, () => ''),
+        startDate: DateTime.formatIsoDateUtc(s.startDate),
+        endDate: Option.match(s.endDate, {
+          onNone: () => '',
+          onSome: DateTime.formatIsoDateUtc,
+        }),
         startTime: s.startTime,
         endTime: Option.getOrElse(s.endTime, () => ''),
         location: Option.getOrElse(s.location, () => ''),
@@ -247,7 +252,11 @@ export function TrainingTypeDetailPage({
             startTime: Option.some(values.startTime),
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
-            endDate: Option.some(values.endDate ? Option.some(values.endDate) : Option.none()),
+            endDate: Option.some(
+              values.endDate
+                ? Option.some(DateTime.unsafeMake(`${values.endDate}T00:00:00Z`))
+                : Option.none(),
+            ),
             discordChannelId: Option.none(),
           },
         }),
@@ -374,7 +383,11 @@ export function TrainingTypeDetailPage({
                         )}
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
-                        {s.startDate} → {Option.getOrElse(s.endDate, () => m.event_ongoing())}
+                        {DateTime.formatIsoDateUtc(s.startDate)} →{' '}
+                        {Option.match(s.endDate, {
+                          onNone: () => m.event_ongoing(),
+                          onSome: (d) => DateTime.formatIsoDateUtc(d),
+                        })}
                       </td>
                       <td className='py-2 px-4'>
                         <div className='flex gap-2'>

@@ -1,6 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Schemas } from '@sideline/effect-lib';
+import { type DateTime, Effect, Option, Schema } from 'effect';
 
 class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   id: EventSeries.EventSeriesId,
@@ -13,8 +14,8 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   location: Schema.OptionFromNullOr(Schema.String),
   frequency: EventSeries.RecurrenceFrequency,
   days_of_week: EventSeries.DaysOfWeek,
-  start_date: Schema.String,
-  end_date: Schema.OptionFromNullOr(Schema.String),
+  start_date: Schemas.DateTimeFromDate,
+  end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   status: EventSeries.EventSeriesStatus,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
@@ -31,11 +32,11 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     location: Schema.OptionFromNullOr(Schema.String),
     frequency: EventSeries.RecurrenceFrequency,
     days_of_week: EventSeries.DaysOfWeek,
-    start_date: Schema.String,
-    end_date: Schema.OptionFromNullOr(Schema.String),
+    start_date: Schemas.DateTimeFromDate,
+    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     status: EventSeries.EventSeriesStatus,
     training_type_name: Schema.OptionFromNullOr(Schema.String),
-    last_generated_date: Schema.OptionFromNullOr(Schema.String),
+    last_generated_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
@@ -53,9 +54,9 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   location: Schema.OptionFromNullOr(Schema.String),
   frequency: EventSeries.RecurrenceFrequency,
   days_of_week: EventSeries.DaysOfWeek,
-  start_date: Schema.String,
-  end_date: Schema.OptionFromNullOr(Schema.String),
-  last_generated_date: Schema.OptionFromNullOr(Schema.String),
+  start_date: Schemas.DateTimeFromDate,
+  end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  last_generated_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   created_by: TeamMember.TeamMemberId,
   event_horizon_days: Schema.Number,
@@ -72,8 +73,8 @@ class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('Event
     location: Schema.OptionFromNullOr(Schema.String),
     frequency: Schema.String,
     days_of_week: Schema.Array(Schema.Number),
-    start_date: Schema.String,
-    end_date: Schema.OptionFromNullOr(Schema.String),
+    start_date: Schemas.DateTimeFromDate,
+    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     created_by: Schema.String,
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
@@ -89,7 +90,7 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
     start_time: Schema.String,
     end_time: Schema.OptionFromNullOr(Schema.String),
     location: Schema.OptionFromNullOr(Schema.String),
-    end_date: Schema.OptionFromNullOr(Schema.String),
+    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
@@ -114,8 +115,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
                     ${input.start_date}, ${input.end_date}, ${input.created_by},
                     ${input.discord_target_channel_id})
             RETURNING id, team_id, training_type_id, title, description,
-                      start_time::text, end_time::text, location, frequency,
-                      days_of_week, start_date::text, end_date::text, status,
+                      start_time, end_time, location, frequency,
+                      days_of_week, start_date, end_date, status,
                       discord_target_channel_id
           `,
   });
@@ -125,9 +126,9 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     Result: EventSeriesWithDetails,
     execute: (teamId) => this.sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
-                   es.start_time::text, es.end_time::text, es.location, es.frequency,
-                   es.days_of_week, es.start_date::text, es.end_date::text, es.status,
-                   tt.name AS training_type_name, es.last_generated_date::text,
+                   es.start_time, es.end_time, es.location, es.frequency,
+                   es.days_of_week, es.start_date, es.end_date, es.status,
+                   tt.name AS training_type_name, es.last_generated_date,
                    es.discord_target_channel_id
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
@@ -141,9 +142,9 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     Result: EventSeriesWithDetails,
     execute: (id) => this.sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
-                   es.start_time::text, es.end_time::text, es.location, es.frequency,
-                   es.days_of_week, es.start_date::text, es.end_date::text, es.status,
-                   tt.name AS training_type_name, es.last_generated_date::text,
+                   es.start_time, es.end_time, es.location, es.frequency,
+                   es.days_of_week, es.start_date, es.end_date, es.status,
+                   tt.name AS training_type_name, es.last_generated_date,
                    es.discord_target_channel_id
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
@@ -156,9 +157,9 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     Result: EventSeriesForGeneration,
     execute: () => this.sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
-                   es.start_time::text, es.end_time::text, es.location, es.frequency,
-                   es.days_of_week, es.start_date::text, es.end_date::text,
-                   es.last_generated_date::text, es.discord_target_channel_id,
+                   es.start_time, es.end_time, es.location, es.frequency,
+                   es.days_of_week, es.start_date, es.end_date,
+                   es.last_generated_date, es.discord_target_channel_id,
                    es.created_by,
                    COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
             FROM event_series es
@@ -171,7 +172,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
   private setLastGeneratedDate = SqlSchema.void({
     Request: Schema.Struct({
       id: EventSeries.EventSeriesId,
-      last_generated_date: Schema.String,
+      last_generated_date: Schemas.DateTimeFromDate,
     }),
     execute: (input) =>
       this
@@ -195,8 +196,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, title, description,
-                      start_time::text, end_time::text, location, frequency,
-                      days_of_week, start_date::text, end_date::text, status,
+                      start_time, end_time, location, frequency,
+                      days_of_week, start_date, end_date, status,
                       discord_target_channel_id
           `,
   });
@@ -231,8 +232,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     location: Option.Option<string>;
     frequency: string;
     daysOfWeek: ReadonlyArray<number>;
-    startDate: string;
-    endDate: Option.Option<string>;
+    startDate: DateTime.Utc;
+    endDate: Option.Option<DateTime.Utc>;
     createdBy: string;
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
@@ -281,7 +282,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     startTime: string;
     endTime: Option.Option<string>;
     location: Option.Option<string>;
-    endDate: Option.Option<string>;
+    endDate: Option.Option<DateTime.Utc>;
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
   }) => {
     return this.updateSeries({
@@ -308,7 +309,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     );
   };
 
-  updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: string) => {
+  updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: DateTime.Utc) => {
     return this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );

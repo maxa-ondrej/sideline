@@ -46,8 +46,14 @@ const CreateEventSchema = Schema.Struct({
 
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
 
-const toIsoDateTime = (date: string, time: string): string =>
-  DateTime.formatIso(DateTime.unsafeMake(`${date}T${time}:00Z`));
+const toDateTime = (date: string, time: string): DateTime.Utc =>
+  DateTime.unsafeMake(`${date}T${time}:00Z`);
+
+const formatTimeUtc = (dt: DateTime.Utc): string => {
+  const h = String(DateTime.getPartUtc(dt, 'hours')).padStart(2, '0');
+  const mins = String(DateTime.getPartUtc(dt, 'minutes')).padStart(2, '0');
+  return `${h}:${mins}`;
+};
 
 const CreateSeriesSchema = Schema.Struct({
   title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
@@ -166,9 +172,9 @@ export function EventsListPage({
   }, [watchedEventType, form]);
 
   const onSubmit = async (values: CreateEventValues) => {
-    const startAt = toIsoDateTime(values.startDate, values.startTime);
+    const startAt = toDateTime(values.startDate, values.startTime);
     const endAt = values.endTime
-      ? toIsoDateTime(values.endDate || values.startDate, values.endTime)
+      ? toDateTime(values.endDate || values.startDate, values.endTime)
       : null;
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
@@ -215,8 +221,10 @@ export function EventsListPage({
             description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
-            startDate: values.startDate,
-            endDate: values.endDate ? Option.some(values.endDate) : Option.none(),
+            startDate: DateTime.unsafeMake(`${values.startDate}T00:00:00Z`),
+            endDate: values.endDate
+              ? Option.some(DateTime.unsafeMake(`${values.endDate}T00:00:00Z`))
+              : Option.none(),
             startTime: values.startTime,
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
@@ -745,12 +753,12 @@ export function EventsListPage({
                       {Option.getOrNull(event.trainingTypeName)}
                     </td>
                     <td className='py-2 px-4 text-muted-foreground'>
-                      {event.startAt.slice(0, 10)}
+                      {DateTime.formatIsoDateUtc(event.startAt)}
                     </td>
                     <td className='py-2 px-4 text-muted-foreground'>
-                      {event.startAt.slice(11, 16)}
+                      {formatTimeUtc(event.startAt)}
                       {event.endAt.pipe(
-                        Option.map((v) => ` - ${v.slice(11, 16)}`),
+                        Option.map((v) => ` - ${formatTimeUtc(v)}`),
                         Option.getOrElse(() => ''),
                       )}
                     </td>

@@ -1,14 +1,14 @@
 import { DateTime } from 'effect';
 
 export const computeHorizonEnd = (params: {
-  seriesEndDate: string | null;
+  seriesEndDate: DateTime.Utc | null;
   horizonDays: number;
 }): DateTime.Utc => {
   const horizonEnd = DateTime.add(DateTime.unsafeNow(), { days: params.horizonDays });
   if (params.seriesEndDate === null) return horizonEnd;
-  const endDate = DateTime.unsafeMakeZoned(params.seriesEndDate, { timeZone: 'UTC' });
-  const endDateUtc = DateTime.toUtc(endDate);
-  return DateTime.lessThanOrEqualTo(endDateUtc, horizonEnd) ? endDateUtc : horizonEnd;
+  return DateTime.lessThanOrEqualTo(params.seriesEndDate, horizonEnd)
+    ? params.seriesEndDate
+    : horizonEnd;
 };
 
 export const generateOccurrenceDates = (params: {

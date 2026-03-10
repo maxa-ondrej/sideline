@@ -3,9 +3,6 @@ import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
-const toUtc = (dateStr: string): DateTime.Utc =>
-  DateTime.toUtc(DateTime.unsafeMakeZoned(dateStr, { timeZone: 'UTC' }));
-
 const cronEffect = Effect.Do.pipe(
   Effect.bind('seriesRepo', () => EventSeriesRepository),
   Effect.bind('eventsRepo', () => EventsRepository),
@@ -20,8 +17,8 @@ const cronEffect = Effect.Do.pipe(
         });
 
         const startFrom = Option.match(s.last_generated_date, {
-          onNone: () => toUtc(s.start_date),
-          onSome: (d) => DateTime.add(toUtc(d), { days: 1 }),
+          onNone: () => s.start_date,
+          onSome: (d) => DateTime.add(d, { days: 1 }),
         });
 
         if (DateTime.greaterThan(startFrom, effectiveEnd)) return Effect.void;
@@ -38,8 +35,8 @@ const cronEffect = Effect.Do.pipe(
         return Effect.all(
           Array.map(dates, (date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
-            const startAt = `${dateStr}T${s.start_time}Z`;
-            const endAt = Option.map(s.end_time, (t) => `${dateStr}T${t}Z`);
+            const startAt = DateTime.unsafeMake(`${dateStr}T${s.start_time}Z`);
+            const endAt = Option.map(s.end_time, (t) => DateTime.unsafeMake(`${dateStr}T${t}Z`));
             return eventsRepo.insertEvent({
               teamId: s.team_id,
               trainingTypeId: s.training_type_id,
@@ -56,10 +53,7 @@ const cronEffect = Effect.Do.pipe(
           }),
           { concurrency: 1 },
         ).pipe(
-          Effect.tap(() => {
-            const lastDate = DateTime.formatIsoDateUtc(effectiveEnd);
-            return seriesRepo.updateLastGeneratedDate(s.id, lastDate);
-          }),
+          Effect.tap(() => seriesRepo.updateLastGeneratedDate(s.id, effectiveEnd)),
           Effect.tap(() =>
             Effect.logInfo(
               `EventHorizonCron: series ${s.id} — ${String(dates.length)} events generated`,

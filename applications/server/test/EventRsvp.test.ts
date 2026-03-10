@@ -153,8 +153,8 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: Option.Option<string>;
-  start_at: string;
-  end_at: Option.Option<string>;
+  start_at: DateTime.Utc;
+  end_at: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
@@ -189,8 +189,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Future Training',
     description: Option.none(),
-    start_at: '2099-12-31T18:00:00Z',
-    end_at: Option.some('2099-12-31T20:00:00Z'),
+    start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
+    end_at: Option.some(DateTime.unsafeMake('2099-12-31T20:00:00Z')),
     location: Option.some('Main Field'),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -207,8 +207,8 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: Option.none(),
-    start_at: '2099-12-15T14:00:00Z',
-    end_at: Option.some('2099-12-15T16:00:00Z'),
+    start_at: DateTime.unsafeMake('2099-12-15T14:00:00Z'),
+    end_at: Option.some(DateTime.unsafeMake('2099-12-15T16:00:00Z')),
     location: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -225,8 +225,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Past Training',
     description: Option.none(),
-    start_at: '2020-01-01T10:00:00Z',
-    end_at: Option.some('2020-01-01T12:00:00Z'),
+    start_at: DateTime.unsafeMake('2020-01-01T10:00:00Z'),
+    end_at: Option.some(DateTime.unsafeMake('2020-01-01T12:00:00Z')),
     location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -243,7 +243,7 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Other Team Event',
     description: Option.none(),
-    start_at: '2099-12-31T18:00:00Z',
+    start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
     end_at: Option.none(),
     location: Option.none(),
     status: 'active',
