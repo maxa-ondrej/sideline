@@ -439,5 +439,17 @@
   "role_nameAlreadyTaken": "Role s tímto názvem již existuje.",
   "group_nameAlreadyTaken": "Skupina s tímto názvem již existuje.",
   "trainingType_nameAlreadyTaken": "Typ tréninku s tímto názvem již existuje.",
-  "validation_minAge": "Musíte mít alespoň {minAge} let."
+  "validation_minAge": "Musíte mít alespoň {minAge} let.",
+  "ical_title": "Odběr kalendáře",
+  "ical_description": "Odebírejte týmové události ve vaší oblíbené kalendářové aplikaci.",
+  "ical_subscribeUrl": "URL pro odběr",
+  "ical_copyUrl": "Kopírovat URL",
+  "ical_copied": "Zkopírováno!",
+  "ical_regenerate": "Obnovit URL",
+  "ical_regenerateConfirm": "Obnovení zneplatní starou URL. Všechny kalendářové aplikace používající starou URL přestanou dostávat aktualizace. Pokračovat?",
+  "ical_regenerated": "URL obnovena.",
+  "ical_regenerateFailed": "Obnovení URL selhalo.",
+  "ical_instructions_google": "Otevřete Google Calendar > Nastavení > Přidat kalendář > Z URL > vložte URL pro odběr.",
+  "ical_instructions_apple": "Klikněte na URL pro odběr nebo otevřete Kalendář > Soubor > Nový odběr kalendáře > vložte URL.",
+  "ical_instructions_outlook": "Otevřete Outlook > Přidat kalendář > Odběr z webu > vložte URL pro odběr."
 }

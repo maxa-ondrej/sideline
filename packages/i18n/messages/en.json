@@ -439,5 +439,17 @@
   "role_nameAlreadyTaken": "A role with this name already exists.",
   "group_nameAlreadyTaken": "A group with this name already exists.",
   "trainingType_nameAlreadyTaken": "A training type with this name already exists.",
-  "validation_minAge": "You must be at least {minAge} years old."
+  "validation_minAge": "You must be at least {minAge} years old.",
+  "ical_title": "Calendar Subscription",
+  "ical_description": "Subscribe to your team events in your preferred calendar app.",
+  "ical_subscribeUrl": "Subscription URL",
+  "ical_copyUrl": "Copy URL",
+  "ical_copied": "Copied!",
+  "ical_regenerate": "Regenerate URL",
+  "ical_regenerateConfirm": "Regenerating will invalidate the old URL. All calendar apps using the old URL will stop receiving updates. Continue?",
+  "ical_regenerated": "URL regenerated.",
+  "ical_regenerateFailed": "Failed to regenerate URL.",
+  "ical_instructions_google": "Open Google Calendar > Settings > Add calendar > From URL > paste the subscription URL.",
+  "ical_instructions_apple": "Click the subscription URL or open Calendar > File > New Calendar Subscription > paste the URL.",
+  "ical_instructions_outlook": "Open Outlook > Add calendar > Subscribe from web > paste the subscription URL."
 }

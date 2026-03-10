@@ -6,6 +6,7 @@ import {
   EventRsvpApi,
   EventSeriesApi,
   GroupApi,
+  ICalApi,
   Invite,
   NotificationApi,
   RoleApi,
@@ -22,6 +23,7 @@ export class Api extends HttpApi.make('api')
   .add(EventRsvpApi.EventRsvpApiGroup)
   .add(EventSeriesApi.EventSeriesApiGroup)
   .add(GroupApi.GroupApiGroup)
+  .add(ICalApi.ICalApiGroup)
   .add(Invite.InviteApiGroup)
   .add(NotificationApi.NotificationApiGroup)
   .add(Roster.RosterApiGroup)

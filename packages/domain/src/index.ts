@@ -12,6 +12,8 @@ export * as EventSeriesApi from './api/EventSeriesApi.js';
 
 export * as GroupApi from './api/GroupApi.js';
 
+export * as ICalApi from './api/ICalApi.js';
+
 export * as Invite from './api/Invite.js';
 
 export * as NotificationApi from './api/NotificationApi.js';
@@ -41,6 +43,8 @@ export * as EventRsvp from './models/EventRsvp.js';
 export * as EventSeries from './models/EventSeries.js';
 
 export * as GroupModel from './models/GroupModel.js';
+
+export * as ICalToken from './models/ICalToken.js';
 
 export * as MemberRole from './models/MemberRole.js';
 

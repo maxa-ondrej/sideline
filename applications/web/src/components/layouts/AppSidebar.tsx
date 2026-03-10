@@ -8,6 +8,7 @@ import {
   Dumbbell,
   Home,
   type LucideIcon,
+  Rss,
   Settings,
   Shield,
   UserCog,
@@ -65,6 +66,12 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
       title: m.event_events(),
       icon: Calendar,
       to: '/teams/$teamId/events',
+      params: { teamId },
+    },
+    {
+      title: m.ical_title(),
+      icon: Rss,
+      to: '/teams/$teamId/calendar-subscription',
       params: { teamId },
     },
     {
