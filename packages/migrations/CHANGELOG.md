@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.10.0
+
+### Minor Changes
+
+- [#98](https://github.com/maxa-ondrej/sideline/pull/98) [`c12900d`](https://github.com/maxa-ondrej/sideline/commit/c12900da82a09999081325bccbb29a39f93f3215) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add iCal subscription feature allowing players to subscribe to team events via webcal URL in Google Calendar, Apple Calendar, and Outlook
+
 ## 0.9.0
 
 ### Minor Changes
