@@ -26,10 +26,11 @@ type CreateRosterValues = Schema.Schema.Type<typeof CreateRosterSchema>;
 interface RostersListPageProps {
   teamId: string;
   rosters: ReadonlyArray<RosterDomain.RosterInfo>;
+  canManage: boolean;
   userId: string;
 }
 
-export function RostersListPage({ teamId, rosters }: RostersListPageProps) {
+export function RostersListPage({ teamId, rosters, canManage }: RostersListPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
@@ -68,25 +69,27 @@ export function RostersListPage({ teamId, rosters }: RostersListPageProps) {
         <h1 className='text-2xl font-bold'>{m.roster_rosters()}</h1>
       </header>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
-          <FormField
-            {...form.register('name')}
-            render={({ field }) => (
-              <FormItem className='flex-1'>
-                <FormLabel>{m.roster_rosterName()}</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder={m.roster_rosterNamePlaceholder()} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
-            {m.roster_createRoster()}
-          </Button>
-        </form>
-      </Form>
+      {canManage && (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
+            <FormField
+              {...form.register('name')}
+              render={({ field }) => (
+                <FormItem className='flex-1'>
+                  <FormLabel>{m.roster_rosterName()}</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder={m.roster_rosterNamePlaceholder()} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
+              {m.roster_createRoster()}
+            </Button>
+          </form>
+        </Form>
+      )}
 
       {rosters.length === 0 ? (
         <p className='text-muted-foreground'>{m.roster_noRosters()}</p>
