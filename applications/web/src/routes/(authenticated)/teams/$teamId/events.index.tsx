@@ -14,7 +14,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/')({
         Effect.all({
           eventList: api.event.listEvents({ path: { teamId } }),
           trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
-          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
+          discordChannels: api.group
+            .listDiscordChannels({ path: { teamId } })
+            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

@@ -49,7 +49,13 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
       params: { teamId },
     },
     { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
-    { title: m.team_roles(), icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
+    {
+      title: m.team_roles(),
+      icon: Shield,
+      to: '/teams/$teamId/roles',
+      params: { teamId },
+      requiredPermission: 'role:view',
+    },
     {
       title: m.team_rosters(),
       icon: UsersRound,
