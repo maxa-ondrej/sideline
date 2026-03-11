@@ -140,16 +140,34 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     Request: Schema.Struct({
       event_id: Schema.String,
       team_id: Schema.String,
+      member_group_id: Schema.OptionFromNullOr(Schema.String),
     }),
     Result: NonResponderRow,
     execute: (input) => this.sql`
-      SELECT tm.id AS team_member_id, u.name AS member_name, u.username, u.discord_id
-      FROM team_members tm
-      LEFT JOIN users u ON u.id = tm.user_id
-      LEFT JOIN event_rsvps er ON er.team_member_id = tm.id AND er.event_id = ${input.event_id}
-      WHERE tm.team_id = ${input.team_id}
-        AND tm.active = true
-        AND er.id IS NULL
+      WITH eligible_members AS (
+        SELECT tm.id AS team_member_id, tm.user_id
+        FROM team_members tm
+        WHERE tm.team_id = ${input.team_id}
+          AND tm.active = true
+          AND (
+            ${input.member_group_id} IS NULL
+            OR tm.id IN (
+              WITH RECURSIVE descendant_groups AS (
+                SELECT id FROM groups WHERE id = ${input.member_group_id}::uuid
+                UNION ALL
+                SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
+              )
+              SELECT gm.team_member_id
+              FROM group_members gm
+              JOIN descendant_groups dg ON dg.id = gm.group_id
+            )
+          )
+      )
+      SELECT em.team_member_id, u.name AS member_name, u.username, u.discord_id
+      FROM eligible_members em
+      LEFT JOIN users u ON u.id = em.user_id
+      LEFT JOIN event_rsvps er ON er.team_member_id = em.team_member_id AND er.event_id = ${input.event_id}
+      WHERE er.id IS NULL
       ORDER BY u.name ASC
     `,
   });
@@ -188,10 +206,16 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     );
   };
 
-  findNonRespondersByEventId = (eventId: Event.EventId, teamId: string) => {
-    return this.findNonResponders({ event_id: eventId, team_id: teamId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+  findNonRespondersByEventId = (
+    eventId: Event.EventId,
+    teamId: string,
+    memberGroupId: Option.Option<string> = Option.none(),
+  ) => {
+    return this.findNonResponders({
+      event_id: eventId,
+      team_id: teamId,
+      member_group_id: memberGroupId,
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
   countRsvpTotal = (eventId: Event.EventId) => {

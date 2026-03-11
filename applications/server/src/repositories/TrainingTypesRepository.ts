@@ -12,8 +12,10 @@ class TrainingTypeWithGroup extends Schema.Class<TrainingTypeWithGroup>('Trainin
   id: TrainingType.TrainingTypeId,
   team_id: Team.TeamId,
   name: Schema.String,
-  group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
-  group_name: Schema.OptionFromNullOr(Schema.String),
+  owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  owner_group_name: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  member_group_name: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   created_at: Schema.DateFromSelf,
 }) {}
@@ -22,7 +24,8 @@ class TrainingTypeRow extends Schema.Class<TrainingTypeRow>('TrainingTypeRow')({
   id: TrainingType.TrainingTypeId,
   team_id: Team.TeamId,
   name: Schema.String,
-  group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
@@ -31,7 +34,8 @@ class TrainingTypeInsertInput extends Schema.Class<TrainingTypeInsertInput>(
 )({
   team_id: Schema.String,
   name: Schema.String,
-  group_id: Schema.OptionFromNullOr(Schema.String),
+  owner_group_id: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
@@ -40,6 +44,8 @@ class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
 )({
   id: TrainingType.TrainingTypeId,
   name: Schema.String,
+  owner_group_id: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
@@ -53,9 +59,14 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     Request: Schema.String,
     Result: TrainingTypeWithGroup,
     execute: (teamId) => this.sql`
-      SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.discord_channel_id, t.created_at
+      SELECT t.id, t.team_id, t.name, t.owner_group_id,
+             g.name AS owner_group_name,
+             t.member_group_id,
+             g2.name AS member_group_name,
+             t.discord_channel_id, t.created_at
       FROM training_types t
-      LEFT JOIN groups g ON g.id = t.group_id
+      LEFT JOIN groups g ON g.id = t.owner_group_id
+      LEFT JOIN groups g2 ON g2.id = t.member_group_id
       WHERE t.team_id = ${teamId}
       ORDER BY t.name ASC
     `,
@@ -66,16 +77,21 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     Result: TrainingTypeRow,
     execute: (id) =>
       this
-        .sql`SELECT id, team_id, name, group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
+        .sql`SELECT id, team_id, name, owner_group_id, member_group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
   });
 
   private findByIdWithGroup = SqlSchema.findOne({
     Request: TrainingType.TrainingTypeId,
     Result: TrainingTypeWithGroup,
     execute: (id) => this.sql`
-      SELECT t.id, t.team_id, t.name, t.group_id, g.name AS group_name, t.discord_channel_id, t.created_at
+      SELECT t.id, t.team_id, t.name, t.owner_group_id,
+             g.name AS owner_group_name,
+             t.member_group_id,
+             g2.name AS member_group_name,
+             t.discord_channel_id, t.created_at
       FROM training_types t
-      LEFT JOIN groups g ON g.id = t.group_id
+      LEFT JOIN groups g ON g.id = t.owner_group_id
+      LEFT JOIN groups g2 ON g2.id = t.member_group_id
       WHERE t.id = ${id}
     `,
   });
@@ -84,9 +100,9 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     Request: TrainingTypeInsertInput,
     Result: TrainingTypeRow,
     execute: (input) => this.sql`
-      INSERT INTO training_types (team_id, name, group_id, discord_channel_id)
-      VALUES (${input.team_id}, ${input.name}, ${input.group_id}, ${input.discord_channel_id})
-      RETURNING id, team_id, name, group_id, discord_channel_id
+      INSERT INTO training_types (team_id, name, owner_group_id, member_group_id, discord_channel_id)
+      VALUES (${input.team_id}, ${input.name}, ${input.owner_group_id}, ${input.member_group_id}, ${input.discord_channel_id})
+      RETURNING id, team_id, name, owner_group_id, member_group_id, discord_channel_id
     `,
   });
 
@@ -94,9 +110,12 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     Request: TrainingTypeUpdateInput,
     Result: TrainingTypeRow,
     execute: (input) => this.sql`
-      UPDATE training_types SET name = ${input.name}, discord_channel_id = ${input.discord_channel_id}
+      UPDATE training_types SET name = ${input.name},
+        owner_group_id = ${input.owner_group_id},
+        member_group_id = ${input.member_group_id},
+        discord_channel_id = ${input.discord_channel_id}
       WHERE id = ${input.id}
-      RETURNING id, team_id, name, group_id, discord_channel_id
+      RETURNING id, team_id, name, owner_group_id, member_group_id, discord_channel_id
     `,
   });
 
@@ -124,13 +143,15 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
   insertTrainingType = (
     teamId: Team.TeamId,
     name: string,
-    groupId: Option.Option<string>,
+    ownerGroupId: Option.Option<string>,
+    memberGroupId: Option.Option<string> = Option.none(),
     discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) => {
     return this.insertOne({
       team_id: teamId,
       name,
-      group_id: groupId,
+      owner_group_id: ownerGroupId,
+      member_group_id: memberGroupId,
       discord_channel_id: discordChannelId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
@@ -141,11 +162,15 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
   updateTrainingType = (
     trainingTypeId: TrainingType.TrainingTypeId,
     name: string,
+    ownerGroupId: Option.Option<string> = Option.none(),
+    memberGroupId: Option.Option<string> = Option.none(),
     discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) => {
     return this.updateOne({
       id: trainingTypeId,
       name,
+      owner_group_id: ownerGroupId,
+      member_group_id: memberGroupId,
       discord_channel_id: discordChannelId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),

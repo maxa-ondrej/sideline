@@ -179,7 +179,9 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ event }) =>
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
-            Effect.bind('nonResponders', () => rsvps.findNonRespondersByEventId(eventId, teamId)),
+            Effect.bind('nonResponders', ({ event }) =>
+              rsvps.findNonRespondersByEventId(eventId, teamId, event.member_group_id),
+            ),
             Effect.map(
               ({ nonResponders }) =>
                 new EventRsvpApi.NonRespondersResponse({

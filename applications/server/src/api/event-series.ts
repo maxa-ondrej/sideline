@@ -14,6 +14,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
@@ -50,7 +51,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
     Effect.bind('series', () => EventSeriesRepository),
     Effect.bind('teamSettings', () => TeamSettingsRepository),
     Effect.bind('syncEvents', () => EventSyncEventsRepository),
-    Effect.map(({ members, events, series, teamSettings, syncEvents }) =>
+    Effect.bind('trainingTypes', () => TrainingTypesRepository),
+    Effect.map(({ members, events, series, teamSettings, syncEvents, trainingTypes }) =>
       handlers
         .handle('createEventSeries', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
@@ -65,7 +67,32 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ membership, isAdmin }) =>
               checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin),
             ),
-            Effect.bind('inserted', ({ membership }) =>
+            // Inherit groups from training type if not provided
+            Effect.bind('resolvedGroups', () => {
+              const hasOwner = Option.isSome(payload.ownerGroupId);
+              const hasMember = Option.isSome(payload.memberGroupId);
+              if (hasOwner || hasMember || Option.isNone(payload.trainingTypeId)) {
+                return Effect.succeed({
+                  ownerGroupId: payload.ownerGroupId,
+                  memberGroupId: payload.memberGroupId,
+                });
+              }
+              return trainingTypes.findTrainingTypeById(payload.trainingTypeId.value).pipe(
+                Effect.map(
+                  Option.match({
+                    onNone: () => ({
+                      ownerGroupId: payload.ownerGroupId,
+                      memberGroupId: payload.memberGroupId,
+                    }),
+                    onSome: (tt) => ({
+                      ownerGroupId: tt.owner_group_id as Option.Option<string>,
+                      memberGroupId: tt.member_group_id as Option.Option<string>,
+                    }),
+                  }),
+                ),
+              );
+            }),
+            Effect.bind('inserted', ({ membership, resolvedGroups }) =>
               series.insertEventSeries({
                 teamId,
                 trainingTypeId: payload.trainingTypeId,
@@ -80,6 +107,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 location: payload.location,
                 createdBy: membership.id,
                 discordTargetChannelId: payload.discordChannelId,
+                ownerGroupId: resolvedGroups.ownerGroupId,
+                memberGroupId: resolvedGroups.memberGroupId,
               }),
             ),
             Effect.bind('horizonDays', () => teamSettings.getHorizonDays(teamId)),
@@ -118,6 +147,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       createdBy: membership.id,
                       seriesId: Option.some(inserted.id),
                       discordTargetChannelId: inserted.discord_target_channel_id,
+                      ownerGroupId: inserted.owner_group_id,
+                      memberGroupId: inserted.member_group_id,
                     })
                     .pipe(
                       Effect.tap((event) =>
@@ -162,6 +193,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: inserted.end_time,
                   location: inserted.location,
                   discordChannelId: inserted.discord_target_channel_id,
+                  ownerGroupId: inserted.owner_group_id,
+                  ownerGroupName: Option.none(),
+                  memberGroupId: inserted.member_group_id,
+                  memberGroupName: Option.none(),
                 }),
             ),
             Effect.catchTag('NoSuchElementException', Effect.die),
@@ -193,6 +228,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     endTime: s.end_time,
                     location: s.location,
                     discordChannelId: s.discord_target_channel_id,
+                    ownerGroupId: s.owner_group_id,
+                    ownerGroupName: s.owner_group_name,
+                    memberGroupId: s.member_group_id,
+                    memberGroupName: s.member_group_name,
                   }),
               ),
             ),
@@ -237,6 +276,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: found.end_time,
                   location: found.location,
                   discordChannelId: found.discord_target_channel_id,
+                  ownerGroupId: found.owner_group_id,
+                  ownerGroupName: found.owner_group_name,
+                  memberGroupId: found.member_group_id,
+                  memberGroupName: found.member_group_name,
                   canEdit: canEdit && found.status === 'active',
                   canCancel: canCancel && found.status === 'active',
                 }),
@@ -302,6 +345,14 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 onNone: () => existing.discord_target_channel_id,
                 onSome: (v) => v,
               }),
+              ownerGroupId: Option.match(payload.ownerGroupId, {
+                onNone: () => existing.owner_group_id,
+                onSome: (v) => v,
+              }),
+              memberGroupId: Option.match(payload.memberGroupId, {
+                onNone: () => existing.member_group_id,
+                onSome: (v) => v,
+              }),
             })),
             Effect.tap(({ resolved }) =>
               series.updateEventSeries({
@@ -315,6 +366,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 location: resolved.location,
                 endDate: resolved.endDate,
                 discordTargetChannelId: resolved.discordTargetChannelId,
+                ownerGroupId: resolved.ownerGroupId,
+                memberGroupId: resolved.memberGroupId,
               }),
             ),
             Effect.tap(({ resolved }) =>
@@ -364,6 +417,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                             location: existing.location,
                             createdBy: membership.id,
                             seriesId: Option.some(existing.id),
+                            ownerGroupId: existing.owner_group_id,
+                            memberGroupId: existing.member_group_id,
                           });
                         }),
                         { concurrency: 1 },
@@ -404,6 +459,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 endTime: detail.end_time,
                 location: detail.location,
                 discordChannelId: detail.discord_target_channel_id,
+                ownerGroupId: detail.owner_group_id,
+                ownerGroupName: detail.owner_group_name,
+                memberGroupId: detail.member_group_id,
+                memberGroupName: detail.member_group_name,
                 canEdit: canEdit && detail.status === 'active',
                 canCancel: canCancel && detail.status === 'active',
               });

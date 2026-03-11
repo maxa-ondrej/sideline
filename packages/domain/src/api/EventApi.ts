@@ -5,6 +5,7 @@ import { AuthMiddleware } from '~/api/Auth.js';
 import { Snowflake } from '~/models/Discord.js';
 import { EventId, EventStatus, EventType } from '~/models/Event.js';
 import { EventSeriesId } from '~/models/EventSeries.js';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
 
@@ -39,6 +40,10 @@ export class EventDetail extends Schema.Class<EventDetail>('EventDetail')({
   seriesId: Schema.OptionFromNullOr(EventSeriesId),
   seriesModified: Schema.Boolean,
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  ownerGroupName: Schema.OptionFromNullOr(Schema.String),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class EventListResponse extends Schema.Class<EventListResponse>('EventListResponse')({
@@ -55,6 +60,8 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
   endAt: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
 }) {}
 
 export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
@@ -68,6 +75,8 @@ export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('Update
   }),
   location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
   discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
+  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
+  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
 }) {}
 
 export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
