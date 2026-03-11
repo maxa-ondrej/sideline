@@ -150,7 +150,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
         WHERE tm.team_id = ${input.team_id}
           AND tm.active = true
           AND (
-            ${input.member_group_id} IS NULL
+            ${input.member_group_id}::uuid IS NULL
             OR tm.id IN (
               WITH RECURSIVE descendant_groups AS (
                 SELECT id FROM groups WHERE id = ${input.member_group_id}::uuid
