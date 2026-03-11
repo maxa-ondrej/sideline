@@ -35,7 +35,8 @@ function MemberDetailRoute() {
   const navigate = useNavigate();
   const router = useRouter();
   const run = useRun();
-  const { player, myTeams, roles } = Route.useLoaderData();
+  const { player, myTeams, roles: roleListResponse } = Route.useLoaderData();
+  const roles = roleListResponse.roles;
 
   // Use the current user's permissions for this team, not the target player's
   const myPermissions =

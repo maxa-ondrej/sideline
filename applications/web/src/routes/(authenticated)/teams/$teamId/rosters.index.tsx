@@ -19,7 +19,14 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/')(
 function RostersRoute() {
   const { user } = Route.useRouteContext();
   const { teamId: teamIdRaw } = Route.useParams();
-  const rosters = Route.useLoaderData();
+  const data = Route.useLoaderData();
 
-  return <RostersListPage teamId={teamIdRaw} rosters={rosters} userId={user.id} />;
+  return (
+    <RostersListPage
+      teamId={teamIdRaw}
+      rosters={data.rosters}
+      canManage={data.canManage}
+      userId={user.id}
+    />
+  );
 }

@@ -16,7 +16,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eve
           event: api.event.getEvent({ path: { teamId, eventId } }),
           trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
           rsvpDetail: api.eventRsvp.getRsvps({ path: { teamId, eventId } }),
-          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
+          discordChannels: api.group
+            .listDiscordChannels({ path: { teamId } })
+            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
           nonResponders: api.eventRsvp
             .getNonResponders({ path: { teamId, eventId } })
             .pipe(Effect.catchAll(() => Effect.succeed({ nonResponders: [] }))),

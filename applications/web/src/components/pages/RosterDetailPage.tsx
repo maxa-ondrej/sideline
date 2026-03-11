@@ -20,6 +20,7 @@ interface RosterDetailPageProps {
   rosterId: string;
   rosterDetail: RosterDomain.RosterDetail;
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
+  canManage: boolean;
   userId: string;
 }
 
@@ -28,6 +29,7 @@ export function RosterDetailPage({
   rosterId,
   rosterDetail,
   allMembers,
+  canManage,
 }: RosterDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -128,32 +130,38 @@ export function RosterDetailPage({
           >
             {rosterDetail.active ? m.roster_active() : m.roster_inactive()}
           </span>
-          <Button variant='outline' size='sm' onClick={handleToggleActive}>
-            {rosterDetail.active ? m.roster_toggleInactive() : m.roster_toggleActive()}
-          </Button>
-          <Button variant='destructive' size='sm' onClick={handleDelete}>
-            {m.roster_deleteRoster()}
-          </Button>
+          {canManage && (
+            <>
+              <Button variant='outline' size='sm' onClick={handleToggleActive}>
+                {rosterDetail.active ? m.roster_toggleInactive() : m.roster_toggleActive()}
+              </Button>
+              <Button variant='destructive' size='sm' onClick={handleDelete}>
+                {m.roster_deleteRoster()}
+              </Button>
+            </>
+          )}
         </div>
       </header>
 
-      <div className='flex gap-2 mb-6 max-w-md'>
-        <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-          <SelectTrigger className='flex-1'>
-            <SelectValue placeholder={m.roster_addMember()} />
-          </SelectTrigger>
-          <SelectContent>
-            {availableMembers.map((member) => (
-              <SelectItem key={member.memberId} value={member.memberId}>
-                {Option.getOrElse(member.name, () => member.username)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button onClick={handleAddMember} disabled={!selectedMemberId}>
-          {m.roster_addMember()}
-        </Button>
-      </div>
+      {canManage && (
+        <div className='flex gap-2 mb-6 max-w-md'>
+          <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
+            <SelectTrigger className='flex-1'>
+              <SelectValue placeholder={m.roster_addMember()} />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMembers.map((member) => (
+                <SelectItem key={member.memberId} value={member.memberId}>
+                  {Option.getOrElse(member.name, () => member.username)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleAddMember} disabled={!selectedMemberId}>
+            {m.roster_addMember()}
+          </Button>
+        </div>
+      )}
 
       {rosterDetail.members.length === 0 ? (
         <p className='text-muted-foreground'>{m.members_noPlayers()}</p>
@@ -180,15 +188,17 @@ export function RosterDetailPage({
                       Option.getOrElse(() => '—'),
                     )}
                   </td>
-                  <td className='py-2 px-4'>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() => handleRemoveMember(player.memberId)}
-                    >
-                      {m.roster_removeMember()}
-                    </Button>
-                  </td>
+                  {canManage && (
+                    <td className='py-2 px-4'>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        onClick={() => handleRemoveMember(player.memberId)}
+                      >
+                        {m.roster_removeMember()}
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               );
             })}

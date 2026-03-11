@@ -55,6 +55,11 @@ export class RosterInfo extends Schema.Class<RosterInfo>('RosterInfo')({
   createdAt: Schema.String,
 }) {}
 
+export class RosterListResponse extends Schema.Class<RosterListResponse>('RosterListResponse')({
+  canManage: Schema.Boolean,
+  rosters: Schema.Array(RosterInfo),
+}) {}
+
 export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   rosterId: RosterId,
   teamId: TeamId,
@@ -62,6 +67,7 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   active: Schema.Boolean,
   createdAt: Schema.String,
   members: Schema.Array(RosterPlayer),
+  canManage: Schema.Boolean,
 }) {}
 
 export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({
@@ -114,7 +120,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
   )
   .add(
     HttpApiEndpoint.get('listRosters', '/teams/:teamId/rosters')
-      .addSuccess(Schema.Array(RosterInfo))
+      .addSuccess(RosterListResponse)
       .addError(Forbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .middleware(AuthMiddleware),

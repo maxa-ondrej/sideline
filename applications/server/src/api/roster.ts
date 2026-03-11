@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Roster, type RosterModel } from '@sideline/domain';
 import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -157,20 +157,25 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'roster:view', new Roster.Forbidden()),
             ),
+            Effect.let('canManage', ({ membership }) => hasPermission(membership, 'roster:manage')),
             Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
-            Effect.map(({ rosterList }) =>
-              Array.map(
-                rosterList,
-                (r) =>
-                  new Roster.RosterInfo({
-                    rosterId: r.id,
-                    teamId: r.team_id,
-                    name: r.name,
-                    active: r.active,
-                    memberCount: r.member_count,
-                    createdAt: DateTime.formatIso(r.created_at),
-                  }),
-              ),
+            Effect.map(
+              ({ rosterList, canManage }) =>
+                new Roster.RosterListResponse({
+                  canManage,
+                  rosters: Array.map(
+                    rosterList,
+                    (r) =>
+                      new Roster.RosterInfo({
+                        rosterId: r.id,
+                        teamId: r.team_id,
+                        name: r.name,
+                        active: r.active,
+                        memberCount: r.member_count,
+                        createdAt: DateTime.formatIso(r.created_at),
+                      }),
+                  ),
+                }),
             ),
           ),
         )
@@ -199,6 +204,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'roster:view', new Roster.Forbidden()),
             ),
+            Effect.let('canManage', ({ membership }) => hasPermission(membership, 'roster:manage')),
             Effect.bind('roster', () =>
               rosters.findRosterById(rosterId).pipe(
                 Effect.flatMap(
@@ -211,7 +217,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('rosterMembers', ({ roster }) => rosters.findMemberEntriesById(roster.id)),
             Effect.map(
-              ({ roster, rosterMembers }) =>
+              ({ roster, rosterMembers, canManage }) =>
                 new Roster.RosterDetail({
                   rosterId: roster.id,
                   teamId: roster.team_id,
@@ -219,6 +225,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   active: roster.active,
                   createdAt: DateTime.formatIso(roster.created_at),
                   members: Array.map(rosterMembers, toRosterPlayer),
+                  canManage,
                 }),
             ),
           ),

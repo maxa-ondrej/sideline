@@ -18,7 +18,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/roles/')({
 
 function RolesRoute() {
   const { teamId: teamIdRaw } = Route.useParams();
-  const roles = Route.useLoaderData();
+  const data = Route.useLoaderData();
 
-  return <RolesListPage teamId={teamIdRaw} roles={roles} />;
+  return <RolesListPage teamId={teamIdRaw} roles={data.roles} canManage={data.canManage} />;
 }

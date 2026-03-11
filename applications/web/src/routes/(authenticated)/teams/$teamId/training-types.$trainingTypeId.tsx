@@ -18,7 +18,9 @@ export const Route = createFileRoute(
         Effect.all({
           trainingType: api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
           series: api.eventSeries.listEventSeries({ path: { teamId } }),
-          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
+          discordChannels: api.group
+            .listDiscordChannels({ path: { teamId } })
+            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

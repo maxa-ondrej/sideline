@@ -890,7 +890,8 @@ describe('Rosters API', () => {
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(Array.isArray(body)).toBe(true);
+      expect(body).toHaveProperty('canManage');
+      expect(Array.isArray(body.rosters)).toBe(true);
     });
   });
 

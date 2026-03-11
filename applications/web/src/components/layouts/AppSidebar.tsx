@@ -1,4 +1,4 @@
-import type { Auth } from '@sideline/domain';
+import type { Auth, Role } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
@@ -36,6 +36,7 @@ interface NavItem {
   icon: LucideIcon;
   to: string;
   params?: Record<string, string>;
+  requiredPermission?: Role.Permission;
 }
 
 function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
@@ -48,14 +49,26 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
       params: { teamId },
     },
     { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
-    { title: m.team_roles(), icon: Shield, to: '/teams/$teamId/roles', params: { teamId } },
+    {
+      title: m.team_roles(),
+      icon: Shield,
+      to: '/teams/$teamId/roles',
+      params: { teamId },
+      requiredPermission: 'role:view',
+    },
     {
       title: m.team_rosters(),
       icon: UsersRound,
       to: '/teams/$teamId/rosters',
       params: { teamId },
     },
-    { title: m.team_groups(), icon: UserCog, to: '/teams/$teamId/groups', params: { teamId } },
+    {
+      title: m.team_groups(),
+      icon: UserCog,
+      to: '/teams/$teamId/groups',
+      params: { teamId },
+      requiredPermission: 'team:manage',
+    },
     {
       title: m.team_trainingTypes(),
       icon: Dumbbell,
@@ -79,12 +92,14 @@ function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
       icon: CalendarDays,
       to: '/teams/$teamId/age-thresholds',
       params: { teamId },
+      requiredPermission: 'team:manage',
     },
     {
       title: m.team_settings(),
       icon: Settings,
       to: '/teams/$teamId/settings',
       params: { teamId },
+      requiredPermission: 'team:manage',
     },
   ];
 }
@@ -98,7 +113,9 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppSidebarProps) {
   const matchRoute = useMatchRoute();
-  const teamItems = getTeamNavItems(activeTeam.teamId);
+  const teamItems = getTeamNavItems(activeTeam.teamId).filter(
+    (item) => !item.requiredPermission || activeTeam.permissions.includes(item.requiredPermission),
+  );
 
   return (
     <Sidebar collapsible='icon' {...props}>

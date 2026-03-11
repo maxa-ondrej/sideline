@@ -13,12 +13,18 @@ export class RoleInfo extends Schema.Class<RoleInfo>('RoleInfo')({
   permissionCount: Schema.Number,
 }) {}
 
+export class RoleListResponse extends Schema.Class<RoleListResponse>('RoleListResponse')({
+  canManage: Schema.Boolean,
+  roles: Schema.Array(RoleInfo),
+}) {}
+
 export class RoleDetail extends Schema.Class<RoleDetail>('RoleDetail')({
   roleId: RoleId,
   teamId: TeamId,
   name: Schema.String,
   isBuiltIn: Schema.Boolean,
   permissions: Schema.Array(Permission),
+  canManage: Schema.Boolean,
 }) {}
 
 export class CreateRoleRequest extends Schema.Class<CreateRoleRequest>('CreateRoleRequest')({
@@ -74,7 +80,7 @@ export class RoleNameAlreadyTaken extends Schema.TaggedError<RoleNameAlreadyTake
 export class RoleApiGroup extends HttpApiGroup.make('role')
   .add(
     HttpApiEndpoint.get('listRoles', '/teams/:teamId/roles')
-      .addSuccess(Schema.Array(RoleInfo))
+      .addSuccess(RoleListResponse)
       .addError(Forbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId }))
       .middleware(AuthMiddleware),

@@ -37,6 +37,7 @@ function RosterDetailRoute() {
       rosterId={rosterIdRaw}
       rosterDetail={rosterDetail}
       allMembers={allMembers}
+      canManage={rosterDetail.canManage}
       userId={user.id}
     />
   );

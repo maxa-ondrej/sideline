@@ -49,8 +49,14 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
 
 function GroupDetailRoute() {
   const { teamId: teamIdRaw, groupId: groupIdRaw } = Route.useParams();
-  const { groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels } =
-    Route.useLoaderData();
+  const {
+    groupDetail,
+    allMembers,
+    allRoles: allRolesResponse,
+    channelMapping,
+    allGroups,
+    discordChannels,
+  } = Route.useLoaderData();
 
   return (
     <GroupDetailPage
@@ -58,7 +64,7 @@ function GroupDetailRoute() {
       groupId={groupIdRaw}
       groupDetail={groupDetail}
       allMembers={allMembers}
-      allRoles={allRoles}
+      allRoles={allRolesResponse.roles}
       channelMapping={channelMapping}
       allGroups={allGroups}
       discordChannels={discordChannels}
