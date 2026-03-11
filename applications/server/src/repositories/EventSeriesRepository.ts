@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Discord, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
+import { Discord, EventSeries, GroupModel, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { type DateTime, Effect, Option, Schema } from 'effect';
 
@@ -18,6 +18,8 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   status: EventSeries.EventSeriesStatus,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
 class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('EventSeriesWithDetails')(
@@ -38,6 +40,10 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     training_type_name: Schema.OptionFromNullOr(Schema.String),
     last_generated_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+    owner_group_name: Schema.OptionFromNullOr(Schema.String),
+    member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+    member_group_name: Schema.OptionFromNullOr(Schema.String),
   },
 ) {}
 
@@ -58,6 +64,8 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   last_generated_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   created_by: TeamMember.TeamMemberId,
   event_horizon_days: Schema.Number,
 }) {}
@@ -77,6 +85,8 @@ class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('Event
     end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     created_by: Schema.String,
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    owner_group_id: Schema.OptionFromNullOr(Schema.String),
+    member_group_id: Schema.OptionFromNullOr(Schema.String),
   },
 ) {}
 
@@ -92,6 +102,8 @@ class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('Event
     location: Schema.OptionFromNullOr(Schema.String),
     end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    owner_group_id: Schema.OptionFromNullOr(Schema.String),
+    member_group_id: Schema.OptionFromNullOr(Schema.String),
   },
 ) {}
 
@@ -108,16 +120,16 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
             INSERT INTO event_series (team_id, training_type_id, title, description,
                                       start_time, end_time, location, frequency,
                                       days_of_week, start_date, end_date, created_by,
-                                      discord_target_channel_id)
+                                      discord_target_channel_id, owner_group_id, member_group_id)
             VALUES (${input.team_id}, ${input.training_type_id}, ${input.title},
                     ${input.description}, ${input.start_time}, ${input.end_time},
                     ${input.location}, ${input.frequency}, ${input.days_of_week},
                     ${input.start_date}, ${input.end_date}, ${input.created_by},
-                    ${input.discord_target_channel_id})
+                    ${input.discord_target_channel_id}, ${input.owner_group_id}, ${input.member_group_id})
             RETURNING id, team_id, training_type_id, title, description,
                       start_time, end_time, location, frequency,
                       days_of_week, start_date, end_date, status,
-                      discord_target_channel_id
+                      discord_target_channel_id, owner_group_id, member_group_id
           `,
   });
 
@@ -129,9 +141,13 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
                    es.start_time, es.end_time, es.location, es.frequency,
                    es.days_of_week, es.start_date, es.end_date, es.status,
                    tt.name AS training_type_name, es.last_generated_date,
-                   es.discord_target_channel_id
+                   es.discord_target_channel_id,
+                   es.owner_group_id, og.name AS owner_group_name,
+                   es.member_group_id, mg.name AS member_group_name
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
+            LEFT JOIN groups og ON og.id = es.owner_group_id
+            LEFT JOIN groups mg ON mg.id = es.member_group_id
             WHERE es.team_id = ${teamId}
             ORDER BY es.start_date DESC
           `,
@@ -145,9 +161,13 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
                    es.start_time, es.end_time, es.location, es.frequency,
                    es.days_of_week, es.start_date, es.end_date, es.status,
                    tt.name AS training_type_name, es.last_generated_date,
-                   es.discord_target_channel_id
+                   es.discord_target_channel_id,
+                   es.owner_group_id, og.name AS owner_group_name,
+                   es.member_group_id, mg.name AS member_group_name
             FROM event_series es
             LEFT JOIN training_types tt ON tt.id = es.training_type_id
+            LEFT JOIN groups og ON og.id = es.owner_group_id
+            LEFT JOIN groups mg ON mg.id = es.member_group_id
             WHERE es.id = ${id}
           `,
   });
@@ -160,6 +180,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
                    es.start_time, es.end_time, es.location, es.frequency,
                    es.days_of_week, es.start_date, es.end_date,
                    es.last_generated_date, es.discord_target_channel_id,
+                   es.owner_group_id, es.member_group_id,
                    es.created_by,
                    COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
             FROM event_series es
@@ -193,12 +214,14 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
               location = ${input.location},
               end_date = ${input.end_date},
               discord_target_channel_id = ${input.discord_target_channel_id},
+              owner_group_id = ${input.owner_group_id},
+              member_group_id = ${input.member_group_id},
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, title, description,
                       start_time, end_time, location, frequency,
                       days_of_week, start_date, end_date, status,
-                      discord_target_channel_id
+                      discord_target_channel_id, owner_group_id, member_group_id
           `,
   });
 
@@ -222,6 +245,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     endDate,
     createdBy,
     discordTargetChannelId = Option.none(),
+    ownerGroupId = Option.none(),
+    memberGroupId = Option.none(),
   }: {
     teamId: Team.TeamId;
     trainingTypeId: Option.Option<string>;
@@ -236,6 +261,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     endDate: Option.Option<DateTime.Utc>;
     createdBy: string;
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
+    ownerGroupId?: Option.Option<string>;
+    memberGroupId?: Option.Option<string>;
   }) => {
     return this.insertSeries({
       team_id: teamId,
@@ -251,6 +278,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       end_date: endDate,
       created_by: createdBy,
       discord_target_channel_id: discordTargetChannelId,
+      owner_group_id: ownerGroupId,
+      member_group_id: memberGroupId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 
@@ -273,6 +302,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     location,
     endDate,
     discordTargetChannelId = Option.none(),
+    ownerGroupId = Option.none(),
+    memberGroupId = Option.none(),
   }: {
     id: EventSeries.EventSeriesId;
     title: string;
@@ -284,6 +315,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     location: Option.Option<string>;
     endDate: Option.Option<DateTime.Utc>;
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
+    ownerGroupId?: Option.Option<string>;
+    memberGroupId?: Option.Option<string>;
   }) => {
     return this.updateSeries({
       id,
@@ -296,6 +329,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       location,
       end_date: endDate,
       discord_target_channel_id: discordTargetChannelId,
+      owner_group_id: ownerGroupId,
+      member_group_id: memberGroupId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
   };
 

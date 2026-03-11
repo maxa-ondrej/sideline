@@ -10,15 +10,18 @@ export class TrainingTypeInfo extends Schema.Class<TrainingTypeInfo>('TrainingTy
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
-  groupName: Schema.OptionFromNullOr(Schema.String),
+  ownerGroupName: Schema.OptionFromNullOr(Schema.String),
+  memberGroupName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class TrainingTypeDetail extends Schema.Class<TrainingTypeDetail>('TrainingTypeDetail')({
   trainingTypeId: TrainingTypeId,
   teamId: TeamId,
   name: Schema.String,
-  groupId: Schema.OptionFromNullOr(GroupId),
-  groupName: Schema.OptionFromNullOr(Schema.String),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  ownerGroupName: Schema.OptionFromNullOr(Schema.String),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupName: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   canAdmin: Schema.Boolean,
 }) {}
@@ -34,7 +37,8 @@ export class CreateTrainingTypeRequest extends Schema.Class<CreateTrainingTypeRe
   'CreateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
-  groupId: Schema.OptionFromNullOr(GroupId),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
@@ -42,6 +46,8 @@ export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRe
   'UpdateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
+  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
+  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
   discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 

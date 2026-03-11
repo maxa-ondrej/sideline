@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, EventRsvpApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { Discord, Event, EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -50,6 +50,8 @@ const EventEditSchema = Schema.Struct({
   endTime: Schema.String,
   location: Schema.String,
   discordChannelId: Schema.String,
+  ownerGroupId: Schema.String,
+  memberGroupId: Schema.String,
 });
 
 type EventEditValues = Schema.Schema.Type<typeof EventEditSchema>;
@@ -83,6 +85,7 @@ interface EventDetailPageProps {
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
   rsvpDetail: EventRsvpApi.EventRsvpDetail;
   nonResponders: ReadonlyArray<EventRsvpApi.NonResponderEntry>;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
 export function EventDetailPage({
@@ -93,6 +96,7 @@ export function EventDetailPage({
   discordChannels,
   rsvpDetail,
   nonResponders,
+  groups,
 }: EventDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -121,6 +125,8 @@ export function EventDetailPage({
       }),
       location: Option.getOrElse(eventDetail.location, () => ''),
       discordChannelId: Option.getOrElse(eventDetail.discordChannelId, () => NONE_VALUE),
+      ownerGroupId: Option.getOrElse(eventDetail.ownerGroupId, () => NONE_VALUE),
+      memberGroupId: Option.getOrElse(eventDetail.memberGroupId, () => NONE_VALUE),
     },
   });
 
@@ -169,6 +175,16 @@ export function EventDetailPage({
                 ? Option.some(Discord.Snowflake.make(values.discordChannelId))
                 : Option.none(),
             ),
+            ownerGroupId: Option.some(
+              values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
+                : Option.none(),
+            ),
+            memberGroupId: Option.some(
+              values.memberGroupId && values.memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
+                : Option.none(),
+            ),
           },
         }),
       ),
@@ -208,6 +224,16 @@ export function EventDetailPage({
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
                 ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                : Option.none(),
+            ),
+            ownerGroupId: Option.some(
+              values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
+                : Option.none(),
+            ),
+            memberGroupId: Option.some(
+              values.memberGroupId && values.memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
                 : Option.none(),
             ),
           },
@@ -515,6 +541,59 @@ export function EventDetailPage({
                 )}
               />
 
+              <div className='flex gap-4'>
+                <FormField
+                  {...form.register('ownerGroupId')}
+                  render={({ field }) => (
+                    <FormItem className='flex-1'>
+                      <FormLabel>{m.event_ownerGroup()}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={m.event_useDefault()} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                          {groups.map((g) => (
+                            <SelectItem key={g.groupId} value={g.groupId}>
+                              {g.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className='text-xs text-muted-foreground'>{m.event_ownerGroupHelp()}</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  {...form.register('memberGroupId')}
+                  render={({ field }) => (
+                    <FormItem className='flex-1'>
+                      <FormLabel>{m.event_memberGroup()}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={m.event_useDefault()} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                          {groups.map((g) => (
+                            <SelectItem key={g.groupId} value={g.groupId}>
+                              {g.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className='text-xs text-muted-foreground'>{m.event_memberGroupHelp()}</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               {showEditScope && (
                 <div className='rounded-md border p-4 space-y-2'>
                   <p className='font-medium'>{m.event_editScopeTitle()}</p>
@@ -590,6 +669,18 @@ export function EventDetailPage({
               <p>
                 <span className='text-sm font-medium'>{m.event_description()}: </span>
                 {eventDetail.description.value}
+              </p>
+            )}
+            {Option.isSome(eventDetail.ownerGroupName) && (
+              <p>
+                <span className='text-sm font-medium'>{m.event_ownerGroup()}: </span>
+                {eventDetail.ownerGroupName.value}
+              </p>
+            )}
+            {Option.isSome(eventDetail.memberGroupName) && (
+              <p>
+                <span className='text-sm font-medium'>{m.event_memberGroup()}: </span>
+                {eventDetail.memberGroupName.value}
               </p>
             )}
             {eventDetail.canCancel && isActive && (

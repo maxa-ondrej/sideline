@@ -307,6 +307,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
           series_id: Option.none(),
           series_modified: false,
           discord_target_channel_id: Option.none(),
+          owner_group_id: Option.none(),
+          owner_group_name: Option.none(),
+          member_group_id: Option.none(),
+          member_group_name: Option.none(),
         }),
       );
     return Effect.succeed(Option.none());
@@ -331,6 +335,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
           series_id: Option.none(),
           series_modified: false,
           discord_target_channel_id: Option.none(),
+          owner_group_id: Option.none(),
+          owner_group_name: Option.none(),
+          member_group_id: Option.none(),
+          member_group_name: Option.none(),
         }),
       );
     return Effect.succeed(Option.none());

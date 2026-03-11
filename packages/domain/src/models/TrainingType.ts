@@ -10,6 +10,7 @@ export class TrainingType extends Model.Class<TrainingType>('TrainingType')({
   id: Model.Generated(TrainingTypeId),
   team_id: TeamId,
   name: Schema.String,
-  group_id: Schema.OptionFromNullOr(GroupId),
+  owner_group_id: Schema.OptionFromNullOr(GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupId),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

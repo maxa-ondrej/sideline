@@ -199,6 +199,10 @@ type EventRecord = {
   series_id: Option.Option<string>;
   series_modified: boolean;
   discord_target_channel_id: Option.Option<string>;
+  owner_group_id: Option.Option<string>;
+  member_group_id: Option.Option<string>;
+  owner_group_name: Option.Option<string>;
+  member_group_name: Option.Option<string>;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -222,6 +226,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    member_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_name: Option.none(),
   });
   eventsStore.set(TEST_EVENT_2, {
     id: TEST_EVENT_2,
@@ -240,6 +248,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    member_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_name: Option.none(),
   });
   eventsStore.set(TEST_EVENT_SCOPED, {
     id: TEST_EVENT_SCOPED,
@@ -258,6 +270,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    member_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_name: Option.none(),
   });
 };
 
@@ -459,6 +475,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: input.series_id,
       series_modified: false,
       discord_target_channel_id: Option.none(),
+      owner_group_id: Option.none(),
+      member_group_id: Option.none(),
+      owner_group_name: Option.none(),
+      member_group_name: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -476,6 +496,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: record.series_id,
       series_modified: record.series_modified,
       discord_target_channel_id: Option.none(),
+      owner_group_id: Option.none(),
+      member_group_id: Option.none(),
     });
   },
   insertEvent: (input: {
@@ -508,6 +530,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: input.seriesId ?? Option.none(),
       series_modified: false,
       discord_target_channel_id: Option.none(),
+      owner_group_id: Option.none(),
+      member_group_id: Option.none(),
+      owner_group_name: Option.none(),
+      member_group_name: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -525,6 +551,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: record.series_id,
       series_modified: record.series_modified,
       discord_target_channel_id: Option.none(),
+      owner_group_id: Option.none(),
+      member_group_id: Option.none(),
     });
   },
   update: (input: {
@@ -563,6 +591,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       status: updated.status,
       created_by: updated.created_by,
       discord_target_channel_id: updated.discord_target_channel_id,
+      owner_group_id: updated.owner_group_id,
+      member_group_id: updated.member_group_id,
     });
   },
   updateEvent: (input: {
@@ -601,6 +631,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       status: updated.status,
       created_by: updated.created_by,
       discord_target_channel_id: updated.discord_target_channel_id,
+      owner_group_id: updated.owner_group_id,
+      member_group_id: updated.member_group_id,
     });
   },
   cancel: (id: Event.EventId) => {
@@ -957,6 +989,8 @@ describe('Events API', () => {
       endAt: null,
       discordChannelId: null,
       location: null,
+      ownerGroupId: null,
+      memberGroupId: null,
     };
 
     it('returns 201 for admin creating event', async () => {
@@ -1157,6 +1191,8 @@ describe('Events API', () => {
             endAt: null,
             location: null,
             discordChannelId: null,
+            ownerGroupId: null,
+            memberGroupId: null,
           }),
         }),
       );
@@ -1180,6 +1216,8 @@ describe('Events API', () => {
             endAt: null,
             location: null,
             discordChannelId: null,
+            ownerGroupId: null,
+            memberGroupId: null,
           }),
         }),
       );
@@ -1248,6 +1286,8 @@ describe('Events API', () => {
             endAt: null,
             location: null,
             discordChannelId: null,
+            ownerGroupId: null,
+            memberGroupId: null,
           }),
         }),
       );

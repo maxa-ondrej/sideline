@@ -143,8 +143,10 @@ type TrainingTypeRecord = {
   id: TrainingType.TrainingTypeId;
   team_id: Team.TeamId;
   name: string;
-  group_id: Option.Option<string>;
-  group_name: Option.Option<string>;
+  owner_group_id: Option.Option<string>;
+  owner_group_name: Option.Option<string>;
+  member_group_id: Option.Option<string>;
+  member_group_name: Option.Option<string>;
   discord_channel_id: Option.Option<string>;
   created_at: Date;
 };
@@ -157,8 +159,10 @@ const resetStores = () => {
     id: TEST_TT_1,
     team_id: TEST_TEAM_ID,
     name: 'Training Type 1',
-    group_id: Option.none(),
-    group_name: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
     discord_channel_id: Option.none(),
     created_at: new Date(),
   });
@@ -166,8 +170,10 @@ const resetStores = () => {
     id: TEST_TT_2,
     team_id: TEST_TEAM_ID,
     name: 'Training Type 2',
-    group_id: Option.none(),
-    group_name: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
     discord_channel_id: Option.none(),
     created_at: new Date(),
   });
@@ -315,8 +321,10 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
         id: t.id,
         team_id: t.team_id,
         name: t.name,
-        group_id: t.group_id,
-        group_name: t.group_name,
+        owner_group_id: t.owner_group_id,
+        owner_group_name: t.owner_group_name,
+        member_group_id: t.member_group_id,
+        member_group_name: t.member_group_name,
         discord_channel_id: t.discord_channel_id,
         created_at: t.created_at,
       }));
@@ -329,8 +337,10 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
         id: t.id,
         team_id: t.team_id,
         name: t.name,
-        group_id: t.group_id,
-        group_name: t.group_name,
+        owner_group_id: t.owner_group_id,
+        owner_group_name: t.owner_group_name,
+        member_group_id: t.member_group_id,
+        member_group_name: t.member_group_name,
         discord_channel_id: t.discord_channel_id,
         created_at: t.created_at,
       }));
@@ -344,7 +354,8 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
         id: tt.id,
         team_id: tt.team_id,
         name: tt.name,
-        group_id: tt.group_id,
+        owner_group_id: tt.owner_group_id,
+        member_group_id: tt.member_group_id,
         discord_channel_id: tt.discord_channel_id,
       }),
     );
@@ -357,7 +368,8 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
         id: tt.id,
         team_id: tt.team_id,
         name: tt.name,
-        group_id: tt.group_id,
+        owner_group_id: tt.owner_group_id,
+        member_group_id: tt.member_group_id,
         discord_channel_id: tt.discord_channel_id,
       }),
     );
@@ -372,14 +384,21 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
     if (!tt) return Effect.succeed(Option.none());
     return Effect.succeed(Option.some(tt));
   },
-  insert: (input: { team_id: string; name: string; group_id: Option.Option<string> }) => {
+  insert: (input: {
+    team_id: string;
+    name: string;
+    owner_group_id: Option.Option<string>;
+    member_group_id: Option.Option<string>;
+  }) => {
     const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
       name: input.name,
-      group_id: input.group_id,
-      group_name: Option.none(),
+      owner_group_id: input.owner_group_id,
+      owner_group_name: Option.none(),
+      member_group_id: input.member_group_id,
+      member_group_name: Option.none(),
       discord_channel_id: Option.none(),
       created_at: new Date(),
     };
@@ -388,18 +407,26 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       id,
       team_id: record.team_id,
       name: record.name,
-      group_id: record.group_id,
+      owner_group_id: record.owner_group_id,
+      member_group_id: record.member_group_id,
       discord_channel_id: record.discord_channel_id,
     });
   },
-  insertTrainingType: (teamId: Team.TeamId, name: string, groupId: Option.Option<string>) => {
+  insertTrainingType: (
+    teamId: Team.TeamId,
+    name: string,
+    ownerGroupId: Option.Option<string>,
+    memberGroupId: Option.Option<string>,
+  ) => {
     const id = crypto.randomUUID() as TrainingType.TrainingTypeId;
     const record: TrainingTypeRecord = {
       id,
       team_id: teamId,
       name,
-      group_id: groupId,
-      group_name: Option.none(),
+      owner_group_id: ownerGroupId,
+      owner_group_name: Option.none(),
+      member_group_id: memberGroupId,
+      member_group_name: Option.none(),
       discord_channel_id: Option.none(),
       created_at: new Date(),
     };
@@ -408,7 +435,8 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       id,
       team_id: teamId,
       name,
-      group_id: groupId,
+      owner_group_id: ownerGroupId,
+      member_group_id: memberGroupId,
       discord_channel_id: Option.none(),
     });
   },
@@ -421,7 +449,8 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       id: updated.id,
       team_id: updated.team_id,
       name: updated.name,
-      group_id: updated.group_id,
+      owner_group_id: updated.owner_group_id,
+      member_group_id: updated.member_group_id,
       discord_channel_id: updated.discord_channel_id,
     });
   },
@@ -434,7 +463,8 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
       id: updated.id,
       team_id: updated.team_id,
       name: updated.name,
-      group_id: updated.group_id,
+      owner_group_id: updated.owner_group_id,
+      member_group_id: updated.member_group_id,
       discord_channel_id: updated.discord_channel_id,
     });
   },
@@ -841,7 +871,12 @@ describe('Training Types API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'New Type', groupId: null, discordChannelId: null }),
+          body: JSON.stringify({
+            name: 'New Type',
+            ownerGroupId: null,
+            memberGroupId: null,
+            discordChannelId: null,
+          }),
         }),
       );
       expect(response.status).toBe(201);
@@ -857,7 +892,12 @@ describe('Training Types API', () => {
             Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Should Fail', groupId: null, discordChannelId: null }),
+          body: JSON.stringify({
+            name: 'Should Fail',
+            ownerGroupId: null,
+            memberGroupId: null,
+            discordChannelId: null,
+          }),
         }),
       );
       expect(response.status).toBe(403);

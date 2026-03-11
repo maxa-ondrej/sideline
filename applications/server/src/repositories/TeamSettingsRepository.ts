@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Discord, Event, Team } from '@sideline/domain';
+import { Discord, Event, GroupModel, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
@@ -38,6 +38,7 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
   start_at: Schemas.DateTimeFromDate,
   event_type: Schema.String,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
 export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepository>()(
@@ -108,7 +109,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     Result: EventNeedingReminder,
     execute: () => this.sql`
       SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.event_type,
-             e.discord_target_channel_id
+             e.discord_target_channel_id, e.owner_group_id
       FROM events e
       JOIN team_settings ts ON ts.team_id = e.team_id
       WHERE e.status = 'active'

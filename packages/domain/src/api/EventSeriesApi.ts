@@ -10,6 +10,7 @@ import {
   EventSeriesStatus,
   RecurrenceFrequency,
 } from '~/models/EventSeries.js';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
 
@@ -28,6 +29,10 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  ownerGroupName: Schema.OptionFromNullOr(Schema.String),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSeriesDetail')({
@@ -46,6 +51,10 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  ownerGroupName: Schema.OptionFromNullOr(Schema.String),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupName: Schema.OptionFromNullOr(Schema.String),
   canEdit: Schema.Boolean,
   canCancel: Schema.Boolean,
 }) {}
@@ -64,6 +73,8 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  ownerGroupId: Schema.OptionFromNullOr(GroupId),
+  memberGroupId: Schema.OptionFromNullOr(GroupId),
 }) {}
 
 export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
@@ -80,6 +91,8 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
     as: 'Option',
   }),
   discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
+  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
+  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
 }) {}
 
 export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(

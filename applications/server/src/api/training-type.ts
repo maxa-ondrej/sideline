@@ -33,7 +33,8 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                         trainingTypeId: t.id,
                         teamId: t.team_id,
                         name: t.name,
-                        groupName: t.group_name,
+                        ownerGroupName: t.owner_group_name,
+                        memberGroupName: t.member_group_name,
                       }),
                   ),
                 }),
@@ -53,7 +54,8 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               trainingTypes.insertTrainingType(
                 teamId,
                 payload.name,
-                payload.groupId,
+                payload.ownerGroupId,
+                payload.memberGroupId,
                 payload.discordChannelId,
               ),
             ),
@@ -63,7 +65,8 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   trainingTypeId: trainingType.id,
                   teamId: trainingType.team_id,
                   name: trainingType.name,
-                  groupName: Option.none(),
+                  ownerGroupName: Option.none(),
+                  memberGroupName: Option.none(),
                 }),
             ),
             Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
@@ -100,8 +103,10 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   trainingTypeId: trainingType.id,
                   teamId: trainingType.team_id,
                   name: trainingType.name,
-                  groupId: trainingType.group_id,
-                  groupName: trainingType.group_name,
+                  ownerGroupId: trainingType.owner_group_id,
+                  ownerGroupName: trainingType.owner_group_name,
+                  memberGroupId: trainingType.member_group_id,
+                  memberGroupName: trainingType.member_group_name,
                   discordChannelId: trainingType.discord_channel_id,
                   canAdmin: isAdmin,
                 }),
@@ -134,6 +139,14 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               trainingTypes.updateTrainingType(
                 trainingTypeId,
                 payload.name,
+                Option.match(payload.ownerGroupId, {
+                  onNone: () => existing.owner_group_id,
+                  onSome: (v) => v,
+                }),
+                Option.match(payload.memberGroupId, {
+                  onNone: () => existing.member_group_id,
+                  onSome: (v) => v,
+                }),
                 Option.match(payload.discordChannelId, {
                   onNone: () => existing.discord_channel_id,
                   onSome: (v) => v,
@@ -146,7 +159,8 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
                   trainingTypeId: updated.id,
                   teamId: updated.team_id,
                   name: updated.name,
-                  groupName: Option.none(),
+                  ownerGroupName: Option.none(),
+                  memberGroupName: Option.none(),
                 }),
             ),
             Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>

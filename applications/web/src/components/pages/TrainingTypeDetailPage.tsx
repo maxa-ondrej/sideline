@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { Discord, EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -77,6 +77,7 @@ interface TrainingTypeDetailPageProps {
   canAdmin: boolean;
   series: ReadonlyArray<EventSeriesApi.EventSeriesInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
 export function TrainingTypeDetailPage({
@@ -86,6 +87,7 @@ export function TrainingTypeDetailPage({
   canAdmin,
   series,
   discordChannels,
+  groups,
 }: TrainingTypeDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -97,6 +99,12 @@ export function TrainingTypeDetailPage({
   const [name, setName] = React.useState(trainingTypeDetail.name);
   const [channelId, setChannelId] = React.useState(
     Option.getOrElse(trainingTypeDetail.discordChannelId, () => NONE_VALUE),
+  );
+  const [ownerGroupId, setOwnerGroupId] = React.useState(
+    Option.getOrElse(trainingTypeDetail.ownerGroupId, () => NONE_VALUE),
+  );
+  const [memberGroupId, setMemberGroupId] = React.useState(
+    Option.getOrElse(trainingTypeDetail.memberGroupId, () => NONE_VALUE),
   );
   const [saving, setSaving] = React.useState(false);
   const [showCreateForm, setShowCreateForm] = React.useState(false);
@@ -131,6 +139,16 @@ export function TrainingTypeDetailPage({
                 ? Option.some(Discord.Snowflake.make(channelId))
                 : Option.none(),
             ),
+            ownerGroupId: Option.some(
+              ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(ownerGroupId))
+                : Option.none(),
+            ),
+            memberGroupId: Option.some(
+              memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(memberGroupId))
+                : Option.none(),
+            ),
           },
         }),
       ),
@@ -141,7 +159,16 @@ export function TrainingTypeDetailPage({
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [teamIdBranded, trainingTypeIdBranded, name, channelId, run, router]);
+  }, [
+    teamIdBranded,
+    trainingTypeIdBranded,
+    name,
+    channelId,
+    ownerGroupId,
+    memberGroupId,
+    run,
+    router,
+  ]);
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.trainingType_deleteConfirm())) return;
@@ -178,6 +205,8 @@ export function TrainingTypeDetailPage({
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId: Option.none(),
+            ownerGroupId: Option.none(),
+            memberGroupId: Option.none(),
           },
         }),
       ),
@@ -258,6 +287,8 @@ export function TrainingTypeDetailPage({
                 : Option.none(),
             ),
             discordChannelId: Option.none(),
+            ownerGroupId: Option.none(),
+            memberGroupId: Option.none(),
           },
         }),
       ),
@@ -293,9 +324,14 @@ export function TrainingTypeDetailPage({
           </Link>
         </Button>
         <h1 className='text-2xl font-bold'>{trainingTypeDetail.name}</h1>
-        {Option.isSome(trainingTypeDetail.groupName) && (
+        {Option.isSome(trainingTypeDetail.ownerGroupName) && (
           <p className='text-muted-foreground'>
-            {m.trainingType_groupName()}: {trainingTypeDetail.groupName.value}
+            {m.trainingType_ownerGroupName()}: {trainingTypeDetail.ownerGroupName.value}
+          </p>
+        )}
+        {Option.isSome(trainingTypeDetail.memberGroupName) && (
+          <p className='text-muted-foreground'>
+            {m.trainingType_memberGroupName()}: {trainingTypeDetail.memberGroupName.value}
           </p>
         )}
       </header>
@@ -319,7 +355,11 @@ export function TrainingTypeDetailPage({
                 saving ||
                 (name === trainingTypeDetail.name &&
                   channelId ===
-                    Option.getOrElse(trainingTypeDetail.discordChannelId, () => NONE_VALUE))
+                    Option.getOrElse(trainingTypeDetail.discordChannelId, () => NONE_VALUE) &&
+                  ownerGroupId ===
+                    Option.getOrElse(trainingTypeDetail.ownerGroupId, () => NONE_VALUE) &&
+                  memberGroupId ===
+                    Option.getOrElse(trainingTypeDetail.memberGroupId, () => NONE_VALUE))
               }
             >
               {saving ? m.trainingType_saving() : m.trainingType_saveChanges()}
@@ -349,6 +389,50 @@ export function TrainingTypeDetailPage({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        )}
+
+        {/* Group Selectors */}
+        {canAdmin && groups.length > 0 && (
+          <div className='flex gap-4'>
+            <div className='flex-1'>
+              <label htmlFor='owner-group' className='text-sm font-medium mb-1 block'>
+                {m.event_ownerGroup()}
+              </label>
+              <p className='text-xs text-muted-foreground mb-2'>{m.event_ownerGroupHelp()}</p>
+              <Select value={ownerGroupId} onValueChange={setOwnerGroupId}>
+                <SelectTrigger className='max-w-xs'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.groupId} value={g.groupId}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className='flex-1'>
+              <label htmlFor='member-group' className='text-sm font-medium mb-1 block'>
+                {m.event_memberGroup()}
+              </label>
+              <p className='text-xs text-muted-foreground mb-2'>{m.event_memberGroupHelp()}</p>
+              <Select value={memberGroupId} onValueChange={setMemberGroupId}>
+                <SelectTrigger className='max-w-xs'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.groupId} value={g.groupId}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 
