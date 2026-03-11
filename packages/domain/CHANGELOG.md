@@ -1,5 +1,11 @@
 # @sideline/domain
 
+## 0.10.1
+
+### Patch Changes
+
+- [#101](https://github.com/maxa-ondrej/sideline/pull/101) [`9584a67`](https://github.com/maxa-ondrej/sideline/commit/9584a6700fa5dcc86d1ccfed5ed44c07db9f3570) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Hide UI elements from users without required permissions (role and roster management buttons, admin sidebar links, events page for non-admins)
+
 ## 0.10.0
 
 ### Minor Changes
