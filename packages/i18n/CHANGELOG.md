@@ -1,5 +1,11 @@
 # @sideline/i18n
 
+## 0.2.1
+
+### Patch Changes
+
+- [#103](https://github.com/maxa-ondrej/sideline/pull/103) [`79ca632`](https://github.com/maxa-ondrej/sideline/commit/79ca6325566fc6a2c9e37d4551bcea4f6507d03d) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add owner/member group assignment to events, event series, and training types for group-based access control and visibility
+
 ## 0.2.0
 
 ### Minor Changes
