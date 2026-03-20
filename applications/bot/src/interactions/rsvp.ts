@@ -97,97 +97,95 @@ export const RsvpModal = Ix.modalSubmit(
       const response = decodeRsvpResponse(parts[3]);
       const message = modalValueOption(data, 'rsvp_message');
       const discordUserId = interactionUserId(interaction);
-
       const locale = userLocale(interaction);
-      const embedLocale = guildLocale(interaction);
-
       if (Option.isNone(discordUserId)) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_rsvp_user_error({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_rsvp_user_error({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
 
-      return rpc['Event/SubmitRsvp']({
+      const submitAndFollowUp = rpc['Event/SubmitRsvp']({
         event_id: eventId,
         team_id: teamId,
         discord_user_id: decodeSnowflake(discordUserId.value),
         response,
         message,
       }).pipe(
-        Effect.tap((counts) =>
-          Effect.all({
-            stored: rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
-            eventInfo: rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
-          }).pipe(
-            Effect.flatMap(({ stored, eventInfo }) =>
-              Option.match(Option.all({ stored, eventInfo }), {
+        Effect.tap((counts) => {
+          const guildId = interaction.guild_id;
+          if (guildId === undefined) return Effect.void;
+          return Effect.all([
+            rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
+            rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
+            rest.getGuild(guildId),
+          ] as const).pipe(
+            Effect.flatMap(([stored, embedInfo, guild]) =>
+              Option.match(stored, {
                 onNone: () => Effect.void,
-                onSome: ({ stored: msg, eventInfo: info }) => {
-                  const payload = buildEventEmbed({
-                    teamId,
-                    eventId,
-                    title: info.title,
-                    description: info.description,
-                    startAt: info.start_at,
-                    endAt: info.end_at,
-                    location: info.location,
-                    eventType: info.event_type,
-                    counts,
-                    locale: embedLocale,
-                  });
-                  return rest
-                    .updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                      embeds: payload.embeds,
-                      components: payload.components,
-                    })
-                    .pipe(
-                      Effect.asVoid,
-                      Effect.catchAll(() => Effect.void),
-                    );
-                },
+                onSome: (msg) =>
+                  Option.match(embedInfo, {
+                    onNone: () => Effect.void,
+                    onSome: (info) => {
+                      const embedLocale = guildLocale({
+                        guild_locale: guild.preferred_locale,
+                      });
+                      const payload = buildEventEmbed({
+                        teamId,
+                        eventId,
+                        title: info.title,
+                        description: info.description,
+                        startAt: info.start_at,
+                        endAt: info.end_at,
+                        location: info.location,
+                        eventType: info.event_type,
+                        counts,
+                        locale: embedLocale,
+                      });
+                      return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
+                        embeds: payload.embeds,
+                        components: payload.components,
+                      });
+                    },
+                  }),
               }),
             ),
-          ),
-        ),
+            Effect.catchAll((error) =>
+              Effect.logError('Failed to update event embed after RSVP', error),
+            ),
+          );
+        }),
         Effect.map(() =>
-          Ix.response({
-            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: m.bot_rsvp_recorded(
-                { response: localizeRsvpResponse(response, locale) },
-                { locale },
-              ),
-              flags: 64,
-            },
-          }),
+          m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale }),
         ),
         Effect.catchTag('RsvpDeadlinePassed', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_rsvp_deadline_passed({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_rsvp_deadline_passed({}, { locale })),
         ),
         Effect.catchTag('RsvpMemberNotFound', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_rsvp_not_member({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_rsvp_not_member({}, { locale })),
         ),
         Effect.catchTag('RsvpEventNotFound', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_rsvp_event_not_found({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_rsvp_event_not_found({}, { locale })),
         ),
+        Effect.flatMap((content) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload: { content },
+          }),
+        ),
+        Effect.catchAll((error) => Effect.logError('Failed to update RSVP response', error)),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(submitAndFollowUp),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+        }),
       );
     }),
   ),

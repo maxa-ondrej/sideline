@@ -2,6 +2,7 @@ import { Model } from '@effect/sql';
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { EventSeriesId } from '~/models/EventSeries.js';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
@@ -32,6 +33,8 @@ export class Event extends Model.Class<Event>('Event')({
   start_at: Schemas.DateTimeFromDate,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),
+  owner_group_id: Schema.OptionFromNullOr(GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupId),
   series_id: Schema.OptionFromNullOr(EventSeriesId),
   series_modified: Schema.Boolean,
   status: Model.FieldExcept('update')(EventStatus),

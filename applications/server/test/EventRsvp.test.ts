@@ -912,11 +912,7 @@ describe('Event RSVP API', () => {
           body: JSON.stringify({ response: 'yes', message: null }),
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.myResponse).toBe('yes');
-      expect(body.yesCount).toBe(1);
-      expect(body.canRsvp).toBe(true);
+      expect(response.status).toBe(204);
     });
 
     it('player can submit RSVP no', async () => {
@@ -930,11 +926,7 @@ describe('Event RSVP API', () => {
           body: JSON.stringify({ response: 'no', message: 'Cannot make it' }),
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.myResponse).toBe('no');
-      expect(body.myMessage).toBe('Cannot make it');
-      expect(body.noCount).toBe(1);
+      expect(response.status).toBe(204);
     });
 
     it('player can submit RSVP maybe', async () => {
@@ -948,10 +940,7 @@ describe('Event RSVP API', () => {
           body: JSON.stringify({ response: 'maybe', message: null }),
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.myResponse).toBe('maybe');
-      expect(body.maybeCount).toBe(1);
+      expect(response.status).toBe(204);
     });
 
     it('player can update existing RSVP', async () => {
@@ -978,12 +967,7 @@ describe('Event RSVP API', () => {
           body: JSON.stringify({ response: 'no', message: 'Changed my mind' }),
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.myResponse).toBe('no');
-      expect(body.myMessage).toBe('Changed my mind');
-      expect(body.noCount).toBe(1);
-      expect(body.yesCount).toBe(0);
+      expect(response.status).toBe(204);
     });
 
     it('player can add message to RSVP', async () => {
@@ -997,9 +981,7 @@ describe('Event RSVP API', () => {
           body: JSON.stringify({ response: 'yes', message: 'Bringing snacks!' }),
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
-      expect(body.myMessage).toBe('Bringing snacks!');
+      expect(response.status).toBe(204);
     });
 
     it('non-member cannot RSVP (403)', async () => {
@@ -1083,8 +1065,17 @@ describe('Event RSVP API', () => {
           body: JSON.stringify({ response: 'maybe', message: 'Not sure yet' }),
         }),
       );
-      expect(response.status).toBe(200);
-      const body = await response.json();
+      expect(response.status).toBe(204);
+
+      // Verify counts via GET
+      const getResponse = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvps`, {
+          method: 'GET',
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(getResponse.status).toBe(200);
+      const body = await getResponse.json();
       expect(body.yesCount).toBe(1);
       expect(body.maybeCount).toBe(1);
       expect(body.noCount).toBe(0);

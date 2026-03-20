@@ -205,6 +205,10 @@ type SeriesRecord = {
   training_type_name: Option.Option<string>;
   last_generated_date: Option.Option<DateTime.Utc>;
   discord_target_channel_id: Option.Option<string>;
+  owner_group_id: Option.Option<string>;
+  owner_group_name: Option.Option<string>;
+  member_group_id: Option.Option<string>;
+  member_group_name: Option.Option<string>;
 };
 
 let seriesStore: Map<EventSeries.EventSeriesId, SeriesRecord>;
@@ -227,6 +231,10 @@ type EventRecord = {
   series_id: Option.Option<string>;
   series_modified: boolean;
   discord_target_channel_id: Option.Option<string>;
+  owner_group_id: Option.Option<string>;
+  owner_group_name: Option.Option<string>;
+  member_group_id: Option.Option<string>;
+  member_group_name: Option.Option<string>;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -250,6 +258,10 @@ const resetStores = () => {
     training_type_name: Option.none(),
     last_generated_date: Option.some(DateTime.unsafeMake('2026-06-30T00:00:00Z')),
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
   });
 
   eventsStore = new Map();
@@ -407,6 +419,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     location: Option.Option<string>;
     created_by: string;
     series_id: Option.Option<string>;
+    owner_group_id: Option.Option<string>;
+    member_group_id: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as Event.EventId;
     const record: EventRecord = {
@@ -426,6 +440,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: input.series_id,
       series_modified: false,
       discord_target_channel_id: Option.none(),
+      owner_group_id: input.owner_group_id ?? Option.none(),
+      owner_group_name: Option.none(),
+      member_group_id: input.member_group_id ?? Option.none(),
+      member_group_name: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -443,6 +461,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: record.series_id,
       series_modified: record.series_modified,
       discord_target_channel_id: record.discord_target_channel_id,
+      owner_group_id: record.owner_group_id,
+      member_group_id: record.member_group_id,
     });
   },
   insertEvent: (input: {
@@ -456,6 +476,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     location: Option.Option<string>;
     createdBy: string;
     seriesId?: Option.Option<string>;
+    ownerGroupId?: Option.Option<string>;
+    memberGroupId?: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as Event.EventId;
     const record: EventRecord = {
@@ -475,6 +497,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: input.seriesId ?? Option.none(),
       series_modified: false,
       discord_target_channel_id: Option.none(),
+      owner_group_id: input.ownerGroupId ?? Option.none(),
+      owner_group_name: Option.none(),
+      member_group_id: input.memberGroupId ?? Option.none(),
+      member_group_name: Option.none(),
     };
     eventsStore.set(id, record);
     return Effect.succeed({
@@ -492,6 +518,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       series_id: record.series_id,
       series_modified: record.series_modified,
       discord_target_channel_id: record.discord_target_channel_id,
+      owner_group_id: record.owner_group_id,
+      member_group_id: record.member_group_id,
     });
   },
   update: () => Effect.die(new Error('Not needed in series tests')),
@@ -533,6 +561,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     start_date: DateTime.Utc;
     end_date: Option.Option<DateTime.Utc>;
     created_by: string;
+    owner_group_id: Option.Option<string>;
+    member_group_id: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
     const record: SeriesRecord = {
@@ -552,6 +582,10 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       training_type_name: Option.none(),
       last_generated_date: Option.none(),
       discord_target_channel_id: Option.none(),
+      owner_group_id: input.owner_group_id ?? Option.none(),
+      owner_group_name: Option.none(),
+      member_group_id: input.member_group_id ?? Option.none(),
+      member_group_name: Option.none(),
     };
     seriesStore.set(id, record);
     return Effect.succeed({
@@ -569,6 +603,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_date: record.end_date,
       status: record.status,
       discord_target_channel_id: record.discord_target_channel_id,
+      owner_group_id: record.owner_group_id,
+      member_group_id: record.member_group_id,
     });
   },
   insertEventSeries: (input: {
@@ -584,6 +620,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     startDate: DateTime.Utc;
     endDate: Option.Option<DateTime.Utc>;
     createdBy: string;
+    ownerGroupId?: Option.Option<string>;
+    memberGroupId?: Option.Option<string>;
   }) => {
     const id = crypto.randomUUID() as EventSeries.EventSeriesId;
     const record: SeriesRecord = {
@@ -603,6 +641,10 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       training_type_name: Option.none(),
       last_generated_date: Option.none(),
       discord_target_channel_id: Option.none(),
+      owner_group_id: input.ownerGroupId ?? Option.none(),
+      owner_group_name: Option.none(),
+      member_group_id: input.memberGroupId ?? Option.none(),
+      member_group_name: Option.none(),
     };
     seriesStore.set(id, record);
     return Effect.succeed({
@@ -620,6 +662,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_date: record.end_date,
       status: record.status,
       discord_target_channel_id: record.discord_target_channel_id,
+      owner_group_id: record.owner_group_id,
+      member_group_id: record.member_group_id,
     });
   },
   findByTeamId: (teamId: string) => {
@@ -649,6 +693,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     end_time: Option.Option<string>;
     location: Option.Option<string>;
     end_date: Option.Option<DateTime.Utc>;
+    owner_group_id: Option.Option<string>;
+    member_group_id: Option.Option<string>;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));
@@ -661,6 +707,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: input.end_time,
       location: input.location,
       end_date: input.end_date,
+      owner_group_id: input.owner_group_id ?? s.owner_group_id,
+      member_group_id: input.member_group_id ?? s.member_group_id,
     };
     seriesStore.set(input.id, updated);
     return Effect.succeed({
@@ -678,6 +726,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_date: updated.end_date,
       status: updated.status,
       discord_target_channel_id: updated.discord_target_channel_id,
+      owner_group_id: updated.owner_group_id,
+      member_group_id: updated.member_group_id,
     });
   },
   updateEventSeries: (input: {
@@ -689,6 +739,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
     endTime: Option.Option<string>;
     location: Option.Option<string>;
     endDate: Option.Option<DateTime.Utc>;
+    ownerGroupId?: Option.Option<string>;
+    memberGroupId?: Option.Option<string>;
   }) => {
     const s = seriesStore.get(input.id);
     if (!s) return Effect.die(new Error('Not found'));
@@ -701,6 +753,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_time: input.endTime,
       location: input.location,
       end_date: input.endDate,
+      owner_group_id: input.ownerGroupId ?? s.owner_group_id,
+      member_group_id: input.memberGroupId ?? s.member_group_id,
     };
     seriesStore.set(input.id, updated);
     return Effect.succeed({
@@ -718,6 +772,8 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       end_date: updated.end_date,
       status: updated.status,
       discord_target_channel_id: updated.discord_target_channel_id,
+      owner_group_id: updated.owner_group_id,
+      member_group_id: updated.member_group_id,
     });
   },
   cancelSeries: (id: EventSeries.EventSeriesId) => {
@@ -1042,6 +1098,8 @@ describe('Event Series API', () => {
     endTime: '20:00',
     location: 'Main Field',
     discordChannelId: null,
+    ownerGroupId: null,
+    memberGroupId: null,
   };
 
   describe('POST /teams/:teamId/event-series (create)', () => {

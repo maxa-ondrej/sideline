@@ -1,5 +1,6 @@
 import { Discord as DiscordSchemas } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
+import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
@@ -33,7 +34,8 @@ export const EventCreateModal = Ix.modalSubmit(
     Effect.bind('data', () => ModalSubmitData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.flatMap(({ data, interaction, rpc }) => {
+    Effect.bind('rest', () => DiscordREST),
+    Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const eventType = parts[1] ?? 'other';
       const locale = userLocale(interaction);
@@ -45,7 +47,10 @@ export const EventCreateModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_event_no_guild({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_event_no_guild({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
@@ -54,7 +59,10 @@ export const EventCreateModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_event_error({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_event_error({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
@@ -69,12 +77,15 @@ export const EventCreateModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_event_invalid_date({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_event_invalid_date({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
 
-      return rpc['Event/CreateEvent']({
+      const work = rpc['Event/CreateEvent']({
         guild_id: decodeSnowflake(guildId),
         discord_user_id: decodeSnowflake(discordUserId.value),
         event_type: eventType as
@@ -90,47 +101,33 @@ export const EventCreateModal = Ix.modalSubmit(
         location,
         description,
       }).pipe(
-        Effect.map((result) =>
-          Ix.response({
-            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: m.bot_event_created({ title: result.title }, { locale }),
-              flags: 64,
-            },
-          }),
-        ),
+        Effect.map((result) => m.bot_event_created({ title: result.title }, { locale })),
         Effect.catchTag('CreateEventNotMember', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_event_not_member({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_event_not_member({}, { locale })),
         ),
         Effect.catchTag('CreateEventForbidden', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_event_no_permission({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_event_no_permission({}, { locale })),
         ),
         Effect.catchTag('CreateEventInvalidDate', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_event_invalid_date({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_event_invalid_date({}, { locale })),
         ),
-        Effect.catchAll(() =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_event_error({}, { locale }), flags: 64 },
-            }),
-          ),
+        Effect.catchAll(() => Effect.succeed(m.bot_event_error({}, { locale }))),
+        Effect.flatMap((content) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload: { content },
+          }),
         ),
+        Effect.catchAll((error) =>
+          Effect.logError('Failed to update event create response', error),
+        ),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(work),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+        }),
       );
     }),
   ),

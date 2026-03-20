@@ -134,9 +134,11 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               isEventPastDeadline(event.start_at) ? Effect.fail(deadlinePassed) : Effect.void,
             ),
             Effect.tap(({ membership }) =>
-              rsvps.upsertRsvp(eventId, membership.id, payload.response, payload.message),
+              rsvps
+                .upsertRsvp(eventId, membership.id, payload.response, payload.message)
+                .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
             ),
-            Effect.tap(({ event }) =>
+            Effect.andThen(({ event }) =>
               syncEvents.emitEventUpdated(
                 teamId,
                 event.id,
@@ -148,15 +150,6 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 event.event_type,
               ),
             ),
-            Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
-            Effect.flatMap(({ membership, settings }) => {
-              const threshold = Option.match(settings, {
-                onNone: () => 0,
-                onSome: (s) => s.min_players_threshold,
-              });
-              return buildRsvpDetail(rsvps, eventId, membership.id, true, threshold);
-            }),
-            Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
         .handle('getNonResponders', ({ path: { teamId, eventId } }) =>
@@ -179,7 +172,9 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ event }) =>
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
-            Effect.bind('nonResponders', () => rsvps.findNonRespondersByEventId(eventId, teamId)),
+            Effect.bind('nonResponders', ({ event }) =>
+              rsvps.findNonRespondersByEventId(eventId, teamId, event.member_group_id),
+            ),
             Effect.map(
               ({ nonResponders }) =>
                 new EventRsvpApi.NonRespondersResponse({

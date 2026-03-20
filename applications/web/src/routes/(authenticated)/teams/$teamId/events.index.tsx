@@ -17,6 +17,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/')({
           discordChannels: api.group
             .listDiscordChannels({ path: { teamId } })
             .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+          groups: api.group
+            .listGroups({ path: { teamId } })
+            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,
@@ -36,6 +39,7 @@ function EventsRoute() {
       canCreate={data.eventList.canCreate}
       trainingTypes={data.trainingTypes.trainingTypes}
       discordChannels={data.discordChannels}
+      groups={data.groups}
     />
   );
 }

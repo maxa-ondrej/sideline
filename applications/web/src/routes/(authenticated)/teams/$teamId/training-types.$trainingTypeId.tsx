@@ -21,6 +21,9 @@ export const Route = createFileRoute(
           discordChannels: api.group
             .listDiscordChannels({ path: { teamId } })
             .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+          groups: api.group
+            .listGroups({ path: { teamId } })
+            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,
@@ -44,6 +47,7 @@ function TrainingTypeDetailRoute() {
           Option.getOrNull(s.trainingTypeId) === trainingTypeIdRaw,
       )}
       discordChannels={data.discordChannels}
+      groups={data.groups}
     />
   );
 }

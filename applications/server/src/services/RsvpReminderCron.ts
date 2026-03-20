@@ -2,6 +2,7 @@ import { Array, Effect, Option, Schedule } from 'effect';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { resolveOwnerGroupChannel } from '~/services/EventChannelResolver.js';
 
 const cronEffect = Effect.Do.pipe(
   Effect.bind('settingsRepo', () => TeamSettingsRepository),
@@ -12,26 +13,27 @@ const cronEffect = Effect.Do.pipe(
   Effect.tap(({ events, syncRepo, eventsRepo }) =>
     Effect.all(
       Array.map(events, (event) =>
-        syncRepo
-          .emitRsvpReminder(
-            event.team_id,
-            event.event_id,
-            event.title,
-            Option.none(),
-            event.start_at,
-            Option.none(),
-            Option.none(),
-            event.event_type,
-            event.discord_target_channel_id,
-          )
-          .pipe(
-            Effect.tap(() => eventsRepo.markReminderSent(event.event_id)),
-            Effect.tap(() =>
-              Effect.logInfo(
-                `RsvpReminderCron: queued reminder for event "${event.title}" (${event.event_id})`,
-              ),
+        resolveOwnerGroupChannel(event.team_id, event.owner_group_id).pipe(
+          Effect.flatMap((ownerChannel) =>
+            syncRepo.emitRsvpReminder(
+              event.team_id,
+              event.event_id,
+              event.title,
+              Option.none(),
+              event.start_at,
+              Option.none(),
+              Option.none(),
+              event.event_type,
+              ownerChannel,
             ),
           ),
+          Effect.tap(() => eventsRepo.markReminderSent(event.event_id)),
+          Effect.tap(() =>
+            Effect.logInfo(
+              `RsvpReminderCron: queued reminder for event "${event.title}" (${event.event_id})`,
+            ),
+          ),
+        ),
       ),
       { concurrency: 1 },
     ),

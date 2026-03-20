@@ -1,5 +1,6 @@
-import type { Discord, Event, Team } from '@sideline/domain';
+import type { Discord, Event, GroupModel, Team } from '@sideline/domain';
 import { Effect, Option } from 'effect';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
@@ -67,3 +68,16 @@ export const resolveChannel = (
       );
     }),
   );
+
+export const resolveOwnerGroupChannel = (
+  teamId: Team.TeamId,
+  ownerGroupId: Option.Option<GroupModel.GroupId>,
+): Effect.Effect<Option.Option<Discord.Snowflake>, never, DiscordChannelMappingRepository> =>
+  Option.match(ownerGroupId, {
+    onNone: () => Effect.succeed(Option.none()),
+    onSome: (groupId) =>
+      DiscordChannelMappingRepository.pipe(
+        Effect.flatMap((mappings) => mappings.findByGroupId(teamId, groupId)),
+        Effect.map((opt) => Option.map(opt, (m) => m.discord_channel_id)),
+      ),
+  });

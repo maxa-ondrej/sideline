@@ -235,7 +235,8 @@ const evaluateTeam =
                 ),
           ),
           Effect.allSuccesses,
-        ).pipe(Effect.asVoid),
+          Effect.asVoid,
+        ),
       ),
       Effect.map(({ changes }) =>
         Array.map(

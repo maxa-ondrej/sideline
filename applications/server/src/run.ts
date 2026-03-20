@@ -9,6 +9,7 @@ import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -89,6 +90,7 @@ const RsvpReminderRepositoriesLive = Layer.mergeAll(
   EventsRepository.Default,
   EventSyncEventsRepository.Default,
   TeamSettingsRepository.Default,
+  DiscordChannelMappingRepository.Default,
 );
 
 const ReminderCron = RsvpReminderCron.pipe(

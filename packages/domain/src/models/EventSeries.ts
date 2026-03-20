@@ -1,5 +1,6 @@
 import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
@@ -32,6 +33,8 @@ export class EventSeries extends Model.Class<EventSeries>('EventSeries')({
   days_of_week: DaysOfWeek,
   start_date: Schema.DateFromSelf,
   end_date: Schema.OptionFromNullOr(Schema.DateFromSelf),
+  owner_group_id: Schema.OptionFromNullOr(GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupId),
   status: Model.FieldExcept('update')(EventSeriesStatus),
   created_by: TeamMemberId,
   created_at: Model.DateTimeInsertFromDate,

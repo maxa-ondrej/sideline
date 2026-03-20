@@ -1,6 +1,6 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
 import type { EventApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
-import { Discord, Event, EventSeries, Team, TrainingType } from '@sideline/domain';
+import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { DateTime, Effect, Option, Schema } from 'effect';
@@ -42,6 +42,8 @@ const CreateEventSchema = Schema.Struct({
   endTime: Schema.String,
   location: Schema.String,
   discordChannelId: Schema.String,
+  ownerGroupId: Schema.String,
+  memberGroupId: Schema.String,
 });
 
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
@@ -69,6 +71,8 @@ const CreateSeriesSchema = Schema.Struct({
   endTime: Schema.String,
   location: Schema.String,
   discordChannelId: Schema.String,
+  ownerGroupId: Schema.String,
+  memberGroupId: Schema.String,
 });
 
 type CreateSeriesValues = Schema.Schema.Type<typeof CreateSeriesSchema>;
@@ -113,6 +117,7 @@ interface EventsListPageProps {
   canCreate: boolean;
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
 export function EventsListPage({
@@ -121,6 +126,7 @@ export function EventsListPage({
   canCreate,
   trainingTypes,
   discordChannels,
+  groups,
 }: EventsListPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -142,6 +148,8 @@ export function EventsListPage({
       endTime: '',
       location: '',
       discordChannelId: NONE_VALUE,
+      ownerGroupId: NONE_VALUE,
+      memberGroupId: NONE_VALUE,
     },
   });
 
@@ -162,6 +170,8 @@ export function EventsListPage({
       endTime: '',
       location: '',
       discordChannelId: NONE_VALUE,
+      ownerGroupId: NONE_VALUE,
+      memberGroupId: NONE_VALUE,
     },
   });
 
@@ -194,6 +204,14 @@ export function EventsListPage({
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
                 ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                : Option.none(),
+            ownerGroupId:
+              values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
+                : Option.none(),
+            memberGroupId:
+              values.memberGroupId && values.memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
                 : Option.none(),
           },
         }),
@@ -231,6 +249,14 @@ export function EventsListPage({
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
                 ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                : Option.none(),
+            ownerGroupId:
+              values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
+                : Option.none(),
+            memberGroupId:
+              values.memberGroupId && values.memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
                 : Option.none(),
           },
         }),
@@ -483,6 +509,62 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
+                    <div className='flex gap-4'>
+                      <FormField
+                        {...form.register('ownerGroupId')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_ownerGroup()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={m.event_useDefault()} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                {groups.map((g) => (
+                                  <SelectItem key={g.groupId} value={g.groupId}>
+                                    {g.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_ownerGroupHelp()}
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...form.register('memberGroupId')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_memberGroup()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={m.event_useDefault()} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                {groups.map((g) => (
+                                  <SelectItem key={g.groupId} value={g.groupId}>
+                                    {g.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_memberGroupHelp()}
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <Button
                       type='submit'
                       disabled={form.formState.isSubmitting}
@@ -712,6 +794,62 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
+                    <div className='flex gap-4'>
+                      <FormField
+                        {...seriesForm.register('ownerGroupId')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_ownerGroup()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={m.event_useDefault()} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                {groups.map((g) => (
+                                  <SelectItem key={g.groupId} value={g.groupId}>
+                                    {g.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_ownerGroupHelp()}
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...seriesForm.register('memberGroupId')}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormLabel>{m.event_memberGroup()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={m.event_useDefault()} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                {groups.map((g) => (
+                                  <SelectItem key={g.groupId} value={g.groupId}>
+                                    {g.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_memberGroupHelp()}
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <Button
                       type='submit'
                       disabled={seriesForm.formState.isSubmitting}
