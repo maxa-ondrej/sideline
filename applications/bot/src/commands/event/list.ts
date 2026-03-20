@@ -68,7 +68,8 @@ export const listHandler = Interaction.pipe(
     return Effect.as(
       Effect.forkDaemon(work),
       Ix.response({
-        type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: 'Thinking...', flags: 64 },
       }),
     );
   }),

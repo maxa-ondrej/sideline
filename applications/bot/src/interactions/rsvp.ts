@@ -180,7 +180,8 @@ export const RsvpModal = Ix.modalSubmit(
       return Effect.as(
         Effect.forkDaemon(submitAndFollowUp),
         Ix.response({
-          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: 'Thinking...', flags: 64 },
         }),
       );
     }),
