@@ -1,5 +1,7 @@
 export * as Bind from './Bind.js';
 
+export * as Options from './Options.js';
+
 export * as Runtime from './Runtime.js';
 
 export * as Schemas from './Schemas.js';

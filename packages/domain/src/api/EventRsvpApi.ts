@@ -71,7 +71,7 @@ export class EventRsvpApiGroup extends HttpApiGroup.make('eventRsvp')
   )
   .add(
     HttpApiEndpoint.put('submitRsvp', '/teams/:teamId/events/:eventId/rsvp')
-      .addSuccess(EventRsvpDetail)
+      .addSuccess(Schema.Void, { status: 204 })
       .addError(Forbidden, { status: 403 })
       .addError(EventNotFound, { status: 404 })
       .addError(RsvpDeadlinePassed, { status: 400 })

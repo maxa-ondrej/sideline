@@ -5,8 +5,7 @@ import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
 import { Effect, Option, Schema } from 'effect';
-import { guildLocale, type Locale, userLocale } from '~/locale.js';
-import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { type Locale, userLocale } from '~/locale.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -90,17 +89,14 @@ export const RsvpModal = Ix.modalSubmit(
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
-    Effect.flatMap(({ data, interaction, rpc, rest }) => {
+    Effect.flatMap(({ data, interaction, rpc }) => {
       const parts = data.custom_id.split(':');
       const teamId = decodeTeamId(parts[1]);
       const eventId = decodeEventId(parts[2]);
       const response = decodeRsvpResponse(parts[3]);
       const message = modalValueOption(data, 'rsvp_message');
       const discordUserId = interactionUserId(interaction);
-
       const locale = userLocale(interaction);
-      const embedLocale = guildLocale(interaction);
-
       if (Option.isNone(discordUserId)) {
         return Effect.succeed(
           Ix.response({
@@ -117,41 +113,6 @@ export const RsvpModal = Ix.modalSubmit(
         response,
         message,
       }).pipe(
-        Effect.tap((counts) =>
-          Effect.all({
-            stored: rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
-            eventInfo: rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
-          }).pipe(
-            Effect.flatMap(({ stored, eventInfo }) =>
-              Option.match(Option.all({ stored, eventInfo }), {
-                onNone: () => Effect.void,
-                onSome: ({ stored: msg, eventInfo: info }) => {
-                  const payload = buildEventEmbed({
-                    teamId,
-                    eventId,
-                    title: info.title,
-                    description: info.description,
-                    startAt: info.start_at,
-                    endAt: info.end_at,
-                    location: info.location,
-                    eventType: info.event_type,
-                    counts,
-                    locale: embedLocale,
-                  });
-                  return rest
-                    .updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                      embeds: payload.embeds,
-                      components: payload.components,
-                    })
-                    .pipe(
-                      Effect.asVoid,
-                      Effect.catchAll(() => Effect.void),
-                    );
-                },
-              }),
-            ),
-          ),
-        ),
         Effect.map(() =>
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
