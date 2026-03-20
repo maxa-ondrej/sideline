@@ -61,7 +61,7 @@ export const AttendeesButton = Ix.messageComponent(
         Effect.forkDaemon(work),
         Ix.response({
           type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: 'Thinking...', flags: 64 },
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
         }),
       );
     }),

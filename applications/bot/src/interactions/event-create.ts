@@ -47,7 +47,10 @@ export const EventCreateModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_event_no_guild({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_event_no_guild({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
@@ -56,7 +59,10 @@ export const EventCreateModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_event_error({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_event_error({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
@@ -71,7 +77,10 @@ export const EventCreateModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_event_invalid_date({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_event_invalid_date({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
@@ -117,7 +126,7 @@ export const EventCreateModal = Ix.modalSubmit(
         Effect.forkDaemon(work),
         Ix.response({
           type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: 'Thinking...', flags: 64 },
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
         }),
       );
     }),

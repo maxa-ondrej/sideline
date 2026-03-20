@@ -392,6 +392,7 @@
   "bot_attendees_footer": "Strana {page} z {totalPages} · celkem {total} odpovědí",
   "bot_event_cancelled": "Tato událost byla **ZRUŠENA**.",
   "bot_attendees_load_error": "Nepodařilo se načíst účastníky.",
+  "bot_thinking": "Přemýšlím...",
   "teamSettings_minPlayersThreshold": "Minimální počet hráčů",
   "teamSettings_minPlayersThresholdHelp": "Varovat, když potvrdí méně hráčů. Nastavte 0 pro vypnutí.",
   "teamSettings_rsvpReminderHours": "Připomínka účasti (hodin před událostí)",

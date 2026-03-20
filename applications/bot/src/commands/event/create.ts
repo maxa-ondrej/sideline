@@ -13,7 +13,10 @@ export const createHandler = Interaction.pipe(
     if (!guildId) {
       return Ix.response({
         type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: m.bot_event_no_guild({}, { locale }), flags: 64 },
+        data: {
+          content: m.bot_event_no_guild({}, { locale }),
+          flags: DiscordTypes.MessageFlags.Ephemeral,
+        },
       });
     }
 

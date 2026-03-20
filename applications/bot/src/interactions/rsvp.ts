@@ -102,7 +102,10 @@ export const RsvpModal = Ix.modalSubmit(
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: m.bot_rsvp_user_error({}, { locale }), flags: 64 },
+            data: {
+              content: m.bot_rsvp_user_error({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
           }),
         );
       }
@@ -181,7 +184,7 @@ export const RsvpModal = Ix.modalSubmit(
         Effect.forkDaemon(submitAndFollowUp),
         Ix.response({
           type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: 'Thinking...', flags: 64 },
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
         }),
       );
     }),

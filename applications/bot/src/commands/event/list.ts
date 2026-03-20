@@ -18,7 +18,10 @@ export const listHandler = Interaction.pipe(
       return Effect.succeed(
         Ix.response({
           type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_event_no_guild({}, { locale }), flags: 64 },
+          data: {
+            content: m.bot_event_no_guild({}, { locale }),
+            flags: DiscordTypes.MessageFlags.Ephemeral,
+          },
         }),
       );
     }
@@ -69,7 +72,10 @@ export const listHandler = Interaction.pipe(
       Effect.forkDaemon(work),
       Ix.response({
         type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: 'Thinking...', flags: 64 },
+        data: {
+          content: m.bot_thinking({}, { locale }),
+          flags: DiscordTypes.MessageFlags.Ephemeral,
+        },
       }),
     );
   }),
