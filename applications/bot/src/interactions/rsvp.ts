@@ -113,6 +113,7 @@ export const RsvpModal = Ix.modalSubmit(
         response,
         message,
       }).pipe(
+        Effect.tap((result) => Effect.logInfo('Submitted event', eventId, result)),
         Effect.map(() =>
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -125,6 +126,7 @@ export const RsvpModal = Ix.modalSubmit(
             },
           }),
         ),
+        Effect.tap((response) => Effect.logInfo('Response', response)),
         Effect.catchTag('RsvpDeadlinePassed', () =>
           Effect.succeed(
             Ix.response({
