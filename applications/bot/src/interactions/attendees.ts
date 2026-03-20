@@ -1,5 +1,6 @@
 import { Event } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
+import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
@@ -17,14 +18,15 @@ export const AttendeesButton = Ix.messageComponent(
     Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.flatMap(({ data, interaction, rpc }) => {
+    Effect.bind('rest', () => DiscordREST),
+    Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
       const eventId = decodeEventId(parts[2]);
       const offset = Number(parts[3]) || 0;
       const locale = userLocale(interaction);
 
-      return rpc['Event/GetRsvpAttendees']({
+      const work = rpc['Event/GetRsvpAttendees']({
         event_id: eventId,
         offset,
         limit: ATTENDEES_LIMIT,
@@ -39,23 +41,27 @@ export const AttendeesButton = Ix.messageComponent(
             eventId,
             locale,
           });
-          return Ix.response({
-            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              embeds: payload.embeds,
-              components: payload.components,
-              flags: 64,
-            },
-          });
+          return {
+            embeds: payload.embeds,
+            components: payload.components,
+          };
         }),
         Effect.catchAll(() =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_attendees_load_error({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed({ content: m.bot_attendees_load_error({}, { locale }) }),
         ),
+        Effect.flatMap((payload) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload,
+          }),
+        ),
+        Effect.catchAll((error) => Effect.logError('Failed to update attendees response', error)),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(work),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        }),
       );
     }),
   ),
@@ -67,14 +73,15 @@ export const AttendeesPageButton = Ix.messageComponent(
     Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.flatMap(({ data, interaction, rpc }) => {
+    Effect.bind('rest', () => DiscordREST),
+    Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
       const eventId = decodeEventId(parts[2]);
       const offset = Number(parts[3]) || 0;
       const locale = userLocale(interaction);
 
-      return rpc['Event/GetRsvpAttendees']({
+      const work = rpc['Event/GetRsvpAttendees']({
         event_id: eventId,
         offset,
         limit: ATTENDEES_LIMIT,
@@ -89,22 +96,29 @@ export const AttendeesPageButton = Ix.messageComponent(
             eventId,
             locale,
           });
-          return Ix.response({
-            type: Discord.InteractionCallbackTypes.UPDATE_MESSAGE,
-            data: {
-              embeds: payload.embeds,
-              components: payload.components,
-            },
-          });
+          return {
+            embeds: payload.embeds,
+            components: payload.components,
+          };
         }),
         Effect.catchAll(() =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_attendees_load_error({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed({ content: m.bot_attendees_load_error({}, { locale }) }),
         ),
+        Effect.flatMap((payload) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload,
+          }),
+        ),
+        Effect.catchAll((error) =>
+          Effect.logError('Failed to update attendees page response', error),
+        ),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(work),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
+        }),
       );
     }),
   ),
