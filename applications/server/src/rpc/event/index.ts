@@ -329,7 +329,9 @@ export const EventsRpcLive = Effect.Do.pipe(
               .upsertRsvp(event_id, member.id, response, message)
               .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
           ),
+          Effect.tap((rsvp) => Effect.logInfo('Submitted Rsvp Info', rsvp)),
           Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
+          Effect.tap((counts) => Effect.logInfo('Got Rsvp Info', counts)),
         ),
   ),
   Effect.let(
