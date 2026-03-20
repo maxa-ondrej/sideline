@@ -5,7 +5,8 @@ import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
 import { Effect, Option, Schema } from 'effect';
-import { type Locale, userLocale } from '~/locale.js';
+import { guildLocale, type Locale, userLocale } from '~/locale.js';
+import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -113,6 +114,49 @@ export const RsvpModal = Ix.modalSubmit(
         response,
         message,
       }).pipe(
+        Effect.tap((counts) => {
+          const guildId = interaction.guild_id;
+          if (guildId === undefined) return Effect.void;
+          return Effect.all([
+            rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
+            rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
+            rest.getGuild(guildId),
+          ] as const).pipe(
+            Effect.flatMap(([stored, embedInfo, guild]) =>
+              Option.match(stored, {
+                onNone: () => Effect.void,
+                onSome: (msg) =>
+                  Option.match(embedInfo, {
+                    onNone: () => Effect.void,
+                    onSome: (info) => {
+                      const embedLocale = guildLocale({
+                        guild_locale: guild.preferred_locale,
+                      });
+                      const payload = buildEventEmbed({
+                        teamId,
+                        eventId,
+                        title: info.title,
+                        description: info.description,
+                        startAt: info.start_at,
+                        endAt: info.end_at,
+                        location: info.location,
+                        eventType: info.event_type,
+                        counts,
+                        locale: embedLocale,
+                      });
+                      return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
+                        embeds: payload.embeds,
+                        components: payload.components,
+                      });
+                    },
+                  }),
+              }),
+            ),
+            Effect.catchAll((error) =>
+              Effect.logError('Failed to update event embed after RSVP', error),
+            ),
+          );
+        }),
         Effect.map(() =>
           m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale }),
         ),
