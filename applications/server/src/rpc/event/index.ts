@@ -9,7 +9,7 @@ import {
   TeamMember,
   User,
 } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
+import { Bind, Options } from '@sideline/effect-lib';
 import { Array, Data, DateTime, Effect, flow, Option, Schema } from 'effect';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
@@ -61,18 +61,19 @@ class UserLookupResult extends Schema.Class<UserLookupResult>('UserLookupResult'
   team_member_id: TeamMember.TeamMemberId,
 }) {}
 
-const parseDateTime = (input: string): DateTime.Utc | null => {
+const parseDateTime = (input: string): Option.Option<DateTime.Utc> => {
   const match = /^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/.exec(input.trim());
-  if (!match) return null;
+  if (!match) return Option.none();
   const [, yearStr, monthStr, dayStr, hourStr, minuteStr] = match;
   const year = Number.parseInt(yearStr, 10);
   const month = Number.parseInt(monthStr, 10);
   const day = Number.parseInt(dayStr, 10);
   const hour = Number.parseInt(hourStr, 10);
   const minute = Number.parseInt(minuteStr, 10);
-  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59)
+    return Option.none();
   const date = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
-  if (Number.isNaN(date.getTime())) return null;
+  if (Number.isNaN(date.getTime())) return Option.none();
   if (
     date.getUTCFullYear() !== year ||
     date.getUTCMonth() + 1 !== month ||
@@ -80,8 +81,8 @@ const parseDateTime = (input: string): DateTime.Utc | null => {
     date.getUTCHours() !== hour ||
     date.getUTCMinutes() !== minute
   )
-    return null;
-  return DateTime.unsafeFromDate(date);
+    return Option.none();
+  return Option.some(DateTime.unsafeFromDate(date));
 };
 
 const createEvent = (
@@ -107,13 +108,9 @@ const createEvent = (
         Result: TeamLookupResult,
         execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
       })(input.guild_id).pipe(
-        Effect.mapError(() => new EventRpcModels.CreateEventNotMember()),
-        Effect.flatMap(
-          Option.match({
-            onNone: () => Effect.fail(new EventRpcModels.CreateEventNotMember()),
-            onSome: (r) => Effect.succeed(r.id),
-          }),
-        ),
+        Effect.orDie,
+        Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
+        Effect.map((result) => result.id),
       ),
     ),
     Effect.bind('userLookup', ({ teamId }) =>
@@ -132,59 +129,44 @@ const createEvent = (
         discord_user_id: input.discord_user_id,
         team_id: teamId,
       }).pipe(
-        Effect.mapError(() => new EventRpcModels.CreateEventNotMember()),
-        Effect.flatMap(
-          Option.match({
-            onNone: () => Effect.fail(new EventRpcModels.CreateEventNotMember()),
-            onSome: Effect.succeed,
-          }),
-        ),
+        Effect.orDie,
+        Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
       ),
     ),
     Effect.bind('membership', ({ teamId, userLookup }) =>
-      members.findMembershipByIds(teamId, userLookup.id).pipe(
-        Effect.flatMap(
-          Option.match({
-            onNone: () => Effect.fail(new EventRpcModels.CreateEventNotMember()),
-            onSome: Effect.succeed,
-          }),
-        ),
-      ),
+      members
+        .findMembershipByIds(teamId, userLookup.id)
+        .pipe(Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember()))),
     ),
     Effect.tap(({ membership }) =>
       membership.permissions.includes('event:create')
         ? Effect.void
         : Effect.fail(new EventRpcModels.CreateEventForbidden()),
     ),
-    Effect.bind('parsedStartAt', () => {
-      const parsed = parseDateTime(input.start_at);
-      return parsed
-        ? Effect.succeed(parsed)
-        : Effect.fail(new EventRpcModels.CreateEventInvalidDate());
-    }),
+    Effect.bind('parsedStartAt', () => parseDateTime(input.start_at)),
+    Effect.catchTag('NoSuchElementException', () => new EventRpcModels.CreateEventInvalidDate()),
     Effect.bind('parsedEndAt', () =>
-      Option.match(input.end_at, {
-        onNone: () => Effect.succeed(Option.none<DateTime.Utc>()),
-        onSome: (endAt) => {
-          const parsed = parseDateTime(endAt);
-          return parsed
-            ? Effect.succeed(Option.some(parsed))
-            : Effect.fail(new EventRpcModels.CreateEventInvalidDate());
-        },
-      }),
+      input.end_at.pipe(
+        Option.map(parseDateTime),
+        Option.map(Option.map(Effect.succeed)),
+        Option.map(Option.getOrElse(() => Effect.fail(new EventRpcModels.CreateEventForbidden()))),
+        Options.extractEffect,
+      ),
     ),
     Effect.bind('event', ({ teamId, userLookup, parsedStartAt, parsedEndAt }) =>
-      events.insertEvent({
-        teamId,
-        trainingTypeId: Option.none(),
-        eventType: input.event_type,
-        title: input.title,
-        description: input.description,
-        startAt: parsedStartAt,
-        endAt: parsedEndAt,
-        location: input.location,
-        createdBy: userLookup.team_member_id,
-      }),
+      events
+        .insertEvent({
+          teamId,
+          trainingTypeId: Option.none(),
+          eventType: input.event_type,
+          title: input.title,
+          description: input.description,
+          startAt: parsedStartAt,
+          endAt: parsedEndAt,
+          location: input.location,
+          createdBy: userLookup.team_member_id,
+        })
+        .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) => resolveChannel(teamId, event.id)),
     Effect.tap(({ teamId, event, resolvedChannel }) =>
@@ -207,7 +189,6 @@ const createEvent = (
           title: event.title,
         }),
     ),
-    Effect.catchTag('NoSuchElementException', Effect.die),
   );
 
 export const EventsRpcLive = Effect.Do.pipe(

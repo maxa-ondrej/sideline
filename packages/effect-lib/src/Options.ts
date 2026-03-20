@@ -7,3 +7,11 @@ export const toEffect =
       onSome: Effect.succeed,
       onNone: () => Effect.fail(onNone()),
     });
+
+export const extractEffect = <T, E>(
+  option: Option.Option<Effect.Effect<T, E>>,
+): Effect.Effect<Option.Option<T>, E> =>
+  Option.match(option, {
+    onSome: (effect) => Effect.map(effect, Option.some),
+    onNone: () => Effect.succeed(Option.none()),
+  });
