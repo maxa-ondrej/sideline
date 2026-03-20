@@ -284,15 +284,19 @@ export const EventsRpcLive = Effect.Do.pipe(
         readonly message: Option.Option<string>;
       }) =>
         Effect.Do.pipe(
+          Effect.tap(() =>
+            Effect.logInfo('Submitting Rsvp Info', {
+              event_id,
+              team_id,
+              discord_user_id,
+              response,
+              message,
+            }),
+          ),
           Effect.bind('event', () =>
-            events.findEventByIdWithDetails(event_id).pipe(
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.RsvpEventNotFound()),
-                  onSome: Effect.succeed,
-                }),
-              ),
-            ),
+            events
+              .findEventByIdWithDetails(event_id)
+              .pipe(Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpEventNotFound()))),
           ),
           Effect.tap(({ event }) =>
             event.status === 'cancelled'
@@ -316,17 +320,15 @@ export const EventsRpcLive = Effect.Do.pipe(
               team_id,
             }).pipe(
               Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
-                  onSome: Effect.succeed,
-                }),
-              ),
+              Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpMemberNotFound())),
             ),
           ),
-          Effect.tap(({ member }) => rsvps.upsertRsvp(event_id, member.id, response, message)),
+          Effect.tap(({ member }) =>
+            rsvps
+              .upsertRsvp(event_id, member.id, response, message)
+              .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
+          ),
           Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
-          Effect.catchTag('NoSuchElementException', Effect.die),
         ),
   ),
   Effect.let(
