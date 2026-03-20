@@ -89,7 +89,7 @@ export const RsvpModal = Ix.modalSubmit(
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
-    Effect.flatMap(({ data, interaction, rpc }) => {
+    Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = decodeTeamId(parts[1]);
       const eventId = decodeEventId(parts[2]);
@@ -106,51 +106,38 @@ export const RsvpModal = Ix.modalSubmit(
         );
       }
 
-      return rpc['Event/SubmitRsvp']({
+      const submitAndFollowUp = rpc['Event/SubmitRsvp']({
         event_id: eventId,
         team_id: teamId,
         discord_user_id: decodeSnowflake(discordUserId.value),
         response,
         message,
       }).pipe(
-        Effect.tap((result) => Effect.logInfo('Submitted event', eventId, result)),
         Effect.map(() =>
-          Ix.response({
-            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: m.bot_rsvp_recorded(
-                { response: localizeRsvpResponse(response, locale) },
-                { locale },
-              ),
-              flags: 64,
-            },
-          }),
+          m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale }),
         ),
-        Effect.tap((response) => Effect.logInfo('Response', response)),
         Effect.catchTag('RsvpDeadlinePassed', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_rsvp_deadline_passed({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_rsvp_deadline_passed({}, { locale })),
         ),
         Effect.catchTag('RsvpMemberNotFound', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_rsvp_not_member({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_rsvp_not_member({}, { locale })),
         ),
         Effect.catchTag('RsvpEventNotFound', () =>
-          Effect.succeed(
-            Ix.response({
-              type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: { content: m.bot_rsvp_event_not_found({}, { locale }), flags: 64 },
-            }),
-          ),
+          Effect.succeed(m.bot_rsvp_event_not_found({}, { locale })),
         ),
+        Effect.flatMap((content) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload: { content },
+          }),
+        ),
+        Effect.catchAll((error) => Effect.logError('Failed to update RSVP response', error)),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(submitAndFollowUp),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        }),
       );
     }),
   ),
