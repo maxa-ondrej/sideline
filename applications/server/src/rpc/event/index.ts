@@ -294,9 +294,10 @@ export const EventsRpcLive = Effect.Do.pipe(
             }),
           ),
           Effect.bind('event', () =>
-            events
-              .findEventByIdWithDetails(event_id)
-              .pipe(Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpEventNotFound()))),
+            events.findEventByIdWithDetails(event_id).pipe(
+              Effect.tap((event) => Effect.logInfo('Found event by id', event)),
+              Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpEventNotFound())),
+            ),
           ),
           Effect.tap(({ event }) =>
             event.status === 'cancelled'
