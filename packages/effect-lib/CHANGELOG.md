@@ -1,5 +1,11 @@
 # @sideline/effect-lib
 
+## 0.0.5
+
+### Patch Changes
+
+- [#103](https://github.com/maxa-ondrej/sideline/pull/103) [`79ca632`](https://github.com/maxa-ondrej/sideline/commit/79ca6325566fc6a2c9e37d4551bcea4f6507d03d) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Remove inline event embed update from RSVP handler (now handled by event channel routing) and add Option toEffect utility
+
 ## 0.0.4
 
 ### Patch Changes
