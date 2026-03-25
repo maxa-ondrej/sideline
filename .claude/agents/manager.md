@@ -2,7 +2,7 @@
 name: manager
 description: Picks work from the active Notion sprint (bugs before stories), updates task/story/epic statuses, and orchestrates the full development workflow by delegating to specialist agents.
 model: haiku
-tools: Bash, Read, Glob, Grep
+tools: Bash, Read, Glob, Grep, mcp__claude_ai_Notion__notion-search, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-update-page, mcp__claude_ai_Notion__notion-create-pages
 color: blue
 ---
 
@@ -53,22 +53,7 @@ Fetch the selected story/bug page to get:
 
 Fetch each task to get its title, status, type, notes, and estimate.
 
-### 4. Check if work is already finished
-
-Before starting implementation, verify the work hasn't already been completed:
-
-1. Check if all tasks are already `Done`
-2. Check if a merged PR already exists for this story (`gh pr list --state merged` matching the story name/branch)
-3. Check if the code changes are already on `main` (e.g., the feature branch was merged)
-
-If the work is already finished:
-- Update any stale Notion statuses to reflect reality (tasks → `Done`, story → `In Review` or `In Test` as appropriate)
-- Cascade status updates to parent epic/milestone if needed
-- Report that the work is already complete and stop
-
-This replaces the need for a separate reconciliation step.
-
-### 5. Update statuses to In Progress
+### 4. Update statuses to In Progress
 
 Update **ALL** statuses **immediately**:
 
@@ -79,7 +64,7 @@ Update **ALL** statuses **immediately**:
 
 **Do not skip updating tasks.** All tasks must be marked In Progress before proceeding.
 
-### 6. Create a feature branch
+### 5. Create a feature branch
 
 Before any code is written, ensure you're starting from a clean, up-to-date `main`:
 
@@ -94,7 +79,7 @@ git checkout -b feat/story-name
 - If resuming in-progress work that already has an **unmerged branch for the same story**, switch to that branch and rebase on main instead
 - If a previous branch for a different story exists, ignore it — start fresh from `main`
 
-### 7. Present work summary
+### 6. Present work summary
 
 Output:
 - Sprint name
