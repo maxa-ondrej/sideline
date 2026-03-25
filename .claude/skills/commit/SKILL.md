@@ -76,10 +76,6 @@ gh run list --limit 1
 
 If the latest run is still in progress, wait and check again with `gh run watch`. If it fails, investigate the logs with `gh run view --log-failed`, fix the issue, and restart from step 3.
 
-### 7. Update Notion task statuses (if applicable)
+### 7. Done
 
-If the work being committed is associated with Notion tasks (e.g. from the `/work` skill or user-specified tasks), update statuses following the lifecycle in AGENTS.md:
-
-- **Only after CI checks pass** (step 6 succeeds): Move completed tasks to `Done`. If **all tasks** for the parent story are now `Done`, move the story to `In Review`.
-- If CI fails, do **not** move tasks to `Done` — fix the issue first, re-push, and only update statuses after checks are green.
-- **Never** move stories, epics, or milestones to `Done` — that is done manually by the user.
+Report the PR URL and CI status. Do **not** update Notion statuses — that is the `/agile-coach` agent's responsibility.

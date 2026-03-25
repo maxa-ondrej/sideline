@@ -36,37 +36,39 @@ This project uses a **multi-agent system** powered by [Claude Code](https://docs
 
 | Agent | Model | Role |
 |-------|-------|------|
-| **Manager** | Haiku | Project coordinator. Picks work from the Notion sprint backlog (bugs before stories), updates task/story/epic statuses in Notion, creates feature branches, and detects already-finished work. |
+| **Manager** | — | Orchestrator. Runs the full development workflow by delegating to specialist agents. Never writes code. |
+| **Agile Coach** | Haiku | Sprint coordinator. Picks work from the Notion backlog (bugs before stories), updates task/story/epic statuses, creates feature branches, and detects already-finished work. |
 | **Architect** | Opus | Software architect. Explores the codebase, understands existing patterns, and designs concrete implementation plans with test specifications for TDD. Read-only — never modifies files. |
 | **Designer** | Opus | UX/UI designer. Creates modern, accessible designs for both the web app and Discord bot. UX-first approach focused on ease of use. Designs component hierarchies, user flows, and responsive layouts using Shadcn/UI. |
 | **Developer** | Sonnet | The coder. Implements features according to the architect's plan, following all Effect-TS conventions. Writes code, fixes compilation errors, and addresses review feedback. |
 | **Reviewer** | Sonnet | Code reviewer. Checks all changes against the project's code style rules and Effect-TS conventions (AGENTS.md). Reports issues categorized as must-fix, should-fix, or nits. Read-only. |
 | **Hater** | Opus | Devil's advocate. Critiques both implementation plans (before coding) and final code (after coding). Finds logic bugs, missing edge cases, security issues, and over-engineering. Every criticism must include a concrete fix suggestion. Read-only. |
 | **Tester** | Sonnet | Test engineer. Operates in two modes: **TDD mode** writes tests from the architect's spec before implementation; **verify mode** runs tests after implementation and fills coverage gaps. Uses `@effect/vitest` patterns. |
+| **Refactorer** | — | Code style enforcer. Refactors changed files for Effect-TS compliance, removes unnecessary complexity. Keeps changes minimal and focused. |
 | **Formatter** | Haiku | Runs `pnpm format` (Biome) to fix formatting and linting issues, then stages the fixed files. |
 | **Analyzer** | Haiku | Runs `pnpm check` (TypeScript type checking). Rebuilds the domain package if needed, reports type errors with suggested fixes. |
 | **Researcher** | Haiku | Documentation scout. Looks up Effect-TS APIs, library docs, and finds usage examples in the codebase. Fetches from effect.website, tanstack.com, ui.shadcn.com, and other allowed domains. |
 
 ### How It Works
 
-The agents are orchestrated by the `/work` skill, which runs a 12-phase workflow:
+The **Manager** orchestrates the full workflow. The **Agile Coach** handles all Notion task management. Together they run a 12-phase process:
 
 ```
-Phase 1   Manager picks up work from Notion sprint
+Phase 1   Agile Coach picks up work from Notion sprint, creates branch
 Phase 2   Researcher looks up unfamiliar APIs (optional)
-Phase 3   Architect designs plan → Hater critiques it → revision if needed → user approves
+Phase 3   Architect designs plan → Hater critiques → repeat until fool-proof → user approves
 Phase 4   Tester writes failing tests from architect's spec (TDD)
 Phase 5   Developer implements code to make tests pass
-Phase 6   Formatter + Analyzer + Tester verify the changes
-Phase 7   Reviewer + Hater review the code → Developer fixes issues
+Phase 6   Formatter + Analyzer + Tester verify (no round limit)
+Phase 7   Reviewer + Hater review → Developer fixes (no round limit)
 Phase 8   Refactorer cleans up code style
 Phase 9   Commit skill creates changeset, pushes, opens PR
 Phase 10  Wait for CI + poll for code review comments
-Phase 11  Developer addresses review comments → push fixes
-Phase 12  Manager updates Notion statuses, reports final state
+Phase 11  Developer addresses review comments → push fixes (no round limit)
+Phase 12  Agile Coach updates Notion statuses, Manager reports final state
 ```
 
-Each agent communicates through structured text summaries. Read-only agents (architect, reviewer, hater, researcher) cannot modify files, preventing accidental changes. The hater reviews **twice** — once on the plan (cheap to fix) and once on the code (catches what the reviewer misses).
+Each agent communicates through structured text summaries. Read-only agents (architect, reviewer, hater, researcher) cannot modify files, preventing accidental changes. The hater reviews **twice** — once on the plan (cheap to fix) and once on the code (catches what the reviewer misses). Verification, review, and feedback loops run without round limits until all issues are resolved.
 
 ### Agent Files
 
@@ -75,7 +77,7 @@ Agent definitions live in `.claude/agents/*.md`. Each file contains YAML frontma
 ### Running Agents
 
 Agents are invoked automatically by the `/work` skill, or individually:
-- `/work` — full end-to-end workflow
+- `/work` — full end-to-end workflow (delegates to Manager)
 - `/work search feature` — work on a specific story matching "search feature"
 - `/commit` — commit, push, open PR, verify CI
 - `/refactor src/file.ts` — refactor a specific file
