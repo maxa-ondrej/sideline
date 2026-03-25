@@ -1,5 +1,11 @@
 # @sideline/server
 
+## 0.11.1
+
+### Patch Changes
+
+- [#106](https://github.com/maxa-ondrej/sideline/pull/106) [`48918cf`](https://github.com/maxa-ondrej/sideline/commit/48918cf45c8655e4fda20a1f83d01b309c316477) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix coach scoping query to include group-inherited roles when resolving scoped training type IDs
+
 ## 0.11.0
 
 ### Minor Changes
