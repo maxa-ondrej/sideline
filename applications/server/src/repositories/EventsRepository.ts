@@ -190,10 +190,26 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     Request: TeamMember.TeamMemberId,
     Result: ScopedTrainingTypeId,
     execute: (teamMemberId) => this.sql`
-            SELECT DISTINCT rtt.training_type_id
-            FROM member_roles mr
-            JOIN role_training_types rtt ON rtt.role_id = mr.role_id
-            WHERE mr.team_member_id = ${teamMemberId}
+            SELECT DISTINCT rtt.training_type_id FROM (
+              SELECT rtt.training_type_id
+              FROM member_roles mr
+              JOIN role_training_types rtt ON rtt.role_id = mr.role_id
+              WHERE mr.team_member_id = ${teamMemberId}
+              UNION ALL
+              SELECT rtt.training_type_id
+              FROM group_members gm
+              JOIN LATERAL (
+                WITH RECURSIVE ancestors AS (
+                  SELECT gm.group_id AS id
+                  UNION ALL
+                  SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
+                )
+                SELECT id FROM ancestors
+              ) anc ON true
+              JOIN role_groups rg ON rg.group_id = anc.id
+              JOIN role_training_types rtt ON rtt.role_id = rg.role_id
+              WHERE gm.team_member_id = ${teamMemberId}
+            ) rtt
           `,
   });
 

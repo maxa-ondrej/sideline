@@ -7,6 +7,10 @@ description: Fetches the next bug or story from the active Notion sprint (bugs a
 
 Pick up a story from the active sprint and implement it end-to-end using specialist agents.
 
+## Execution
+
+**This skill and all agents it invokes MUST run as subagents (via the Agent tool), never in the main conversation thread.** The main thread should only receive summaries and ask for user decisions.
+
 ## Steps
 
 Follow these steps **in order**. Stop and report if any step fails.
@@ -18,7 +22,6 @@ Follow these steps **in order**. Stop and report if any step fails.
 Invoke the `/manager` agent to:
 - Find the active sprint
 - Select the next bug or story (pass `$ARGUMENTS` if the user specified a story)
-- Check if work is already finished (if so, update statuses and stop)
 - Update all statuses to In Progress
 - Create a feature branch
 

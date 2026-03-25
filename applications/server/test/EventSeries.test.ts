@@ -1271,6 +1271,52 @@ describe('Event Series API', () => {
       );
       expect(response.status).toBe(400);
     });
+
+    it('captain can update series with allowed training type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title: 'Captain Update', trainingTypeId: TEST_TRAINING_TYPE_A }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.title).toBe('Captain Update');
+    });
+
+    it('captain cannot update series with disallowed training type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title: 'Captain Update', trainingTypeId: TEST_TRAINING_TYPE_B }),
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it('captain can update series with no training type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_SERIES_1}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title: 'Captain Update No Type', trainingTypeId: null }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.title).toBe('Captain Update No Type');
+    });
   });
 
   describe('POST /teams/:teamId/event-series/:seriesId/cancel', () => {
