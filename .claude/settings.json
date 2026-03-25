@@ -22,7 +22,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:tanstack.com)",
       "WebFetch(domain:ui.shadcn.com)",
-      "WebFetch(domain:inlang.com)"
+      "WebFetch(domain:inlang.com)",
+      "Agent"
     ]
   },
   "hooks": {
