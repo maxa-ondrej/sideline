@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(docker:*)",
+      "Bash(npx:*)",
+      "Bash(tsc:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(/bin/ls:*)",
+      "Bash(head:*)",
+      "Bash(find:*)",
+      "Bash(bc:*)",
+      "Bash(source:*)",
+      "Bash(direnv:*)",
+      "WebFetch(domain:effect.website)",
+      "WebFetch(domain:effect-ts.github.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:tanstack.com)",
+      "WebFetch(domain:ui.shadcn.com)",
+      "WebFetch(domain:inlang.com)"
+    ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code needs your attention\" with title \"Claude Code\" sound name \"Ping\"'"
+          }
+        ]
+      }
+    ]
+  }
+}
