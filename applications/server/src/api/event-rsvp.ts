@@ -1,17 +1,29 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, EventRsvpApi } from '@sideline/domain';
+import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
 import { Array, DateTime, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 
 const forbidden = new EventRsvpApi.Forbidden();
 const notFound = new EventRsvpApi.EventNotFound();
 const deadlinePassed = new EventRsvpApi.RsvpDeadlinePassed();
+
+const checkGroupAccess = (
+  groups: GroupsRepository,
+  memberId: TeamMember.TeamMemberId,
+  groupId: Option.Option<GroupModel.GroupId>,
+): Effect.Effect<boolean, never, never> => {
+  if (Option.isNone(groupId)) return Effect.succeed(true);
+  return groups
+    .getDescendantMemberIds(groupId.value)
+    .pipe(Effect.map((memberIds) => Array.contains(memberIds, memberId)));
+};
 
 const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
   !DateTime.lessThan(DateTime.unsafeNow(), startAt);
@@ -76,7 +88,8 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
     Effect.bind('rsvps', () => EventRsvpsRepository),
     Effect.bind('syncEvents', () => EventSyncEventsRepository),
     Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.map(({ members, events, rsvps, syncEvents, teamSettings }) =>
+    Effect.bind('groups', () => GroupsRepository),
+    Effect.map(({ members, events, rsvps, syncEvents, teamSettings, groups }) =>
       handlers
         .handle('getRsvps', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
@@ -98,8 +111,12 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               event.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
-            Effect.flatMap(({ event, membership, settings }) => {
-              const canRsvp = event.status === 'active' && !isEventPastDeadline(event.start_at);
+            Effect.bind('isGroupMember', ({ event, membership }) =>
+              checkGroupAccess(groups, membership.id, event.member_group_id),
+            ),
+            Effect.flatMap(({ event, membership, settings, isGroupMember }) => {
+              const canRsvp =
+                event.status === 'active' && !isEventPastDeadline(event.start_at) && isGroupMember;
               const threshold = Option.match(settings, {
                 onNone: () => 0,
                 onSome: (s) => s.min_players_threshold,
@@ -132,6 +149,11 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
             Effect.tap(({ event }) =>
               isEventPastDeadline(event.start_at) ? Effect.fail(deadlinePassed) : Effect.void,
+            ),
+            Effect.tap(({ event, membership }) =>
+              checkGroupAccess(groups, membership.id, event.member_group_id).pipe(
+                Effect.flatMap((isMember) => (isMember ? Effect.void : Effect.fail(forbidden))),
+              ),
             ),
             Effect.tap(({ membership }) =>
               rsvps

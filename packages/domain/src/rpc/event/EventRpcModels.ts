@@ -51,6 +51,11 @@ export class RsvpEventNotFound extends Schema.TaggedError<RsvpEventNotFound>()(
   {},
 ) {}
 
+export class RsvpNotGroupMember extends Schema.TaggedError<RsvpNotGroupMember>()(
+  'RsvpNotGroupMember',
+  {},
+) {}
+
 export class CreateEventNotMember extends Schema.TaggedError<CreateEventNotMember>()(
   'CreateEventNotMember',
   {},

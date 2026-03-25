@@ -169,6 +169,9 @@ export const RsvpModal = Ix.modalSubmit(
         Effect.catchTag('RsvpMemberNotFound', () =>
           Effect.succeed(m.bot_rsvp_not_member({}, { locale })),
         ),
+        Effect.catchTag('RsvpNotGroupMember', () =>
+          Effect.succeed(m.bot_rsvp_not_group_member({}, { locale })),
+        ),
         Effect.catchTag('RsvpEventNotFound', () =>
           Effect.succeed(m.bot_rsvp_event_not_found({}, { locale })),
         ),
