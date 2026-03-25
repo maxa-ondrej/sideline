@@ -5,17 +5,7 @@ description: Fetches the next bug or story from the active Notion sprint (bugs a
 
 # Work Skill
 
-Pick up a story from the active sprint and implement it end-to-end.
-
-## Notion IDs
-
-| Database   | Data Source ID                                |
-|------------|-----------------------------------------------|
-| Sprints    | `collection://0bb5bd1a-500c-4b2c-b482-cc6be3986a81` |
-| Stories    | `collection://6ae03d12-a6d6-45b1-bead-094f0c225e42` |
-| Tasks      | `collection://df8fe05e-456c-429d-a6da-f45fb3303dcf` |
-| Epics      | `collection://2020f137-79a6-43b7-9609-309d0aaa8450` |
-| Bugs       | `collection://798a152b-94f1-4fef-b5c1-f171f031d248` |
+Pick up a story from the active sprint and implement it end-to-end using specialist agents.
 
 ## Steps
 
@@ -23,110 +13,85 @@ Follow these steps **in order**. Stop and report if any step fails.
 
 ---
 
-### Phase 1: Reconcile
+### Phase 1: Pick up work
 
-Invoke the `/reconcile` skill to sync Notion statuses with the current git/GitHub state before starting new work. This ensures stale statuses from previous work are cleaned up.
+Invoke the `/manager` agent to:
+- Find the active sprint
+- Select the next bug or story (pass `$ARGUMENTS` if the user specified a story)
+- Check if work is already finished (if so, update statuses and stop)
+- Update all statuses to In Progress
+- Create a feature branch
 
----
-
-### Phase 2: Pick up work
-
-#### 2.1 Find the active sprint
-
-Use `notion-search` to find the sprint with Status = "Active". Fetch the sprint page to get its linked stories.
-
-If no active sprint exists, tell the user and stop.
-
-#### 2.2 Select a story
-
-Also fetch bugs from the Bugs database that are linked to the active sprint. Combine bugs and stories, then pick work using this priority order:
-
-1. **In Progress Bug** — resume bug work already started (highest priority)
-2. **TODO Bug** — new bugs always come before stories
-3. **In Progress Story** — resume story work already started
-4. **TODO Story** — start new story work
-
-Skip items with status Done, In Review, or In Test.
-
-Within the same priority level, prefer higher priority items (Critical > High > Medium > Low).
-
-If `$ARGUMENTS` is provided, use it to match a specific story by name or keyword instead of auto-selecting.
-
-If no actionable stories remain, tell the user the sprint is complete and stop.
-
-#### 2.3 Fetch story details and tasks
-
-Fetch the selected story page to get:
-- The story description (page content) for context
-- The linked tasks
-
-Fetch each task to get its title, status, type, notes, and estimate.
-
-#### 2.4 Update statuses to In Progress
-
-Update **ALL** statuses **immediately** when starting work — including during planning, not just coding.
-
-1. Move **every task** in the story from `TODO` → `In Progress` using `notion-update-page`
-2. Move the **story** from `TODO` → `In Progress`
-3. If the parent **epic** is in `TODO` or `Not Started`, move it to `In Progress`
-4. If the parent **milestone** is in `TODO` or `Not Started`, move it to `In Progress`
-
-**Do not skip updating tasks.** All tasks must be marked In Progress before proceeding to the next step.
-
-#### 2.5 Present the work summary
-
-Show the user:
-- Sprint name
-- Story title and description
-- List of tasks with their status, type, and estimate
-- Which tasks are already done vs remaining
+Review the manager's work summary before proceeding.
 
 ---
 
-### Phase 3: Plan and implement
+### Phase 2: Research (optional)
 
-#### 3.1 Create a feature branch
+If the story involves unfamiliar APIs, libraries, or Effect-TS patterns, invoke the `/researcher` agent with the relevant topics.
 
-Before writing any code, ensure you're starting from a clean, up-to-date `main`:
-
-```bash
-git checkout main
-git pull origin main
-git checkout -b feat/story-name
-```
-
-**Branch rules:**
-- Always create a **new branch from `main`** for each story. Never reuse an old feature branch for a new story.
-- If you're resuming in-progress work that already has an **unmerged branch for the same story**, switch to that branch and rebase on main instead.
-- If a previous branch for a different story exists, ignore it — start fresh from `main`.
-
-#### 3.2 Plan implementation
-
-Enter plan mode. For each remaining task (not Done), analyze what code changes are needed by exploring the codebase. Write a concrete implementation plan that covers all remaining tasks.
-
-Present the plan to the user for approval via `ExitPlanMode`.
-
-#### 3.3 Implement tasks
-
-After the plan is approved, work through each remaining task **in order**. For each task:
-
-1. Update the task status to **In Progress** in Notion using `notion-update-page`
-2. Implement the changes described in the plan
-3. If any files in `packages/domain/` were changed, rebuild with `pnpm build` before checking types (stale `dist/` causes false type errors)
-4. Run `pnpm check` and `pnpm test` to verify the changes compile and pass tests
-5. If type errors seem wrong after domain changes, run the full clean verification: `pnpm codegen && pnpm build && find . -name '*.tsbuildinfo' -delete && pnpm check`
-
-Leave tasks in **In Progress** after implementation — the commit step handles pushing and moving them to **Done**.
-
-**Important implementation notes:**
-- When creating new TanStack Router route files, always add `ssr: false` to `createFileRoute(...)({...})` options — Effect `Option` types fail TanStack's serialization check without it.
-- When changing `packages/domain/` source files, always rebuild (`pnpm build`) before running `pnpm check` or `pnpm test`. The `dist/` directory must be up to date.
-
-If a task fails (tests break, types don't pass), fix the issue before moving on. If you cannot fix it, leave the task as In Progress and report the blocker to the user.
+Skip this phase if the story uses well-known patterns already present in the codebase.
 
 ---
 
-### Phase 4: Refactor
+### Phase 3: Plan
+
+1. Invoke the `/architect` agent with:
+   - The story description and task list (from the manager)
+   - Any research findings (from the researcher)
+
+2. Invoke the `/hater` agent with the architect's plan to critique it.
+
+3. If the hater finds **blockers**, send the critique back to the `/architect` agent for revision. Max 1 revision round.
+
+4. Present the final plan to the user for approval via `ExitPlanMode`.
+
+---
+
+### Phase 4: Write tests first (TDD)
+
+Invoke the `/tester` agent in **TDD mode** with the architect's test specification. The tester writes all test files before any implementation begins. These tests should fail initially — that's expected and correct.
+
+---
+
+### Phase 5: Implement
+
+After tests are written:
+
+1. Invoke the `/developer` agent with:
+   - The approved implementation plan
+   - The task list
+   - Note: tests already exist and must pass after implementation
+
+2. The developer implements all tasks and reports what was changed.
+
+---
+
+### Phase 6: Verify
+
+Run verification agents:
+
+1. Invoke the `/formatter` agent to run `pnpm format` and stage fixes
+2. Invoke the `/analyzer` agent to run `pnpm check` and report type errors
+3. Invoke the `/tester` agent in **verify mode** to run `pnpm test` and fill any remaining coverage gaps
+
+If the analyzer or tester report failures, invoke the `/developer` agent with the errors to fix them. Then re-run the failing verification agent. Max 2 fix rounds.
+
+---
+
+### Phase 7: Review
+
+1. Invoke the `/reviewer` agent on the changed files
+2. Invoke the `/hater` agent on the final code
+
+If **must-fix** issues are found:
+1. Invoke the `/developer` agent with the combined feedback
+2. Re-run `/formatter`, `/analyzer`, `/tester` to verify fixes
+3. Max 1 review-fix round
+
+---
+
+### Phase 8: Refactor
 
 Invoke the `/refactor` skill on each file that was changed during implementation. Use `git diff --name-only` to identify changed files.
 
@@ -135,9 +100,11 @@ Focus on:
 - Removing unnecessary complexity introduced during implementation
 - Keeping changes minimal — don't refactor unrelated code
 
+After refactoring, re-run `/formatter`, `/analyzer`, `/tester` to verify nothing broke.
+
 ---
 
-### Phase 5: Commit and push
+### Phase 9: Commit and push
 
 Invoke the `/commit` skill to:
 - Create a changeset
@@ -149,7 +116,7 @@ Invoke the `/commit` skill to:
 
 ---
 
-### Phase 6: Wait for CI and code review
+### Phase 10: Wait for CI and code review
 
 After the PR is created and CI passes:
 
@@ -162,36 +129,19 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
 ```
 
-Wait up to 3 minutes for review comments to appear, checking every 30 seconds. If no comments arrive, proceed to the summary.
+Wait up to 3 minutes for review comments to appear, checking every 30 seconds. If no comments arrive, proceed.
 
 ---
 
-### Phase 7: Address review comments
+### Phase 11: Address review comments
 
 If Copilot or other reviewers left comments:
 
 1. Read all review comments
-2. Evaluate each comment — fix comments that are:
-   - Pointing out real bugs or issues
-   - Suggesting improvements aligned with AGENTS.md conventions
-   - Highlighting missing error handling or type safety issues
-3. Skip comments that are:
-   - Stylistic preferences that contradict AGENTS.md
-   - Suggestions to add unnecessary complexity
-   - False positives or irrelevant to the change
-4. For each relevant comment, make the fix
-
-Report which comments were addressed and which were skipped (with reasons).
-
----
-
-### Phase 8: Final refactor and push
-
-If any changes were made in Phase 7:
-
-1. Invoke the `/refactor` skill on the newly changed files
-2. Run all checks: `pnpm format`, `pnpm check`, `pnpm test`
-3. Commit and push the fixes:
+2. Invoke the `/developer` agent with the comments to fix relevant ones
+3. Skip comments that contradict AGENTS.md conventions or add unnecessary complexity
+4. Re-run `/formatter`, `/analyzer`, `/tester`
+5. Commit and push the fixes:
 
 ```bash
 git add -A
@@ -199,14 +149,14 @@ git commit -m "Address review feedback"
 git push
 ```
 
-4. Wait for CI to pass again using `gh run watch`
-5. If new review comments appear, repeat Phase 7-8 (up to 2 additional rounds to avoid infinite loops)
-
-If no changes were made in Phase 7, skip this phase.
+6. Wait for CI to pass again using `gh run watch`
+7. If new review comments appear, repeat (up to 2 additional rounds)
 
 ---
 
-### Phase 9: Done
+### Phase 12: Done
+
+Invoke the `/manager` agent to update final Notion statuses (tasks → Done, story → In Review if all tasks done).
 
 Report the final state:
 - PR URL

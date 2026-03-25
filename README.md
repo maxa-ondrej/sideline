@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/maxa-ondrej/sideline/actions/workflows/check.yml/badge.svg)](https://github.com/maxa-ondrej/sideline/actions/workflows/check.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6+-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Effect](https://img.shields.io/badge/Effect--TS-3.10+-black?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA4LTggOHoiLz48L3N2Zz4=)](https://effect.website)
+[![Effect](https://img.shields.io/badge/Effect--TS-3.10+-black?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0wIDE4Yy00LjQyIDAtOC0zLjU4LTgtOHMzLjU4LTggOC04IDggMy41OCA4IDgtMy41OCA0LTggOHoiLz48L3N2Zz4=)](https://effect.website)
 [![pnpm](https://img.shields.io/badge/pnpm-10.14+-f69220?logo=pnpm&logoColor=white)](https://pnpm.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
@@ -27,6 +27,58 @@ packages/
 The **domain** package defines the API contract (`HttpApiGroup` + `Schema`) and **server** implements it via `HttpApiBuilder` — all sharing the same type-safe spec.
 
 Each application separates its composable layer (`AppLive`) from its runtime entrypoint (`run.ts`), allowing clean dependency injection and Docker deployment.
+
+## AI Agent Team
+
+This project uses a **multi-agent system** powered by [Claude Code](https://docs.anthropic.com/en/docs/claude-code) to automate the full software development lifecycle. Each agent is a specialist with a focused role, specific AI model, and restricted toolset.
+
+### Agent Roster
+
+| Agent | Model | Role |
+|-------|-------|------|
+| **Manager** | Haiku | Project coordinator. Picks work from the Notion sprint backlog (bugs before stories), updates task/story/epic statuses in Notion, creates feature branches, and detects already-finished work. |
+| **Architect** | Opus | Software architect. Explores the codebase, understands existing patterns, and designs concrete implementation plans with test specifications for TDD. Read-only — never modifies files. |
+| **Designer** | Opus | UX/UI designer. Creates modern, accessible designs for both the web app and Discord bot. UX-first approach focused on ease of use. Designs component hierarchies, user flows, and responsive layouts using Shadcn/UI. |
+| **Developer** | Sonnet | The coder. Implements features according to the architect's plan, following all Effect-TS conventions. Writes code, fixes compilation errors, and addresses review feedback. |
+| **Reviewer** | Sonnet | Code reviewer. Checks all changes against the project's code style rules and Effect-TS conventions (AGENTS.md). Reports issues categorized as must-fix, should-fix, or nits. Read-only. |
+| **Hater** | Opus | Devil's advocate. Critiques both implementation plans (before coding) and final code (after coding). Finds logic bugs, missing edge cases, security issues, and over-engineering. Every criticism must include a concrete fix suggestion. Read-only. |
+| **Tester** | Sonnet | Test engineer. Operates in two modes: **TDD mode** writes tests from the architect's spec before implementation; **verify mode** runs tests after implementation and fills coverage gaps. Uses `@effect/vitest` patterns. |
+| **Formatter** | Haiku | Runs `pnpm format` (Biome) to fix formatting and linting issues, then stages the fixed files. |
+| **Analyzer** | Haiku | Runs `pnpm check` (TypeScript type checking). Rebuilds the domain package if needed, reports type errors with suggested fixes. |
+| **Researcher** | Haiku | Documentation scout. Looks up Effect-TS APIs, library docs, and finds usage examples in the codebase. Fetches from effect.website, tanstack.com, ui.shadcn.com, and other allowed domains. |
+
+### How It Works
+
+The agents are orchestrated by the `/work` skill, which runs a 12-phase workflow:
+
+```
+Phase 1   Manager picks up work from Notion sprint
+Phase 2   Researcher looks up unfamiliar APIs (optional)
+Phase 3   Architect designs plan → Hater critiques it → revision if needed → user approves
+Phase 4   Tester writes failing tests from architect's spec (TDD)
+Phase 5   Developer implements code to make tests pass
+Phase 6   Formatter + Analyzer + Tester verify the changes
+Phase 7   Reviewer + Hater review the code → Developer fixes issues
+Phase 8   Refactorer cleans up code style
+Phase 9   Commit skill creates changeset, pushes, opens PR
+Phase 10  Wait for CI + poll for code review comments
+Phase 11  Developer addresses review comments → push fixes
+Phase 12  Manager updates Notion statuses, reports final state
+```
+
+Each agent communicates through structured text summaries. Read-only agents (architect, reviewer, hater, researcher) cannot modify files, preventing accidental changes. The hater reviews **twice** — once on the plan (cheap to fix) and once on the code (catches what the reviewer misses).
+
+### Agent Files
+
+Agent definitions live in `.claude/agents/*.md`. Each file contains YAML frontmatter (name, model, tools, color) and markdown instructions. Skills (procedural workflows) live in `.claude/skills/*/SKILL.md`.
+
+### Running Agents
+
+Agents are invoked automatically by the `/work` skill, or individually:
+- `/work` — full end-to-end workflow
+- `/work search feature` — work on a specific story matching "search feature"
+- `/commit` — commit, push, open PR, verify CI
+- `/refactor src/file.ts` — refactor a specific file
 
 ## Getting Started
 
@@ -100,9 +152,18 @@ Images are automatically built and pushed to GHCR on pull requests via the Snaps
 
 [husky](https://typicode.github.io/husky/) + [lint-staged](https://github.com/lint-staged/lint-staged) automatically run `biome check --write` on staged files before each commit.
 
-## Further Reading
+## Documentation
 
-See [`AGENTS.md`](./AGENTS.md) for architecture details, Effect-TS patterns, coding conventions, CI pipeline, and version management.
+| File | Contents |
+|------|----------|
+| [`AGENTS.md`](./AGENTS.md) | Root conventions: Effect-TS patterns, code style, CI, git, Notion |
+| [`applications/web/AGENTS.md`](./applications/web/AGENTS.md) | Frontend: TanStack Router, Shadcn, forms, auth, i18n, atomic design |
+| [`applications/server/AGENTS.md`](./applications/server/AGENTS.md) | Server: repositories, SQL patterns, API, middleware |
+| [`applications/bot/AGENTS.md`](./applications/bot/AGENTS.md) | Bot: Discord sync, RPC, localization |
+| [`packages/domain/AGENTS.md`](./packages/domain/AGENTS.md) | Domain: Model.Class, schemas, branded types |
+| [`packages/migrations/AGENTS.md`](./packages/migrations/AGENTS.md) | Database migration conventions |
+| [`packages/effect-lib/AGENTS.md`](./packages/effect-lib/AGENTS.md) | Shared utilities (Bind, DateTime schemas) |
+| [`packages/i18n/AGENTS.md`](./packages/i18n/AGENTS.md) | Translation system (Paraglide.js) |
 
 ## License
 

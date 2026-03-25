@@ -1,0 +1,348 @@
+# Web Application (`@sideline/web`)
+
+TanStack Start frontend with React 19, Vite, and Nitro SSR.
+
+## Component Structure — Atomic Design
+
+Components live in `src/components/` following **Atomic Design**:
+
+```
+components/
+├── ui/          — Shadcn/UI primitives (auto-generated, do not hand-edit)
+├── atoms/       — Smallest self-contained components (e.g. LanguageSwitcher)
+├── molecules/   — Combinations of atoms (e.g. FormField = Label + Input)
+├── organisms/   — Complex, multi-responsibility sections (e.g. ProfileCompleteForm)
+├── pages/       — Full page components, one per route (e.g. HomePage, DashboardPage)
+└── layouts/     — Structural wrappers/shells (e.g. RootDocument)
+```
+
+### Layer Guidelines
+
+| Layer | Rule |
+|-------|------|
+| `ui/` | Shadcn primitives only. Added via `pnpm -C ./applications/web dlx shadcn@latest add <component>`. Never hand-edited. |
+| `atoms/` | Single responsibility, no business logic, no API calls. |
+| `molecules/` | Compose atoms + ui. No route-level data fetching, no API calls. |
+| `organisms/` | May own significant local state, form logic, or API calls via `useRun()`. No TanStack Router hooks. |
+| `pages/` | One file per route. Receives data from `Route.useLoaderData()` / `Route.useRouteContext()` via props. Contains navigation callbacks. |
+| `layouts/` | Pure structural wrappers. Render `{children}` slots. No business logic. |
+
+## Shadcn Components
+
+Use the latest version of Shadcn to install new components:
+
+```bash
+pnpm -C ./applications/web dlx shadcn@latest add button
+```
+
+**Always prefer Shadcn components over plain HTML tags:**
+- `<button>` → `<Button>` from `components/ui/button`
+- `<a href>` → `<Button asChild><a href={...}>...</a></Button>`
+- `<input>` → `<Input>` from `components/ui/input`
+- `<select>` → `<Select>` from `components/ui/select`
+- `<label>` (in forms) → `<FormLabel>` from `components/ui/form`
+
+## Route File Convention
+
+Route files (`routes/**/*.tsx`) contain TanStack Router config (`createFileRoute`, `beforeLoad`, `loader`, `validateSearch`) plus a thin wrapper component that calls `Route.use*()` hooks and passes the results as props to the Page component. The Page component itself has no TanStack Router dependency.
+
+```typescript
+// routes/(authenticated)/dashboard.tsx
+export const Route = createFileRoute('/(authenticated)/dashboard')({
+  ssr: false, // Required: Effect Option types fail TanStack's serialization check
+  component: DashboardRoute,
+  beforeLoad: ...,
+  loader: ...,
+});
+
+function DashboardRoute() {
+  const { user } = Route.useRouteContext();
+  const data = Route.useLoaderData();
+  return <DashboardPage user={user} data={data} />;
+}
+```
+
+```typescript
+// components/pages/DashboardPage.tsx
+export function DashboardPage({ user, data }: DashboardPageProps) {
+  // No Route.use*() calls — pure component driven by props
+}
+```
+
+### Route File Naming (TanStack Router)
+
+Routes use a **hybrid directory + flat-file** layout. Top-level groupings (`profile/`, `teams/$teamId/`) are directories; sub-pages within them stay flat (dot-separated).
+
+| File | Resolves to | Purpose |
+|------|------------|---------|
+| `profile/index.tsx` | `/profile` | **Index page** (has sibling sub-routes) |
+| `profile/complete.tsx` | `/profile/complete` | **Page** |
+| `teams/$teamId/members.index.tsx` | `/teams/:teamId/members` | **Index page** (has sibling `members.$memberId`) |
+| `teams/$teamId/members.$memberId.tsx` | `/teams/:teamId/members/:memberId` | **Page** |
+| `notifications.tsx` | `/notifications` | **Plain route** (no sub-routes, so no `.index`) |
+
+**Key rules:**
+- Use `.index.tsx` only when the route has sibling sub-routes sharing the same prefix
+- When a route has sub-routes, the parent route file is a **layout** (wraps children via `<Outlet />`). The actual page at that path must be `index.tsx`.
+- Always add `ssr: false` to `createFileRoute(...)({...})` options
+
+### Current Route Structure
+
+```
+routes/(authenticated)/
+├── route.tsx                      — layout wrapper (auth guard)
+├── dashboard.tsx                  — /dashboard
+├── notifications.tsx              — /notifications
+├── profile/
+│   ├── index.tsx                  — /profile
+│   └── complete.tsx               — /profile/complete
+└── teams/
+    ├── index.tsx                  — /teams
+    └── $teamId/
+        ├── index.tsx              — /teams/:teamId
+        ├── age-thresholds.tsx     — /teams/:teamId/age-thresholds
+        ├── members.index.tsx      — /teams/:teamId/members
+        ├── members.$memberId.tsx  — /teams/:teamId/members/:memberId
+        ├── roles.index.tsx        — /teams/:teamId/roles
+        ├── roles.$roleId.tsx      — /teams/:teamId/roles/:roleId
+        ├── rosters.index.tsx      — /teams/:teamId/rosters
+        ├── rosters.$rosterId.tsx  — /teams/:teamId/rosters/:rosterId
+        ├── groups.index.tsx       — /teams/:teamId/groups
+        ├── groups.$groupId.tsx    — /teams/:teamId/groups/:groupId
+        ├── events.index.tsx       — /teams/:teamId/events
+        ├── events.$eventId.tsx    — /teams/:teamId/events/:eventId
+        ├── training-types.index.tsx      — /teams/:teamId/training-types
+        └── training-types.$trainingTypeId.tsx — /teams/:teamId/training-types/:trainingTypeId
+```
+
+## Forms — React Hook Form + Effect Schema
+
+**Always use Shadcn Form (`components/ui/form`) with React Hook Form and Effect Schema** for any form that collects user input.
+
+```typescript
+import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { Effect, Option, Schema } from 'effect';
+import { useForm } from 'react-hook-form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { ApiClient, ClientError, useRun } from '../../lib/runtime';
+
+const MyFormSchema = Schema.Struct({
+  name: Schema.NonEmptyString,
+  age: Schema.NumberFromString,
+  role: Schema.Literal('admin', 'member'),
+  jerseyNumber: Schema.NumberFromString.pipe(Schema.optionalWith({ as: 'Option' })),
+});
+type MyFormValues = Schema.Schema.Type<typeof MyFormSchema>;
+
+function MyForm({ onSuccess }: { onSuccess: () => void }) {
+  const run = useRun();
+  const form = useForm({
+    resolver: effectTsResolver(MyFormSchema),
+    mode: 'onChange',
+    defaultValues: { name: '' },
+  });
+
+  const onSubmit = async (values: MyFormValues) => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) => api.something.create({ payload: values })),
+      Effect.catchAll(() => ClientError.make('Failed to save')),
+      run,
+    );
+    if (Option.isSome(result)) onSuccess();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
+        <FormField
+          {...form.register('name')}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          {...form.register('role')}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Role</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className='w-full'><SelectValue /></SelectTrigger>
+                </FormControl>
+                <SelectContent>...</SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type='submit' disabled={form.formState.isSubmitting}>Submit</Button>
+      </form>
+    </Form>
+  );
+}
+```
+
+### Form Key Rules
+
+- Use `effectTsResolver(MySchema)` from `@hookform/resolvers/effect-ts` — **not** `standardSchemaResolver`, not zod, not yup
+- Do **not** wrap the schema in `Schema.standardSchemaV1(...)` — pass it directly
+- Use transforming schemas (`NumberFromString`, `optionalWith({ as: 'Option' })`, `NonEmptyString`)
+- `type FormValues = Schema.Schema.Type<typeof MySchema>` is the decoded/transformed type
+- Do **not** pass explicit generics to `useForm<MyFormValues>(...)` — let `effectTsResolver` infer
+- Spread `{...form.register('fieldName')}` on `<FormField>` — do **not** use `control={form.control} name='fieldName'`
+- Use `form.formState.isSubmitting` for loading state — no manual `submitting` state
+- For `<Select>`, use `onValueChange={field.onChange}` and `value={field.value}` — do **not** spread `{...field}` directly
+
+## Auth Store — `lib/auth.ts`
+
+Wraps browser `localStorage` via `@effect/platform-browser` `BrowserKeyValueStore`. All auth functions return Effects with `never` error and `never` requirements.
+
+```typescript
+import { KeyValueStore } from '@effect/platform';
+import { BrowserKeyValueStore } from '@effect/platform-browser';
+
+const kvLayer = BrowserKeyValueStore.layerLocalStorage;
+
+const get = (key: string) =>
+  KeyValueStore.KeyValueStore.pipe(
+    Effect.flatMap((store) => store.get(key)),
+    Effect.provide(kvLayer),
+    Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+  );
+
+export const getLastTeamId = get(LAST_TEAM);
+export const setLastTeamId = (teamId: string) => set(LAST_TEAM, teamId);
+```
+
+**In React callbacks / `useEffect`**: use `Effect.runSync(...)` (localStorage is synchronous).
+**In `beforeLoad` / `loader`**: pipe auth effects directly into the Effect chain.
+
+## `beforeLoad` Effect Pipe Pattern
+
+`beforeLoad` should be a single `Effect.Do` pipe ending with `context.run` — **not** an `async` function with `Effect.runSync` calls:
+
+```typescript
+class SkipError extends Data.TaggedError('SkipError') {}
+
+beforeLoad: ({ search, context }) =>
+  Effect.Do.pipe(
+    Effect.tap(
+      Option.match(Option.fromNullable(search.token), {
+        onSome: finishLogin,
+        onNone: () => Effect.void,
+      }),
+    ),
+    Effect.flatMap(() => getLastTeamId),
+    Effect.flatMap(
+      Option.match({
+        onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
+        onNone: () => Effect.void,
+      }),
+    ),
+    Effect.catchTag('SkipError', () => Effect.void),
+    context.run,
+  ),
+```
+
+**Key conventions:**
+- `SkipError` — custom tagged error for "stop processing, no redirect needed"
+- `Redirect.make({...})` — accepts type-safe `RedirectOptions` directly
+- `Option.match({ onSome: ..., onNone: ... })` — branch on `Option` values
+- No `async`/`await` or `Effect.runSync` — the entire `beforeLoad` is one `Effect.Do` pipe
+
+## Runtime — Client vs Server Runners
+
+`lib/runtime.ts` exposes two distinct run functions:
+
+| Function | Used in | Error channel | Returns | Side-effects |
+|---|---|---|---|---|
+| `runPromiseServer(url)(abortController?)` | `beforeLoad`, `loader` | `Redirect \| NotFound` | `Promise<A>` (throws on error) | None |
+| `runPromiseClient(url)` | Root loader → `RunProvider` | `ClientError` | `Promise<Option<A>>` | Auto `toast.error` on failure |
+
+**`Run` type** (what `useRun()` returns):
+```typescript
+type Run = <A>(
+  effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
+) => Promise<Option.Option<A>>;
+```
+
+**Wiring**: The root loader creates `runPromiseClient(url)` and passes it to `RootDocument` as the `run` prop, which puts it in `RunProvider`. All organisms access it via `useRun()`.
+
+**Organisms** call `useRun()` directly and pipe effects into `run`:
+```typescript
+const run = useRun();
+await ApiClient.pipe(
+  Effect.flatMap((api) => api.someEndpoint(...)),
+  Effect.catchTag('SomeError', () => ClientError.make('Error message')),
+  run,
+);
+```
+
+## Internationalization (i18n)
+
+### Supported Locales
+
+- **English (`en`)** — source language (base locale)
+- **Czech (`cs`)**
+
+### Framework: Paraglide JS v2
+
+Paraglide compiles translations into typed `m.key()` functions at build time. Missing keys fail the build.
+
+- **Vite plugin**: `paraglideVitePlugin` in `vite.config.ts`
+- **Project config**: `project.inlang/settings.json`
+- **Generated code**: `src/paraglide/` (auto-generated, gitignored)
+
+### Translation Files
+
+JSON files at `messages/{locale}.json`. Key format: `snake_case` with `_` separating hierarchy levels.
+
+Parameterized strings use `{variable}` syntax: `"auth_signedInAs": "Signed in as {username}"`.
+
+### Adding New Translations
+
+1. Add the key + English text to `messages/en.json`
+2. Add the Czech translation to `messages/cs.json`
+3. Import and call in components:
+   ```typescript
+   import * as m from '../paraglide/messages.js';
+   <p>{m.my_new_key({ param: value })}</p>
+   ```
+4. Run `pnpm codegen` before committing
+
+### Locale Persistence
+
+- **Authenticated users**: `locale` column on `users` table. Updated via `PATCH /auth/me/locale`.
+- **Unauthenticated users**: `localStorage` key `PARAGLIDE_LOCALE`.
+- **Root route** (`__root.tsx`): On load, if user is authenticated, calls `setLocale(user.locale)`.
+
+### Locale Runtime API
+
+```typescript
+import { getLocale, setLocale } from '../paraglide/runtime.js';
+getLocale();      // 'en' | 'cs'
+setLocale('cs');
+```
+
+### Date Formatting
+
+`useFormatDate` hook provides locale-aware formatting via `Intl` API:
+
+```typescript
+const { formatDate, formatTime, formatDateTime, formatRelative } = useFormatDate();
+```
+
+### Language Switcher
+
+`LanguageSwitcher` organism uses `LocaleSelect` molecule (Shadcn Select wrapper). Accepts `isAuthenticated` prop — when `true`, persists to server.
+
+## Troubleshooting
+
+- **TanStack Router serialization errors with Effect `Option`**: Add `ssr: false` to every route's `createFileRoute` options
+- **"Cannot find module" errors**: Ensure imports use `.js` extensions, run `pnpm install`
