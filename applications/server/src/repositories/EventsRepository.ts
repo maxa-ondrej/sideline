@@ -195,7 +195,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
               FROM member_roles mr
               JOIN role_training_types rtt ON rtt.role_id = mr.role_id
               WHERE mr.team_member_id = ${teamMemberId}
-              UNION
+              UNION ALL
               SELECT rtt.training_type_id
               FROM group_members gm
               JOIN LATERAL (
