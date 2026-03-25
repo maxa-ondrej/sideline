@@ -164,6 +164,10 @@ type EventRecord = {
   series_id: Option.Option<string>;
   series_modified: boolean;
   discord_target_channel_id: Option.Option<string>;
+  owner_group_id: Option.Option<string>;
+  owner_group_name: Option.Option<string>;
+  member_group_id: Option.Option<string>;
+  member_group_name: Option.Option<string>;
 };
 
 let eventsStore: Map<Event.EventId, EventRecord>;
@@ -200,6 +204,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
   });
   eventsStore.set(TEST_EVENT_CANCELLED, {
     id: TEST_EVENT_CANCELLED,
@@ -218,6 +226,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
   });
   eventsStore.set(TEST_EVENT_PAST, {
     id: TEST_EVENT_PAST,
@@ -236,6 +248,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
   });
   eventsStore.set(TEST_EVENT_OTHER_TEAM, {
     id: TEST_EVENT_OTHER_TEAM,
@@ -254,6 +270,10 @@ const resetStores = () => {
     series_id: Option.none(),
     series_modified: false,
     discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
   });
   rsvpsStore = new Map();
 };

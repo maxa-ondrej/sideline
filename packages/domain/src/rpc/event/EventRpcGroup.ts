@@ -17,6 +17,7 @@ import {
   RsvpDeadlinePassed,
   RsvpEventNotFound,
   RsvpMemberNotFound,
+  RsvpNotGroupMember,
   RsvpReminderSummary,
 } from './EventRpcModels.js';
 
@@ -51,7 +52,12 @@ export const EventRpcGroup = RpcGroup.make(
       message: Schema.OptionFromNullOr(Schema.String),
     },
     success: RsvpCountsResult,
-    error: Schema.Union(RsvpMemberNotFound, RsvpDeadlinePassed, RsvpEventNotFound),
+    error: Schema.Union(
+      RsvpMemberNotFound,
+      RsvpDeadlinePassed,
+      RsvpEventNotFound,
+      RsvpNotGroupMember,
+    ),
   }),
   Rpc.make('GetRsvpCounts', {
     payload: { event_id: Event.EventId },

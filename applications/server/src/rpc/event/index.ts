@@ -14,6 +14,7 @@ import { Array, Data, DateTime, Effect, flow, Option, Schema } from 'effect';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { constructEvent } from './events.js';
@@ -198,6 +199,7 @@ export const EventsRpcLive = Effect.Do.pipe(
     Effect.all({
       syncEvents: EventSyncEventsRepository,
       members: TeamMembersRepository,
+      groups: GroupsRepository,
       sql: SqlClient.SqlClient,
     }),
   ),
@@ -269,7 +271,7 @@ export const EventsRpcLive = Effect.Do.pipe(
   ),
   Effect.let(
     'Event/SubmitRsvp',
-    ({ rsvps, events, deps: { sql } }) =>
+    ({ rsvps, events, deps: { sql, groups } }) =>
       ({
         event_id,
         team_id,
@@ -324,6 +326,18 @@ export const EventsRpcLive = Effect.Do.pipe(
               Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpMemberNotFound())),
             ),
           ),
+          Effect.tap(({ event, member }) => {
+            if (Option.isNone(event.member_group_id)) return Effect.void;
+            return groups
+              .getDescendantMemberIds(event.member_group_id.value)
+              .pipe(
+                Effect.flatMap((memberIds) =>
+                  Array.contains(memberIds, member.id)
+                    ? Effect.void
+                    : Effect.fail(new EventRpcModels.RsvpNotGroupMember()),
+                ),
+              );
+          }),
           Effect.tap(({ member }) =>
             rsvps
               .upsertRsvp(event_id, member.id, response, message)
