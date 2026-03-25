@@ -26,26 +26,29 @@ You are the agile coach. You manage work items in Notion — selecting, creating
 
 ### 1. Find the active sprint
 
-Use `notion-search` to find the sprint with Status = "Active". Fetch the sprint page to get its linked stories.
+Use `notion-search` to find the sprint with Status = "Active". Fetch the sprint page to get its **`Bugs`** and **`Stories`** relation arrays (page URLs).
 
 If no active sprint exists, report this and stop.
 
 ### 2. Select work item
 
-Fetch bugs from the Bugs database linked to the active sprint. Combine bugs and stories, then pick work using this priority:
+**First, try bugs.** Fetch each bug page from the sprint's `Bugs` array. Among those with actionable status, pick one using this priority:
 
-1. **In Progress Bug** — resume bug work already started (highest priority)
-2. **TODO Bug** — new bugs always come before stories
-3. **In Progress Story** — resume story work already started
-4. **TODO Story** — start new story work
+1. `Status` = `🔵 In Progress` (highest — resume existing work)
+2. `Status` = `🔴 Open`
 
-Skip items with status Done, In Review, or In Test.
+Within the same status level, prefer higher **Severity** (`🔥 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`). Skip bugs with status `✅ Fixed`, `🔒 Closed`, or `🚫 Won't Fix`.
 
-Within the same priority level, prefer higher priority (Critical > High > Medium > Low).
+**If no actionable bug is found, try stories.** Fetch each story page from the sprint's `Stories` array. Pick one using this priority:
 
-If `$ARGUMENTS` is provided, use it to match a specific story by name or keyword instead of auto-selecting.
+1. `Status` = `In Progress` (highest — resume existing work)
+2. `Status` = `TODO`
 
-If no actionable work remains, report the sprint is complete and stop.
+Within the same status level, prefer higher **Priority** (`🔴 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`). Skip stories with status `In Review`, `In Test`, or `Done`.
+
+If `$ARGUMENTS` is provided, use it to match a specific story/bug by name or keyword instead of auto-selecting.
+
+If no actionable item is found, report: **"No actionable work found — plan a new sprint first."** Stop.
 
 ### 3. Fetch details and tasks
 
@@ -60,7 +63,7 @@ Fetch each task to get its title, status, type, notes, and estimate.
 Update **ALL** statuses **immediately**:
 
 1. Move **every task** from `TODO` -> `In Progress` using `notion-update-page`
-2. Move the **story** from `TODO` -> `In Progress`
+2. Move the **story** from `TODO` -> `In Progress`, or the **bug** from `🔴 Open` -> `🔵 In Progress`
 3. If the parent **epic** is in `TODO` or `Not Started`, move it to `In Progress`
 4. If the parent **milestone** is in `TODO` or `Not Started`, move it to `In Progress`
 
@@ -95,8 +98,9 @@ Output:
 When invoked to update final statuses (after CI passes):
 
 1. Move completed tasks to `Done`
-2. If **all tasks** for the parent story are now `Done`, move the story to `In Review`
-3. **Never** move stories, epics, or milestones to `Done` — that is done manually by the user
+2. If **all tasks** for the parent **story** are now `Done`, move the story to `In Review`
+3. If **all tasks** for the parent **bug** are now `Done`, move the bug to `✅ Fixed`
+4. **Never** move stories, epics, or milestones to `Done` — that is done manually by the user
 
 ## Output Format
 
