@@ -67,23 +67,51 @@ If no active sprint exists, report this and stop.
 
 ### 2. Select work item
 
-**First, try bugs.** Query the Bugs database and filter to bugs in the sprint's `Bugs` relation. Among those with actionable status, pick one using this priority:
+**CRITICAL: Bugs ALWAYS come before stories.** You MUST complete Step 2a before even looking at stories. Only proceed to Step 2b if Step 2a yields zero actionable bugs.
 
+If `$ARGUMENTS` is provided, use it to match a specific story/bug by name or keyword instead of auto-selecting. Otherwise follow the steps below.
+
+#### Step 2a: Check for bugs FIRST
+
+Query the Bugs database for bugs in the sprint's `Bugs` relation:
+
+```bash
+notion db query e6b8eb47-ddcd-4dba-b5fd-c631763ac5bd -f json --all
+```
+
+Filter the results to only bugs whose ID appears in the sprint's `Bugs` relation array. From those, find actionable bugs (status is `🔵 In Progress` or `🔴 Open`). Skip any bug with status `✅ Fixed`, `🔒 Closed`, or `🚫 Won't Fix`.
+
+Pick one using this priority:
 1. `Status` = `🔵 In Progress` (highest — resume existing work)
 2. `Status` = `🔴 Open`
 
-Within the same status level, prefer higher **Severity** (`🔥 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`). Skip bugs with status `✅ Fixed`, `🔒 Closed`, or `🚫 Won't Fix`.
+Within the same status level, prefer higher **Severity** (`🔥 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`).
 
-**If no actionable bug is found, try stories.** Query the Stories database and filter to stories in the sprint's `Stories` relation. Pick one using this priority:
+**If at least one actionable bug exists, you MUST select it. Do NOT look at stories.**
 
+#### Step 2b: Only if NO actionable bugs, check stories
+
+Query the Stories database for stories in the sprint's `Stories` relation:
+
+```bash
+notion db query 9ec44d56-966b-4c3e-ba98-637b128c99a8 -f json --all
+```
+
+Filter the results to only stories whose ID appears in the sprint's `Stories` relation array. From those, find actionable stories (status is `In Progress` or `TODO`). Skip any story with status `In Review`, `In Test`, or `Done`.
+
+**Sort stories by their parent Epic's name/number.** Epics have numbered prefixes (e.g., "E1: ...", "E2: ..."). Stories belonging to lower-numbered epics come first. To determine each story's epic:
+- Each story has an `Epic` relation property — fetch it
+- Sort stories by their epic's number (ascending), then by priority within the same epic
+
+Pick one using this priority:
 1. `Status` = `In Progress` (highest — resume existing work)
 2. `Status` = `TODO`
 
-Within the same status level, prefer higher **Priority** (`🔴 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`). Skip stories with status `In Review`, `In Test`, or `Done`.
+Within the same status and epic order, prefer higher **Priority** (`🔴 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`).
 
-If `$ARGUMENTS` is provided, use it to match a specific story/bug by name or keyword instead of auto-selecting.
+#### No work found
 
-If no actionable item is found, report: **"No actionable work found — plan a new sprint first."** Stop.
+If no actionable bug or story is found, report: **"No actionable work found — plan a new sprint first."** Stop.
 
 ### 3. Fetch details and tasks
 
