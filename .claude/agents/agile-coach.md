@@ -52,7 +52,7 @@ notion search "keyword" -f json
 
 ## Database Property Notes
 
-- **Bugs**: Status is a `select` field with values: `🔴 Open`, `🔵 In Progress`, `🧪 In Review`, `✅ Fixed`, `🔒 Closed`, `🚫 Won't Fix`. Title field is named `Bug`.
+- **Bugs**: Status is a `select` field with values: `🔴 Open`, `🔵 In Progress`, `🧪 In Review`, `✅ Fixed`, `🚫 Won't Fix`. Title field is named `Bug`.
 - **Stories**: Status is a `status` field with values: `TODO`, `In Progress`, `In Review`, `In Test`, `Done`. Title field is named `Story`.
 - **Tasks**: Status is a `status` field with values: `TODO`, `In Progress`, `Done`. Title field is named `Task`.
 - **Sprints**: Has `Stories` and `Bugs` relation arrays. `Active sprint` is a formula (boolean).
@@ -79,7 +79,7 @@ Query the Bugs database for bugs in the sprint's `Bugs` relation:
 notion db query e6b8eb47-ddcd-4dba-b5fd-c631763ac5bd -f json --all
 ```
 
-Filter the results to only bugs whose ID appears in the sprint's `Bugs` relation array. From those, find actionable bugs (status is `🔵 In Progress` or `🔴 Open`). Skip any bug with status `✅ Fixed`, `🔒 Closed`, or `🚫 Won't Fix`.
+Filter the results to only bugs whose ID appears in the sprint's `Bugs` relation array. From those, find actionable bugs (status is `🔵 In Progress` or `🔴 Open`). Skip any bug with status `✅ Fixed`, or `🚫 Won't Fix`.
 
 Pick one using this priority:
 1. `Status` = `🔵 In Progress` (highest — resume existing work)
