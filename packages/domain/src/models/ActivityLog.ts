@@ -13,7 +13,7 @@ export class ActivityLog extends Model.Class<ActivityLog>('ActivityLog')({
   team_member_id: TeamMemberId,
   activity_type: ActivityType,
   logged_at: Model.DateTimeInsertFromDate,
-  duration_minutes: Schema.OptionFromNullOr(Schema.Number),
+  duration_minutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
   note: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

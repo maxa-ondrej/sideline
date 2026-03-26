@@ -34,7 +34,7 @@ export const logHandler = Interaction.pipe(
         Ix.response({
           type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: m.bot_makanicko_no_guild({}, { locale }),
+            content: m.bot_makanicko_log_error({}, { locale }),
             flags: DiscordTypes.MessageFlags.Ephemeral,
           },
         }),
@@ -102,7 +102,7 @@ export const logHandler = Interaction.pipe(
             content: m.bot_makanicko_log_success({ activity: result.activity_type }, { locale }),
           })),
           Effect.catchTag('ActivityGuildNotFound', () =>
-            Effect.succeed({ content: m.bot_makanicko_log_not_member({}, { locale }) }),
+            Effect.succeed({ content: m.bot_makanicko_log_error({}, { locale }) }),
           ),
           Effect.catchTag('ActivityMemberNotFound', () =>
             Effect.succeed({ content: m.bot_makanicko_log_not_member({}, { locale }) }),
