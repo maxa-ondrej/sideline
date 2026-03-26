@@ -13,6 +13,7 @@ export const EventCreateAutocomplete = Ix.autocomplete(
     Effect.bind('interaction', () => Interaction),
     Effect.bind('focused', () => FocusedOptionContext),
     Effect.bind('rpc', () => SyncRpc),
+    Effect.tap(() => Effect.logInfo('[autocomplete] handler invoked')),
     Effect.flatMap(({ interaction, focused, rpc }) => {
       const guildId = interaction.guild_id;
       const data = interaction.data;
@@ -32,11 +33,15 @@ export const EventCreateAutocomplete = Ix.autocomplete(
       );
 
       if (eventType !== 'training') {
-        return Effect.succeed(
-          Ix.response({
-            type: DiscordTypes.InteractionCallbackTypes.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
-            data: { choices: [] },
-          }),
+        return Effect.logInfo(
+          `[autocomplete] skipping: eventType=${eventType}, options=${JSON.stringify(subCommandOptions)}`,
+        ).pipe(
+          Effect.as(
+            Ix.response({
+              type: DiscordTypes.InteractionCallbackTypes.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+              data: { choices: [] },
+            }),
+          ),
         );
       }
 
@@ -66,7 +71,11 @@ export const EventCreateAutocomplete = Ix.autocomplete(
             Array.take(25),
           ),
         ),
+        Effect.tapError((err) => Effect.logError('[autocomplete] RPC error', err)),
         Effect.catchAll(() => Effect.succeed<ReadonlyArray<{ name: string; value: string }>>([])),
+        Effect.tap((choices) =>
+          Effect.logInfo(`[autocomplete] returning ${choices.length} choices`),
+        ),
         Effect.map((choices) =>
           Ix.response({
             type: DiscordTypes.InteractionCallbackTypes.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
