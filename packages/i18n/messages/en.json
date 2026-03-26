@@ -455,5 +455,9 @@
   "ical_regenerateFailed": "Failed to regenerate URL.",
   "ical_instructions_google": "Open Google Calendar > Settings > Add calendar > From URL > paste the subscription URL.",
   "ical_instructions_apple": "Click the subscription URL or open Calendar > File > New Calendar Subscription > paste the URL.",
-  "ical_instructions_outlook": "Open Outlook > Add calendar > Subscribe from web > paste the subscription URL."
+  "ical_instructions_outlook": "Open Outlook > Add calendar > Subscribe from web > paste the subscription URL.",
+  "bot_makanicko_no_guild": "This command can only be used in a Discord server.",
+  "bot_makanicko_log_success": "Activity logged: {activity}",
+  "bot_makanicko_log_not_member": "You are not a member of this team.",
+  "bot_makanicko_log_error": "Failed to log activity. Please try again."
 }
