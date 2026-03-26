@@ -1,10 +1,11 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { RoleApi, Roster } from '@sideline/domain';
+import type { ActivityStatsApi, RoleApi, Roster } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { ActivityStatsCard } from '~/components/organisms/ActivityStatsCard';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
 import {
@@ -43,6 +44,7 @@ interface PlayerDetailPageProps {
   canEdit: boolean;
   canManageRoles: boolean;
   availableRoles: ReadonlyArray<RoleApi.RoleInfo>;
+  activityStats: ActivityStatsApi.ActivityStatsResponse;
   onSave: (values: PlayerEditValues) => Promise<void>;
   onAssignRole: (roleId: string) => Promise<void>;
   onUnassignRole: (roleId: string) => Promise<void>;
@@ -54,6 +56,7 @@ export function PlayerDetailPage({
   canEdit,
   canManageRoles,
   availableRoles,
+  activityStats,
   onSave,
   onAssignRole,
   onUnassignRole,
@@ -177,6 +180,7 @@ export function PlayerDetailPage({
         onAssignRole={onAssignRole}
         onUnassignRole={onUnassignRole}
       />
+      <ActivityStatsCard stats={activityStats} />
     </div>
   );
 }

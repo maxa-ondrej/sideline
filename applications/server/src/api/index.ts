@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Layer } from 'effect';
+import { ActivityStatsApiLive } from '~/api/activity-stats.js';
 import { AgeThresholdApiLive } from '~/api/age-threshold.js';
 import { Api } from '~/api/api.js';
 import { AuthApiLive } from '~/api/auth.js';
@@ -16,6 +17,7 @@ import { TeamSettingsApiLive } from '~/api/team-settings.js';
 import { TrainingTypeApiLive } from '~/api/training-type.js';
 
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
+  Layer.provide(ActivityStatsApiLive),
   Layer.provide(AgeThresholdApiLive),
   Layer.provide(AuthApiLive),
   Layer.provide(EventApiLive),

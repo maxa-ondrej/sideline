@@ -2,6 +2,12 @@ import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityLog, TeamMember } from '@sideline/domain';
 import { Effect, type Option, Schema } from 'effect';
 
+class StatsRow extends Schema.Class<StatsRow>('StatsRow')({
+  activity_type: ActivityLog.ActivityType,
+  logged_at_date: Schema.String,
+  duration_minutes: Schema.OptionFromNullOr(Schema.Int),
+}) {}
+
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   team_member_id: TeamMember.TeamMemberId,
   activity_type: ActivityLog.ActivityType,
@@ -37,6 +43,23 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
       RETURNING id, activity_type, logged_at::text
     `,
   });
+
+  private findAllQuery = SqlSchema.findAll({
+    Request: TeamMember.TeamMemberId,
+    Result: StatsRow,
+    execute: (teamMemberId) => this.sql`
+      SELECT
+        activity_type,
+        (logged_at AT TIME ZONE 'Europe/Prague')::date::text AS logged_at_date,
+        duration_minutes
+      FROM activity_logs
+      WHERE team_member_id = ${teamMemberId}
+      ORDER BY logged_at
+    `,
+  });
+
+  findByTeamMember = (teamMemberId: TeamMember.TeamMemberId) =>
+    this.findAllQuery(teamMemberId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   insert = (input: {
     team_member_id: TeamMember.TeamMemberId;

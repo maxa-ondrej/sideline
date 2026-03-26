@@ -4,6 +4,7 @@ import { ActivityLog, Discord } from '~/index.js';
 import {
   ActivityGuildNotFound,
   ActivityMemberNotFound,
+  GetStatsResult,
   LogActivityResult,
 } from './ActivityRpcModels.js';
 
@@ -17,6 +18,14 @@ export const ActivityRpcGroup = RpcGroup.make(
       note: Schema.OptionFromNullOr(Schema.String),
     },
     success: LogActivityResult,
+    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+  }),
+  Rpc.make('GetStats', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+    },
+    success: GetStatsResult,
     error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
   }),
 ).prefix('Activity/');

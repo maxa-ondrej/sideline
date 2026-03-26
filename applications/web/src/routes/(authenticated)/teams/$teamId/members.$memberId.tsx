@@ -20,6 +20,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
           player: api.roster.getMember({ path: { teamId, memberId } }),
           myTeams: api.auth.myTeams(),
           roles: api.role.listRoles({ path: { teamId } }),
+          activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
         }),
       ),
       warnAndCatchAll,
@@ -35,7 +36,7 @@ function MemberDetailRoute() {
   const navigate = useNavigate();
   const router = useRouter();
   const run = useRun();
-  const { player, myTeams, roles: roleListResponse } = Route.useLoaderData();
+  const { player, myTeams, roles: roleListResponse, activityStats } = Route.useLoaderData();
   const roles = roleListResponse.roles;
 
   // Use the current user's permissions for this team, not the target player's
@@ -112,6 +113,7 @@ function MemberDetailRoute() {
       canEdit={canEdit}
       canManageRoles={canManageRoles}
       availableRoles={roles}
+      activityStats={activityStats}
       onSave={handleSave}
       onAssignRole={handleAssignRole}
       onUnassignRole={handleUnassignRole}

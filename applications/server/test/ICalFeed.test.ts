@@ -4,6 +4,7 @@ import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -274,6 +275,11 @@ const MockHttpClientLayer = Layer.succeed(
   ),
 );
 
+const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
+  insert: () => Effect.die(new Error('not implemented')),
+  findByTeamMember: () => Effect.succeed([]),
+} as unknown as ActivityLogsRepository);
+
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
   Layer.provideMerge(HttpServer.layerContext),
@@ -282,7 +288,7 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockSessionsRepositoryLayer),
   Layer.provide(MockTeamsRepositoryLayer),
   Layer.provide(MockTeamMembersRepositoryLayer),
-  Layer.provide(MockRostersRepositoryLayer),
+  Layer.provide(Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer)),
   Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockGroupsRepositoryLayer),
   Layer.provide(MockTrainingTypesRepositoryLayer),
