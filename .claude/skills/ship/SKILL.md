@@ -1,21 +1,27 @@
 ---
-name: commit
-description: Use when the user asks to "commit", "commit and push", "ship it", or wants to commit their changes. Runs changeset creation, all checks, commits, pushes, and verifies CI.
+name: ship
+description: Commit, push, open a PR, verify CI, and address code review comments. The delivery loop from local changes to a reviewed PR. Use this whenever the user asks to commit, push, ship, send, or submit changes.
 ---
 
-# Commit Skill
+# Ship Skill
 
-This skill handles the full commit-and-push workflow for the sideline monorepo.
+Commit local changes, push, open a PR, and handle CI + code review.
 
-## Steps
+## Execution
 
 Follow these steps **in order**. Stop and report if any step fails.
 
-### 1. Check for changes
+**Never push directly to `main`.** All work goes through feature branches and pull requests.
+
+---
+
+### Step 1: Check for changes
 
 Run `git status` and `git diff` to understand what changed. If there are no changes, tell the user and stop.
 
-### 2. Create a changeset (if code changed)
+---
+
+### Step 2: Create a changeset (if code changed)
 
 If any package source code changed (not just docs/config), create a changeset file in `.changeset/`:
 
@@ -26,7 +32,9 @@ If any package source code changed (not just docs/config), create a changeset fi
   - **major** — NEVER. Do not bump major.
 - Write a short summary of the changes in the changeset body
 
-### 3. Run all checks
+---
+
+### Step 3: Run all checks
 
 Run these commands and make sure they all pass:
 
@@ -39,7 +47,9 @@ pnpm test          # Run all tests
 
 Stage any files modified by format/codegen before proceeding.
 
-### 4. Commit
+---
+
+### Step 4: Commit
 
 - Stage all relevant files (avoid secrets like `.env`, credentials)
 - Write a concise commit message describing **why**, not what
@@ -47,11 +57,13 @@ Stage any files modified by format/codegen before proceeding.
 - Never add `Co-Authored-By`, `Generated-By`, or any AI attribution footers
 - Use a HEREDOC for the commit message to preserve formatting
 
-### 5. Push and open PR
+---
+
+### Step 5: Push and open PR
 
 Run `git push` to push the commit to the remote. If the branch has no upstream yet, use `git push -u origin <branch>`.
 
-Then always open a pull request with `gh pr create`:
+Then open a pull request with `gh pr create` (skip if a PR already exists):
 
 ```bash
 gh pr create --title "<short title>" --body "$(cat <<'EOF'
@@ -66,7 +78,9 @@ EOF
 
 Return the PR URL to the user.
 
-### 6. Verify CI
+---
+
+### Step 6: Verify CI
 
 After pushing, check that CI pipelines pass:
 
@@ -74,8 +88,30 @@ After pushing, check that CI pipelines pass:
 gh run list --limit 1
 ```
 
-If the latest run is still in progress, wait and check again with `gh run watch`. If it fails, investigate the logs with `gh run view --log-failed`, fix the issue, and restart from step 3.
+If the latest run is still in progress, wait and check again with `gh run watch`. If it fails, investigate the logs with `gh run view --log-failed`, fix the issue, and restart from Step 3.
 
-### 7. Done
+---
+
+### Step 7: Wait for code review
+
+After CI passes, poll for review comments:
+
+```bash
+gh pr view --json number -q '.number'
+gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
+gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
+```
+
+Wait up to 3 minutes for review comments to appear, checking every 30 seconds. If no comments arrive, stop.
+
+---
+
+### Step 8: Address review comments
+
+If comments were found, invoke the `/revise` skill to address them.
+
+---
+
+### Step 9: Done
 
 Report the PR URL and CI status. Do **not** update Notion statuses — that is the `/agile-coach` agent's responsibility.

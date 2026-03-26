@@ -21,20 +21,27 @@ export const createHandler = Interaction.pipe(
     }
 
     const data = interaction.data;
-    const eventType =
-      data && 'options' in data
-        ? pipe(
-            [...(data.options ?? [])],
-            Array.findFirst((o) => o.name === 'type'),
-            Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
-            Option.getOrElse(() => 'other'),
-          )
-        : 'other';
+    // For subcommands, options are nested: data.options[0] = "create" subcommand,
+    // and the actual options (type, training_type) are in data.options[0].options
+    const subCommand = data && 'options' in data ? data.options?.[0] : undefined;
+    const options = subCommand && 'options' in subCommand ? [...(subCommand.options ?? [])] : [];
+    const eventType = pipe(
+      options,
+      Array.findFirst((o) => o.name === 'type'),
+      Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
+      Option.getOrElse(() => 'other'),
+    );
+    const trainingTypeId = pipe(
+      options,
+      Array.findFirst((o) => o.name === 'training_type'),
+      Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
+      Option.getOrElse(() => ''),
+    );
 
     return Ix.response({
       type: DiscordTypes.InteractionCallbackTypes.MODAL,
       data: {
-        custom_id: `event-create:${eventType}`,
+        custom_id: `event-create:${eventType}:${trainingTypeId}`,
         title: m.bot_event_modal_title({}, { locale }),
         components: [
           {

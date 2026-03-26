@@ -232,6 +232,26 @@ Trunk-based development on `main`:
 4. After review, squash-merge into `main`
 5. For publishable changes, add a changeset before merging
 
+## Development Workflow Skills
+
+The development workflow is split into composable skills:
+
+| Skill | Purpose |
+|-------|---------|
+| `/work` | Orchestrator: picks up a Notion story → `/implement` → `/ship` → updates Notion |
+| `/implement` | Full dev loop: research → plan → TDD → verify tests → implement → verify → review → refactor |
+| `/ship` | Delivery loop: changeset → checks → commit → push → PR → CI → code review → `/revise` |
+| `/revise` | Triage review comments with `/architect` → `/implement` fixes → `/ship` |
+| `/refactor` | Refactor code with before/after explanation, verified by tests |
+| `/reconcile` | Sync Notion statuses for merged PRs |
+
+### Composition
+
+- **`/work`** calls `/implement` then `/ship` — use for full story lifecycle with Notion integration
+- **`/implement`** is standalone — use when you already have a branch and want the full dev loop
+- **`/ship`** is standalone — use when code is ready and you want to commit, push, and handle review
+- **`/revise`** is standalone — use when a PR has review comments to address
+
 ## Version Management
 
 ```bash
@@ -299,6 +319,22 @@ Stories/epics/milestones: `TODO → In Progress → In Review → In Test → Do
 - `notion-update-page` — update task status or properties
 - `notion-create-pages` — create new tasks
 
+## Preview Database Access
+
+Each PR gets a preview database. Use `bin/psql` to connect:
+
+```bash
+psql --pr 108                          # Connect to PR 108's preview database
+psql --pr 108 -c "SELECT * FROM teams" # Run a query
+psql                                   # Connect to the main preview database
+```
+
+Configuration:
+- `.env.preview` — connection config (host, port, user, DB name templates) — committed
+- `.env.preview.local` — password only — gitignored
+
+Both files are sourced automatically by `bin/psql`. The `bin/` directory is added to `PATH` via `.envrc`.
+
 ## Troubleshooting
 
 - **"Cannot find module"**: Ensure `.js` extensions in imports, run `pnpm install`
@@ -315,4 +351,4 @@ Stories/epics/milestones: `TODO → In Progress → In Review → In Test → Do
 
 ---
 
-**Last Updated**: 2026-03-25
+**Last Updated**: 2026-03-26
