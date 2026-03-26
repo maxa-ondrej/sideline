@@ -46,10 +46,12 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
                 `Updated event message for "${event.title}" in channel ${msg.discord_channel_id}`,
               ),
             ),
-            Effect.tap(() => {
-              const locale = guildLocale({ guild_locale: guild.preferred_locale });
-              return reorderChannelMessages(msg.discord_channel_id, locale);
-            }),
+            Effect.tap(() =>
+              reorderChannelMessages(
+                msg.discord_channel_id,
+                guildLocale({ guild_locale: guild.preferred_locale }),
+              ),
+            ),
             Effect.asVoid,
           ),
       }),

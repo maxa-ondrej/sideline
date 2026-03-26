@@ -172,56 +172,49 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  findRsvpsByEventId = (eventId: Event.EventId) => {
-    return this.findByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findRsvpsByEventId = (eventId: Event.EventId) =>
+    this.findByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findRsvpByEventAndMember = (eventId: Event.EventId, teamMemberId: TeamMember.TeamMemberId) => {
-    return this.findByEventAndMember({ event_id: eventId, team_member_id: teamMemberId }).pipe(
+  findRsvpByEventAndMember = (eventId: Event.EventId, teamMemberId: TeamMember.TeamMemberId) =>
+    this.findByEventAndMember({ event_id: eventId, team_member_id: teamMemberId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
   upsertRsvp = (
     eventId: Event.EventId,
     teamMemberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
     message: Option.Option<string>,
-  ) => {
-    return this.upsert({
+  ) =>
+    this.upsert({
       event_id: eventId,
       team_member_id: teamMemberId,
       response,
       message,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
 
-  countRsvpsByEventId = (eventId: Event.EventId) => {
-    return this.countByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  countRsvpsByEventId = (eventId: Event.EventId) =>
+    this.countByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findRsvpAttendeesPage = (eventId: Event.EventId, offset: number, limit: number) => {
-    return this.findAttendeesPage({ event_id: eventId, limit, offset }).pipe(
+  findRsvpAttendeesPage = (eventId: Event.EventId, offset: number, limit: number) =>
+    this.findAttendeesPage({ event_id: eventId, limit, offset }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
   findNonRespondersByEventId = (
     eventId: Event.EventId,
     teamId: string,
     memberGroupId: Option.Option<string> = Option.none(),
-  ) => {
-    return this.findNonResponders({
+  ) =>
+    this.findNonResponders({
       event_id: eventId,
       team_id: teamId,
       member_group_id: memberGroupId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
 
-  countRsvpTotal = (eventId: Event.EventId) => {
-    return this.countTotalByEventId(eventId).pipe(
+  countRsvpTotal = (eventId: Event.EventId) =>
+    this.countTotalByEventId(eventId).pipe(
       Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 }

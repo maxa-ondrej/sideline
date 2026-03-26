@@ -60,9 +60,8 @@ export const EventCreateAutocomplete = Ix.autocomplete(
       return rpc['Event/GetTrainingTypesByGuild']({
         guild_id: decodeSnowflake(guildId),
       }).pipe(
-        Effect.map((types) => {
-          const OTHER_CHOICE = { name: 'Other', value: '' };
-          const filtered = pipe(
+        Effect.map((types) => [
+          ...pipe(
             [...types],
             Array.filter((tt) => tt.name.toLowerCase().includes(query.toLowerCase())),
             Array.map((tt) => ({
@@ -70,9 +69,9 @@ export const EventCreateAutocomplete = Ix.autocomplete(
               value: tt.id,
             })),
             Array.take(24),
-          );
-          return [...filtered, OTHER_CHOICE];
-        }),
+          ),
+          { name: 'Other', value: '' },
+        ]),
         Effect.tapError((err) => Effect.logError('[autocomplete] RPC error', err)),
         Effect.catchAll(() => Effect.succeed<ReadonlyArray<{ name: string; value: string }>>([])),
         Effect.tap((choices) =>

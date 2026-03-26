@@ -170,6 +170,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       ),
                     );
                 }),
+
                 { concurrency: 1 },
               ),
             ),
@@ -310,13 +311,17 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ existing }) =>
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
-            Effect.tap(({ existing, isAdmin, membership }) => {
-              const newTrainingTypeId = Option.match(payload.trainingTypeId, {
-                onNone: () => existing.training_type_id,
-                onSome: (v) => v,
-              });
-              return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
-            }),
+            Effect.tap(({ existing, isAdmin, membership }) =>
+              checkCoachScoping(
+                events,
+                membership.id,
+                Option.match(payload.trainingTypeId, {
+                  onNone: () => existing.training_type_id,
+                  onSome: (v) => v,
+                }),
+                isAdmin,
+              ),
+            ),
             Effect.let('resolved', ({ existing }) => ({
               title: Option.getOrElse(payload.title, () => existing.title),
               trainingTypeId: Option.match(payload.trainingTypeId, {
@@ -440,33 +445,33 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 ),
               ),
             ),
-            Effect.map(({ detail, membership }) => {
-              const canEdit = hasPermission(membership, 'event:edit');
-              const canCancel = hasPermission(membership, 'event:cancel');
-              return new EventSeriesApi.EventSeriesDetail({
-                seriesId: detail.id,
-                teamId: detail.team_id,
-                title: detail.title,
-                description: detail.description,
-                frequency: detail.frequency,
-                daysOfWeek: detail.days_of_week,
-                startDate: detail.start_date,
-                endDate: detail.end_date,
-                status: detail.status,
-                trainingTypeId: detail.training_type_id,
-                trainingTypeName: detail.training_type_name,
-                startTime: detail.start_time,
-                endTime: detail.end_time,
-                location: detail.location,
-                discordChannelId: detail.discord_target_channel_id,
-                ownerGroupId: detail.owner_group_id,
-                ownerGroupName: detail.owner_group_name,
-                memberGroupId: detail.member_group_id,
-                memberGroupName: detail.member_group_name,
-                canEdit: canEdit && detail.status === 'active',
-                canCancel: canCancel && detail.status === 'active',
-              });
-            }),
+            Effect.map(
+              ({ detail, membership }) =>
+                new EventSeriesApi.EventSeriesDetail({
+                  seriesId: detail.id,
+                  teamId: detail.team_id,
+                  title: detail.title,
+                  description: detail.description,
+                  frequency: detail.frequency,
+                  daysOfWeek: detail.days_of_week,
+                  startDate: detail.start_date,
+                  endDate: detail.end_date,
+                  status: detail.status,
+                  trainingTypeId: detail.training_type_id,
+                  trainingTypeName: detail.training_type_name,
+                  startTime: detail.start_time,
+                  endTime: detail.end_time,
+                  location: detail.location,
+                  discordChannelId: detail.discord_target_channel_id,
+                  ownerGroupId: detail.owner_group_id,
+                  ownerGroupName: detail.owner_group_name,
+                  memberGroupId: detail.member_group_id,
+                  memberGroupName: detail.member_group_name,
+                  canEdit: hasPermission(membership, 'event:edit') && detail.status === 'active',
+                  canCancel:
+                    hasPermission(membership, 'event:cancel') && detail.status === 'active',
+                }),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )

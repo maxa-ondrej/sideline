@@ -10,10 +10,8 @@ const decodeGuild = Schema.decodeUnknownSync(DfxGuild);
 
 const REMINDER_COLOR = 0xfee75c; // yellow
 
-const toDiscordTimestamp = (dt: DateTime.Utc, style: 'R' | 'f' = 'f'): string => {
-  const unix = Math.floor(Number(DateTime.toEpochMillis(dt)) / 1000);
-  return `<t:${unix}:${style}>`;
-};
+const toDiscordTimestamp = (dt: DateTime.Utc, style: 'R' | 'f' = 'f'): string =>
+  `<t:${Math.floor(Number(DateTime.toEpochMillis(dt)) / 1000)}:${style}>`;
 
 export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
   Effect.Do.pipe(

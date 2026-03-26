@@ -39,46 +39,44 @@ const buildRsvpDetail = (
     Effect.bind('allRsvps', () => rsvps.findRsvpsByEventId(eventId)),
     Effect.bind('myRsvp', () => rsvps.findRsvpByEventAndMember(eventId, myMemberId)),
     Effect.bind('counts', () => rsvps.countRsvpsByEventId(eventId)),
-    Effect.map(({ allRsvps, myRsvp, counts }) => {
-      const yesCount = pipe(
-        counts,
-        Array.findFirst((c) => c.response === 'yes'),
-        Option.map((c) => c.count),
-        Option.getOrElse(() => 0),
-      );
-      const noCount = pipe(
-        counts,
-        Array.findFirst((c) => c.response === 'no'),
-        Option.map((c) => c.count),
-        Option.getOrElse(() => 0),
-      );
-      const maybeCount = pipe(
-        counts,
-        Array.findFirst((c) => c.response === 'maybe'),
-        Option.map((c) => c.count),
-        Option.getOrElse(() => 0),
-      );
-      return new EventRsvpApi.EventRsvpDetail({
-        myResponse: Option.map(myRsvp, (my) => my.response),
-        myMessage: Option.flatMap(myRsvp, (my) => my.message),
-        rsvps: Array.map(
-          allRsvps,
-          (r) =>
-            new EventRsvpApi.RsvpEntry({
-              teamMemberId: r.team_member_id,
-              memberName: r.member_name,
-              username: r.username,
-              response: r.response,
-              message: r.message,
-            }),
-        ),
-        yesCount,
-        noCount,
-        maybeCount,
-        canRsvp,
-        minPlayersThreshold,
-      });
-    }),
+    Effect.map(
+      ({ allRsvps, myRsvp, counts }) =>
+        new EventRsvpApi.EventRsvpDetail({
+          myResponse: Option.map(myRsvp, (my) => my.response),
+          myMessage: Option.flatMap(myRsvp, (my) => my.message),
+          rsvps: Array.map(
+            allRsvps,
+            (r) =>
+              new EventRsvpApi.RsvpEntry({
+                teamMemberId: r.team_member_id,
+                memberName: r.member_name,
+                username: r.username,
+                response: r.response,
+                message: r.message,
+              }),
+          ),
+          yesCount: pipe(
+            counts,
+            Array.findFirst((c) => c.response === 'yes'),
+            Option.map((c) => c.count),
+            Option.getOrElse(() => 0),
+          ),
+          noCount: pipe(
+            counts,
+            Array.findFirst((c) => c.response === 'no'),
+            Option.map((c) => c.count),
+            Option.getOrElse(() => 0),
+          ),
+          maybeCount: pipe(
+            counts,
+            Array.findFirst((c) => c.response === 'maybe'),
+            Option.map((c) => c.count),
+            Option.getOrElse(() => 0),
+          ),
+          canRsvp,
+          minPlayersThreshold,
+        }),
+    ),
   );
 
 export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers) =>
@@ -114,15 +112,18 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.bind('isGroupMember', ({ event, membership }) =>
               checkGroupAccess(groups, membership.id, event.member_group_id),
             ),
-            Effect.flatMap(({ event, membership, settings, isGroupMember }) => {
-              const canRsvp =
-                event.status === 'active' && !isEventPastDeadline(event.start_at) && isGroupMember;
-              const threshold = Option.match(settings, {
-                onNone: () => 0,
-                onSome: (s) => s.min_players_threshold,
-              });
-              return buildRsvpDetail(rsvps, eventId, membership.id, canRsvp, threshold);
-            }),
+            Effect.flatMap(({ event, membership, settings, isGroupMember }) =>
+              buildRsvpDetail(
+                rsvps,
+                eventId,
+                membership.id,
+                event.status === 'active' && !isEventPastDeadline(event.start_at) && isGroupMember,
+                Option.match(settings, {
+                  onNone: () => 0,
+                  onSome: (s) => s.min_players_threshold,
+                }),
+              ),
+            ),
           ),
         )
         .handle('submitRsvp', ({ path: { teamId, eventId }, payload }) =>

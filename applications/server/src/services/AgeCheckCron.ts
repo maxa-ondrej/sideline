@@ -7,9 +7,9 @@ const cronEffect = Effect.Do.pipe(
   Effect.bind('ageCheck', () => AgeCheckService),
   Effect.tap(() => Effect.logInfo('AgeCheckCron: starting evaluation cycle')),
   Effect.bind('teamIds', ({ thresholds }) => thresholds.getAllTeamsWithRules()),
-  Effect.tap(({ teamIds, ageCheck }) => {
-    const today = new Date();
-    return Effect.all(
+  Effect.let('today', () => new Date()),
+  Effect.tap(({ teamIds, ageCheck, today }) =>
+    Effect.all(
       teamIds.map((teamId) =>
         ageCheck
           .evaluate(teamId as Parameters<typeof ageCheck.evaluate>[0], today)
@@ -23,8 +23,8 @@ const cronEffect = Effect.Do.pipe(
             ),
           ),
       ),
-    );
-  }),
+    ),
+  ),
   Effect.tap(() => Effect.logInfo('AgeCheckCron: evaluation cycle complete')),
   Effect.asVoid,
 );

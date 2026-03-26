@@ -111,21 +111,18 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     `,
   });
 
-  findByUser = (userId: User.UserId) => {
-    return this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findByUser = (userId: User.UserId) =>
+    this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findByUserAndTeam = (userId: User.UserId, teamId: Team.TeamId) => {
-    return this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(
+  findByUserAndTeam = (userId: User.UserId, teamId: Team.TeamId) =>
+    this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
-  markAllAsReadForTeam = (userId: User.UserId, teamId: Team.TeamId) => {
-    return this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(
+  markAllAsReadForTeam = (userId: User.UserId, teamId: Team.TeamId) =>
+    this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
   insert = (
     teamId: Team.TeamId,
@@ -133,11 +130,10 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     type: Notification.NotificationType,
     title: string,
     body: string,
-  ) => {
-    return this.insertOne({ team_id: teamId, user_id: userId, type, title, body }).pipe(
+  ) =>
+    this.insertOne({ team_id: teamId, user_id: userId, type, title, body }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
   insertBulk = (
     notifications: ReadonlyArray<{
@@ -147,8 +143,8 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
       title: string;
       body: string;
     }>,
-  ) => {
-    return Effect.all(
+  ) =>
+    Effect.all(
       notifications.map((n) =>
         this.insertOne({
           team_id: n.teamId,
@@ -159,21 +155,15 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
         }),
       ),
     ).pipe(Effect.asVoid, Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
 
-  markAsRead = (notificationId: Notification.NotificationId) => {
-    return this.markOneAsRead({ id: notificationId }).pipe(
+  markAsRead = (notificationId: Notification.NotificationId) =>
+    this.markOneAsRead({ id: notificationId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
-  markAllAsRead = (userId: User.UserId) => {
-    return this.markAllRead(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  markAllAsRead = (userId: User.UserId) =>
+    this.markAllRead(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findById = (notificationId: Notification.NotificationId) => {
-    return this.findOneById(notificationId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
-  };
+  findById = (notificationId: Notification.NotificationId) =>
+    this.findOneById(notificationId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

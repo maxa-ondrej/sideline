@@ -116,20 +116,21 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   }),
               }),
             ),
-            Effect.map(({ result }) => {
-              return new TeamSettingsApi.TeamSettingsInfo({
-                teamId: result.team_id,
-                eventHorizonDays: result.event_horizon_days,
-                minPlayersThreshold: result.min_players_threshold,
-                rsvpReminderHours: result.rsvp_reminder_hours,
-                discordChannelTraining: result.discord_channel_training,
-                discordChannelMatch: result.discord_channel_match,
-                discordChannelTournament: result.discord_channel_tournament,
-                discordChannelMeeting: result.discord_channel_meeting,
-                discordChannelSocial: result.discord_channel_social,
-                discordChannelOther: result.discord_channel_other,
-              });
-            }),
+            Effect.map(
+              ({ result }) =>
+                new TeamSettingsApi.TeamSettingsInfo({
+                  teamId: result.team_id,
+                  eventHorizonDays: result.event_horizon_days,
+                  minPlayersThreshold: result.min_players_threshold,
+                  rsvpReminderHours: result.rsvp_reminder_hours,
+                  discordChannelTraining: result.discord_channel_training,
+                  discordChannelMatch: result.discord_channel_match,
+                  discordChannelTournament: result.discord_channel_tournament,
+                  discordChannelMeeting: result.discord_channel_meeting,
+                  discordChannelSocial: result.discord_channel_social,
+                  discordChannelOther: result.discord_channel_other,
+                }),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         ),
