@@ -41,9 +41,7 @@ Invoke the `/ship` skill to commit, push, open a PR, verify CI, and address revi
 
 ### Phase 4: Done
 
-Invoke the `/agile-coach` agent to update final statuses:
-- Move completed tasks to `Done`
-- Move story to `In Review` if all tasks are done
+Invoke the `/agile-coach` agent to update final statuses.
 
 Present the final state:
 - PR URL

@@ -243,6 +243,7 @@ The development workflow is split into composable skills:
 | `/ship` | Delivery loop: changeset → checks → commit → push → PR → CI → code review → `/revise` |
 | `/revise` | Triage review comments with `/architect` → `/implement` fixes → `/ship` |
 | `/refactor` | Refactor code with before/after explanation, verified by tests |
+| `/complete` | Mark story/bug as done after PR is merged (story → Done, bug → Fixed) |
 | `/reconcile` | Sync Notion statuses for merged PRs |
 
 ### Composition
@@ -251,6 +252,7 @@ The development workflow is split into composable skills:
 - **`/implement`** is standalone — use when you already have a branch and want the full dev loop
 - **`/ship`** is standalone — use when code is ready and you want to commit, push, and handle review
 - **`/revise`** is standalone — use when a PR has review comments to address
+- **`/complete`** is standalone — use after a PR is merged to finalize Notion statuses
 
 ## Version Management
 

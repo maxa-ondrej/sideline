@@ -93,14 +93,27 @@ Output:
 - Which tasks are already done vs remaining
 - Branch name created
 
-## Update Statuses After Completion
+## Update Statuses After PR Created
 
-When invoked to update final statuses (after CI passes):
+When invoked to update statuses after a PR is created (work complete, awaiting review):
 
 1. Move completed tasks to `Done`
 2. If **all tasks** for the parent **story** are now `Done`, move the story to `In Review`
-3. If **all tasks** for the parent **bug** are now `Done`, move the bug to `✅ Fixed`
-4. **Never** move stories, epics, or milestones to `Done` — that is done manually by the user
+3. If **all tasks** for the parent **bug** are now `Done`, move the bug to `🧪 In Review`
+4. **Never** move stories, epics, or milestones to `Done` — that is done manually
+
+## Update Statuses After PR Merged
+
+When invoked to mark work as fully complete (PR merged):
+
+1. Move the **story** to `Done`
+2. Move the **bug** to `✅ Fixed`
+3. **Never** move epics or milestones to `Done` — that is done manually
+4. Switch back to `main` and pull latest:
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
 
 ## Output Format
 
