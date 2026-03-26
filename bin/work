@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec claude --model opus --permission-mode auto \
+  "$(cat <<'EOF'
+You are running an autonomous work session. Execute these two phases in order:
+
+## Phase 1: /work
+Immediately invoke the /work skill. This will:
+1. Pick the next bug or story from the active Notion sprint
+2. Implement it (plan, code, test)
+3. Ship it (commit, push, open PR, verify CI, address review)
+4. Update Notion statuses
+
+## Phase 2: /complete (after PR merge)
+Once the PR has been merged, invoke the /complete skill. This will:
+1. Verify the PR is merged
+2. Move the Notion story to Done (or bug to Fixed)
+3. Switch back to main and pull latest
+
+Begin now by invoking /work.
+EOF
+)"
