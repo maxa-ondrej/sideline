@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
-import { formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
+import { dateOnlyToUtc, formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const NONE_VALUE = '__none__';
@@ -231,10 +231,8 @@ export function EventsListPage({
             description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
-            startDate: localToUtc(values.startDate, '00:00'),
-            endDate: values.endDate
-              ? Option.some(localToUtc(values.endDate, '00:00'))
-              : Option.none(),
+            startDate: dateOnlyToUtc(values.startDate),
+            endDate: values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
             startTime: values.startTime,
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),

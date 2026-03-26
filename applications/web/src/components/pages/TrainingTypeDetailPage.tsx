@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
-import { formatLocalDate, localToUtc } from '~/lib/datetime';
+import { dateOnlyToUtc, formatLocalDate } from '~/lib/datetime';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const dayShortLabels: Record<number, () => string> = {
@@ -198,10 +198,8 @@ export function TrainingTypeDetailPage({
             description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
-            startDate: localToUtc(values.startDate, '00:00'),
-            endDate: values.endDate
-              ? Option.some(localToUtc(values.endDate, '00:00'))
-              : Option.none(),
+            startDate: dateOnlyToUtc(values.startDate),
+            endDate: values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
             startTime: values.startTime,
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
@@ -283,7 +281,7 @@ export function TrainingTypeDetailPage({
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             endDate: Option.some(
-              values.endDate ? Option.some(localToUtc(values.endDate, '00:00')) : Option.none(),
+              values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
             ),
             discordChannelId: Option.none(),
             ownerGroupId: Option.none(),
