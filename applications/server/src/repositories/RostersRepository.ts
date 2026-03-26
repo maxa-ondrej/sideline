@@ -143,41 +143,33 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     `,
   });
 
-  findByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findByTeamId = (teamId: Team.TeamId) =>
+    this.findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findRosterById = (rosterId: RosterModel.RosterId) => {
-    return this.findById(rosterId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findRosterById = (rosterId: RosterModel.RosterId) =>
+    this.findById(rosterId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  insert = (input: RosterInsertInput) => {
-    return this.insertOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  insert = (input: RosterInsertInput) =>
+    this.insertOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  update = (input: RosterUpdateInput) => {
-    return this.updateOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  update = (input: RosterUpdateInput) =>
+    this.updateOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  delete = (id: RosterModel.RosterId) => {
-    return this.deleteOne(id).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  delete = (id: RosterModel.RosterId) =>
+    this.deleteOne(id).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  addMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) => {
-    return this.addMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(
+  addMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
+    this.addMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
-  removeMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) => {
-    return this.removeMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(
+  removeMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
+    this.removeMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
-  findMemberEntriesById = (rosterId: RosterModel.RosterId) => {
-    return this.findMemberEntries({ roster_id: rosterId }).pipe(
+  findMemberEntriesById = (rosterId: RosterModel.RosterId) =>
+    this.findMemberEntries({ roster_id: rosterId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 }

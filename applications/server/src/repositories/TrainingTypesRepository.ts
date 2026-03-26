@@ -124,21 +124,16 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     execute: (id) => this.sql`DELETE FROM training_types WHERE id = ${id}`,
   });
 
-  findTrainingTypesByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findTrainingTypesByTeamId = (teamId: Team.TeamId) =>
+    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {
-    return this.findById(trainingTypeId).pipe(
+  findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
+    this.findById(trainingTypeId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) =>
+    this.findByIdWithGroup(trainingTypeId).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
-
-  findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) => {
-    return this.findByIdWithGroup(trainingTypeId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
-  };
 
   insertTrainingType = (
     teamId: Team.TeamId,
@@ -146,8 +141,8 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     ownerGroupId: Option.Option<string>,
     memberGroupId: Option.Option<string> = Option.none(),
     discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
-  ) => {
-    return this.insertOne({
+  ) =>
+    this.insertOne({
       team_id: teamId,
       name,
       owner_group_id: ownerGroupId,
@@ -157,7 +152,6 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
   updateTrainingType = (
     trainingTypeId: TrainingType.TrainingTypeId,
@@ -165,8 +159,8 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     ownerGroupId: Option.Option<string> = Option.none(),
     memberGroupId: Option.Option<string> = Option.none(),
     discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
-  ) => {
-    return this.updateOne({
+  ) =>
+    this.updateOne({
       id: trainingTypeId,
       name,
       owner_group_id: ownerGroupId,
@@ -176,11 +170,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
-  deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) => {
-    return this.deleteOne(trainingTypeId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
-  };
+  deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
+    this.deleteOne(trainingTypeId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 }

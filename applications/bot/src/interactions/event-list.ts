@@ -35,10 +35,7 @@ export const EventListPageButton = Ix.messageComponent(
             guildId,
             locale,
           });
-          return {
-            embeds: payload.embeds,
-            components: payload.components,
-          };
+          return { embeds: payload.embeds, components: payload.components };
         }),
         Effect.catchAll(() => Effect.succeed({ content: m.bot_event_list_error({}, { locale }) })),
         Effect.flatMap((payload) =>

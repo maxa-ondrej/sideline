@@ -35,38 +35,38 @@ export const resolveChannel = (
     Effect.bind('trainingTypes', () => TrainingTypesRepository),
     Effect.bind('settings', () => TeamSettingsRepository),
     Effect.bind('event', ({ events }) => events.findEventByIdWithDetails(eventId)),
-    Effect.flatMap(({ event, trainingTypes, settings }) => {
-      if (Option.isNone(event)) return Effect.succeed(Option.none());
+    Effect.flatMap(({ event, trainingTypes, settings }) =>
+      Option.match(event, {
+        onNone: () => Effect.succeed(Option.none<Discord.Snowflake>()),
+        onSome: (ev) => {
+          // 1. Per-event override
+          if (Option.isSome(ev.discord_target_channel_id))
+            return Effect.succeed(ev.discord_target_channel_id);
 
-      const ev = event.value;
+          // 2. Training type default
+          const trainingTypeCheck = Option.isSome(ev.training_type_id)
+            ? trainingTypes
+                .findTrainingTypeById(ev.training_type_id.value)
+                .pipe(Effect.map((opt) => Option.flatMap(opt, (tt) => tt.discord_channel_id)))
+            : Effect.succeed(Option.none<Discord.Snowflake>());
 
-      // 1. Per-event override
-      if (Option.isSome(ev.discord_target_channel_id))
-        return Effect.succeed(ev.discord_target_channel_id);
-
-      // 2. Training type default
-      const trainingTypeCheck = Option.isSome(ev.training_type_id)
-        ? trainingTypes
-            .findTrainingTypeById(ev.training_type_id.value)
-            .pipe(Effect.map((opt) => Option.flatMap(opt, (tt) => tt.discord_channel_id)))
-        : Effect.succeed(Option.none<Discord.Snowflake>());
-
-      return trainingTypeCheck.pipe(
-        Effect.flatMap((channelFromTT) => {
-          if (Option.isSome(channelFromTT)) return Effect.succeed(channelFromTT);
-
-          // 3. Team settings event-type default
-          return settings.findByTeamId(teamId).pipe(
-            Effect.map((opt) =>
-              Option.flatMap(opt, (s) => {
-                const field = eventTypeToSettingsField(ev.event_type);
-                return s[field];
-              }),
+          return trainingTypeCheck.pipe(
+            Effect.flatMap((channelFromTT) =>
+              Option.isSome(channelFromTT)
+                ? Effect.succeed(channelFromTT)
+                : // 3. Team settings event-type default
+                  settings
+                    .findByTeamId(teamId)
+                    .pipe(
+                      Effect.map((opt) =>
+                        Option.flatMap(opt, (s) => s[eventTypeToSettingsField(ev.event_type)]),
+                      ),
+                    ),
             ),
           );
-        }),
-      );
-    }),
+        },
+      }),
+    ),
   );
 
 export const resolveOwnerGroupChannel = (

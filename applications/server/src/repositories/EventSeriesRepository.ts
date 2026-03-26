@@ -263,8 +263,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
     ownerGroupId?: Option.Option<string>;
     memberGroupId?: Option.Option<string>;
-  }) => {
-    return this.insertSeries({
+  }) =>
+    this.insertSeries({
       team_id: teamId,
       training_type_id: trainingTypeId,
       title,
@@ -281,15 +281,12 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       owner_group_id: ownerGroupId,
       member_group_id: memberGroupId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
 
-  findSeriesByTeamId = (teamId: Team.TeamId) => {
-    return this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findSeriesByTeamId = (teamId: Team.TeamId) =>
+    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  findSeriesById = (seriesId: EventSeries.EventSeriesId) => {
-    return this.findById(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  findSeriesById = (seriesId: EventSeries.EventSeriesId) =>
+    this.findById(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   updateEventSeries = ({
     id,
@@ -317,8 +314,8 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
     ownerGroupId?: Option.Option<string>;
     memberGroupId?: Option.Option<string>;
-  }) => {
-    return this.updateSeries({
+  }) =>
+    this.updateSeries({
       id,
       title,
       training_type_id: trainingTypeId,
@@ -332,21 +329,17 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       owner_group_id: ownerGroupId,
       member_group_id: memberGroupId,
     }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
 
-  cancelEventSeries = (seriesId: EventSeries.EventSeriesId) => {
-    return this.cancelSeries(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
-  };
+  cancelEventSeries = (seriesId: EventSeries.EventSeriesId) =>
+    this.cancelSeries(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
-  getActiveForGeneration = () => {
-    return this.findActiveForGeneration(undefined as undefined).pipe(
+  getActiveForGeneration = () =>
+    this.findActiveForGeneration(undefined as undefined).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 
-  updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: DateTime.Utc) => {
-    return this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(
+  updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: DateTime.Utc) =>
+    this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
-  };
 }

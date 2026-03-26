@@ -102,18 +102,17 @@ export const eventHandlers = Effect.Do.pipe(
       const user = decodeUser(member.user);
       return Effect.Do.pipe(
         Effect.tap(() => Effect.log(`Member joined: ${user.username} in guild ${member.guild_id}`)),
-        Effect.tap(() => {
-          if (user.bot) {
-            return Effect.log('Skipping bot');
-          }
-          return rpc['Guild/RegisterMember']({
-            guild_id: decodeSnowflake(member.guild_id),
-            discord_id: user.id,
-            username: user.username,
-            avatar: user.avatar,
-            roles: Arr.map(member.roles, (r) => decodeSnowflake(r)),
-          });
-        }),
+        Effect.tap(() =>
+          user.bot
+            ? Effect.log('Skipping bot')
+            : rpc['Guild/RegisterMember']({
+                guild_id: decodeSnowflake(member.guild_id),
+                discord_id: user.id,
+                username: user.username,
+                avatar: user.avatar,
+                roles: Arr.map(member.roles, (r) => decodeSnowflake(r)),
+              }),
+        ),
         Effect.catchAll((error) =>
           Effect.logError(`Failed to register member ${user.username}`, error),
         ),

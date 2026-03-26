@@ -156,10 +156,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
-            Effect.bind('changes', () => {
-              const today = new Date();
-              return ageCheck.evaluate(teamId, today);
-            }),
+            Effect.bind('changes', () => ageCheck.evaluate(teamId, new Date())),
             Effect.map(({ changes }) => changes),
           ),
         ),

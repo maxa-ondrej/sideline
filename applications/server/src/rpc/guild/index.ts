@@ -96,23 +96,24 @@ const registerMemberLogic =
               Effect.bind('existingMembership', ({ user }) =>
                 deps.members.findMembershipByIds(team.id, user.id),
               ),
-              Effect.tap(({ existingMembership, user }) => {
-                if (Option.isSome(existingMembership) && existingMembership.value.active) {
-                  return Effect.log(`Member ${username} already active in team ${team.id}`);
-                }
-                const addMember = Option.isNone(existingMembership)
-                  ? deps.members.addMember({
-                      team_id: team.id,
-                      user_id: user.id,
-                      active: true,
-                      joined_at: undefined,
-                    })
-                  : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember);
-                return addMember.pipe(
-                  Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
-                  Effect.tap(() => Effect.log(`Registered member ${username} in team ${team.id}`)),
-                );
-              }),
+              Effect.tap(({ existingMembership, user }) =>
+                Option.isSome(existingMembership) && existingMembership.value.active
+                  ? Effect.log(`Member ${username} already active in team ${team.id}`)
+                  : (Option.isNone(existingMembership)
+                      ? deps.members.addMember({
+                          team_id: team.id,
+                          user_id: user.id,
+                          active: true,
+                          joined_at: undefined,
+                        })
+                      : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember)
+                    ).pipe(
+                      Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
+                      Effect.tap(() =>
+                        Effect.log(`Registered member ${username} in team ${team.id}`),
+                      ),
+                    ),
+              ),
             ),
         }),
       ),

@@ -285,13 +285,17 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                     Effect.flatMap((ok) => (ok ? Effect.void : Effect.fail(forbidden))),
                   ),
             ),
-            Effect.tap(({ existing, isAdmin, membership }) => {
-              const newTrainingTypeId = Option.match(payload.trainingTypeId, {
-                onNone: () => existing.training_type_id,
-                onSome: (v) => v,
-              });
-              return checkCoachScoping(events, membership.id, newTrainingTypeId, isAdmin);
-            }),
+            Effect.tap(({ existing, isAdmin, membership }) =>
+              checkCoachScoping(
+                events,
+                membership.id,
+                Option.match(payload.trainingTypeId, {
+                  onNone: () => existing.training_type_id,
+                  onSome: (v) => v,
+                }),
+                isAdmin,
+              ),
+            ),
             Effect.bind('updated', ({ existing }) =>
               events.updateEvent({
                 id: eventId,
@@ -359,33 +363,33 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 resolvedChannelForUpdate,
               ),
             ),
-            Effect.map(({ detail, membership }) => {
-              const canEdit = hasPermission(membership, 'event:edit');
-              const canCancel = hasPermission(membership, 'event:cancel');
-              return new EventApi.EventDetail({
-                eventId: detail.id,
-                teamId: detail.team_id,
-                title: detail.title,
-                eventType: detail.event_type,
-                trainingTypeId: detail.training_type_id,
-                trainingTypeName: detail.training_type_name,
-                description: detail.description,
-                startAt: detail.start_at,
-                endAt: detail.end_at,
-                location: detail.location,
-                status: detail.status,
-                createdByName: detail.created_by_name,
-                canEdit: canEdit && detail.status === 'active',
-                canCancel: canCancel && detail.status === 'active',
-                seriesId: detail.series_id,
-                seriesModified: detail.series_modified,
-                discordChannelId: detail.discord_target_channel_id,
-                ownerGroupId: detail.owner_group_id,
-                ownerGroupName: detail.owner_group_name,
-                memberGroupId: detail.member_group_id,
-                memberGroupName: detail.member_group_name,
-              });
-            }),
+            Effect.map(
+              ({ detail, membership }) =>
+                new EventApi.EventDetail({
+                  eventId: detail.id,
+                  teamId: detail.team_id,
+                  title: detail.title,
+                  eventType: detail.event_type,
+                  trainingTypeId: detail.training_type_id,
+                  trainingTypeName: detail.training_type_name,
+                  description: detail.description,
+                  startAt: detail.start_at,
+                  endAt: detail.end_at,
+                  location: detail.location,
+                  status: detail.status,
+                  createdByName: detail.created_by_name,
+                  canEdit: hasPermission(membership, 'event:edit') && detail.status === 'active',
+                  canCancel:
+                    hasPermission(membership, 'event:cancel') && detail.status === 'active',
+                  seriesId: detail.series_id,
+                  seriesModified: detail.series_modified,
+                  discordChannelId: detail.discord_target_channel_id,
+                  ownerGroupId: detail.owner_group_id,
+                  ownerGroupName: detail.owner_group_name,
+                  memberGroupId: detail.member_group_id,
+                  memberGroupName: detail.member_group_name,
+                }),
+            ),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
         )
