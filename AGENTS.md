@@ -240,9 +240,8 @@ The development workflow is split into composable skills:
 |-------|---------|
 | `/work` | Orchestrator: picks up a Notion story → `/implement` → `/ship` → updates Notion |
 | `/implement` | Full dev loop: research → plan → TDD → verify tests → implement → verify → review → refactor |
-| `/ship` | Delivery loop: `/commit` → CI → code review → address comments |
-| `/commit` | Atomic: changeset → checks → commit → push → PR → verify CI |
-| `/revise` | Fetch and implement code review comments on the current PR |
+| `/ship` | Delivery loop: changeset → checks → commit → push → PR → CI → code review → `/revise` |
+| `/revise` | Triage review comments with `/architect` → `/implement` fixes → `/ship` |
 | `/refactor` | Refactor code with before/after explanation, verified by tests |
 | `/reconcile` | Sync Notion statuses for merged PRs |
 
@@ -251,7 +250,7 @@ The development workflow is split into composable skills:
 - **`/work`** calls `/implement` then `/ship` — use for full story lifecycle with Notion integration
 - **`/implement`** is standalone — use when you already have a branch and want the full dev loop
 - **`/ship`** is standalone — use when code is ready and you want to commit, push, and handle review
-- **`/commit`** is the innermost unit — just commit, push, PR, CI
+- **`/revise`** is standalone — use when a PR has review comments to address
 
 ## Version Management
 
