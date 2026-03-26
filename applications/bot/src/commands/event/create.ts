@@ -21,7 +21,10 @@ export const createHandler = Interaction.pipe(
     }
 
     const data = interaction.data;
-    const options = data && 'options' in data ? [...(data.options ?? [])] : [];
+    // For subcommands, options are nested: data.options[0] = "create" subcommand,
+    // and the actual options (type, training_type) are in data.options[0].options
+    const subCommand = data && 'options' in data ? data.options?.[0] : undefined;
+    const options = subCommand && 'options' in subCommand ? [...(subCommand.options ?? [])] : [];
     const eventType = pipe(
       options,
       Array.findFirst((o) => o.name === 'type'),
