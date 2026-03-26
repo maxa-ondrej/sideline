@@ -52,7 +52,7 @@ notion search "keyword" -f json
 
 ## Database Property Notes
 
-- **Bugs**: Status is a `select` field with values: `🔴 Open`, `🔧 In Progress`, `🧪 In Review`, `✅ Fixed`, `🔒 Closed`, `🚫 Won't Fix`. Title field is named `Bug`.
+- **Bugs**: Status is a `select` field with values: `🔴 Open`, `🔵 In Progress`, `🧪 In Review`, `✅ Fixed`, `🔒 Closed`, `🚫 Won't Fix`. Title field is named `Bug`.
 - **Stories**: Status is a `status` field with values: `TODO`, `In Progress`, `In Review`, `In Test`, `Done`. Title field is named `Story`.
 - **Tasks**: Status is a `status` field with values: `TODO`, `In Progress`, `Done`. Title field is named `Task`.
 - **Sprints**: Has `Stories` and `Bugs` relation arrays. `Active sprint` is a formula (boolean).
@@ -69,7 +69,7 @@ If no active sprint exists, report this and stop.
 
 **First, try bugs.** Query the Bugs database and filter to bugs in the sprint's `Bugs` relation. Among those with actionable status, pick one using this priority:
 
-1. `Status` = `🔧 In Progress` (highest — resume existing work)
+1. `Status` = `🔵 In Progress` (highest — resume existing work)
 2. `Status` = `🔴 Open`
 
 Within the same status level, prefer higher **Severity** (`🔥 Critical` > `🟠 High` > `🟡 Medium` > `🟢 Low`). Skip bugs with status `✅ Fixed`, `🔒 Closed`, or `🚫 Won't Fix`.
@@ -99,7 +99,7 @@ Fetch each task to get its title, status, type, notes, and estimate.
 Update **ALL** statuses **immediately**:
 
 1. Move **every task** from `TODO` -> `In Progress` using `notion page set <id> "Status=In Progress"`
-2. Move the **story** from `TODO` -> `In Progress`, or the **bug** from `🔴 Open` -> `🔧 In Progress`
+2. Move the **story** from `TODO` -> `In Progress`, or the **bug** from `🔴 Open` -> `🔵 In Progress`
 3. If the parent **epic** is in `TODO` or `Not Started`, move it to `In Progress`
 4. If the parent **milestone** is in `TODO` or `Not Started`, move it to `In Progress`
 
