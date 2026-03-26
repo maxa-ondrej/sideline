@@ -29,7 +29,7 @@ The **migrations** package exports `MigratorLive` — a layer that only needs a 
 
 - **TypeScript 5.6+** — Strict mode, NodeNext module resolution, ES2022 target
 - **Effect-TS 3.10+** — Functional effect system for composable, type-safe programs
-- **pnpm** — Fast, disk-efficient package manager (workspace-aware)
+- **pnpm** — Fast, disk-efficient package manager (workspace-aware). Always use bare `pnpm` command, never `npx pnpm@...`
 - **Vitest 3.2+** — Testing framework with Effect integration (`@effect/vitest`)
 - **Biome.js** — Fast linting and formatting
 - **Changesets** — Version management and changelog generation
@@ -275,10 +275,11 @@ pnpm changeset-publish     # Build, test, and publish
 - Never commit to an old/existing feature branch when working on a new story — always create fresh from `main`
 - Before every commit, run `pnpm format` and `pnpm codegen`, stage resulting changes
 - After every `git push`, check that CI pipelines pass
+- After any structural change (new packages, new patterns, changed conventions), update the relevant section in AGENTS.md as part of the same PR
 
 ## Task Management (Notion)
 
-**Always use the Notion MCP integration to check for tasks, stories, and sprint work.** Notion is the single source of truth.
+**Always use the `notion` CLI tool to check for tasks, stories, and sprint work.** Notion is the single source of truth.
 
 ### Hierarchy
 
@@ -295,6 +296,7 @@ Milestone → Epic → Story → Task
 | Epics | `a040ab6d-10bb-4575-8c80-d4e827238b03` |
 | Milestones | `089dd440-070c-4cfb-a45d-1a68c299a2f2` |
 | Sprints | `a89cc7a7-ab1a-4e3f-945d-d42028c75f00` |
+| Bugs | `e6b8eb47-ddcd-4dba-b5fd-c631763ac5bd` |
 
 ### Task Properties
 
@@ -314,12 +316,18 @@ Stories/epics/milestones: `TODO → In Progress → In Review → In Test → Do
 - After PR merged, story → `In Test`
 - **Never** move stories/epics/milestones to `Done` — that's manual
 
-### Notion MCP Tools
+### Notion CLI (`notion`)
 
-- `notion-search` — find tasks, stories, epics by keyword
-- `notion-fetch` — get full details of a page or database
-- `notion-update-page` — update task status or properties
-- `notion-create-pages` — create new tasks
+Use the `notion` CLI tool (installed via `brew install 4ier/tap/notion-cli`) for all Notion operations:
+
+```bash
+notion db query <db-id> -f json --all          # query database
+notion db query <db-id> -F "Status=Done"       # filter
+notion page props <page-id> -f json            # read properties
+notion page view <page-id> -f md               # read page body
+notion page set <page-id> "Status=In Progress" # update property
+notion search "keyword" -f json                # search
+```
 
 ## Preview Database Access
 

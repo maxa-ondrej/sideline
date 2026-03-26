@@ -7,14 +7,15 @@ description: Checks the active sprint for merged PRs and cascades Notion task/st
 
 Scan the active sprint and reconcile Notion statuses based on git/GitHub state and the task lifecycle rules in AGENTS.md.
 
-## Notion IDs
+## Notion Database IDs
 
-| Database   | Data Source ID                                |
-|------------|-----------------------------------------------|
-| Sprints    | `collection://0bb5bd1a-500c-4b2c-b482-cc6be3986a81` |
-| Stories    | `collection://6ae03d12-a6d6-45b1-bead-094f0c225e42` |
-| Tasks      | `collection://df8fe05e-456c-429d-a6da-f45fb3303dcf` |
-| Epics      | `collection://2020f137-79a6-43b7-9609-309d0aaa8450` |
+| Database   | ID                                           |
+|------------|----------------------------------------------|
+| Sprints    | `a89cc7a7-ab1a-4e3f-945d-d42028c75f00`      |
+| Stories    | `9ec44d56-966b-4c3e-ba98-637b128c99a8`      |
+| Tasks      | `2e0b6b31-d3bd-4e32-a127-3eedf257f228`      |
+| Epics      | `a040ab6d-10bb-4575-8c80-d4e827238b03`      |
+| Bugs       | `e6b8eb47-ddcd-4dba-b5fd-c631763ac5bd`      |
 
 ## Steps
 
@@ -22,14 +23,14 @@ Follow these steps **in order**.
 
 ### 1. Find the active sprint
 
-Use `notion-search` to find the sprint with Status = "Active". Fetch it to get linked stories.
+Query the Sprints database (`notion db query <sprints-id> -f json --all`) and find the sprint whose date range covers today (or the most recent one). Fetch it to get linked stories and bugs.
 
 If no active sprint exists, tell the user and stop.
 
 ### 2. Gather sprint data
 
 For each story in the sprint:
-1. Fetch the story to get its status and linked tasks
+1. Fetch the story props via `notion page props <id> -f json` to get its status and linked tasks
 2. Fetch each task to get its status
 
 Build a map of: `story → [tasks]` with statuses for each.
@@ -102,7 +103,7 @@ If no changes are needed, tell the user everything is in sync and stop.
 
 ### 7. Apply changes
 
-After the user confirms (or if no ambiguity exists), apply all updates via `notion-update-page`.
+After the user confirms (or if no ambiguity exists), apply all updates via `notion page set <id> "Status=<new-status>"`.
 
 Only move *tasks* to `Done` automatically (per the lifecycle rules). Do **not** move stories, epics, or milestones to `Done` — those are set manually by the user.
 
