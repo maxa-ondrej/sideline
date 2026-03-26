@@ -59,7 +59,7 @@ export const calculateStreaks = (dates: ReadonlyArray<string>, today: string): S
 /** Calculate full stats from activity rows. */
 export const calculateStats = (
   rows: ReadonlyArray<{
-    readonly activity_type: string;
+    readonly activity_type: 'gym' | 'running' | 'stretching';
     readonly logged_at_date: string;
     readonly duration_minutes: Option.Option<number>;
   }>,
@@ -112,10 +112,17 @@ export const calculateStats = (
 };
 
 /** Returns today's date as an ISO string in the Europe/Prague timezone. */
-export const todayInPrague = (): string =>
-  new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague' }))
-    .toISOString()
-    .slice(0, 10);
+export const todayInPrague = (): string => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Prague',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+};
 
 /** Returns the number of days between two ISO date strings. Always positive. Inputs must be date-only strings (UTC midnight). */
 const daysBetween = (a: string, b: string): number => {

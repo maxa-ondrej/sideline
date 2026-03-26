@@ -86,14 +86,18 @@ describe('calculateStats', () => {
 
   it('calculates correct totals and per-type counts for mixed activities', () => {
     const rows = [
-      { activity_type: 'gym', logged_at_date: '2026-03-23', duration_minutes: Option.some(60) },
       {
-        activity_type: 'running',
+        activity_type: 'gym' as const,
+        logged_at_date: '2026-03-23',
+        duration_minutes: Option.some(60),
+      },
+      {
+        activity_type: 'running' as const,
         logged_at_date: '2026-03-24',
         duration_minutes: Option.some(30),
       },
       {
-        activity_type: 'stretching',
+        activity_type: 'stretching' as const,
         logged_at_date: '2026-03-25',
         duration_minutes: Option.some(15),
       },
@@ -112,8 +116,16 @@ describe('calculateStats', () => {
 
   it('treats Option.none duration as 0 when summing durations', () => {
     const rows = [
-      { activity_type: 'gym', logged_at_date: '2026-03-24', duration_minutes: Option.some(45) },
-      { activity_type: 'gym', logged_at_date: '2026-03-25', duration_minutes: Option.none() },
+      {
+        activity_type: 'gym' as const,
+        logged_at_date: '2026-03-24',
+        duration_minutes: Option.some(45),
+      },
+      {
+        activity_type: 'gym' as const,
+        logged_at_date: '2026-03-25',
+        duration_minutes: Option.none(),
+      },
     ];
     const result = calculateStats(rows, '2026-03-25');
     expect(result).toEqual({
@@ -129,9 +141,21 @@ describe('calculateStats', () => {
 
   it('returns correct count for a single activity type with zeros for others', () => {
     const rows = [
-      { activity_type: 'running', logged_at_date: '2026-03-23', duration_minutes: Option.some(20) },
-      { activity_type: 'running', logged_at_date: '2026-03-24', duration_minutes: Option.some(25) },
-      { activity_type: 'running', logged_at_date: '2026-03-25', duration_minutes: Option.some(30) },
+      {
+        activity_type: 'running' as const,
+        logged_at_date: '2026-03-23',
+        duration_minutes: Option.some(20),
+      },
+      {
+        activity_type: 'running' as const,
+        logged_at_date: '2026-03-24',
+        duration_minutes: Option.some(25),
+      },
+      {
+        activity_type: 'running' as const,
+        logged_at_date: '2026-03-25',
+        duration_minutes: Option.some(30),
+      },
     ];
     const result = calculateStats(rows, '2026-03-25');
     expect(result).toEqual({

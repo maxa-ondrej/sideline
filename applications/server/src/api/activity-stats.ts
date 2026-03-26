@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform';
 import { ActivityStats, ActivityStatsApi, Auth } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
-import { requireMembership } from '~/api/permissions.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
@@ -16,6 +16,9 @@ export const ActivityStatsApiLive = HttpApiBuilder.group(Api, 'activityStats', (
           Effect.bind('currentUser', () => Auth.CurrentUserContext),
           Effect.bind('membership', ({ currentUser }) =>
             requireMembership(members, teamId, currentUser.id, new ActivityStatsApi.Forbidden()),
+          ),
+          Effect.tap(({ membership }) =>
+            requirePermission(membership, 'member:view', new ActivityStatsApi.Forbidden()),
           ),
           Effect.tap(() =>
             members.findRosterMemberByIds(teamId, memberId).pipe(
