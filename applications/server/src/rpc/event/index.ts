@@ -221,7 +221,7 @@ const createEvent = (
     ),
   );
 
-export const EventsRpcLive = Effect.Do.pipe(
+const rpcHandlers = Effect.Do.pipe(
   Effect.bind('events', () => EventsRepository),
   Effect.bind('rsvps', () => EventRsvpsRepository),
   Effect.bind('deps', () =>
@@ -552,7 +552,9 @@ export const EventsRpcLive = Effect.Do.pipe(
           ),
         ),
   ),
-).pipe(
+);
+
+export const EventsRpcLive = rpcHandlers.pipe(
   Effect.let(
     'Event/GetTrainingTypesByGuild',
     ({ deps: { trainingTypesRepo, teamsRepo } }) =>
