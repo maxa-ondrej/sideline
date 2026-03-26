@@ -3,7 +3,7 @@ import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain
 import { Discord, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
-import { DateTime, Effect, Option, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
+import { formatLocalDate, localToUtc } from '~/lib/datetime';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const dayShortLabels: Record<number, () => string> = {
@@ -197,9 +198,9 @@ export function TrainingTypeDetailPage({
             description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
-            startDate: DateTime.unsafeMake(`${values.startDate}T00:00:00Z`),
+            startDate: localToUtc(values.startDate, '00:00'),
             endDate: values.endDate
-              ? Option.some(DateTime.unsafeMake(`${values.endDate}T00:00:00Z`))
+              ? Option.some(localToUtc(values.endDate, '00:00'))
               : Option.none(),
             startTime: values.startTime,
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
@@ -249,10 +250,10 @@ export function TrainingTypeDetailPage({
         description: '',
         frequency: s.frequency,
         daysOfWeek: Array.from(s.daysOfWeek),
-        startDate: DateTime.formatIsoDateUtc(s.startDate),
+        startDate: formatLocalDate(s.startDate),
         endDate: Option.match(s.endDate, {
           onNone: () => '',
-          onSome: DateTime.formatIsoDateUtc,
+          onSome: formatLocalDate,
         }),
         startTime: s.startTime,
         endTime: Option.getOrElse(s.endTime, () => ''),
@@ -282,9 +283,7 @@ export function TrainingTypeDetailPage({
             endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             endDate: Option.some(
-              values.endDate
-                ? Option.some(DateTime.unsafeMake(`${values.endDate}T00:00:00Z`))
-                : Option.none(),
+              values.endDate ? Option.some(localToUtc(values.endDate, '00:00')) : Option.none(),
             ),
             discordChannelId: Option.none(),
             ownerGroupId: Option.none(),
@@ -467,10 +466,10 @@ export function TrainingTypeDetailPage({
                         )}
                       </td>
                       <td className='py-2 px-4 text-muted-foreground'>
-                        {DateTime.formatIsoDateUtc(s.startDate)} →{' '}
+                        {formatLocalDate(s.startDate)} →{' '}
                         {Option.match(s.endDate, {
                           onNone: () => m.event_ongoing(),
-                          onSome: (d) => DateTime.formatIsoDateUtc(d),
+                          onSome: formatLocalDate,
                         })}
                       </td>
                       <td className='py-2 px-4'>

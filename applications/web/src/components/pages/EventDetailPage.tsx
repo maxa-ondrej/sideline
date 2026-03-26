@@ -3,7 +3,7 @@ import type { EventApi, EventRsvpApi, GroupApi, TrainingTypeApi } from '@sidelin
 import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
-import { DateTime, Effect, Option, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
+import { formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const NONE_VALUE = '__none__';
@@ -56,23 +57,14 @@ const EventEditSchema = Schema.Struct({
 
 type EventEditValues = Schema.Schema.Type<typeof EventEditSchema>;
 
-const toDateTime = (date: string, time: string): DateTime.Utc =>
-  DateTime.unsafeMake(`${date}T${time}:00Z`);
-
-const formatTimeUtc = (dt: DateTime.Utc): string => {
-  const h = String(DateTime.getPartUtc(dt, 'hours')).padStart(2, '0');
-  const mins = String(DateTime.getPartUtc(dt, 'minutes')).padStart(2, '0');
-  return `${h}:${mins}`;
-};
-
 const buildPayload = (values: EventEditValues) => {
   const trainingTypeIdOption =
     values.trainingTypeId && values.trainingTypeId !== NONE_VALUE
       ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId))
       : Option.none();
-  const startAt = toDateTime(values.startDate, values.startTime);
+  const startAt = localToUtc(values.startDate, values.startTime);
   const endAt = values.endTime
-    ? Option.some(toDateTime(values.endDate || values.startDate, values.endTime))
+    ? Option.some(localToUtc(values.endDate || values.startDate, values.endTime))
     : Option.none();
   return { trainingTypeIdOption, startAt, endAt };
 };
@@ -113,15 +105,15 @@ export function EventDetailPage({
       eventType: eventDetail.eventType,
       trainingTypeId: Option.getOrElse(eventDetail.trainingTypeId, () => NONE_VALUE),
       description: Option.getOrElse(eventDetail.description, () => ''),
-      startDate: DateTime.formatIsoDateUtc(eventDetail.startAt),
-      startTime: formatTimeUtc(eventDetail.startAt),
+      startDate: formatLocalDate(eventDetail.startAt),
+      startTime: formatLocalTime(eventDetail.startAt),
       endDate: Option.match(eventDetail.endAt, {
         onNone: () => '',
-        onSome: (v) => DateTime.formatIsoDateUtc(v),
+        onSome: formatLocalDate,
       }),
       endTime: Option.match(eventDetail.endAt, {
         onNone: () => '',
-        onSome: (v) => formatTimeUtc(v),
+        onSome: formatLocalTime,
       }),
       location: Option.getOrElse(eventDetail.location, () => ''),
       discordChannelId: Option.getOrElse(eventDetail.discordChannelId, () => NONE_VALUE),
@@ -650,13 +642,13 @@ export function EventDetailPage({
               )}
             <p>
               <span className='text-sm font-medium'>{m.event_startDate()}: </span>
-              {DateTime.formatIsoDateUtc(eventDetail.startAt)} {formatTimeUtc(eventDetail.startAt)}
+              {formatLocalDate(eventDetail.startAt)} {formatLocalTime(eventDetail.startAt)}
             </p>
             {Option.isSome(eventDetail.endAt) && (
               <p>
                 <span className='text-sm font-medium'>{m.event_endDate()}: </span>
-                {DateTime.formatIsoDateUtc(eventDetail.endAt.value)}{' '}
-                {formatTimeUtc(eventDetail.endAt.value)}
+                {formatLocalDate(eventDetail.endAt.value)}{' '}
+                {formatLocalTime(eventDetail.endAt.value)}
               </p>
             )}
             {Option.isSome(eventDetail.location) && (
