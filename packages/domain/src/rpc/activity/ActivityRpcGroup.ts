@@ -1,0 +1,22 @@
+import { Rpc, RpcGroup } from '@effect/rpc';
+import { Schema } from 'effect';
+import { ActivityLog, Discord } from '~/index.js';
+import {
+  ActivityGuildNotFound,
+  ActivityMemberNotFound,
+  LogActivityResult,
+} from './ActivityRpcModels.js';
+
+export const ActivityRpcGroup = RpcGroup.make(
+  Rpc.make('LogActivity', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+      activity_type: ActivityLog.ActivityType,
+      duration_minutes: Schema.OptionFromNullOr(Schema.Number),
+      note: Schema.OptionFromNullOr(Schema.String),
+    },
+    success: LogActivityResult,
+    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+  }),
+).prefix('Activity/');

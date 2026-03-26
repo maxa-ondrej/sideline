@@ -455,5 +455,9 @@
   "ical_regenerateFailed": "Obnovení URL selhalo.",
   "ical_instructions_google": "Otevřete Google Calendar > Nastavení > Přidat kalendář > Z URL > vložte URL pro odběr.",
   "ical_instructions_apple": "Klikněte na URL pro odběr nebo otevřete Kalendář > Soubor > Nový odběr kalendáře > vložte URL.",
-  "ical_instructions_outlook": "Otevřete Outlook > Přidat kalendář > Odběr z webu > vložte URL pro odběr."
+  "ical_instructions_outlook": "Otevřete Outlook > Přidat kalendář > Odběr z webu > vložte URL pro odběr.",
+  "bot_makanicko_no_guild": "Tento příkaz lze použít pouze na Discord serveru.",
+  "bot_makanicko_log_success": "Aktivita zaznamenána: {activity}",
+  "bot_makanicko_log_not_member": "Nejste členem tohoto týmu.",
+  "bot_makanicko_log_error": "Nepodařilo se zaznamenat aktivitu. Zkuste to znovu."
 }

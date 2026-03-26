@@ -10,6 +10,7 @@ import { SyncRpcs } from '@sideline/domain';
 import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -76,6 +77,7 @@ const Repositories = Layer.mergeAll(
   EventSeriesRepository.Default,
   TeamSettingsRepository.Default,
   OAuthConnectionsRepository.Default,
+  ActivityLogsRepository.Default,
 );
 
 export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(

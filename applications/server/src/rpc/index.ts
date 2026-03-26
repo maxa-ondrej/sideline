@@ -1,4 +1,5 @@
 import { Layer } from 'effect';
+import { ActivityRpcLive } from './activity/index.js';
 import { ChannelsRpcLive } from './channel/index.js';
 import { EventsRpcLive } from './event/index.js';
 import { GuildsRpcLive } from './guild/index.js';
@@ -9,4 +10,5 @@ export const SyncRpcsLive = Layer.mergeAll(
   ChannelsRpcLive,
   GuildsRpcLive,
   EventsRpcLive,
+  ActivityRpcLive,
 );
