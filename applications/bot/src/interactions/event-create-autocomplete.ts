@@ -17,15 +17,19 @@ export const EventCreateAutocomplete = Ix.autocomplete(
       const guildId = interaction.guild_id;
       const data = interaction.data;
 
-      const eventType =
-        data && 'options' in data
-          ? pipe(
-              [...(data.options ?? [])],
-              Array.findFirst((o) => o.name === 'type'),
-              Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
-              Option.getOrElse(() => ''),
-            )
-          : '';
+      // For subcommands, options are nested: data.options[0] = "create" subcommand,
+      // and the actual options (type, training_type) are in data.options[0].options
+      const subCommandOptions =
+        data && 'options' in data && data.options?.[0] && 'options' in data.options[0]
+          ? (data.options[0].options ?? [])
+          : [];
+
+      const eventType = pipe(
+        [...subCommandOptions],
+        Array.findFirst((o) => o.name === 'type'),
+        Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
+        Option.getOrElse(() => ''),
+      );
 
       if (eventType !== 'training') {
         return Effect.succeed(

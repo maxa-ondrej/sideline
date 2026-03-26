@@ -7,7 +7,7 @@ import {
   type EventRsvp,
   Team,
   TeamMember,
-  TrainingType,
+  type TrainingType,
   User,
 } from '@sideline/domain';
 import { Bind, Options } from '@sideline/effect-lib';
@@ -104,7 +104,7 @@ const createEvent = (
     readonly end_at: Option.Option<string>;
     readonly location: Option.Option<string>;
     readonly description: Option.Option<string>;
-    readonly training_type_id: Option.Option<string>;
+    readonly training_type_id: Option.Option<TrainingType.TrainingTypeId>;
   },
 ) =>
   Effect.Do.pipe(
@@ -160,13 +160,12 @@ const createEvent = (
       ),
     ),
     Effect.bind('validatedTrainingTypeId', ({ teamId }) =>
-      Option.match(input.training_type_id, {
-        onNone: () => Effect.succeed(Option.none<string>()),
-        onSome: (ttId) =>
-          Schema.decode(TrainingType.TrainingTypeId)(ttId).pipe(
-            Effect.orDie,
-            Effect.flatMap((trainingTypeId) =>
-              trainingTypes.findTrainingTypeById(trainingTypeId).pipe(
+      input.event_type !== 'training'
+        ? Effect.succeed(Option.none<TrainingType.TrainingTypeId>())
+        : Option.match(input.training_type_id, {
+            onNone: () => Effect.succeed(Option.none<TrainingType.TrainingTypeId>()),
+            onSome: (ttId) =>
+              trainingTypes.findTrainingTypeById(ttId).pipe(
                 Effect.flatMap(
                   Option.match({
                     onNone: () => Effect.fail(new EventRpcModels.CreateEventForbidden()),
@@ -177,9 +176,7 @@ const createEvent = (
                   }),
                 ),
               ),
-            ),
-          ),
-      }),
+          }),
     ),
     Effect.bind(
       'event',
@@ -577,8 +574,10 @@ export const EventsRpcLive = rpcHandlers.pipe(
                 ),
             }),
           ),
-          Effect.catchAllDefect(() =>
-            Effect.succeed(Array.empty<EventRpcModels.TrainingTypeChoice>()),
+          Effect.catchAllDefect((defect) =>
+            Effect.logError(defect).pipe(
+              Effect.as(Array.empty<EventRpcModels.TrainingTypeChoice>()),
+            ),
           ),
         ),
   ),
@@ -594,7 +593,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
         readonly end_at: Option.Option<string>;
         readonly location: Option.Option<string>;
         readonly description: Option.Option<string>;
-        readonly training_type_id: Option.Option<string>;
+        readonly training_type_id: Option.Option<TrainingType.TrainingTypeId>;
       }) =>
         createEvent(sql, events, syncEvents, members, trainingTypesRepo, input),
   ),

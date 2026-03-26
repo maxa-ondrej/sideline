@@ -1,4 +1,4 @@
-import { Discord as DiscordSchemas, Event } from '@sideline/domain';
+import { Discord as DiscordSchemas, Event, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
@@ -11,6 +11,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeUnknownSync(DiscordSchemas.Snowflake);
 const decodeEventType = Schema.decodeUnknownSync(Event.EventType);
+const decodeTrainingTypeId = Schema.decodeUnknownSync(TrainingType.TrainingTypeId);
 
 const modalValueOption = (
   submission: Discord.APIModalSubmission,
@@ -37,10 +38,15 @@ export const EventCreateModal = Ix.modalSubmit(
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
+      const isValidUuid = (s: string) =>
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+
       const parts = data.custom_id.split(':');
       const eventType = parts[1] ?? 'other';
-      const trainingTypeId =
-        parts[2] && parts[2].length > 0 ? Option.some(parts[2]) : Option.none<string>();
+      const rawTrainingTypeId =
+        parts[2] && parts[2].length > 0 && isValidUuid(parts[2])
+          ? Option.some(decodeTrainingTypeId(parts[2]))
+          : Option.none<TrainingType.TrainingTypeId>();
       const locale = userLocale(interaction);
 
       const discordUserId = interactionUserId(interaction);
@@ -88,16 +94,22 @@ export const EventCreateModal = Ix.modalSubmit(
         );
       }
 
+      const decodedEventType = decodeEventType(eventType);
+      const training_type_id =
+        decodedEventType === 'training'
+          ? rawTrainingTypeId
+          : Option.none<TrainingType.TrainingTypeId>();
+
       const work = rpc['Event/CreateEvent']({
         guild_id: decodeSnowflake(guildId),
         discord_user_id: decodeSnowflake(discordUserId.value),
-        event_type: decodeEventType(eventType),
+        event_type: decodedEventType,
         title: title.value,
         start_at: startAt.value,
         end_at: endAt,
         location,
         description,
-        training_type_id: trainingTypeId,
+        training_type_id,
       }).pipe(
         Effect.map((result) => m.bot_event_created({ title: result.title }, { locale })),
         Effect.catchTag('CreateEventNotMember', () =>

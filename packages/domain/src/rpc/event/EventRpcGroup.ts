@@ -1,6 +1,6 @@
 import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
-import { Discord, Event, EventRsvp, Team } from '~/index.js';
+import { Discord, Event, EventRsvp, Team, TrainingType } from '~/index.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
   ChannelEventEntry,
@@ -103,7 +103,7 @@ export const EventRpcGroup = RpcGroup.make(
       end_at: Schema.OptionFromNullOr(Schema.String),
       location: Schema.OptionFromNullOr(Schema.String),
       description: Schema.OptionFromNullOr(Schema.String),
-      training_type_id: Schema.OptionFromNullOr(Schema.String),
+      training_type_id: Schema.OptionFromNullOr(TrainingType.TrainingTypeId),
     },
     success: CreateEventResult,
     error: Schema.Union(CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate),
