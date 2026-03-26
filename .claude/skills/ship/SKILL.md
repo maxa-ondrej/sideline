@@ -63,10 +63,16 @@ Stage any files modified by format/codegen before proceeding.
 
 Run `git push` to push the commit to the remote. If the branch has no upstream yet, use `git push -u origin <branch>`.
 
-Then open a pull request with `gh pr create` (skip if a PR already exists):
+Then open a pull request with `gh pr create` (skip if a PR already exists).
+
+Before creating the PR, find the Notion link for the current work item:
+- Search Notion for the story or bug matching the current branch/work
+- Include `Notion: <url>` as the first line of the PR body
 
 ```bash
 gh pr create --title "<short title>" --body "$(cat <<'EOF'
+Notion: https://www.notion.so/<page-id>
+
 ## Summary
 - <bullet points>
 
