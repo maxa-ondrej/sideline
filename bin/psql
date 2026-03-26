@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Find the real psql binary, skipping this wrapper
+REAL_PSQL=""
+while IFS= read -r candidate; do
+  [[ "$candidate" != "$SCRIPT_DIR/psql" ]] && REAL_PSQL="$candidate" && break
+done < <(which -a psql 2>/dev/null)
+
+if [[ -z "$REAL_PSQL" ]]; then
+  echo "Error: psql not found on PATH (outside of bin/)" >&2
+  exit 1
+fi
+
+# Parse flags
+PR_ID=""
+PASSTHROUGH_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help|-h)
+      echo "Usage: psql [--pr <number>] [psql args...]"
+      echo ""
+      echo "Connect to a Sideline preview database."
+      echo ""
+      echo "Options:"
+      echo "  --pr <number>  Connect to a PR-specific preview database"
+      echo "  -h, --help     Show this help message"
+      echo ""
+      echo "Without --pr, connects to the main preview database."
+      echo "All other arguments are passed through to psql."
+      echo ""
+      echo "Examples:"
+      echo "  psql --pr 108                          # PR 108 database"
+      echo "  psql --pr 108 -c 'SELECT * FROM teams' # Run a query"
+      echo "  psql                                   # Main preview database"
+      exit 0
+      ;;
+    --pr)
+      PR_ID="$2"
+      shift 2
+      ;;
+    --pr=*)
+      PR_ID="${1#--pr=}"
+      shift
+      ;;
+    *)
+      PASSTHROUGH_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Source credentials first (needed by .env.preview for variable expansion)
+source "$PROJECT_DIR/.env.preview.local"
+
+# Override PR ID if provided
+if [[ -n "$PR_ID" ]]; then
+  export PREVIEW_PR_ID="$PR_ID"
+fi
+
+source "$PROJECT_DIR/.env.preview"
+
+# Pick the right connection string
+if [[ -n "$PR_ID" ]]; then
+  URL="$DATABASE_URL_PR"
+else
+  URL="$DATABASE_URL_MAIN"
+fi
+
+exec "$REAL_PSQL" "$URL" "${PASSTHROUGH_ARGS[@]}"

@@ -319,6 +319,22 @@ Stories/epics/milestones: `TODO → In Progress → In Review → In Test → Do
 - `notion-update-page` — update task status or properties
 - `notion-create-pages` — create new tasks
 
+## Preview Database Access
+
+Each PR gets a preview database. Use `bin/psql` to connect:
+
+```bash
+psql --pr 108                          # Connect to PR 108's preview database
+psql --pr 108 -c "SELECT * FROM teams" # Run a query
+psql                                   # Connect to the main preview database
+```
+
+Configuration:
+- `.env.preview` — connection config (host, port, user, DB name templates) — committed
+- `.env.preview.local` — password only — gitignored
+
+Both files are sourced automatically by `bin/psql`. The `bin/` directory is added to `PATH` via `.envrc`.
+
 ## Troubleshooting
 
 - **"Cannot find module"**: Ensure `.js` extensions in imports, run `pnpm install`
