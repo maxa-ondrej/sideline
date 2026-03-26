@@ -19,6 +19,7 @@ import {
   RsvpMemberNotFound,
   RsvpNotGroupMember,
   RsvpReminderSummary,
+  TrainingTypeChoice,
 } from './EventRpcModels.js';
 
 export const EventRpcGroup = RpcGroup.make(
@@ -88,6 +89,10 @@ export const EventRpcGroup = RpcGroup.make(
     success: GuildEventListResult,
     error: GuildNotFound,
   }),
+  Rpc.make('GetTrainingTypesByGuild', {
+    payload: { guild_id: Discord.Snowflake },
+    success: Schema.Array(TrainingTypeChoice),
+  }),
   Rpc.make('CreateEvent', {
     payload: {
       guild_id: Discord.Snowflake,
@@ -98,6 +103,7 @@ export const EventRpcGroup = RpcGroup.make(
       end_at: Schema.OptionFromNullOr(Schema.String),
       location: Schema.OptionFromNullOr(Schema.String),
       description: Schema.OptionFromNullOr(Schema.String),
+      training_type_id: Schema.OptionFromNullOr(Schema.String),
     },
     success: CreateEventResult,
     error: Schema.Union(CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate),

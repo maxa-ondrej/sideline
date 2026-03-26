@@ -7,6 +7,7 @@ import {
   type EventRsvp,
   Team,
   TeamMember,
+  TrainingType,
   User,
 } from '@sideline/domain';
 import { Bind, Options } from '@sideline/effect-lib';
@@ -16,6 +17,8 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { constructEvent } from './events.js';
 
@@ -91,6 +94,7 @@ const createEvent = (
   events: EventsRepository,
   syncEvents: EventSyncEventsRepository,
   members: TeamMembersRepository,
+  trainingTypes: TrainingTypesRepository,
   input: {
     readonly guild_id: Discord.Snowflake;
     readonly discord_user_id: Discord.Snowflake;
@@ -100,6 +104,7 @@ const createEvent = (
     readonly end_at: Option.Option<string>;
     readonly location: Option.Option<string>;
     readonly description: Option.Option<string>;
+    readonly training_type_id: Option.Option<string>;
   },
 ) =>
   Effect.Do.pipe(
@@ -154,20 +159,44 @@ const createEvent = (
         Options.extractEffect,
       ),
     ),
-    Effect.bind('event', ({ teamId, userLookup, parsedStartAt, parsedEndAt }) =>
-      events
-        .insertEvent({
-          teamId,
-          trainingTypeId: Option.none(),
-          eventType: input.event_type,
-          title: input.title,
-          description: input.description,
-          startAt: parsedStartAt,
-          endAt: parsedEndAt,
-          location: input.location,
-          createdBy: userLookup.team_member_id,
-        })
-        .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
+    Effect.bind('validatedTrainingTypeId', ({ teamId }) =>
+      Option.match(input.training_type_id, {
+        onNone: () => Effect.succeed(Option.none<string>()),
+        onSome: (ttId) =>
+          Schema.decode(TrainingType.TrainingTypeId)(ttId).pipe(
+            Effect.orDie,
+            Effect.flatMap((trainingTypeId) =>
+              trainingTypes.findTrainingTypeById(trainingTypeId).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new EventRpcModels.CreateEventForbidden()),
+                    onSome: (tt) =>
+                      tt.team_id === teamId
+                        ? Effect.succeed(Option.some(ttId))
+                        : Effect.fail(new EventRpcModels.CreateEventForbidden()),
+                  }),
+                ),
+              ),
+            ),
+          ),
+      }),
+    ),
+    Effect.bind(
+      'event',
+      ({ teamId, userLookup, parsedStartAt, parsedEndAt, validatedTrainingTypeId }) =>
+        events
+          .insertEvent({
+            teamId,
+            trainingTypeId: validatedTrainingTypeId,
+            eventType: input.event_type,
+            title: input.title,
+            description: input.description,
+            startAt: parsedStartAt,
+            endAt: parsedEndAt,
+            location: input.location,
+            createdBy: userLookup.team_member_id,
+          })
+          .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) => resolveChannel(teamId, event.id)),
     Effect.tap(({ teamId, event, resolvedChannel }) =>
@@ -201,6 +230,8 @@ export const EventsRpcLive = Effect.Do.pipe(
       members: TeamMembersRepository,
       groups: GroupsRepository,
       sql: SqlClient.SqlClient,
+      trainingTypesRepo: TrainingTypesRepository,
+      teamsRepo: TeamsRepository,
     }),
   ),
   Effect.let(
@@ -521,9 +552,37 @@ export const EventsRpcLive = Effect.Do.pipe(
           ),
         ),
   ),
+).pipe(
+  Effect.let(
+    'Event/GetTrainingTypesByGuild',
+    ({ deps: { trainingTypesRepo, teamsRepo } }) =>
+      ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+        teamsRepo.findByGuildId(guild_id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.succeed(Array.empty<EventRpcModels.TrainingTypeChoice>()),
+              onSome: (team) =>
+                trainingTypesRepo.findTrainingTypesByTeamId(team.id).pipe(
+                  Effect.map(
+                    Array.map(
+                      (tt) =>
+                        new EventRpcModels.TrainingTypeChoice({
+                          id: tt.id,
+                          name: tt.name,
+                        }),
+                    ),
+                  ),
+                ),
+            }),
+          ),
+          Effect.catchAllDefect(() =>
+            Effect.succeed(Array.empty<EventRpcModels.TrainingTypeChoice>()),
+          ),
+        ),
+  ),
   Effect.let(
     'Event/CreateEvent',
-    ({ deps: { sql, members, syncEvents }, events }) =>
+    ({ deps: { sql, members, syncEvents, trainingTypesRepo }, events }) =>
       (input: {
         readonly guild_id: Discord.Snowflake;
         readonly discord_user_id: Discord.Snowflake;
@@ -533,8 +592,9 @@ export const EventsRpcLive = Effect.Do.pipe(
         readonly end_at: Option.Option<string>;
         readonly location: Option.Option<string>;
         readonly description: Option.Option<string>;
+        readonly training_type_id: Option.Option<string>;
       }) =>
-        createEvent(sql, events, syncEvents, members, input),
+        createEvent(sql, events, syncEvents, members, trainingTypesRepo, input),
   ),
   Bind.remove('events'),
   Bind.remove('rsvps'),

@@ -21,20 +21,24 @@ export const createHandler = Interaction.pipe(
     }
 
     const data = interaction.data;
-    const eventType =
-      data && 'options' in data
-        ? pipe(
-            [...(data.options ?? [])],
-            Array.findFirst((o) => o.name === 'type'),
-            Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
-            Option.getOrElse(() => 'other'),
-          )
-        : 'other';
+    const options = data && 'options' in data ? [...(data.options ?? [])] : [];
+    const eventType = pipe(
+      options,
+      Array.findFirst((o) => o.name === 'type'),
+      Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
+      Option.getOrElse(() => 'other'),
+    );
+    const trainingTypeId = pipe(
+      options,
+      Array.findFirst((o) => o.name === 'training_type'),
+      Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
+      Option.getOrElse(() => ''),
+    );
 
     return Ix.response({
       type: DiscordTypes.InteractionCallbackTypes.MODAL,
       data: {
-        custom_id: `event-create:${eventType}`,
+        custom_id: `event-create:${eventType}:${trainingTypeId}`,
         title: m.bot_event_modal_title({}, { locale }),
         components: [
           {

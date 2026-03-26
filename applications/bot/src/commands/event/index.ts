@@ -31,6 +31,14 @@ export const EventCommand = Ix.global(
               { name: 'Other', name_localizations: { cs: 'Jiné' }, value: 'other' },
             ],
           },
+          {
+            name: 'training_type',
+            description: 'Training type (only for training events)',
+            description_localizations: { cs: 'Typ tréninku (pouze pro tréninkové události)' },
+            type: DiscordTypes.ApplicationCommandOptionType.STRING,
+            required: false as const,
+            autocomplete: true as const,
+          },
         ],
       },
       {

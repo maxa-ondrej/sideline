@@ -1,6 +1,7 @@
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { Snowflake } from '~/models/Discord.js';
+import { TrainingTypeId } from '~/models/TrainingType.js';
 
 export class EventDiscordMessage extends Schema.Class<EventDiscordMessage>('EventDiscordMessage')({
   discord_channel_id: Snowflake,
@@ -123,4 +124,9 @@ export class RsvpReminderSummary extends Schema.Class<RsvpReminderSummary>('Rsvp
   noCount: Schema.Number,
   maybeCount: Schema.Number,
   nonResponders: Schema.Array(NonResponderRpcEntry),
+}) {}
+
+export class TrainingTypeChoice extends Schema.Class<TrainingTypeChoice>('TrainingTypeChoice')({
+  id: TrainingTypeId,
+  name: Schema.String,
 }) {}

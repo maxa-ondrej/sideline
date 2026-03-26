@@ -1,4 +1,4 @@
-import { Discord as DiscordSchemas } from '@sideline/domain';
+import { Discord as DiscordSchemas, Event } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
@@ -10,6 +10,7 @@ import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeUnknownSync(DiscordSchemas.Snowflake);
+const decodeEventType = Schema.decodeUnknownSync(Event.EventType);
 
 const modalValueOption = (
   submission: Discord.APIModalSubmission,
@@ -38,6 +39,8 @@ export const EventCreateModal = Ix.modalSubmit(
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const eventType = parts[1] ?? 'other';
+      const trainingTypeId =
+        parts[2] && parts[2].length > 0 ? Option.some(parts[2]) : Option.none<string>();
       const locale = userLocale(interaction);
 
       const discordUserId = interactionUserId(interaction);
@@ -88,18 +91,13 @@ export const EventCreateModal = Ix.modalSubmit(
       const work = rpc['Event/CreateEvent']({
         guild_id: decodeSnowflake(guildId),
         discord_user_id: decodeSnowflake(discordUserId.value),
-        event_type: eventType as
-          | 'training'
-          | 'match'
-          | 'tournament'
-          | 'meeting'
-          | 'social'
-          | 'other',
+        event_type: decodeEventType(eventType),
         title: title.value,
         start_at: startAt.value,
         end_at: endAt,
         location,
         description,
+        training_type_id: trainingTypeId,
       }).pipe(
         Effect.map((result) => m.bot_event_created({ title: result.title }, { locale })),
         Effect.catchTag('CreateEventNotMember', () =>
