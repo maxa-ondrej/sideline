@@ -3,7 +3,7 @@ import type { EventApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
-import { DateTime, Effect, Option, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { CalendarDays, List } from 'lucide-react';
 import React from 'react';
 import { useForm } from 'react-hook-form';
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
+import { dateOnlyToUtc, formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const NONE_VALUE = '__none__';
@@ -47,15 +48,6 @@ const CreateEventSchema = Schema.Struct({
 });
 
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
-
-const toDateTime = (date: string, time: string): DateTime.Utc =>
-  DateTime.unsafeMake(`${date}T${time}:00Z`);
-
-const formatTimeUtc = (dt: DateTime.Utc): string => {
-  const h = String(DateTime.getPartUtc(dt, 'hours')).padStart(2, '0');
-  const mins = String(DateTime.getPartUtc(dt, 'minutes')).padStart(2, '0');
-  return `${h}:${mins}`;
-};
 
 const CreateSeriesSchema = Schema.Struct({
   title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
@@ -182,9 +174,9 @@ export function EventsListPage({
   }, [watchedEventType, form]);
 
   const onSubmit = async (values: CreateEventValues) => {
-    const startAt = toDateTime(values.startDate, values.startTime);
+    const startAt = localToUtc(values.startDate, values.startTime);
     const endAt = values.endTime
-      ? toDateTime(values.endDate || values.startDate, values.endTime)
+      ? localToUtc(values.endDate || values.startDate, values.endTime)
       : null;
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
@@ -239,10 +231,8 @@ export function EventsListPage({
             description: values.description ? Option.some(values.description) : Option.none(),
             frequency: values.frequency,
             daysOfWeek: values.daysOfWeek,
-            startDate: DateTime.unsafeMake(`${values.startDate}T00:00:00Z`),
-            endDate: values.endDate
-              ? Option.some(DateTime.unsafeMake(`${values.endDate}T00:00:00Z`))
-              : Option.none(),
+            startDate: dateOnlyToUtc(values.startDate),
+            endDate: values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
             startTime: values.startTime,
             endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
@@ -891,12 +881,12 @@ export function EventsListPage({
                       {Option.getOrNull(event.trainingTypeName)}
                     </td>
                     <td className='py-2 px-4 text-muted-foreground'>
-                      {DateTime.formatIsoDateUtc(event.startAt)}
+                      {formatLocalDate(event.startAt)}
                     </td>
                     <td className='py-2 px-4 text-muted-foreground'>
-                      {formatTimeUtc(event.startAt)}
+                      {formatLocalTime(event.startAt)}
                       {event.endAt.pipe(
-                        Option.map((v) => ` - ${formatTimeUtc(v)}`),
+                        Option.map((v) => ` - ${formatLocalTime(v)}`),
                         Option.getOrElse(() => ''),
                       )}
                     </td>
