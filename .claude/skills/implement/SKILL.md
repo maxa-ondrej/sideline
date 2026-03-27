@@ -13,6 +13,27 @@ Follow these phases **in order**. Stop and report if any phase fails. The caller
 
 Invoke each specialist agent directly via the Agent tool from the main thread — do NOT nest them inside a manager agent. This gives the user visibility into each step.
 
+### User input via editor
+
+Whenever this skill needs user input (plan approval, confirmation, feedback), open the content in the user's default editor as a markdown file:
+
+```bash
+TMPFILE=$(mktemp /tmp/claude-XXXXXX.md)
+cat > "$TMPFILE" <<'CONTENT'
+# <Title>
+
+<content for the user to review>
+
+---
+<!-- Write your feedback below this line. Save and close to continue. -->
+<!-- Leave empty or write "ok" to approve as-is. -->
+CONTENT
+${EDITOR:-vim} "$TMPFILE"
+# Read the user's response from the file after they close the editor
+```
+
+Use this pattern for ALL user interactions — never ask inline questions or wait for chat input.
+
 ---
 
 ### Phase 1: Research (optional)
@@ -35,7 +56,7 @@ Iterate until the plan is fool-proof:
 
 3. If the hater finds **blockers**, send the critique back to the `/architect` agent for revision. Repeat architect -> hater until no blockers remain.
 
-4. Present the final plan to the user for approval. Wait for user input before proceeding.
+4. Present the final plan to the user for approval using the **editor pattern** described above. Write the full plan as markdown, open it in the editor, and read back the user's response. If the user provides feedback, send it back to the `/architect` agent for revision and repeat.
 
 ---
 

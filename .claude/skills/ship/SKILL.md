@@ -108,7 +108,7 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
 gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
 ```
 
-Wait up to 3 minutes for review comments to appear, checking every 30 seconds. If no comments arrive, stop.
+Wait 5 minutes before the first check, then poll every 30 seconds for up to 3 more minutes. If no comments arrive, stop.
 
 ---
 
