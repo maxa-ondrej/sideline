@@ -16,6 +16,10 @@ export default defineProject({
       DISCORD_REDIRECT: 'http://localhost',
       FRONTEND_URL: 'http://localhost:5173',
       SERVER_URL: 'http://localhost',
+      APP_ENV: 'test',
+      APP_ORIGIN: 'localhost',
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
+      OTEL_SERVICE_NAME: 'sideline-server',
     },
   },
 });

@@ -37,6 +37,10 @@ services:
       RPC_PREFIX: /rpc/sync
       FRONTEND_URL: ${SERVICE_URL_PROXY}
       SERVER_URL: ${SERVICE_URL_PROXY}/api
+      APP_ENV: preview
+      APP_ORIGIN: ${SERVICE_FQDN_PROXY}
+      OTEL_EXPORTER_OTLP_ENDPOINT: https://otelcollectorhttp-ccogw4cogg00wwowc0s4c0cs.majksa.net/
+      OTEL_SERVICE_NAME: sideline-server
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s
@@ -55,6 +59,10 @@ services:
       SERVER_URL: http://${SERVICE_NAME_SERVER}:80
       RPC_PREFIX: /rpc/sync
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      APP_ENV: preview
+      APP_ORIGIN: ${SERVICE_FQDN_PROXY}
+      OTEL_EXPORTER_OTLP_ENDPOINT: https://otelcollectorhttp-ccogw4cogg00wwowc0s4c0cs.majksa.net/
+      OTEL_SERVICE_NAME: sideline-bot
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
       interval: 30s

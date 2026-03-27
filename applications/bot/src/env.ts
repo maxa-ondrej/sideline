@@ -25,6 +25,10 @@ export const env = createEnv({
     LOG_LEVEL: Schema.OptionFromNullishOr(Schemas.LogLevelFromString, null).pipe(
       Schema.standardSchemaV1,
     ),
+    APP_ENV: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    APP_ORIGIN: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    OTEL_EXPORTER_OTLP_ENDPOINT: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    OTEL_SERVICE_NAME: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

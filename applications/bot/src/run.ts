@@ -1,6 +1,6 @@
 import { NodeHttpClient, NodeSocket } from '@effect/platform-node';
 import { RpcClient, RpcSerialization } from '@effect/rpc';
-import { Runtime } from '@sideline/effect-lib';
+import { Runtime, Telemetry } from '@sideline/effect-lib';
 import * as DiscordConfig from 'dfx/DiscordConfig';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
@@ -22,4 +22,15 @@ const MainLive = AppLive.pipe(
   ),
 );
 
-Effect.provide(Bot.program, MainLive).pipe(Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL));
+Effect.provide(Bot.program, MainLive).pipe(
+  Runtime.runMain(
+    env.NODE_ENV,
+    env.LOG_LEVEL,
+    Telemetry.makeTelemetryLayer({
+      endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      serviceName: env.OTEL_SERVICE_NAME,
+      environment: env.APP_ENV,
+      origin: env.APP_ORIGIN,
+    }),
+  ),
+);

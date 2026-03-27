@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { NodeFileSystem, NodeHttpServer } from '@effect/platform-node';
 import { SqlClient } from '@effect/sql';
 import { PgClient } from '@effect/sql-pg';
-import { Runtime } from '@sideline/effect-lib';
+import { Runtime, Telemetry } from '@sideline/effect-lib';
 import { AfterMigrator, BeforeMigrator } from '@sideline/migrations';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
@@ -126,5 +126,14 @@ Effect.Do.pipe(
       concurrency: 7,
     }),
   ),
-  Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL),
+  Runtime.runMain(
+    env.NODE_ENV,
+    env.LOG_LEVEL,
+    Telemetry.makeTelemetryLayer({
+      endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      serviceName: env.OTEL_SERVICE_NAME,
+      environment: env.APP_ENV,
+      origin: env.APP_ORIGIN,
+    }),
+  ),
 );
