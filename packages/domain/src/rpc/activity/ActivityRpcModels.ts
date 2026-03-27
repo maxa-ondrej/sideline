@@ -1,9 +1,9 @@
 import { Schema } from 'effect';
-import { ActivityLogId, ActivityType } from '~/models/ActivityLog.js';
+import { ActivityLogId } from '~/models/ActivityLog.js';
 
 export class LogActivityResult extends Schema.Class<LogActivityResult>('LogActivityResult')({
   id: ActivityLogId,
-  activity_type: ActivityType,
+  activity_type_id: Schema.String,
   logged_at: Schema.String,
 }) {}
 
@@ -22,7 +22,11 @@ export class GetStatsResult extends Schema.Class<GetStatsResult>('GetStatsResult
   longest_streak: Schema.Int,
   total_activities: Schema.Int,
   total_duration_minutes: Schema.Int,
-  gym_count: Schema.Int,
-  running_count: Schema.Int,
-  stretching_count: Schema.Int,
+  counts: Schema.Array(
+    Schema.Struct({
+      activity_type_id: Schema.String,
+      activity_type_name: Schema.String,
+      count: Schema.Int,
+    }),
+  ),
 }) {}

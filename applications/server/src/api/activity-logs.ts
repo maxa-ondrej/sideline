@@ -4,13 +4,15 @@ import { DateTime, Effect } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('activityLogs', () => ActivityLogsRepository),
-    Effect.map(({ members, activityLogs }) =>
+    Effect.bind('activityTypes', () => ActivityTypesRepository),
+    Effect.map(({ members, activityLogs, activityTypes }) =>
       handlers
         .handle('listLogs', ({ path: { teamId, memberId } }) =>
           Effect.Do.pipe(
@@ -31,10 +33,12 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
                     (l) =>
                       new ActivityLogApi.ActivityLogEntry({
                         id: l.id,
-                        activityType: l.activity_type,
+                        activityTypeId: l.activity_type_id,
+                        activityTypeName: l.activity_type_name,
                         loggedAt: l.logged_at.toISOString(),
                         durationMinutes: l.duration_minutes,
                         note: l.note,
+                        source: l.source,
                       }),
                   ),
                 }),
@@ -58,20 +62,23 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             Effect.flatMap(() =>
               activityLogs.insert({
                 team_member_id: memberId,
-                activity_type: payload.activityType,
+                activity_type_id: payload.activityTypeId,
                 logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
                 duration_minutes: payload.durationMinutes,
                 note: payload.note,
+                source: 'manual',
               }),
             ),
             Effect.map(
               (inserted) =>
                 new ActivityLogApi.ActivityLogEntry({
                   id: inserted.id,
-                  activityType: inserted.activity_type,
+                  activityTypeId: inserted.activity_type_id,
+                  activityTypeName: inserted.activity_type_name,
                   loggedAt: inserted.logged_at,
                   durationMinutes: payload.durationMinutes,
                   note: payload.note,
+                  source: inserted.source,
                 }),
             ),
           ),
@@ -92,7 +99,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
             Effect.flatMap(() =>
               activityLogs.update(logId, memberId, {
-                activity_type: payload.activityType,
+                activity_type_id: payload.activityTypeId,
                 duration_minutes: payload.durationMinutes,
                 note: payload.note,
               }),
@@ -101,10 +108,12 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
               (updated) =>
                 new ActivityLogApi.ActivityLogEntry({
                   id: updated.id,
-                  activityType: updated.activity_type,
+                  activityTypeId: updated.activity_type_id,
+                  activityTypeName: updated.activity_type_name,
                   loggedAt: updated.logged_at.toISOString(),
                   durationMinutes: updated.duration_minutes,
                   note: updated.note,
+                  source: updated.source,
                 }),
             ),
           ),
@@ -125,6 +134,28 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
             Effect.flatMap(() => activityLogs.delete(logId, memberId)),
             Effect.asVoid,
+          ),
+        )
+        .handle('listActivityTypes', ({ path: { teamId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.tap(({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
+            ),
+            Effect.flatMap(() => activityTypes.findByTeamId(teamId)),
+            Effect.map(
+              (types) =>
+                new ActivityLogApi.ActivityTypeListResponse({
+                  activityTypes: types.map(
+                    (t) =>
+                      new ActivityLogApi.ActivityTypeEntry({
+                        id: t.id,
+                        name: t.name,
+                        slug: t.slug,
+                      }),
+                  ),
+                }),
+            ),
           ),
         ),
     ),

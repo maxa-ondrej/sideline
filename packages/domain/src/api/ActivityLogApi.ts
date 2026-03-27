@@ -1,16 +1,19 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
-import { ActivityLogId, ActivityType } from '~/models/ActivityLog.js';
+import { ActivityLogId, ActivitySource } from '~/models/ActivityLog.js';
+import { ActivityTypeId } from '~/models/ActivityType.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
 export class ActivityLogEntry extends Schema.Class<ActivityLogEntry>('ActivityLogEntry')({
   id: ActivityLogId,
-  activityType: ActivityType,
+  activityTypeId: ActivityTypeId,
+  activityTypeName: Schema.String,
   loggedAt: Schema.String,
   durationMinutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
+  source: ActivitySource,
 }) {}
 
 export class ActivityLogListResponse extends Schema.Class<ActivityLogListResponse>(
@@ -22,7 +25,7 @@ export class ActivityLogListResponse extends Schema.Class<ActivityLogListRespons
 export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequest>(
   'CreateActivityLogRequest',
 )({
-  activityType: ActivityType,
+  activityTypeId: ActivityTypeId,
   durationMinutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
   note: Schema.OptionFromNullOr(Schema.String),
 }) {}
@@ -30,12 +33,24 @@ export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequ
 export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequest>(
   'UpdateActivityLogRequest',
 )({
-  activityType: Schema.optionalWith(ActivityType, { as: 'Option' }),
+  activityTypeId: Schema.optionalWith(ActivityTypeId, { as: 'Option' }),
   durationMinutes: Schema.optionalWith(
     Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
     { as: 'Option' },
   ),
   note: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+}) {}
+
+export class ActivityTypeEntry extends Schema.Class<ActivityTypeEntry>('ActivityTypeEntry')({
+  id: ActivityTypeId,
+  name: Schema.String,
+  slug: Schema.OptionFromNullOr(Schema.String),
+}) {}
+
+export class ActivityTypeListResponse extends Schema.Class<ActivityTypeListResponse>(
+  'ActivityTypeListResponse',
+)({
+  activityTypes: Schema.Array(ActivityTypeEntry),
 }) {}
 
 export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
@@ -58,6 +73,12 @@ export class LogNotFound extends Schema.TaggedError<LogNotFound>()(
 
 export class MemberInactive extends Schema.TaggedError<MemberInactive>()(
   'ActivityLogMemberInactive',
+  {},
+  HttpApiSchema.annotations({ status: 403 }),
+) {}
+
+export class AutoSourceForbidden extends Schema.TaggedError<AutoSourceForbidden>()(
+  'ActivityLogAutoSourceForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
@@ -87,6 +108,7 @@ export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
       .addError(LogNotFound, { status: 404 })
       .addError(Forbidden, { status: 403 })
       .addError(MemberInactive, { status: 403 })
+      .addError(AutoSourceForbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
       .setPayload(UpdateActivityLogRequest)
       .middleware(AuthMiddleware),
@@ -100,6 +122,14 @@ export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
       .addError(LogNotFound, { status: 404 })
       .addError(Forbidden, { status: 403 })
       .addError(MemberInactive, { status: 403 })
+      .addError(AutoSourceForbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('listActivityTypes', '/teams/:teamId/activity-types')
+      .addSuccess(ActivityTypeListResponse)
+      .addError(Forbidden, { status: 403 })
+      .setPath(Schema.Struct({ teamId: TeamId }))
       .middleware(AuthMiddleware),
   ) {}

@@ -73,6 +73,21 @@ export const statsHandler = Interaction.pipe(
               };
             }
 
+            const countFields = stats.counts.flatMap((c, i) => {
+              const fields = [
+                {
+                  name: c.activity_type_name,
+                  value: String(c.count),
+                  inline: true,
+                },
+              ];
+              // Add spacer after every 2 count fields to keep layout in groups of 3
+              if ((i + 1) % 2 === 0) {
+                fields.push({ name: '\u200b', value: '\u200b', inline: true });
+              }
+              return fields;
+            });
+
             return {
               embeds: [
                 {
@@ -94,21 +109,7 @@ export const statsHandler = Interaction.pipe(
                       inline: true,
                     },
                     { name: '\u200b', value: '\u200b', inline: true },
-                    {
-                      name: m.bot_makanicko_stats_gym({}, { locale }),
-                      value: String(stats.gym_count),
-                      inline: true,
-                    },
-                    {
-                      name: m.bot_makanicko_stats_running({}, { locale }),
-                      value: String(stats.running_count),
-                      inline: true,
-                    },
-                    {
-                      name: m.bot_makanicko_stats_stretching({}, { locale }),
-                      value: String(stats.stretching_count),
-                      inline: true,
-                    },
+                    ...countFields,
                   ],
                   footer: { text: m.bot_makanicko_stats_footer({}, { locale }) },
                 },

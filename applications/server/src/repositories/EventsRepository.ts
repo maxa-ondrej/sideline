@@ -264,6 +264,29 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     execute: (id) => this.sql`UPDATE events SET reminder_sent_at = now() WHERE id = ${id}`,
   });
 
+  private markAutoLogged = SqlSchema.void({
+    Request: Event.EventId,
+    execute: (id) => this.sql`UPDATE events SET auto_logged_at = now() WHERE id = ${id}`,
+  });
+
+  private findEndedTrainings = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: Schema.Struct({
+      id: Event.EventId,
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+    }),
+    execute: () => this.sql`
+      SELECT id, start_at, end_at
+      FROM events
+      WHERE event_type = 'training'
+        AND status = 'active'
+        AND auto_logged_at IS NULL
+        AND COALESCE(end_at, start_at) < NOW()
+        AND COALESCE(end_at, start_at) > NOW() - INTERVAL '7 days'
+    `,
+  });
+
   private markModified = SqlSchema.void({
     Request: Event.EventId,
     execute: (id) =>
@@ -515,6 +538,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   markReminderSent = (eventId: Event.EventId) =>
     this.markReminder(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  markTrainingAutoLogged = (eventId: Event.EventId) =>
+    this.markAutoLogged(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  findEndedTrainingsForAutoLog = () =>
+    this.findEndedTrainings(undefined).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
   markEventSeriesModified = (eventId: Event.EventId) =>
     this.markModified(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));

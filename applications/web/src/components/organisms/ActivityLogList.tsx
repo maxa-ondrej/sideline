@@ -1,4 +1,4 @@
-import type { ActivityLog, ActivityLogApi } from '@sideline/domain';
+import type { ActivityLog, ActivityLogApi, ActivityType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Option } from 'effect';
 import React from 'react';
@@ -7,12 +7,9 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '~/components/ui/sheet';
 
-type ActivityType = ActivityLog.ActivityType;
-
-const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
-  gym: 'Gym',
-  running: 'Run',
-  stretching: 'Stretch',
+type ActivityTypeOption = {
+  id: ActivityType.ActivityTypeId;
+  name: string;
 };
 
 const formatDuration = (minutes: number): string => {
@@ -35,15 +32,16 @@ const formatDate = (isoString: string): string => {
 interface ActivityLogListProps {
   logs: ReadonlyArray<ActivityLogApi.ActivityLogEntry>;
   isOwnProfile: boolean;
+  activityTypes: ReadonlyArray<ActivityTypeOption>;
   onCreateLog: (input: {
-    activityType: ActivityType;
+    activityTypeId: ActivityType.ActivityTypeId;
     durationMinutes: Option.Option<number>;
     note: Option.Option<string>;
   }) => Promise<void>;
   onUpdateLog: (
     logId: ActivityLog.ActivityLogId,
     input: {
-      activityType: Option.Option<ActivityType>;
+      activityTypeId: Option.Option<ActivityType.ActivityTypeId>;
       durationMinutes: Option.Option<Option.Option<number>>;
       note: Option.Option<Option.Option<string>>;
     },
@@ -54,46 +52,62 @@ interface ActivityLogListProps {
 export function ActivityLogList({
   logs,
   isOwnProfile,
+  activityTypes,
   onCreateLog,
   onUpdateLog,
   onDeleteLog,
 }: ActivityLogListProps) {
-  const [selectedType, setSelectedType] = React.useState<ActivityType | null>(null);
+  const [selectedTypeId, setSelectedTypeId] = React.useState<ActivityType.ActivityTypeId | null>(
+    null,
+  );
   const [durationInput, setDurationInput] = React.useState('');
   const [noteInput, setNoteInput] = React.useState('');
   const [creating, setCreating] = React.useState(false);
 
   const [editingLog, setEditingLog] = React.useState<ActivityLogApi.ActivityLogEntry | null>(null);
-  const [editType, setEditType] = React.useState<ActivityType>('gym');
+  const [editTypeId, setEditTypeId] = React.useState<ActivityType.ActivityTypeId | null>(null);
   const [editDuration, setEditDuration] = React.useState('');
   const [editNote, setEditNote] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<ActivityLog.ActivityLogId | null>(null);
 
+  // Derive edit activity types from the logs (unique types seen) plus provided activityTypes
+  const editActivityTypes = React.useMemo(() => {
+    const seenIds = new Set(activityTypes.map((t) => t.id));
+    const extra: ActivityTypeOption[] = [];
+    for (const log of logs) {
+      if (!seenIds.has(log.activityTypeId)) {
+        seenIds.add(log.activityTypeId);
+        extra.push({ id: log.activityTypeId, name: log.activityTypeName });
+      }
+    }
+    return [...activityTypes, ...extra];
+  }, [activityTypes, logs]);
+
   const handleCreate = React.useCallback(async () => {
-    if (!selectedType) return;
+    if (!selectedTypeId) return;
     setCreating(true);
     try {
       const durationNum = durationInput ? parseInt(durationInput, 10) : null;
       await onCreateLog({
-        activityType: selectedType,
+        activityTypeId: selectedTypeId,
         durationMinutes:
           durationNum !== null && !Number.isNaN(durationNum)
             ? Option.some(durationNum)
             : Option.none(),
         note: noteInput.trim() ? Option.some(noteInput.trim()) : Option.none(),
       });
-      setSelectedType(null);
+      setSelectedTypeId(null);
       setDurationInput('');
       setNoteInput('');
     } finally {
       setCreating(false);
     }
-  }, [selectedType, durationInput, noteInput, onCreateLog]);
+  }, [selectedTypeId, durationInput, noteInput, onCreateLog]);
 
   const openEdit = React.useCallback((log: ActivityLogApi.ActivityLogEntry) => {
     setEditingLog(log);
-    setEditType(log.activityType);
+    setEditTypeId(log.activityTypeId);
     setEditDuration(
       Option.match(log.durationMinutes, { onNone: () => '', onSome: (n) => n.toString() }),
     );
@@ -101,7 +115,7 @@ export function ActivityLogList({
   }, []);
 
   const handleUpdate = React.useCallback(async () => {
-    if (!editingLog) return;
+    if (!editingLog || !editTypeId) return;
     setSaving(true);
     try {
       const durationNum = editDuration ? parseInt(editDuration, 10) : null;
@@ -110,7 +124,7 @@ export function ActivityLogList({
           ? Option.some(durationNum)
           : Option.none<number>();
       await onUpdateLog(editingLog.id, {
-        activityType: Option.some(editType),
+        activityTypeId: Option.some(editTypeId),
         durationMinutes: Option.some(parsedDuration),
         note: Option.some(editNote.trim() ? Option.some(editNote.trim()) : Option.none<string>()),
       });
@@ -118,7 +132,7 @@ export function ActivityLogList({
     } finally {
       setSaving(false);
     }
-  }, [editingLog, editType, editDuration, editNote, onUpdateLog]);
+  }, [editingLog, editTypeId, editDuration, editNote, onUpdateLog]);
 
   const handleDelete = React.useCallback(
     async (logId: ActivityLog.ActivityLogId) => {
@@ -149,20 +163,20 @@ export function ActivityLogList({
       {isOwnProfile && (
         <div className='mb-6 p-4 border rounded-lg'>
           <p className='text-sm font-medium mb-2'>{m.activityLog_logActivity()}</p>
-          <div className='flex gap-2 mb-3'>
-            {(['gym', 'running', 'stretching'] as ActivityType[]).map((type) => (
+          <div className='flex gap-2 mb-3 flex-wrap'>
+            {activityTypes.map((type) => (
               <Button
-                key={type}
+                key={type.id}
                 type='button'
-                variant={selectedType === type ? 'default' : 'outline'}
+                variant={selectedTypeId === type.id ? 'default' : 'outline'}
                 size='sm'
-                onClick={() => setSelectedType(type)}
+                onClick={() => setSelectedTypeId(type.id)}
               >
-                {ACTIVITY_TYPE_ICONS[type]}
+                {type.name}
               </Button>
             ))}
           </div>
-          {selectedType && (
+          {selectedTypeId && (
             <>
               <div className='flex gap-2 mb-2'>
                 <div className='flex-1'>
@@ -213,9 +227,10 @@ export function ActivityLogList({
                     className='flex items-center justify-between p-2 rounded border'
                   >
                     <div className='flex items-center gap-2'>
-                      <span className='font-medium text-sm'>
-                        {ACTIVITY_TYPE_ICONS[log.activityType]}
-                      </span>
+                      <span className='font-medium text-sm'>{log.activityTypeName}</span>
+                      {log.source === 'auto' && (
+                        <span className='text-xs text-muted-foreground italic'>(auto)</span>
+                      )}
                       {Option.isSome(log.durationMinutes) && (
                         <span className='text-xs text-muted-foreground'>
                           {formatDuration(log.durationMinutes.value)}
@@ -225,7 +240,7 @@ export function ActivityLogList({
                         <span className='text-xs text-muted-foreground'>{log.note.value}</span>
                       )}
                     </div>
-                    {isOwnProfile && (
+                    {isOwnProfile && log.source !== 'auto' && (
                       <div className='flex gap-1'>
                         <Button
                           type='button'
@@ -273,16 +288,16 @@ export function ActivityLogList({
               <Label className='text-sm font-medium mb-2 block'>
                 {m.activityLog_activityType()}
               </Label>
-              <div className='flex gap-2'>
-                {(['gym', 'running', 'stretching'] as ActivityType[]).map((type) => (
+              <div className='flex gap-2 flex-wrap'>
+                {editActivityTypes.map((type) => (
                   <Button
-                    key={type}
+                    key={type.id}
                     type='button'
-                    variant={editType === type ? 'default' : 'outline'}
+                    variant={editTypeId === type.id ? 'default' : 'outline'}
                     size='sm'
-                    onClick={() => setEditType(type)}
+                    onClick={() => setEditTypeId(type.id)}
                   >
-                    {ACTIVITY_TYPE_ICONS[type]}
+                    {type.name}
                   </Button>
                 ))}
               </div>

@@ -1,6 +1,6 @@
 import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
-import { ActivityLog, Discord } from '~/index.js';
+import { Discord } from '~/index.js';
 import {
   ActivityGuildNotFound,
   ActivityMemberNotFound,
@@ -13,7 +13,7 @@ export const ActivityRpcGroup = RpcGroup.make(
     payload: {
       guild_id: Discord.Snowflake,
       discord_user_id: Discord.Snowflake,
-      activity_type: ActivityLog.ActivityType,
+      activity_type: Schema.String,
       duration_minutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
       note: Schema.OptionFromNullOr(Schema.String),
     },

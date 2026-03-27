@@ -11,9 +11,13 @@ export class ActivityStatsResponse extends Schema.Class<ActivityStatsResponse>(
   longestStreak: Schema.Int,
   totalActivities: Schema.Int,
   totalDurationMinutes: Schema.Int,
-  gymCount: Schema.Int,
-  runningCount: Schema.Int,
-  stretchingCount: Schema.Int,
+  counts: Schema.Array(
+    Schema.Struct({
+      activityTypeId: Schema.String,
+      activityTypeName: Schema.String,
+      count: Schema.Int,
+    }),
+  ),
 }) {}
 
 export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(

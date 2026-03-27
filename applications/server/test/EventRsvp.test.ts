@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -751,9 +752,24 @@ const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
 } as unknown as ICalTokensRepository);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
-  insert: () => Effect.die(new Error('not implemented')),
+  insert: () =>
+    Effect.succeed({
+      id: 'mock-log-id',
+      activity_type_id: 'mock-type-id',
+      logged_at: new Date().toISOString(),
+      source: 'auto',
+    }),
   findByTeamMember: () => Effect.succeed([]),
 } as unknown as ActivityLogsRepository);
+
+const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
+  findBySlug: () =>
+    Effect.succeed(
+      Option.some({ id: 'mock-training-type-id', name: 'Training', slug: Option.some('training') }),
+    ),
+  findByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+} as unknown as ActivityTypesRepository);
 
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
@@ -763,7 +779,12 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockSessionsRepositoryLayer),
   Layer.provide(MockTeamsRepositoryLayer),
   Layer.provide(MockTeamMembersRepositoryLayer),
-  Layer.provide(Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer)),
+  Layer.provide(
+    Layer.merge(
+      Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer),
+      MockActivityTypesRepositoryLayer,
+    ),
+  ),
   Layer.provide(MockTeamInvitesRepositoryLayer),
   Layer.provide(MockRolesRepositoryLayer),
   Layer.provide(MockGroupsRepositoryLayer),

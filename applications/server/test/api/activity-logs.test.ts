@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
-import type { ActivityLog, Auth, Role, Team, TeamMember } from '@sideline/domain';
+import type { ActivityLog, ActivityType, Auth, Role, Team, TeamMember } from '@sideline/domain';
 import { ActivityLogApi } from '@sideline/domain';
 import { DateTime, Effect, Either, Layer, Option } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
@@ -16,16 +16,21 @@ const TEST_LOG_ID_1 = 'log-uuid-001' as ActivityLog.ActivityLogId;
 const TEST_LOG_ID_2 = 'log-uuid-002' as ActivityLog.ActivityLogId;
 const TEST_NONEXISTENT_LOG_ID = 'log-uuid-999' as ActivityLog.ActivityLogId;
 
+const GYM_TYPE_ID = 'type-uuid-gym' as ActivityType.ActivityTypeId;
+const RUNNING_TYPE_ID = 'type-uuid-running' as ActivityType.ActivityTypeId;
+
 const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
 
 // --- In-memory stores ---
 type ActivityLogRecord = {
   id: ActivityLog.ActivityLogId;
   team_member_id: TeamMember.TeamMemberId;
-  activity_type: ActivityLog.ActivityType;
+  activity_type_id: ActivityType.ActivityTypeId;
+  activity_type_name: string;
   logged_at: Date;
   duration_minutes: Option.Option<number>;
   note: Option.Option<string>;
+  source: ActivityLog.ActivitySource;
 };
 
 let activityLogsStore: Map<ActivityLog.ActivityLogId, ActivityLogRecord>;
@@ -35,18 +40,22 @@ const resetStores = () => {
   activityLogsStore.set(TEST_LOG_ID_1, {
     id: TEST_LOG_ID_1,
     team_member_id: TEST_MEMBER_ID,
-    activity_type: 'gym',
+    activity_type_id: GYM_TYPE_ID,
+    activity_type_name: 'Gym',
     logged_at: new Date('2026-03-25T10:00:00Z'),
     duration_minutes: Option.some(60),
     note: Option.some('Leg day'),
+    source: 'manual',
   });
   activityLogsStore.set(TEST_LOG_ID_2, {
     id: TEST_LOG_ID_2,
     team_member_id: TEST_MEMBER_ID,
-    activity_type: 'running',
+    activity_type_id: RUNNING_TYPE_ID,
+    activity_type_name: 'Run',
     logged_at: new Date('2026-03-26T08:00:00Z'),
     duration_minutes: Option.none(),
     note: Option.none(),
+    source: 'manual',
   });
 };
 
@@ -121,7 +130,8 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
     const logs = Array.from(activityLogsStore.values())
       .filter((l) => l.team_member_id === memberId)
       .map((l) => ({
-        activity_type: l.activity_type,
+        activity_type_id: l.activity_type_id,
+        activity_type_name: l.activity_type_name,
         logged_at_date: l.logged_at.toISOString().slice(0, 10),
         duration_minutes: l.duration_minutes,
       }));
@@ -140,25 +150,33 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   },
   insert: (input: {
     team_member_id: TeamMember.TeamMemberId;
-    activity_type: ActivityLog.ActivityType;
+    activity_type_id: ActivityType.ActivityTypeId;
     logged_at: Date;
     duration_minutes: Option.Option<number>;
     note: Option.Option<string>;
+    source?: ActivityLog.ActivitySource;
   }) => {
     const id = crypto.randomUUID() as ActivityLog.ActivityLogId;
-    const record: ActivityLogRecord = { id, ...input };
+    const record: ActivityLogRecord = {
+      id,
+      source: 'manual',
+      activity_type_name: 'Gym',
+      ...input,
+    };
     activityLogsStore.set(id, record);
     return Effect.succeed({
       id,
-      activity_type: input.activity_type,
+      activity_type_id: input.activity_type_id,
+      activity_type_name: record.activity_type_name,
       logged_at: input.logged_at.toISOString(),
+      source: record.source,
     });
   },
   update: (
     id: ActivityLog.ActivityLogId,
     memberId: TeamMember.TeamMemberId,
     input: {
-      activity_type: Option.Option<ActivityLog.ActivityType>;
+      activity_type_id: Option.Option<ActivityType.ActivityTypeId>;
       duration_minutes: Option.Option<Option.Option<number>>;
       note: Option.Option<Option.Option<string>>;
     },
@@ -166,9 +184,10 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
     const existing = activityLogsStore.get(id);
     if (!existing || existing.team_member_id !== memberId)
       return Effect.fail(new ActivityLogApi.LogNotFound());
+    if (existing.source === 'auto') return Effect.fail(new ActivityLogApi.AutoSourceForbidden());
     const updated: ActivityLogRecord = {
       ...existing,
-      activity_type: Option.getOrElse(input.activity_type, () => existing.activity_type),
+      activity_type_id: Option.getOrElse(input.activity_type_id, () => existing.activity_type_id),
       duration_minutes: Option.getOrElse(input.duration_minutes, () => existing.duration_minutes),
       note: Option.getOrElse(input.note, () => existing.note),
     };
@@ -179,6 +198,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
     const existing = activityLogsStore.get(id);
     if (!existing || existing.team_member_id !== memberId)
       return Effect.fail(new ActivityLogApi.LogNotFound());
+    if (existing.source === 'auto') return Effect.fail(new ActivityLogApi.AutoSourceForbidden());
     activityLogsStore.delete(id);
     return Effect.void;
   },
@@ -231,10 +251,12 @@ const listLogs = (payload: {
             (l) =>
               new ActivityLogApi.ActivityLogEntry({
                 id: l.id,
-                activityType: l.activity_type,
+                activityTypeId: l.activity_type_id,
+                activityTypeName: l.activity_type_name,
                 loggedAt: l.logged_at.toISOString(),
                 durationMinutes: l.duration_minutes,
                 note: l.note,
+                source: l.source,
               }),
           ),
         }),
@@ -245,7 +267,7 @@ const createLog = (payload: {
   teamId: Team.TeamId;
   memberId: TeamMember.TeamMemberId;
   currentUserId: Auth.UserId;
-  activityType: ActivityLog.ActivityType;
+  activityTypeId: ActivityType.ActivityTypeId;
   durationMinutes: Option.Option<number>;
   note: Option.Option<string>;
 }): Effect.Effect<
@@ -277,20 +299,23 @@ const createLog = (payload: {
     Effect.flatMap(({ activityLogs }) =>
       activityLogs.insert({
         team_member_id: payload.memberId,
-        activity_type: payload.activityType,
+        activity_type_id: payload.activityTypeId,
         logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
         duration_minutes: payload.durationMinutes,
         note: payload.note,
+        source: 'manual',
       }),
     ),
     Effect.map(
       (inserted) =>
         new ActivityLogApi.ActivityLogEntry({
           id: inserted.id,
-          activityType: inserted.activity_type,
+          activityTypeId: inserted.activity_type_id,
+          activityTypeName: inserted.activity_type_name,
           loggedAt: inserted.logged_at,
           durationMinutes: payload.durationMinutes,
           note: payload.note,
+          source: inserted.source,
         }),
     ),
   );
@@ -300,12 +325,15 @@ const updateLog = (payload: {
   memberId: TeamMember.TeamMemberId;
   logId: ActivityLog.ActivityLogId;
   currentUserId: Auth.UserId;
-  activityType: Option.Option<ActivityLog.ActivityType>;
+  activityTypeId: Option.Option<ActivityType.ActivityTypeId>;
   durationMinutes: Option.Option<Option.Option<number>>;
   note: Option.Option<Option.Option<string>>;
 }): Effect.Effect<
   ActivityLogApi.ActivityLogEntry,
-  ActivityLogApi.Forbidden | ActivityLogApi.LogNotFound | ActivityLogApi.MemberInactive,
+  | ActivityLogApi.Forbidden
+  | ActivityLogApi.LogNotFound
+  | ActivityLogApi.MemberInactive
+  | ActivityLogApi.AutoSourceForbidden,
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
@@ -331,7 +359,7 @@ const updateLog = (payload: {
     ),
     Effect.flatMap(({ activityLogs }) =>
       activityLogs.update(payload.logId, payload.memberId, {
-        activity_type: payload.activityType,
+        activity_type_id: payload.activityTypeId,
         duration_minutes: payload.durationMinutes,
         note: payload.note,
       }),
@@ -340,10 +368,12 @@ const updateLog = (payload: {
       (updated) =>
         new ActivityLogApi.ActivityLogEntry({
           id: updated.id,
-          activityType: updated.activity_type,
+          activityTypeId: updated.activity_type_id,
+          activityTypeName: updated.activity_type_name,
           loggedAt: updated.logged_at.toISOString(),
           durationMinutes: updated.duration_minutes,
           note: updated.note,
+          source: updated.source,
         }),
     ),
   );
@@ -355,7 +385,10 @@ const deleteLog = (payload: {
   currentUserId: Auth.UserId;
 }): Effect.Effect<
   void,
-  ActivityLogApi.Forbidden | ActivityLogApi.LogNotFound | ActivityLogApi.MemberInactive,
+  | ActivityLogApi.Forbidden
+  | ActivityLogApi.LogNotFound
+  | ActivityLogApi.MemberInactive
+  | ActivityLogApi.AutoSourceForbidden,
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
@@ -401,11 +434,12 @@ describe('listLogs handler', () => {
         Effect.sync(() => {
           expect(result.logs).toHaveLength(2);
           expect(result.logs[0].id).toBe(TEST_LOG_ID_1);
-          expect(result.logs[0].activityType).toBe('gym');
+          expect(result.logs[0].activityTypeId).toBe(GYM_TYPE_ID);
+          expect(result.logs[0].activityTypeName).toBe('Gym');
           expect(Option.getOrNull(result.logs[0].durationMinutes)).toBe(60);
           expect(Option.getOrNull(result.logs[0].note)).toBe('Leg day');
           expect(result.logs[1].id).toBe(TEST_LOG_ID_2);
-          expect(result.logs[1].activityType).toBe('running');
+          expect(result.logs[1].activityTypeId).toBe(RUNNING_TYPE_ID);
           expect(Option.isNone(result.logs[1].durationMinutes)).toBe(true);
           expect(Option.isNone(result.logs[1].note)).toBe(true);
         }),
@@ -442,13 +476,13 @@ describe('createLog handler', () => {
       teamId: TEST_TEAM_ID,
       memberId: TEST_MEMBER_ID,
       currentUserId: TEST_USER_ID,
-      activityType: 'gym',
+      activityTypeId: GYM_TYPE_ID,
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(result.activityType).toBe('gym');
+          expect(result.activityTypeId).toBe(GYM_TYPE_ID);
           expect(Option.isNone(result.durationMinutes)).toBe(true);
           expect(Option.isNone(result.note)).toBe(true);
           expect(activityLogsStore.size).toBe(3);
@@ -464,7 +498,7 @@ describe('createLog handler', () => {
       teamId: TEST_TEAM_ID,
       memberId: TEST_OTHER_MEMBER_ID,
       currentUserId: TEST_USER_ID,
-      activityType: 'running',
+      activityTypeId: RUNNING_TYPE_ID,
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
@@ -488,7 +522,7 @@ describe('createLog handler', () => {
       teamId: TEST_TEAM_ID,
       memberId: TEST_MEMBER_ID,
       currentUserId: TEST_USER_ID,
-      activityType: 'gym',
+      activityTypeId: GYM_TYPE_ID,
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
@@ -509,20 +543,20 @@ describe('createLog handler', () => {
 });
 
 describe('updateLog handler', () => {
-  it.effect('succeeds with partial fields (only activityType)', () =>
+  it.effect('succeeds with partial fields (only activityTypeId)', () =>
     updateLog({
       teamId: TEST_TEAM_ID,
       memberId: TEST_MEMBER_ID,
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
-      activityType: Option.some('running' as ActivityLog.ActivityType),
+      activityTypeId: Option.some(RUNNING_TYPE_ID),
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(result.id).toBe(TEST_LOG_ID_1);
-          expect(result.activityType).toBe('running');
+          expect(result.activityTypeId).toBe(RUNNING_TYPE_ID);
         }),
       ),
       Effect.provide(MockProvideLayer),
@@ -536,7 +570,7 @@ describe('updateLog handler', () => {
       memberId: TEST_MEMBER_ID,
       logId: TEST_NONEXISTENT_LOG_ID,
       currentUserId: TEST_USER_ID,
-      activityType: Option.some('gym' as ActivityLog.ActivityType),
+      activityTypeId: Option.some(GYM_TYPE_ID),
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
@@ -560,7 +594,7 @@ describe('updateLog handler', () => {
       memberId: TEST_OTHER_MEMBER_ID,
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
-      activityType: Option.some('gym' as ActivityLog.ActivityType),
+      activityTypeId: Option.some(GYM_TYPE_ID),
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
@@ -584,7 +618,7 @@ describe('updateLog handler', () => {
       memberId: TEST_MEMBER_ID,
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
-      activityType: Option.some('gym' as ActivityLog.ActivityType),
+      activityTypeId: Option.some(GYM_TYPE_ID),
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
@@ -684,6 +718,139 @@ describe('deleteLog handler', () => {
         }),
       ),
       Effect.provide(MockInactiveMemberProvideLayer),
+      Effect.asVoid,
+    ),
+  );
+});
+
+// --- Additional IDs for source-guard tests ---
+const TEST_AUTO_LOG_ID = 'log-uuid-auto-001' as ActivityLog.ActivityLogId;
+const TRAINING_TYPE_ID = 'type-uuid-training' as ActivityType.ActivityTypeId;
+
+describe('auto-source guard on updateLog', () => {
+  it.effect('returns 403 when updating an auto-source log', () => {
+    activityLogsStore.set(TEST_AUTO_LOG_ID, {
+      id: TEST_AUTO_LOG_ID,
+      team_member_id: TEST_MEMBER_ID,
+      activity_type_id: TRAINING_TYPE_ID,
+      activity_type_name: 'Training',
+      logged_at: new Date('2026-03-27T09:00:00Z'),
+      duration_minutes: Option.none(),
+      note: Option.none(),
+      source: 'auto',
+    });
+    return updateLog({
+      teamId: TEST_TEAM_ID,
+      memberId: TEST_MEMBER_ID,
+      logId: TEST_AUTO_LOG_ID,
+      currentUserId: TEST_USER_ID,
+      activityTypeId: Option.some(GYM_TYPE_ID),
+      durationMinutes: Option.none(),
+      note: Option.none(),
+    }).pipe(
+      Effect.either,
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(Either.isLeft(result)).toBe(true);
+          if (Either.isLeft(result)) {
+            expect(result.left._tag).toBe('ActivityLogAutoSourceForbidden');
+          }
+        }),
+      ),
+      Effect.provide(MockProvideLayer),
+      Effect.asVoid,
+    );
+  });
+});
+
+describe('auto-source guard on deleteLog', () => {
+  it.effect('returns 403 when deleting an auto-source log', () => {
+    activityLogsStore.set(TEST_AUTO_LOG_ID, {
+      id: TEST_AUTO_LOG_ID,
+      team_member_id: TEST_MEMBER_ID,
+      activity_type_id: TRAINING_TYPE_ID,
+      activity_type_name: 'Training',
+      logged_at: new Date('2026-03-27T09:00:00Z'),
+      duration_minutes: Option.none(),
+      note: Option.none(),
+      source: 'auto',
+    });
+    return deleteLog({
+      teamId: TEST_TEAM_ID,
+      memberId: TEST_MEMBER_ID,
+      logId: TEST_AUTO_LOG_ID,
+      currentUserId: TEST_USER_ID,
+    }).pipe(
+      Effect.either,
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(Either.isLeft(result)).toBe(true);
+          if (Either.isLeft(result)) {
+            expect(result.left._tag).toBe('ActivityLogAutoSourceForbidden');
+          }
+          expect(activityLogsStore.has(TEST_AUTO_LOG_ID)).toBe(true);
+        }),
+      ),
+      Effect.provide(MockProvideLayer),
+      Effect.asVoid,
+    );
+  });
+});
+
+describe('listLogs includes source field', () => {
+  it.effect('returns correct source for manual and auto logs', () => {
+    activityLogsStore.set(TEST_AUTO_LOG_ID, {
+      id: TEST_AUTO_LOG_ID,
+      team_member_id: TEST_MEMBER_ID,
+      activity_type_id: TRAINING_TYPE_ID,
+      activity_type_name: 'Training',
+      logged_at: new Date('2026-03-27T09:00:00Z'),
+      duration_minutes: Option.none(),
+      note: Option.none(),
+      source: 'auto',
+    });
+    return listLogs({
+      teamId: TEST_TEAM_ID,
+      memberId: TEST_MEMBER_ID,
+      currentUserId: TEST_USER_ID,
+    }).pipe(
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result.logs).toHaveLength(3);
+          const manualLog = result.logs.find((l) => l.id === TEST_LOG_ID_1);
+          const autoLog = result.logs.find((l) => l.id === TEST_AUTO_LOG_ID);
+          expect(manualLog).toBeDefined();
+          expect(manualLog?.source).toBe('manual');
+          expect(autoLog).toBeDefined();
+          expect(autoLog?.source).toBe('auto');
+        }),
+      ),
+      Effect.provide(MockProvideLayer),
+      Effect.asVoid,
+    );
+  });
+});
+
+describe('createLog sets source to manual', () => {
+  it.effect('newly created log has source manual', () =>
+    createLog({
+      teamId: TEST_TEAM_ID,
+      memberId: TEST_MEMBER_ID,
+      currentUserId: TEST_USER_ID,
+      activityTypeId: GYM_TYPE_ID,
+      durationMinutes: Option.none(),
+      note: Option.none(),
+    }).pipe(
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result.source).toBe('manual');
+          const storedRecord = Array.from(activityLogsStore.values()).find(
+            (r) => r.id === result.id,
+          );
+          expect(storedRecord?.source).toBe('manual');
+        }),
+      ),
+      Effect.provide(MockProvideLayer),
       Effect.asVoid,
     ),
   );

@@ -1,5 +1,5 @@
 import type { ActivityLog, Auth, Role } from '@sideline/domain';
-import { ActivityLogApi, Team, TeamMember } from '@sideline/domain';
+import { ActivityLogApi, type ActivityType, Team, TeamMember } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -27,6 +27,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
               Effect.succeed({ isOwnProfile: false as boolean, logs: [] as const }),
             ),
           ),
+          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -48,8 +49,18 @@ function MemberDetailRoute() {
     roles: roleListResponse,
     activityStats,
     activityLogs,
+    activityTypes: fetchedActivityTypes,
   } = Route.useLoaderData();
   const roles = roleListResponse.roles;
+
+  const activityTypes = React.useMemo(
+    () =>
+      fetchedActivityTypes.activityTypes.filter(
+        (t: { slug: Option.Option<string> }) =>
+          Option.isNone(t.slug) || t.slug.value !== 'training',
+      ),
+    [fetchedActivityTypes],
+  );
 
   // Use the current user's permissions for this team, not the target player's
   const myPermissions =
@@ -120,7 +131,7 @@ function MemberDetailRoute() {
 
   const handleCreateLog = React.useCallback(
     async (input: {
-      activityType: ActivityLog.ActivityType;
+      activityTypeId: ActivityType.ActivityTypeId;
       durationMinutes: Option.Option<number>;
       note: Option.Option<string>;
     }) => {
@@ -129,7 +140,7 @@ function MemberDetailRoute() {
           api.activityLog.createLog({
             path: { teamId, memberId },
             payload: {
-              activityType: input.activityType,
+              activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
               note: input.note,
             },
@@ -149,7 +160,7 @@ function MemberDetailRoute() {
     async (
       logId: ActivityLog.ActivityLogId,
       input: {
-        activityType: Option.Option<ActivityLog.ActivityType>;
+        activityTypeId: Option.Option<ActivityType.ActivityTypeId>;
         durationMinutes: Option.Option<Option.Option<number>>;
         note: Option.Option<Option.Option<string>>;
       },
@@ -159,7 +170,7 @@ function MemberDetailRoute() {
           api.activityLog.updateLog({
             path: { teamId, memberId, logId },
             payload: {
-              activityType: input.activityType,
+              activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
               note: input.note,
             },
@@ -203,6 +214,7 @@ function MemberDetailRoute() {
       activityStats={activityStats}
       isOwnProfile={activityLogs.isOwnProfile}
       activityLogs={new ActivityLogApi.ActivityLogListResponse({ logs: activityLogs.logs })}
+      activityTypes={activityTypes}
       onSave={handleSave}
       onAssignRole={handleAssignRole}
       onUnassignRole={handleUnassignRole}

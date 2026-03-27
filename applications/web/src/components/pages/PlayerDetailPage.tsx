@@ -3,6 +3,7 @@ import type {
   ActivityLog,
   ActivityLogApi,
   ActivityStatsApi,
+  ActivityType,
   RoleApi,
   Roster,
 } from '@sideline/domain';
@@ -45,6 +46,11 @@ const PlayerEditSchema = Schema.Struct({
 
 export type PlayerEditValues = Schema.Schema.Type<typeof PlayerEditSchema>;
 
+type ActivityTypeOption = {
+  id: ActivityType.ActivityTypeId;
+  name: string;
+};
+
 interface PlayerDetailPageProps {
   teamId: string;
   player: Roster.RosterPlayer;
@@ -54,18 +60,19 @@ interface PlayerDetailPageProps {
   activityStats: ActivityStatsApi.ActivityStatsResponse;
   isOwnProfile: boolean;
   activityLogs: ActivityLogApi.ActivityLogListResponse;
+  activityTypes: ReadonlyArray<ActivityTypeOption>;
   onSave: (values: PlayerEditValues) => Promise<void>;
   onAssignRole: (roleId: string) => Promise<void>;
   onUnassignRole: (roleId: string) => Promise<void>;
   onCreateLog: (input: {
-    activityType: ActivityLog.ActivityType;
+    activityTypeId: ActivityType.ActivityTypeId;
     durationMinutes: Option.Option<number>;
     note: Option.Option<string>;
   }) => Promise<void>;
   onUpdateLog: (
     logId: ActivityLog.ActivityLogId,
     input: {
-      activityType: Option.Option<ActivityLog.ActivityType>;
+      activityTypeId: Option.Option<ActivityType.ActivityTypeId>;
       durationMinutes: Option.Option<Option.Option<number>>;
       note: Option.Option<Option.Option<string>>;
     },
@@ -82,6 +89,7 @@ export function PlayerDetailPage({
   activityStats,
   isOwnProfile,
   activityLogs,
+  activityTypes,
   onSave,
   onAssignRole,
   onUnassignRole,
@@ -212,6 +220,7 @@ export function PlayerDetailPage({
       <ActivityLogList
         logs={activityLogs.logs}
         isOwnProfile={isOwnProfile}
+        activityTypes={activityTypes}
         onCreateLog={onCreateLog}
         onUpdateLog={onUpdateLog}
         onDeleteLog={onDeleteLog}

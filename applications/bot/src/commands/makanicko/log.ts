@@ -1,4 +1,4 @@
-import { ActivityLog, Discord } from '@sideline/domain';
+import { ActivityType, Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
@@ -53,9 +53,11 @@ export const logHandler = Interaction.pipe(
       Option.flatMap((o) => ('value' in o ? Option.some(String(o.value)) : Option.none())),
       Option.getOrElse(() => 'gym'),
     );
-    const activityType = Schema.decodeUnknownOption(ActivityLog.ActivityType)(activityTypeRaw);
+    const activityTypeSlug = Schema.decodeUnknownOption(ActivityType.ActivityTypeSlug)(
+      activityTypeRaw,
+    );
 
-    if (Option.isNone(activityType)) {
+    if (Option.isNone(activityTypeSlug)) {
       return Effect.succeed(
         Ix.response({
           type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -94,12 +96,12 @@ export const logHandler = Interaction.pipe(
         rpc['Activity/LogActivity']({
           guild_id: snowflakeGuildId,
           discord_user_id: discordUserId,
-          activity_type: activityType.value,
+          activity_type: activityTypeSlug.value,
           duration_minutes: durationMinutes,
           note,
         }).pipe(
           Effect.map((result) => ({
-            content: m.bot_makanicko_log_success({ activity: result.activity_type }, { locale }),
+            content: m.bot_makanicko_log_success({ activity: result.activity_type_id }, { locale }),
           })),
           Effect.catchTag('ActivityGuildNotFound', () =>
             Effect.succeed({ content: m.bot_makanicko_log_error({}, { locale }) }),

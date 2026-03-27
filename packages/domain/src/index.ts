@@ -34,6 +34,8 @@ export * as ActivityLog from './models/ActivityLog.js';
 
 export * as ActivityStats from './models/ActivityStats.js';
 
+export * as ActivityType from './models/ActivityType.js';
+
 export * as AgeThresholdRule from './models/AgeThresholdRule.js';
 
 export * as ChannelSyncEvent from './models/ChannelSyncEvent.js';
