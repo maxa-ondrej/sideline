@@ -24,6 +24,7 @@ import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { EventHorizonCron } from '~/services/EventHorizonCron.js';
 import { RsvpReminderCron } from '~/services/RsvpReminderCron.js';
 import { TrainingAutoLogCron } from '~/services/TrainingAutoLogCron.js';
+import { makeTelemetryLayer } from '~/Telemetry.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
@@ -126,5 +127,12 @@ Effect.Do.pipe(
       concurrency: 7,
     }),
   ),
-  Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL),
+  Runtime.runMain(
+    env.NODE_ENV,
+    env.LOG_LEVEL,
+    makeTelemetryLayer({
+      endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      serviceName: env.OTEL_SERVICE_NAME,
+    }),
+  ),
 );

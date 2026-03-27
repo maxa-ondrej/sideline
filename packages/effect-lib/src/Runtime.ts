@@ -16,11 +16,16 @@ const DevToolsLayer = (env: 'development' | 'production') =>
 const RuntimeLayer = (
   env: 'development' | 'production',
   logLevel: Option.Option<LogLevel.LogLevel>,
-) => Layer.mergeAll(LogLayer(env, logLevel), DevToolsLayer(env));
+  additionalLayers: Layer.Layer<never> = Layer.empty,
+) => Layer.mergeAll(LogLayer(env, logLevel), DevToolsLayer(env), additionalLayers);
 
 export const runMain =
-  (env: 'development' | 'production', logLevel: Option.Option<LogLevel.LogLevel> = Option.none()) =>
+  (
+    env: 'development' | 'production',
+    logLevel: Option.Option<LogLevel.LogLevel> = Option.none(),
+    additionalLayers: Layer.Layer<never> = Layer.empty,
+  ) =>
   <A, E>(effect: Effect.Effect<A, E>): void =>
-    NodeRuntime.runMain(Effect.provide(effect, RuntimeLayer(env, logLevel)), {
+    NodeRuntime.runMain(Effect.provide(effect, RuntimeLayer(env, logLevel, additionalLayers)), {
       disablePrettyLogger: true,
     });

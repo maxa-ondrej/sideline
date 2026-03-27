@@ -5,6 +5,7 @@ import * as DiscordConfig from 'dfx/DiscordConfig';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
 import { AppLive, Bot } from '~/index.js';
+import { makeTelemetryLayer } from '~/Telemetry.js';
 
 const RpcProtocol = RpcClient.layerProtocolHttp({
   url: env.SERVER_URL + env.RPC_PREFIX,
@@ -22,4 +23,13 @@ const MainLive = AppLive.pipe(
   ),
 );
 
-Effect.provide(Bot.program, MainLive).pipe(Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL));
+Effect.provide(Bot.program, MainLive).pipe(
+  Runtime.runMain(
+    env.NODE_ENV,
+    env.LOG_LEVEL,
+    makeTelemetryLayer({
+      endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      serviceName: env.OTEL_SERVICE_NAME,
+    }),
+  ),
+);

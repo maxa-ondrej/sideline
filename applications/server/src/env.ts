@@ -41,6 +41,14 @@ export const env = createEnv({
     LOG_LEVEL: Schema.OptionFromNullishOr(Schemas.LogLevelFromString, null).pipe(
       Schema.standardSchemaV1,
     ),
+    OTEL_EXPORTER_OTLP_ENDPOINT: Schema.String.pipe(
+      Schemas.Optional(() => ''),
+      Schema.standardSchemaV1,
+    ),
+    OTEL_SERVICE_NAME: Schema.String.pipe(
+      Schemas.Optional(() => 'sideline-server'),
+      Schema.standardSchemaV1,
+    ),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
