@@ -1,10 +1,10 @@
 import { Layer } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { makeTelemetryLayer } from '~/Telemetry.js';
+import { Telemetry } from '../src/index.js';
 
 describe('makeTelemetryLayer', () => {
   it('returns a non-empty layer when endpoint is provided', () => {
-    const result = makeTelemetryLayer({
+    const result = Telemetry.makeTelemetryLayer({
       endpoint: 'http://otel-collector:4318',
       serviceName: 'sideline-server',
       environment: 'production',
@@ -14,7 +14,7 @@ describe('makeTelemetryLayer', () => {
   });
 
   it('returns a layer for any valid endpoint and service name', () => {
-    const result = makeTelemetryLayer({
+    const result = Telemetry.makeTelemetryLayer({
       endpoint: 'https://otelcollectorhttp-ccogw4cogg00wwowc0s4c0cs.majksa.net/',
       serviceName: 'sideline-bot',
       environment: 'preview',

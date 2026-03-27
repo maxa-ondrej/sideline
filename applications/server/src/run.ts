@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { NodeFileSystem, NodeHttpServer } from '@effect/platform-node';
 import { SqlClient } from '@effect/sql';
 import { PgClient } from '@effect/sql-pg';
-import { Runtime } from '@sideline/effect-lib';
+import { Runtime, Telemetry } from '@sideline/effect-lib';
 import { AfterMigrator, BeforeMigrator } from '@sideline/migrations';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
@@ -24,7 +24,6 @@ import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { EventHorizonCron } from '~/services/EventHorizonCron.js';
 import { RsvpReminderCron } from '~/services/RsvpReminderCron.js';
 import { TrainingAutoLogCron } from '~/services/TrainingAutoLogCron.js';
-import { makeTelemetryLayer } from '~/Telemetry.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
@@ -130,7 +129,7 @@ Effect.Do.pipe(
   Runtime.runMain(
     env.NODE_ENV,
     env.LOG_LEVEL,
-    makeTelemetryLayer({
+    Telemetry.makeTelemetryLayer({
       endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
       serviceName: env.OTEL_SERVICE_NAME,
       environment: env.APP_ENV,

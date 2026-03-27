@@ -1,11 +1,10 @@
 import { NodeHttpClient, NodeSocket } from '@effect/platform-node';
 import { RpcClient, RpcSerialization } from '@effect/rpc';
-import { Runtime } from '@sideline/effect-lib';
+import { Runtime, Telemetry } from '@sideline/effect-lib';
 import * as DiscordConfig from 'dfx/DiscordConfig';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
 import { AppLive, Bot } from '~/index.js';
-import { makeTelemetryLayer } from '~/Telemetry.js';
 
 const RpcProtocol = RpcClient.layerProtocolHttp({
   url: env.SERVER_URL + env.RPC_PREFIX,
@@ -27,7 +26,7 @@ Effect.provide(Bot.program, MainLive).pipe(
   Runtime.runMain(
     env.NODE_ENV,
     env.LOG_LEVEL,
-    makeTelemetryLayer({
+    Telemetry.makeTelemetryLayer({
       endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
       serviceName: env.OTEL_SERVICE_NAME,
       environment: env.APP_ENV,
