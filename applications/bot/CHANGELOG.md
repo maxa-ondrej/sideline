@@ -1,5 +1,20 @@
 # @sideline/bot
 
+## 0.9.0
+
+### Minor Changes
+
+- [#121](https://github.com/maxa-ondrej/sideline/pull/121) [`737817d`](https://github.com/maxa-ondrej/sideline/commit/737817d36047e914a30f2d2c54b2220b96de21c5) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add team leaderboard with activity rankings, streaks, web page, and Discord command
+
+### Patch Changes
+
+- [#119](https://github.com/maxa-ondrej/sideline/pull/119) [`c8db130`](https://github.com/maxa-ondrej/sideline/commit/c8db13047b962c021f18aa04941b2d6298f73cf2) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add OpenTelemetry monitoring support via @effect/opentelemetry Otlp module for traces, metrics, and logs export to SigNoz
+
+- Updated dependencies [[`737817d`](https://github.com/maxa-ondrej/sideline/commit/737817d36047e914a30f2d2c54b2220b96de21c5), [`683e8cb`](https://github.com/maxa-ondrej/sideline/commit/683e8cb3e0098fe2802cab6140f5986707d55136), [`c8db130`](https://github.com/maxa-ondrej/sideline/commit/c8db13047b962c021f18aa04941b2d6298f73cf2)]:
+  - @sideline/domain@0.13.0
+  - @sideline/i18n@0.3.1
+  - @sideline/effect-lib@0.0.6
+
 ## 0.8.0
 
 ### Minor Changes

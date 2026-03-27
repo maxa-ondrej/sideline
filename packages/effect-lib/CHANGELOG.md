@@ -1,5 +1,11 @@
 # @sideline/effect-lib
 
+## 0.0.6
+
+### Patch Changes
+
+- [#119](https://github.com/maxa-ondrej/sideline/pull/119) [`c8db130`](https://github.com/maxa-ondrej/sideline/commit/c8db13047b962c021f18aa04941b2d6298f73cf2) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add OpenTelemetry monitoring support via @effect/opentelemetry Otlp module for traces, metrics, and logs export to SigNoz
+
 ## 0.0.5
 
 ### Patch Changes
