@@ -30,6 +30,8 @@ Effect.provide(Bot.program, MainLive).pipe(
     makeTelemetryLayer({
       endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
       serviceName: env.OTEL_SERVICE_NAME,
+      environment: env.APP_ENV,
+      origin: env.APP_ORIGIN,
     }),
   ),
 );
