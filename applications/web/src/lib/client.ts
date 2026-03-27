@@ -10,6 +10,7 @@ import {
   ActivityStatsApi,
   AgeThresholdApi,
   Auth,
+  DashboardApi,
   EventApi,
   EventRsvpApi,
   EventSeriesApi,
@@ -41,6 +42,7 @@ class ClientApi extends HttpApi.make('api')
   .add(ActivityStatsApi.ActivityStatsApiGroup)
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)
+  .add(DashboardApi.DashboardApiGroup)
   .add(Invite.InviteApiGroup)
   .add(LeaderboardApi.LeaderboardApiGroup)
   .add(NotificationApi.NotificationApiGroup)
