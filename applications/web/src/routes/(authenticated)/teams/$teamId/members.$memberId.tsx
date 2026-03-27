@@ -27,6 +27,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
               Effect.succeed({ isOwnProfile: false as boolean, logs: [] as const }),
             ),
           ),
+          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -48,31 +49,17 @@ function MemberDetailRoute() {
     roles: roleListResponse,
     activityStats,
     activityLogs,
+    activityTypes: fetchedActivityTypes,
   } = Route.useLoaderData();
   const roles = roleListResponse.roles;
 
-  // Derive activity types from loaded stats counts (non-training) for the create/edit form
-  const activityTypes = React.useMemo(() => {
-    const seen = new Map<string, { id: ActivityType.ActivityTypeId; name: string }>();
-    for (const c of activityStats.counts) {
-      if (!seen.has(c.activityTypeId)) {
-        seen.set(c.activityTypeId, {
-          id: c.activityTypeId as ActivityType.ActivityTypeId,
-          name: c.activityTypeName,
-        });
-      }
-    }
-    // Also include types from manually-logged entries (exclude auto-logged types like Training)
-    for (const log of activityLogs.logs) {
-      if (!seen.has(log.activityTypeId) && log.source !== 'auto') {
-        seen.set(log.activityTypeId, {
-          id: log.activityTypeId,
-          name: log.activityTypeName,
-        });
-      }
-    }
-    return Array.from(seen.values());
-  }, [activityStats.counts, activityLogs.logs]);
+  const activityTypes = React.useMemo(
+    () =>
+      fetchedActivityTypes.activityTypes.filter(
+        (t) => Option.isNone(t.slug) || t.slug.value !== 'training',
+      ),
+    [fetchedActivityTypes],
+  );
 
   // Use the current user's permissions for this team, not the target player's
   const myPermissions =

@@ -4,13 +4,15 @@ import { DateTime, Effect } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('activityLogs', () => ActivityLogsRepository),
-    Effect.map(({ members, activityLogs }) =>
+    Effect.bind('activityTypes', () => ActivityTypesRepository),
+    Effect.map(({ members, activityLogs, activityTypes }) =>
       handlers
         .handle('listLogs', ({ path: { teamId, memberId } }) =>
           Effect.Do.pipe(
@@ -132,6 +134,28 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
             Effect.flatMap(() => activityLogs.delete(logId, memberId)),
             Effect.asVoid,
+          ),
+        )
+        .handle('listActivityTypes', ({ path: { teamId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.tap(({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
+            ),
+            Effect.flatMap(() => activityTypes.findByTeamId(teamId)),
+            Effect.map(
+              (types) =>
+                new ActivityLogApi.ActivityTypeListResponse({
+                  activityTypes: types.map(
+                    (t) =>
+                      new ActivityLogApi.ActivityTypeEntry({
+                        id: t.id,
+                        name: t.name,
+                        slug: t.slug,
+                      }),
+                  ),
+                }),
+            ),
           ),
         ),
     ),

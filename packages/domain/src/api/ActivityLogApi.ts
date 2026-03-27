@@ -41,6 +41,18 @@ export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequ
   note: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
+export class ActivityTypeEntry extends Schema.Class<ActivityTypeEntry>('ActivityTypeEntry')({
+  id: ActivityTypeId,
+  name: Schema.String,
+  slug: Schema.OptionFromNullOr(Schema.String),
+}) {}
+
+export class ActivityTypeListResponse extends Schema.Class<ActivityTypeListResponse>(
+  'ActivityTypeListResponse',
+)({
+  activityTypes: Schema.Array(ActivityTypeEntry),
+}) {}
+
 export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
   'ActivityLogMemberNotFound',
   {},
@@ -112,5 +124,12 @@ export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
       .addError(MemberInactive, { status: 403 })
       .addError(AutoSourceForbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('listActivityTypes', '/teams/:teamId/activity-types')
+      .addSuccess(ActivityTypeListResponse)
+      .addError(Forbidden, { status: 403 })
+      .setPath(Schema.Struct({ teamId: TeamId }))
       .middleware(AuthMiddleware),
   ) {}
