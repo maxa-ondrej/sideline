@@ -16,3 +16,13 @@ export class ActivityGuildNotFound extends Schema.TaggedError<ActivityGuildNotFo
   'ActivityGuildNotFound',
   {},
 ) {}
+
+export class GetStatsResult extends Schema.Class<GetStatsResult>('GetStatsResult')({
+  current_streak: Schema.Int,
+  longest_streak: Schema.Int,
+  total_activities: Schema.Int,
+  total_duration_minutes: Schema.Int,
+  gym_count: Schema.Int,
+  running_count: Schema.Int,
+  stretching_count: Schema.Int,
+}) {}

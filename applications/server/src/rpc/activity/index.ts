@@ -2,6 +2,7 @@ import {
   type ActivityLog,
   ActivityRpcGroup,
   ActivityRpcModels,
+  ActivityStats,
   type Discord,
 } from '@sideline/domain';
 import { Bind, Options } from '@sideline/effect-lib';
@@ -82,6 +83,64 @@ export const ActivityRpcLive = Effect.Do.pipe(
                 logged_at: inserted.logged_at,
               }),
           ),
+        ),
+  ),
+  Effect.let(
+    'Activity/GetStats',
+    ({ teams, users, members, activityLogs }) =>
+      ({
+        guild_id,
+        discord_user_id,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly discord_user_id: Discord.Snowflake;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('team', () =>
+            teams
+              .findByGuildId(guild_id)
+              .pipe(
+                Effect.flatMap(
+                  Options.toEffect(() => new ActivityRpcModels.ActivityGuildNotFound()),
+                ),
+              ),
+          ),
+          Effect.bind('user', () =>
+            users
+              .findByDiscordId(discord_user_id)
+              .pipe(
+                Effect.flatMap(
+                  Options.toEffect(() => new ActivityRpcModels.ActivityMemberNotFound()),
+                ),
+              ),
+          ),
+          Effect.bind('member', ({ team, user }) =>
+            members
+              .findMembershipByIds(team.id, user.id)
+              .pipe(
+                Effect.flatMap(
+                  Options.toEffect(() => new ActivityRpcModels.ActivityMemberNotFound()),
+                ),
+              ),
+          ),
+          Effect.tap(({ member }) =>
+            member.active
+              ? Effect.void
+              : Effect.fail(new ActivityRpcModels.ActivityMemberNotFound()),
+          ),
+          Effect.bind('rows', ({ member }) => activityLogs.findByTeamMember(member.id)),
+          Effect.map(({ rows }) => {
+            const stats = ActivityStats.calculateStats(rows, ActivityStats.todayInPrague());
+            return new ActivityRpcModels.GetStatsResult({
+              current_streak: stats.currentStreak,
+              longest_streak: stats.longestStreak,
+              total_activities: stats.totalActivities,
+              total_duration_minutes: stats.totalDurationMinutes,
+              gym_count: stats.gymCount,
+              running_count: stats.runningCount,
+              stretching_count: stats.stretchingCount,
+            });
+          }),
         ),
   ),
   Bind.remove('teams'),

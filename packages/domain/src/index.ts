@@ -1,5 +1,7 @@
 export * as ApiGroup from './ApiGroup.js';
 
+export * as ActivityStatsApi from './api/ActivityStatsApi.js';
+
 export * as AgeThresholdApi from './api/AgeThresholdApi.js';
 
 export * as Auth from './api/Auth.js';
@@ -27,6 +29,8 @@ export * as TeamSettingsApi from './api/TeamSettingsApi.js';
 export * as TrainingTypeApi from './api/TrainingTypeApi.js';
 
 export * as ActivityLog from './models/ActivityLog.js';
+
+export * as ActivityStats from './models/ActivityStats.js';
 
 export * as AgeThresholdRule from './models/AgeThresholdRule.js';
 

@@ -1,6 +1,7 @@
 import * as Ix from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
 import { logHandler } from './log.js';
+import { statsHandler } from './stats.js';
 
 export const MakanickoCommand = Ix.global(
   {
@@ -49,10 +50,18 @@ export const MakanickoCommand = Ix.global(
           },
         ],
       },
+      {
+        type: DiscordTypes.ApplicationCommandOptionType.SUB_COMMAND,
+        name: 'stats',
+        name_localizations: { cs: 'statistiky' },
+        description: 'View your activity stats and streaks',
+        description_localizations: { cs: 'Zobrazit statistiky aktivit a série' },
+      },
     ],
   } as const,
   (ix) =>
     ix.subCommands({
       log: logHandler,
+      stats: statsHandler,
     }),
 );
