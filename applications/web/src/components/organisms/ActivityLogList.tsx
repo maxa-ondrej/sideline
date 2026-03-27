@@ -1,4 +1,5 @@
 import type { ActivityLog, ActivityLogApi } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { Option } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
@@ -43,8 +44,8 @@ interface ActivityLogListProps {
     logId: ActivityLog.ActivityLogId,
     input: {
       activityType: Option.Option<ActivityType>;
-      durationMinutes: Option.Option<number | null>;
-      note: Option.Option<string | null>;
+      durationMinutes: Option.Option<Option.Option<number>>;
+      note: Option.Option<Option.Option<string>>;
     },
   ) => Promise<void>;
   onDeleteLog: (logId: ActivityLog.ActivityLogId) => Promise<void>;
@@ -105,11 +106,13 @@ export function ActivityLogList({
     try {
       const durationNum = editDuration ? parseInt(editDuration, 10) : null;
       const parsedDuration =
-        durationNum !== null && !Number.isNaN(durationNum) ? durationNum : null;
+        durationNum !== null && !Number.isNaN(durationNum)
+          ? Option.some(durationNum)
+          : Option.none<number>();
       await onUpdateLog(editingLog.id, {
         activityType: Option.some(editType),
         durationMinutes: Option.some(parsedDuration),
-        note: Option.some(editNote.trim() ? editNote.trim() : null),
+        note: Option.some(editNote.trim() ? Option.some(editNote.trim()) : Option.none<string>()),
       });
       setEditingLog(null);
     } finally {
@@ -141,11 +144,11 @@ export function ActivityLogList({
 
   return (
     <div className='mt-6'>
-      <h2 className='text-lg font-semibold mb-4'>Activity Log</h2>
+      <h2 className='text-lg font-semibold mb-4'>{m.activityLog_title()}</h2>
 
       {isOwnProfile && (
         <div className='mb-6 p-4 border rounded-lg'>
-          <p className='text-sm font-medium mb-2'>Log Activity</p>
+          <p className='text-sm font-medium mb-2'>{m.activityLog_logActivity()}</p>
           <div className='flex gap-2 mb-3'>
             {(['gym', 'running', 'stretching'] as ActivityType[]).map((type) => (
               <Button
@@ -164,7 +167,7 @@ export function ActivityLogList({
               <div className='flex gap-2 mb-2'>
                 <div className='flex-1'>
                   <Label htmlFor='log-duration' className='text-xs text-muted-foreground'>
-                    Duration (min, optional)
+                    {m.activityLog_durationLabel()}
                   </Label>
                   <Input
                     id='log-duration'
@@ -173,23 +176,23 @@ export function ActivityLogList({
                     max={1440}
                     value={durationInput}
                     onChange={(e) => setDurationInput(e.target.value)}
-                    placeholder='e.g. 60'
+                    placeholder={m.activityLog_durationPlaceholder()}
                   />
                 </div>
               </div>
               <div className='mb-3'>
                 <Label htmlFor='log-note' className='text-xs text-muted-foreground'>
-                  Note (optional)
+                  {m.activityLog_noteLabel()}
                 </Label>
                 <Input
                   id='log-note'
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
-                  placeholder='e.g. Leg day'
+                  placeholder={m.activityLog_notePlaceholder()}
                 />
               </div>
               <Button size='sm' disabled={creating} onClick={handleCreate}>
-                {creating ? 'Logging...' : 'Log Activity'}
+                {creating ? m.activityLog_logging() : m.activityLog_logActivity()}
               </Button>
             </>
           )}
@@ -197,7 +200,7 @@ export function ActivityLogList({
       )}
 
       {logs.length === 0 ? (
-        <p className='text-muted-foreground'>No activities logged yet.</p>
+        <p className='text-muted-foreground'>{m.activityLog_empty()}</p>
       ) : (
         <div className='flex flex-col gap-4'>
           {Array.from(groupedByDate.entries()).map(([date, dateLogs]) => (
@@ -230,7 +233,7 @@ export function ActivityLogList({
                           size='sm'
                           onClick={() => openEdit(log)}
                         >
-                          Edit
+                          {m.activityLog_edit()}
                         </Button>
                         <Button
                           type='button'
@@ -238,12 +241,12 @@ export function ActivityLogList({
                           size='sm'
                           disabled={deletingId === log.id}
                           onClick={() => {
-                            if (confirm('Delete this activity log?')) {
+                            if (confirm(m.activityLog_deleteConfirm())) {
                               handleDelete(log.id);
                             }
                           }}
                         >
-                          {deletingId === log.id ? '...' : 'Delete'}
+                          {deletingId === log.id ? '...' : m.activityLog_delete()}
                         </Button>
                       </div>
                     )}
@@ -263,11 +266,13 @@ export function ActivityLogList({
       >
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>Edit Activity</SheetTitle>
+            <SheetTitle>{m.activityLog_editTitle()}</SheetTitle>
           </SheetHeader>
           <div className='flex flex-col gap-4 mt-4'>
             <div>
-              <Label className='text-sm font-medium mb-2 block'>Activity Type</Label>
+              <Label className='text-sm font-medium mb-2 block'>
+                {m.activityLog_activityType()}
+              </Label>
               <div className='flex gap-2'>
                 {(['gym', 'running', 'stretching'] as ActivityType[]).map((type) => (
                   <Button
@@ -284,7 +289,7 @@ export function ActivityLogList({
             </div>
             <div>
               <Label htmlFor='edit-duration' className='text-sm font-medium'>
-                Duration (min, optional)
+                {m.activityLog_durationLabel()}
               </Label>
               <Input
                 id='edit-duration'
@@ -293,22 +298,22 @@ export function ActivityLogList({
                 max={1440}
                 value={editDuration}
                 onChange={(e) => setEditDuration(e.target.value)}
-                placeholder='e.g. 60'
+                placeholder={m.activityLog_durationPlaceholder()}
               />
             </div>
             <div>
               <Label htmlFor='edit-note' className='text-sm font-medium'>
-                Note (optional)
+                {m.activityLog_noteLabel()}
               </Label>
               <Input
                 id='edit-note'
                 value={editNote}
                 onChange={(e) => setEditNote(e.target.value)}
-                placeholder='e.g. Leg day'
+                placeholder={m.activityLog_notePlaceholder()}
               />
             </div>
             <Button disabled={saving} onClick={handleUpdate}>
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? m.activityLog_saving() : m.activityLog_saveChanges()}
             </Button>
           </div>
         </SheetContent>

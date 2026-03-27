@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { ActivityLogApi, Auth } from '@sideline/domain';
-import { DateTime, Effect, Option } from 'effect';
+import { DateTime, Effect } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
@@ -93,8 +93,8 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             Effect.flatMap(() =>
               activityLogs.update(logId, memberId, {
                 activity_type: payload.activityType,
-                duration_minutes: Option.map(payload.durationMinutes, Option.fromNullable),
-                note: Option.map(payload.note, Option.fromNullable),
+                duration_minutes: payload.durationMinutes,
+                note: payload.note,
               }),
             ),
             Effect.map(

@@ -135,7 +135,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make('Failed to log activity')),
+        Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
         run(),
       );
       if (Option.isSome(result)) {
@@ -150,8 +150,8 @@ function MemberDetailRoute() {
       logId: ActivityLog.ActivityLogId,
       input: {
         activityType: Option.Option<ActivityLog.ActivityType>;
-        durationMinutes: Option.Option<number | null>;
-        note: Option.Option<string | null>;
+        durationMinutes: Option.Option<Option.Option<number>>;
+        note: Option.Option<Option.Option<string>>;
       },
     ) => {
       const result = await ApiClient.pipe(
@@ -165,7 +165,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make('Failed to update activity')),
+        Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
         run(),
       );
       if (Option.isSome(result)) {
@@ -183,7 +183,7 @@ function MemberDetailRoute() {
             path: { teamId, memberId, logId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make('Failed to delete activity')),
+        Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
         run(),
       );
       if (Option.isSome(result)) {

@@ -31,10 +31,11 @@ export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequ
   'UpdateActivityLogRequest',
 )({
   activityType: Schema.optionalWith(ActivityType, { as: 'Option' }),
-  durationMinutes: Schema.optionalWith(Schema.NullOr(Schema.Int.pipe(Schema.between(1, 1440))), {
-    as: 'Option',
-  }),
-  note: Schema.optionalWith(Schema.NullOr(Schema.String), { as: 'Option' }),
+  durationMinutes: Schema.optionalWith(
+    Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
+    { as: 'Option' },
+  ),
+  note: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
 }) {}
 
 export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(

@@ -66,8 +66,8 @@ interface PlayerDetailPageProps {
     logId: ActivityLog.ActivityLogId,
     input: {
       activityType: Option.Option<ActivityLog.ActivityType>;
-      durationMinutes: Option.Option<number | null>;
-      note: Option.Option<string | null>;
+      durationMinutes: Option.Option<Option.Option<number>>;
+      note: Option.Option<Option.Option<string>>;
     },
   ) => Promise<void>;
   onDeleteLog: (logId: ActivityLog.ActivityLogId) => Promise<void>;

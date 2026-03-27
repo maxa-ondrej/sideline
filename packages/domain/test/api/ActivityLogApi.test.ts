@@ -80,8 +80,8 @@ describe('UpdateActivityLogRequest', () => {
       activityType: 'running',
     });
     expect(Option.getOrNull(result.activityType)).toBe('running');
-    expect(Option.isNone(result.durationMinutes)).toBe(true);
-    expect(Option.isNone(result.note)).toBe(true);
+    expect(Option.isNone(result.durationMinutes)).toBe(true); // outer Option = absent
+    expect(Option.isNone(result.note)).toBe(true); // outer Option = absent
   });
 
   it('decodes empty object with all fields None', () => {
@@ -98,8 +98,12 @@ describe('UpdateActivityLogRequest', () => {
       note: 'Updated note',
     });
     expect(Option.getOrNull(result.activityType)).toBe('stretching');
-    expect(Option.getOrNull(result.durationMinutes)).toBe(30);
-    expect(Option.getOrNull(result.note)).toBe('Updated note');
+    expect(Option.isSome(result.durationMinutes)).toBe(true);
+    if (Option.isSome(result.durationMinutes))
+      expect(Option.getOrNull(result.durationMinutes.value)).toBe(30);
+    expect(Option.isSome(result.note)).toBe(true);
+    if (Option.isSome(result.note))
+      expect(Option.getOrNull(result.note.value)).toBe('Updated note');
   });
 
   it('rejects invalid activityType in update', () => {
