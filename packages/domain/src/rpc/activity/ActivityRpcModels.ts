@@ -35,7 +35,7 @@ export class GetStatsResult extends Schema.Class<GetStatsResult>('GetStatsResult
 export class LeaderboardEntryResult extends Schema.Class<LeaderboardEntryResult>(
   'LeaderboardEntryResult',
 )({
-  rank: Schema.Int,
+  rank: Schema.Int.pipe(Schema.positive()),
   team_member_id: TeamMemberId,
   username: Schema.String,
   total_activities: Schema.Int,

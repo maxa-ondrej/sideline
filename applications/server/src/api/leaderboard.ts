@@ -44,8 +44,10 @@ export const LeaderboardApiLive = HttpApiBuilder.group(Api, 'leaderboard', (hand
 
               const ranked = Leaderboard.rankLeaderboard(memberData);
 
+              const rowsByMemberId = new Map(rows.map((r) => [r.team_member_id, r]));
+
               const entries = ranked.map((entry) => {
-                const row = rows.find((r) => r.team_member_id === entry.teamMemberId);
+                const row = rowsByMemberId.get(entry.teamMemberId);
                 return new LeaderboardApi.LeaderboardEntry({
                   rank: entry.rank,
                   teamMemberId: entry.teamMemberId,
