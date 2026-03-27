@@ -5,7 +5,7 @@ description: Research, plan, write tests, implement, verify, review, and refacto
 
 # Implement Skill
 
-Develop a story or bug end-to-end: research, plan, TDD, implement, verify, review, refactor.
+Develop a story or bug end-to-end: research, plan, design, TDD, implement, verify, review, refactor.
 
 ## Execution
 
@@ -44,29 +44,50 @@ Skip this phase if the story uses well-known patterns already present in the cod
 
 ---
 
-### Phase 2: Plan
+### Phase 2: Plan & Design (parallel)
 
-Iterate until the plan is fool-proof:
+Run the architect and designer **in parallel** (launch both Agent calls in one message):
 
-1. Invoke the `/architect` agent with:
+1. **Invoke the `/architect` agent** with:
    - The story description and task list
    - Any research findings (from the researcher)
 
-2. Invoke the `/hater` agent with the architect's plan to critique it.
+2. **Invoke the `/designer` agent** with:
+   - The story description and task list
+   - Focus: design specifications for any UI/UX changes (web pages, components, Discord embeds/commands)
 
-3. If the hater finds **blockers**, send the critique back to the `/architect` agent for revision. Repeat architect -> hater until no blockers remain.
+   **Skip the designer** if the story has **no user-facing changes** (e.g., pure backend logic, database migrations, internal refactors with no UI).
 
-4. Present the final plan to the user for approval using the **editor pattern** described above. Write the full plan as markdown, open it in `$EDITOR`, and read back the user's response. If the user provides feedback, send it back to the `/architect` agent for revision and repeat.
+3. **Invoke the `/hater` agent** with the architect's plan **and** the designer's design specification (if produced). The hater critiques both for logical flaws, missing edge cases, UX issues, and architectural problems.
+
+4. If the hater finds **blockers**, send the critique back to the `/architect` and/or `/designer` agent for revision. Repeat architect/designer -> hater until no blockers remain.
+
+5. Present the final plan and design to the user for approval using the **editor pattern** described above. Write both the architect's plan and the designer's design spec as a single markdown document, open it in `$EDITOR`, and read back the user's response. If the user provides feedback, send it back to the relevant agent(s) for revision and repeat.
 
 ---
 
-### Phase 3: Write tests first (TDD)
+### Phase 3: Prepare domain package
+
+Before writing tests, the domain package must be ready:
+
+1. **Invoke the `/developer` agent** with:
+   - The approved implementation plan (domain-related tasks only)
+   - Instruction: implement only `@sideline/domain` files — API contracts, schemas, models, types
+   - After changes, rebuild: `pnpm build`
+
+2. This ensures that tests and application code can import the new domain types.
+
+**Skip this phase** if the plan has no domain package changes.
+
+---
+
+### Phase 4: Write tests first (TDD)
 
 Invoke the `/tester` agent in **TDD mode** with the architect's test specification. The tester writes all test files before any implementation begins. These tests should fail initially — that's expected and correct.
 
 ---
 
-### Phase 3b: Verify tests
+### Phase 4b: Verify tests
 
 After tests are written, verify they are clean:
 
@@ -83,20 +104,25 @@ If **must-fix** issues are found, invoke the `/tester` agent with the feedback, 
 
 ---
 
-### Phase 4: Implement
+### Phase 5: Implement (parallel per application)
 
-After tests are written:
+After tests are written, implement application code **in parallel** — one `/developer` agent per affected application:
 
-1. Invoke the `/developer` agent with:
-   - The approved implementation plan
-   - The task list
-   - Note: tests already exist and must pass after implementation
+1. Determine which applications are affected by the plan (any combination of: `bot`, `server`, `web`).
 
-2. The developer implements all tasks and reports what was changed.
+2. **Launch one `/developer` agent per application in parallel** (all in one message). Each receives:
+   - The approved implementation plan (filtered to tasks relevant to that application)
+   - The designer's design specification (for `web` and `bot` agents, if applicable)
+   - The task list scoped to that application
+   - Note: domain package is already built, tests already exist and must pass after implementation
+
+3. Each developer implements its application's tasks independently and reports what was changed.
+
+If only one application is affected, run a single developer agent (no need to parallelize).
 
 ---
 
-### Phase 5: Verify
+### Phase 6: Verify
 
 Run verification agents:
 
@@ -108,7 +134,7 @@ If the analyzer or tester report failures, invoke the `/developer` agent with th
 
 ---
 
-### Phase 6: Review
+### Phase 7: Review
 
 1. Invoke the `/reviewer` agent on the changed files
 2. Invoke the `/hater` agent on the final code
@@ -120,7 +146,7 @@ If **must-fix** issues are found:
 
 ---
 
-### Phase 7: Refactor
+### Phase 8: Refactor
 
 Invoke the `/refactorer` agent with the list of changed files (from `git diff --name-only main`).
 
