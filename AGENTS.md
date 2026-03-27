@@ -345,6 +345,33 @@ Configuration:
 
 Both files are sourced automatically by `bin/psql`. The `bin/` directory is added to `PATH` via `.envrc`.
 
+## Logs & Monitoring
+
+Logs, traces, and metrics are exported via OpenTelemetry to **SigNoz**. The telemetry layer is configured in each application's `run.ts` using `makeTelemetryLayer` from `@sideline/effect-lib`.
+
+### Services
+
+| Application | `service.name` |
+|-------------|----------------|
+| Server | `sideline-server` |
+| Bot | `sideline-bot` |
+
+### Resource Attributes
+
+| Attribute | Source | Example |
+|-----------|--------|---------|
+| `service.name` | `OTEL_SERVICE_NAME` | `sideline-server` |
+| `deployment.environment` | `APP_ENV` | `preview` |
+| `service.origin` | `APP_ORIGIN` | `sideline-preview.majksa.net` |
+
+### Querying Logs
+
+When searching logs in SigNoz, always filter by resource attributes for faster queries:
+
+- `service.name = 'sideline-server'` — scope to a specific service
+- `deployment.environment = 'preview'` — scope to an environment
+- Severity levels: `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`
+
 ## Troubleshooting
 
 - **"Cannot find module"**: Ensure `.js` extensions in imports, run `pnpm install`
