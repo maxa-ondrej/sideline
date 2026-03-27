@@ -1,5 +1,6 @@
 import { HttpApi } from '@effect/platform';
 import {
+  ActivityLogApi,
   ActivityStatsApi,
   AgeThresholdApi,
   Auth,
@@ -18,6 +19,7 @@ import {
 import { env } from '~/env.js';
 
 export class Api extends HttpApi.make('api')
+  .add(ActivityLogApi.ActivityLogApiGroup)
   .add(ActivityStatsApi.ActivityStatsApiGroup)
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)

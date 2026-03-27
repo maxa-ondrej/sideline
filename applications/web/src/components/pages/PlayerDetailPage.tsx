@@ -1,10 +1,17 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { ActivityStatsApi, RoleApi, Roster } from '@sideline/domain';
+import type {
+  ActivityLog,
+  ActivityLogApi,
+  ActivityStatsApi,
+  RoleApi,
+  Roster,
+} from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { ActivityLogList } from '~/components/organisms/ActivityLogList';
 import { ActivityStatsCard } from '~/components/organisms/ActivityStatsCard';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
@@ -45,9 +52,25 @@ interface PlayerDetailPageProps {
   canManageRoles: boolean;
   availableRoles: ReadonlyArray<RoleApi.RoleInfo>;
   activityStats: ActivityStatsApi.ActivityStatsResponse;
+  isOwnProfile: boolean;
+  activityLogs: ActivityLogApi.ActivityLogListResponse;
   onSave: (values: PlayerEditValues) => Promise<void>;
   onAssignRole: (roleId: string) => Promise<void>;
   onUnassignRole: (roleId: string) => Promise<void>;
+  onCreateLog: (input: {
+    activityType: ActivityLog.ActivityType;
+    durationMinutes: Option.Option<number>;
+    note: Option.Option<string>;
+  }) => Promise<void>;
+  onUpdateLog: (
+    logId: ActivityLog.ActivityLogId,
+    input: {
+      activityType: Option.Option<ActivityLog.ActivityType>;
+      durationMinutes: Option.Option<Option.Option<number>>;
+      note: Option.Option<Option.Option<string>>;
+    },
+  ) => Promise<void>;
+  onDeleteLog: (logId: ActivityLog.ActivityLogId) => Promise<void>;
 }
 
 export function PlayerDetailPage({
@@ -57,9 +80,14 @@ export function PlayerDetailPage({
   canManageRoles,
   availableRoles,
   activityStats,
+  isOwnProfile,
+  activityLogs,
   onSave,
   onAssignRole,
   onUnassignRole,
+  onCreateLog,
+  onUpdateLog,
+  onDeleteLog,
 }: PlayerDetailPageProps) {
   const form = useForm({
     resolver: effectTsResolver(PlayerEditSchema),
@@ -181,6 +209,13 @@ export function PlayerDetailPage({
         onUnassignRole={onUnassignRole}
       />
       <ActivityStatsCard stats={activityStats} />
+      <ActivityLogList
+        logs={activityLogs.logs}
+        isOwnProfile={isOwnProfile}
+        onCreateLog={onCreateLog}
+        onUpdateLog={onUpdateLog}
+        onDeleteLog={onDeleteLog}
+      />
     </div>
   );
 }

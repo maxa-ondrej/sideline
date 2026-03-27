@@ -6,6 +6,7 @@ import {
   HttpClientRequest,
 } from '@effect/platform';
 import {
+  ActivityLogApi,
   ActivityStatsApi,
   AgeThresholdApi,
   Auth,
@@ -35,6 +36,7 @@ export const ClientConfig = Context.GenericTag<ClientConfig, ClientConfigService
 );
 
 class ClientApi extends HttpApi.make('api')
+  .add(ActivityLogApi.ActivityLogApiGroup)
   .add(ActivityStatsApi.ActivityStatsApiGroup)
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)
