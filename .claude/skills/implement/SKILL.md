@@ -56,7 +56,7 @@ Iterate until the plan is fool-proof:
 
 3. If the hater finds **blockers**, send the critique back to the `/architect` agent for revision. Repeat architect -> hater until no blockers remain.
 
-4. Present the final plan to the user for approval using the **editor pattern** described above. Write the full plan as markdown, open it in the vs code editor, and read back the user's response. If the user provides feedback, send it back to the `/architect` agent for revision and repeat.
+4. Present the final plan to the user for approval using the **editor pattern** described above. Write the full plan as markdown, open it in `$EDITOR`, and read back the user's response. If the user provides feedback, send it back to the `/architect` agent for revision and repeat.
 
 ---
 

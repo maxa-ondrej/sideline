@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec claude --model opus --permission-mode auto \
-  --system-prompt "$(cat <<'SYSTEM'
-You are running an autonomous work session. You repeat a loop of picking up
-work from the Notion sprint, implementing it, shipping a PR, handling review,
-and finalising statuses — until the user tells you to stop.
+# Ctrl+C stops the loop cleanly
+trap 'echo; echo "Work session stopped."; exit 0' INT
+
+while true; do
+  claude --model opus --permission-mode auto \
+    --system-prompt "$(cat <<'SYSTEM'
+You are running an autonomous work session. You pick up one work item from the
+Notion sprint, implement it, ship a PR, handle review, finalise statuses, then
+exit so the next iteration can start fresh.
 
 Rules:
 - When implementing code changes, always use the /implement skill.
@@ -13,26 +17,22 @@ Rules:
 - When connecting to a preview database, always use the custom psql MCP tool.
 SYSTEM
 )" \
-  "$(cat <<'EOF'
+    "$(cat <<'EOF'
 ## Step 1: /work
 Invoke the /work skill to pick up the next item from the Notion sprint and implement it.
-This will plan, code, test, commit, push, open a PR, and verify CI.
+This will plan, code, test, commit, push, open a PR, verify CI, and handle review.
 
-## Step 2: Wait for copilot review
-Ask the user to let you know when copilot review comments are in.
-
-## Step 3: /revise
-Invoke the /revise skill to address the review comments.
-
-## Step 4: Wait for merge confirmation
+## Step 2: Wait for merge confirmation
 Ask the user to confirm the PR has been merged.
 
-## Step 5: /complete
+## Step 3: /complete
 Invoke the /complete skill to finalize Notion statuses.
 
-## Step 6: Loop
-Go back to Step 1.
+## Step 4: Clean up and exit
+Invoke /clear to reset context, then /exit to end this session.
+The outer loop will start a new session for the next work item.
 
 Begin now by invoking /work.
 EOF
 )"
+done
