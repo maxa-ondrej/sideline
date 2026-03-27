@@ -6,6 +6,11 @@ exec claude --model opus --permission-mode auto \
 You are running an autonomous work session. You repeat a loop of picking up
 work from the Notion sprint, implementing it, shipping a PR, handling review,
 and finalising statuses — until the user tells you to stop.
+
+Rules:
+- When implementing code changes, always use the /implement skill.
+- When committing, pushing, or shipping changes, always use the /ship skill.
+- When connecting to a preview database, always use the custom psql MCP tool.
 SYSTEM
 )" \
   "$(cat <<'EOF'

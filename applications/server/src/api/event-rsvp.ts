@@ -165,11 +165,14 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 .upsertRsvp(eventId, membership.id, payload.response, payload.message)
                 .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
             ),
-            Effect.tap(({ event, membership }) =>
-              payload.response === 'yes'
+            Effect.tap(({ event, membership }) => {
+              const loggedAt = DateTime.toDateUtc(
+                Option.getOrElse(event.end_at, () => event.start_at),
+              );
+              return payload.response === 'yes'
                 ? autoLogRsvpAttendance({
                     memberId: membership.id,
-                    loggedAt: DateTime.toDateUtc(event.start_at),
+                    loggedAt,
                     eventType: event.event_type,
                   }).pipe(
                     Effect.tapDefect((defect) =>
@@ -179,14 +182,14 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                   )
                 : removeAutoLogRsvpAttendance({
                     memberId: membership.id,
-                    loggedAt: DateTime.toDateUtc(event.start_at),
+                    loggedAt,
                   }).pipe(
                     Effect.tapDefect((defect) =>
                       Effect.logWarning('Remove auto-log RSVP attendance failed', defect),
                     ),
                     Effect.ignore,
-                  ),
-            ),
+                  );
+            }),
             Effect.andThen(({ event }) =>
               syncEvents.emitEventUpdated(
                 teamId,

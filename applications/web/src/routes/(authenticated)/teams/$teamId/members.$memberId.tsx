@@ -56,7 +56,8 @@ function MemberDetailRoute() {
   const activityTypes = React.useMemo(
     () =>
       fetchedActivityTypes.activityTypes.filter(
-        (t) => Option.isNone(t.slug) || t.slug.value !== 'training',
+        (t: { slug: Option.Option<string> }) =>
+          Option.isNone(t.slug) || t.slug.value !== 'training',
       ),
     [fetchedActivityTypes],
   );

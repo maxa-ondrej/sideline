@@ -378,11 +378,14 @@ const rpcHandlers = Effect.Do.pipe(
               .upsertRsvp(event_id, member.id, response, message)
               .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
           ),
-          Effect.tap(({ event, member }) =>
-            response === 'yes'
+          Effect.tap(({ event, member }) => {
+            const loggedAt = DateTime.toDateUtc(
+              Option.getOrElse(event.end_at, () => event.start_at),
+            );
+            return response === 'yes'
               ? autoLogRsvpAttendance({
                   memberId: member.id,
-                  loggedAt: DateTime.toDateUtc(event.start_at),
+                  loggedAt,
                   eventType: event.event_type,
                 }).pipe(
                   Effect.tapDefect((defect) =>
@@ -392,14 +395,14 @@ const rpcHandlers = Effect.Do.pipe(
                 )
               : removeAutoLogRsvpAttendance({
                   memberId: member.id,
-                  loggedAt: DateTime.toDateUtc(event.start_at),
+                  loggedAt,
                 }).pipe(
                   Effect.tapDefect((defect) =>
                     Effect.logWarning('Remove auto-log RSVP attendance failed', defect),
                   ),
                   Effect.ignore,
-                ),
-          ),
+                );
+          }),
           Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
         ),
   ),

@@ -92,7 +92,6 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
       FROM activity_logs al
       JOIN activity_types at ON at.id = al.activity_type_id
       WHERE al.team_member_id = ${teamMemberId}
-        AND al.source = 'manual' -- only manual logs count toward stats to reflect the player's own effort
       ORDER BY al.logged_at
     `,
   });
