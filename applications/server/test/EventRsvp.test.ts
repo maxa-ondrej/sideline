@@ -751,7 +751,7 @@ const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
 } as unknown as ICalTokensRepository);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
-  insert: () => Effect.die(new Error('not implemented')),
+  insert: () => Effect.void,
   findByTeamMember: () => Effect.succeed([]),
   deleteAutoTrainingLog: () => Effect.void,
 } as unknown as ActivityLogsRepository);

@@ -145,7 +145,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
       WHERE team_member_id = ${input.team_member_id}
         AND activity_type = 'training'
         AND source = 'auto'
-        AND logged_at::date = ${input.date}::date
+        AND ((logged_at AT TIME ZONE 'UTC')::date) = ((${input.date} AT TIME ZONE 'UTC')::date)
     `,
   });
 

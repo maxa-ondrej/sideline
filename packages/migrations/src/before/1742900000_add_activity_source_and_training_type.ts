@@ -19,7 +19,7 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
     ),
     Effect.tap(
       () =>
-        sql`CREATE UNIQUE INDEX idx_activity_logs_auto_training_dedup ON activity_logs (team_member_id, (logged_at::date)) WHERE source = 'auto' AND activity_type = 'training'`,
+        sql`CREATE UNIQUE INDEX idx_activity_logs_auto_training_dedup ON activity_logs (team_member_id, ((logged_at AT TIME ZONE 'UTC')::date)) WHERE source = 'auto' AND activity_type = 'training'`,
     ),
   ),
 );
