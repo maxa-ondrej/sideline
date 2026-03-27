@@ -16,6 +16,7 @@ import {
   GroupApi,
   ICalApi,
   Invite,
+  LeaderboardApi,
   NotificationApi,
   RoleApi,
   Roster,
@@ -41,9 +42,10 @@ class ClientApi extends HttpApi.make('api')
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)
   .add(Invite.InviteApiGroup)
+  .add(LeaderboardApi.LeaderboardApiGroup)
   .add(NotificationApi.NotificationApiGroup)
-  .add(Roster.RosterApiGroup)
   .add(RoleApi.RoleApiGroup)
+  .add(Roster.RosterApiGroup)
   .add(EventApi.EventApiGroup)
   .add(EventRsvpApi.EventRsvpApiGroup)
   .add(EventSeriesApi.EventSeriesApiGroup)

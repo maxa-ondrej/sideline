@@ -10,6 +10,7 @@ import {
   GroupApi,
   ICalApi,
   Invite,
+  LeaderboardApi,
   NotificationApi,
   RoleApi,
   Roster,
@@ -21,6 +22,7 @@ import { env } from '~/env.js';
 export class Api extends HttpApi.make('api')
   .add(ActivityLogApi.ActivityLogApiGroup)
   .add(ActivityStatsApi.ActivityStatsApiGroup)
+  .add(LeaderboardApi.LeaderboardApiGroup)
   .add(AgeThresholdApi.AgeThresholdApiGroup)
   .add(Auth.AuthApiGroup)
   .add(EventApi.EventApiGroup)

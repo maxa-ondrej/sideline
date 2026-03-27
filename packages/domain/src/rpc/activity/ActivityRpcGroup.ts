@@ -4,6 +4,7 @@ import { Discord } from '~/index.js';
 import {
   ActivityGuildNotFound,
   ActivityMemberNotFound,
+  GetLeaderboardResult,
   GetStatsResult,
   LogActivityResult,
 } from './ActivityRpcModels.js';
@@ -26,6 +27,15 @@ export const ActivityRpcGroup = RpcGroup.make(
       discord_user_id: Discord.Snowflake,
     },
     success: GetStatsResult,
+    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+  }),
+  Rpc.make('GetLeaderboard', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+      limit: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.positive())),
+    },
+    success: GetLeaderboardResult,
     error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
   }),
 ).prefix('Activity/');
