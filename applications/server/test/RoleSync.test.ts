@@ -18,6 +18,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { ICalTokensRepository } from '~/repositories/ICalTokensRepository.js';
+import { LeaderboardRepository } from '~/repositories/LeaderboardRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -566,6 +567,10 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   findByTeamMember: () => Effect.succeed([]),
 } as unknown as ActivityLogsRepository);
 
+const MockLeaderboardRepositoryLayer = Layer.succeed(LeaderboardRepository, {
+  getLeaderboard: () => Effect.succeed([]),
+} as unknown as LeaderboardRepository);
+
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: () =>
     Effect.succeed(
@@ -585,8 +590,11 @@ const TestLayer = ApiLive.pipe(
   Layer.provide(MockTeamMembersRepositoryLayer),
   Layer.provide(
     Layer.merge(
-      Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer),
-      MockActivityTypesRepositoryLayer,
+      Layer.merge(
+        Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer),
+        MockActivityTypesRepositoryLayer,
+      ),
+      MockLeaderboardRepositoryLayer,
     ),
   ),
   Layer.provide(MockTeamInvitesRepositoryLayer),

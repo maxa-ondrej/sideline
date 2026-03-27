@@ -24,6 +24,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { ICalTokensRepository } from '~/repositories/ICalTokensRepository.js';
+import { LeaderboardRepository } from '~/repositories/LeaderboardRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { OAuthConnectionsRepository } from '~/repositories/OAuthConnectionsRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
@@ -80,6 +81,7 @@ const Repositories = Layer.mergeAll(
   OAuthConnectionsRepository.Default,
   ActivityLogsRepository.Default,
   ActivityTypesRepository.Default,
+  LeaderboardRepository.Default,
 );
 
 export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(

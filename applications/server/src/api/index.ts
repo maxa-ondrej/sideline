@@ -11,6 +11,7 @@ import { EventSeriesApiLive } from '~/api/event-series.js';
 import { GroupApiLive } from '~/api/group.js';
 import { ICalApiLive } from '~/api/ical.js';
 import { InviteApiLive } from '~/api/invite.js';
+import { LeaderboardApiLive } from '~/api/leaderboard.js';
 import { NotificationApiLive } from '~/api/notification.js';
 import { RoleApiLive } from '~/api/role.js';
 import { RosterApiLive } from '~/api/roster.js';
@@ -20,6 +21,7 @@ import { TrainingTypeApiLive } from '~/api/training-type.js';
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(ActivityLogApiLive),
   Layer.provide(ActivityStatsApiLive),
+  Layer.provide(LeaderboardApiLive),
   Layer.provide(AgeThresholdApiLive),
   Layer.provide(AuthApiLive),
   Layer.provide(EventApiLive),

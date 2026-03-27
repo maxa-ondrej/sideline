@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 import { ActivityLogId } from '~/models/ActivityLog.js';
+import { TeamMemberId } from '~/models/TeamMember.js';
 
 export class LogActivityResult extends Schema.Class<LogActivityResult>('LogActivityResult')({
   id: ActivityLogId,
@@ -29,4 +30,24 @@ export class GetStatsResult extends Schema.Class<GetStatsResult>('GetStatsResult
       count: Schema.Int,
     }),
   ),
+}) {}
+
+export class LeaderboardEntryResult extends Schema.Class<LeaderboardEntryResult>(
+  'LeaderboardEntryResult',
+)({
+  rank: Schema.Int,
+  team_member_id: TeamMemberId,
+  username: Schema.String,
+  total_activities: Schema.Int,
+  total_duration_minutes: Schema.Int,
+  current_streak: Schema.Int,
+  longest_streak: Schema.Int,
+}) {}
+
+export class GetLeaderboardResult extends Schema.Class<GetLeaderboardResult>(
+  'GetLeaderboardResult',
+)({
+  entries: Schema.Array(LeaderboardEntryResult),
+  requesting_user_rank: Schema.OptionFromNullOr(Schema.Int),
+  requesting_user_entry: Schema.OptionFromNullOr(LeaderboardEntryResult),
 }) {}

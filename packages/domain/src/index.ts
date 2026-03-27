@@ -20,6 +20,8 @@ export * as ICalApi from './api/ICalApi.js';
 
 export * as Invite from './api/Invite.js';
 
+export * as LeaderboardApi from './api/LeaderboardApi.js';
+
 export * as NotificationApi from './api/NotificationApi.js';
 
 export * as RoleApi from './api/RoleApi.js';
@@ -55,6 +57,8 @@ export * as EventSeries from './models/EventSeries.js';
 export * as GroupModel from './models/GroupModel.js';
 
 export * as ICalToken from './models/ICalToken.js';
+
+export * as Leaderboard from './models/Leaderboard.js';
 
 export * as MemberRole from './models/MemberRole.js';
 
