@@ -13,6 +13,7 @@ const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
   gym: 'Gym',
   running: 'Run',
   stretching: 'Stretch',
+  training: 'Training',
 };
 
 const formatDuration = (minutes: number): string => {
@@ -216,6 +217,9 @@ export function ActivityLogList({
                       <span className='font-medium text-sm'>
                         {ACTIVITY_TYPE_ICONS[log.activityType]}
                       </span>
+                      {log.source === 'auto' && (
+                        <span className='text-xs text-muted-foreground italic'>(auto)</span>
+                      )}
                       {Option.isSome(log.durationMinutes) && (
                         <span className='text-xs text-muted-foreground'>
                           {formatDuration(log.durationMinutes.value)}
@@ -225,7 +229,7 @@ export function ActivityLogList({
                         <span className='text-xs text-muted-foreground'>{log.note.value}</span>
                       )}
                     </div>
-                    {isOwnProfile && (
+                    {isOwnProfile && log.source !== 'auto' && (
                       <div className='flex gap-1'>
                         <Button
                           type='button'

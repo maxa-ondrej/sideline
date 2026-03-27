@@ -197,6 +197,7 @@ const logActivity = (payload: {
         logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
         duration_minutes: payload.duration_minutes,
         note: payload.note,
+        source: 'manual',
       }),
     ),
     Effect.map(

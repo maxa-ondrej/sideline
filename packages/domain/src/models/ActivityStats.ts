@@ -59,7 +59,7 @@ export const calculateStreaks = (dates: ReadonlyArray<string>, today: string): S
 /** Calculate full stats from activity rows. */
 export const calculateStats = (
   rows: ReadonlyArray<{
-    readonly activity_type: 'gym' | 'running' | 'stretching';
+    readonly activity_type: 'gym' | 'running' | 'stretching' | 'training';
     readonly logged_at_date: string;
     readonly duration_minutes: Option.Option<number>;
   }>,

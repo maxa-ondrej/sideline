@@ -73,6 +73,7 @@ export const ActivityRpcLive = Effect.Do.pipe(
               logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
               duration_minutes,
               note,
+              source: 'manual',
             }),
           ),
           Effect.map(

@@ -753,6 +753,7 @@ const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: () => Effect.die(new Error('not implemented')),
   findByTeamMember: () => Effect.succeed([]),
+  deleteAutoTrainingLog: () => Effect.void,
 } as unknown as ActivityLogsRepository);
 
 const TestLayer = ApiLive.pipe(

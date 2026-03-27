@@ -14,12 +14,14 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   logged_at: Schema.Date,
   duration_minutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
   note: Schema.OptionFromNullOr(Schema.String),
+  source: ActivityLog.ActivitySource,
 }) {}
 
 class InsertResult extends Schema.Class<InsertResult>('InsertResult')({
   id: ActivityLog.ActivityLogId,
   activity_type: ActivityLog.ActivityType,
   logged_at: Schema.String,
+  source: ActivityLog.ActivitySource,
 }) {}
 
 class LogRow extends Schema.Class<LogRow>('LogRow')({
@@ -29,6 +31,7 @@ class LogRow extends Schema.Class<LogRow>('LogRow')({
   logged_at: Schema.DateFromString,
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
+  source: ActivityLog.ActivitySource,
 }) {}
 
 class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
@@ -59,15 +62,16 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     Request: InsertInput,
     Result: InsertResult,
     execute: (input) => this.sql`
-      INSERT INTO activity_logs (team_member_id, activity_type, logged_at, duration_minutes, note)
+      INSERT INTO activity_logs (team_member_id, activity_type, logged_at, duration_minutes, note, source)
       VALUES (
         ${input.team_member_id},
         ${input.activity_type},
         ${input.logged_at},
         ${input.duration_minutes},
-        ${input.note}
+        ${input.note},
+        ${input.source}
       )
-      RETURNING id, activity_type, logged_at::text
+      RETURNING id, activity_type, logged_at::text, source
     `,
   });
 
@@ -81,6 +85,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
         duration_minutes
       FROM activity_logs
       WHERE team_member_id = ${teamMemberId}
+        AND source = 'manual' -- only manual logs count toward stats to reflect the player's own effort
       ORDER BY logged_at
     `,
   });
@@ -89,7 +94,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     Request: TeamMember.TeamMemberId,
     Result: LogRow,
     execute: (teamMemberId) => this.sql`
-      SELECT id, team_member_id, activity_type, logged_at::text AS logged_at, duration_minutes, note
+      SELECT id, team_member_id, activity_type, logged_at::text AS logged_at, duration_minutes, note, source
       FROM activity_logs
       WHERE team_member_id = ${teamMemberId}
       ORDER BY logged_at DESC
@@ -101,7 +106,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     Request: FindByIdInput,
     Result: LogRow,
     execute: (input) => this.sql`
-      SELECT id, team_member_id, activity_type, logged_at::text AS logged_at, duration_minutes, note
+      SELECT id, team_member_id, activity_type, logged_at::text AS logged_at, duration_minutes, note, source
       FROM activity_logs
       WHERE id = ${input.id}
         AND team_member_id = ${input.team_member_id}
@@ -119,7 +124,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
         note = ${input.note}
       WHERE id = ${input.id}
         AND team_member_id = ${input.team_member_id}
-      RETURNING id, team_member_id, activity_type, logged_at::text AS logged_at, duration_minutes, note
+      RETURNING id, team_member_id, activity_type, logged_at::text AS logged_at, duration_minutes, note, source
     `,
   });
 
@@ -127,6 +132,20 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     Request: DeleteInput,
     execute: (input) => this.sql`
       DELETE FROM activity_logs WHERE id = ${input.id} AND team_member_id = ${input.team_member_id}
+    `,
+  });
+
+  private deleteAutoTrainingLogQuery = SqlSchema.void({
+    Request: Schema.Struct({
+      team_member_id: TeamMember.TeamMemberId,
+      date: Schema.Date,
+    }),
+    execute: (input) => this.sql`
+      DELETE FROM activity_logs
+      WHERE team_member_id = ${input.team_member_id}
+        AND activity_type = 'training'
+        AND source = 'auto'
+        AND logged_at::date = ${input.date}::date
     `,
   });
 
@@ -149,6 +168,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     logged_at: Date;
     duration_minutes: Option.Option<number>;
     note: Option.Option<string>;
+    source: ActivityLog.ActivitySource;
   }) =>
     this.insertQuery(input).pipe(
       Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
@@ -162,43 +182,70 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
       duration_minutes: Option.Option<Option.Option<number>>;
       note: Option.Option<Option.Option<string>>;
     },
-  ) =>
-    this.findByIdQuery({ id, team_member_id: memberId }).pipe(
-      Effect.flatMap(
-        Option.match({
-          onNone: () => Effect.fail(new ActivityLogApi.LogNotFound()),
-          onSome: (existing) =>
-            this.updateQuery({
-              id,
-              team_member_id: memberId,
-              activity_type: Option.getOrElse(input.activity_type, () => existing.activity_type),
-              duration_minutes: Option.match(input.duration_minutes, {
-                onNone: () => existing.duration_minutes,
-                onSome: (v) => v,
-              }),
-              note: Option.match(input.note, {
-                onNone: () => existing.note,
-                onSome: (v) => v,
-              }),
-            }).pipe(
-              Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
-            ),
-        }),
+  ): Effect.Effect<LogRow, ActivityLogApi.LogNotFound | ActivityLogApi.AutoSourceForbidden> =>
+    Effect.Do.pipe(
+      Effect.bind('existing', () =>
+        this.findById(id, memberId).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.fail(new ActivityLogApi.LogNotFound()),
+              onSome: Effect.succeed,
+            }),
+          ),
+        ),
       ),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.tap(({ existing }) =>
+        existing.source === 'auto'
+          ? Effect.fail(new ActivityLogApi.AutoSourceForbidden())
+          : Effect.void,
+      ),
+      Effect.flatMap(({ existing }) =>
+        this.updateQuery({
+          id,
+          team_member_id: memberId,
+          activity_type: Option.getOrElse(input.activity_type, () => existing.activity_type),
+          duration_minutes: Option.match(input.duration_minutes, {
+            onNone: () => existing.duration_minutes,
+            onSome: (v) => v,
+          }),
+          note: Option.match(input.note, {
+            onNone: () => existing.note,
+            onSome: (v) => v,
+          }),
+        }).pipe(Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die)),
+      ),
     );
 
-  delete = (id: ActivityLog.ActivityLogId, memberId: TeamMember.TeamMemberId) =>
-    this.findByIdQuery({ id, team_member_id: memberId }).pipe(
-      Effect.flatMap(
-        Option.match({
-          onNone: () => Effect.fail(new ActivityLogApi.LogNotFound()),
-          onSome: () =>
-            this.deleteQuery({ id, team_member_id: memberId }).pipe(
-              Effect.catchTag('SqlError', 'ParseError', Effect.die),
-            ),
-        }),
+  delete = (
+    id: ActivityLog.ActivityLogId,
+    memberId: TeamMember.TeamMemberId,
+  ): Effect.Effect<void, ActivityLogApi.LogNotFound | ActivityLogApi.AutoSourceForbidden> =>
+    Effect.Do.pipe(
+      Effect.bind('existing', () =>
+        this.findById(id, memberId).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.fail(new ActivityLogApi.LogNotFound()),
+              onSome: Effect.succeed,
+            }),
+          ),
+        ),
       ),
+      Effect.tap(({ existing }) =>
+        existing.source === 'auto'
+          ? Effect.fail(new ActivityLogApi.AutoSourceForbidden())
+          : Effect.void,
+      ),
+      Effect.flatMap(() =>
+        this.deleteQuery({ id, team_member_id: memberId }).pipe(
+          Effect.catchTag('SqlError', 'ParseError', Effect.die),
+        ),
+      ),
+      Effect.asVoid,
+    );
+
+  deleteAutoTrainingLog = (memberId: TeamMember.TeamMemberId, date: Date): Effect.Effect<void> =>
+    this.deleteAutoTrainingLogQuery({ team_member_id: memberId, date }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 }

@@ -1,7 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
-import { ActivityLogId, ActivityType } from '~/models/ActivityLog.js';
+import { ActivityLogId, ActivitySource, ActivityType } from '~/models/ActivityLog.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
@@ -11,6 +11,7 @@ export class ActivityLogEntry extends Schema.Class<ActivityLogEntry>('ActivityLo
   loggedAt: Schema.String,
   durationMinutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
+  source: ActivitySource,
 }) {}
 
 export class ActivityLogListResponse extends Schema.Class<ActivityLogListResponse>(
@@ -62,6 +63,12 @@ export class MemberInactive extends Schema.TaggedError<MemberInactive>()(
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
+export class AutoSourceForbidden extends Schema.TaggedError<AutoSourceForbidden>()(
+  'ActivityLogAutoSourceForbidden',
+  {},
+  HttpApiSchema.annotations({ status: 403 }),
+) {}
+
 export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
   .add(
     HttpApiEndpoint.get('listLogs', '/teams/:teamId/members/:memberId/activity-logs')
@@ -87,6 +94,7 @@ export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
       .addError(LogNotFound, { status: 404 })
       .addError(Forbidden, { status: 403 })
       .addError(MemberInactive, { status: 403 })
+      .addError(AutoSourceForbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
       .setPayload(UpdateActivityLogRequest)
       .middleware(AuthMiddleware),
@@ -100,6 +108,7 @@ export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
       .addError(LogNotFound, { status: 404 })
       .addError(Forbidden, { status: 403 })
       .addError(MemberInactive, { status: 403 })
+      .addError(AutoSourceForbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
       .middleware(AuthMiddleware),
   ) {}
