@@ -50,18 +50,12 @@ export function ActivityStatsCard({ stats }: ActivityStatsCardProps) {
         </div>
       </div>
       <div className='flex flex-col gap-2'>
-        <div className='flex justify-between items-center'>
-          <span className='text-sm'>{m.stats_gym()}</span>
-          <span className='font-semibold'>{stats.gymCount}</span>
-        </div>
-        <div className='flex justify-between items-center'>
-          <span className='text-sm'>{m.stats_running()}</span>
-          <span className='font-semibold'>{stats.runningCount}</span>
-        </div>
-        <div className='flex justify-between items-center'>
-          <span className='text-sm'>{m.stats_stretching()}</span>
-          <span className='font-semibold'>{stats.stretchingCount}</span>
-        </div>
+        {stats.counts.map((c) => (
+          <div key={c.activityTypeId} className='flex justify-between items-center'>
+            <span className='text-sm'>{c.activityTypeName}</span>
+            <span className='font-semibold'>{c.count}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

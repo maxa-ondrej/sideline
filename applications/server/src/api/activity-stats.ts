@@ -38,9 +38,7 @@ export const ActivityStatsApiLive = HttpApiBuilder.group(Api, 'activityStats', (
               longestStreak: stats.longestStreak,
               totalActivities: stats.totalActivities,
               totalDurationMinutes: stats.totalDurationMinutes,
-              gymCount: stats.gymCount,
-              runningCount: stats.runningCount,
-              stretchingCount: stats.stretchingCount,
+              counts: stats.counts,
             });
           }),
         ),

@@ -170,6 +170,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 ? autoLogRsvpAttendance({
                     memberId: membership.id,
                     loggedAt: DateTime.toDateUtc(event.start_at),
+                    eventType: event.event_type,
                   }).pipe(
                     Effect.tapDefect((defect) =>
                       Effect.logWarning('Auto-log RSVP attendance failed', defect),

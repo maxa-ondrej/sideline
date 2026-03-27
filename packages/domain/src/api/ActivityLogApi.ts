@@ -1,13 +1,15 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
-import { ActivityLogId, ActivitySource, ActivityType } from '~/models/ActivityLog.js';
+import { ActivityLogId, ActivitySource } from '~/models/ActivityLog.js';
+import { ActivityTypeId } from '~/models/ActivityType.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
 export class ActivityLogEntry extends Schema.Class<ActivityLogEntry>('ActivityLogEntry')({
   id: ActivityLogId,
-  activityType: ActivityType,
+  activityTypeId: ActivityTypeId,
+  activityTypeName: Schema.String,
   loggedAt: Schema.String,
   durationMinutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
@@ -23,7 +25,7 @@ export class ActivityLogListResponse extends Schema.Class<ActivityLogListRespons
 export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequest>(
   'CreateActivityLogRequest',
 )({
-  activityType: ActivityType,
+  activityTypeId: ActivityTypeId,
   durationMinutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
   note: Schema.OptionFromNullOr(Schema.String),
 }) {}
@@ -31,7 +33,7 @@ export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequ
 export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequest>(
   'UpdateActivityLogRequest',
 )({
-  activityType: Schema.optionalWith(ActivityType, { as: 'Option' }),
+  activityTypeId: Schema.optionalWith(ActivityTypeId, { as: 'Option' }),
   durationMinutes: Schema.optionalWith(
     Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
     { as: 'Option' },

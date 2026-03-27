@@ -1,8 +1,9 @@
 ---
-'@sideline/domain': patch
-'@sideline/server': patch
-'@sideline/web': patch
-'@sideline/migrations': patch
+'@sideline/domain': minor
+'@sideline/server': minor
+'@sideline/web': minor
+'@sideline/bot': patch
+'@sideline/migrations': minor
 ---
 
-Auto-track training attendance from RSVP check-in and distinguish auto vs manual entries in the activity log
+Replace hardcoded activity types with a global activity_types table, auto-track training attendance from RSVP, and switch stats to dynamic counts

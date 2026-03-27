@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
-import type { ActivityLog, Discord, Team, TeamMember } from '@sideline/domain';
+import type { ActivityType, Discord, Team, TeamMember } from '@sideline/domain';
 import { ActivityRpcModels } from '@sideline/domain';
 import { DateTime, Effect, Either, Layer, Option } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -13,13 +14,17 @@ const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.Team
 const TEST_GUILD_ID = '999999999999999999' as Discord.Snowflake;
 const TEST_DISCORD_USER_ID = '111111111111111111' as Discord.Snowflake;
 const TEST_UNKNOWN_DISCORD_USER_ID = '000000000000000002' as Discord.Snowflake;
-const TEST_ACTIVITY_LOG_ID = 'activity-log-uuid-001' as ActivityLog.ActivityLogId;
+const TEST_ACTIVITY_LOG_ID = 'activity-log-uuid-001';
 const TEST_USER_ID = 'user-uuid-001';
+
+const GYM_TYPE_ID = 'type-uuid-gym' as ActivityType.ActivityTypeId;
+const RUNNING_TYPE_ID = 'type-uuid-running' as ActivityType.ActivityTypeId;
+const STRETCHING_TYPE_ID = 'type-uuid-stretching' as ActivityType.ActivityTypeId;
 
 // --- In-memory stores ---
 type ActivityLogInserted = {
   team_member_id: TeamMember.TeamMemberId;
-  activity_type: ActivityLog.ActivityType;
+  activity_type_id: ActivityType.ActivityTypeId;
   logged_at: Date;
   duration_minutes: Option.Option<number>;
   note: Option.Option<string>;
@@ -105,12 +110,26 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   setJerseyNumber: () => Effect.void,
 } as unknown as TeamMembersRepository);
 
+const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
+  findBySlug: (slug: string) => {
+    const types: Record<string, { id: ActivityType.ActivityTypeId; name: string }> = {
+      gym: { id: GYM_TYPE_ID, name: 'Gym' },
+      running: { id: RUNNING_TYPE_ID, name: 'Run' },
+      stretching: { id: STRETCHING_TYPE_ID, name: 'Stretch' },
+    };
+    const found = types[slug];
+    return Effect.succeed(found ? Option.some(found) : Option.none());
+  },
+  findByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+} as unknown as ActivityTypesRepository);
+
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: (input: ActivityLogInserted) => {
     activityLogsInserted.push(input);
     return Effect.succeed({
       id: TEST_ACTIVITY_LOG_ID,
-      activity_type: input.activity_type,
+      activity_type_id: input.activity_type_id,
       logged_at: input.logged_at.toISOString(),
     });
   },
@@ -121,6 +140,7 @@ const MockProvideLayer = Layer.mergeAll(
   MockUsersRepositoryLayer,
   MockTeamMembersRepositoryLayer,
   MockActivityLogsRepositoryLayer,
+  MockActivityTypesRepositoryLayer,
 );
 
 beforeEach(() => {
@@ -135,19 +155,24 @@ afterEach(() => {
 const logActivity = (payload: {
   guild_id: Discord.Snowflake;
   discord_user_id: Discord.Snowflake;
-  activity_type: ActivityLog.ActivityType;
+  activity_type: string;
   duration_minutes: Option.Option<number>;
   note: Option.Option<string>;
 }): Effect.Effect<
   ActivityRpcModels.LogActivityResult,
   ActivityRpcModels.ActivityGuildNotFound | ActivityRpcModels.ActivityMemberNotFound,
-  TeamsRepository | UsersRepository | TeamMembersRepository | ActivityLogsRepository
+  | TeamsRepository
+  | UsersRepository
+  | TeamMembersRepository
+  | ActivityLogsRepository
+  | ActivityTypesRepository
 > =>
   Effect.Do.pipe(
     Effect.bind('teams', () => TeamsRepository),
     Effect.bind('users', () => UsersRepository),
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('activityTypes', () => ActivityTypesRepository),
     Effect.bind('team', ({ teams }) =>
       teams.findByGuildId(payload.guild_id).pipe(
         Effect.flatMap(
@@ -190,10 +215,20 @@ const logActivity = (payload: {
     Effect.tap(({ member }) =>
       member.active ? Effect.void : Effect.fail(new ActivityRpcModels.ActivityMemberNotFound()),
     ),
-    Effect.flatMap(({ activityLogs, member }) =>
+    Effect.bind('activityType', ({ activityTypes }) =>
+      activityTypes.findBySlug(payload.activity_type).pipe(
+        Effect.flatMap(
+          Option.match({
+            onNone: () => Effect.fail(new ActivityRpcModels.ActivityMemberNotFound()),
+            onSome: Effect.succeed,
+          }),
+        ),
+      ),
+    ),
+    Effect.flatMap(({ activityLogs, member, activityType }) =>
       activityLogs.insert({
         team_member_id: member.id,
-        activity_type: payload.activity_type,
+        activity_type_id: activityType.id,
         logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
         duration_minutes: payload.duration_minutes,
         note: payload.note,
@@ -204,7 +239,7 @@ const logActivity = (payload: {
       (inserted) =>
         new ActivityRpcModels.LogActivityResult({
           id: inserted.id,
-          activity_type: inserted.activity_type,
+          activity_type_id: inserted.activity_type_id,
           logged_at: inserted.logged_at,
         }),
     ),
@@ -221,10 +256,9 @@ describe('LogActivity RPC handler', () => {
     }).pipe(
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(result.id).toBe(TEST_ACTIVITY_LOG_ID);
-          expect(result.activity_type).toBe('gym');
+          expect(result.activity_type_id).toBe(GYM_TYPE_ID);
           expect(activityLogsInserted).toHaveLength(1);
-          expect(activityLogsInserted[0].activity_type).toBe('gym');
+          expect(activityLogsInserted[0].activity_type_id).toBe(GYM_TYPE_ID);
           expect(Option.isNone(activityLogsInserted[0].duration_minutes)).toBe(true);
           expect(Option.isNone(activityLogsInserted[0].note)).toBe(true);
         }),
@@ -244,8 +278,7 @@ describe('LogActivity RPC handler', () => {
     }).pipe(
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(result.id).toBe(TEST_ACTIVITY_LOG_ID);
-          expect(result.activity_type).toBe('running');
+          expect(result.activity_type_id).toBe(RUNNING_TYPE_ID);
           expect(activityLogsInserted).toHaveLength(1);
           expect(Option.getOrNull(activityLogsInserted[0].duration_minutes)).toBe(30);
           expect(Option.getOrNull(activityLogsInserted[0].note)).toBe('Leg day');
@@ -337,6 +370,7 @@ describe('LogActivity RPC handler', () => {
       MockUsersRepositoryLayer,
       InactiveMemberLayer,
       MockActivityLogsRepositoryLayer,
+      MockActivityTypesRepositoryLayer,
     );
 
     return logActivity({
@@ -392,9 +426,9 @@ describe('LogActivity RPC handler', () => {
       ),
       Effect.tap(({ gymResult, runningResult, stretchingResult }) =>
         Effect.sync(() => {
-          expect(gymResult.activity_type).toBe('gym');
-          expect(runningResult.activity_type).toBe('running');
-          expect(stretchingResult.activity_type).toBe('stretching');
+          expect(gymResult.activity_type_id).toBe(GYM_TYPE_ID);
+          expect(runningResult.activity_type_id).toBe(RUNNING_TYPE_ID);
+          expect(stretchingResult.activity_type_id).toBe(STRETCHING_TYPE_ID);
           expect(activityLogsInserted).toHaveLength(3);
         }),
       ),

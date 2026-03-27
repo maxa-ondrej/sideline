@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
-import type { ActivityLog, TeamMember } from '@sideline/domain';
+import type { ActivityType, TeamMember } from '@sideline/domain';
 import { Effect, Layer, Option } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import {
   autoLogRsvpAttendance,
   removeAutoLogRsvpAttendance,
@@ -9,15 +10,16 @@ import {
 
 // --- Test IDs ---
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
+const TRAINING_TYPE_ID = 'type-uuid-training' as ActivityType.ActivityTypeId;
 
 // --- In-memory stores ---
 type InsertedLog = {
   team_member_id: TeamMember.TeamMemberId;
-  activity_type: ActivityLog.ActivityType;
+  activity_type_id: ActivityType.ActivityTypeId;
   logged_at: Date;
   duration_minutes: Option.Option<number>;
   note: Option.Option<string>;
-  source: ActivityLog.ActivitySource;
+  source: string;
 };
 
 let insertedLogs: InsertedLog[];
@@ -28,14 +30,14 @@ const resetStores = () => {
   deletedAutoTrainingLogs = [];
 };
 
-// --- Mock layer ---
+// --- Mock layers ---
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: (input: InsertedLog) => {
     insertedLogs.push(input);
-    const id = crypto.randomUUID() as ActivityLog.ActivityLogId;
+    const id = crypto.randomUUID();
     return Effect.succeed({
       id,
-      activity_type: input.activity_type,
+      activity_type_id: input.activity_type_id,
       logged_at: input.logged_at.toISOString(),
       source: input.source,
     });
@@ -50,6 +52,24 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   delete: () => Effect.die(new Error('Not implemented')),
 } as unknown as ActivityLogsRepository);
 
+const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
+  findBySlug: (slug: string) => {
+    if (slug === 'training') {
+      return Effect.succeed(
+        Option.some({ id: TRAINING_TYPE_ID, name: 'Training', slug: Option.some('training') }),
+      );
+    }
+    return Effect.succeed(Option.none());
+  },
+  findByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+} as unknown as ActivityTypesRepository);
+
+const MockProvideLayer = Layer.mergeAll(
+  MockActivityLogsRepositoryLayer,
+  MockActivityTypesRepositoryLayer,
+);
+
 beforeEach(() => {
   resetStores();
 });
@@ -59,20 +79,21 @@ afterEach(() => {
 });
 
 describe('autoLogRsvpAttendance', () => {
-  it.effect('inserts a training log with source auto for the given member', () => {
+  it.effect('inserts a training log with source auto for training event type', () => {
     return autoLogRsvpAttendance({
       memberId: TEST_MEMBER_ID,
       loggedAt: new Date('2026-03-27T10:00:00Z'),
+      eventType: 'training',
     }).pipe(
       Effect.tap(() =>
         Effect.sync(() => {
           expect(insertedLogs).toHaveLength(1);
           expect(insertedLogs[0].team_member_id).toBe(TEST_MEMBER_ID);
-          expect(insertedLogs[0].activity_type).toBe('training');
+          expect(insertedLogs[0].activity_type_id).toBe(TRAINING_TYPE_ID);
           expect(insertedLogs[0].source).toBe('auto');
         }),
       ),
-      Effect.provide(MockActivityLogsRepositoryLayer),
+      Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
   });
@@ -82,13 +103,30 @@ describe('autoLogRsvpAttendance', () => {
     return autoLogRsvpAttendance({
       memberId: TEST_MEMBER_ID,
       loggedAt,
+      eventType: 'training',
     }).pipe(
       Effect.tap(() =>
         Effect.sync(() => {
           expect(insertedLogs[0].logged_at).toBe(loggedAt);
         }),
       ),
-      Effect.provide(MockActivityLogsRepositoryLayer),
+      Effect.provide(MockProvideLayer),
+      Effect.asVoid,
+    );
+  });
+
+  it.effect('does nothing for non-training event types', () => {
+    return autoLogRsvpAttendance({
+      memberId: TEST_MEMBER_ID,
+      loggedAt: new Date('2026-03-27T10:00:00Z'),
+      eventType: 'match',
+    }).pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(insertedLogs).toHaveLength(0);
+        }),
+      ),
+      Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
   });

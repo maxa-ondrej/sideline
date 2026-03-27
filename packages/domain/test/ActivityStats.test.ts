@@ -70,102 +70,109 @@ describe('calculateStreaks', () => {
   });
 });
 
+const GYM_ID = 'type-gym-uuid';
+const RUNNING_ID = 'type-running-uuid';
+const STRETCHING_ID = 'type-stretching-uuid';
+
 describe('calculateStats', () => {
-  it('returns all zeros for empty input', () => {
+  it('returns all zeros and empty counts for empty input', () => {
     const result = calculateStats([], '2026-03-25');
     expect(result).toEqual({
       currentStreak: 0,
       longestStreak: 0,
       totalActivities: 0,
       totalDurationMinutes: 0,
-      gymCount: 0,
-      runningCount: 0,
-      stretchingCount: 0,
+      counts: [],
     });
   });
 
   it('calculates correct totals and per-type counts for mixed activities', () => {
     const rows = [
       {
-        activity_type: 'gym' as const,
+        activity_type_id: GYM_ID,
+        activity_type_name: 'Gym',
         logged_at_date: '2026-03-23',
         duration_minutes: Option.some(60),
       },
       {
-        activity_type: 'running' as const,
+        activity_type_id: RUNNING_ID,
+        activity_type_name: 'Run',
         logged_at_date: '2026-03-24',
         duration_minutes: Option.some(30),
       },
       {
-        activity_type: 'stretching' as const,
+        activity_type_id: STRETCHING_ID,
+        activity_type_name: 'Stretch',
         logged_at_date: '2026-03-25',
         duration_minutes: Option.some(15),
       },
     ];
     const result = calculateStats(rows, '2026-03-25');
-    expect(result).toEqual({
-      currentStreak: 3,
-      longestStreak: 3,
-      totalActivities: 3,
-      totalDurationMinutes: 105,
-      gymCount: 1,
-      runningCount: 1,
-      stretchingCount: 1,
-    });
+    expect(result.currentStreak).toBe(3);
+    expect(result.longestStreak).toBe(3);
+    expect(result.totalActivities).toBe(3);
+    expect(result.totalDurationMinutes).toBe(105);
+    expect(result.counts).toHaveLength(3);
+    expect(result.counts.find((c) => c.activityTypeId === GYM_ID)?.count).toBe(1);
+    expect(result.counts.find((c) => c.activityTypeId === RUNNING_ID)?.count).toBe(1);
+    expect(result.counts.find((c) => c.activityTypeId === STRETCHING_ID)?.count).toBe(1);
   });
 
   it('treats Option.none duration as 0 when summing durations', () => {
     const rows = [
       {
-        activity_type: 'gym' as const,
+        activity_type_id: GYM_ID,
+        activity_type_name: 'Gym',
         logged_at_date: '2026-03-24',
         duration_minutes: Option.some(45),
       },
       {
-        activity_type: 'gym' as const,
+        activity_type_id: GYM_ID,
+        activity_type_name: 'Gym',
         logged_at_date: '2026-03-25',
         duration_minutes: Option.none(),
       },
     ];
     const result = calculateStats(rows, '2026-03-25');
-    expect(result).toEqual({
-      currentStreak: 2,
-      longestStreak: 2,
-      totalActivities: 2,
-      totalDurationMinutes: 45,
-      gymCount: 2,
-      runningCount: 0,
-      stretchingCount: 0,
-    });
+    expect(result.currentStreak).toBe(2);
+    expect(result.longestStreak).toBe(2);
+    expect(result.totalActivities).toBe(2);
+    expect(result.totalDurationMinutes).toBe(45);
+    expect(result.counts).toHaveLength(1);
+    expect(result.counts[0]).toEqual({ activityTypeId: GYM_ID, activityTypeName: 'Gym', count: 2 });
   });
 
-  it('returns correct count for a single activity type with zeros for others', () => {
+  it('returns correct count for a single activity type', () => {
     const rows = [
       {
-        activity_type: 'running' as const,
+        activity_type_id: RUNNING_ID,
+        activity_type_name: 'Run',
         logged_at_date: '2026-03-23',
         duration_minutes: Option.some(20),
       },
       {
-        activity_type: 'running' as const,
+        activity_type_id: RUNNING_ID,
+        activity_type_name: 'Run',
         logged_at_date: '2026-03-24',
         duration_minutes: Option.some(25),
       },
       {
-        activity_type: 'running' as const,
+        activity_type_id: RUNNING_ID,
+        activity_type_name: 'Run',
         logged_at_date: '2026-03-25',
         duration_minutes: Option.some(30),
       },
     ];
     const result = calculateStats(rows, '2026-03-25');
-    expect(result).toEqual({
-      currentStreak: 3,
-      longestStreak: 3,
-      totalActivities: 3,
-      totalDurationMinutes: 75,
-      gymCount: 0,
-      runningCount: 3,
-      stretchingCount: 0,
+    expect(result.currentStreak).toBe(3);
+    expect(result.longestStreak).toBe(3);
+    expect(result.totalActivities).toBe(3);
+    expect(result.totalDurationMinutes).toBe(75);
+    expect(result.counts).toHaveLength(1);
+    expect(result.counts[0]).toEqual({
+      activityTypeId: RUNNING_ID,
+      activityTypeName: 'Run',
+      count: 3,
     });
   });
 });

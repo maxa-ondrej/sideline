@@ -383,6 +383,7 @@ const rpcHandlers = Effect.Do.pipe(
               ? autoLogRsvpAttendance({
                   memberId: member.id,
                   loggedAt: DateTime.toDateUtc(event.start_at),
+                  eventType: event.event_type,
                 }).pipe(
                   Effect.tapDefect((defect) =>
                     Effect.logWarning('Auto-log RSVP attendance failed', defect),

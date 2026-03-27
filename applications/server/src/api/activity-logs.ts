@@ -31,7 +31,8 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
                     (l) =>
                       new ActivityLogApi.ActivityLogEntry({
                         id: l.id,
-                        activityType: l.activity_type,
+                        activityTypeId: l.activity_type_id,
+                        activityTypeName: l.activity_type_name,
                         loggedAt: l.logged_at.toISOString(),
                         durationMinutes: l.duration_minutes,
                         note: l.note,
@@ -59,7 +60,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             Effect.flatMap(() =>
               activityLogs.insert({
                 team_member_id: memberId,
-                activity_type: payload.activityType,
+                activity_type_id: payload.activityTypeId,
                 logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
                 duration_minutes: payload.durationMinutes,
                 note: payload.note,
@@ -70,7 +71,8 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
               (inserted) =>
                 new ActivityLogApi.ActivityLogEntry({
                   id: inserted.id,
-                  activityType: inserted.activity_type,
+                  activityTypeId: inserted.activity_type_id,
+                  activityTypeName: inserted.activity_type_name,
                   loggedAt: inserted.logged_at,
                   durationMinutes: payload.durationMinutes,
                   note: payload.note,
@@ -95,7 +97,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
             Effect.flatMap(() =>
               activityLogs.update(logId, memberId, {
-                activity_type: payload.activityType,
+                activity_type_id: payload.activityTypeId,
                 duration_minutes: payload.durationMinutes,
                 note: payload.note,
               }),
@@ -104,7 +106,8 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
               (updated) =>
                 new ActivityLogApi.ActivityLogEntry({
                   id: updated.id,
-                  activityType: updated.activity_type,
+                  activityTypeId: updated.activity_type_id,
+                  activityTypeName: updated.activity_type_name,
                   loggedAt: updated.logged_at.toISOString(),
                   durationMinutes: updated.duration_minutes,
                   note: updated.note,

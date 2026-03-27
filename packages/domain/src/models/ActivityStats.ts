@@ -10,9 +10,11 @@ export interface StatsResult {
   readonly longestStreak: number;
   readonly totalActivities: number;
   readonly totalDurationMinutes: number;
-  readonly gymCount: number;
-  readonly runningCount: number;
-  readonly stretchingCount: number;
+  readonly counts: ReadonlyArray<{
+    readonly activityTypeId: string;
+    readonly activityTypeName: string;
+    readonly count: number;
+  }>;
 }
 
 /** Calculate current and longest streaks from a list of activity dates (ISO date strings like "2026-03-25"). */
@@ -59,7 +61,8 @@ export const calculateStreaks = (dates: ReadonlyArray<string>, today: string): S
 /** Calculate full stats from activity rows. */
 export const calculateStats = (
   rows: ReadonlyArray<{
-    readonly activity_type: 'gym' | 'running' | 'stretching' | 'training';
+    readonly activity_type_id: string;
+    readonly activity_type_name: string;
     readonly logged_at_date: string;
     readonly duration_minutes: Option.Option<number>;
   }>,
@@ -71,9 +74,7 @@ export const calculateStats = (
       longestStreak: 0,
       totalActivities: 0,
       totalDurationMinutes: 0,
-      gymCount: 0,
-      runningCount: 0,
-      stretchingCount: 0,
+      counts: [],
     };
   }
 
@@ -81,33 +82,32 @@ export const calculateStats = (
   const { currentStreak, longestStreak } = calculateStreaks(dates, today);
 
   let totalDurationMinutes = 0;
-  let gymCount = 0;
-  let runningCount = 0;
-  let stretchingCount = 0;
+  const countMap = new Map<string, { activityTypeName: string; count: number }>();
 
   for (const row of rows) {
     totalDurationMinutes += Option.getOrElse(row.duration_minutes, () => 0);
-    switch (row.activity_type) {
-      case 'gym':
-        gymCount++;
-        break;
-      case 'running':
-        runningCount++;
-        break;
-      case 'stretching':
-        stretchingCount++;
-        break;
+    const existing = countMap.get(row.activity_type_id);
+    if (existing) {
+      existing.count++;
+    } else {
+      countMap.set(row.activity_type_id, { activityTypeName: row.activity_type_name, count: 1 });
     }
   }
+
+  const counts = Array.from(countMap.entries()).map(
+    ([activityTypeId, { activityTypeName, count }]) => ({
+      activityTypeId,
+      activityTypeName,
+      count,
+    }),
+  );
 
   return {
     currentStreak,
     longestStreak,
     totalActivities: rows.length,
     totalDurationMinutes,
-    gymCount,
-    runningCount,
-    stretchingCount,
+    counts,
   };
 };
 
