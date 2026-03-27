@@ -1,5 +1,5 @@
-import type { Auth, Role } from '@sideline/domain';
-import { Team, TeamMember } from '@sideline/domain';
+import type { ActivityLog, Auth, Role } from '@sideline/domain';
+import { ActivityLogApi, Team, TeamMember } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -21,6 +21,12 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
           myTeams: api.auth.myTeams(),
           roles: api.role.listRoles({ path: { teamId } }),
           activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
+          activityLogs: api.activityLog.listLogs({ path: { teamId, memberId } }).pipe(
+            Effect.map((r) => ({ isOwnProfile: true as boolean, logs: r.logs })),
+            Effect.catchAll(() =>
+              Effect.succeed({ isOwnProfile: false as boolean, logs: [] as const }),
+            ),
+          ),
         }),
       ),
       warnAndCatchAll,
@@ -36,7 +42,13 @@ function MemberDetailRoute() {
   const navigate = useNavigate();
   const router = useRouter();
   const run = useRun();
-  const { player, myTeams, roles: roleListResponse, activityStats } = Route.useLoaderData();
+  const {
+    player,
+    myTeams,
+    roles: roleListResponse,
+    activityStats,
+    activityLogs,
+  } = Route.useLoaderData();
   const roles = roleListResponse.roles;
 
   // Use the current user's permissions for this team, not the target player's
@@ -106,6 +118,81 @@ function MemberDetailRoute() {
     [teamId, memberId, run, router],
   );
 
+  const handleCreateLog = React.useCallback(
+    async (input: {
+      activityType: ActivityLog.ActivityType;
+      durationMinutes: Option.Option<number>;
+      note: Option.Option<string>;
+    }) => {
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.activityLog.createLog({
+            path: { teamId, memberId },
+            payload: {
+              activityType: input.activityType,
+              durationMinutes: input.durationMinutes,
+              note: input.note,
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make('Failed to log activity')),
+        run(),
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
+  const handleUpdateLog = React.useCallback(
+    async (
+      logId: ActivityLog.ActivityLogId,
+      input: {
+        activityType: Option.Option<ActivityLog.ActivityType>;
+        durationMinutes: Option.Option<number | null>;
+        note: Option.Option<string | null>;
+      },
+    ) => {
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.activityLog.updateLog({
+            path: { teamId, memberId, logId },
+            payload: {
+              activityType: input.activityType,
+              durationMinutes: input.durationMinutes,
+              note: input.note,
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make('Failed to update activity')),
+        run(),
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
+  const handleDeleteLog = React.useCallback(
+    async (logId: ActivityLog.ActivityLogId) => {
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.activityLog.deleteLog({
+            path: { teamId, memberId, logId },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make('Failed to delete activity')),
+        run(),
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
   return (
     <PlayerDetailPage
       teamId={teamIdRaw}
@@ -114,9 +201,14 @@ function MemberDetailRoute() {
       canManageRoles={canManageRoles}
       availableRoles={roles}
       activityStats={activityStats}
+      isOwnProfile={activityLogs.isOwnProfile}
+      activityLogs={new ActivityLogApi.ActivityLogListResponse({ logs: activityLogs.logs })}
       onSave={handleSave}
       onAssignRole={handleAssignRole}
       onUnassignRole={handleUnassignRole}
+      onCreateLog={handleCreateLog}
+      onUpdateLog={handleUpdateLog}
+      onDeleteLog={handleDeleteLog}
     />
   );
 }

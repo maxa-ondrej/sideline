@@ -1,5 +1,6 @@
 export * as ApiGroup from './ApiGroup.js';
 
+export * as ActivityLogApi from './api/ActivityLogApi.js';
 export * as ActivityStatsApi from './api/ActivityStatsApi.js';
 
 export * as AgeThresholdApi from './api/AgeThresholdApi.js';

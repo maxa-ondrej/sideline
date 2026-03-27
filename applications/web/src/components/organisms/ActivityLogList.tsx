@@ -1,0 +1,318 @@
+import type { ActivityLog, ActivityLogApi } from '@sideline/domain';
+import { Option } from 'effect';
+import React from 'react';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '~/components/ui/sheet';
+
+type ActivityType = ActivityLog.ActivityType;
+
+const ACTIVITY_TYPE_ICONS: Record<ActivityType, string> = {
+  gym: 'Gym',
+  running: 'Run',
+  stretching: 'Stretch',
+};
+
+const formatDuration = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+};
+
+const formatDate = (isoString: string): string => {
+  const date = new Date(isoString);
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+interface ActivityLogListProps {
+  logs: ReadonlyArray<ActivityLogApi.ActivityLogEntry>;
+  isOwnProfile: boolean;
+  onCreateLog: (input: {
+    activityType: ActivityType;
+    durationMinutes: Option.Option<number>;
+    note: Option.Option<string>;
+  }) => Promise<void>;
+  onUpdateLog: (
+    logId: ActivityLog.ActivityLogId,
+    input: {
+      activityType: Option.Option<ActivityType>;
+      durationMinutes: Option.Option<number | null>;
+      note: Option.Option<string | null>;
+    },
+  ) => Promise<void>;
+  onDeleteLog: (logId: ActivityLog.ActivityLogId) => Promise<void>;
+}
+
+export function ActivityLogList({
+  logs,
+  isOwnProfile,
+  onCreateLog,
+  onUpdateLog,
+  onDeleteLog,
+}: ActivityLogListProps) {
+  const [selectedType, setSelectedType] = React.useState<ActivityType | null>(null);
+  const [durationInput, setDurationInput] = React.useState('');
+  const [noteInput, setNoteInput] = React.useState('');
+  const [creating, setCreating] = React.useState(false);
+
+  const [editingLog, setEditingLog] = React.useState<ActivityLogApi.ActivityLogEntry | null>(null);
+  const [editType, setEditType] = React.useState<ActivityType>('gym');
+  const [editDuration, setEditDuration] = React.useState('');
+  const [editNote, setEditNote] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<ActivityLog.ActivityLogId | null>(null);
+
+  const handleCreate = React.useCallback(async () => {
+    if (!selectedType) return;
+    setCreating(true);
+    try {
+      const durationNum = durationInput ? parseInt(durationInput, 10) : null;
+      await onCreateLog({
+        activityType: selectedType,
+        durationMinutes:
+          durationNum !== null && !Number.isNaN(durationNum)
+            ? Option.some(durationNum)
+            : Option.none(),
+        note: noteInput.trim() ? Option.some(noteInput.trim()) : Option.none(),
+      });
+      setSelectedType(null);
+      setDurationInput('');
+      setNoteInput('');
+    } finally {
+      setCreating(false);
+    }
+  }, [selectedType, durationInput, noteInput, onCreateLog]);
+
+  const openEdit = React.useCallback((log: ActivityLogApi.ActivityLogEntry) => {
+    setEditingLog(log);
+    setEditType(log.activityType);
+    setEditDuration(
+      Option.match(log.durationMinutes, { onNone: () => '', onSome: (n) => n.toString() }),
+    );
+    setEditNote(Option.match(log.note, { onNone: () => '', onSome: (s) => s }));
+  }, []);
+
+  const handleUpdate = React.useCallback(async () => {
+    if (!editingLog) return;
+    setSaving(true);
+    try {
+      const durationNum = editDuration ? parseInt(editDuration, 10) : null;
+      const parsedDuration =
+        durationNum !== null && !Number.isNaN(durationNum) ? durationNum : null;
+      await onUpdateLog(editingLog.id, {
+        activityType: Option.some(editType),
+        durationMinutes: Option.some(parsedDuration),
+        note: Option.some(editNote.trim() ? editNote.trim() : null),
+      });
+      setEditingLog(null);
+    } finally {
+      setSaving(false);
+    }
+  }, [editingLog, editType, editDuration, editNote, onUpdateLog]);
+
+  const handleDelete = React.useCallback(
+    async (logId: ActivityLog.ActivityLogId) => {
+      setDeletingId(logId);
+      try {
+        await onDeleteLog(logId);
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [onDeleteLog],
+  );
+
+  const groupedByDate = React.useMemo(() => {
+    const groups = new Map<string, ActivityLogApi.ActivityLogEntry[]>();
+    for (const log of logs) {
+      const date = formatDate(log.loggedAt);
+      if (!groups.has(date)) groups.set(date, []);
+      groups.get(date)?.push(log);
+    }
+    return groups;
+  }, [logs]);
+
+  return (
+    <div className='mt-6'>
+      <h2 className='text-lg font-semibold mb-4'>Activity Log</h2>
+
+      {isOwnProfile && (
+        <div className='mb-6 p-4 border rounded-lg'>
+          <p className='text-sm font-medium mb-2'>Log Activity</p>
+          <div className='flex gap-2 mb-3'>
+            {(['gym', 'running', 'stretching'] as ActivityType[]).map((type) => (
+              <Button
+                key={type}
+                type='button'
+                variant={selectedType === type ? 'default' : 'outline'}
+                size='sm'
+                onClick={() => setSelectedType(type)}
+              >
+                {ACTIVITY_TYPE_ICONS[type]}
+              </Button>
+            ))}
+          </div>
+          {selectedType && (
+            <>
+              <div className='flex gap-2 mb-2'>
+                <div className='flex-1'>
+                  <Label htmlFor='log-duration' className='text-xs text-muted-foreground'>
+                    Duration (min, optional)
+                  </Label>
+                  <Input
+                    id='log-duration'
+                    type='number'
+                    min={1}
+                    max={1440}
+                    value={durationInput}
+                    onChange={(e) => setDurationInput(e.target.value)}
+                    placeholder='e.g. 60'
+                  />
+                </div>
+              </div>
+              <div className='mb-3'>
+                <Label htmlFor='log-note' className='text-xs text-muted-foreground'>
+                  Note (optional)
+                </Label>
+                <Input
+                  id='log-note'
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  placeholder='e.g. Leg day'
+                />
+              </div>
+              <Button size='sm' disabled={creating} onClick={handleCreate}>
+                {creating ? 'Logging...' : 'Log Activity'}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {logs.length === 0 ? (
+        <p className='text-muted-foreground'>No activities logged yet.</p>
+      ) : (
+        <div className='flex flex-col gap-4'>
+          {Array.from(groupedByDate.entries()).map(([date, dateLogs]) => (
+            <div key={date}>
+              <p className='text-xs font-semibold text-muted-foreground uppercase mb-1'>{date}</p>
+              <div className='flex flex-col gap-1'>
+                {dateLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className='flex items-center justify-between p-2 rounded border'
+                  >
+                    <div className='flex items-center gap-2'>
+                      <span className='font-medium text-sm'>
+                        {ACTIVITY_TYPE_ICONS[log.activityType]}
+                      </span>
+                      {Option.isSome(log.durationMinutes) && (
+                        <span className='text-xs text-muted-foreground'>
+                          {formatDuration(log.durationMinutes.value)}
+                        </span>
+                      )}
+                      {Option.isSome(log.note) && (
+                        <span className='text-xs text-muted-foreground'>{log.note.value}</span>
+                      )}
+                    </div>
+                    {isOwnProfile && (
+                      <div className='flex gap-1'>
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => openEdit(log)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='sm'
+                          disabled={deletingId === log.id}
+                          onClick={() => {
+                            if (confirm('Delete this activity log?')) {
+                              handleDelete(log.id);
+                            }
+                          }}
+                        >
+                          {deletingId === log.id ? '...' : 'Delete'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Sheet
+        open={editingLog !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingLog(null);
+        }}
+      >
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Edit Activity</SheetTitle>
+          </SheetHeader>
+          <div className='flex flex-col gap-4 mt-4'>
+            <div>
+              <Label className='text-sm font-medium mb-2 block'>Activity Type</Label>
+              <div className='flex gap-2'>
+                {(['gym', 'running', 'stretching'] as ActivityType[]).map((type) => (
+                  <Button
+                    key={type}
+                    type='button'
+                    variant={editType === type ? 'default' : 'outline'}
+                    size='sm'
+                    onClick={() => setEditType(type)}
+                  >
+                    {ACTIVITY_TYPE_ICONS[type]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor='edit-duration' className='text-sm font-medium'>
+                Duration (min, optional)
+              </Label>
+              <Input
+                id='edit-duration'
+                type='number'
+                min={1}
+                max={1440}
+                value={editDuration}
+                onChange={(e) => setEditDuration(e.target.value)}
+                placeholder='e.g. 60'
+              />
+            </div>
+            <div>
+              <Label htmlFor='edit-note' className='text-sm font-medium'>
+                Note (optional)
+              </Label>
+              <Input
+                id='edit-note'
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder='e.g. Leg day'
+              />
+            </div>
+            <Button disabled={saving} onClick={handleUpdate}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
