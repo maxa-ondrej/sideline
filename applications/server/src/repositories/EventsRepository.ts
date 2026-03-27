@@ -287,6 +287,34 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     `,
   });
 
+  private findUpcomingForDashboard = SqlSchema.findAll({
+    Request: Schema.Struct({
+      team_id: Schema.String,
+      team_member_id: Schema.String,
+    }),
+    Result: Schema.Struct({
+      id: Event.EventId,
+      title: Schema.String,
+      event_type: Event.EventType,
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+      location: Schema.OptionFromNullOr(Schema.String),
+      member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+      my_rsvp: Schema.OptionFromNullOr(Schema.String),
+    }),
+    execute: (input) => this.sql`
+      SELECT e.id, e.title, e.event_type, e.start_at, e.end_at,
+             e.location, e.member_group_id,
+             er.response AS my_rsvp
+      FROM events e
+      LEFT JOIN event_rsvps er ON er.event_id = e.id AND er.team_member_id = ${input.team_member_id}
+      WHERE e.team_id = ${input.team_id}
+        AND e.status = 'active'
+        AND e.start_at >= now()
+      ORDER BY e.start_at ASC
+    `,
+  });
+
   private markModified = SqlSchema.void({
     Request: Event.EventId,
     execute: (id) =>
@@ -550,6 +578,11 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
 
   cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: Date) =>
     this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  findUpcomingWithRsvp = (teamId: Team.TeamId, teamMemberId: TeamMember.TeamMemberId) =>
+    this.findUpcomingForDashboard({ team_id: teamId, team_member_id: teamMemberId }).pipe(
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 

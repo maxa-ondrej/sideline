@@ -8,6 +8,8 @@ export * as AgeThresholdApi from './api/AgeThresholdApi.js';
 
 export * as Auth from './api/Auth.js';
 
+export * as DashboardApi from './api/DashboardApi.js';
+
 export * as EventApi from './api/EventApi.js';
 
 export * as EventRsvpApi from './api/EventRsvpApi.js';

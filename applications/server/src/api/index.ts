@@ -5,6 +5,7 @@ import { ActivityStatsApiLive } from '~/api/activity-stats.js';
 import { AgeThresholdApiLive } from '~/api/age-threshold.js';
 import { Api } from '~/api/api.js';
 import { AuthApiLive } from '~/api/auth.js';
+import { DashboardApiLive } from '~/api/dashboard.js';
 import { EventApiLive } from '~/api/event.js';
 import { EventRsvpApiLive } from '~/api/event-rsvp.js';
 import { EventSeriesApiLive } from '~/api/event-series.js';
@@ -21,6 +22,7 @@ import { TrainingTypeApiLive } from '~/api/training-type.js';
 export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(ActivityLogApiLive),
   Layer.provide(ActivityStatsApiLive),
+  Layer.provide(DashboardApiLive),
   Layer.provide(LeaderboardApiLive),
   Layer.provide(AgeThresholdApiLive),
   Layer.provide(AuthApiLive),

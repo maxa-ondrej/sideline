@@ -5,6 +5,7 @@ import { TeamDetailPage } from '~/components/pages/TeamDetailPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/')({
+  ssr: false,
   component: TeamDetailRoute,
   beforeLoad: async ({ context }) => {
     if (context.user && !context.user.isProfileComplete) {
@@ -13,22 +14,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/')({
   },
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    const teams = await ApiClient.pipe(
-      Effect.flatMap((api) => api.auth.myTeams()),
+    return ApiClient.pipe(
+      Effect.flatMap((api) => api.dashboard.getDashboard({ path: { teamId } })),
       warnAndCatchAll,
       context.run,
     );
-    const team = teams.find((t) => t.teamId === teamId);
-    if (!team) {
-      throw redirect({ to: '/create-team' });
-    }
-    return team;
   },
 });
 
 function TeamDetailRoute() {
   const { teamId } = Route.useParams();
-  const team = Route.useLoaderData();
+  const dashboard = Route.useLoaderData();
 
-  return <TeamDetailPage teamId={teamId} team={team} />;
+  return <TeamDetailPage teamId={teamId} dashboard={dashboard} />;
 }
