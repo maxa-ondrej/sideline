@@ -7,6 +7,8 @@ export default defineProject({
     env: {
       DISCORD_BOT_TOKEN: 'token',
       SERVER_URL: 'http://localhost:3000',
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
+      OTEL_SERVICE_NAME: 'sideline-bot',
     },
   },
 });

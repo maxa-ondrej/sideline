@@ -6,9 +6,7 @@ export const makeTelemetryLayer = (options: {
   readonly endpoint: string;
   readonly serviceName: string;
 }): Layer.Layer<never> =>
-  options.endpoint === ''
-    ? Layer.empty
-    : Otlp.layer({
-        baseUrl: options.endpoint,
-        resource: { serviceName: options.serviceName },
-      }).pipe(Layer.provide(NodeHttpClient.layerUndici));
+  Otlp.layer({
+    baseUrl: options.endpoint,
+    resource: { serviceName: options.serviceName },
+  }).pipe(Layer.provide(NodeHttpClient.layerUndici));
