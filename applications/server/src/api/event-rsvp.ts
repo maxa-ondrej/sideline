@@ -9,10 +9,6 @@ import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
-import {
-  autoLogRsvpAttendance,
-  removeAutoLogRsvpAttendance,
-} from '~/services/AutoLogRsvpAttendance.js';
 
 const forbidden = new EventRsvpApi.Forbidden();
 const notFound = new EventRsvpApi.EventNotFound();
@@ -165,31 +161,6 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 .upsertRsvp(eventId, membership.id, payload.response, payload.message)
                 .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
             ),
-            Effect.tap(({ event, membership }) => {
-              const loggedAt = DateTime.toDateUtc(
-                Option.getOrElse(event.end_at, () => event.start_at),
-              );
-              return payload.response === 'yes'
-                ? autoLogRsvpAttendance({
-                    memberId: membership.id,
-                    loggedAt,
-                    eventType: event.event_type,
-                  }).pipe(
-                    Effect.tapDefect((defect) =>
-                      Effect.logWarning('Auto-log RSVP attendance failed', defect),
-                    ),
-                    Effect.ignore,
-                  )
-                : removeAutoLogRsvpAttendance({
-                    memberId: membership.id,
-                    loggedAt,
-                  }).pipe(
-                    Effect.tapDefect((defect) =>
-                      Effect.logWarning('Remove auto-log RSVP attendance failed', defect),
-                    ),
-                    Effect.ignore,
-                  );
-            }),
             Effect.andThen(({ event }) =>
               syncEvents.emitEventUpdated(
                 teamId,

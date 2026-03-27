@@ -19,10 +19,6 @@ import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
-import {
-  autoLogRsvpAttendance,
-  removeAutoLogRsvpAttendance,
-} from '~/services/AutoLogRsvpAttendance.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { constructEvent } from './events.js';
 
@@ -378,31 +374,6 @@ const rpcHandlers = Effect.Do.pipe(
               .upsertRsvp(event_id, member.id, response, message)
               .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
           ),
-          Effect.tap(({ event, member }) => {
-            const loggedAt = DateTime.toDateUtc(
-              Option.getOrElse(event.end_at, () => event.start_at),
-            );
-            return response === 'yes'
-              ? autoLogRsvpAttendance({
-                  memberId: member.id,
-                  loggedAt,
-                  eventType: event.event_type,
-                }).pipe(
-                  Effect.tapDefect((defect) =>
-                    Effect.logWarning('Auto-log RSVP attendance failed', defect),
-                  ),
-                  Effect.ignore,
-                )
-              : removeAutoLogRsvpAttendance({
-                  memberId: member.id,
-                  loggedAt,
-                }).pipe(
-                  Effect.tapDefect((defect) =>
-                    Effect.logWarning('Remove auto-log RSVP attendance failed', defect),
-                  ),
-                  Effect.ignore,
-                );
-          }),
           Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
         ),
   ),

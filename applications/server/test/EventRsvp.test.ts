@@ -760,7 +760,6 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       source: 'auto',
     }),
   findByTeamMember: () => Effect.succeed([]),
-  deleteAutoTrainingLog: () => Effect.void,
 } as unknown as ActivityLogsRepository);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {

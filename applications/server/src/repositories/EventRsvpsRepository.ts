@@ -136,6 +136,17 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
+  private findYesRsvpMemberIds = SqlSchema.findAll({
+    Request: Event.EventId,
+    Result: Schema.Struct({ team_member_id: TeamMember.TeamMemberId }),
+    execute: (eventId) => this.sql`
+      SELECT team_member_id
+      FROM event_rsvps
+      WHERE event_id = ${eventId}
+        AND response = 'yes'
+    `,
+  });
+
   private findNonResponders = SqlSchema.findAll({
     Request: Schema.Struct({
       event_id: Schema.String,
@@ -215,6 +226,12 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
   countRsvpTotal = (eventId: Event.EventId) =>
     this.countTotalByEventId(eventId).pipe(
       Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+
+  findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
+    this.findYesRsvpMemberIds(eventId).pipe(
+      Effect.map((rows) => rows.map((r) => r.team_member_id)),
       Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 }

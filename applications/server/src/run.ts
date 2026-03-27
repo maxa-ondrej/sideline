@@ -7,9 +7,12 @@ import { AfterMigrator, BeforeMigrator } from '@sideline/migrations';
 import { Config, Effect, Layer } from 'effect';
 import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
+import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -20,6 +23,7 @@ import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { EventHorizonCron } from '~/services/EventHorizonCron.js';
 import { RsvpReminderCron } from '~/services/RsvpReminderCron.js';
+import { TrainingAutoLogCron } from '~/services/TrainingAutoLogCron.js';
 
 const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
@@ -100,11 +104,27 @@ const ReminderCron = RsvpReminderCron.pipe(
   Effect.withLogSpan('rsvp-reminder-cron'),
 );
 
+const TrainingAutoLogRepositoriesLive = Layer.mergeAll(
+  EventsRepository.Default,
+  EventRsvpsRepository.Default,
+  ActivityLogsRepository.Default,
+  ActivityTypesRepository.Default,
+);
+
+const AutoLogCron = TrainingAutoLogCron.pipe(
+  Effect.provide(
+    TrainingAutoLogRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
+  ),
+  Effect.withLogSpan('training-auto-log-cron'),
+);
+
 Effect.Do.pipe(
   Effect.tap(() => (env.DATABASE_MAIN !== env.DATABASE_NAME ? CreateDb : Effect.void)),
   Effect.tap(() => MigrateBefore),
   Effect.andThen(() =>
-    Effect.all([App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron], { concurrency: 6 }),
+    Effect.all([App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron, AutoLogCron], {
+      concurrency: 7,
+    }),
   ),
   Runtime.runMain(env.NODE_ENV, env.LOG_LEVEL),
 );

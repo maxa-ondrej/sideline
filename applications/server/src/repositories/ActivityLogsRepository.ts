@@ -147,20 +147,6 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private deleteAutoTrainingLogQuery = SqlSchema.void({
-    Request: Schema.Struct({
-      team_member_id: TeamMember.TeamMemberId,
-      date: Schema.Date,
-    }),
-    execute: (input) => this.sql`
-      DELETE FROM activity_logs
-      WHERE team_member_id = ${input.team_member_id}
-        AND activity_type_id = (SELECT id FROM activity_types WHERE slug = 'training' AND team_id IS NULL)
-        AND source = 'auto'
-        AND ((logged_at AT TIME ZONE 'UTC')::date) = ((${input.date} AT TIME ZONE 'UTC')::date)
-    `,
-  });
-
   findByTeamMember = (teamMemberId: TeamMember.TeamMemberId) =>
     this.findAllQuery(teamMemberId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
 
@@ -257,10 +243,5 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
         ),
       ),
       Effect.asVoid,
-    );
-
-  deleteAutoTrainingLog = (memberId: TeamMember.TeamMemberId, date: Date): Effect.Effect<void> =>
-    this.deleteAutoTrainingLogQuery({ team_member_id: memberId, date }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
     );
 }
