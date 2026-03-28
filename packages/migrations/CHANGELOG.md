@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.12.1
+
+### Patch Changes
+
+- [#123](https://github.com/maxa-ondrej/sideline/pull/123) [`8d97865`](https://github.com/maxa-ondrej/sideline/commit/8d978654612cab81032e51a3e602ddcf07918ac0) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add team profile settings (name, description, sport, logo URL) with new API endpoints, card-based settings page, and Discord channel configuration UI improvements
+
 ## 0.12.0
 
 ### Minor Changes
