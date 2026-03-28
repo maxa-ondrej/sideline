@@ -13,26 +13,18 @@ Follow these phases **in order**. Stop and report if any phase fails. The caller
 
 Invoke each specialist agent directly via the Agent tool from the main thread — do NOT nest them inside a manager agent. This gives the user visibility into each step.
 
-### User input via editor
+### User input via chat
 
-Whenever this skill needs user input (plan approval, confirmation, feedback), open the content in the user's default editor as a markdown file:
+Whenever this skill needs user input (plan approval, confirmation, feedback):
 
-```bash
-TMPFILE=$(mktemp /tmp/claude-XXXXXX.md)
-cat > "$TMPFILE" <<'CONTENT'
-# <Title>
+1. **Display the content** directly in the chat as formatted markdown
+2. **Provide the file link** to the plan file (e.g., the plan markdown file path) so the user can review in their editor if they prefer
+3. **Ask the user** to choose one of:
+   - **Accept** — proceed as-is
+   - **Suggest changes** — provide feedback for revision
+   - **Decline** — stop the skill
 
-<content for the user to review>
-
----
-<!-- Write your feedback below this line. Save and close to continue. -->
-<!-- Leave empty or write "ok" to approve as-is. -->
-CONTENT
-${EDITOR:-vim} "$TMPFILE"
-# Read the user's response from the file after they close the editor
-```
-
-Use this pattern for ALL user interactions — never ask inline questions or wait for chat input.
+Use this pattern for ALL user interactions — ask via chat, never open an editor.
 
 ---
 
@@ -62,7 +54,7 @@ Run the architect and designer **in parallel** (launch both Agent calls in one m
 
 4. If the hater finds **blockers**, send the critique back to the `/architect` and/or `/designer` agent for revision. Repeat architect/designer -> hater until no blockers remain.
 
-5. Present the final plan and design to the user for approval using the **editor pattern** described above. Write both the architect's plan and the designer's design spec as a single markdown document, open it in `$EDITOR`, and read back the user's response. If the user provides feedback, send it back to the relevant agent(s) for revision and repeat.
+5. Present the final plan and design to the user for approval using the **chat pattern** described above. Display both the architect's plan and the designer's design spec as formatted markdown in the chat, provide a link to the plan file, and ask the user to **Accept**, **Suggest changes**, or **Decline**. If the user provides feedback, send it back to the relevant agent(s) for revision and repeat.
 
 ---
 

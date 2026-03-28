@@ -22,8 +22,11 @@ SYSTEM
 Invoke the /work skill to pick up the next item from the Notion sprint and implement it.
 This will plan, code, test, commit, push, open a PR, verify CI, and handle review.
 
-## Step 2: Wait for merge confirmation
-Ask the user to confirm the PR has been merged.
+## Step 2: Ask user what to do with the PR
+Present the PR link and ask the user to choose one of:
+- **Merge** — If the PR is not yet merged, merge it via `gh pr merge --squash`. If already merged, just continue. Then proceed to Step 3.
+- **Suggest changes** — The user provides feedback. Invoke /implement with their suggested changes, then invoke /ship to push and update the PR. Return to Step 2.
+- **Decline** — Leave the PR open as-is, do not merge or close it. Skip to Step 4.
 
 ## Step 3: /complete
 Invoke the /complete skill to finalize Notion statuses.
