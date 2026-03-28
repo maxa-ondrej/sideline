@@ -4,6 +4,9 @@ import { createRootRouteWithContext } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import type React from 'react';
 import { RootDocument } from '~/components/layouts/RootDocument';
+import { RouteErrorComponent } from '~/components/layouts/RouteErrorComponent';
+import { RouteNotFoundComponent } from '~/components/layouts/RouteNotFoundComponent';
+import { RoutePendingComponent } from '~/components/layouts/RoutePendingComponent';
 import { fetchEnv } from '~/env.js';
 import { ApiClient, runPromiseClient, runPromiseServer } from '~/lib/runtime';
 import appCss from '../styles.css?url';
@@ -73,6 +76,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   wrapInSuspense: true,
   ssr: false,
   shellComponent: RootDocumentRoute,
+  errorComponent: RouteErrorComponent,
+  pendingComponent: RoutePendingComponent,
+  notFoundComponent: RouteNotFoundComponent,
   beforeLoad: async ({ abortController }) => {
     const environment = await fetchEnv(abortController);
     const makeRun = runPromiseServer(environment.SERVER_URL);

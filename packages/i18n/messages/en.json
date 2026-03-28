@@ -561,5 +561,14 @@
   "pwa_installDescription": "Install Sideline for a better experience",
   "pwa_installButton": "Install",
   "pwa_dismissButton": "Not now",
-  "pwa_iosInstructions": "Tap the Share button, then 'Add to Home Screen'"
+  "pwa_iosInstructions": "Tap the Share button, then 'Add to Home Screen'",
+  "error_offline": "You're offline",
+  "error_offlineMessage": "It looks like you've lost your internet connection. Check your connection and try again.",
+  "error_title": "Something went wrong",
+  "error_message": "An unexpected error occurred. Please try again.",
+  "error_tryAgain": "Try again",
+  "error_goHome": "Go home",
+  "loading_text": "Loading...",
+  "notFound_title": "Page not found",
+  "notFound_message": "The page you're looking for doesn't exist or has been moved."
 }

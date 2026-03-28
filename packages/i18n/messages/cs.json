@@ -561,5 +561,14 @@
   "pwa_installDescription": "Nainstalujte Sideline pro lepší zážitek",
   "pwa_installButton": "Nainstalovat",
   "pwa_dismissButton": "Teď ne",
-  "pwa_iosInstructions": "Klepněte na tlačítko Sdílet a poté na 'Přidat na plochu'"
+  "pwa_iosInstructions": "Klepněte na tlačítko Sdílet a poté na 'Přidat na plochu'",
+  "error_offline": "Jste offline",
+  "error_offlineMessage": "Vypadá to, že jste ztratili připojení k internetu. Zkontrolujte připojení a zkuste to znovu.",
+  "error_title": "Něco se pokazilo",
+  "error_message": "Došlo k neočekávané chybě. Zkuste to prosím znovu.",
+  "error_tryAgain": "Zkusit znovu",
+  "error_goHome": "Domů",
+  "loading_text": "Načítání...",
+  "notFound_title": "Stránka nenalezena",
+  "notFound_message": "Stránka, kterou hledáte, neexistuje nebo byla přesunuta."
 }
