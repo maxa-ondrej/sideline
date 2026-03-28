@@ -83,7 +83,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
-        run(),
+        run({ success: m.members_playerSaved() }),
       );
       if (Option.isSome(result)) {
         navigate({ to: '/teams/$teamId/members', params: { teamId: teamIdRaw } });
@@ -102,7 +102,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roles_assignFailed())),
-        run(),
+        run({ success: m.role_roleAssigned() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -120,7 +120,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roles_unassignFailed())),
-        run(),
+        run({ success: m.role_roleUnassigned() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -147,7 +147,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
-        run(),
+        run({ success: m.activityLog_logged() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -177,7 +177,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
-        run(),
+        run({ success: m.activityLog_updated() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -195,7 +195,7 @@ function MemberDetailRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
-        run(),
+        run({ success: m.activityLog_deleted() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();

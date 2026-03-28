@@ -34,7 +34,7 @@ export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }
         'Unauthorized',
         () => ClientError.make(m.invite_errors_joinFailed()),
       ),
-      run(),
+      run({ success: m.invite_teamJoined() }),
     );
     setJoining(false);
   }, [code, run, onJoined]);

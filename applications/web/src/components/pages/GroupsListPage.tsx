@@ -171,7 +171,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
         { tag: 'GroupNameAlreadyTaken', field: 'name', message: m.group_nameAlreadyTaken() },
       ]),
       Effect.catchAll(() => ClientError.make(m.group_createFailed())),
-      run(),
+      run({ success: m.group_groupCreated() }),
     );
     if (Option.isSome(result)) {
       form.reset();

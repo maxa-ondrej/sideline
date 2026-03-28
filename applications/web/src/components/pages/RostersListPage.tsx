@@ -50,7 +50,7 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_createFailed())),
-      run(),
+      run({ success: m.roster_rosterCreated() }),
     );
     if (Option.isSome(result)) {
       form.reset();

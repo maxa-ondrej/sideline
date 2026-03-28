@@ -53,7 +53,7 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
         { tag: 'RoleNameAlreadyTaken', field: 'name', message: m.role_nameAlreadyTaken() },
       ]),
       Effect.catchAll(() => ClientError.make(m.role_createFailed())),
-      run(),
+      run({ success: m.role_roleCreated() }),
     );
     if (Option.isSome(result)) {
       form.reset();

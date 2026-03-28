@@ -64,7 +64,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_updateFailed())),
-      run(),
+      run({ success: m.role_roleSaved() }),
     );
     setSaving(false);
     if (Option.isSome(result)) {
