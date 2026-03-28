@@ -85,6 +85,9 @@
   "members_admin": "Admin",
   "members_member": "Člen",
   "members_searchPlaceholder": "Hledat podle jména nebo uživatelského jména",
+  "members_player": "Hráč",
+  "members_jerseyNumber": "#",
+  "members_role": "Role",
   "role_viewRoles": "Zobrazit role",
   "role_roles": "Role",
   "role_createRole": "Vytvořit roli",
@@ -549,5 +552,10 @@
   "activityLog_saveChanges": "Uložit změny",
   "activityLog_logFailed": "Nepodařilo se zaznamenat aktivitu.",
   "activityLog_updateFailed": "Nepodařilo se aktualizovat aktivitu.",
-  "activityLog_deleteFailed": "Nepodařilo se smazat aktivitu."
+  "activityLog_deleteFailed": "Nepodařilo se smazat aktivitu.",
+  "pwa_installTitle": "Nainstalovat Sideline",
+  "pwa_installDescription": "Nainstalujte Sideline pro lepší zážitek",
+  "pwa_installButton": "Nainstalovat",
+  "pwa_dismissButton": "Teď ne",
+  "pwa_iosInstructions": "Klepněte na tlačítko Sdílet a poté na 'Přidat na plochu'"
 }

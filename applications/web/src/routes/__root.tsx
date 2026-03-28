@@ -27,16 +27,40 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
       {
         name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
+        content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
       {
         title: 'Sideline',
+      },
+      {
+        name: 'theme-color',
+        content: '#0a0a0a',
+      },
+      {
+        name: 'apple-mobile-web-app-capable',
+        content: 'yes',
+      },
+      {
+        name: 'apple-mobile-web-app-status-bar-style',
+        content: 'default',
+      },
+      {
+        name: 'apple-mobile-web-app-title',
+        content: 'Sideline',
       },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      {
+        rel: 'manifest',
+        href: '/manifest.json',
+      },
+      {
+        rel: 'apple-touch-icon',
+        href: '/icons/apple-touch-icon.png',
       },
     ],
   }),

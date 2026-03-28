@@ -109,8 +109,12 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
                   >
                     {role.name}
                   </Link>
+                  {/* Show permission count inline on mobile */}
+                  <p className='text-xs text-muted-foreground sm:hidden'>
+                    {m.role_permissionCount({ count: String(role.permissionCount) })}
+                  </p>
                 </td>
-                <td className='py-2 px-4'>
+                <td className='hidden sm:table-cell py-2 px-4'>
                   <span
                     className={
                       role.isBuiltIn
@@ -121,7 +125,7 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
                     {role.isBuiltIn ? m.role_builtIn() : m.role_custom()}
                   </span>
                 </td>
-                <td className='py-2 px-4 text-muted-foreground'>
+                <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
                   {m.role_permissionCount({ count: String(role.permissionCount) })}
                 </td>
                 <td className='py-2 px-4'>

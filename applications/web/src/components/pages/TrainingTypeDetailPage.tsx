@@ -391,14 +391,14 @@ export function TrainingTypeDetailPage({
 
         {/* Group Selectors */}
         {canAdmin && groups.length > 0 && (
-          <div className='flex gap-4'>
+          <div className='flex flex-col gap-4 sm:flex-row'>
             <div className='flex-1'>
               <label htmlFor='owner-group' className='text-sm font-medium mb-1 block'>
                 {m.event_ownerGroup()}
               </label>
               <p className='text-xs text-muted-foreground mb-2'>{m.event_ownerGroupHelp()}</p>
               <Select value={ownerGroupId} onValueChange={setOwnerGroupId}>
-                <SelectTrigger className='max-w-xs'>
+                <SelectTrigger className='w-full sm:max-w-xs'>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,7 +417,7 @@ export function TrainingTypeDetailPage({
               </label>
               <p className='text-xs text-muted-foreground mb-2'>{m.event_memberGroupHelp()}</p>
               <Select value={memberGroupId} onValueChange={setMemberGroupId}>
-                <SelectTrigger className='max-w-xs'>
+                <SelectTrigger className='w-full sm:max-w-xs'>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -443,51 +443,57 @@ export function TrainingTypeDetailPage({
             )}
 
             {activeSeries.length > 0 && (
-              <table className='w-full mb-4'>
-                <tbody>
-                  {activeSeries.map((s) => (
-                    <tr key={s.seriesId} className='border-b'>
-                      <td className='py-2 px-4 font-medium'>{s.title}</td>
-                      <td className='py-2 px-4 text-muted-foreground'>
-                        {s.frequency === 'weekly'
-                          ? m.event_frequency_weekly()
-                          : m.event_frequency_biweekly()}
-                      </td>
-                      <td className='py-2 px-4 text-muted-foreground'>
-                        {s.daysOfWeek.map((d) => dayShortLabels[d]()).join(', ')}
-                      </td>
-                      <td className='py-2 px-4 text-muted-foreground'>
-                        {s.startTime}
-                        {s.endTime.pipe(
-                          Option.map((v) => ` - ${v}`),
-                          Option.getOrElse(() => ''),
-                        )}
-                      </td>
-                      <td className='py-2 px-4 text-muted-foreground'>
-                        {formatLocalDate(s.startDate)} →{' '}
-                        {Option.match(s.endDate, {
-                          onNone: () => m.event_ongoing(),
-                          onSome: formatLocalDate,
-                        })}
-                      </td>
-                      <td className='py-2 px-4'>
-                        <div className='flex gap-2'>
-                          <Button variant='outline' size='sm' onClick={() => handleEditSchedule(s)}>
-                            {m.trainingType_editSchedule()}
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => handleCancelSchedule(s.seriesId)}
-                          >
-                            {m.trainingType_cancelSchedule()}
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className='overflow-x-auto mb-4'>
+                <table className='w-full min-w-[480px]'>
+                  <tbody>
+                    {activeSeries.map((s) => (
+                      <tr key={s.seriesId} className='border-b'>
+                        <td className='py-2 px-4 font-medium'>{s.title}</td>
+                        <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
+                          {s.frequency === 'weekly'
+                            ? m.event_frequency_weekly()
+                            : m.event_frequency_biweekly()}
+                        </td>
+                        <td className='py-2 px-4 text-muted-foreground'>
+                          {s.daysOfWeek.map((d) => dayShortLabels[d]()).join(', ')}
+                        </td>
+                        <td className='py-2 px-4 text-muted-foreground'>
+                          {s.startTime}
+                          {s.endTime.pipe(
+                            Option.map((v) => ` - ${v}`),
+                            Option.getOrElse(() => ''),
+                          )}
+                        </td>
+                        <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
+                          {formatLocalDate(s.startDate)} →{' '}
+                          {Option.match(s.endDate, {
+                            onNone: () => m.event_ongoing(),
+                            onSome: formatLocalDate,
+                          })}
+                        </td>
+                        <td className='py-2 px-4'>
+                          <div className='flex gap-2 flex-wrap'>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => handleEditSchedule(s)}
+                            >
+                              {m.trainingType_editSchedule()}
+                            </Button>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => handleCancelSchedule(s.seriesId)}
+                            >
+                              {m.trainingType_cancelSchedule()}
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {showCreateForm ? (
@@ -512,7 +518,7 @@ export function TrainingTypeDetailPage({
                       )}
                     />
                     {!editingSeriesId && (
-                      <div className='flex gap-4'>
+                      <div className='flex flex-col gap-4 sm:flex-row'>
                         <FormField
                           {...scheduleForm.register('frequency')}
                           render={({ field }) => (
@@ -577,7 +583,7 @@ export function TrainingTypeDetailPage({
                         />
                       </div>
                     )}
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       {!editingSeriesId && (
                         <FormField
                           {...scheduleForm.register('startDate')}
@@ -606,7 +612,7 @@ export function TrainingTypeDetailPage({
                         )}
                       />
                     </div>
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...scheduleForm.register('startTime')}
                         render={({ field }) => (

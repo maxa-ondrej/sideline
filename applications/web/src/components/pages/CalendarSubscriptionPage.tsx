@@ -60,9 +60,9 @@ export function CalendarSubscriptionPage({ teamId, icalToken }: CalendarSubscrip
 
       <div className='space-y-2'>
         <span className='text-sm font-medium'>{m.ical_subscribeUrl()}</span>
-        <div className='flex gap-2'>
-          <Input value={url} readOnly className='font-mono text-sm' />
-          <Button variant='outline' onClick={handleCopy}>
+        <div className='flex flex-col gap-2 sm:flex-row'>
+          <Input value={url} readOnly className='font-mono text-sm flex-1' />
+          <Button variant='outline' onClick={handleCopy} className='shrink-0'>
             {copied ? m.ical_copied() : m.ical_copyUrl()}
           </Button>
         </div>

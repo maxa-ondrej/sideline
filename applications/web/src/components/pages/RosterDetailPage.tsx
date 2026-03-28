@@ -119,7 +119,7 @@ export function RosterDetailPage({
             ← {m.roster_backToRosters()}
           </Link>
         </Button>
-        <div className='flex items-center gap-4'>
+        <div className='flex flex-wrap items-center gap-3'>
           <h1 className='text-2xl font-bold'>{rosterDetail.name}</h1>
           <span
             className={
@@ -170,24 +170,25 @@ export function RosterDetailPage({
           <tbody>
             {rosterDetail.members.map((player) => {
               const displayName = Option.getOrElse(player.name, () => player.username);
+              const jerseyNumber = player.jerseyNumber.pipe(
+                Option.map((v) => `#${v}`),
+                Option.getOrElse(() => '—'),
+              );
               return (
                 <tr key={player.memberId} className='border-b'>
                   <td className='py-2 px-4'>
-                    {Option.isSome(player.avatar) ? (
-                      <img
-                        src={`https://cdn.discordapp.com/avatars/${player.userId}/${player.avatar.value}.png?size=32`}
-                        alt={displayName}
-                        className='w-8 h-8 rounded-full inline-block mr-2'
-                      />
-                    ) : null}
-                    {displayName}
+                    <div className='flex items-center gap-2'>
+                      {Option.isSome(player.avatar) ? (
+                        <img
+                          src={`https://cdn.discordapp.com/avatars/${player.userId}/${player.avatar.value}.png?size=32`}
+                          alt={displayName}
+                          className='w-8 h-8 rounded-full shrink-0'
+                        />
+                      ) : null}
+                      <span className='truncate'>{displayName}</span>
+                    </div>
                   </td>
-                  <td className='py-2 px-4'>
-                    {player.jerseyNumber.pipe(
-                      Option.map((v) => `#${v}`),
-                      Option.getOrElse(() => '—'),
-                    )}
-                  </td>
+                  <td className='hidden sm:table-cell py-2 px-4'>{jerseyNumber}</td>
                   {canManage && (
                     <td className='py-2 px-4'>
                       <Button

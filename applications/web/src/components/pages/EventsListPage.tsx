@@ -331,7 +331,7 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...form.register('eventType')}
                         render={({ field }) => (
@@ -384,7 +384,7 @@ export function EventsListPage({
                         />
                       )}
                     </div>
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...form.register('startDate')}
                         render={({ field }) => (
@@ -414,7 +414,7 @@ export function EventsListPage({
                         )}
                       />
                     </div>
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...form.register('endDate')}
                         render={({ field }) => (
@@ -499,7 +499,7 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...form.register('ownerGroupId')}
                         render={({ field }) => (
@@ -582,7 +582,7 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...seriesForm.register('trainingTypeId')}
                         render={({ field }) => (
@@ -668,7 +668,7 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...seriesForm.register('startDate')}
                         render={({ field }) => (
@@ -703,7 +703,7 @@ export function EventsListPage({
                         )}
                       />
                     </div>
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...seriesForm.register('startTime')}
                         render={({ field }) => (
@@ -784,7 +784,7 @@ export function EventsListPage({
                         </FormItem>
                       )}
                     />
-                    <div className='flex gap-4'>
+                    <div className='flex flex-col gap-4 sm:flex-row'>
                       <FormField
                         {...seriesForm.register('ownerGroupId')}
                         render={({ field }) => (
@@ -856,67 +856,69 @@ export function EventsListPage({
           {events.length === 0 ? (
             <p className='text-muted-foreground'>{m.event_noEvents()}</p>
           ) : (
-            <table className='w-full'>
-              <tbody>
-                {events.map((event) => (
-                  <tr key={event.eventId} className='border-b'>
-                    <td className='py-2 px-4'>
-                      <Link
-                        to='/teams/$teamId/events/$eventId'
-                        params={{ teamId, eventId: event.eventId }}
-                        className='font-medium hover:underline'
-                      >
-                        {event.title}
-                      </Link>
-                      {Option.isSome(event.seriesId) && (
-                        <span className='ml-2 text-xs text-muted-foreground'>
-                          {m.event_recurring()}
-                        </span>
-                      )}
-                    </td>
-                    <td className='py-2 px-4 text-muted-foreground'>
-                      {eventTypeLabels[event.eventType]()}
-                    </td>
-                    <td className='py-2 px-4 text-muted-foreground'>
-                      {Option.getOrNull(event.trainingTypeName)}
-                    </td>
-                    <td className='py-2 px-4 text-muted-foreground'>
-                      {formatLocalDate(event.startAt)}
-                    </td>
-                    <td className='py-2 px-4 text-muted-foreground'>
-                      {formatLocalTime(event.startAt)}
-                      {event.endAt.pipe(
-                        Option.map((v) => ` - ${formatLocalTime(v)}`),
-                        Option.getOrElse(() => ''),
-                      )}
-                    </td>
-                    <td className='py-2 px-4'>
-                      <span
-                        className={
-                          event.status === 'active'
-                            ? 'text-green-700 font-medium'
-                            : 'text-muted-foreground line-through'
-                        }
-                      >
-                        {event.status === 'active'
-                          ? m.event_status_active()
-                          : m.event_status_cancelled()}
-                      </span>
-                    </td>
-                    <td className='py-2 px-4'>
-                      <Button asChild variant='outline' size='sm'>
+            <div className='overflow-x-auto'>
+              <table className='w-full min-w-[480px]'>
+                <tbody>
+                  {events.map((event) => (
+                    <tr key={event.eventId} className='border-b'>
+                      <td className='py-2 px-4'>
                         <Link
                           to='/teams/$teamId/events/$eventId'
                           params={{ teamId, eventId: event.eventId }}
+                          className='font-medium hover:underline'
                         >
-                          View
+                          {event.title}
                         </Link>
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        {Option.isSome(event.seriesId) && (
+                          <span className='ml-2 text-xs text-muted-foreground'>
+                            {m.event_recurring()}
+                          </span>
+                        )}
+                      </td>
+                      <td className='py-2 px-4 text-muted-foreground whitespace-nowrap'>
+                        {eventTypeLabels[event.eventType]()}
+                      </td>
+                      <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
+                        {Option.getOrNull(event.trainingTypeName)}
+                      </td>
+                      <td className='py-2 px-4 text-muted-foreground whitespace-nowrap'>
+                        {formatLocalDate(event.startAt)}
+                      </td>
+                      <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground whitespace-nowrap'>
+                        {formatLocalTime(event.startAt)}
+                        {event.endAt.pipe(
+                          Option.map((v) => ` - ${formatLocalTime(v)}`),
+                          Option.getOrElse(() => ''),
+                        )}
+                      </td>
+                      <td className='hidden sm:table-cell py-2 px-4'>
+                        <span
+                          className={
+                            event.status === 'active'
+                              ? 'text-green-700 font-medium'
+                              : 'text-muted-foreground line-through'
+                          }
+                        >
+                          {event.status === 'active'
+                            ? m.event_status_active()
+                            : m.event_status_cancelled()}
+                        </span>
+                      </td>
+                      <td className='py-2 px-4'>
+                        <Button asChild variant='outline' size='sm'>
+                          <Link
+                            to='/teams/$teamId/events/$eventId'
+                            params={{ teamId, eventId: event.eventId }}
+                          >
+                            View
+                          </Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </>
       )}

@@ -122,8 +122,11 @@ export function TrainingTypesListPage({
                   >
                     {tt.name}
                   </Link>
+                  <p className='text-xs text-muted-foreground sm:hidden'>
+                    {Option.getOrElse(tt.ownerGroupName, () => m.trainingType_noGroup())}
+                  </p>
                 </td>
-                <td className='py-2 px-4 text-muted-foreground'>
+                <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
                   {Option.getOrElse(tt.ownerGroupName, () => m.trainingType_noGroup())}
                 </td>
                 <td className='py-2 px-4'>

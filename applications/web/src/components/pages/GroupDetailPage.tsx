@@ -259,20 +259,22 @@ export function GroupDetailPage({
           <label htmlFor='group-name' className='text-sm font-medium mb-1 block'>
             {m.group_rename()}
           </label>
-          <div className='flex gap-2'>
-            <Input
-              id='group-emoji'
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              className='w-16'
-              placeholder='Emoji'
-            />
-            <Input
-              id='group-name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className='flex-1'
-            />
+          <div className='flex flex-col gap-2 sm:flex-row'>
+            <div className='flex gap-2 flex-1'>
+              <Input
+                id='group-emoji'
+                value={emoji}
+                onChange={(e) => setEmoji(e.target.value)}
+                className='w-16 shrink-0'
+                placeholder='Emoji'
+              />
+              <Input
+                id='group-name'
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className='flex-1'
+              />
+            </div>
             <Button
               onClick={handleSaveName}
               disabled={

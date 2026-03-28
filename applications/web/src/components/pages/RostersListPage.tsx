@@ -106,8 +106,15 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
                   >
                     {roster.name}
                   </Link>
+                  <p className='text-xs text-muted-foreground sm:hidden'>
+                    <span className={roster.active ? 'text-green-700 font-medium' : 'font-medium'}>
+                      {roster.active ? m.roster_active() : m.roster_inactive()}
+                    </span>
+                    {' · '}
+                    {roster.memberCount} members
+                  </p>
                 </td>
-                <td className='py-2 px-4'>
+                <td className='hidden sm:table-cell py-2 px-4'>
                   <span
                     className={
                       roster.active
@@ -118,7 +125,9 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
                     {roster.active ? m.roster_active() : m.roster_inactive()}
                   </span>
                 </td>
-                <td className='py-2 px-4 text-muted-foreground'>{roster.memberCount} members</td>
+                <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
+                  {roster.memberCount} members
+                </td>
                 <td className='py-2 px-4'>
                   <Button asChild variant='outline' size='sm'>
                     <Link

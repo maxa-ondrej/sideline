@@ -85,6 +85,9 @@
   "members_admin": "Admin",
   "members_member": "Member",
   "members_searchPlaceholder": "Search by name or username",
+  "members_player": "Player",
+  "members_jerseyNumber": "#",
+  "members_role": "Role",
   "role_viewRoles": "View Roles",
   "role_roles": "Roles",
   "role_createRole": "Create Role",
@@ -549,5 +552,10 @@
   "activityLog_saveChanges": "Save Changes",
   "activityLog_logFailed": "Failed to log activity.",
   "activityLog_updateFailed": "Failed to update activity.",
-  "activityLog_deleteFailed": "Failed to delete activity."
+  "activityLog_deleteFailed": "Failed to delete activity.",
+  "pwa_installTitle": "Install Sideline",
+  "pwa_installDescription": "Install Sideline for a better experience",
+  "pwa_installButton": "Install",
+  "pwa_dismissButton": "Not now",
+  "pwa_iosInstructions": "Tap the Share button, then 'Add to Home Screen'"
 }

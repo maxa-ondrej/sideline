@@ -324,7 +324,7 @@ export function EventDetailPage({
           </Link>
         </Button>
         <h1 className='text-2xl font-bold'>{eventDetail.title}</h1>
-        <div className='flex gap-4 text-sm text-muted-foreground mt-1'>
+        <div className='flex flex-wrap gap-2 sm:gap-4 text-sm text-muted-foreground mt-1'>
           <span>{eventTypeLabels[eventDetail.eventType]()}</span>
           <span
             className={
@@ -364,7 +364,7 @@ export function EventDetailPage({
                 )}
               />
 
-              <div className='flex gap-4'>
+              <div className='flex flex-col gap-4 sm:flex-row'>
                 <FormField
                   {...form.register('eventType')}
                   render={({ field }) => (
@@ -416,7 +416,7 @@ export function EventDetailPage({
                 )}
               </div>
 
-              <div className='flex gap-4'>
+              <div className='flex flex-col gap-4 sm:flex-row'>
                 <FormField
                   {...form.register('startDate')}
                   render={({ field }) => (
@@ -447,7 +447,7 @@ export function EventDetailPage({
                 />
               </div>
 
-              <div className='flex gap-4'>
+              <div className='flex flex-col gap-4 sm:flex-row'>
                 <FormField
                   {...form.register('endDate')}
                   render={({ field }) => (
@@ -533,7 +533,7 @@ export function EventDetailPage({
                 )}
               />
 
-              <div className='flex gap-4'>
+              <div className='flex flex-col gap-4 sm:flex-row'>
                 <FormField
                   {...form.register('ownerGroupId')}
                   render={({ field }) => (

@@ -1,8 +1,9 @@
 import type { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
-import { Link, Outlet, useMatches } from '@tanstack/react-router';
+import { Link, Outlet, useMatches, useRouter } from '@tanstack/react-router';
 import React from 'react';
 import { AppSidebar } from '~/components/layouts/AppSidebar';
+import { PwaInstallPrompt } from '~/components/molecules/PwaInstallPrompt.js';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +13,7 @@ import {
   BreadcrumbSeparator,
 } from '~/components/ui/breadcrumb';
 import { Separator } from '~/components/ui/separator';
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '~/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger, useSidebar } from '~/components/ui/sidebar';
 
 interface BreadcrumbEntry {
   label: string;
@@ -96,19 +97,28 @@ interface AuthenticatedLayoutProps {
   onLogout: () => void;
 }
 
-export function AuthenticatedLayout({
+function AuthenticatedLayoutContent({
   user,
   teams,
   activeTeam,
   onLogout,
 }: AuthenticatedLayoutProps) {
   const breadcrumbs = useBreadcrumbs();
+  const { setOpenMobile } = useSidebar();
+  const router = useRouter();
+
+  React.useEffect(() => {
+    const unsubscribe = router.subscribe('onBeforeNavigate', () => {
+      setOpenMobile(false);
+    });
+    return unsubscribe;
+  }, [router, setOpenMobile]);
 
   return (
-    <SidebarProvider>
+    <>
       <AppSidebar user={user} teams={teams} activeTeam={activeTeam} onLogout={onLogout} />
       <SidebarInset>
-        <header className='flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12'>
+        <header className='sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur transition-[width,height] ease-linear supports-[backdrop-filter]:bg-background/60 group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 pt-[env(safe-area-inset-top)]'>
           <div className='flex items-center gap-2 px-4'>
             <SidebarTrigger className='-ml-1' />
             <Separator orientation='vertical' className='mr-2 h-4' />
@@ -138,10 +148,29 @@ export function AuthenticatedLayout({
             </Breadcrumb>
           </div>
         </header>
+        <PwaInstallPrompt />
         <div className='flex flex-1 flex-col gap-4 p-4 pt-0'>
           <Outlet />
         </div>
       </SidebarInset>
+    </>
+  );
+}
+
+export function AuthenticatedLayout({
+  user,
+  teams,
+  activeTeam,
+  onLogout,
+}: AuthenticatedLayoutProps) {
+  return (
+    <SidebarProvider>
+      <AuthenticatedLayoutContent
+        user={user}
+        teams={teams}
+        activeTeam={activeTeam}
+        onLogout={onLogout}
+      />
     </SidebarProvider>
   );
 }

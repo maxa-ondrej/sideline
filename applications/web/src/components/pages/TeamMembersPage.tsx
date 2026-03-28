@@ -44,13 +44,27 @@ export function TeamMembersPage({
           placeholder={m.members_searchPlaceholder()}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className='max-w-xs'
+          className='w-full sm:max-w-xs'
         />
       </div>
       {filtered.length === 0 ? (
         <p className='text-muted-foreground'>{m.members_noPlayers()}</p>
       ) : (
         <table className='w-full'>
+          <thead>
+            <tr className='border-b'>
+              <th className='py-2 px-4 text-left text-sm font-medium text-muted-foreground'>
+                {m.members_player()}
+              </th>
+              <th className='hidden md:table-cell py-2 px-4 text-left text-sm font-medium text-muted-foreground'>
+                {m.members_jerseyNumber()}
+              </th>
+              <th className='hidden md:table-cell py-2 px-4 text-left text-sm font-medium text-muted-foreground'>
+                {m.members_role()}
+              </th>
+              <th className='py-2 px-4' />
+            </tr>
+          </thead>
           <tbody>
             {filtered.map((player) => (
               <PlayerRow
