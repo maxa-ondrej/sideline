@@ -163,7 +163,11 @@ export const runPromiseClient =
       Effect.tap(() =>
         Effect.sync(() => {
           if (toastId !== undefined) {
-            toast.success(options?.success ?? 'Done', { id: toastId });
+            if (options?.success) {
+              toast.success(options.success, { id: toastId });
+            } else {
+              toast.dismiss(toastId);
+            }
           } else if (options?.success) {
             toast.success(options.success);
           }
