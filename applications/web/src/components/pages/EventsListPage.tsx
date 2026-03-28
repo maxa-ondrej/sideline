@@ -209,7 +209,7 @@ export function EventsListPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_createFailed())),
-      run(),
+      run({ success: m.event_eventCreated() }),
     );
     if (Option.isSome(result)) {
       form.reset();
@@ -252,7 +252,7 @@ export function EventsListPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_createSeriesFailed())),
-      run(),
+      run({ success: m.event_seriesCreated() }),
     );
     if (Option.isSome(result)) {
       seriesForm.reset();

@@ -70,7 +70,7 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-      run(),
+      run({ success: m.group_groupSaved() }),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -127,7 +127,7 @@ export function GroupDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-      run(),
+      run({ success: m.group_roleAssigned() }),
     );
     if (Option.isSome(result)) {
       setSelectedRoleId('');
@@ -145,7 +145,7 @@ export function GroupDetailPage({
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
-        run(),
+        run({ success: m.group_roleUnassigned() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();

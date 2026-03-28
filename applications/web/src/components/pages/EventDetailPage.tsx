@@ -182,7 +182,7 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_updateFailed())),
-      run(),
+      run({ success: m.event_eventSaved() }),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -233,7 +233,7 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_updateSeriesFailed())),
-      run(),
+      run({ success: m.event_seriesSaved() }),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -306,7 +306,7 @@ export function EventDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
-      run(),
+      run({ success: m.event_rsvpSubmitted() }),
     );
     setRsvpSubmitting(false);
     if (Option.isSome(result)) {

@@ -154,7 +154,7 @@ export function TrainingTypeDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_updateFailed())),
-      run(),
+      run({ success: m.trainingType_saved() }),
     );
     setSaving(false);
     if (Option.isSome(result)) {
@@ -210,7 +210,7 @@ export function TrainingTypeDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_createScheduleFailed())),
-      run(),
+      run({ success: m.trainingType_scheduleCreated() }),
     );
     if (Option.isSome(result)) {
       scheduleForm.reset({ ...scheduleForm.formState.defaultValues } as Record<string, string>);

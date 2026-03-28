@@ -66,7 +66,7 @@ export function TrainingTypesListPage({
         },
       ]),
       Effect.catchAll(() => ClientError.make(m.trainingType_createFailed())),
-      run(),
+      run({ success: m.trainingType_created() }),
     );
     if (Option.isSome(result)) {
       form.reset();

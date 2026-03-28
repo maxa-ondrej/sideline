@@ -102,7 +102,7 @@ function MakanickoRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
-        run(),
+        run({ success: m.activityLog_logged() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -133,7 +133,7 @@ function MakanickoRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
-        run(),
+        run({ success: m.activityLog_updated() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();
@@ -152,7 +152,7 @@ function MakanickoRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
-        run(),
+        run({ success: m.activityLog_deleted() }),
       );
       if (Option.isSome(result)) {
         router.invalidate();

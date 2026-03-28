@@ -50,7 +50,7 @@ function CreateTeamRoute() {
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.dashboard_createFailed())),
-        run(),
+        run({ success: m.team_teamCreated() }),
       );
       if (Option.isSome(result)) {
         const teamId = result.value.teamId;

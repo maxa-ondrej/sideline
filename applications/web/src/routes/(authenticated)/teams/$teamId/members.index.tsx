@@ -36,6 +36,7 @@ function MembersRoute() {
 
   const handleDeactivate = React.useCallback(
     async (memberIdRaw: string) => {
+      if (!window.confirm(m.members_deactivateConfirm())) return;
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
       const result = await ApiClient.pipe(
         Effect.flatMap((api) => api.roster.deactivateMember({ path: { teamId, memberId } })),

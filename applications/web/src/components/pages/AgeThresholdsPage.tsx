@@ -73,7 +73,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.ageThreshold_createFailed())),
-      run(),
+      run({ success: m.ageThreshold_created() }),
     );
     if (Option.isSome(result)) {
       form.reset();
@@ -110,7 +110,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.ageThreshold_evaluateFailed())),
-      run(),
+      run({ success: m.ageThreshold_evaluated() }),
     );
     setEvaluating(false);
     if (Option.isSome(result)) {

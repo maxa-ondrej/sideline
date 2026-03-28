@@ -144,7 +144,7 @@ export const runPromiseClient =
   async <A>(
     effect: Effect.Effect<A, ClientError | SilentClientError, ApiClient | ClientConfig>,
   ): Promise<Option.Option<A>> => {
-    const toastId = options ? toast.loading(options.loading ?? 'Loading...') : undefined;
+    const toastId = options?.loading ? toast.loading(options.loading) : undefined;
     const effectResponse = effect.pipe(
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
@@ -163,7 +163,13 @@ export const runPromiseClient =
       Effect.tap(() =>
         Effect.sync(() => {
           if (toastId !== undefined) {
-            toast.success(options?.success ?? 'Done', { id: toastId });
+            if (options?.success) {
+              toast.success(options.success, { id: toastId });
+            } else {
+              toast.dismiss(toastId);
+            }
+          } else if (options?.success) {
+            toast.success(options.success);
           }
         }),
       ),

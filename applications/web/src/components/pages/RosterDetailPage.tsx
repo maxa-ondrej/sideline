@@ -50,7 +50,7 @@ export function RosterDetailPage({
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
-      run(),
+      run({ success: m.roster_rosterUpdated() }),
     );
     if (Option.isSome(result)) {
       router.invalidate();

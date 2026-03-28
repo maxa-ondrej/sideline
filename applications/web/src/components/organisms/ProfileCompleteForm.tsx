@@ -77,7 +77,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.profile_complete_saveFailed())),
-      run(),
+      run({ success: m.profile_profileCompleted() }),
     );
     if (Option.isSome(result)) {
       onSuccess();
