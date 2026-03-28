@@ -1,7 +1,10 @@
 import * as m from '@sideline/i18n/messages';
 import { Effect } from 'effect';
+import { Users } from 'lucide-react';
 import React from 'react';
+import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface InvitePageProps {
@@ -37,16 +40,40 @@ export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }
   }, [code, run, onJoined]);
 
   return (
-    <div>
-      <h1>{m.invite_joinTitle({ teamName: invite.teamName })}</h1>
-      <p>{m.invite_joinDescription({ teamName: invite.teamName })}</p>
-      {isAuthenticated ? (
-        <Button onClick={handleJoin} disabled={joining}>
-          {joining ? m.invite_joining() : m.invite_joinButton()}
-        </Button>
-      ) : (
-        <Button onClick={onSignIn}>{m.invite_signInToJoin()}</Button>
-      )}
+    <div className='flex min-h-screen flex-col'>
+      <header className='flex items-center justify-between px-6 py-4 border-b'>
+        <span className='text-lg font-bold'>{m.app_name()}</span>
+        <div className='flex items-center gap-3'>
+          <LanguageSwitcher isAuthenticated={false} />
+        </div>
+      </header>
+
+      <main className='flex flex-1 flex-col items-center justify-center px-6 py-12'>
+        <Card className='w-full max-w-sm'>
+          <CardHeader className='text-center'>
+            <div className='flex justify-center mb-2'>
+              <div className='flex size-12 items-center justify-center rounded-full bg-muted'>
+                <Users className='size-6 text-muted-foreground' />
+              </div>
+            </div>
+            <CardTitle>{m.invite_joinTitle({ teamName: invite.teamName })}</CardTitle>
+            <CardDescription>
+              {m.invite_joinDescription({ teamName: invite.teamName })}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='flex justify-center'>
+            {isAuthenticated ? (
+              <Button onClick={handleJoin} disabled={joining} className='w-full'>
+                {joining ? m.invite_joining() : m.invite_joinButton()}
+              </Button>
+            ) : (
+              <Button onClick={onSignIn} className='w-full'>
+                {m.invite_signInToJoin()}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

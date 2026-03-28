@@ -327,7 +327,7 @@ function ActivityCard({
         <div className='flex items-center justify-between'>
           <CardTitle className='text-base'>{m.dashboard_activitySummary()}</CardTitle>
           <Button asChild variant='ghost' size='sm'>
-            <Link to='/teams/$teamId/leaderboard' params={{ teamId }}>
+            <Link to='/teams/$teamId/workout' params={{ teamId }}>
               {m.dashboard_viewLeaderboard()}
               <ChevronRight className='size-4' />
             </Link>

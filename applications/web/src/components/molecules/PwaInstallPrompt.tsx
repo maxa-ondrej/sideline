@@ -11,7 +11,7 @@ export function PwaInstallPrompt() {
   }
 
   return (
-    <div className='mx-4 mt-4 flex items-start gap-3 rounded-lg border bg-card px-4 py-3 text-card-foreground shadow-sm'>
+    <div className='mx-4 my-4 flex items-start gap-3 rounded-lg border bg-card px-4 py-3 text-card-foreground shadow-sm'>
       <div className='flex shrink-0 items-center pt-0.5'>
         {isIOS ? (
           <Share className='h-5 w-5 text-muted-foreground' />

@@ -7,7 +7,7 @@ import React from 'react';
 import { MakanickoPage } from '~/components/pages/MakanickoPage.js';
 import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 
-export const Route = createFileRoute('/(authenticated)/teams/$teamId/makanicko')({
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
   ssr: false,
   component: MakanickoRoute,
   loader: async ({ params, context }) => {
@@ -171,6 +171,7 @@ function MakanickoRoute() {
 
   return (
     <MakanickoPage
+      teamId={teamIdRaw}
       leaderboardEntries={data?.leaderboard.entries ?? []}
       currentUserId={user.id}
       activityStats={data?.activityStats ?? defaultStats}

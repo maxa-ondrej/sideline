@@ -7,6 +7,7 @@ import { NotFound } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
   component: AuthenticatedLayoutRoute,
+  ssr: false,
   loader: ({ context, params }) =>
     Effect.Do.pipe(
       Effect.let('teams', () => context.teams),

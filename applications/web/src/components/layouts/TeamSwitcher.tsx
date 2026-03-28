@@ -1,6 +1,7 @@
 import type { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
+import { Option } from 'effect';
 import { ChevronsUpDown, Plus, Users } from 'lucide-react';
 import {
   DropdownMenu,
@@ -36,9 +37,17 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
               size='lg'
               className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
             >
-              <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground'>
-                <Users className='size-4' />
-              </div>
+              {activeTeam && Option.isSome(activeTeam.logoUrl) ? (
+                <img
+                  src={activeTeam.logoUrl.value}
+                  alt=''
+                  className='aspect-square size-8 rounded-lg object-cover'
+                />
+              ) : (
+                <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-sm font-bold'>
+                  {activeTeam?.teamName.charAt(0).toUpperCase() ?? <Users className='size-4' />}
+                </div>
+              )}
               <div className='grid flex-1 text-left text-sm leading-tight'>
                 <span className='truncate font-semibold'>
                   {activeTeam?.teamName ?? m.nav_selectTeam()}
@@ -62,9 +71,17 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
             {teams.map((team, index) => (
               <DropdownMenuItem key={team.teamId} className='gap-2 p-2' asChild>
                 <Link to='/teams/$teamId' params={{ teamId: team.teamId }}>
-                  <div className='flex size-6 items-center justify-center rounded-sm border'>
-                    <Users className='size-4 shrink-0' />
-                  </div>
+                  {Option.isSome(team.logoUrl) ? (
+                    <img
+                      src={team.logoUrl.value}
+                      alt=''
+                      className='size-6 rounded-sm object-cover'
+                    />
+                  ) : (
+                    <div className='flex size-6 items-center justify-center rounded-sm border text-xs font-bold'>
+                      {team.teamName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   {team.teamName}
                   {index < 9 && (
                     <DropdownMenuShortcut>

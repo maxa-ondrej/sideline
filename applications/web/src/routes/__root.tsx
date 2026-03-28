@@ -9,6 +9,7 @@ import { RouteNotFoundComponent } from '~/components/layouts/RouteNotFoundCompon
 import { RoutePendingComponent } from '~/components/layouts/RoutePendingComponent';
 import { fetchEnv } from '~/env.js';
 import { ApiClient, runPromiseClient, runPromiseServer } from '~/lib/runtime';
+import { ThemeProvider } from '~/lib/theme.js';
 import appCss from '../styles.css?url';
 
 const getCurrentUser = ApiClient.pipe(
@@ -99,5 +100,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 function RootDocumentRoute({ children }: { children: React.ReactNode }) {
   const { serverUrl } = Route.useRouteContext();
 
-  return <RootDocument run={runPromiseClient(serverUrl)}>{children}</RootDocument>;
+  return (
+    <ThemeProvider>
+      <RootDocument run={runPromiseClient(serverUrl)}>{children}</RootDocument>
+    </ThemeProvider>
+  );
 }
