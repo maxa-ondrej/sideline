@@ -348,7 +348,7 @@ export function EventDetailPage({
         </div>
       )}
 
-      <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_340px]'>
+      <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_380px]'>
         <div className='order-2 lg:order-1'>
           <div className='flex flex-col gap-6 max-w-lg'>
             {eventDetail.canEdit && isActive ? (

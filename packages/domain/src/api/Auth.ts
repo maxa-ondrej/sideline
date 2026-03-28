@@ -19,6 +19,7 @@ export const DEFAULT_BIRTH_YEAR_OFFSET = 18;
 export class UserTeam extends Schema.Class<UserTeam>('UserTeam')({
   teamId: TeamId,
   teamName: Schema.String,
+  logoUrl: Schema.OptionFromNullOr(Schema.String),
   roleNames: Schema.Array(Schema.String),
   permissions: Schema.Array(Permission),
 }) {}

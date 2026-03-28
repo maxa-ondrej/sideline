@@ -171,6 +171,7 @@ function MakanickoRoute() {
 
   return (
     <MakanickoPage
+      teamId={teamIdRaw}
       leaderboardEntries={data?.leaderboard.entries ?? []}
       currentUserId={user.id}
       activityStats={data?.activityStats ?? defaultStats}

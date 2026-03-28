@@ -296,10 +296,10 @@ export function EventsListPage({
       {viewMode === 'calendar' ? (
         <EventCalendarView teamId={teamId} events={events} trainingTypes={trainingTypes} />
       ) : (
-        <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_340px]'>
-          <div className='order-2 lg:order-1'>
+        <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_420px]'>
+          <div className='order-2 lg:order-2 lg:sticky lg:top-20 lg:self-start'>
             {canCreate && (
-              <div className='mb-8 max-w-lg'>
+              <div className='mb-8'>
                 <div className='flex gap-2 mb-4'>
                   <Button
                     variant={mode === 'one-time' ? 'default' : 'outline'}
@@ -860,7 +860,7 @@ export function EventsListPage({
               </div>
             )}
           </div>
-          <div className='order-1 lg:order-2 lg:sticky lg:top-20 lg:self-start'>
+          <div className='order-1 lg:order-1'>
             {events.length === 0 ? (
               <p className='text-muted-foreground'>{m.event_noEvents()}</p>
             ) : (

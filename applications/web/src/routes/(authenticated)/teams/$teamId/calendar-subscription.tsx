@@ -16,7 +16,8 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/calendar-su
 });
 
 function CalendarSubscriptionRoute() {
+  const { teamId } = Route.useParams();
   const icalToken = Route.useLoaderData();
 
-  return <CalendarSubscriptionPage icalToken={icalToken} />;
+  return <CalendarSubscriptionPage teamId={teamId} icalToken={icalToken} />;
 }

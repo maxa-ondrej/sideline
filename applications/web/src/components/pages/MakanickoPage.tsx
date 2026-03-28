@@ -6,13 +6,16 @@ import type {
   LeaderboardApi,
 } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
+import { Link } from '@tanstack/react-router';
 import type { Option } from 'effect';
 import { ActivityLogList } from '~/components/organisms/ActivityLogList.js';
 import { ActivityStatsCard } from '~/components/organisms/ActivityStatsCard.js';
 import { LeaderboardPage } from '~/components/pages/LeaderboardPage.js';
+import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 
 interface MakanickoPageProps {
+  teamId: string;
   leaderboardEntries: ReadonlyArray<LeaderboardApi.LeaderboardEntry>;
   currentUserId: string;
   activityStats: ActivityStatsApi.ActivityStatsResponse;
@@ -35,6 +38,7 @@ interface MakanickoPageProps {
 }
 
 export function MakanickoPage({
+  teamId,
   leaderboardEntries,
   currentUserId,
   activityStats,
@@ -46,7 +50,14 @@ export function MakanickoPage({
 }: MakanickoPageProps) {
   return (
     <div className='flex flex-col gap-6'>
-      <h1 className='text-2xl font-bold'>{m.makanicko_title()}</h1>
+      <header>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId' params={{ teamId }}>
+            ← {m.team_backToTeams()}
+          </Link>
+        </Button>
+        <h1 className='text-2xl font-bold'>{m.makanicko_title()}</h1>
+      </header>
 
       <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_400px]'>
         {/* Left: Activity card */}

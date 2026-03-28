@@ -352,6 +352,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                         new Auth.UserTeam({
                           teamId: team.id,
                           teamName: team.name,
+                          logoUrl: team.logo_url,
                           roleNames: m.role_names,
                           permissions: m.permissions,
                         }),
@@ -453,6 +454,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 new Auth.UserTeam({
                   teamId: team.id,
                   teamName: team.name,
+                  logoUrl: team.logo_url,
                   roleNames: ['Admin'],
                   permissions: [...Role.defaultPermissions.Admin],
                 }),

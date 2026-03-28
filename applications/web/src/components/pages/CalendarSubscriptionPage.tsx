@@ -1,6 +1,6 @@
 import type { ICalApi } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
-import { useRouter } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
 import { Effect } from 'effect';
 import React from 'react';
 import { Button } from '~/components/ui/button';
@@ -10,10 +10,11 @@ import { Separator } from '~/components/ui/separator';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface CalendarSubscriptionPageProps {
+  teamId: string;
   icalToken: ICalApi.ICalTokenResponse;
 }
 
-export function CalendarSubscriptionPage({ icalToken }: CalendarSubscriptionPageProps) {
+export function CalendarSubscriptionPage({ teamId, icalToken }: CalendarSubscriptionPageProps) {
   const run = useRun();
   const router = useRouter();
   const [url, setUrl] = React.useState(icalToken.url);
@@ -44,10 +45,15 @@ export function CalendarSubscriptionPage({ icalToken }: CalendarSubscriptionPage
 
   return (
     <div className='max-w-2xl space-y-6'>
-      <div>
+      <header>
+        <Button asChild variant='ghost' size='sm' className='mb-2'>
+          <Link to='/teams/$teamId' params={{ teamId }}>
+            ← {m.team_backToTeams()}
+          </Link>
+        </Button>
         <h1 className='text-2xl font-bold'>{m.ical_title()}</h1>
         <p className='text-muted-foreground mt-1'>{m.ical_description()}</p>
-      </div>
+      </header>
 
       <Card>
         <CardHeader>
