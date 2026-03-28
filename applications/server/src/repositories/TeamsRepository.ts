@@ -1,6 +1,6 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { type Discord, Team } from '@sideline/domain';
-import { Effect, type Option, Schema } from 'effect';
+import { Array, Effect, type Option, Schema } from 'effect';
 
 class TeamUpdateInput extends Schema.Class<TeamUpdateInput>('TeamUpdateInput')({
   id: Schema.String,
@@ -34,6 +34,18 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
 
   findByGuildId = (guildId: Discord.Snowflake) =>
     this.findByGuildQuery(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  findByGuildIds = (
+    guildIds: ReadonlyArray<typeof Discord.Snowflake.Type>,
+  ): Effect.Effect<ReadonlyArray<Team.Team>> => {
+    if (Array.isEmptyReadonlyArray(guildIds)) {
+      return Effect.succeed([]);
+    }
+    return this.sql`SELECT * FROM teams WHERE guild_id IN ${this.sql.in(guildIds)}`.pipe(
+      Effect.flatMap(Schema.decodeUnknown(Schema.Array(Team.Team))),
+      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+    );
+  };
 
   private updateTeamQuery = SqlSchema.single({
     Request: TeamUpdateInput,

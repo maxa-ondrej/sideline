@@ -1,5 +1,5 @@
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
-import { ApiGroup, Auth, Discord, Role } from '@sideline/domain';
+import { ApiGroup, Auth, Discord, Role, type Team, type User } from '@sideline/domain';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
 import {
   Array,
@@ -154,6 +154,8 @@ const handleDiscordLogin = ({
     ),
     Effect.catchTag('NoSuchElementException', Effect.die),
   );
+
+const emptyTeams: ReadonlyArray<Auth.UserTeam> = [];
 
 const MANAGE_GUILD = 0x20n;
 const ADMINISTRATOR = 0x8n;
@@ -462,7 +464,106 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.catchTag('MemberAlreadyExistsError', Effect.die),
             Effect.catchTag('NoSuchElementException', Effect.die),
           ),
-        ),
+        )
+        .handle('autoJoinTeams', () => {
+          const tryJoinTeam = (team: Team.Team, userId: User.UserId) =>
+            members.findMembershipByIds(team.id, userId).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () =>
+                    members.getPlayerRoleId(team.id).pipe(
+                      Effect.flatMap(
+                        Option.match({
+                          onNone: () => Effect.succeed(Option.none<Auth.UserTeam>()),
+                          onSome: (role) =>
+                            Effect.Do.pipe(
+                              Effect.bind('membership', () =>
+                                members.addMember({
+                                  team_id: team.id,
+                                  user_id: userId,
+                                  active: true,
+                                  joined_at: undefined,
+                                }),
+                              ),
+                              Effect.tap(({ membership }) =>
+                                members.assignRole(membership.id, role.id),
+                              ),
+                              Effect.tap(() =>
+                                Effect.logInfo('[auth/autoJoinTeams] joined team', {
+                                  teamId: team.id,
+                                  teamName: team.name,
+                                }),
+                              ),
+                              Effect.map(() =>
+                                Option.some(
+                                  new Auth.UserTeam({
+                                    teamId: team.id,
+                                    teamName: team.name,
+                                    logoUrl: team.logo_url,
+                                    roleNames: ['Player'],
+                                    permissions: [...Role.defaultPermissions.Player],
+                                  }),
+                                ),
+                              ),
+                              Effect.catchTag('MemberAlreadyExistsError', () =>
+                                Effect.succeed(Option.none<Auth.UserTeam>()),
+                              ),
+                            ),
+                        }),
+                      ),
+                    ),
+                  onSome: () => Effect.succeed(Option.none<Auth.UserTeam>()),
+                }),
+              ),
+            );
+
+          return Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.flatMap(({ currentUser }) =>
+              !currentUser.isProfileComplete
+                ? Effect.succeed(emptyTeams)
+                : oauthConnections.getAccessToken(currentUser.id, 'discord').pipe(
+                    Effect.flatMap(
+                      Option.match({
+                        onNone: () => Effect.succeed(emptyTeams),
+                        onSome: (accessToken) =>
+                          Effect.Do.pipe(
+                            Effect.bind('client', () => makeUserDiscordClient(accessToken)),
+                            Effect.bind('guilds', ({ client }) => client.listMyGuilds()),
+                            Effect.let('guildIds', ({ guilds }) =>
+                              Array.map(guilds, (g) => Schema.decodeSync(Discord.Snowflake)(g.id)),
+                            ),
+                            Effect.flatMap(({ guildIds }) =>
+                              Array.isEmptyReadonlyArray(guildIds)
+                                ? Effect.succeed(emptyTeams)
+                                : teams.findByGuildIds(guildIds).pipe(
+                                    Effect.flatMap((matchingTeams) =>
+                                      Effect.all(
+                                        Array.map(matchingTeams, (team) =>
+                                          tryJoinTeam(team, currentUser.id),
+                                        ),
+                                        { concurrency: 'unbounded' },
+                                      ),
+                                    ),
+                                    Effect.map(Array.getSomes),
+                                  ),
+                            ),
+                            Effect.catchTag(
+                              'RequestError',
+                              'ResponseError',
+                              'ErrorResponse',
+                              'RatelimitedResponse',
+                              () => Effect.succeed(emptyTeams),
+                            ),
+                          ),
+                      }),
+                    ),
+                  ),
+            ),
+            // NoSuchElementException can be produced by Auth.CurrentUserContext when no session exists
+            Effect.catchTag('NoSuchElementException', Effect.die),
+          );
+        }),
     ),
   ),
 );

@@ -601,6 +601,7 @@
   "hero_demo_rsvp_time": "Saturday · 14:00",
   "hero_demo_player_you": "You",
   "team_teamCreated": "Team created",
+  "team_autoJoined": "You've been added to {teamName}",
   "invite_teamJoined": "Joined the team!",
   "profile_profileCompleted": "Profile completed",
   "role_roleSaved": "Role saved",

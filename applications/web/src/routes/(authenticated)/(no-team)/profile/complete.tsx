@@ -1,9 +1,11 @@
+import * as m from '@sideline/i18n/messages';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Effect, Option } from 'effect';
+import { Array, Effect, Option } from 'effect';
 import React from 'react';
+import { toast } from 'sonner';
 import { ProfileCompletePage } from '~/components/pages/ProfileCompletePage';
-import { getLastTeamId } from '~/lib/auth';
-import { Redirect } from '~/lib/runtime';
+import { getLastTeamId, setLastTeamId } from '~/lib/auth';
+import { ApiClient, Redirect, SilentClientError, useRun } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complete')({
   component: ProfileCompleteRoute,
@@ -22,15 +24,29 @@ export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complet
 function ProfileCompleteRoute() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
+  const run = useRun();
 
-  const handleSuccess = React.useCallback(() => {
+  const handleSuccess = React.useCallback(async () => {
     const lastTeamId = Effect.runSync(getLastTeamId);
     if (Option.isSome(lastTeamId)) {
-      navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
-    } else {
-      navigate({ to: '/create-team' });
+      await navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
+      return;
     }
-  }, [navigate]);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) => api.auth.autoJoinTeams()),
+      Effect.catchAll(() => new SilentClientError({ message: '' })),
+      run(),
+    );
+    const firstTeam = Option.isSome(result) ? Array.head(result.value) : Option.none();
+    if (Option.isSome(firstTeam)) {
+      const team = firstTeam.value;
+      Effect.runSync(setLastTeamId(team.teamId));
+      toast.success(m.team_autoJoined({ teamName: team.teamName }));
+      await navigate({ to: '/teams/$teamId', params: { teamId: team.teamId } });
+    } else {
+      await navigate({ to: '/create-team' });
+    }
+  }, [navigate, run]);
 
   return <ProfileCompletePage user={user} onSuccess={handleSuccess} />;
 }

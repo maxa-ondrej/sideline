@@ -601,6 +601,7 @@
   "hero_demo_rsvp_time": "Sobota · 14:00",
   "hero_demo_player_you": "Vy",
   "team_teamCreated": "Tým vytvořen",
+  "team_autoJoined": "Byl/a jsi přidán/a do týmu {teamName}",
   "invite_teamJoined": "Připojili jste se k týmu!",
   "profile_profileCompleted": "Profil dokončen",
   "role_roleSaved": "Role uložena",
