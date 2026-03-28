@@ -1,5 +1,13 @@
 # @sideline/bot
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies [[`4a471dc`](https://github.com/maxa-ondrej/sideline/commit/4a471dc4bc0000168c25fef000ded1ecfd11fd09), [`8d97865`](https://github.com/maxa-ondrej/sideline/commit/8d978654612cab81032e51a3e602ddcf07918ac0)]:
+  - @sideline/i18n@0.3.2
+  - @sideline/domain@0.14.0
+
 ## 0.9.0
 
 ### Minor Changes
