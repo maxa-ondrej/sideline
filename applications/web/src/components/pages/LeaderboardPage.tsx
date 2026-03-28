@@ -82,8 +82,7 @@ export function LeaderboardPage({ entries, currentUserId }: LeaderboardPageProps
                   {entry.username}
                 </p>
                 <p className='text-xs text-muted-foreground'>
-                  {entry.totalActivities}{' '}
-                  <span className='lowercase'>{m.leaderboard_activities()}</span> ·{' '}
+                  {entry.totalActivities} {m.leaderboard_activities()} ·{' '}
                   {formatDuration(entry.totalDurationMinutes)}
                 </p>
               </div>

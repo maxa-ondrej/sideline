@@ -216,7 +216,7 @@
   "leaderboard_title": "Týmový žebříček",
   "leaderboard_rank": "Pořadí",
   "leaderboard_player": "Hráč",
-  "leaderboard_activities": "Aktivity",
+  "leaderboard_activities": "aktivit",
   "leaderboard_duration": "Délka",
   "leaderboard_currentStreak": "Aktuální série",
   "leaderboard_longestStreak": "Nejdelší série",
@@ -590,5 +590,14 @@
   "hero_demo_leaderboard": "Žebříček",
   "hero_demo_nextEvent": "Další událost",
   "hero_demo_stats": "Vaše statistiky",
-  "hero_demo_rsvp": "Čeká na odpověď"
+  "hero_demo_rsvp": "Čeká na odpověď",
+  "hero_demo_event1_title": "Sobotní trénink",
+  "hero_demo_event1_time": "Zítra",
+  "hero_demo_event1_location": "Hlavní hřiště",
+  "hero_demo_event2_title": "Ligový zápas vs. Eagles",
+  "hero_demo_event2_time": "Středa",
+  "hero_demo_event2_location": "Městský stadion",
+  "hero_demo_rsvp_event": "Teambuilding grilování",
+  "hero_demo_rsvp_time": "Sobota · 14:00",
+  "hero_demo_player_you": "Vy"
 }

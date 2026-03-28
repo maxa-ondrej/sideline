@@ -7,6 +7,7 @@ import {
   Dumbbell,
   Flame,
   MapPin,
+  Monitor,
   Moon,
   Sun,
   Trophy,
@@ -37,18 +38,12 @@ interface HomePageProps {
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
-  const isDark =
-    theme === 'dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+  const Icon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
   return (
-    <Button
-      variant='ghost'
-      size='icon'
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className='size-9'
-    >
-      {isDark ? <Sun className='size-4' /> : <Moon className='size-4' />}
+    <Button variant='ghost' size='icon' onClick={() => setTheme(nextTheme)} className='size-9'>
+      <Icon className='size-4' />
       <span className='sr-only'>{m.theme_label()}</span>
     </Button>
   );
@@ -105,21 +100,21 @@ function DemoUpcomingEvents() {
     {
       day: '29',
       month: 'Mar',
-      title: 'Saturday Practice',
+      title: m.hero_demo_event1_title(),
       type: 'training',
-      time: 'Tomorrow',
+      time: m.hero_demo_event1_time(),
       timeDetail: '10:00',
-      location: 'Main Field',
+      location: m.hero_demo_event1_location(),
       rsvp: 'yes' as const,
     },
     {
       day: '2',
       month: 'Apr',
-      title: 'League Match vs. Eagles',
+      title: m.hero_demo_event2_title(),
       type: 'match',
-      time: 'Wednesday',
+      time: m.hero_demo_event2_time(),
       timeDetail: '18:30',
-      location: 'City Stadium',
+      location: m.hero_demo_event2_location(),
       rsvp: 'maybe' as const,
     },
   ];
@@ -183,7 +178,7 @@ function DemoLeaderboard() {
   const players = [
     { rank: 1, name: 'Martin K.', points: '2,450', streak: 18 },
     { rank: 2, name: 'Jakub N.', points: '2,180', streak: 12 },
-    { rank: 3, name: 'You', points: '1,920', streak: 12, isYou: true },
+    { rank: 3, name: m.hero_demo_player_you(), points: '1,920', streak: 12, isYou: true },
     { rank: 4, name: 'Tomas P.', points: '1,740', streak: 5 },
   ];
 
@@ -244,8 +239,8 @@ function DemoRsvpBanner() {
       <CardContent>
         <div className='flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white p-2.5 dark:border-amber-800 dark:bg-amber-950/30'>
           <div className='min-w-0 flex-1'>
-            <p className='font-medium truncate text-xs'>Team Building BBQ</p>
-            <p className='text-[10px] text-muted-foreground'>Saturday · 14:00</p>
+            <p className='font-medium truncate text-xs'>{m.hero_demo_rsvp_event()}</p>
+            <p className='text-[10px] text-muted-foreground'>{m.hero_demo_rsvp_time()}</p>
           </div>
           <Button size='sm' className='shrink-0 text-xs h-7 px-2.5'>
             {m.dashboard_rsvpNow()}
