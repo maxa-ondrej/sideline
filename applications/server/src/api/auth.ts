@@ -418,6 +418,9 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               teams.insert({
                 name: payload.name,
                 guild_id: payload.guildId,
+                description: Option.none(),
+                sport: Option.none(),
+                logo_url: Option.none(),
                 created_by: currentUser.id,
                 created_at: undefined,
                 updated_at: undefined,
