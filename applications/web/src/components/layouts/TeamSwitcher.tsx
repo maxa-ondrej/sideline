@@ -36,8 +36,8 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
               size='lg'
               className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
             >
-              <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground'>
-                <Users className='size-4' />
+              <div className='flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-sm font-bold'>
+                {activeTeam?.teamName.charAt(0).toUpperCase() ?? <Users className='size-4' />}
               </div>
               <div className='grid flex-1 text-left text-sm leading-tight'>
                 <span className='truncate font-semibold'>
@@ -62,8 +62,8 @@ export function TeamSwitcher({ teams, activeTeamId }: TeamSwitcherProps) {
             {teams.map((team, index) => (
               <DropdownMenuItem key={team.teamId} className='gap-2 p-2' asChild>
                 <Link to='/teams/$teamId' params={{ teamId: team.teamId }}>
-                  <div className='flex size-6 items-center justify-center rounded-sm border'>
-                    <Users className='size-4 shrink-0' />
+                  <div className='flex size-6 items-center justify-center rounded-sm border text-xs font-bold'>
+                    {team.teamName.charAt(0).toUpperCase()}
                   </div>
                   {team.teamName}
                   {index < 9 && (

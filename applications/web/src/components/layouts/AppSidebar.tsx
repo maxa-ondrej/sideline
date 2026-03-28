@@ -64,7 +64,7 @@ function getTeamNavGroups(
         {
           title: m.sidebar_makanicko(),
           icon: Trophy,
-          to: '/teams/$teamId/makanicko',
+          to: '/teams/$teamId/workout',
           params: { teamId },
         },
       ],

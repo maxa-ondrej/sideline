@@ -47,7 +47,7 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
           crumbs.push({ label: m.breadcrumb_team(), to: `/teams/${teamId}` });
         }
 
-        if (routeId.includes('/makanicko')) {
+        if (routeId.includes('/workout')) {
           crumbs.push({ label: m.makanicko_title(), to: pathname });
         } else if (routeId.includes('/notifications')) {
           crumbs.push({ label: m.notification_title(), to: pathname });

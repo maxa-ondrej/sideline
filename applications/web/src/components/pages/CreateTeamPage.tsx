@@ -1,8 +1,11 @@
 import type { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Option } from 'effect';
+import { Plus } from 'lucide-react';
 import React from 'react';
+import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 
 type Step = 'select-guild' | 'invite-bot' | 'name-team';
@@ -75,138 +78,163 @@ export function CreateTeamPage({
     : '';
 
   return (
-    <div>
-      <header className='mb-8'>
-        <h1 className='text-2xl font-bold'>{m.dashboard_createTeam()}</h1>
+    <div className='flex min-h-screen flex-col'>
+      <header className='flex items-center justify-between px-6 py-4 border-b'>
+        <span className='text-lg font-bold'>{m.app_name()}</span>
+        <div className='flex items-center gap-3'>
+          <LanguageSwitcher isAuthenticated />
+        </div>
       </header>
 
-      {step === 'select-guild' && (
-        <section className='max-w-lg'>
-          <h2 className='text-lg font-semibold mb-1'>{m.guild_selectServer()}</h2>
-          <p className='text-sm text-muted-foreground mb-4'>{m.guild_selectServerDescription()}</p>
+      <main className='flex flex-1 flex-col items-center px-6 pt-16 pb-24'>
+        <Card className='w-full max-w-lg'>
+          <CardHeader className='text-center'>
+            <div className='flex justify-center mb-2'>
+              <div className='flex size-12 items-center justify-center rounded-full bg-muted'>
+                <Plus className='size-6 text-muted-foreground' />
+              </div>
+            </div>
+            <CardTitle>{m.dashboard_createTeam()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {step === 'select-guild' && (
+              <div>
+                <h2 className='text-sm font-semibold mb-1'>{m.guild_selectServer()}</h2>
+                <CardDescription className='mb-4'>
+                  {m.guild_selectServerDescription()}
+                </CardDescription>
 
-          {loadingGuilds ? (
-            <p className='text-sm text-muted-foreground'>{m.guild_loadingGuilds()}</p>
-          ) : guilds.length === 0 ? (
-            <p className='text-sm text-muted-foreground'>{m.guild_noGuilds()}</p>
-          ) : (
-            <div className='space-y-2'>
-              {guilds.map((guild) => (
-                <button
-                  key={guild.id}
-                  type='button'
-                  className='flex items-center gap-3 w-full rounded-lg border p-3 text-left hover:bg-accent transition-colors'
-                  onClick={() => handleSelectGuild(guild)}
-                >
-                  {guildIconUrl(guild.id, guild.icon) ? (
+                {loadingGuilds ? (
+                  <p className='text-sm text-muted-foreground'>{m.guild_loadingGuilds()}</p>
+                ) : guilds.length === 0 ? (
+                  <p className='text-sm text-muted-foreground'>{m.guild_noGuilds()}</p>
+                ) : (
+                  <div className='space-y-2'>
+                    {guilds.map((guild) => (
+                      <button
+                        key={guild.id}
+                        type='button'
+                        className='flex items-center gap-3 w-full rounded-lg border p-3 text-left hover:bg-accent transition-colors'
+                        onClick={() => handleSelectGuild(guild)}
+                      >
+                        {guildIconUrl(guild.id, guild.icon) ? (
+                          <img
+                            src={guildIconUrl(guild.id, guild.icon)}
+                            alt=''
+                            className='w-10 h-10 rounded-full'
+                          />
+                        ) : (
+                          <div className='w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium'>
+                            {guild.name.charAt(0)}
+                          </div>
+                        )}
+                        <div className='flex-1 min-w-0'>
+                          <div className='font-medium truncate'>{guild.name}</div>
+                          <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+                            {guild.owner && <span>{m.guild_owner()}</span>}
+                            {guild.botPresent ? (
+                              <span className='text-green-600 dark:text-green-400'>
+                                {m.guild_botPresent()}
+                              </span>
+                            ) : (
+                              <span className='text-amber-600 dark:text-amber-400'>
+                                {m.guild_botNotPresent()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 'invite-bot' && selectedGuild && (
+              <div>
+                <h2 className='text-sm font-semibold mb-1'>{m.guild_inviteBot()}</h2>
+                <CardDescription className='mb-4'>{m.guild_inviteBotDescription()}</CardDescription>
+
+                <div className='flex items-center gap-3 rounded-lg border p-3 mb-4'>
+                  {guildIconUrl(selectedGuild.id, selectedGuild.icon) ? (
                     <img
-                      src={guildIconUrl(guild.id, guild.icon)}
+                      src={guildIconUrl(selectedGuild.id, selectedGuild.icon)}
                       alt=''
                       className='w-10 h-10 rounded-full'
                     />
                   ) : (
                     <div className='w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium'>
-                      {guild.name.charAt(0)}
+                      {selectedGuild.name.charAt(0)}
                     </div>
                   )}
-                  <div className='flex-1 min-w-0'>
-                    <div className='font-medium truncate'>{guild.name}</div>
-                    <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-                      {guild.owner && <span>{m.guild_owner()}</span>}
-                      {guild.botPresent ? (
-                        <span className='text-green-600'>{m.guild_botPresent()}</span>
-                      ) : (
-                        <span className='text-amber-600'>{m.guild_botNotPresent()}</span>
-                      )}
+                  <span className='font-medium'>{selectedGuild.name}</span>
+                </div>
+
+                <div className='flex flex-wrap gap-2'>
+                  <Button variant='outline' onClick={() => setStep('select-guild')}>
+                    {m.guild_back()}
+                  </Button>
+                  <Button asChild>
+                    <a href={botInviteUrl} target='_blank' rel='noopener noreferrer'>
+                      {m.guild_inviteBotButton()}
+                    </a>
+                  </Button>
+                  <Button variant='secondary' onClick={handleRefresh} disabled={refreshing}>
+                    {refreshing ? m.guild_refreshing() : m.guild_refreshGuilds()}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {step === 'name-team' && selectedGuild && (
+              <div>
+                <h2 className='text-sm font-semibold mb-3'>{m.guild_nameTeam()}</h2>
+
+                <div className='flex items-center gap-3 rounded-lg border p-3 mb-4'>
+                  {guildIconUrl(selectedGuild.id, selectedGuild.icon) ? (
+                    <img
+                      src={guildIconUrl(selectedGuild.id, selectedGuild.icon)}
+                      alt=''
+                      className='w-10 h-10 rounded-full'
+                    />
+                  ) : (
+                    <div className='w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium'>
+                      {selectedGuild.name.charAt(0)}
                     </div>
+                  )}
+                  <div>
+                    <div className='font-medium'>{selectedGuild.name}</div>
+                    <span className='text-xs text-green-600 dark:text-green-400'>
+                      {m.guild_botPresent()}
+                    </span>
                   </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+                </div>
 
-      {step === 'invite-bot' && selectedGuild && (
-        <section className='max-w-lg'>
-          <h2 className='text-lg font-semibold mb-1'>{m.guild_inviteBot()}</h2>
-          <p className='text-sm text-muted-foreground mb-4'>{m.guild_inviteBotDescription()}</p>
+                <div className='flex flex-col gap-2 sm:flex-row'>
+                  <Input
+                    placeholder={m.dashboard_teamNamePlaceholder()}
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreate();
+                    }}
+                    className='flex-1'
+                  />
+                  <Button onClick={handleCreate} disabled={creating || !teamName.trim()}>
+                    {creating ? m.dashboard_creating() : m.dashboard_createTeam()}
+                  </Button>
+                </div>
 
-          <div className='flex items-center gap-3 rounded-lg border p-3 mb-4'>
-            {guildIconUrl(selectedGuild.id, selectedGuild.icon) ? (
-              <img
-                src={guildIconUrl(selectedGuild.id, selectedGuild.icon)}
-                alt=''
-                className='w-10 h-10 rounded-full'
-              />
-            ) : (
-              <div className='w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium'>
-                {selectedGuild.name.charAt(0)}
+                <div className='mt-2'>
+                  <Button variant='ghost' size='sm' onClick={() => setStep('select-guild')}>
+                    {m.guild_back()}
+                  </Button>
+                </div>
               </div>
             )}
-            <span className='font-medium'>{selectedGuild.name}</span>
-          </div>
-
-          <div className='flex flex-wrap gap-2'>
-            <Button variant='outline' onClick={() => setStep('select-guild')}>
-              {m.guild_back()}
-            </Button>
-            <Button asChild>
-              <a href={botInviteUrl} target='_blank' rel='noopener noreferrer'>
-                {m.guild_inviteBotButton()}
-              </a>
-            </Button>
-            <Button variant='secondary' onClick={handleRefresh} disabled={refreshing}>
-              {refreshing ? m.guild_refreshing() : m.guild_refreshGuilds()}
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {step === 'name-team' && selectedGuild && (
-        <section className='max-w-lg'>
-          <h2 className='text-lg font-semibold mb-1'>{m.guild_nameTeam()}</h2>
-
-          <div className='flex items-center gap-3 rounded-lg border p-3 mb-4'>
-            {guildIconUrl(selectedGuild.id, selectedGuild.icon) ? (
-              <img
-                src={guildIconUrl(selectedGuild.id, selectedGuild.icon)}
-                alt=''
-                className='w-10 h-10 rounded-full'
-              />
-            ) : (
-              <div className='w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm font-medium'>
-                {selectedGuild.name.charAt(0)}
-              </div>
-            )}
-            <div>
-              <div className='font-medium'>{selectedGuild.name}</div>
-              <span className='text-xs text-green-600'>{m.guild_botPresent()}</span>
-            </div>
-          </div>
-
-          <div className='flex flex-col gap-2 sm:flex-row'>
-            <Input
-              placeholder={m.dashboard_teamNamePlaceholder()}
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreate();
-              }}
-              className='flex-1'
-            />
-            <Button onClick={handleCreate} disabled={creating || !teamName.trim()}>
-              {creating ? m.dashboard_creating() : m.dashboard_createTeam()}
-            </Button>
-          </div>
-
-          <div className='mt-2'>
-            <Button variant='ghost' size='sm' onClick={() => setStep('select-guild')}>
-              {m.guild_back()}
-            </Button>
-          </div>
-        </section>
-      )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }
