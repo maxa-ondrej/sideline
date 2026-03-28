@@ -168,4 +168,10 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
       .setPayload(CreateTeamRequest)
       .middleware(AuthMiddleware),
   )
+  .add(
+    HttpApiEndpoint.post('autoJoinTeams', '/me/teams/auto-join')
+      .addSuccess(Schema.Array(UserTeam))
+      .addError(Unauthorized, { status: 401 })
+      .middleware(AuthMiddleware),
+  )
   .prefix('/auth') {}
