@@ -1,0 +1,536 @@
+# Discord Bot
+
+This document describes the commands, interactions, gateway event handlers, and background sync workers of the Sideline Discord bot.
+
+## Overview
+
+The bot is built with **dfx**, an Effect-native Discord framework. It connects to Discord via a WebSocket gateway and exposes slash commands and component interactions to users.
+
+**Bot-to-server communication** uses Effect RPC over HTTP. The bot is a pure RPC client; all persistence and business logic lives in the server. The RPC endpoint is `{SERVER_URL}{RPC_PREFIX}/` (the prefix defaults to an empty string, so in production the path is just `/`).
+
+**Localization** is Czech (`cs`) and English (default). Ephemeral messages (visible only to the invoking user) use the user's Discord client language. Permanent guild messages (event embeds, reminders) use the guild's preferred language. The resolution logic is in `applications/bot/src/locale.ts`.
+
+**Gateway intents** required by the bot: `Guilds` and `GuildMembers`.
+
+**Source layout:**
+
+| Path | Contents |
+|------|----------|
+| `applications/bot/src/commands/` | Slash command definitions and option handlers |
+| `applications/bot/src/interactions/` | Button, modal, and autocomplete handlers |
+| `applications/bot/src/events/` | Gateway dispatch event handlers |
+| `applications/bot/src/rcp/` | RPC sync worker loops (note: directory is named `rcp`, a typo in the codebase; the intended meaning is `rpc`) |
+| `applications/bot/src/services/SyncRpc.ts` | Typed RPC client service |
+| `applications/bot/src/rest/` | Discord REST helpers (embed builders, permission helpers) |
+
+---
+
+## Slash Commands
+
+Two top-level commands are registered globally: `/event` and `/makanicko`. Each has sub-commands.
+
+### /event create
+
+**Description:** Create a new event for the guild.
+
+**Czech sub-command name:** `vytvořit`
+
+**Options:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `type` | String (choices) | Yes | Event type |
+| `training_type` | String (autocomplete) | No | Training type ID; only relevant when `type=training` |
+
+**`type` choices:**
+
+| Value | Display name | Czech |
+|-------|-------------|-------|
+| `training` | Training | Trénink |
+| `match` | Match | Zápas |
+| `tournament` | Tournament | Turnaj |
+| `meeting` | Meeting | Schůzka |
+| `social` | Social | Společenská |
+| `other` | Other | Jiné |
+
+**Flow:**
+
+1. User invokes `/event create type:training training_type:Strength`.
+2. The command handler (`applications/bot/src/commands/event/create.ts`) opens a Discord modal with `custom_id` `event-create:{eventType}:{trainingTypeId}`.
+3. The modal contains five text input fields:
+
+   | Field `custom_id` | Label | Required | Max length | Style |
+   |-------------------|-------|----------|------------|-------|
+   | `event_title` | Title | Yes | 100 | Single-line |
+   | `event_start` | Start | Yes | 16 | Single-line (placeholder: `YYYY-MM-DDTHH:mm`) |
+   | `event_end` | End | No | 16 | Single-line (placeholder: `YYYY-MM-DDTHH:mm`) |
+   | `event_location` | Location | No | 200 | Single-line |
+   | `event_description` | Description | No | 1000 | Multi-line |
+
+4. User submits the modal. The modal submit handler (`applications/bot/src/interactions/event-create.ts`) sends an immediate ephemeral "thinking" response, then forks a background fiber.
+5. The background fiber calls `Event/CreateEvent` RPC with the parsed fields.
+6. On success the ephemeral message is updated with the event title. On error an appropriate error message is shown.
+
+**Autocomplete:** When the focused option is `training_type` and the event `type` is `training`, the autocomplete handler (`applications/bot/src/interactions/event-create-autocomplete.ts`) calls `Event/GetTrainingTypesByGuild` RPC, filters results case-insensitively by the user's current input, takes up to 24 matches, and appends a fixed `{ name: "Other", value: "" }` entry. If `type` is not `training` the handler returns an empty choices list immediately.
+
+**Errors from `Event/CreateEvent`:**
+
+| Error tag | User-visible message |
+|-----------|----------------------|
+| `CreateEventNotMember` | Not a member of this team |
+| `CreateEventForbidden` | Missing permission to create events |
+| `CreateEventInvalidDate` | Invalid date format |
+
+**Source files:**
+- `applications/bot/src/commands/event/create.ts`
+- `applications/bot/src/interactions/event-create.ts`
+- `applications/bot/src/interactions/event-create-autocomplete.ts`
+
+---
+
+### /event list
+
+**Description:** List upcoming events for the guild.
+
+**Czech sub-command name:** `seznam`
+
+**Options:** None.
+
+**Flow:**
+
+1. User invokes `/event list`.
+2. The handler (`applications/bot/src/commands/event/list.ts`) immediately returns a deferred ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Event/GetUpcomingGuildEvents` RPC with `offset=0` and `limit=5` (`PAGE_SIZE` constant defined in `applications/bot/src/rest/events/buildEventListEmbed.ts`).
+4. The response is rendered into an embed. Each event entry shows: type emoji, bold title, Discord dynamic timestamp, optional location, and RSVP summary counts.
+5. If the total number of events exceeds `PAGE_SIZE`, Previous/Next pagination buttons are added with custom IDs `event-list-page:{guildId}:{offset}`.
+6. The ephemeral message is updated with the embed and buttons.
+
+**Errors from `Event/GetUpcomingGuildEvents`:**
+
+| Error tag | Behavior |
+|-----------|----------|
+| `GuildNotFound` | Shows "not a member" message |
+
+**Source files:**
+- `applications/bot/src/commands/event/list.ts`
+- `applications/bot/src/interactions/event-list.ts`
+
+---
+
+### /makanicko log
+
+**Description:** Log a physical activity.
+
+**Czech sub-command name:** `zaznamenat`
+
+**Options:**
+
+| Name | Type | Required | Constraints | Description |
+|------|------|----------|-------------|-------------|
+| `activity` | String (choices) | Yes | — | Activity type |
+| `duration` | Integer | No | 1–1440 | Duration in minutes |
+| `note` | String | No | — | Free-text note |
+
+**`activity` choices:**
+
+| Value | Display name | Czech |
+|-------|-------------|-------|
+| `gym` | Gym | Posilovna |
+| `running` | Running | Běh |
+| `stretching` | Stretching | Protahování |
+
+**Flow:**
+
+1. User invokes `/makanicko log activity:gym duration:45`.
+2. The handler sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Activity/LogActivity` RPC with `guild_id`, `discord_user_id`, `activity_type` (slug), and optional `duration_minutes` and `note`.
+4. On success the ephemeral message is updated with a confirmation showing the logged activity type.
+
+**Errors from `Activity/LogActivity`:**
+
+| Error tag | Behavior |
+|-----------|----------|
+| `ActivityGuildNotFound` | Generic error message |
+| `ActivityMemberNotFound` | "Not a member" message |
+
+**Source file:** `applications/bot/src/commands/makanicko/log.ts`
+
+---
+
+### /makanicko stats
+
+**Description:** View personal activity stats and streaks.
+
+**Czech sub-command name:** `statistiky`
+
+**Options:** None.
+
+**Flow:**
+
+1. User invokes `/makanicko stats`.
+2. The handler sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Activity/GetStats` RPC with `guild_id` and `discord_user_id`.
+4. If `total_activities` is 0 the embed shows an empty-state description.
+5. Otherwise the embed includes:
+   - **Description:** current streak (days) and longest streak (days).
+   - **Fields:** total activity count, total duration (formatted as `Xh Ym`), and a per-activity-type breakdown. Spacer fields (`\u200b`) are inserted to maintain a three-column grid layout for the breakdown.
+   - **Footer:** attribution text.
+
+**Errors from `Activity/GetStats`:**
+
+| Error tag | Behavior |
+|-----------|----------|
+| `ActivityGuildNotFound` | Generic error message |
+| `ActivityMemberNotFound` | "Not a member" message |
+
+**Source file:** `applications/bot/src/commands/makanicko/stats.ts`
+
+---
+
+### /makanicko leaderboard
+
+**Description:** View the team activity leaderboard.
+
+**Czech sub-command name:** `zebricek`
+
+**Options:** None.
+
+**Flow:**
+
+1. User invokes `/makanicko leaderboard`.
+2. The handler sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Activity/GetLeaderboard` RPC with `guild_id`, `discord_user_id`, and `limit=None` (no server-side limit; the bot slices to top 10 client-side).
+4. If `entries` is empty the embed shows an empty-state description.
+5. Otherwise the embed description lists up to 10 entries, each formatted as `{rank}. {username} — {total_activities}`.
+6. The footer shows the requesting user's own rank (from `requesting_user_rank`) or a "not ranked" message if absent.
+
+**Errors from `Activity/GetLeaderboard`:**
+
+| Error tag | Behavior |
+|-----------|----------|
+| `ActivityGuildNotFound` | Generic error message |
+| `ActivityMemberNotFound` | "Not a member" message |
+
+**Source file:** `applications/bot/src/commands/makanicko/leaderboard.ts`
+
+---
+
+## Button and Modal Interactions
+
+All interaction handlers are registered in `applications/bot/src/interactions/index.ts`. Each handler pattern-matches on the `custom_id` prefix.
+
+### RSVP Button — `rsvp:{teamId}:{eventId}:{response}`
+
+Attached to every event embed message. Clicking opens a modal.
+
+**Custom ID pattern:** `rsvp:{teamId}:{eventId}:{response}` where `response` is one of `yes`, `no`, `maybe`.
+
+**Behavior:**
+
+1. Parses `teamId`, `eventId`, and `response` from the custom ID.
+2. Opens a modal with `custom_id` `rsvp-modal:{teamId}:{eventId}:{response}`.
+3. Modal has one optional multi-line text field (`custom_id: rsvp_message`, max 200 characters) for an optional personal message.
+
+**Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpButton`)
+
+---
+
+### RSVP Modal — `rsvp-modal:{teamId}:{eventId}:{response}`
+
+Handles submission of the RSVP modal opened by the RSVP button.
+
+**Behavior:**
+
+1. Parses `teamId`, `eventId`, `response`, and optional `rsvp_message` from the submission.
+2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Event/SubmitRsvp` RPC.
+4. On success, additionally fetches `Event/GetDiscordMessageId` and `Event/GetEventEmbedInfo` to update the original event embed message in the channel with the new RSVP counts (rebuilds the full embed and component set).
+5. Updates the ephemeral message with a localized confirmation.
+
+**Errors from `Event/SubmitRsvp`:**
+
+| Error tag | User-visible message |
+|-----------|----------------------|
+| `RsvpDeadlinePassed` | RSVP deadline has passed |
+| `RsvpMemberNotFound` | Not a member of this team |
+| `RsvpNotGroupMember` | Not a member of the required group |
+| `RsvpEventNotFound` | Event not found |
+
+**Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpModal`)
+
+---
+
+### Attendees Button — `attendees:{teamId}:{eventId}:{offset}`
+
+Appears on event embeds (separate from the RSVP buttons). Opens a paginated attendee list in an ephemeral response.
+
+**Custom ID pattern:** `attendees:{teamId}:{eventId}:{offset}`
+
+**Behavior:**
+
+1. Parses `teamId`, `eventId`, and `offset` (defaults to 0) from the custom ID.
+2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Event/GetRsvpAttendees` RPC with `limit=15`.
+4. Builds and posts an attendee embed with page navigation buttons (`attendees-page:…`).
+
+**Source file:** `applications/bot/src/interactions/attendees.ts` (`AttendeesButton`)
+
+---
+
+### Attendees Page Button — `attendees-page:{teamId}:{eventId}:{offset}`
+
+Updates an existing attendees embed when the user pages through the list.
+
+**Custom ID pattern:** `attendees-page:{teamId}:{eventId}:{offset}`
+
+**Behavior:** Same as Attendees Button but responds with `DEFERRED_UPDATE_MESSAGE` (edits the existing message in place rather than sending a new ephemeral reply).
+
+**Source file:** `applications/bot/src/interactions/attendees.ts` (`AttendeesPageButton`)
+
+---
+
+### Event List Page Button — `event-list-page:{guildId}:{offset}`
+
+Paginates the event list embed created by `/event list`.
+
+**Custom ID pattern:** `event-list-page:{guildId}:{offset}`
+
+**Behavior:**
+
+1. Parses `guildId` and `offset` from the custom ID.
+2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
+3. The background fiber calls `Event/GetUpcomingGuildEvents` RPC with the new offset and `limit=PAGE_SIZE` (5).
+4. Rebuilds the embed and updates the existing message.
+
+**Source file:** `applications/bot/src/interactions/event-list.ts` (`EventListPageButton`)
+
+---
+
+### Event Create Autocomplete
+
+Provides training type suggestions for the `/event create training_type` option.
+
+**Trigger condition:** command name is `event` and the focused option name is `training_type`.
+
+**Behavior:** See `/event create` autocomplete description above.
+
+**Source file:** `applications/bot/src/interactions/event-create-autocomplete.ts`
+
+---
+
+## Gateway Event Handlers
+
+Gateway handlers are set up in `applications/bot/src/events/index.ts`. They react to Discord gateway dispatch events.
+
+### GUILD_CREATE
+
+Fired when the bot joins a guild, or when Discord sends the initial `GUILD_CREATE` payloads on connection.
+
+**Actions (in order):**
+
+1. Calls `Guild/RegisterGuild` RPC with `guild_id` and `guild_name`.
+2. Calls `Guild/SyncGuildChannels` RPC with all text channels in the guild (channel ID, name, type, parent category ID).
+3. Fetches up to 1000 guild members via the Discord REST API, filters out bots, and calls `Guild/ReconcileMembers` RPC with the full member list (discord ID, username, avatar, role IDs).
+
+Each step catches errors independently so a failure in channel sync or member reconciliation does not prevent guild registration.
+
+---
+
+### GUILD_DELETE
+
+Fired when the bot is removed from a guild, or when the guild becomes unavailable due to an outage.
+
+**Actions:**
+
+- If `guild.unavailable` is `true`: logs an informational message only; no RPC call is made (this is a Discord outage, not a removal).
+- Otherwise: calls `Guild/UnregisterGuild` RPC with `guild_id`.
+
+---
+
+### GUILD_MEMBER_ADD
+
+Fired when a new member joins a guild.
+
+**Actions:**
+
+- If the new member is a bot: logs and skips.
+- Otherwise: calls `Guild/RegisterMember` RPC with `guild_id`, `discord_id`, `username`, `avatar`, and current `roles`.
+
+---
+
+### GUILD_MEMBER_REMOVE
+
+Fired when a member leaves or is removed from a guild.
+
+**Actions:** Logs the event only. No server-side action is taken; the member record is retained.
+
+---
+
+### GUILD_MEMBER_UPDATE
+
+Fired when a member's roles, nickname, or other profile attributes change.
+
+**Actions:** Logs the event only. No server-side action is taken.
+
+---
+
+## RPC Sync Workers
+
+Three background worker loops run continuously inside the bot process. Each worker polls the server for unprocessed outbox events, processes them sequentially, and marks each as processed or failed. All three loops use a **5-second polling interval** (`Schedule.spaced('5 seconds')`) and fetch up to **50 events per poll** (`POLL_BATCH_SIZE = 50`).
+
+These workers implement the bot's side of the outbox pattern: the server inserts rows into `role_sync_events`, `channel_sync_events`, and `event_sync_events`; the bot drains those queues.
+
+> **Note on directory name:** The source files for these workers live under `applications/bot/src/rcp/`. This is a typo in the codebase; the intended name is `rpc`. The import paths and class names (`RoleSyncService`, `ChannelSyncService`, `EventSyncService`) all reflect the intended `rpc` meaning.
+
+---
+
+### Role Sync Worker
+
+**Service class:** `RoleSyncService` (`applications/bot/src/rcp/role/index.ts`)
+
+**Polling RPC:** `Role/GetUnprocessedEvents`
+
+**Events processed:**
+
+| Event tag | Handler file | Discord action |
+|-----------|-------------|----------------|
+| `role_created` | `handleCreated.ts` | Ensures a Discord guild role exists for the Sideline role; calls `ensureMapping` which creates the Discord role if absent and upserts the mapping via `Role/UpsertMapping` |
+| `role_deleted` | `handleDeleted.ts` | Looks up the Discord role ID via `Role/GetMapping`, deletes it in Discord via REST, then removes the mapping via `Role/DeleteMapping` |
+| `role_assigned` | `handleAssigned.ts` | Ensures the Discord role exists (`ensureMapping`), then adds it to the Discord guild member via REST |
+| `role_unassigned` | `handleUnassigned.ts` | Looks up the Discord role ID via `Role/GetMapping`, then removes it from the Discord guild member via REST |
+
+**Lifecycle RPCs:**
+- `Role/MarkEventProcessed` — called after each successful event.
+- `Role/MarkEventFailed` — called when processing throws; records the error string for diagnostics.
+
+---
+
+### Channel Sync Worker
+
+**Service class:** `ChannelSyncService` (`applications/bot/src/rcp/channel/index.ts`)
+
+**Polling RPC:** `Channel/GetUnprocessedEvents`
+
+Channel sync mirrors each Sideline group that has a Discord channel mapping as a Discord text channel. It also creates and manages a corresponding Discord role used to control channel visibility.
+
+**Events processed:**
+
+| Event tag | Handler file | Discord action |
+|-----------|-------------|----------------|
+| `channel_created` | `handleCreated.ts` | Ensures a Discord channel (and associated role) exists for the group; calls `ensureMapping` which creates the channel+role if absent and upserts the mapping via `Channel/UpsertMapping` |
+| `channel_deleted` | `handleDeleted.ts` | Looks up the mapping via `Channel/GetMapping`, deletes the associated Discord role (if present) and the Discord channel via REST, then removes the mapping via `Channel/DeleteMapping` |
+| `channel_member_added` | `handleMemberAdded.ts` | Ensures the mapping exists (`ensureMapping`), then adds the channel's Discord role to the guild member via REST |
+| `channel_member_removed` | `handleMemberRemoved.ts` | Looks up the mapping via `Channel/GetMapping`, then removes the channel's Discord role from the guild member via REST |
+
+**Lifecycle RPCs:**
+- `Channel/MarkEventProcessed`
+- `Channel/MarkEventFailed`
+
+---
+
+### Event Sync Worker
+
+**Service class:** `EventSyncService` (`applications/bot/src/rcp/event/index.ts`)
+
+**Polling RPC:** `Event/GetUnprocessedEvents`
+
+**Events processed:**
+
+| Event tag | Handler file | Discord action |
+|-----------|-------------|----------------|
+| `event_created` | `handleCreated.ts` | Fetches RSVP counts (`Event/GetRsvpCounts`) and the guild's preferred locale, builds an event embed with RSVP buttons, posts it to the group's configured Discord channel (or the guild system channel as fallback), saves the resulting message ID via `Event/SaveDiscordMessageId`, then re-orders all event messages in the channel by start time |
+| `event_updated` | `handleUpdated.ts` | Looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts, rebuilds the embed, edits the existing Discord message, then re-orders channel messages |
+| `event_cancelled` | `handleCancelled.ts` | Looks up the stored Discord message, replaces the embed content with a cancelled-state embed (no RSVP buttons), edits the existing Discord message |
+| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list with Discord IDs), posts a yellow reminder embed to the channel mentioning all non-responders who have a linked Discord account, and sends a direct message to each of those non-responders with a link to the voting message |
+
+**Lifecycle RPCs:**
+- `Event/MarkEventProcessed`
+- `Event/MarkEventFailed`
+
+---
+
+## RPC Method Reference
+
+The bot communicates with the server using the `SyncRpcs` RPC group defined in `packages/domain/src/rpc/SyncRpcs.ts`. Below is a complete list of all methods used by the bot, organized by group prefix.
+
+### Guild group (`Guild/`)
+
+| Method | Purpose |
+|--------|---------|
+| `Guild/RegisterGuild` | Register a guild when the bot joins |
+| `Guild/UnregisterGuild` | Remove guild registration when the bot leaves |
+| `Guild/IsGuildRegistered` | Check whether a guild is already registered |
+| `Guild/SyncGuildChannels` | Bulk-sync all text channels for a guild |
+| `Guild/ReconcileMembers` | Bulk-sync up to 1000 guild members on startup |
+| `Guild/RegisterMember` | Register a single new member |
+
+### Role group (`Role/`)
+
+| Method | Purpose |
+|--------|---------|
+| `Role/GetUnprocessedEvents` | Poll for pending role outbox events |
+| `Role/MarkEventProcessed` | Acknowledge successful processing |
+| `Role/MarkEventFailed` | Record a processing failure |
+| `Role/GetMapping` | Look up the Discord role ID for a Sideline role |
+| `Role/UpsertMapping` | Save or update the Discord role ID mapping |
+| `Role/DeleteMapping` | Remove the mapping when a role is deleted |
+
+### Channel group (`Channel/`)
+
+| Method | Purpose |
+|--------|---------|
+| `Channel/GetUnprocessedEvents` | Poll for pending channel outbox events |
+| `Channel/MarkEventProcessed` | Acknowledge successful processing |
+| `Channel/MarkEventFailed` | Record a processing failure |
+| `Channel/GetMapping` | Look up the Discord channel/role IDs for a group |
+| `Channel/UpsertMapping` | Save or update the Discord channel+role mapping |
+| `Channel/DeleteMapping` | Remove the mapping when a group channel is deleted |
+
+### Event group (`Event/`)
+
+| Method | Purpose |
+|--------|---------|
+| `Event/GetUnprocessedEvents` | Poll for pending event outbox events |
+| `Event/MarkEventProcessed` | Acknowledge successful processing |
+| `Event/MarkEventFailed` | Record a processing failure |
+| `Event/CreateEvent` | Create a new event (from `/event create`) |
+| `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events for `/event list` |
+| `Event/GetTrainingTypesByGuild` | Fetch training type choices for autocomplete |
+| `Event/SubmitRsvp` | Record a member's RSVP response |
+| `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |
+| `Event/GetRsvpAttendees` | Fetch paginated attendee list |
+| `Event/GetRsvpReminderSummary` | Fetch counts and non-responder list for a reminder |
+| `Event/SaveDiscordMessageId` | Persist the Discord message ID after posting an event embed |
+| `Event/GetDiscordMessageId` | Look up the stored Discord message for an event |
+| `Event/GetEventEmbedInfo` | Fetch event fields needed to rebuild the embed |
+| `Event/GetChannelEvents` | Fetch all events in a Discord channel (for reordering) |
+
+### Activity group (`Activity/`)
+
+| Method | Purpose |
+|--------|---------|
+| `Activity/LogActivity` | Log a physical activity (from `/makanicko log`) |
+| `Activity/GetStats` | Fetch personal stats and streaks (from `/makanicko stats`) |
+| `Activity/GetLeaderboard` | Fetch team leaderboard (from `/makanicko leaderboard`) |
+
+---
+
+## Environment Variables
+
+For the canonical reference including all services, see `docs/deployment.md` (created separately). The variables specific to the bot process are:
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `NODE_ENV` | Yes | — | Runtime environment (`development`, `production`, etc.) |
+| `DISCORD_BOT_TOKEN` | Yes | — | Discord bot token (redacted in logs) |
+| `SERVER_URL` | Yes | — | Base URL of the Sideline server, e.g. `https://api.example.com` |
+| `APP_ENV` | Yes | — | Deployment environment label (e.g. `production`, `preview`) |
+| `APP_ORIGIN` | Yes | — | Public origin for telemetry resource attributes |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Yes | — | OTLP endpoint for traces/logs/metrics |
+| `OTEL_SERVICE_NAME` | Yes | — | Service name reported in telemetry (e.g. `bot`) |
+| `HEALTH_PORT` | No | `9000` | Port for the HTTP health check server |
+| `DISCORD_GATEWAY_INTENTS` | No | `Guilds \| GuildMembers` (513) | Bitmask of gateway intents to request |
+| `RPC_PREFIX` | No | `""` | URL path prefix prepended to all RPC calls |
+| `LOG_LEVEL` | No | — | Minimum log level (`DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`) |
+
+Source: `applications/bot/src/env.ts`
