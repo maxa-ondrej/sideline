@@ -167,6 +167,17 @@ Images are automatically built and pushed to GHCR on pull requests via the Snaps
 | [`packages/effect-lib/AGENTS.md`](./packages/effect-lib/AGENTS.md) | Shared utilities (Bind, DateTime schemas) |
 | [`packages/i18n/AGENTS.md`](./packages/i18n/AGENTS.md) | Translation system (Paraglide.js) |
 
+### Thesis Documentation
+
+| File | Contents |
+|------|----------|
+| [`docs/thesis/er-diagram.md`](./docs/thesis/er-diagram.md) | Entity-relationship diagram (33 database entities) |
+| [`docs/thesis/architecture.md`](./docs/thesis/architecture.md) | System architecture (deployment, packages, communication) |
+| [`docs/thesis/use-cases.md`](./docs/thesis/use-cases.md) | UML use case diagrams (6 actors, 8 domains) |
+| [`docs/thesis/sequence-diagrams.md`](./docs/thesis/sequence-diagrams.md) | Sequence diagrams for 8 core flows |
+| [`docs/thesis/user-testing-plan.md`](./docs/thesis/user-testing-plan.md) | Usability testing plan with 12 task scenarios |
+| [`docs/thesis/competitive-analysis.md`](./docs/thesis/competitive-analysis.md) | Competitive analysis with feature matrix and SWOT |
+
 ## License
 
 [MIT](./LICENSE)

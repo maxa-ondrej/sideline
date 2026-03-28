@@ -174,7 +174,7 @@ erDiagram
     }
 
     team_settings {
-        UUID team_id PK_FK
+        UUID team_id FK
         INTEGER event_horizon_days
         INTEGER min_players_threshold
         INTEGER rsvp_reminder_hours
@@ -222,13 +222,13 @@ erDiagram
     }
 
     role_permissions {
-        UUID role_id PK_FK
-        TEXT permission PK
+        UUID role_id FK
+        TEXT permission
     }
 
     member_roles {
-        UUID team_member_id PK_FK
-        UUID role_id PK_FK
+        UUID team_member_id FK
+        UUID role_id FK
     }
 
     teams ||--o{ roles : "defines"
@@ -256,8 +256,8 @@ erDiagram
     }
 
     group_members {
-        UUID group_id PK_FK
-        UUID team_member_id PK_FK
+        UUID group_id FK
+        UUID team_member_id FK
     }
 
     age_threshold_rules {
@@ -270,8 +270,8 @@ erDiagram
     }
 
     role_groups {
-        UUID role_id PK_FK
-        UUID group_id PK_FK
+        UUID role_id FK
+        UUID group_id FK
     }
 
     teams ||--o{ groups : "organises"
@@ -302,8 +302,8 @@ erDiagram
     }
 
     role_training_types {
-        UUID role_id PK_FK
-        UUID training_type_id PK_FK
+        UUID role_id FK
+        UUID training_type_id FK
     }
 
     teams ||--o{ training_types : "classifies"
