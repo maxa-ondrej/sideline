@@ -50,7 +50,14 @@ registerRoute(
       {
         // handlerDidError plugin: when NetworkFirst fails (offline), serve offline.html
         handlerDidError: async () => {
-          return await caches.match('/offline.html');
+          const cachedResponse = await caches.match('/offline.html');
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return new Response(
+            '<!doctype html><html><head><meta charset="UTF-8"><title>Offline</title></head><body><h1>You are offline</h1><p>The application is currently unavailable without an internet connection.</p></body></html>',
+            { headers: { 'Content-Type': 'text/html; charset=UTF-8' } },
+          );
         },
       },
     ],

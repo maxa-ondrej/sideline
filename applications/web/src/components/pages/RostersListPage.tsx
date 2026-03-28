@@ -111,7 +111,7 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
                       {roster.active ? m.roster_active() : m.roster_inactive()}
                     </span>
                     {' · '}
-                    {roster.memberCount} members
+                    {m.roster_memberCount({ count: roster.memberCount })}
                   </p>
                 </td>
                 <td className='hidden sm:table-cell py-2 px-4'>
@@ -126,7 +126,7 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
                   </span>
                 </td>
                 <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
-                  {roster.memberCount} members
+                  {m.roster_memberCount({ count: roster.memberCount })}
                 </td>
                 <td className='py-2 px-4'>
                   <Button asChild variant='outline' size='sm'>

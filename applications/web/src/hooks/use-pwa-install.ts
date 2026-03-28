@@ -29,8 +29,12 @@ function isDismissed(): boolean {
 }
 
 function persistDismiss(): void {
-  const record: DismissRecord = { timestamp: Date.now() };
-  localStorage.setItem(DISMISS_KEY, JSON.stringify(record));
+  try {
+    const record: DismissRecord = { timestamp: Date.now() };
+    localStorage.setItem(DISMISS_KEY, JSON.stringify(record));
+  } catch {
+    // Ignore storage failures; dismissal is still tracked in memory.
+  }
 }
 
 function detectIOS(): boolean {
@@ -80,10 +84,13 @@ export function usePwaInstall(): PwaInstallState {
 
   const promptInstall = React.useCallback(async () => {
     if (deferredPrompt === null) return;
-    await deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    if (choice.outcome === 'accepted') {
-      setDeferredPrompt(null);
+    const promptEvent = deferredPrompt;
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+    // The beforeinstallprompt event can only be used once, so always clear it
+    setDeferredPrompt(null);
+    if (choice.outcome === 'dismissed') {
+      // User dismissed the native prompt — no additional action needed
     }
   }, [deferredPrompt]);
 

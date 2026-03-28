@@ -129,6 +129,7 @@
   "roster_deleteRoster": "Delete Roster",
   "roster_deleteRosterConfirm": "Are you sure you want to delete this roster?",
   "roster_rosterDeleted": "Roster deleted.",
+  "roster_memberCount": "{count} members",
   "roster_memberAdded": "Member added to roster.",
   "roster_memberRemoved": "Member removed from roster.",
   "roster_noRosters": "No rosters yet.",

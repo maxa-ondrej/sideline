@@ -129,6 +129,7 @@
   "roster_deleteRoster": "Smazat soupisku",
   "roster_deleteRosterConfirm": "Opravdu chcete tuto soupisku smazat?",
   "roster_rosterDeleted": "Soupiska byla smazána.",
+  "roster_memberCount": "{count} členů",
   "roster_memberAdded": "Člen byl přidán do soupisky.",
   "roster_memberRemoved": "Člen byl odebrán ze soupisky.",
   "roster_noRosters": "Zatím žádné soupisky.",
