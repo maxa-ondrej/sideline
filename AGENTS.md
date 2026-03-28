@@ -386,6 +386,18 @@ When searching logs in SigNoz, always filter by resource attributes for faster q
 - **Always update the relevant AGENTS.md** when making architecture changes, adding new patterns, or establishing new conventions
 - Package-specific docs go in the package's `AGENTS.md`, not here
 
+### Technical Documentation (`docs/`)
+
+The `docs/` directory contains comprehensive technical documentation. These must stay in sync with the codebase. Update them as part of the same PR when making relevant changes:
+
+| Document | Update when… |
+|----------|-------------|
+| `index.md` | Adding or removing documentation files |
+| `discord-bot.md` | Adding/removing/renaming bot slash commands, button/modal interactions, gateway handlers, or RPC sync workers |
+| `deployment.md` | Changing environment variables, Docker configuration, CI/CD pipelines, cron job schedules, monitoring setup, or local dev prerequisites |
+| `api.md` | Adding/removing/renaming API endpoints, changing request/response schemas, adding new error types, or modifying auth requirements |
+| `database.md` | Adding/removing/renaming database tables or columns (new migrations), changing constraints, indexes, or seeding behavior |
+
 ## Thesis Documentation (`docs/thesis/`)
 
 The `docs/thesis/` directory contains Mermaid diagrams and documentation for the bachelor's thesis. These must stay in sync with the codebase. Update them as part of the same PR when making relevant changes:
