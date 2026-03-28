@@ -6,7 +6,8 @@ tmp/
 dist/
 build/
 .output/
-docs/
+docs/*
+!docs/thesis/
 scratchpad/*
 !scratchpad/tsconfig.json
 .direnv/

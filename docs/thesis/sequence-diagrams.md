@@ -1,0 +1,457 @@
+# Sideline — Core System Sequence Diagrams
+
+This document provides sequence diagrams for the eight core flows in the Sideline platform. Each diagram is accompanied by a brief description of the flow and its key design decisions. The diagrams use Mermaid `sequenceDiagram` syntax and are intended for inclusion in a bachelor's thesis.
+
+---
+
+## 1. Discord OAuth2 Login Flow
+
+A user initiates login through the web application. The server generates a state token containing a redirect URL, constructs the Discord authorization URL, and redirects the browser to Discord. After the user grants consent, Discord redirects back to the server callback with an authorization code. The server exchanges the code for an access token, fetches the user's Discord profile via the REST API, upserts the user and OAuth connection records in PostgreSQL, and finally creates a 30-day session. The session token is returned to the browser as a query parameter on the redirect.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant WebApp as Web App (Vite/TanStack)
+    participant Server as API Server (Effect HTTP)
+    participant DiscordAPI as Discord API
+    participant DB as PostgreSQL
+
+    Browser->>WebApp: Click "Login with Discord"
+    WebApp->>Server: GET /auth/login
+    Server-->>WebApp: 200 OK — callback URL
+
+    Browser->>Server: GET /auth/do-login
+    Note over Server: Generate UUID state,<br/>encode {id, redirectUrl} as JSON,<br/>build Discord authorization URL
+    Server-->>Browser: 302 Redirect → discord.com/oauth2/authorize<br/>(scope: identify, state=<encoded>)
+
+    Browser->>DiscordAPI: User grants consent
+    DiscordAPI-->>Browser: 302 Redirect → /auth/callback?code=...&state=...
+
+    Browser->>Server: GET /auth/callback?code=CODE&state=STATE
+    Note over Server: Decode & validate state JSON
+    Server->>DiscordAPI: POST /oauth2/token (exchange code for access token)
+    DiscordAPI-->>Server: {access_token, refresh_token, ...}
+
+    Server->>DiscordAPI: GET /users/@me (using access token)
+    DiscordAPI-->>Server: {id, username, avatar, ...}
+
+    Server->>DB: UPSERT users ON CONFLICT (discord_id)
+    DB-->>Server: User row {id, discord_id, username, ...}
+
+    Server->>DB: UPSERT oauth_connections (user_id, provider='discord', access_token, refresh_token)
+    DB-->>Server: OK
+
+    Note over Server: Generate session token (UUID),<br/>set expires_at = now + 30 days
+    Server->>DB: INSERT sessions {user_id, token, expires_at}
+    DB-->>Server: Session row
+
+    Server-->>Browser: 302 Redirect → FRONTEND_URL?token=<session_token>
+    Browser->>WebApp: Store token, redirect to app
+
+    alt OAuth error or Discord API failure
+        Server-->>Browser: 302 Redirect → FRONTEND_URL?error=auth_failed&reason=<reason>
+    end
+```
+
+---
+
+## 2. Event Creation via Web App
+
+An authenticated team member with the `event:create` permission creates an event through the web interface. The server validates the session token, checks team membership, enforces role-based permissions, optionally resolves group scoping from the training type, inserts the event, resolves the target Discord channel, and emits an `event_created` sync event to the `event_sync_events` queue so the bot can publish an embed to Discord.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Server as API Server
+    participant DB as PostgreSQL
+    participant Queue as EventSyncEvents (DB table)
+
+    Browser->>Server: POST /teams/{teamId}/events<br/>Authorization: Bearer <token><br/>Body: {title, eventType, startAt, endAt, ...}
+
+    Note over Server: Auth middleware — look up session by token
+    Server->>DB: SELECT users JOIN sessions WHERE token=?
+    DB-->>Server: Current user
+
+    Server->>DB: SELECT team_members WHERE team_id=? AND user_id=?
+    DB-->>Server: Membership row (with permissions bitmask)
+
+    alt Not a member
+        Server-->>Browser: 403 Forbidden
+    end
+
+    Note over Server: Check permission event:create in bitmask
+    alt Insufficient permission
+        Server-->>Browser: 403 Forbidden
+    end
+
+    opt trainingTypeId provided and user is not admin
+        Server->>DB: SELECT scoped_training_type_ids WHERE member_id=?
+        DB-->>Server: Allowed training type IDs
+        alt Training type not in scope
+            Server-->>Browser: 403 Forbidden
+        end
+    end
+
+    opt trainingTypeId set but no explicit group IDs
+        Server->>DB: SELECT owner_group_id, member_group_id FROM training_types WHERE id=?
+        DB-->>Server: Group IDs from training type
+    end
+
+    Server->>DB: INSERT events {team_id, title, event_type, start_at, end_at, location, ...}
+    DB-->>Server: Event row {id, ...}
+
+    Server->>DB: Resolve target Discord channel for event
+    DB-->>Server: discord_channel_id (Option)
+
+    Server->>Queue: INSERT event_sync_events {type='event_created', team_id, event_id, channel_id, ...}
+    Queue-->>Server: OK
+
+    Server-->>Browser: 201 Created — EventInfo {eventId, title, startAt, ...}
+```
+
+---
+
+## 3. Event Creation via Discord Bot (Slash Command + Modal)
+
+A Discord user runs a slash command (e.g., `/event create`) inside a guild. The bot responds immediately with a modal form (Discord requires a response within 3 seconds). The user fills in the modal fields. On submission the bot immediately acknowledges with an ephemeral "thinking" message (again within 3 seconds), then forks a daemon fiber that calls the server via the typed RPC protocol (`Event/CreateEvent`). The RPC handler on the server resolves the guild to a team, checks membership and permissions, inserts the event, and emits a sync event. The bot's daemon fiber then edits the original ephemeral message with the result.
+
+```mermaid
+sequenceDiagram
+    participant User as Discord User
+    participant Discord
+    participant Bot as Bot Process (dfx)
+    participant Server as API Server (RPC)
+    participant DB as PostgreSQL
+    participant Queue as EventSyncEvents (DB table)
+
+    User->>Discord: /event create [type] [training_type?]
+    Discord->>Bot: Interaction payload (APPLICATION_COMMAND)
+
+    Note over Bot: Must respond within 3 seconds
+    Bot-->>Discord: MODAL response<br/>custom_id="event-create:{type}:{trainingTypeId}"<br/>Fields: title, start, end, location, description
+
+    User->>Discord: Fill modal, submit
+    Discord->>Bot: Interaction payload (MODAL_SUBMIT)
+
+    Note over Bot: Must respond within 3 seconds
+    Bot->>Bot: Fork daemon fiber (submitAndFollowUp)
+    Bot-->>Discord: CHANNEL_MESSAGE_WITH_SOURCE (ephemeral)<br/>"Thinking..."
+
+    Note over Bot: Daemon fiber continues past 3s deadline
+
+    Bot->>Server: RPC Event/CreateEvent {guild_id, discord_user_id, event_type, title, start_at, ...}
+
+    Server->>DB: Resolve guild_id → team_id
+    DB-->>Server: Team row
+
+    Server->>DB: SELECT team_members WHERE discord_id=discord_user_id AND team_id=?
+    DB-->>Server: Membership (or not found)
+
+    alt Not a member
+        Server-->>Bot: RPC error CreateEventNotMember
+        Bot->>Discord: Edit original message → "You are not a member of this team"
+    else Insufficient permission
+        Server-->>Bot: RPC error CreateEventForbidden
+        Bot->>Discord: Edit original message → "You do not have permission"
+    else Invalid date format
+        Server-->>Bot: RPC error CreateEventInvalidDate
+        Bot->>Discord: Edit original message → "Invalid date format"
+    else Success
+        Server->>DB: INSERT events {team_id, title, event_type, start_at, ...}
+        DB-->>Server: Event row {title, ...}
+
+        Server->>Queue: INSERT event_sync_events {type='event_created', ...}
+        Queue-->>Server: OK
+
+        Server-->>Bot: RPC success {title}
+        Bot->>Discord: PATCH webhooks/{app_id}/{token}/messages/@original<br/>"Event '{title}' created"
+    end
+```
+
+---
+
+## 4. RSVP via Discord Button
+
+An event embed posted to a Discord channel contains RSVP buttons (Yes / No / Maybe). When a member clicks one, the bot responds within 3 seconds with a modal requesting an optional message. On modal submission the bot immediately replies with an ephemeral acknowledgement and forks a daemon fiber. The fiber calls `Event/SubmitRsvp` over RPC, which records the response and returns updated RSVP counts. The fiber then fetches the Discord message ID and embed info, rebuilds the embed with fresh counts, and edits the original event message in the channel.
+
+```mermaid
+sequenceDiagram
+    participant User as Discord User
+    participant Discord
+    participant Bot as Bot Process
+    participant Server as API Server (RPC)
+    participant DB as PostgreSQL
+
+    User->>Discord: Click RSVP button (custom_id="rsvp:{teamId}:{eventId}:{response}")
+    Discord->>Bot: Interaction payload (MESSAGE_COMPONENT)
+
+    Note over Bot: Must respond within 3 seconds
+    Bot-->>Discord: MODAL response<br/>custom_id="rsvp-modal:{teamId}:{eventId}:{response}"<br/>Field: optional message (max 200 chars)
+
+    User->>Discord: Optionally fill message, submit
+    Discord->>Bot: Interaction payload (MODAL_SUBMIT)
+
+    Note over Bot: Must respond within 3 seconds
+    Bot->>Bot: Fork daemon fiber (submitAndFollowUp)
+    Bot-->>Discord: CHANNEL_MESSAGE_WITH_SOURCE (ephemeral)<br/>"Thinking..."
+
+    Note over Bot: Daemon fiber continues
+
+    Bot->>Server: RPC Event/SubmitRsvp {event_id, team_id, discord_user_id, response, message}
+
+    Server->>DB: Resolve discord_user_id → team_member_id for team
+    DB-->>Server: Member (or not found)
+
+    alt Member not found
+        Server-->>Bot: RPC error RsvpMemberNotFound
+        Bot->>Discord: Edit original → "You are not a member of this team"
+    else Event not found
+        Server-->>Bot: RPC error RsvpEventNotFound
+        Bot->>Discord: Edit original → "Event not found"
+    else RSVP deadline passed
+        Server-->>Bot: RPC error RsvpDeadlinePassed
+        Bot->>Discord: Edit original → "RSVP deadline has passed"
+    else Not in member group
+        Server-->>Bot: RPC error RsvpNotGroupMember
+        Bot->>Discord: Edit original → "You are not in the event's member group"
+    else Success
+        Server->>DB: UPSERT event_rsvps {event_id, member_id, response, message}
+        DB-->>Server: RSVP counts {yes, no, maybe}
+
+        Server-->>Bot: RPC success — RSVP counts
+
+        Bot->>Server: RPC Event/GetDiscordMessageId {event_id}
+        Server->>DB: SELECT discord_message_id, discord_channel_id FROM event_discord_messages
+        DB-->>Server: Stored message reference (Option)
+        Server-->>Bot: Option<{discord_channel_id, discord_message_id}>
+
+        Bot->>Server: RPC Event/GetEventEmbedInfo {event_id}
+        Server->>DB: SELECT title, description, start_at, end_at, ... FROM events
+        DB-->>Server: Embed info (Option)
+        Server-->>Bot: Option<EmbedInfo>
+
+        Bot->>Discord: GET /guilds/{guild_id} (fetch preferred locale)
+        Discord-->>Bot: Guild {preferred_locale}
+
+        Note over Bot: Build embed with updated RSVP counts
+        Bot->>Discord: PATCH /channels/{channel_id}/messages/{message_id}<br/>{embeds: [...], components: [...]}
+        Discord-->>Bot: Updated message
+
+        Bot->>Discord: Edit original ephemeral → "Your response (Yes/No/Maybe) has been recorded"
+    end
+```
+
+---
+
+## 5. Discord Role Sync (Outbound)
+
+When an admin assigns a Sideline role to a team member via the web app, the server writes a `role_assigned` event row to the `role_sync_events` table. The bot runs a polling loop every 5 seconds that calls `Role/GetUnprocessedEvents` over RPC. For each event the bot ensures a Discord role mapping exists (creating the Discord role if necessary), calls the Discord API to assign the role to the member in the guild, then marks the event as processed. Failed events are marked with an error string for later inspection.
+
+```mermaid
+sequenceDiagram
+    participant Admin as Admin (Browser)
+    participant Server as API Server
+    participant DB as PostgreSQL
+    participant Bot as Bot Process (poll loop)
+    participant Discord as Discord API
+
+    Admin->>Server: POST /teams/{teamId}/members/{memberId}/roles<br/>(assign role)
+    Server->>DB: INSERT team_member_roles {member_id, role_id}
+    DB-->>Server: OK
+    Server->>DB: INSERT role_sync_events {type='role_assigned', team_id, guild_id,<br/>role_id, role_name, team_member_id, discord_user_id}
+    DB-->>Server: sync event row {id, ...}
+    Server-->>Admin: 200 OK
+
+    Note over Bot: Poll loop — every 5 seconds
+    Bot->>Server: RPC Role/GetUnprocessedEvents {limit: BATCH_SIZE}
+    Server->>DB: SELECT * FROM role_sync_events WHERE processed_at IS NULL LIMIT ?
+    DB-->>Server: [role_assigned event, ...]
+    Server-->>Bot: [UnprocessedRoleEvent, ...]
+
+    loop For each event
+        Bot->>Server: RPC Role/GetMapping {team_id, role_id}
+        Server->>DB: SELECT discord_role_id FROM role_mappings WHERE team_id=? AND role_id=?
+        DB-->>Server: Option<RoleMapping>
+
+        alt No mapping yet
+            Bot->>Discord: POST /guilds/{guild_id}/roles {name: role_name}
+            Discord-->>Bot: Discord role {id}
+            Bot->>Server: RPC Role/UpsertMapping {team_id, role_id, discord_role_id}
+            Server->>DB: UPSERT role_mappings
+            DB-->>Server: OK
+        end
+
+        Bot->>Discord: PUT /guilds/{guild_id}/members/{discord_user_id}/roles/{discord_role_id}
+        Discord-->>Bot: 204 No Content
+
+        alt Success
+            Bot->>Server: RPC Role/MarkEventProcessed {id}
+            Server->>DB: UPDATE role_sync_events SET processed_at=now() WHERE id=?
+            DB-->>Server: OK
+        else Discord API error
+            Bot->>Server: RPC Role/MarkEventFailed {id, error}
+            Server->>DB: UPDATE role_sync_events SET failed_at=now(), error=? WHERE id=?
+            DB-->>Server: OK
+        end
+    end
+```
+
+---
+
+## 6. Recurring Event Generation (Cron)
+
+The `EventHorizonCron` runs on a daily schedule (`0 3 * * *` UTC). On each tick it fetches all active event series from the database, computes the generation horizon end date (the lesser of the series end date and `now + horizonDays`), calls `generateOccurrenceDates` to enumerate matching weekdays, inserts one event row per date (sequentially, concurrency 1), and updates the series' `last_generated_date` to the horizon end. The cron only generates dates from where it left off (`last_generated_date + 1 day`) so it is safe to run repeatedly.
+
+```mermaid
+sequenceDiagram
+    participant Clock as System Clock (cron)
+    participant Cron as EventHorizonCron
+    participant SeriesRepo as EventSeriesRepository
+    participant EventsRepo as EventsRepository
+    participant DB as PostgreSQL
+
+    Clock->>Cron: Trigger — 03:00 UTC daily
+
+    Cron->>SeriesRepo: getActiveForGeneration()
+    SeriesRepo->>DB: SELECT * FROM event_series WHERE active=true
+    DB-->>SeriesRepo: [series rows]
+    SeriesRepo-->>Cron: [EventSeries, ...]
+
+    loop For each series
+        Note over Cron: computeHorizonEnd:<br/>min(series.end_date, now + horizonDays)
+
+        Note over Cron: startFrom = last_generated_date + 1 day<br/>(or series.start_date if never generated)
+
+        alt startFrom > effectiveEnd
+            Note over Cron: Nothing to generate — skip
+        else dates available
+            Note over Cron: generateOccurrenceDates:<br/>enumerate daysOfWeek in [startFrom, effectiveEnd]<br/>applying weekly / biweekly filter
+
+            loop For each date (concurrency: 1)
+                Cron->>EventsRepo: insertEvent {team_id, title, event_type='training',<br/>start_at, end_at, series_id, training_type_id, ...}
+                EventsRepo->>DB: INSERT events
+                DB-->>EventsRepo: event row
+                EventsRepo-->>Cron: OK
+            end
+
+            Cron->>SeriesRepo: updateLastGeneratedDate(series.id, effectiveEnd)
+            SeriesRepo->>DB: UPDATE event_series SET last_generated_date=? WHERE id=?
+            DB-->>SeriesRepo: OK
+        end
+    end
+
+    Note over Cron: Generation cycle complete — sleep until next tick
+```
+
+---
+
+## 7. Team Creation and Guild Linking
+
+Before creating a team the user must select a Discord guild in which they hold Administrator or Manage Guild permission and where the Sideline bot is already installed. The web app calls `GET /auth/my-guilds`, which uses the stored OAuth access token to list the user's guilds, filters to those with sufficient permissions, and annotates each with a `botPresent` flag. The user selects a guild and submits the team creation form. The server inserts the team, seeds default roles with their permission sets (Admin, Coach, Player), creates a team membership for the creator, and assigns the Admin role.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Server as API Server
+    participant DiscordAPI as Discord API
+    participant DB as PostgreSQL
+
+    Browser->>Server: GET /auth/my-guilds<br/>Authorization: Bearer <token>
+    Note over Server: Auth middleware — resolve current user
+
+    Server->>DB: SELECT access_token FROM oauth_connections<br/>WHERE user_id=? AND provider='discord'
+    DB-->>Server: access_token
+
+    Server->>DiscordAPI: GET /users/@me/guilds (using user access token)
+    DiscordAPI-->>Server: [Guild, ...] with permissions bitmask
+
+    Note over Server: Filter guilds where<br/>(permissions & ADMINISTRATOR) || (permissions & MANAGE_GUILD)
+
+    loop For each permitted guild
+        Server->>DB: SELECT EXISTS FROM bot_guilds WHERE guild_id=?
+        DB-->>Server: botPresent: true/false
+    end
+
+    Server-->>Browser: [DiscordGuild {id, name, icon, botPresent}, ...]
+
+    Browser->>Server: POST /auth/create-team<br/>{name: "FC Sideline", guildId: "123456789"}
+    Note over Server: Auth middleware — resolve current user
+
+    Server->>DB: INSERT teams {name, guild_id, created_by}
+    DB-->>Server: Team {id, name, guild_id}
+
+    Server->>DB: INSERT roles (Admin, Coach, Player) with permission sets<br/>for team_id
+    DB-->>Server: [Role rows] including Admin role
+
+    Server->>DB: INSERT team_members {team_id, user_id, active=true}
+    DB-->>Server: TeamMember {id}
+
+    Server->>DB: INSERT team_member_roles {member_id, role_id=Admin.id}
+    DB-->>Server: OK
+
+    Server-->>Browser: 201 Created — UserTeam {teamId, teamName,<br/>roleNames:["Admin"], permissions:[...]}
+```
+
+---
+
+## 8. Invite and Join Team
+
+An admin generates an invite link (or regenerates one) from the team settings page. The server creates a 12-character alphanumeric code, stores it in `team_invites`, and deactivates any previous codes for that team. A new user visits the invite URL in the browser, which first calls `GET /invite/{code}` to display the team name without authentication. When the user clicks "Accept", the front end redirects through the OAuth login flow (diagram 1), after which the app calls `POST /invite/{code}/join` with the session token. The server validates the code, checks the user is not already a member, resolves the "Player" role ID, inserts the membership, assigns the Player role, and returns a join result.
+
+```mermaid
+sequenceDiagram
+    participant Admin as Admin (Browser)
+    participant NewUser as New User (Browser)
+    participant Server as API Server
+    participant DB as PostgreSQL
+
+    Admin->>Server: POST /teams/{teamId}/invite/regenerate<br/>Authorization: Bearer <token>
+    Note over Server: Verify team:invite permission
+    Note over Server: Generate 12-char alphanumeric code
+    Server->>DB: INSERT team_invites {team_id, code, active=true, created_by}
+    DB-->>Server: Invite {code}
+    Server->>DB: UPDATE team_invites SET active=false<br/>WHERE team_id=? AND id != newInvite.id
+    DB-->>Server: OK
+    Server-->>Admin: 200 OK — InviteCode {code}
+
+    Note over Admin: Share invite URL: /invite/{code}
+
+    NewUser->>Server: GET /invite/{code}
+    Server->>DB: SELECT * FROM team_invites WHERE code=? AND active=true
+    DB-->>Server: Invite row (or not found)
+
+    alt Code not found or inactive
+        Server-->>NewUser: 404 InviteNotFound
+    else Valid invite
+        Server->>DB: SELECT * FROM teams WHERE id=invite.team_id
+        DB-->>Server: Team {name}
+        Server-->>NewUser: 200 OK — InviteInfo {teamName, teamId, code}
+    end
+
+    NewUser->>Server: (Login via OAuth — see Diagram 1)
+    Note over NewUser: Obtains session token
+
+    NewUser->>Server: POST /invite/{code}/join<br/>Authorization: Bearer <token>
+    Note over Server: Auth middleware — resolve current user
+
+    Server->>DB: SELECT * FROM team_invites WHERE code=? AND active=true
+    DB-->>Server: Invite row
+
+    Server->>DB: SELECT * FROM team_members<br/>WHERE team_id=? AND user_id=?
+    DB-->>Server: Option<Membership>
+
+    alt Already a member
+        Server-->>NewUser: 409 AlreadyMember
+    else Not yet a member
+        Server->>DB: SELECT role_id FROM roles<br/>WHERE team_id=? AND name='Player'
+        DB-->>Server: Player role ID
+
+        Server->>DB: INSERT team_members {team_id, user_id, active=true}
+        DB-->>Server: TeamMember {id}
+
+        Server->>DB: INSERT team_member_roles {member_id, role_id=Player.id}
+        DB-->>Server: OK
+
+        Server-->>NewUser: 200 OK — JoinResult {teamId, roleNames:["Player"],<br/>isProfileComplete}
+    end
+```
