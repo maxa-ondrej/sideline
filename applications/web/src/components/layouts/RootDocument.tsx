@@ -16,7 +16,7 @@ export function RootDocument({ run, children }: RootDocumentProps) {
   const locale = getLocale();
 
   React.useEffect(() => {
-    if ('serviceWorker' in navigator && import.meta.env.PROD) {
+    if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {
         // SW registration failed — app continues without offline support
       });
