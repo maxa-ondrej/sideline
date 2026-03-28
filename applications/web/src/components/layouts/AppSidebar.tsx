@@ -37,6 +37,7 @@ interface NavItem {
   to: string;
   params?: Record<string, string>;
   requiredPermission?: Role.Permission;
+  exact?: boolean;
 }
 
 function getTeamNavGroups(
@@ -47,7 +48,13 @@ function getTeamNavGroups(
       id: 'team',
       label: m.sidebar_team(),
       items: [
-        { title: m.sidebar_overview(), icon: Home, to: '/teams/$teamId', params: { teamId } },
+        {
+          title: m.sidebar_dashboard(),
+          icon: Home,
+          to: '/teams/$teamId',
+          params: { teamId },
+          exact: true,
+        },
         {
           title: m.event_events(),
           icon: Calendar,
@@ -158,7 +165,9 @@ export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppS
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton
                       asChild
-                      isActive={!!matchRoute({ to: item.to, params: item.params, fuzzy: true })}
+                      isActive={
+                        !!matchRoute({ to: item.to, params: item.params, fuzzy: !item.exact })
+                      }
                       tooltip={item.title}
                     >
                       <Link to={item.to} params={item.params}>

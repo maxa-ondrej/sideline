@@ -296,68 +296,296 @@ export function EventsListPage({
       {viewMode === 'calendar' ? (
         <EventCalendarView teamId={teamId} events={events} trainingTypes={trainingTypes} />
       ) : (
-        <>
-          {canCreate && (
-            <div className='mb-8 max-w-lg'>
-              <div className='flex gap-2 mb-4'>
-                <Button
-                  variant={mode === 'one-time' ? 'default' : 'outline'}
-                  size='sm'
-                  onClick={() => setMode('one-time')}
-                >
-                  {m.event_oneTime()}
-                </Button>
-                <Button
-                  variant={mode === 'recurring' ? 'default' : 'outline'}
-                  size='sm'
-                  onClick={() => setMode('recurring')}
-                >
-                  {m.event_recurring()}
-                </Button>
-              </div>
+        <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_340px]'>
+          <div className='order-2 lg:order-1'>
+            {canCreate && (
+              <div className='mb-8 max-w-lg'>
+                <div className='flex gap-2 mb-4'>
+                  <Button
+                    variant={mode === 'one-time' ? 'default' : 'outline'}
+                    size='sm'
+                    onClick={() => setMode('one-time')}
+                  >
+                    {m.event_oneTime()}
+                  </Button>
+                  <Button
+                    variant={mode === 'recurring' ? 'default' : 'outline'}
+                    size='sm'
+                    onClick={() => setMode('recurring')}
+                  >
+                    {m.event_recurring()}
+                  </Button>
+                </div>
 
-              {mode === 'one-time' ? (
-                <Form key='one-time' {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
-                    <FormField
-                      {...form.register('title')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_title()}</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder={m.event_titlePlaceholder()} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className='flex flex-col gap-4 sm:flex-row'>
+                {mode === 'one-time' ? (
+                  <Form key='one-time' {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
                       <FormField
-                        {...form.register('eventType')}
+                        {...form.register('title')}
                         render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_eventType()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {Event.EventType.literals.map((type) => (
-                                  <SelectItem key={type} value={type}>
-                                    {eventTypeLabels[type]()}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <FormItem>
+                            <FormLabel>{m.event_title()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder={m.event_titlePlaceholder()} />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      {watchedEventType === 'training' && (
+                      <div className='flex flex-col gap-4 sm:flex-row'>
                         <FormField
-                          {...form.register('trainingTypeId')}
+                          {...form.register('eventType')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_eventType()}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {Event.EventType.literals.map((type) => (
+                                    <SelectItem key={type} value={type}>
+                                      {eventTypeLabels[type]()}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        {watchedEventType === 'training' && (
+                          <FormField
+                            {...form.register('trainingTypeId')}
+                            render={({ field }) => (
+                              <FormItem className='flex-1'>
+                                <FormLabel>{m.event_trainingType()}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={m.event_noTrainingType()} />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value={NONE_VALUE}>
+                                      {m.event_noTrainingType()}
+                                    </SelectItem>
+                                    {trainingTypes.map((tt) => (
+                                      <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
+                                        {tt.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </div>
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...form.register('startDate')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_startDate()}</FormLabel>
+                              <FormControl>
+                                <DatePicker
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder={m.event_startDate()}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          {...form.register('startTime')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_startTime()}</FormLabel>
+                              <FormControl>
+                                <Input {...field} type='time' />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...form.register('endDate')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_endDate()}</FormLabel>
+                              <FormControl>
+                                <DatePicker
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder={m.event_endDate()}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          {...form.register('endTime')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_endTime()}</FormLabel>
+                              <FormControl>
+                                <Input {...field} type='time' />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        {...form.register('location')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_location()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder={m.event_locationPlaceholder()} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...form.register('description')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_description()}</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                placeholder={m.event_descriptionPlaceholder()}
+                                rows={3}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...form.register('discordChannelId')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_discordChannel()}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={m.event_useDefault()} />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                {discordChannels.map((ch) => (
+                                  <SelectItem key={ch.id} value={ch.id}>
+                                    # {ch.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_discordChannelHelp()}
+                            </p>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...form.register('ownerGroupId')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_ownerGroup()}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={m.event_useDefault()} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                  {groups.map((g) => (
+                                    <SelectItem key={g.groupId} value={g.groupId}>
+                                      {g.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className='text-xs text-muted-foreground'>
+                                {m.event_ownerGroupHelp()}
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          {...form.register('memberGroupId')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_memberGroup()}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={m.event_useDefault()} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                  {groups.map((g) => (
+                                    <SelectItem key={g.groupId} value={g.groupId}>
+                                      {g.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className='text-xs text-muted-foreground'>
+                                {m.event_memberGroupHelp()}
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <Button
+                        type='submit'
+                        disabled={form.formState.isSubmitting}
+                        className='self-start'
+                      >
+                        {m.event_createEvent()}
+                      </Button>
+                    </form>
+                  </Form>
+                ) : (
+                  <Form key='recurring' {...seriesForm}>
+                    <form
+                      onSubmit={seriesForm.handleSubmit(onSubmitSeries)}
+                      className='flex flex-col gap-4'
+                    >
+                      <FormField
+                        {...seriesForm.register('title')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_title()}</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder={m.event_titlePlaceholder()} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...seriesForm.register('trainingTypeId')}
                           render={({ field }) => (
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_trainingType()}</FormLabel>
@@ -382,19 +610,154 @@ export function EventsListPage({
                             </FormItem>
                           )}
                         />
-                      )}
-                    </div>
-                    <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...seriesForm.register('frequency')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_frequency()}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value='weekly'>
+                                    {m.event_frequency_weekly()}
+                                  </SelectItem>
+                                  <SelectItem value='biweekly'>
+                                    {m.event_frequency_biweekly()}
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                       <FormField
-                        {...form.register('startDate')}
+                        name='daysOfWeek'
+                        control={seriesForm.control}
                         render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_startDate()}</FormLabel>
+                          <FormItem>
+                            <FormLabel>{m.event_daysOfWeek()}</FormLabel>
+                            <div className='flex gap-1'>
+                              {DAY_ORDER.map((d) => {
+                                const selected = (field.value as number[]).includes(d);
+                                return (
+                                  <Button
+                                    key={d}
+                                    type='button'
+                                    size='sm'
+                                    variant={selected ? 'default' : 'outline'}
+                                    className='w-10'
+                                    aria-pressed={selected}
+                                    aria-label={dayFullLabels[d]()}
+                                    onClick={() => {
+                                      const current = field.value as number[];
+                                      field.onChange(
+                                        sortDays(
+                                          selected
+                                            ? current.filter((v) => v !== d)
+                                            : [...current, d],
+                                        ),
+                                      );
+                                    }}
+                                  >
+                                    {dayShortLabels[d]()}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...seriesForm.register('startDate')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_startDate()}</FormLabel>
+                              <FormControl>
+                                <DatePicker
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder={m.event_startDate()}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          {...seriesForm.register('endDate')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_endDate()}</FormLabel>
+                              <FormControl>
+                                <DatePicker
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder={m.event_endDate()}
+                                />
+                              </FormControl>
+                              <p className='text-xs text-muted-foreground'>
+                                {m.event_endDateHelp()}
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...seriesForm.register('startTime')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_startTime()}</FormLabel>
+                              <FormControl>
+                                <Input {...field} type='time' />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          {...seriesForm.register('endTime')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_endTime()}</FormLabel>
+                              <FormControl>
+                                <Input {...field} type='time' />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        {...seriesForm.register('location')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_location()}</FormLabel>
                             <FormControl>
-                              <DatePicker
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder={m.event_startDate()}
+                              <Input {...field} placeholder={m.event_locationPlaceholder()} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...seriesForm.register('description')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_description()}</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                placeholder={m.event_descriptionPlaceholder()}
+                                rows={3}
                               />
                             </FormControl>
                             <FormMessage />
@@ -402,109 +765,10 @@ export function EventsListPage({
                         )}
                       />
                       <FormField
-                        {...form.register('startTime')}
+                        {...seriesForm.register('discordChannelId')}
                         render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_startTime()}</FormLabel>
-                            <FormControl>
-                              <Input {...field} type='time' />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className='flex flex-col gap-4 sm:flex-row'>
-                      <FormField
-                        {...form.register('endDate')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_endDate()}</FormLabel>
-                            <FormControl>
-                              <DatePicker
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder={m.event_endDate()}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        {...form.register('endTime')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_endTime()}</FormLabel>
-                            <FormControl>
-                              <Input {...field} type='time' />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      {...form.register('location')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_location()}</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder={m.event_locationPlaceholder()} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      {...form.register('description')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_description()}</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              placeholder={m.event_descriptionPlaceholder()}
-                              rows={3}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      {...form.register('discordChannelId')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_discordChannel()}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={m.event_useDefault()} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                              {discordChannels.map((ch) => (
-                                <SelectItem key={ch.id} value={ch.id}>
-                                  # {ch.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className='text-xs text-muted-foreground'>
-                            {m.event_discordChannelHelp()}
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className='flex flex-col gap-4 sm:flex-row'>
-                      <FormField
-                        {...form.register('ownerGroupId')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_ownerGroup()}</FormLabel>
+                          <FormItem>
+                            <FormLabel>{m.event_discordChannel()}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
@@ -513,414 +777,148 @@ export function EventsListPage({
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                {groups.map((g) => (
-                                  <SelectItem key={g.groupId} value={g.groupId}>
-                                    {g.name}
+                                {discordChannels.map((ch) => (
+                                  <SelectItem key={ch.id} value={ch.id}>
+                                    # {ch.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                             <p className='text-xs text-muted-foreground'>
-                              {m.event_ownerGroupHelp()}
+                              {m.event_discordChannelHelp()}
                             </p>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      <FormField
-                        {...form.register('memberGroupId')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_memberGroup()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={m.event_useDefault()} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                {groups.map((g) => (
-                                  <SelectItem key={g.groupId} value={g.groupId}>
-                                    {g.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className='text-xs text-muted-foreground'>
-                              {m.event_memberGroupHelp()}
-                            </p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <Button
-                      type='submit'
-                      disabled={form.formState.isSubmitting}
-                      className='self-start'
-                    >
-                      {m.event_createEvent()}
-                    </Button>
-                  </form>
-                </Form>
-              ) : (
-                <Form key='recurring' {...seriesForm}>
-                  <form
-                    onSubmit={seriesForm.handleSubmit(onSubmitSeries)}
-                    className='flex flex-col gap-4'
+                      <div className='flex flex-col gap-4 sm:flex-row'>
+                        <FormField
+                          {...seriesForm.register('ownerGroupId')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_ownerGroup()}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={m.event_useDefault()} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                  {groups.map((g) => (
+                                    <SelectItem key={g.groupId} value={g.groupId}>
+                                      {g.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className='text-xs text-muted-foreground'>
+                                {m.event_ownerGroupHelp()}
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          {...seriesForm.register('memberGroupId')}
+                          render={({ field }) => (
+                            <FormItem className='flex-1'>
+                              <FormLabel>{m.event_memberGroup()}</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={m.event_useDefault()} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                                  {groups.map((g) => (
+                                    <SelectItem key={g.groupId} value={g.groupId}>
+                                      {g.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className='text-xs text-muted-foreground'>
+                                {m.event_memberGroupHelp()}
+                              </p>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <Button
+                        type='submit'
+                        disabled={seriesForm.formState.isSubmitting}
+                        className='self-start'
+                      >
+                        {m.event_createSeries()}
+                      </Button>
+                    </form>
+                  </Form>
+                )}
+              </div>
+            )}
+          </div>
+          <div className='order-1 lg:order-2 lg:sticky lg:top-20 lg:self-start'>
+            {events.length === 0 ? (
+              <p className='text-muted-foreground'>{m.event_noEvents()}</p>
+            ) : (
+              <div className='flex flex-col gap-2'>
+                {events.map((event) => (
+                  <Link
+                    key={event.eventId}
+                    to='/teams/$teamId/events/$eventId'
+                    params={{ teamId, eventId: event.eventId }}
+                    className='flex items-start gap-3 rounded-lg border p-3 hover:bg-accent transition-colors'
                   >
-                    <FormField
-                      {...seriesForm.register('title')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_title()}</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder={m.event_titlePlaceholder()} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className='flex flex-col gap-4 sm:flex-row'>
-                      <FormField
-                        {...seriesForm.register('trainingTypeId')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_trainingType()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={m.event_noTrainingType()} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE_VALUE}>
-                                  {m.event_noTrainingType()}
-                                </SelectItem>
-                                {trainingTypes.map((tt) => (
-                                  <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
-                                    {tt.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        {...seriesForm.register('frequency')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_frequency()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value='weekly'>{m.event_frequency_weekly()}</SelectItem>
-                                <SelectItem value='biweekly'>
-                                  {m.event_frequency_biweekly()}
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    <div className='flex size-10 shrink-0 flex-col items-center justify-center rounded-md bg-muted text-xs'>
+                      <span className='font-semibold leading-none'>
+                        {formatLocalDate(event.startAt).split(/\s|\.|\//)[0]}
+                      </span>
+                      <span className='text-muted-foreground leading-none mt-0.5 text-[10px]'>
+                        {formatLocalDate(event.startAt).slice(-4)}
+                      </span>
                     </div>
-                    <FormField
-                      name='daysOfWeek'
-                      control={seriesForm.control}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_daysOfWeek()}</FormLabel>
-                          <div className='flex gap-1'>
-                            {DAY_ORDER.map((d) => {
-                              const selected = (field.value as number[]).includes(d);
-                              return (
-                                <Button
-                                  key={d}
-                                  type='button'
-                                  size='sm'
-                                  variant={selected ? 'default' : 'outline'}
-                                  className='w-10'
-                                  aria-pressed={selected}
-                                  aria-label={dayFullLabels[d]()}
-                                  onClick={() => {
-                                    const current = field.value as number[];
-                                    field.onChange(
-                                      sortDays(
-                                        selected ? current.filter((v) => v !== d) : [...current, d],
-                                      ),
-                                    );
-                                  }}
-                                >
-                                  {dayShortLabels[d]()}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className='flex flex-col gap-4 sm:flex-row'>
-                      <FormField
-                        {...seriesForm.register('startDate')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_startDate()}</FormLabel>
-                            <FormControl>
-                              <DatePicker
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder={m.event_startDate()}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        {...seriesForm.register('endDate')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_endDate()}</FormLabel>
-                            <FormControl>
-                              <DatePicker
-                                value={field.value}
-                                onChange={field.onChange}
-                                placeholder={m.event_endDate()}
-                              />
-                            </FormControl>
-                            <p className='text-xs text-muted-foreground'>{m.event_endDateHelp()}</p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <div className='flex flex-col gap-4 sm:flex-row'>
-                      <FormField
-                        {...seriesForm.register('startTime')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_startTime()}</FormLabel>
-                            <FormControl>
-                              <Input {...field} type='time' />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        {...seriesForm.register('endTime')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_endTime()}</FormLabel>
-                            <FormControl>
-                              <Input {...field} type='time' />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <FormField
-                      {...seriesForm.register('location')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_location()}</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder={m.event_locationPlaceholder()} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      {...seriesForm.register('description')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_description()}</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              placeholder={m.event_descriptionPlaceholder()}
-                              rows={3}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      {...seriesForm.register('discordChannelId')}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{m.event_discordChannel()}</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={m.event_useDefault()} />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                              {discordChannels.map((ch) => (
-                                <SelectItem key={ch.id} value={ch.id}>
-                                  # {ch.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className='text-xs text-muted-foreground'>
-                            {m.event_discordChannelHelp()}
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className='flex flex-col gap-4 sm:flex-row'>
-                      <FormField
-                        {...seriesForm.register('ownerGroupId')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_ownerGroup()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={m.event_useDefault()} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                {groups.map((g) => (
-                                  <SelectItem key={g.groupId} value={g.groupId}>
-                                    {g.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className='text-xs text-muted-foreground'>
-                              {m.event_ownerGroupHelp()}
-                            </p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        {...seriesForm.register('memberGroupId')}
-                        render={({ field }) => (
-                          <FormItem className='flex-1'>
-                            <FormLabel>{m.event_memberGroup()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={m.event_useDefault()} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                {groups.map((g) => (
-                                  <SelectItem key={g.groupId} value={g.groupId}>
-                                    {g.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className='text-xs text-muted-foreground'>
-                              {m.event_memberGroupHelp()}
-                            </p>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    <Button
-                      type='submit'
-                      disabled={seriesForm.formState.isSubmitting}
-                      className='self-start'
-                    >
-                      {m.event_createSeries()}
-                    </Button>
-                  </form>
-                </Form>
-              )}
-            </div>
-          )}
-
-          {events.length === 0 ? (
-            <p className='text-muted-foreground'>{m.event_noEvents()}</p>
-          ) : (
-            <div className='overflow-x-auto'>
-              <table className='w-full min-w-[480px]'>
-                <tbody>
-                  {events.map((event) => (
-                    <tr key={event.eventId} className='border-b'>
-                      <td className='py-2 px-4'>
-                        <Link
-                          to='/teams/$teamId/events/$eventId'
-                          params={{ teamId, eventId: event.eventId }}
-                          className='font-medium hover:underline'
-                        >
-                          {event.title}
-                        </Link>
+                    <div className='min-w-0 flex-1'>
+                      <div className='flex items-center gap-1.5 mb-0.5'>
+                        <p className='font-medium truncate text-sm'>{event.title}</p>
                         {Option.isSome(event.seriesId) && (
-                          <span className='ml-2 text-xs text-muted-foreground'>
+                          <span className='text-[10px] text-muted-foreground'>
                             {m.event_recurring()}
                           </span>
                         )}
-                      </td>
-                      <td className='py-2 px-4 text-muted-foreground whitespace-nowrap'>
-                        {eventTypeLabels[event.eventType]()}
-                      </td>
-                      <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
-                        {Option.getOrNull(event.trainingTypeName)}
-                      </td>
-                      <td className='py-2 px-4 text-muted-foreground whitespace-nowrap'>
-                        {formatLocalDate(event.startAt)}
-                      </td>
-                      <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground whitespace-nowrap'>
-                        {formatLocalTime(event.startAt)}
-                        {event.endAt.pipe(
-                          Option.map((v) => ` - ${formatLocalTime(v)}`),
-                          Option.getOrElse(() => ''),
-                        )}
-                      </td>
-                      <td className='hidden sm:table-cell py-2 px-4'>
-                        <span
-                          className={
-                            event.status === 'active'
-                              ? 'text-green-700 font-medium'
-                              : 'text-muted-foreground line-through'
-                          }
-                        >
-                          {event.status === 'active'
-                            ? m.event_status_active()
-                            : m.event_status_cancelled()}
+                      </div>
+                      <div className='flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground'>
+                        <span>{eventTypeLabels[event.eventType]()}</span>
+                        <span>·</span>
+                        <span>{formatLocalDate(event.startAt)}</span>
+                        <span className='hidden sm:inline'>
+                          {formatLocalTime(event.startAt)}
+                          {event.endAt.pipe(
+                            Option.map((v) => ` - ${formatLocalTime(v)}`),
+                            Option.getOrElse(() => ''),
+                          )}
                         </span>
-                      </td>
-                      <td className='py-2 px-4'>
-                        <Button asChild variant='outline' size='sm'>
-                          <Link
-                            to='/teams/$teamId/events/$eventId'
-                            params={{ teamId, eventId: event.eventId }}
-                          >
-                            View
-                          </Link>
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs shrink-0 ${
+                        event.status === 'active'
+                          ? 'text-green-700 dark:text-green-400 font-medium'
+                          : 'text-muted-foreground line-through'
+                      }`}
+                    >
+                      {event.status === 'active'
+                        ? m.event_status_active()
+                        : m.event_status_cancelled()}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -475,6 +475,7 @@
   "bot_event_list_error": "Failed to load events.",
   "bot_cmd_event_list_desc": "List upcoming events",
   "sidebar_overview": "Overview",
+  "sidebar_dashboard": "Dashboard",
   "sidebar_makanicko": "Workout",
   "sidebar_team": "Team",
   "sidebar_coach": "Coach",
@@ -585,5 +586,9 @@
   "hero_feature_workout_desc": "Log activities, compete on the leaderboard, and build streaks with your teammates.",
   "hero_feature_team": "Team Management",
   "hero_feature_team_desc": "Roles, rosters, groups, and member profiles — everything your team needs.",
-  "hero_footer": "Built for teams that use Discord"
+  "hero_footer": "Built for teams that use Discord",
+  "hero_demo_leaderboard": "Leaderboard",
+  "hero_demo_nextEvent": "Next Event",
+  "hero_demo_stats": "Your Stats",
+  "hero_demo_rsvp": "Awaiting RSVP"
 }

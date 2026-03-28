@@ -475,6 +475,7 @@
   "bot_event_list_error": "Nepodařilo se načíst události.",
   "bot_cmd_event_list_desc": "Zobrazit nadcházející události",
   "sidebar_overview": "Přehled",
+  "sidebar_dashboard": "Nástěnka",
   "sidebar_makanicko": "Makáníčko",
   "sidebar_team": "Tým",
   "sidebar_coach": "Trenér",
@@ -585,5 +586,9 @@
   "hero_feature_workout_desc": "Zaznamenávejte aktivity, soutěžte v žebříčku a budujte série se spoluhráči.",
   "hero_feature_team": "Správa týmu",
   "hero_feature_team_desc": "Role, soupisky, skupiny a profily členů — vše, co váš tým potřebuje.",
-  "hero_footer": "Vytvořeno pro týmy používající Discord"
+  "hero_footer": "Vytvořeno pro týmy používající Discord",
+  "hero_demo_leaderboard": "Žebříček",
+  "hero_demo_nextEvent": "Další událost",
+  "hero_demo_stats": "Vaše statistiky",
+  "hero_demo_rsvp": "Čeká na odpověď"
 }
