@@ -30,7 +30,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
       {
-        title: 'Sideline',
+        title: 'Sideline — Team Management',
       },
       {
         name: 'theme-color',
@@ -61,6 +61,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       {
         rel: 'apple-touch-icon',
         href: '/icons/apple-touch-icon.png',
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        href: '/favicon.ico',
       },
     ],
   }),
