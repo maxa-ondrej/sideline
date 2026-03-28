@@ -108,7 +108,7 @@ function AuthenticatedLayoutContent({
   const router = useRouter();
 
   React.useEffect(() => {
-    const unsubscribe = router.subscribe('onBeforeNavigate', () => {
+    const unsubscribe = router.subscribe('onBeforeLoad', () => {
       setOpenMobile(false);
     });
     return unsubscribe;
