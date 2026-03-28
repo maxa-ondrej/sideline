@@ -3,7 +3,7 @@ import type { EventApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
-import { Effect, Option, Schema } from 'effect';
+import { DateTime, Effect, Option, Schema } from 'effect';
 import { CalendarDays, List } from 'lucide-react';
 import React from 'react';
 import { useForm } from 'react-hook-form';
@@ -874,10 +874,13 @@ export function EventsListPage({
                   >
                     <div className='flex size-10 shrink-0 flex-col items-center justify-center rounded-md bg-muted text-xs'>
                       <span className='font-semibold leading-none'>
-                        {formatLocalDate(event.startAt).split(/\s|\.|\//)[0]}
+                        {new Date(Number(DateTime.toEpochMillis(event.startAt))).getDate()}
                       </span>
-                      <span className='text-muted-foreground leading-none mt-0.5 text-[10px]'>
-                        {formatLocalDate(event.startAt).slice(-4)}
+                      <span className='text-muted-foreground leading-none mt-0.5'>
+                        {new Date(Number(DateTime.toEpochMillis(event.startAt))).toLocaleDateString(
+                          undefined,
+                          { month: 'short' },
+                        )}
                       </span>
                     </div>
                     <div className='min-w-0 flex-1'>
