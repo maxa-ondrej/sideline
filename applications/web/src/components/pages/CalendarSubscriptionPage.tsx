@@ -10,14 +10,10 @@ import { Separator } from '~/components/ui/separator';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface CalendarSubscriptionPageProps {
-  teamId: string;
   icalToken: ICalApi.ICalTokenResponse;
 }
 
-export function CalendarSubscriptionPage({
-  teamId: _teamId,
-  icalToken,
-}: CalendarSubscriptionPageProps) {
+export function CalendarSubscriptionPage({ icalToken }: CalendarSubscriptionPageProps) {
   const run = useRun();
   const router = useRouter();
   const [url, setUrl] = React.useState(icalToken.url);

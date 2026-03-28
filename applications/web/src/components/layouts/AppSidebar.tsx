@@ -41,9 +41,10 @@ interface NavItem {
 
 function getTeamNavGroups(
   teamId: string,
-): ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> {
+): ReadonlyArray<{ id: string; label: string; items: ReadonlyArray<NavItem> }> {
   return [
     {
+      id: 'team',
       label: m.sidebar_team(),
       items: [
         { title: m.sidebar_overview(), icon: Home, to: '/teams/$teamId', params: { teamId } },
@@ -62,6 +63,7 @@ function getTeamNavGroups(
       ],
     },
     {
+      id: 'coach',
       label: m.sidebar_coach(),
       items: [
         { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
@@ -80,6 +82,7 @@ function getTeamNavGroups(
       ],
     },
     {
+      id: 'administration',
       label: m.sidebar_administration(),
       items: [
         {
@@ -147,7 +150,7 @@ export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppS
       </SidebarHeader>
       <SidebarContent>
         {navGroups.map((group) => (
-          <SidebarGroup key={group.label}>
+          <SidebarGroup key={group.id}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>

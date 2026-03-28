@@ -24,24 +24,20 @@ function applyTheme(theme: Theme): void {
 
 function readStoredTheme(): Theme {
   if (typeof window === 'undefined') return 'system';
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
+  } catch {
+    // localStorage may be unavailable (privacy mode, quota, etc.)
+  }
   return 'system';
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>(() => {
-    const initial = readStoredTheme();
-    // Apply immediately during first render (before paint) to prevent FOUC.
-    // Safe because SSR is disabled — this always runs in the browser.
-    if (typeof document !== 'undefined') {
-      const resolved = resolveTheme(initial);
-      document.documentElement.classList.toggle('dark', resolved === 'dark');
-    }
-    return initial;
-  });
+  const [theme, setThemeState] = React.useState<Theme>(readStoredTheme);
 
-  React.useEffect(() => {
+  // Apply theme before browser paint to prevent FOUC
+  React.useLayoutEffect(() => {
     applyTheme(theme);
   }, [theme]);
 
@@ -54,7 +50,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const setTheme = React.useCallback((newTheme: Theme) => {
-    localStorage.setItem(STORAGE_KEY, newTheme);
+    try {
+      localStorage.setItem(STORAGE_KEY, newTheme);
+    } catch {
+      // Ignore persistence errors (quota/privacy restrictions)
+    }
     setThemeState(newTheme);
   }, []);
 
