@@ -87,22 +87,27 @@ function GroupTreeNode({ node, teamId, depth, onCreateSubgroup }: GroupTreeNodeP
             ) : (
               <span className='mr-1 w-5' />
             )}
-            <Link
-              to='/teams/$teamId/groups/$groupId'
-              params={{ teamId, groupId: node.group.groupId }}
-              className='font-medium hover:underline'
-            >
-              {Option.isSome(node.group.emoji)
-                ? `${node.group.emoji.value} ${node.group.name}`
-                : node.group.name}
-            </Link>
+            <div className='min-w-0'>
+              <Link
+                to='/teams/$teamId/groups/$groupId'
+                params={{ teamId, groupId: node.group.groupId }}
+                className='font-medium hover:underline'
+              >
+                {Option.isSome(node.group.emoji)
+                  ? `${node.group.emoji.value} ${node.group.name}`
+                  : node.group.name}
+              </Link>
+              <p className='text-xs text-muted-foreground sm:hidden'>
+                {m.group_memberCount({ count: String(node.group.memberCount) })}
+              </p>
+            </div>
           </div>
         </td>
-        <td className='py-2 px-4 text-muted-foreground'>
+        <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
           {m.group_memberCount({ count: String(node.group.memberCount) })}
         </td>
         <td className='py-2 px-4'>
-          <div className='flex gap-1'>
+          <div className='flex gap-1 flex-wrap'>
             <Button variant='ghost' size='sm' onClick={() => onCreateSubgroup(node.group.groupId)}>
               {m.group_createSubgroup()}
             </Button>
@@ -192,7 +197,10 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
       </header>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-lg items-end'>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:max-w-lg'
+        >
           <FormField
             {...form.register('name')}
             render={({ field }) => (
@@ -214,7 +222,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
               {m.group_parentGroup()}
             </label>
             <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-              <SelectTrigger id='parent-group-select' className='w-48'>
+              <SelectTrigger id='parent-group-select' className='w-full sm:w-48'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

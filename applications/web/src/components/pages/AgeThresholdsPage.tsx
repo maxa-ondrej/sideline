@@ -144,7 +144,10 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
       </header>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-lg items-end'>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:max-w-lg'
+        >
           <FormField
             {...form.register('groupId')}
             render={({ field }) => (
@@ -168,38 +171,40 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
               </FormItem>
             )}
           />
-          <FormField
-            {...form.register('minAge')}
-            render={({ field }) => (
-              <FormItem className='w-24'>
-                <FormLabel>{m.ageThreshold_minAge()}</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type='number'
-                    placeholder={m.ageThreshold_minAgePlaceholder()}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            {...form.register('maxAge')}
-            render={({ field }) => (
-              <FormItem className='w-24'>
-                <FormLabel>{m.ageThreshold_maxAge()}</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type='number'
-                    placeholder={m.ageThreshold_maxAgePlaceholder()}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className='flex gap-2'>
+            <FormField
+              {...form.register('minAge')}
+              render={({ field }) => (
+                <FormItem className='w-24'>
+                  <FormLabel>{m.ageThreshold_minAge()}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type='number'
+                      placeholder={m.ageThreshold_minAgePlaceholder()}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              {...form.register('maxAge')}
+              render={({ field }) => (
+                <FormItem className='w-24'>
+                  <FormLabel>{m.ageThreshold_maxAge()}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type='number'
+                      placeholder={m.ageThreshold_maxAgePlaceholder()}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <Button type='submit' disabled={form.formState.isSubmitting}>
             {m.ageThreshold_create()}
           </Button>

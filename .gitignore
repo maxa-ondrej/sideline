@@ -12,6 +12,7 @@ scratchpad/*
 .direnv/
 .local/
 .idea/
+/.claude/plans/
 .venv/
 .env
 *.local

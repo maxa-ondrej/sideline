@@ -1,0 +1,184 @@
+import type { ActivityLog, ActivityLogApi, ActivityStatsApi, ActivityType } from '@sideline/domain';
+import { Team, TeamMember } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { Effect, Option, Schema } from 'effect';
+import React from 'react';
+import { MakanickoPage } from '~/components/pages/MakanickoPage.js';
+import { ApiClient, ClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
+
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/makanicko')({
+  ssr: false,
+  component: MakanickoRoute,
+  loader: async ({ params, context }) => {
+    const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
+    const userId = context.user?.id;
+    return ApiClient.pipe(
+      Effect.flatMap((api) =>
+        Effect.all({
+          leaderboard: api.leaderboard.getLeaderboard({
+            path: { teamId },
+            urlParams: { timeframe: Option.none(), activityTypeId: Option.none() },
+          }),
+          members: api.roster.listMembers({ path: { teamId } }),
+          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
+        }).pipe(
+          Effect.flatMap(({ leaderboard, members, activityTypes }) => {
+            const currentMember = members.find((member) => member.userId === userId);
+            if (!currentMember) {
+              return Effect.succeed({
+                leaderboard,
+                activityTypes,
+                activityStats: null as ActivityStatsApi.ActivityStatsResponse | null,
+                activityLogs: [] as ReadonlyArray<ActivityLogApi.ActivityLogEntry>,
+                memberId: null as TeamMember.TeamMemberId | null,
+              });
+            }
+            const memberId = currentMember.memberId;
+            return Effect.all({
+              activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
+              activityLogs: api.activityLog.listLogs({ path: { teamId, memberId } }).pipe(
+                Effect.map((r) => r.logs as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
+                Effect.catchAll(() =>
+                  Effect.succeed([] as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
+                ),
+              ),
+            }).pipe(
+              Effect.map(({ activityStats, activityLogs }) => ({
+                leaderboard,
+                activityTypes,
+                activityStats: activityStats as ActivityStatsApi.ActivityStatsResponse | null,
+                activityLogs,
+                memberId: memberId as TeamMember.TeamMemberId | null,
+              })),
+            );
+          }),
+        ),
+      ),
+      warnAndCatchAll,
+      context.run,
+    );
+  },
+});
+
+function MakanickoRoute() {
+  const { teamId: teamIdRaw } = Route.useParams();
+  const { user } = Route.useRouteContext();
+  const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
+  const router = useRouter();
+  const run = useRun();
+  const data = Route.useLoaderData();
+
+  const memberId = React.useMemo(
+    () => (data?.memberId ? Schema.decodeSync(TeamMember.TeamMemberId)(data.memberId) : null),
+    [data],
+  );
+
+  const activityTypes = React.useMemo(
+    () =>
+      (data?.activityTypes.activityTypes ?? []).filter(
+        (t: { slug: Option.Option<string> }) =>
+          Option.isNone(t.slug) || t.slug.value !== 'training',
+      ),
+    [data],
+  );
+
+  const handleCreateLog = React.useCallback(
+    async (input: {
+      activityTypeId: ActivityType.ActivityTypeId;
+      durationMinutes: Option.Option<number>;
+      note: Option.Option<string>;
+    }) => {
+      if (!memberId) return;
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.activityLog.createLog({
+            path: { teamId, memberId },
+            payload: {
+              activityTypeId: input.activityTypeId,
+              durationMinutes: input.durationMinutes,
+              note: input.note,
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
+        run(),
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
+  const handleUpdateLog = React.useCallback(
+    async (
+      logId: ActivityLog.ActivityLogId,
+      input: {
+        activityTypeId: Option.Option<ActivityType.ActivityTypeId>;
+        durationMinutes: Option.Option<Option.Option<number>>;
+        note: Option.Option<Option.Option<string>>;
+      },
+    ) => {
+      if (!memberId) return;
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.activityLog.updateLog({
+            path: { teamId, memberId, logId },
+            payload: {
+              activityTypeId: input.activityTypeId,
+              durationMinutes: input.durationMinutes,
+              note: input.note,
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
+        run(),
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
+  const handleDeleteLog = React.useCallback(
+    async (logId: ActivityLog.ActivityLogId) => {
+      if (!memberId) return;
+      const result = await ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.activityLog.deleteLog({
+            path: { teamId, memberId, logId },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
+        run(),
+      );
+      if (Option.isSome(result)) {
+        router.invalidate();
+      }
+    },
+    [teamId, memberId, run, router],
+  );
+
+  const defaultStats: ActivityStatsApi.ActivityStatsResponse = {
+    totalActivities: 0,
+    totalDurationMinutes: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    counts: [],
+  };
+
+  return (
+    <MakanickoPage
+      leaderboardEntries={data?.leaderboard.entries ?? []}
+      currentUserId={user.id}
+      activityStats={data?.activityStats ?? defaultStats}
+      activityLogs={data?.activityLogs ?? []}
+      activityTypes={activityTypes}
+      onCreateLog={handleCreateLog}
+      onUpdateLog={handleUpdateLog}
+      onDeleteLog={handleDeleteLog}
+    />
+  );
+}

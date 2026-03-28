@@ -147,7 +147,7 @@ export function CreateTeamPage({
             <span className='font-medium'>{selectedGuild.name}</span>
           </div>
 
-          <div className='flex gap-2'>
+          <div className='flex flex-wrap gap-2'>
             <Button variant='outline' onClick={() => setStep('select-guild')}>
               {m.guild_back()}
             </Button>
@@ -185,7 +185,7 @@ export function CreateTeamPage({
             </div>
           </div>
 
-          <div className='flex gap-2'>
+          <div className='flex flex-col gap-2 sm:flex-row'>
             <Input
               placeholder={m.dashboard_teamNamePlaceholder()}
               value={teamName}
@@ -193,6 +193,7 @@ export function CreateTeamPage({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreate();
               }}
+              className='flex-1'
             />
             <Button onClick={handleCreate} disabled={creating || !teamName.trim()}>
               {creating ? m.dashboard_creating() : m.dashboard_createTeam()}

@@ -11,6 +11,7 @@ import {
   Rss,
   Settings,
   Shield,
+  Trophy,
   UserCog,
   Users,
   UsersRound,
@@ -42,6 +43,12 @@ interface NavItem {
 function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
   return [
     { title: m.sidebar_overview(), icon: Home, to: '/teams/$teamId', params: { teamId } },
+    {
+      title: m.sidebar_makanicko(),
+      icon: Trophy,
+      to: '/teams/$teamId/makanicko',
+      params: { teamId },
+    },
     {
       title: m.notification_title(),
       icon: Bell,
