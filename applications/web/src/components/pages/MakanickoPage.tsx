@@ -48,28 +48,34 @@ export function MakanickoPage({
     <div className='flex flex-col gap-6'>
       <h1 className='text-2xl font-bold'>{m.makanicko_title()}</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{m.makanicko_yourActivity()}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ActivityStatsCard stats={activityStats} />
-          <ActivityLogList
-            logs={activityLogs}
-            isOwnProfile={true}
-            activityTypes={activityTypes}
-            onCreateLog={onCreateLog}
-            onUpdateLog={onUpdateLog}
-            onDeleteLog={onDeleteLog}
-          />
-        </CardContent>
-      </Card>
+      <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_400px]'>
+        {/* Left: Activity card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{m.makanicko_yourActivity()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityStatsCard stats={activityStats} />
+            <ActivityLogList
+              logs={activityLogs}
+              isOwnProfile={true}
+              activityTypes={activityTypes}
+              onCreateLog={onCreateLog}
+              onUpdateLog={onUpdateLog}
+              onDeleteLog={onDeleteLog}
+            />
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent className='pt-6'>
-          <LeaderboardPage entries={leaderboardEntries} currentUserId={currentUserId} />
-        </CardContent>
-      </Card>
+        {/* Right: Leaderboard sticky panel */}
+        <div className='lg:sticky lg:top-20 lg:self-start'>
+          <Card>
+            <CardContent className='pt-6'>
+              <LeaderboardPage entries={leaderboardEntries} currentUserId={currentUserId} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

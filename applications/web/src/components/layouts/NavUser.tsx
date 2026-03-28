@@ -3,7 +3,17 @@ import { m } from '@sideline/i18n/messages';
 import { getLocale, setLocale } from '@sideline/i18n/runtime';
 import { Link } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
-import { Bell, Check, ChevronsUpDown, Languages, LogOut, UserIcon } from 'lucide-react';
+import {
+  Bell,
+  Check,
+  ChevronsUpDown,
+  Languages,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  UserIcon,
+} from 'lucide-react';
 import { useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import {
@@ -25,6 +35,7 @@ import {
   useSidebar,
 } from '~/components/ui/sidebar';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
+import { useTheme } from '~/lib/theme.js';
 
 function discordAvatarUrl(discordId: string, avatar: string): string {
   return `https://cdn.discordapp.com/avatars/${discordId}/${avatar}.png?size=64`;
@@ -53,11 +64,18 @@ const localeOptions = [
   { value: 'cs' as const, flag: '🇨🇿', label: () => m.language_cs() },
 ] as const;
 
+const themeOptions = [
+  { value: 'light' as const, icon: Sun, label: () => m.theme_light() },
+  { value: 'dark' as const, icon: Moon, label: () => m.theme_dark() },
+  { value: 'system' as const, icon: Monitor, label: () => m.theme_system() },
+] as const;
+
 export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar();
   const run = useRun();
   const displayName = Option.getOrElse(user.name, () => user.username);
   const currentLocale = getLocale();
+  const { theme, setTheme } = useTheme();
 
   const handleLocaleChange = useCallback(
     (locale: 'en' | 'cs') => {
@@ -148,6 +166,24 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
                     <DropdownMenuItem key={loc.value} onClick={() => handleLocaleChange(loc.value)}>
                       {loc.flag} {loc.label()}
                       {currentLocale === loc.value && <Check className='ml-auto h-4 w-4' />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  {(() => {
+                    const ActiveIcon = themeOptions.find((o) => o.value === theme)?.icon ?? Sun;
+                    return <ActiveIcon />;
+                  })()}
+                  {m.theme_label()}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {themeOptions.map((opt) => (
+                    <DropdownMenuItem key={opt.value} onClick={() => setTheme(opt.value)}>
+                      <opt.icon className='mr-2 h-4 w-4' />
+                      {opt.label()}
+                      {theme === opt.value && <Check className='ml-auto h-4 w-4' />}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>

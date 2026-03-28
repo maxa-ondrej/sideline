@@ -2,7 +2,6 @@ import type { Auth, Role } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useMatchRoute } from '@tanstack/react-router';
 import {
-  Bell,
   Calendar,
   CalendarDays,
   Dumbbell,
@@ -40,73 +39,84 @@ interface NavItem {
   requiredPermission?: Role.Permission;
 }
 
-function getTeamNavItems(teamId: string): ReadonlyArray<NavItem> {
+function getTeamNavGroups(
+  teamId: string,
+): ReadonlyArray<{ label: string; items: ReadonlyArray<NavItem> }> {
   return [
-    { title: m.sidebar_overview(), icon: Home, to: '/teams/$teamId', params: { teamId } },
     {
-      title: m.sidebar_makanicko(),
-      icon: Trophy,
-      to: '/teams/$teamId/makanicko',
-      params: { teamId },
+      label: m.sidebar_team(),
+      items: [
+        { title: m.sidebar_overview(), icon: Home, to: '/teams/$teamId', params: { teamId } },
+        {
+          title: m.event_events(),
+          icon: Calendar,
+          to: '/teams/$teamId/events',
+          params: { teamId },
+        },
+        {
+          title: m.sidebar_makanicko(),
+          icon: Trophy,
+          to: '/teams/$teamId/makanicko',
+          params: { teamId },
+        },
+      ],
     },
     {
-      title: m.notification_title(),
-      icon: Bell,
-      to: '/teams/$teamId/notifications',
-      params: { teamId },
-    },
-    { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
-    {
-      title: m.team_roles(),
-      icon: Shield,
-      to: '/teams/$teamId/roles',
-      params: { teamId },
-      requiredPermission: 'role:view',
-    },
-    {
-      title: m.team_rosters(),
-      icon: UsersRound,
-      to: '/teams/$teamId/rosters',
-      params: { teamId },
+      label: m.sidebar_coach(),
+      items: [
+        { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
+        {
+          title: m.team_rosters(),
+          icon: UsersRound,
+          to: '/teams/$teamId/rosters',
+          params: { teamId },
+        },
+        {
+          title: m.team_trainingTypes(),
+          icon: Dumbbell,
+          to: '/teams/$teamId/training-types',
+          params: { teamId },
+        },
+      ],
     },
     {
-      title: m.team_groups(),
-      icon: UserCog,
-      to: '/teams/$teamId/groups',
-      params: { teamId },
-      requiredPermission: 'team:manage',
-    },
-    {
-      title: m.team_trainingTypes(),
-      icon: Dumbbell,
-      to: '/teams/$teamId/training-types',
-      params: { teamId },
-    },
-    {
-      title: m.event_events(),
-      icon: Calendar,
-      to: '/teams/$teamId/events',
-      params: { teamId },
-    },
-    {
-      title: m.ical_title(),
-      icon: Rss,
-      to: '/teams/$teamId/calendar-subscription',
-      params: { teamId },
-    },
-    {
-      title: m.team_ageThresholds(),
-      icon: CalendarDays,
-      to: '/teams/$teamId/age-thresholds',
-      params: { teamId },
-      requiredPermission: 'team:manage',
-    },
-    {
-      title: m.team_settings(),
-      icon: Settings,
-      to: '/teams/$teamId/settings',
-      params: { teamId },
-      requiredPermission: 'team:manage',
+      label: m.sidebar_administration(),
+      items: [
+        {
+          title: m.team_roles(),
+          icon: Shield,
+          to: '/teams/$teamId/roles',
+          params: { teamId },
+          requiredPermission: 'role:view' satisfies Role.Permission,
+        },
+        {
+          title: m.team_groups(),
+          icon: UserCog,
+          to: '/teams/$teamId/groups',
+          params: { teamId },
+          requiredPermission: 'team:manage' satisfies Role.Permission,
+        },
+        {
+          title: m.team_ageThresholds(),
+          icon: CalendarDays,
+          to: '/teams/$teamId/age-thresholds',
+          params: { teamId },
+          requiredPermission: 'team:manage' satisfies Role.Permission,
+        },
+        {
+          title: m.ical_title(),
+          icon: Rss,
+          to: '/teams/$teamId/calendar-subscription',
+          params: { teamId },
+        },
+        {
+          title: m.team_settings(),
+          icon: Settings,
+          to: '/teams/$teamId/settings',
+          params: { teamId },
+          requiredPermission: 'team:manage' satisfies Role.Permission,
+        },
+      ],
     },
   ];
 }
@@ -120,9 +130,15 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppSidebarProps) {
   const matchRoute = useMatchRoute();
-  const teamItems = getTeamNavItems(activeTeam.teamId).filter(
-    (item) => !item.requiredPermission || activeTeam.permissions.includes(item.requiredPermission),
-  );
+  const navGroups = getTeamNavGroups(activeTeam.teamId)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          !item.requiredPermission || activeTeam.permissions.includes(item.requiredPermission),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <Sidebar collapsible='icon' {...props}>
@@ -130,12 +146,12 @@ export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppS
         <TeamSwitcher teams={teams} activeTeamId={activeTeam.teamId} />
       </SidebarHeader>
       <SidebarContent>
-        {
-          <SidebarGroup>
-            <SidebarGroupLabel>{m.sidebar_team()}</SidebarGroupLabel>
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {teamItems.map((item) => (
+                {group.items.map((item) => (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton
                       asChild
@@ -152,7 +168,7 @@ export function AppSidebar({ user, teams, activeTeam, onLogout, ...props }: AppS
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        }
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} activeTeamId={activeTeam.teamId} onLogout={onLogout} />
