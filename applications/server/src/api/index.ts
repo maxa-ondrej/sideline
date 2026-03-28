@@ -16,6 +16,7 @@ import { LeaderboardApiLive } from '~/api/leaderboard.js';
 import { NotificationApiLive } from '~/api/notification.js';
 import { RoleApiLive } from '~/api/role.js';
 import { RosterApiLive } from '~/api/roster.js';
+import { TeamApiLive } from '~/api/team.js';
 import { TeamSettingsApiLive } from '~/api/team-settings.js';
 import { TrainingTypeApiLive } from '~/api/training-type.js';
 
@@ -35,6 +36,7 @@ export const ApiLive = HttpApiBuilder.api(Api).pipe(
   Layer.provide(NotificationApiLive),
   Layer.provide(RosterApiLive),
   Layer.provide(RoleApiLive),
+  Layer.provide(TeamApiLive),
   Layer.provide(TeamSettingsApiLive),
   Layer.provide(TrainingTypeApiLive),
 );

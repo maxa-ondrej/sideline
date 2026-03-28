@@ -1,6 +1,14 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { type Discord, Team } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Effect, type Option, Schema } from 'effect';
+
+class TeamUpdateInput extends Schema.Class<TeamUpdateInput>('TeamUpdateInput')({
+  id: Schema.String,
+  name: Schema.String,
+  description: Schema.OptionFromNullOr(Schema.String),
+  sport: Schema.OptionFromNullOr(Schema.String),
+  logo_url: Schema.OptionFromNullOr(Schema.String),
+}) {}
 
 export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/TeamsRepository', {
   effect: SqlClient.SqlClient.pipe(
@@ -26,4 +34,30 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
 
   findByGuildId = (guildId: Discord.Snowflake) =>
     this.findByGuildQuery(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+
+  private updateTeamQuery = SqlSchema.single({
+    Request: TeamUpdateInput,
+    Result: Team.Team,
+    execute: (input) => this.sql`
+      UPDATE teams SET
+        name = ${input.name},
+        description = ${input.description},
+        sport = ${input.sport},
+        logo_url = ${input.logo_url},
+        updated_at = now()
+      WHERE id = ${input.id}
+      RETURNING *
+    `,
+  });
+
+  update = (input: {
+    readonly id: Team.TeamId;
+    readonly name: string;
+    readonly description: Option.Option<string>;
+    readonly sport: Option.Option<string>;
+    readonly logo_url: Option.Option<string>;
+  }) =>
+    this.updateTeamQuery(input).pipe(
+      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
+    );
 }

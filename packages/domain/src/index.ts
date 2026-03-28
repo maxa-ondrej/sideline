@@ -30,6 +30,8 @@ export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';
 
+export * as TeamApi from './api/TeamApi.js';
+
 export * as TeamSettingsApi from './api/TeamSettingsApi.js';
 
 export * as TrainingTypeApi from './api/TrainingTypeApi.js';

@@ -15,6 +15,7 @@ import {
   NotificationApi,
   RoleApi,
   Roster,
+  TeamApi,
   TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
@@ -36,6 +37,7 @@ export class Api extends HttpApi.make('api')
   .add(NotificationApi.NotificationApiGroup)
   .add(Roster.RosterApiGroup)
   .add(RoleApi.RoleApiGroup)
+  .add(TeamApi.TeamApiGroup)
   .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup)
   .pipe((api) =>

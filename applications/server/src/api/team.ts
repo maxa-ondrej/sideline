@@ -1,0 +1,77 @@
+import { HttpApiBuilder } from '@effect/platform';
+import { Auth, EventApi, type Team, TeamApi } from '@sideline/domain';
+import { Effect, Option } from 'effect';
+import { Api } from '~/api/api.js';
+import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+
+const forbidden = new EventApi.Forbidden();
+
+const teamToInfo = (team: Team.Team) =>
+  new TeamApi.TeamInfo({
+    teamId: team.id,
+    name: team.name,
+    description: team.description,
+    sport: team.sport,
+    logoUrl: team.logo_url,
+    guildId: team.guild_id,
+  });
+
+const getTeamOrForbidden = (teams: TeamsRepository, teamId: Team.TeamId) =>
+  teams
+    .findById(teamId)
+    .pipe(
+      Effect.flatMap((opt) =>
+        Option.isSome(opt) ? Effect.succeed(opt.value) : Effect.fail(forbidden),
+      ),
+    );
+
+export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
+  Effect.Do.pipe(
+    Effect.bind('members', () => TeamMembersRepository),
+    Effect.bind('teams', () => TeamsRepository),
+    Effect.map(({ members, teams }) =>
+      handlers
+        .handle('getTeamInfo', ({ path: { teamId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.bind('team', () => getTeamOrForbidden(teams, teamId)),
+            Effect.map(({ team }) => teamToInfo(team)),
+          ),
+        )
+        .handle('updateTeamInfo', ({ path: { teamId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
+            Effect.bind('existing', () => getTeamOrForbidden(teams, teamId)),
+            Effect.bind('updated', ({ existing }) =>
+              teams.update({
+                id: teamId,
+                name: Option.getOrElse(payload.name, () => existing.name),
+                description: Option.match(payload.description, {
+                  onNone: () => existing.description,
+                  onSome: (v) => v,
+                }),
+                sport: Option.match(payload.sport, {
+                  onNone: () => existing.sport,
+                  onSome: (v) => v,
+                }),
+                logo_url: Option.match(payload.logoUrl, {
+                  onNone: () => existing.logo_url,
+                  onSome: (v) => v,
+                }),
+              }),
+            ),
+            Effect.map(({ updated }) => teamToInfo(updated)),
+          ),
+        ),
+    ),
+  ),
+);

@@ -1,11 +1,14 @@
-import type { GroupApi, TeamSettingsApi } from '@sideline/domain';
+import type { GroupApi, TeamApi, TeamSettingsApi } from '@sideline/domain';
 import { Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
+import { MessageSquare, Settings, Users } from 'lucide-react';
 import React from 'react';
 
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import {
   Select,
@@ -14,17 +17,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { Separator } from '~/components/ui/separator';
+import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface TeamSettingsPageProps {
   teamId: string;
   settings: TeamSettingsApi.TeamSettingsInfo;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
+  teamInfo: TeamApi.TeamInfo;
 }
 
-export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSettingsPageProps) {
+const NONE_VALUE = '__none__';
+
+export function TeamSettingsPage({
+  teamId,
+  settings,
+  discordChannels,
+  teamInfo,
+}: TeamSettingsPageProps) {
   const run = useRun();
   const router = useRouter();
+
+  // Team profile state
+  const [teamName, setTeamName] = React.useState(teamInfo.name);
+  const [description, setDescription] = React.useState(
+    Option.getOrElse(teamInfo.description, () => ''),
+  );
+  const [sport, setSport] = React.useState(Option.getOrElse(teamInfo.sport, () => ''));
+  const [logoUrl, setLogoUrl] = React.useState(Option.getOrElse(teamInfo.logoUrl, () => ''));
+  const [savingProfile, setSavingProfile] = React.useState(false);
+
+  // General settings state
   const [horizonDays, setHorizonDays] = React.useState(String(settings.eventHorizonDays));
   const [minPlayersThreshold, setMinPlayersThreshold] = React.useState(
     String(settings.minPlayersThreshold),
@@ -32,27 +56,78 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
   const [rsvpReminderHours, setRsvpReminderHours] = React.useState(
     String(settings.rsvpReminderHours),
   );
-  const [saving, setSaving] = React.useState(false);
+
+  // Discord channels state
   const [channelTraining, setChannelTraining] = React.useState(
-    Option.getOrElse(settings.discordChannelTraining, () => '__none__'),
+    Option.getOrElse(settings.discordChannelTraining, () => NONE_VALUE),
   );
   const [channelMatch, setChannelMatch] = React.useState(
-    Option.getOrElse(settings.discordChannelMatch, () => '__none__'),
+    Option.getOrElse(settings.discordChannelMatch, () => NONE_VALUE),
   );
   const [channelTournament, setChannelTournament] = React.useState(
-    Option.getOrElse(settings.discordChannelTournament, () => '__none__'),
+    Option.getOrElse(settings.discordChannelTournament, () => NONE_VALUE),
   );
   const [channelMeeting, setChannelMeeting] = React.useState(
-    Option.getOrElse(settings.discordChannelMeeting, () => '__none__'),
+    Option.getOrElse(settings.discordChannelMeeting, () => NONE_VALUE),
   );
   const [channelSocial, setChannelSocial] = React.useState(
-    Option.getOrElse(settings.discordChannelSocial, () => '__none__'),
+    Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE),
   );
   const [channelOther, setChannelOther] = React.useState(
-    Option.getOrElse(settings.discordChannelOther, () => '__none__'),
+    Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE),
+  );
+  const [savingSettings, setSavingSettings] = React.useState(false);
+
+  const hasProfileChanges =
+    teamName !== teamInfo.name ||
+    description !== Option.getOrElse(teamInfo.description, () => '') ||
+    sport !== Option.getOrElse(teamInfo.sport, () => '') ||
+    logoUrl !== Option.getOrElse(teamInfo.logoUrl, () => '');
+
+  const hasSettingsChanges =
+    horizonDays !== String(settings.eventHorizonDays) ||
+    minPlayersThreshold !== String(settings.minPlayersThreshold) ||
+    rsvpReminderHours !== String(settings.rsvpReminderHours) ||
+    channelTraining !== Option.getOrElse(settings.discordChannelTraining, () => NONE_VALUE) ||
+    channelMatch !== Option.getOrElse(settings.discordChannelMatch, () => NONE_VALUE) ||
+    channelTournament !== Option.getOrElse(settings.discordChannelTournament, () => NONE_VALUE) ||
+    channelMeeting !== Option.getOrElse(settings.discordChannelMeeting, () => NONE_VALUE) ||
+    channelSocial !== Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE) ||
+    channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE);
+
+  const channelToOption = React.useCallback(
+    (value: string) =>
+      value !== NONE_VALUE ? Option.some(Discord.Snowflake.make(value)) : Option.none(),
+    [],
   );
 
-  const handleSave = React.useCallback(async () => {
+  const handleSaveProfile = React.useCallback(async () => {
+    if (!teamName.trim()) return;
+    setSavingProfile(true);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.team.updateTeamInfo({
+          path: { teamId: teamInfo.teamId },
+          payload: {
+            name: Option.some(teamName.trim()),
+            description: Option.some(
+              description.trim() ? Option.some(description.trim()) : Option.none(),
+            ),
+            sport: Option.some(sport.trim() ? Option.some(sport.trim()) : Option.none()),
+            logoUrl: Option.some(logoUrl.trim() ? Option.some(logoUrl.trim()) : Option.none()),
+          },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.teamSettings_profileSaveFailed())),
+      run({ success: m.teamSettings_profileSaved() }),
+    );
+    setSavingProfile(false);
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [teamInfo.teamId, teamName, description, sport, logoUrl, run, router]);
+
+  const handleSaveSettings = React.useCallback(async () => {
     const parsed = Number.parseInt(horizonDays, 10);
     if (Number.isNaN(parsed) || parsed < 1 || parsed > 365) return;
     const parsedThreshold = Number.parseInt(minPlayersThreshold, 10);
@@ -60,7 +135,7 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
     const parsedReminderHours = Number.parseInt(rsvpReminderHours, 10);
     if (Number.isNaN(parsedReminderHours) || parsedReminderHours < 0 || parsedReminderHours > 168)
       return;
-    setSaving(true);
+    setSavingSettings(true);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
         api.teamSettings.updateTeamSettings({
@@ -69,43 +144,19 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
             eventHorizonDays: parsed,
             minPlayersThreshold: Option.some(parsedThreshold),
             rsvpReminderHours: Option.some(parsedReminderHours),
-            discordChannelTraining: Option.some(
-              channelTraining !== '__none__'
-                ? Option.some(Discord.Snowflake.make(channelTraining))
-                : Option.none(),
-            ),
-            discordChannelMatch: Option.some(
-              channelMatch !== '__none__'
-                ? Option.some(Discord.Snowflake.make(channelMatch))
-                : Option.none(),
-            ),
-            discordChannelTournament: Option.some(
-              channelTournament !== '__none__'
-                ? Option.some(Discord.Snowflake.make(channelTournament))
-                : Option.none(),
-            ),
-            discordChannelMeeting: Option.some(
-              channelMeeting !== '__none__'
-                ? Option.some(Discord.Snowflake.make(channelMeeting))
-                : Option.none(),
-            ),
-            discordChannelSocial: Option.some(
-              channelSocial !== '__none__'
-                ? Option.some(Discord.Snowflake.make(channelSocial))
-                : Option.none(),
-            ),
-            discordChannelOther: Option.some(
-              channelOther !== '__none__'
-                ? Option.some(Discord.Snowflake.make(channelOther))
-                : Option.none(),
-            ),
+            discordChannelTraining: Option.some(channelToOption(channelTraining)),
+            discordChannelMatch: Option.some(channelToOption(channelMatch)),
+            discordChannelTournament: Option.some(channelToOption(channelTournament)),
+            discordChannelMeeting: Option.some(channelToOption(channelMeeting)),
+            discordChannelSocial: Option.some(channelToOption(channelSocial)),
+            discordChannelOther: Option.some(channelToOption(channelOther)),
           },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.teamSettings_saveFailed())),
       run({ success: m.teamSettings_saved() }),
     );
-    setSaving(false);
+    setSavingSettings(false);
     if (Option.isSome(result)) {
       router.invalidate();
     }
@@ -122,11 +173,51 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
     channelOther,
     run,
     router,
+    channelToOption,
   ]);
+
+  const channelConfigs = [
+    {
+      key: 'training',
+      value: channelTraining,
+      setter: setChannelTraining,
+      label: m.teamSettings_channelTraining(),
+    },
+    {
+      key: 'match',
+      value: channelMatch,
+      setter: setChannelMatch,
+      label: m.teamSettings_channelMatch(),
+    },
+    {
+      key: 'tournament',
+      value: channelTournament,
+      setter: setChannelTournament,
+      label: m.teamSettings_channelTournament(),
+    },
+    {
+      key: 'meeting',
+      value: channelMeeting,
+      setter: setChannelMeeting,
+      label: m.teamSettings_channelMeeting(),
+    },
+    {
+      key: 'social',
+      value: channelSocial,
+      setter: setChannelSocial,
+      label: m.teamSettings_channelSocial(),
+    },
+    {
+      key: 'other',
+      value: channelOther,
+      setter: setChannelOther,
+      label: m.teamSettings_channelOther(),
+    },
+  ] as const;
 
   return (
     <div>
-      <header className='mb-8'>
+      <header className='mb-6'>
         <Button asChild variant='ghost' size='sm' className='mb-2'>
           <Link to='/teams/$teamId' params={{ teamId }}>
             ← {m.team_backToTeams()}
@@ -135,130 +226,203 @@ export function TeamSettingsPage({ teamId, settings, discordChannels }: TeamSett
         <h1 className='text-2xl font-bold'>{m.team_settings()}</h1>
       </header>
 
-      <div className='max-w-md'>
-        <label htmlFor='horizon-days' className='text-sm font-medium mb-1 block'>
-          {m.teamSettings_horizonDays()}
-        </label>
-        <p className='text-xs text-muted-foreground mb-2'>{m.teamSettings_horizonDaysHelp()}</p>
-        <Input
-          id='horizon-days'
-          type='number'
-          min={1}
-          max={365}
-          value={horizonDays}
-          onChange={(e) => setHorizonDays(e.target.value)}
-          className='flex-1'
-        />
-        <div className='mt-6'>
-          <label htmlFor='min-players' className='text-sm font-medium mb-1 block'>
-            {m.teamSettings_minPlayersThreshold()}
-          </label>
-          <p className='text-xs text-muted-foreground mb-2'>
-            {m.teamSettings_minPlayersThresholdHelp()}
-          </p>
-          <Input
-            id='min-players'
-            type='number'
-            min={0}
-            max={100}
-            value={minPlayersThreshold}
-            onChange={(e) => setMinPlayersThreshold(e.target.value)}
-            className='flex-1'
-          />
-        </div>
-
-        <div className='mt-6'>
-          <label htmlFor='rsvp-reminder-hours' className='text-sm font-medium mb-1 block'>
-            {m.teamSettings_rsvpReminderHours()}
-          </label>
-          <p className='text-xs text-muted-foreground mb-2'>
-            {m.teamSettings_rsvpReminderHoursHelp()}
-          </p>
-          <Input
-            id='rsvp-reminder-hours'
-            type='number'
-            min={0}
-            max={168}
-            value={rsvpReminderHours}
-            onChange={(e) => setRsvpReminderHours(e.target.value)}
-            className='flex-1'
-          />
-        </div>
-
-        <div className='mt-8'>
-          <h2 className='text-lg font-semibold mb-2'>{m.teamSettings_discordChannels()}</h2>
-          <p className='text-xs text-muted-foreground mb-4'>
-            {m.teamSettings_discordChannelsHelp()}
-          </p>
-          <div className='flex flex-col gap-4'>
-            {(
-              [
-                [
-                  'channelTraining',
-                  channelTraining,
-                  setChannelTraining,
-                  m.teamSettings_channelTraining(),
-                ],
-                ['channelMatch', channelMatch, setChannelMatch, m.teamSettings_channelMatch()],
-                [
-                  'channelTournament',
-                  channelTournament,
-                  setChannelTournament,
-                  m.teamSettings_channelTournament(),
-                ],
-                [
-                  'channelMeeting',
-                  channelMeeting,
-                  setChannelMeeting,
-                  m.teamSettings_channelMeeting(),
-                ],
-                ['channelSocial', channelSocial, setChannelSocial, m.teamSettings_channelSocial()],
-                ['channelOther', channelOther, setChannelOther, m.teamSettings_channelOther()],
-              ] as const
-            ).map(([key, value, setter, label]) => (
-              <div key={key}>
-                <label htmlFor={`channel-${key}`} className='text-sm font-medium mb-1 block'>
-                  {label}
+      <div className='flex flex-col gap-6 max-w-2xl'>
+        {/* Team Profile */}
+        <Card>
+          <CardHeader>
+            <div className='flex items-center gap-2'>
+              <Users className='size-4 text-muted-foreground' />
+              <CardTitle className='text-base'>{m.teamSettings_teamProfile()}</CardTitle>
+            </div>
+            <CardDescription>{m.teamSettings_teamProfileDescription()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className='flex flex-col gap-5'>
+              {logoUrl.trim() && (
+                <div className='flex justify-center'>
+                  <Avatar className='size-20'>
+                    <AvatarImage src={logoUrl.trim()} alt={teamName} />
+                    <AvatarFallback>{teamName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                </div>
+              )}
+              <div>
+                <label htmlFor='team-name' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_teamName()}
                 </label>
-                <Select value={value} onValueChange={setter}>
-                  <SelectTrigger id={`channel-${key}`}>
-                    <SelectValue placeholder={m.teamSettings_channelNone()} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='__none__'>{m.teamSettings_channelNone()}</SelectItem>
-                    {discordChannels.map((ch) => (
-                      <SelectItem key={ch.id} value={ch.id}>
-                        # {ch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  id='team-name'
+                  type='text'
+                  maxLength={100}
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-        <div className='mt-8'>
-          <Button
-            onClick={handleSave}
-            disabled={
-              saving ||
-              (horizonDays === String(settings.eventHorizonDays) &&
-                minPlayersThreshold === String(settings.minPlayersThreshold) &&
-                rsvpReminderHours === String(settings.rsvpReminderHours) &&
-                channelTraining ===
-                  Option.getOrElse(settings.discordChannelTraining, () => '__none__') &&
-                channelMatch === Option.getOrElse(settings.discordChannelMatch, () => '__none__') &&
-                channelTournament ===
-                  Option.getOrElse(settings.discordChannelTournament, () => '__none__') &&
-                channelMeeting ===
-                  Option.getOrElse(settings.discordChannelMeeting, () => '__none__') &&
-                channelSocial ===
-                  Option.getOrElse(settings.discordChannelSocial, () => '__none__') &&
-                channelOther === Option.getOrElse(settings.discordChannelOther, () => '__none__'))
-            }
-          >
-            {saving ? m.profile_saving() : m.profile_saveChanges()}
+              <div>
+                <label htmlFor='team-description' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_description()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>
+                  {m.teamSettings_descriptionHelp()}
+                </p>
+                <Textarea
+                  id='team-description'
+                  maxLength={500}
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor='team-sport' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_sport()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>{m.teamSettings_sportHelp()}</p>
+                <Input
+                  id='team-sport'
+                  type='text'
+                  maxLength={50}
+                  value={sport}
+                  onChange={(e) => setSport(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor='team-logo-url' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_logoUrl()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>{m.teamSettings_logoUrlHelp()}</p>
+                <Input
+                  id='team-logo-url'
+                  type='url'
+                  maxLength={2048}
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder='https://...'
+                />
+              </div>
+              <div className='flex items-center gap-3'>
+                <Button onClick={handleSaveProfile} disabled={savingProfile || !hasProfileChanges}>
+                  {savingProfile ? m.profile_saving() : m.profile_saveChanges()}
+                </Button>
+                {hasProfileChanges && (
+                  <p className='text-sm text-muted-foreground'>{m.teamSettings_unsavedChanges()}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* General Settings */}
+        <Card>
+          <CardHeader>
+            <div className='flex items-center gap-2'>
+              <Settings className='size-4 text-muted-foreground' />
+              <CardTitle className='text-base'>{m.teamSettings_generalTitle()}</CardTitle>
+            </div>
+            <CardDescription>{m.teamSettings_generalDescription()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className='flex flex-col gap-5'>
+              <div>
+                <label htmlFor='horizon-days' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_horizonDays()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>
+                  {m.teamSettings_horizonDaysHelp()}
+                </p>
+                <Input
+                  id='horizon-days'
+                  type='number'
+                  min={1}
+                  max={365}
+                  value={horizonDays}
+                  onChange={(e) => setHorizonDays(e.target.value)}
+                  className='max-w-32'
+                />
+              </div>
+              <Separator />
+              <div>
+                <label htmlFor='min-players' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_minPlayersThreshold()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>
+                  {m.teamSettings_minPlayersThresholdHelp()}
+                </p>
+                <Input
+                  id='min-players'
+                  type='number'
+                  min={0}
+                  max={100}
+                  value={minPlayersThreshold}
+                  onChange={(e) => setMinPlayersThreshold(e.target.value)}
+                  className='max-w-32'
+                />
+              </div>
+              <Separator />
+              <div>
+                <label htmlFor='rsvp-reminder-hours' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_rsvpReminderHours()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>
+                  {m.teamSettings_rsvpReminderHoursHelp()}
+                </p>
+                <Input
+                  id='rsvp-reminder-hours'
+                  type='number'
+                  min={0}
+                  max={168}
+                  value={rsvpReminderHours}
+                  onChange={(e) => setRsvpReminderHours(e.target.value)}
+                  className='max-w-32'
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Discord Channel Defaults */}
+        <Card>
+          <CardHeader>
+            <div className='flex items-center gap-2'>
+              <MessageSquare className='size-4 text-muted-foreground' />
+              <CardTitle className='text-base'>{m.teamSettings_discordChannels()}</CardTitle>
+            </div>
+            <CardDescription>{m.teamSettings_discordChannelsHelp()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+              {channelConfigs.map(({ key, value, setter, label }) => (
+                <div key={key}>
+                  <label htmlFor={`channel-${key}`} className='text-sm font-medium mb-1 block'>
+                    {label}
+                  </label>
+                  <Select value={value} onValueChange={setter}>
+                    <SelectTrigger id={`channel-${key}`}>
+                      <SelectValue placeholder={m.teamSettings_channelNone()} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
+                      {discordChannels.map((ch) => (
+                        <SelectItem key={ch.id} value={ch.id}>
+                          # {ch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Settings save button */}
+        <div className='flex items-center gap-3'>
+          <Button onClick={handleSaveSettings} disabled={savingSettings || !hasSettingsChanges}>
+            {savingSettings ? m.profile_saving() : m.profile_saveChanges()}
           </Button>
+          {hasSettingsChanges && (
+            <p className='text-sm text-muted-foreground'>{m.teamSettings_unsavedChanges()}</p>
+          )}
         </div>
       </div>
     </div>

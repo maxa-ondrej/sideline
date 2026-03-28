@@ -21,6 +21,7 @@ import {
   NotificationApi,
   RoleApi,
   Roster,
+  TeamApi,
   TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
@@ -53,6 +54,7 @@ class ClientApi extends HttpApi.make('api')
   .add(EventSeriesApi.EventSeriesApiGroup)
   .add(GroupApi.GroupApiGroup)
   .add(ICalApi.ICalApiGroup)
+  .add(TeamApi.TeamApiGroup)
   .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 
