@@ -25,7 +25,7 @@ self.addEventListener('activate', (event) => {
 // Set up Workbox routes if available
 if (typeof workbox !== 'undefined') {
   const { registerRoute } = workbox.routing;
-  const { CacheFirst, NetworkFirst } = workbox.strategies;
+  const { CacheFirst, NetworkFirst, NetworkOnly } = workbox.strategies;
   const { ExpirationPlugin } = workbox.expiration;
   const { CacheableResponsePlugin } = workbox.cacheableResponse;
 
@@ -41,14 +41,9 @@ if (typeof workbox !== 'undefined') {
     }),
   );
 
-  // Cache API responses with NetworkFirst
-  registerRoute(
-    ({ url }) => url.pathname.startsWith('/api/'),
-    new NetworkFirst({
-      cacheName: 'api-responses',
-      plugins: [new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 })],
-    }),
-  );
+  // API responses use NetworkOnly — no caching to prevent cross-user data leaks
+  // (authenticated responses vary by Authorization header which is not in the cache key)
+  registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
   // Cache navigation requests with NetworkFirst + offline fallback
   registerRoute(

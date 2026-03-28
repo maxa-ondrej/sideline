@@ -66,7 +66,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         rel: 'icon',
         type: 'image/png',
         sizes: '32x32',
-        href: '/favicon.ico',
+        href: '/icons/favicon-32.png',
       },
     ],
   }),
