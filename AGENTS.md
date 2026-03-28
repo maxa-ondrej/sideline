@@ -386,6 +386,19 @@ When searching logs in SigNoz, always filter by resource attributes for faster q
 - **Always update the relevant AGENTS.md** when making architecture changes, adding new patterns, or establishing new conventions
 - Package-specific docs go in the package's `AGENTS.md`, not here
 
+## Thesis Documentation (`docs/thesis/`)
+
+The `docs/thesis/` directory contains Mermaid diagrams and documentation for the bachelor's thesis. These must stay in sync with the codebase. Update them as part of the same PR when making relevant changes:
+
+| Document | Update when… |
+|----------|-------------|
+| `er-diagram.md` | Adding/removing/renaming database tables or columns (new migrations) |
+| `architecture.md` | Adding new applications, packages, services, cron jobs, or changing the deployment topology (docker-compose, nginx) |
+| `use-cases.md` | Adding new API endpoints, RPC methods, bot commands, or changing actor permissions |
+| `sequence-diagrams.md` | Changing the flow of any documented interaction (OAuth, event creation, RSVP, role sync, cron generation, team creation, invites) |
+| `user-testing-plan.md` | Adding or removing user-facing features that should be covered by test scenarios |
+| `competitive-analysis.md` | Adding major new features that change Sideline's competitive positioning |
+
 ---
 
-**Last Updated**: 2026-03-26
+**Last Updated**: 2026-03-28
