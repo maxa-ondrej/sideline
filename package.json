@@ -10,6 +10,7 @@
     "build:applications": "pnpm --parallel --filter './applications/**' build",
     "build:packages": "pnpm --filter './packages/**' build",
     "check": "tsc -b tsconfig.json",
+    "check:e2e": "tsc -p e2e/tsconfig.json",
     "lint": "biome check .",
     "format": "biome check --write --unsafe .",
     "test": "vitest",
