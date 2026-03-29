@@ -9,31 +9,31 @@ test.describe('Navigation & Routing', () => {
     expect(response?.status()).toBe(200);
   });
 
-  test('authenticated route /profile redirects to homepage', async ({ page }) => {
+  test('protected route /profile redirects when unauthenticated', async ({ page }) => {
     await page.goto('/profile');
     await page.waitForURL('/', { timeout: 60000 });
     await expect(page).toHaveURL('/');
   });
 
-  test('authenticated route /create-team redirects to homepage', async ({ page }) => {
+  test('protected route /create-team redirects when unauthenticated', async ({ page }) => {
     await page.goto('/create-team');
     await page.waitForURL('/', { timeout: 60000 });
     await expect(page).toHaveURL('/');
   });
 
-  test('authenticated route /teams/:id redirects to homepage', async ({ page }) => {
+  test('protected route /teams/:id redirects when unauthenticated', async ({ page }) => {
     await page.goto('/teams/some-nonexistent-team');
     await page.waitForURL('/', { timeout: 60000 });
     await expect(page).toHaveURL('/');
   });
 
-  test('authenticated route /teams/:id/events redirects to homepage', async ({ page }) => {
+  test('protected route /teams/:id/events redirects when unauthenticated', async ({ page }) => {
     await page.goto('/teams/some-team/events');
     await page.waitForURL('/', { timeout: 60000 });
     await expect(page).toHaveURL('/');
   });
 
-  test('authenticated route /teams/:id/members redirects to homepage', async ({ page }) => {
+  test('protected route /teams/:id/members redirects when unauthenticated', async ({ page }) => {
     await page.goto('/teams/some-team/members');
     await page.waitForURL('/', { timeout: 60000 });
     await expect(page).toHaveURL('/');

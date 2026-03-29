@@ -11,6 +11,7 @@ export default defineConfig({
     : [['html', { open: 'on-failure', outputFolder: './report' }]],
   use: {
     baseURL: 'http://localhost:3000',
+    locale: 'en-US',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
