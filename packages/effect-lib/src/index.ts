@@ -1,5 +1,17 @@
 export * as Bind from './Bind.js';
 
+/**
+ * Creates a function that catches an error and converts it to a defect
+ * with a descriptive message via `Effect.die(new LogicError(...))`.
+ *
+ * @example
+ * ```ts
+ * pipe(
+ *   fetchUser(id),
+ *   Effect.catchTag('SqlError', LogicError.withMessage((e) => `Failed fetching user ${id}: ${e.message}`)),
+ * )
+ * ```
+ */
 export * as LogicError from './LogicError.js';
 
 export * as Metrics from './Metrics.js';
