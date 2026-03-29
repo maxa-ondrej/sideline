@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
 
 test.describe('Responsive Layout', () => {
   test('mobile viewport renders key content', async ({ page }) => {

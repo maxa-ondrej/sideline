@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
 
 // Navigation tests may be slow because beforeLoad calls fetchEnv() and getCurrentUser()
 // which can time out when the backend is unavailable.

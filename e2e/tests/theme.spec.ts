@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
 
 test.describe('Theme Toggle', () => {
   // Theme tests that reload the page can be slow in CI
@@ -81,12 +81,19 @@ test.describe('Theme Toggle', () => {
     await themeButton.click();
     await expect(page.locator('html')).toHaveClass(/dark/);
 
-    // Reload and verify dark is still applied
-    await page.reload();
-    await waitForPageReady(page);
-    await expect(page.locator('html')).toHaveClass(/dark/);
+    // Verify localStorage was set before reloading
     const stored = await page.evaluate(() => localStorage.getItem('sideline-theme'));
     expect(stored).toBe('dark');
+
+    // The beforeEach addInitScript clears the theme, so we add another one that
+    // re-sets it. addInitScript is cumulative and runs in order, so this runs
+    // after the removal and restores the value before the app reads it.
+    await page.addInitScript(() => {
+      window.localStorage.setItem('sideline-theme', 'dark');
+    });
+    await page.reload();
+    await waitForPageReady(page);
+    await expect(page.locator('html')).toHaveClass(/dark/, { timeout: 10000 });
   });
 
   test('light theme removes dark class', async ({ page }) => {

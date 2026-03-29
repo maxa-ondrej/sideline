@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
 
 test.describe('Homepage', () => {
   // The homepage beforeLoad calls fetchEnv() and getCurrentUser() which may be slow
