@@ -280,6 +280,7 @@ export const mockTeamSettings = {
   eventHorizonDays: 30,
   minPlayersThreshold: 10,
   rsvpReminderHours: 24,
+  createDiscordChannelOnGroup: true,
   discordChannelTraining: null,
   discordChannelMatch: null,
   discordChannelTournament: null,

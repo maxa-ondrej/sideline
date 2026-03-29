@@ -650,6 +650,84 @@ const TestLayer = ApiLive.pipe(
   ),
 );
 
+const makeTestSettingsLayer = (findByTeamId: () => Effect.Effect<Option.Option<unknown>>) =>
+  Layer.succeed(TeamSettingsRepository, {
+    _tag: 'api/TeamSettingsRepository',
+    findByTeam: () => Effect.succeed(Option.none()),
+    findByTeamId,
+    upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+    upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+    getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+    getHorizonDays: () => Effect.succeed(30),
+  } as unknown as TeamSettingsRepository);
+
+const makeTeamSettingsRow = (createDiscordChannelOnGroup: boolean) => ({
+  team_id: TEST_TEAM_ID,
+  event_horizon_days: 30,
+  min_players_threshold: 0,
+  rsvp_reminder_hours: 0,
+  discord_channel_training: Option.none(),
+  discord_channel_match: Option.none(),
+  discord_channel_tournament: Option.none(),
+  discord_channel_meeting: Option.none(),
+  discord_channel_social: Option.none(),
+  discord_channel_other: Option.none(),
+  create_discord_channel_on_group: createDiscordChannelOnGroup,
+});
+
+const buildTestLayer = (settingsLayer: Layer.Layer<TeamSettingsRepository>) =>
+  ApiLive.pipe(
+    Layer.provideMerge(AuthMiddlewareLive),
+    Layer.provideMerge(HttpServer.layerContext),
+    Layer.provide(MockDiscordOAuthLayer),
+    Layer.provide(MockUsersRepositoryLayer),
+    Layer.provide(MockSessionsRepositoryLayer),
+    Layer.provide(MockTeamsRepositoryLayer),
+    Layer.provide(MockTeamMembersRepositoryLayer),
+    Layer.provide(
+      Layer.merge(
+        Layer.merge(
+          Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer),
+          MockActivityTypesRepositoryLayer,
+        ),
+        MockLeaderboardRepositoryLayer,
+      ),
+    ),
+    Layer.provide(MockTeamInvitesRepositoryLayer),
+    Layer.provide(MockRolesRepositoryLayer),
+    Layer.provide(MockGroupsRepositoryLayer),
+    Layer.provide(MockTrainingTypesRepositoryLayer),
+    Layer.provide(MockHttpClientLayer),
+    Layer.provide(MockAgeCheckServiceLayer),
+    Layer.provide(MockAgeThresholdRepositoryLayer),
+    Layer.provide(MockNotificationsRepositoryLayer),
+    Layer.provide(MockRoleSyncEventsRepositoryLayer),
+    Layer.provide(
+      Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+    ),
+    Layer.provide(
+      Layer.merge(MockDiscordChannelMappingRepositoryLayer, MockICalTokensRepositoryLayer),
+    ),
+    Layer.provide(
+      Layer.merge(
+        Layer.merge(
+          Layer.merge(
+            Layer.merge(
+              Layer.merge(
+                Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer),
+                MockBotGuildsRepositoryLayer,
+              ),
+              MockDiscordChannelsRepositoryLayer,
+            ),
+            MockEventSeriesRepositoryLayer,
+          ),
+          settingsLayer,
+        ),
+        MockOAuthConnectionsRepositoryLayer,
+      ),
+    ),
+  );
+
 let handler: (request: Request) => Promise<Response>;
 let dispose: () => Promise<void>;
 
@@ -834,6 +912,119 @@ describe('Channel Sync Events', () => {
       expect(response.status).toBe(201);
       const body = await response.json();
       expect(body.name).toBe('Resilient');
+    });
+  });
+
+  describe('createGroup — conditional Discord channel creation based on team settings', () => {
+    describe('when create_discord_channel_on_group is true', () => {
+      let settingsHandler: (request: Request) => Promise<Response>;
+      let settingsDispose: () => Promise<void>;
+
+      beforeAll(() => {
+        const layer = buildTestLayer(
+          makeTestSettingsLayer(() => Effect.succeed(Option.some(makeTeamSettingsRow(true)))),
+        );
+        const app = HttpApiBuilder.toWebHandler(layer);
+        settingsHandler = app.handler;
+        settingsDispose = app.dispose;
+      });
+
+      afterAll(async () => {
+        await settingsDispose();
+      });
+
+      beforeEach(() => {
+        channelSyncEventCalls.length = 0;
+      });
+
+      it('emits channel_created', async () => {
+        const response = await settingsHandler(
+          new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer admin-token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: 'DiscordEnabled', parentId: null, emoji: null }),
+          }),
+        );
+        expect(response.status).toBe(201);
+        expect(channelSyncEventCalls).toHaveLength(1);
+        expect(channelSyncEventCalls[0]?.eventType).toBe('channel_created');
+      });
+    });
+
+    describe('when create_discord_channel_on_group is false', () => {
+      let settingsHandler: (request: Request) => Promise<Response>;
+      let settingsDispose: () => Promise<void>;
+
+      beforeAll(() => {
+        const layer = buildTestLayer(
+          makeTestSettingsLayer(() => Effect.succeed(Option.some(makeTeamSettingsRow(false)))),
+        );
+        const app = HttpApiBuilder.toWebHandler(layer);
+        settingsHandler = app.handler;
+        settingsDispose = app.dispose;
+      });
+
+      afterAll(async () => {
+        await settingsDispose();
+      });
+
+      beforeEach(() => {
+        channelSyncEventCalls.length = 0;
+      });
+
+      it('does not emit channel_created', async () => {
+        const response = await settingsHandler(
+          new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer admin-token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: 'DiscordDisabled', parentId: null, emoji: null }),
+          }),
+        );
+        expect(response.status).toBe(201);
+        expect(channelSyncEventCalls).toHaveLength(0);
+      });
+    });
+
+    describe('when no settings row exists (Option.none)', () => {
+      let settingsHandler: (request: Request) => Promise<Response>;
+      let settingsDispose: () => Promise<void>;
+
+      beforeAll(() => {
+        const layer = buildTestLayer(makeTestSettingsLayer(() => Effect.succeed(Option.none())));
+        const app = HttpApiBuilder.toWebHandler(layer);
+        settingsHandler = app.handler;
+        settingsDispose = app.dispose;
+      });
+
+      afterAll(async () => {
+        await settingsDispose();
+      });
+
+      beforeEach(() => {
+        channelSyncEventCalls.length = 0;
+      });
+
+      it('emits channel_created (default behavior)', async () => {
+        const response = await settingsHandler(
+          new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
+            method: 'POST',
+            headers: {
+              Authorization: 'Bearer admin-token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: 'NoSettings', parentId: null, emoji: null }),
+          }),
+        );
+        expect(response.status).toBe(201);
+        expect(channelSyncEventCalls).toHaveLength(1);
+        expect(channelSyncEventCalls[0]?.eventType).toBe('channel_created');
+      });
     });
   });
 });
