@@ -24,6 +24,7 @@ const permissionLabels: Record<Role.Permission, () => string> = {
   'event:create': m.role_perm_eventCreate,
   'event:edit': m.role_perm_eventEdit,
   'event:cancel': m.role_perm_eventCancel,
+  'group:manage': m.role_perm_groupManage,
 };
 
 interface RoleDetailPageProps {

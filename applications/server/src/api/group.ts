@@ -47,7 +47,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('list', () => groups.findGroupsByTeamId(teamId)),
               Effect.map(({ list }) =>
@@ -73,7 +73,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('group', () =>
                 groups.insertGroup(teamId, payload.name, payload.parentId, payload.emoji),
@@ -117,7 +117,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -162,7 +162,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
@@ -210,7 +210,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
@@ -245,7 +245,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -298,7 +298,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -351,7 +351,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -377,7 +377,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -403,7 +403,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
@@ -460,7 +460,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -510,7 +510,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -560,7 +560,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('_group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -586,7 +586,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('group', () =>
                 groups.findGroupById(groupId).pipe(
@@ -614,7 +614,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requireMembership(members, teamId, currentUser.id, forbidden),
               ),
               Effect.tap(({ membership }) =>
-                requirePermission(membership, 'team:manage', forbidden),
+                requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(

@@ -629,5 +629,6 @@
   "event_seriesSaved": "Series updated",
   "event_eventCreated": "Event created",
   "event_seriesCreated": "Series created",
-  "event_rsvpSubmitted": "RSVP submitted"
+  "event_rsvpSubmitted": "RSVP submitted",
+  "role_perm_groupManage": "Manage Groups"
 }

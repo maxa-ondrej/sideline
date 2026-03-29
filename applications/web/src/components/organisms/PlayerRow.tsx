@@ -2,6 +2,7 @@ import type { Roster } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link } from '@tanstack/react-router';
 import { Option } from 'effect';
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 
 interface PlayerRowProps {
@@ -24,13 +25,15 @@ export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: 
     <tr className='border-b'>
       <td className='py-2 px-4'>
         <div className='flex items-center gap-2'>
-          {Option.isSome(player.avatar) ? (
-            <img
-              src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar.value}.png?size=32`}
-              alt={displayName}
-              className='w-8 h-8 rounded-full shrink-0'
-            />
-          ) : null}
+          <Avatar className='size-8'>
+            {Option.isSome(player.avatar) && (
+              <AvatarImage
+                src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar.value}.png?size=32`}
+                alt={displayName}
+              />
+            )}
+            <AvatarFallback>{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
           <div className='min-w-0'>
             <p className='font-medium truncate'>{displayName}</p>
             {/* Role shown inline on mobile since other columns are hidden */}

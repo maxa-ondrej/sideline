@@ -59,6 +59,7 @@ const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'member:remove',
   'role:view',
   'role:manage',
+  'group:manage',
 ];
 
 const testUser = {

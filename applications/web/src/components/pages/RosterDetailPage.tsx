@@ -5,6 +5,7 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import {
   Select,
@@ -178,13 +179,15 @@ export function RosterDetailPage({
                 <tr key={player.memberId} className='border-b'>
                   <td className='py-2 px-4'>
                     <div className='flex items-center gap-2'>
-                      {Option.isSome(player.avatar) ? (
-                        <img
-                          src={`https://cdn.discordapp.com/avatars/${player.userId}/${player.avatar.value}.png?size=32`}
-                          alt={displayName}
-                          className='w-8 h-8 rounded-full shrink-0'
-                        />
-                      ) : null}
+                      <Avatar className='size-8'>
+                        {Option.isSome(player.avatar) && (
+                          <AvatarImage
+                            src={`https://cdn.discordapp.com/avatars/${player.discordId}/${player.avatar.value}.png?size=32`}
+                            alt={displayName}
+                          />
+                        )}
+                        <AvatarFallback>{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
                       <span className='truncate'>{displayName}</span>
                     </div>
                   </td>

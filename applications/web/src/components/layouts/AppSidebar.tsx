@@ -75,6 +75,13 @@ function getTeamNavGroups(
       items: [
         { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
         {
+          title: m.team_groups(),
+          icon: UserCog,
+          to: '/teams/$teamId/groups',
+          params: { teamId },
+          requiredPermission: 'group:manage' satisfies Role.Permission,
+        },
+        {
           title: m.team_rosters(),
           icon: UsersRound,
           to: '/teams/$teamId/rosters',
@@ -85,6 +92,7 @@ function getTeamNavGroups(
           icon: Dumbbell,
           to: '/teams/$teamId/training-types',
           params: { teamId },
+          requiredPermission: 'training-type:create' satisfies Role.Permission,
         },
       ],
     },
@@ -97,21 +105,14 @@ function getTeamNavGroups(
           icon: Shield,
           to: '/teams/$teamId/roles',
           params: { teamId },
-          requiredPermission: 'role:view' satisfies Role.Permission,
-        },
-        {
-          title: m.team_groups(),
-          icon: UserCog,
-          to: '/teams/$teamId/groups',
-          params: { teamId },
-          requiredPermission: 'team:manage' satisfies Role.Permission,
+          requiredPermission: 'role:manage' satisfies Role.Permission,
         },
         {
           title: m.team_ageThresholds(),
           icon: CalendarDays,
           to: '/teams/$teamId/age-thresholds',
           params: { teamId },
-          requiredPermission: 'team:manage' satisfies Role.Permission,
+          requiredPermission: 'group:manage' satisfies Role.Permission,
         },
         {
           title: m.ical_title(),
