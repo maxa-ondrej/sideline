@@ -1,6 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, GroupModel, Team, TrainingType } from '@sideline/domain';
-import { SqlErrors } from '@sideline/effect-lib';
+import { LogicError, SqlErrors } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 export class TrainingTypeNameAlreadyTakenError extends Schema.TaggedError<TrainingTypeNameAlreadyTakenError>()(
@@ -125,14 +125,16 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
   });
 
   findTrainingTypesByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
-    this.findById(trainingTypeId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findById(trainingTypeId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) =>
     this.findByIdWithGroup(trainingTypeId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   insertTrainingType = (
@@ -150,7 +152,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       discord_channel_id: discordChannelId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   updateTrainingType = (
@@ -168,9 +170,11 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       discord_channel_id: discordChannelId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new TrainingTypeNameAlreadyTakenError()),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
-    this.deleteOne(trainingTypeId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.deleteOne(trainingTypeId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 }

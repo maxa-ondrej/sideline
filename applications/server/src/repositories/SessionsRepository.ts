@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Session } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 export class SessionsRepository extends Effect.Service<SessionsRepository>()(
@@ -31,11 +32,11 @@ export class SessionsRepository extends Effect.Service<SessionsRepository>()(
   });
 
   create = (input: typeof Session.Session.insert.Type) =>
-    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findByToken = (token: string) =>
-    this._findByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._findByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   deleteByToken = (token: string) =>
-    this._deleteByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._deleteByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 }

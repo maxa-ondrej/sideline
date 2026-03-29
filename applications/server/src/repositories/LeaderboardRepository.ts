@@ -1,6 +1,7 @@
 import { SqlClient } from '@effect/sql';
 import type { ActivityType, Leaderboard, Team } from '@sideline/domain';
 import { TeamMember, User } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({
@@ -70,7 +71,7 @@ export class LeaderboardRepository extends Effect.Service<LeaderboardRepository>
 
     return query.pipe(
       Effect.flatMap(decodeRows),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
   };
 }

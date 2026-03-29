@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, DiscordChannelMapping, GroupModel, Team } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
@@ -89,7 +90,7 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
 
   findByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
     this.findByGroup({ team_id: teamId, group_id: groupId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   insert = (
@@ -103,7 +104,7 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
       group_id: groupId,
       discord_channel_id: discordChannelId,
       discord_role_id: discordRoleId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   insertWithoutRole = (
     teamId: Team.TeamId,
@@ -114,13 +115,15 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
       team_id: teamId,
       group_id: groupId,
       discord_channel_id: discordChannelId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   deleteByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
     this.deleteByGroup({ team_id: teamId, group_id: groupId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findAllByTeam = (teamId: Team.TeamId) =>
-    this._findAllByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._findAllByTeamId(teamId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 }

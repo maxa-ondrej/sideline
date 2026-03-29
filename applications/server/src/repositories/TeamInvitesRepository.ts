@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { TeamInvite } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>()(
@@ -46,17 +47,21 @@ export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>
   });
 
   findByCode = (code: string) =>
-    this._findByCode(code).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._findByCode(code).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findByTeam = (teamId: string) =>
-    this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   create = (input: typeof TeamInvite.TeamInvite.insert.Type) =>
-    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   deactivateByTeam = (teamId: string) =>
-    this._deactivateByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._deactivateByTeam(teamId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   deactivateByTeamExcept = (input: { teamId: string; excludeId: string }) =>
-    this._deactivateByTeamExcept(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._deactivateByTeamExcept(input).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 }

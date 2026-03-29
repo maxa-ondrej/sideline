@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, type Option, Schema } from 'effect';
 
 class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({
@@ -73,9 +74,9 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
           { concurrency: 1 },
         ),
       ),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findByGuildId = (guildId: Discord.Snowflake) =>
-    this.selectByGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.selectByGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 }

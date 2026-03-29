@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, DiscordRoleMapping, Role, Team } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
@@ -70,7 +71,7 @@ export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMapp
 
   findByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
     this.findByRole({ team_id: teamId, role_id: roleId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   insert = (teamId: Team.TeamId, roleId: Role.RoleId, discordRoleId: Discord.Snowflake) =>
@@ -78,13 +79,15 @@ export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMapp
       team_id: teamId,
       role_id: roleId,
       discord_role_id: discordRoleId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   deleteByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
     this.deleteByRole({ team_id: teamId, role_id: roleId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findAllByTeam = (teamId: Team.TeamId) =>
-    this._findAllByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._findAllByTeamId(teamId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 }

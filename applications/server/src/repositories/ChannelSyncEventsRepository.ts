@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ChannelSyncEvent, Discord, GroupModel, Team, TeamMember } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
@@ -106,7 +107,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
             }),
         }),
       ),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   emitChannelCreated = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
@@ -148,11 +149,17 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     );
 
   findUnprocessed = (limit: number) =>
-    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findUnprocessedEvents(limit).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   markProcessed = (id: ChannelSyncEvent.ChannelSyncEventId) =>
-    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markEventProcessed({ id }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   markFailed = (id: ChannelSyncEvent.ChannelSyncEventId, error: string) =>
-    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markEventFailed({ id, error }).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 }

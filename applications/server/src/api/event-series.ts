@@ -6,6 +6,7 @@ import {
   type TeamMember,
   type TrainingType,
 } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
@@ -200,7 +201,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   memberGroupName: Option.none(),
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('listEventSeries', ({ path: { teamId } }) =>
@@ -472,7 +473,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     hasPermission(membership, 'event:cancel') && detail.status === 'active',
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('cancelEventSeries', ({ path: { teamId, seriesId } }) =>

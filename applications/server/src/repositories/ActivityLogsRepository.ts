@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityLog, ActivityLogApi, ActivityType, TeamMember } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class StatsRow extends Schema.Class<StatsRow>('StatsRow')({
@@ -148,16 +149,18 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
   });
 
   findByTeamMember = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findAllQuery(teamMemberId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findAllQuery(teamMemberId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   findByMember = (teamMemberId: TeamMember.TeamMemberId) =>
     this.findByMemberQuery(teamMemberId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findById = (id: ActivityLog.ActivityLogId, memberId: TeamMember.TeamMemberId) =>
     this.findByIdQuery({ id, team_member_id: memberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   insert = (input: {
@@ -169,7 +172,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     source: ActivityLog.ActivitySource;
   }) =>
     this.insertQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', LogicError.dieFrom),
     );
 
   update = (
@@ -213,7 +216,9 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
             onNone: () => existing.note,
             onSome: (v) => v,
           }),
-        }).pipe(Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die)),
+        }).pipe(
+          Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', LogicError.dieFrom),
+        ),
       ),
     );
 
@@ -239,7 +244,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
       ),
       Effect.flatMap(() =>
         this.deleteQuery({ id, team_member_id: memberId }).pipe(
-          Effect.catchTag('SqlError', 'ParseError', Effect.die),
+          Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
         ),
       ),
       Effect.asVoid,

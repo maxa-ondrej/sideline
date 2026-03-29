@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Invite } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schedule } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -104,7 +105,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.catchTag('MemberAlreadyExistsError', () =>
               Effect.fail(new Invite.AlreadyMember()),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('regenerateInvite', ({ path: { teamId } }) =>
@@ -136,7 +137,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   active: newInvite.active,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('disableInvite', ({ path: { teamId } }) =>

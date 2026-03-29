@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -159,7 +160,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ membership }) =>
               rsvps
                 .upsertRsvp(eventId, membership.id, payload.response, payload.message)
-                .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
+                .pipe(Effect.catchTag('NoSuchElementException', LogicError.dieFrom)),
             ),
             Effect.andThen(({ event }) =>
               syncEvents.emitEventUpdated(

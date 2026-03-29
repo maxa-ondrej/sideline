@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityType, Team } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 
 class ActivityTypeRow extends Schema.Class<ActivityTypeRow>('ActivityTypeRow')({
@@ -38,11 +39,13 @@ export class ActivityTypesRepository extends Effect.Service<ActivityTypesReposit
   });
 
   findBySlug = (slug: string) =>
-    this.findBySlugQuery(slug).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findBySlugQuery(slug).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamIdQuery(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByTeamIdQuery(teamId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   findById = (id: ActivityType.ActivityTypeId) =>
-    this.findByIdQuery(id).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByIdQuery(id).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 }

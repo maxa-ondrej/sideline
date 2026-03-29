@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Roster, type RosterModel } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
@@ -121,7 +122,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   avatar: entry.avatar,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('deactivateMember', ({ path: { teamId, memberId } }) =>
@@ -145,7 +146,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
             Effect.asVoid,
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('listRosters', ({ path: { teamId } }) =>
@@ -192,7 +193,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               rosters.insert({ team_id: teamId, name: payload.name, active: true }),
             ),
             Effect.map(({ roster }) => toRosterInfo(roster, 0)),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('getRoster', ({ path: { teamId, rosterId } }) =>
@@ -256,7 +257,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
             ),
             Effect.map(({ updated, memberCount }) => toRosterInfo(updated, memberCount)),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('deleteRoster', ({ path: { teamId, rosterId } }) =>

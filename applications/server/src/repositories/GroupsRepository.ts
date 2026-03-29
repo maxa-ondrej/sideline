@@ -1,6 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team, TeamMember } from '@sideline/domain';
-import { SqlErrors } from '@sideline/effect-lib';
+import { LogicError, SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
 
 export class GroupNameAlreadyTakenError extends Schema.TaggedError<GroupNameAlreadyTakenError>()(
@@ -212,10 +212,10 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
   });
 
   findGroupsByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findGroupById = (groupId: GroupModel.GroupId) =>
-    this.findById(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findById(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   insertGroup = (
     teamId: Team.TeamId,
@@ -225,57 +225,59 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
   ) =>
     this.insert({ team_id: teamId, parent_id: parentId, name, emoji }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   updateGroupById = (groupId: GroupModel.GroupId, name: string, emoji: Option.Option<string>) =>
     this.update({ id: groupId, name, emoji }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   archiveGroupById = (groupId: GroupModel.GroupId) =>
-    this.archiveGroup(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.archiveGroup(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   moveGroup = (groupId: GroupModel.GroupId, parentId: Option.Option<GroupModel.GroupId>) =>
     this.moveGroupParent({ id: groupId, parent_id: parentId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findMembersByGroupId = (groupId: GroupModel.GroupId) =>
-    this.findMembers(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findMembers(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   addMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
     this.addMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   removeMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
     this.removeMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   getRolesForGroup = (groupId: GroupModel.GroupId) =>
-    this.findRolesForGroup(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findRolesForGroup(groupId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   getMemberCount = (groupId: GroupModel.GroupId) =>
     this.countMembersForGroup(groupId).pipe(
       Effect.map((r) => r.count),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   getChildren = (groupId: GroupModel.GroupId) =>
-    this.findChildren(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findChildren(groupId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   getAncestorIds = (groupId: GroupModel.GroupId) =>
     this.findAncestors(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.id)),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   getDescendantMemberIds = (groupId: GroupModel.GroupId) =>
     this.findDescendantMembers(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.team_member_id)),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 }

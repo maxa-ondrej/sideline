@@ -1,5 +1,6 @@
 import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth, Discord, Role, type Team, type User } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
 import {
   Array,
@@ -152,7 +153,7 @@ const handleDiscordLogin = ({
         Effect.flatMap(() => Effect.fail(AuthError.withReason('rate_limited'))),
       ),
     ),
-    Effect.catchTag('NoSuchElementException', Effect.die),
+    Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
   );
 
 const emptyTeams: ReadonlyArray<Auth.UserTeam> = [];
@@ -273,7 +274,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('updateProfile', ({ payload }) =>
@@ -302,7 +303,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('completeProfile', ({ payload }) =>
@@ -331,7 +332,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('myTeams', () =>
@@ -461,8 +462,8 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
-            Effect.catchTag('MemberAlreadyExistsError', Effect.die),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('MemberAlreadyExistsError', LogicError.dieFrom),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           ),
         )
         .handle('autoJoinTeams', () => {
@@ -561,7 +562,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   ),
             ),
             // NoSuchElementException can be produced by Auth.CurrentUserContext when no session exists
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
           );
         }),
     ),

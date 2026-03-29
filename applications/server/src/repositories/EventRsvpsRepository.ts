@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, EventRsvp, TeamMember } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMemberName')({
@@ -184,11 +185,11 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
   });
 
   findRsvpsByEventId = (eventId: Event.EventId) =>
-    this.findByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findRsvpByEventAndMember = (eventId: Event.EventId, teamMemberId: TeamMember.TeamMemberId) =>
     this.findByEventAndMember({ event_id: eventId, team_member_id: teamMemberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   upsertRsvp = (
@@ -202,14 +203,16 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
       team_member_id: teamMemberId,
       response,
       message,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   countRsvpsByEventId = (eventId: Event.EventId) =>
-    this.countByEventId(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.countByEventId(eventId).pipe(
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+    );
 
   findRsvpAttendeesPage = (eventId: Event.EventId, offset: number, limit: number) =>
     this.findAttendeesPage({ event_id: eventId, limit, offset }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findNonRespondersByEventId = (
@@ -221,17 +224,17 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
       event_id: eventId,
       team_id: teamId,
       member_group_id: memberGroupId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   countRsvpTotal = (eventId: Event.EventId) =>
     this.countTotalByEventId(eventId).pipe(
       Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
     this.findYesRsvpMemberIds(eventId).pipe(
       Effect.map((rows) => rows.map((r) => r.team_member_id)),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 }

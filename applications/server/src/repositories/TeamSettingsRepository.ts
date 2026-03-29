@@ -1,6 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, GroupModel, Team } from '@sideline/domain';
-import { Schemas } from '@sideline/effect-lib';
+import { LogicError, Schemas } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
@@ -121,7 +121,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
   });
 
   findByTeamId = (teamId: Team.TeamId) =>
-    this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this._findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   upsert = ({
     teamId,
@@ -157,16 +157,16 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_channel_meeting: discordChannelMeeting,
       discord_channel_social: discordChannelSocial,
       discord_channel_other: discordChannelOther,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   getHorizonDays = (teamId: Team.TeamId) =>
     this._getHorizon(teamId).pipe(
       Effect.map((r) => r.event_horizon_days),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findEventsNeedingReminder = () =>
     this._findEventsForReminder(undefined as undefined).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 }

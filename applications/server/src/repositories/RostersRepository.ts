@@ -1,5 +1,6 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { RosterModel, Team, TeamMember } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
 import { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 
@@ -144,32 +145,32 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
   });
 
   findByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByTeam(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findRosterById = (rosterId: RosterModel.RosterId) =>
-    this.findById(rosterId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findById(rosterId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   insert = (input: RosterInsertInput) =>
-    this.insertOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.insertOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   update = (input: RosterUpdateInput) =>
-    this.updateOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.updateOne(input).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   delete = (id: RosterModel.RosterId) =>
-    this.deleteOne(id).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.deleteOne(id).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   addMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
     this.addMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   removeMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
     this.removeMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   findMemberEntriesById = (rosterId: RosterModel.RosterId) =>
     this.findMemberEntries({ roster_id: rosterId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 }

@@ -1,5 +1,6 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { OAuthConnection, User } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 
 class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
@@ -67,16 +68,16 @@ export class OAuthConnectionsRepository extends Effect.Service<OAuthConnectionsR
       provider,
       access_token: accessToken,
       refresh_token: refreshToken,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
 
   findByUser = (userId: User.UserId, provider: string) =>
     this._findByUserAndProvider({ user_id: userId, provider }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
     );
 
   getAccessToken = (userId: User.UserId, provider: string) =>
     this._findAccessToken({ user_id: userId, provider }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
       Effect.map(Option.map((row) => row.access_token)),
     );
 }
