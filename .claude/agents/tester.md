@@ -87,6 +87,35 @@ pnpm test
 
 Fix any failures in the new tests before reporting.
 
+## E2E Tests (Playwright)
+
+E2E tests live in `e2e/tests/` and use the `.spec.ts` extension. They test the running web app end-to-end via a real browser.
+
+**When to write E2E tests:** User-facing flows that are too broad or integration-heavy for unit/effect tests (page loads, navigation, form submissions, OAuth redirect flows).
+
+**File location:** `e2e/tests/<feature>.spec.ts`
+
+**Pattern:**
+```typescript
+import { expect, test } from '@playwright/test';
+
+test.describe('Feature', () => {
+  test('should do something', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveTitle(/Sideline/);
+  });
+});
+```
+
+**Running E2E tests:**
+```bash
+pnpm exec playwright install chromium  # First-time setup
+pnpm test:e2e                          # Run all E2E tests
+pnpm test:e2e:ui                       # Interactive UI mode
+```
+
+The dev server starts automatically via the `webServer` config in `e2e/playwright.config.ts`. Do not start it manually.
+
 ## Output Format
 
 ```

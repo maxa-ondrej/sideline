@@ -56,3 +56,31 @@ jobs:
       - run: pnpm test
         env:
           NODE_OPTIONS: --max_old_space_size=8192
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install chromium --with-deps
+      - name: Build packages
+        run: pnpm build
+      - name: Run E2E tests
+        run: pnpm test:e2e
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-results
+          path: e2e/results/
+          retention-days: 7
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-report
+          path: e2e/report/
+          retention-days: 7
