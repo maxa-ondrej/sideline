@@ -1,18 +1,14 @@
 import { HttpApiBuilder } from '@effect/platform';
-import {
-  Auth,
-  EventApi,
-  EventSeriesApi,
-  type TeamMember,
-  type TrainingType,
-} from '@sideline/domain';
+import { Auth, EventApi, EventSeriesApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, DateTime, Effect, Option, pipe } from 'effect';
+import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
+import { checkCoachScoping, checkGroupAccess, checkTrainingTypeOwnerGroup } from '~/api/scoping.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
@@ -23,28 +19,6 @@ const forbidden = new EventApi.Forbidden();
 const notFound = new EventSeriesApi.EventSeriesNotFound();
 const cancelled = new EventSeriesApi.EventSeriesCancelled();
 
-const checkCoachScoping = (
-  events: EventsRepository,
-  memberId: TeamMember.TeamMemberId,
-  trainingTypeId: Option.Option<TrainingType.TrainingTypeId | string>,
-  isAdmin: boolean,
-) => {
-  if (isAdmin) return Effect.void;
-  if (Option.isNone(trainingTypeId)) return Effect.void;
-  return events.getScopedTrainingTypeIds(memberId).pipe(
-    Effect.flatMap((scopedIds) => {
-      const allowed = pipe(
-        scopedIds,
-        Array.map((s) => s.training_type_id),
-      );
-      if (Array.isEmptyArray(allowed)) return Effect.void;
-      return pipe(allowed, Array.contains(trainingTypeId.value))
-        ? Effect.void
-        : Effect.fail(forbidden);
-    }),
-  );
-};
-
 export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository),
@@ -53,7 +27,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
     Effect.bind('teamSettings', () => TeamSettingsRepository),
     Effect.bind('syncEvents', () => EventSyncEventsRepository),
     Effect.bind('trainingTypes', () => TrainingTypesRepository),
-    Effect.map(({ members, events, series, teamSettings, syncEvents, trainingTypes }) =>
+    Effect.bind('groups', () => GroupsRepository),
+    Effect.map(({ members, events, series, teamSettings, syncEvents, trainingTypes, groups }) =>
       handlers
         .handle('createEventSeries', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
@@ -66,7 +41,18 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.tap(({ membership, isAdmin }) =>
-              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin),
+              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin, forbidden),
+            ),
+            Effect.tap(({ membership, isAdmin }) =>
+              checkTrainingTypeOwnerGroup(
+                trainingTypes,
+                groups,
+                membership.id,
+                payload.trainingTypeId,
+                isAdmin,
+                forbidden,
+                teamId,
+              ),
             ),
             // Inherit groups from training type if not provided
             Effect.bind('resolvedGroups', () => {
@@ -86,8 +72,8 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       memberGroupId: payload.memberGroupId,
                     }),
                     onSome: (tt) => ({
-                      ownerGroupId: tt.owner_group_id as Option.Option<string>,
-                      memberGroupId: tt.member_group_id as Option.Option<string>,
+                      ownerGroupId: tt.owner_group_id,
+                      memberGroupId: tt.member_group_id,
                     }),
                   }),
                 ),
@@ -315,6 +301,14 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ existing }) =>
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
+            // Check owner group access
+            Effect.tap(({ existing, membership, isAdmin }) =>
+              isAdmin
+                ? Effect.void
+                : checkGroupAccess(groups, membership.id, existing.owner_group_id).pipe(
+                    Effect.flatMap((ok) => (ok ? Effect.void : Effect.fail(forbidden))),
+                  ),
+            ),
             Effect.tap(({ existing, isAdmin, membership }) =>
               checkCoachScoping(
                 events,
@@ -324,6 +318,21 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   onSome: (v) => v,
                 }),
                 isAdmin,
+                forbidden,
+              ),
+            ),
+            Effect.tap(({ existing, isAdmin, membership }) =>
+              checkTrainingTypeOwnerGroup(
+                trainingTypes,
+                groups,
+                membership.id,
+                Option.match(payload.trainingTypeId, {
+                  onNone: () => existing.training_type_id,
+                  onSome: (v) => v,
+                }),
+                isAdmin,
+                forbidden,
+                teamId,
               ),
             ),
             Effect.let('resolved', ({ existing }) => ({
@@ -508,8 +517,22 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             Effect.tap(({ existing }) =>
               existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
             ),
+            // Check owner group access
+            Effect.tap(({ existing, membership, isAdmin }) =>
+              isAdmin
+                ? Effect.void
+                : checkGroupAccess(groups, membership.id, existing.owner_group_id).pipe(
+                    Effect.flatMap((ok) => (ok ? Effect.void : Effect.fail(forbidden))),
+                  ),
+            ),
             Effect.tap(({ existing, isAdmin, membership }) =>
-              checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
+              checkCoachScoping(
+                events,
+                membership.id,
+                existing.training_type_id,
+                isAdmin,
+                forbidden,
+              ),
             ),
             Effect.tap(() => series.cancelEventSeries(seriesId)),
             Effect.tap(() => events.cancelFutureInSeries(seriesId, new Date())),

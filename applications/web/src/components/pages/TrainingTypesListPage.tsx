@@ -1,9 +1,10 @@
 import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import type { TrainingTypeApi } from '@sideline/domain';
-import { Team } from '@sideline/domain';
+import type { GroupApi, TrainingTypeApi } from '@sideline/domain';
+import { GroupModel, Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Button } from '~/components/ui/button';
 import {
@@ -15,6 +16,13 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
 import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -24,20 +32,27 @@ const CreateTrainingTypeSchema = Schema.Struct({
 
 type CreateTrainingTypeValues = Schema.Schema.Type<typeof CreateTrainingTypeSchema>;
 
+const NONE_VALUE = '__none__';
+
 interface TrainingTypesListPageProps {
   teamId: string;
   trainingTypes: ReadonlyArray<TrainingTypeApi.TrainingTypeInfo>;
   canAdmin: boolean;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
 }
 
 export function TrainingTypesListPage({
   teamId,
   trainingTypes,
   canAdmin,
+  groups,
 }: TrainingTypesListPageProps) {
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
+
+  const [ownerGroupId, setOwnerGroupId] = React.useState(NONE_VALUE);
+  const [memberGroupId, setMemberGroupId] = React.useState(NONE_VALUE);
 
   const form = useForm({
     resolver: effectTsResolver(CreateTrainingTypeSchema),
@@ -52,8 +67,14 @@ export function TrainingTypesListPage({
           path: { teamId: teamIdBranded },
           payload: {
             name: values.name,
-            ownerGroupId: Option.none(),
-            memberGroupId: Option.none(),
+            ownerGroupId:
+              ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(ownerGroupId))
+                : Option.none(),
+            memberGroupId:
+              memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(memberGroupId))
+                : Option.none(),
             discordChannelId: Option.none(),
           },
         }),
@@ -70,6 +91,8 @@ export function TrainingTypesListPage({
     );
     if (Option.isSome(result)) {
       form.reset();
+      setOwnerGroupId(NONE_VALUE);
+      setMemberGroupId(NONE_VALUE);
       router.invalidate();
     }
   };
@@ -87,11 +110,14 @@ export function TrainingTypesListPage({
 
       {canAdmin && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className='flex flex-col gap-4 mb-6 max-w-xl'
+          >
             <FormField
               {...form.register('name')}
               render={({ field }) => (
-                <FormItem className='flex-1'>
+                <FormItem>
                   <FormLabel>{m.trainingType_name()}</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder={m.trainingType_namePlaceholder()} />
@@ -100,9 +126,53 @@ export function TrainingTypesListPage({
                 </FormItem>
               )}
             />
-            <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
-              {m.trainingType_createTrainingType()}
-            </Button>
+            {groups.length > 0 && (
+              <div className='flex flex-col gap-4 sm:flex-row'>
+                <div className='flex-1'>
+                  <label htmlFor='owner-group-select' className='text-sm font-medium mb-1 block'>
+                    {m.event_ownerGroup()}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>{m.event_ownerGroupHelp()}</p>
+                  <Select value={ownerGroupId} onValueChange={setOwnerGroupId}>
+                    <SelectTrigger id='owner-group-select' className='w-full sm:max-w-xs'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                      {groups.map((g) => (
+                        <SelectItem key={g.groupId} value={g.groupId}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className='flex-1'>
+                  <label htmlFor='member-group-select' className='text-sm font-medium mb-1 block'>
+                    {m.event_memberGroup()}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>{m.event_memberGroupHelp()}</p>
+                  <Select value={memberGroupId} onValueChange={setMemberGroupId}>
+                    <SelectTrigger id='member-group-select' className='w-full sm:max-w-xs'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
+                      {groups.map((g) => (
+                        <SelectItem key={g.groupId} value={g.groupId}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <div>
+              <Button type='submit' disabled={form.formState.isSubmitting}>
+                {m.trainingType_createTrainingType()}
+              </Button>
+            </div>
           </form>
         </Form>
       )}
@@ -111,6 +181,18 @@ export function TrainingTypesListPage({
         <p className='text-muted-foreground'>{m.trainingType_noTrainingTypes()}</p>
       ) : (
         <table className='w-full'>
+          <thead>
+            <tr className='border-b'>
+              <th className='py-2 px-4 text-left text-sm font-medium'>{m.trainingType_name()}</th>
+              <th className='hidden sm:table-cell py-2 px-4 text-left text-sm font-medium text-muted-foreground'>
+                {m.event_ownerGroup()}
+              </th>
+              <th className='hidden sm:table-cell py-2 px-4 text-left text-sm font-medium text-muted-foreground'>
+                {m.event_memberGroup()}
+              </th>
+              <th className='py-2 px-4' />
+            </tr>
+          </thead>
           <tbody>
             {trainingTypes.map((tt) => (
               <tr key={tt.trainingTypeId} className='border-b'>
@@ -122,12 +204,19 @@ export function TrainingTypesListPage({
                   >
                     {tt.name}
                   </Link>
-                  <p className='text-xs text-muted-foreground sm:hidden'>
-                    {Option.getOrElse(tt.ownerGroupName, () => m.trainingType_noGroup())}
-                  </p>
+                  {(Option.isSome(tt.ownerGroupName) || Option.isSome(tt.memberGroupName)) && (
+                    <p className='text-xs text-muted-foreground sm:hidden'>
+                      {Option.getOrElse(tt.ownerGroupName, () => m.trainingType_noGroup())}
+                      {' / '}
+                      {Option.getOrElse(tt.memberGroupName, () => m.trainingType_noGroup())}
+                    </p>
+                  )}
                 </td>
                 <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
                   {Option.getOrElse(tt.ownerGroupName, () => m.trainingType_noGroup())}
+                </td>
+                <td className='hidden sm:table-cell py-2 px-4 text-muted-foreground'>
+                  {Option.getOrElse(tt.memberGroupName, () => m.trainingType_noGroup())}
                 </td>
                 <td className='py-2 px-4'>
                   <Button asChild variant='outline' size='sm'>

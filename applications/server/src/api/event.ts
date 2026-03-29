@@ -1,15 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform';
-import {
-  Auth,
-  EventApi,
-  type GroupModel,
-  type TeamMember,
-  type TrainingType,
-} from '@sideline/domain';
+import { Auth, EventApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, Effect, Option, pipe } from 'effect';
+import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
+import { checkCoachScoping, checkGroupAccess, checkTrainingTypeOwnerGroup } from '~/api/scoping.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -20,39 +15,6 @@ import { resolveChannel } from '~/services/EventChannelResolver.js';
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventApi.EventNotFound();
 const cancelled = new EventApi.EventCancelled();
-
-const checkCoachScoping = (
-  events: EventsRepository,
-  memberId: TeamMember.TeamMemberId,
-  trainingTypeId: Option.Option<TrainingType.TrainingTypeId | string>,
-  isAdmin: boolean,
-) => {
-  if (isAdmin) return Effect.void;
-  if (Option.isNone(trainingTypeId)) return Effect.void;
-  return events.getScopedTrainingTypeIds(memberId).pipe(
-    Effect.flatMap((scopedIds) => {
-      const allowed = pipe(
-        scopedIds,
-        Array.map((s) => s.training_type_id),
-      );
-      if (Array.isEmptyArray(allowed)) return Effect.void;
-      return pipe(allowed, Array.contains(trainingTypeId.value))
-        ? Effect.void
-        : Effect.fail(forbidden);
-    }),
-  );
-};
-
-const checkGroupAccess = (
-  groups: GroupsRepository,
-  memberId: TeamMember.TeamMemberId,
-  groupId: Option.Option<GroupModel.GroupId>,
-): Effect.Effect<boolean, never, never> => {
-  if (Option.isNone(groupId)) return Effect.succeed(true);
-  return groups
-    .getDescendantMemberIds(groupId.value)
-    .pipe(Effect.map((memberIds) => Array.contains(memberIds, memberId)));
-};
 
 export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
   Effect.Do.pipe(
@@ -111,7 +73,18 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
             Effect.let('isAdmin', ({ membership }) => hasPermission(membership, 'team:manage')),
             Effect.tap(({ membership, isAdmin }) =>
-              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin),
+              checkCoachScoping(events, membership.id, payload.trainingTypeId, isAdmin, forbidden),
+            ),
+            Effect.tap(({ membership, isAdmin }) =>
+              checkTrainingTypeOwnerGroup(
+                trainingTypes,
+                groups,
+                membership.id,
+                payload.trainingTypeId,
+                isAdmin,
+                forbidden,
+                teamId,
+              ),
             ),
             // Inherit groups from training type if not provided
             Effect.bind('resolvedGroups', () => {
@@ -131,8 +104,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                       memberGroupId: payload.memberGroupId,
                     }),
                     onSome: (tt) => ({
-                      ownerGroupId: tt.owner_group_id as Option.Option<string>,
-                      memberGroupId: tt.member_group_id as Option.Option<string>,
+                      ownerGroupId: tt.owner_group_id,
+                      memberGroupId: tt.member_group_id,
                     }),
                   }),
                 ),
@@ -298,6 +271,21 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   onSome: (v) => v,
                 }),
                 isAdmin,
+                forbidden,
+              ),
+            ),
+            Effect.tap(({ existing, isAdmin, membership }) =>
+              checkTrainingTypeOwnerGroup(
+                trainingTypes,
+                groups,
+                membership.id,
+                Option.match(payload.trainingTypeId, {
+                  onNone: () => existing.training_type_id,
+                  onSome: (v) => v,
+                }),
+                isAdmin,
+                forbidden,
+                teamId,
               ),
             ),
             Effect.bind('updated', ({ existing }) =>
@@ -435,7 +423,13 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   ),
             ),
             Effect.tap(({ existing, isAdmin, membership }) =>
-              checkCoachScoping(events, membership.id, existing.training_type_id, isAdmin),
+              checkCoachScoping(
+                events,
+                membership.id,
+                existing.training_type_id,
+                isAdmin,
+                forbidden,
+              ),
             ),
             Effect.tap(() => events.cancelEvent(eventId)),
             Effect.tap(({ existing }) =>
