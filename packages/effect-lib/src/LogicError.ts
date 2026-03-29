@@ -22,18 +22,6 @@ export const make = (message: string, cause?: unknown) => new LogicError({ messa
 export const die = (message: string, cause?: unknown): Effect.Effect<never> =>
   Effect.die(make(message, cause));
 
-/**
- * Drop-in replacement for `Effect.die` as a catch handler.
- * Wraps the caught error in a LogicError with the original error's message.
- *
- * @example
- * ```ts
- * Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom)
- * ```
- */
-export const dieFrom = (e: unknown): Effect.Effect<never> =>
-  Effect.die(make(e instanceof Error ? e.message : String(e), e));
-
 export const withMessage =
   <E>(messageFn: (e: E) => string) =>
   (e: E): Effect.Effect<never> =>
