@@ -1,0 +1,165 @@
+import { describe, expect, it } from '@effect/vitest';
+import type { Discord, Team, User } from '@sideline/domain';
+import { Effect, Layer, Option } from 'effect';
+import { beforeEach } from 'vitest';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { cleanDatabase, TestPgClient } from '../helpers.js';
+
+const makeInsert = (overrides?: {
+  readonly name?: string;
+  readonly guild_id?: Discord.Snowflake;
+  readonly created_by?: User.UserId;
+}): typeof Team.Team.insert.Type => ({
+  name: 'Test Team',
+  guild_id: '123456789012345678' as Discord.Snowflake,
+  created_by: '00000000-0000-0000-0000-000000000001' as User.UserId,
+  description: Option.none(),
+  sport: Option.none(),
+  logo_url: Option.none(),
+  created_at: undefined,
+  updated_at: undefined,
+  ...overrides,
+});
+
+/** Creates a test user and returns their ID for use as `created_by` in team inserts. */
+const createTestUser = UsersRepository.pipe(
+  Effect.andThen((repo) =>
+    repo.upsertFromDiscord({
+      discord_id: '100000000000000000',
+      username: 'teamtestuser',
+      avatar: Option.none(),
+    }),
+  ),
+  Effect.map((user) => user.id),
+);
+
+const TestLayer = Layer.mergeAll(TeamsRepository.Default, UsersRepository.Default).pipe(
+  Layer.provideMerge(TestPgClient),
+);
+
+beforeEach(() => cleanDatabase.pipe(Effect.provide(TestPgClient), Effect.runPromise));
+
+describe('TeamsRepository', () => {
+  it.effect('insert creates a team and findById returns Some', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId', () => createTestUser),
+      Effect.bind('inserted', ({ userId }) =>
+        TeamsRepository.pipe(
+          Effect.andThen((repo) =>
+            repo.insert(
+              makeInsert({
+                name: 'Test Team',
+                guild_id: '123456789012345678' as Discord.Snowflake,
+                created_by: userId,
+              }),
+            ),
+          ),
+        ),
+      ),
+      Effect.bind('found', ({ inserted }) =>
+        TeamsRepository.pipe(Effect.andThen((repo) => repo.findById(inserted.id))),
+      ),
+      Effect.tap(({ inserted, found }) => {
+        expect(Option.isSome(found)).toBe(true);
+        const team = Option.getOrThrow(found);
+        expect(team.id).toBe(inserted.id);
+        expect(team.name).toBe('Test Team');
+        expect(team.guild_id).toBe('123456789012345678');
+      }),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('findById returns None for a non-existent id', () =>
+    TeamsRepository.pipe(
+      Effect.andThen((repo) =>
+        repo.findById('00000000-0000-0000-0000-000000000099' as Team.TeamId),
+      ),
+      Effect.tap((found) => {
+        expect(Option.isNone(found)).toBe(true);
+      }),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('findByGuildId returns Some when team exists', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId', () => createTestUser),
+      Effect.tap(({ userId }) =>
+        TeamsRepository.pipe(
+          Effect.andThen((repo) =>
+            repo.insert(
+              makeInsert({
+                name: 'Guild Team',
+                guild_id: '987654321098765432' as Discord.Snowflake,
+                created_by: userId,
+              }),
+            ),
+          ),
+        ),
+      ),
+      Effect.bind('found', () =>
+        TeamsRepository.pipe(
+          Effect.andThen((repo) => repo.findByGuildId('987654321098765432' as Discord.Snowflake)),
+        ),
+      ),
+      Effect.tap(({ found }) => {
+        expect(Option.isSome(found)).toBe(true);
+        const team = Option.getOrThrow(found);
+        expect(team.name).toBe('Guild Team');
+        expect(team.guild_id).toBe('987654321098765432');
+      }),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('findByGuildId returns None for a non-existent guild id', () =>
+    TeamsRepository.pipe(
+      Effect.andThen((repo) => repo.findByGuildId('000000000000000000' as Discord.Snowflake)),
+      Effect.tap((found) => {
+        expect(Option.isNone(found)).toBe(true);
+      }),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('update modifies team fields and returns updated team', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId', () => createTestUser),
+      Effect.bind('inserted', ({ userId }) =>
+        TeamsRepository.pipe(
+          Effect.andThen((repo) =>
+            repo.insert(
+              makeInsert({
+                name: 'Original Name',
+                guild_id: '111111111111111111' as Discord.Snowflake,
+                created_by: userId,
+              }),
+            ),
+          ),
+        ),
+      ),
+      Effect.bind('updated', ({ inserted }) =>
+        TeamsRepository.pipe(
+          Effect.andThen((repo) =>
+            repo.update({
+              id: inserted.id,
+              name: 'Updated Name',
+              description: Option.some('A great team'),
+              sport: Option.some('football'),
+              logo_url: Option.none(),
+            }),
+          ),
+        ),
+      ),
+      Effect.tap(({ updated }) => {
+        expect(updated.name).toBe('Updated Name');
+        expect(Option.getOrNull(updated.description)).toBe('A great team');
+        expect(Option.getOrNull(updated.sport)).toBe('football');
+        expect(Option.isNone(updated.logo_url)).toBe(true);
+      }),
+      Effect.provide(TestLayer),
+    ),
+  );
+});

@@ -1,10 +1,20 @@
 import path from 'node:path';
-import { defineProject } from 'vitest/config';
+import { defineConfig } from 'vitest/config';
 
-export default defineProject({
-  test: {
+export default defineConfig({
+  resolve: {
     alias: { '~': path.resolve(__dirname, 'src') },
-    exclude: ['test/integration/**'],
+  },
+  test: {
+    include: ['test/integration/**/*.test.ts'],
+    globalSetup: ['test/integration/globalSetup.ts'],
+    setupFiles: ['test/integration/setupFile.ts'],
+    testTimeout: 30_000,
+    hookTimeout: 120_000,
+    pool: 'forks',
+    sequence: {
+      concurrent: false,
+    },
     env: {
       DATABASE_HOST: 'localhost',
       DATABASE_PORT: '5432',
