@@ -247,7 +247,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Effect.tapError((e) =>
                     Effect.logWarning('Failed to create role-assigned notification', e),
                   ),
-                  Effect.catchAll(() => Effect.void),
+                  Effect.catchTag('NoSuchElementException', () => Effect.void),
                 ),
             ),
             Effect.tap(({ targetMember, role }) =>
@@ -313,7 +313,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   `You have been removed from the "${role.name}" role.`,
                 )
                 .pipe(
-                  Effect.catchAll((e) =>
+                  Effect.catchTag('NoSuchElementException', (e) =>
                     Effect.logWarning('Failed to create role-removed notification', e),
                   ),
                 ),

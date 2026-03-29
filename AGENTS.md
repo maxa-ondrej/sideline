@@ -82,6 +82,56 @@ const apiKey = Config.redacted("API_KEY")
 
 Typed errors automatically merge into unions. Handle specific errors with `Effect.catchTag`.
 
+#### Rules
+
+1. **Never use `Effect.catchAll`** — always use `Effect.catchTag` with explicit error tags:
+   ```typescript
+   // ✗ Bad — swallows all errors silently
+   Effect.catchAll(() => Effect.void)
+
+   // ✓ Good — explicit about which errors are handled
+   Effect.catchTag('NoSuchElementException', () => Effect.void)
+   Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom)
+   ```
+
+2. **Never use `Effect.orDie` or `Effect.die`** — use `LogicError` from `@sideline/effect-lib` instead:
+   ```typescript
+   import { LogicError } from '@sideline/effect-lib'
+
+   // ✗ Bad — loses error context, generic defect
+   Effect.orDie
+   Effect.catchTag('SqlError', Effect.die)
+
+   // ✓ Good — descriptive defect with cause chain (drop-in for Effect.die)
+   Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom)
+
+   // ✓ Good — custom message for extra context
+   Effect.catchTag('SqlError', LogicError.withMessage(
+     (e) => `Failed fetching user ${id}: ${e.message}`
+   ))
+
+   // ✓ Good — standalone defect
+   LogicError.die('Training activity type not found')
+   ```
+
+3. **Never swallow errors silently** — always log before catching:
+   ```typescript
+   // ✗ Bad — error disappears without trace
+   Effect.catchTag('NoSuchElementException', () => Effect.void)
+
+   // ✓ Good — error is logged, then caught
+   Effect.tapError((e) => Effect.logWarning('Context about what failed', e)),
+   Effect.catchTag('NoSuchElementException', () => Effect.void)
+   ```
+
+4. **Repository error boundary** — all repositories catch `SqlError` and `ParseError` at the public method level using `LogicError.dieFrom`:
+   ```typescript
+   findByTeamId = (teamId: Team.TeamId) =>
+     this.findByTeamQuery(teamId).pipe(
+       Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+     );
+   ```
+
 ### Resource Management
 
 Use `Effect.acquireRelease` for automatic resource cleanup.

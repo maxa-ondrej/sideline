@@ -171,7 +171,7 @@ const notifyAdmins = (
     Effect.flatMap((n) => notifications.insertBulk(n)),
     Effect.catchTag('NoChanges', () => Effect.void),
     Effect.tapError((e) => Effect.logWarning('Failed to notify admins about age-based changes', e)),
-    Effect.catchAll(() => Effect.void),
+    Effect.catchTag('NoSuchElementException', () => Effect.void),
   );
 
 const evaluateTeam =
