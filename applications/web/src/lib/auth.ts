@@ -22,6 +22,7 @@ const set = (key: string, value: string) =>
   KeyValueStore.KeyValueStore.pipe(
     Effect.flatMap((store) => store.set(key, value)),
     Effect.provide(kvLayer),
+    Effect.tapError((e) => Effect.logWarning(`Failed to set browser storage key "${key}"`, e)),
     Effect.catchAll(() => Effect.void),
   );
 
@@ -29,6 +30,7 @@ const remove = (key: string) =>
   KeyValueStore.KeyValueStore.pipe(
     Effect.flatMap((store) => store.remove(key)),
     Effect.provide(kvLayer),
+    Effect.tapError((e) => Effect.logWarning(`Failed to remove browser storage key "${key}"`, e)),
     Effect.catchAll(() => Effect.void),
   );
 

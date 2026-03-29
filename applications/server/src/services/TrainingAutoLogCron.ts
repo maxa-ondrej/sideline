@@ -1,3 +1,4 @@
+import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option, Schedule } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
@@ -17,7 +18,7 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
     activityTypes.findBySlug('training').pipe(
       Effect.flatMap(
         Option.match({
-          onNone: () => Effect.die(new Error('Training activity type not found')),
+          onNone: () => LogicError.die('Training activity type not found'),
           onSome: (t) => Effect.succeed(t.id),
         }),
       ),

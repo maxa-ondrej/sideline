@@ -169,18 +169,17 @@ const notifyAdmins = (
       Array.isEmptyArray(notifications) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
     ),
     Effect.flatMap((n) => notifications.insertBulk(n)),
-    Effect.tapErrorTag('NoChanges', () => Effect.void),
-    Effect.orDie,
+    Effect.catchTag('NoChanges', () => Effect.void),
+    Effect.tapError((e) => Effect.logWarning('Failed to notify admins about age-based changes', e)),
+    Effect.catchAll(() => Effect.void),
   );
 
 const evaluateTeam =
   ({ thresholds, groups, notifications, channelSync }: Dependencies) =>
   (teamId: Team.TeamId, today: Date) =>
     Effect.Do.pipe(
-      Effect.bind('rules', () => thresholds.findRulesByTeamId(teamId).pipe(Effect.orDie)),
-      Effect.bind('teamMembers', () =>
-        thresholds.getMembersWithBirthDates(teamId).pipe(Effect.orDie),
-      ),
+      Effect.bind('rules', () => thresholds.findRulesByTeamId(teamId)),
+      Effect.bind('teamMembers', () => thresholds.getMembersWithBirthDates(teamId)),
       Effect.let('changes', ({ rules, teamMembers }) => detectChanges(today, rules, teamMembers)),
       Effect.tap(({ changes }) =>
         Array.isEmptyArray(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,

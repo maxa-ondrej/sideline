@@ -10,7 +10,7 @@ import {
   type TrainingType,
   User,
 } from '@sideline/domain';
-import { Bind, Options } from '@sideline/effect-lib';
+import { Bind, LogicError, Options } from '@sideline/effect-lib';
 import { Array, Data, DateTime, Effect, flow, Option, Schema } from 'effect';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
@@ -114,7 +114,13 @@ const createEvent = (
         Result: TeamLookupResult,
         execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
       })(input.guild_id).pipe(
-        Effect.orDie,
+        Effect.catchTag(
+          'SqlError',
+          'ParseError',
+          LogicError.withMessage(
+            (e) => `Failed looking up team for guild ${input.guild_id}: ${e.message}`,
+          ),
+        ),
         Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
         Effect.map((result) => result.id),
       ),
@@ -135,7 +141,13 @@ const createEvent = (
         discord_user_id: input.discord_user_id,
         team_id: teamId,
       }).pipe(
-        Effect.orDie,
+        Effect.catchTag(
+          'SqlError',
+          'ParseError',
+          LogicError.withMessage(
+            (e) => `Failed looking up user ${input.discord_user_id} in team: ${e.message}`,
+          ),
+        ),
         Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
       ),
     ),
@@ -193,7 +205,14 @@ const createEvent = (
             location: input.location,
             createdBy: userLookup.team_member_id,
           })
-          .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
+          .pipe(
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(
+                () => `Failed inserting event "${input.title}" — no row returned`,
+              ),
+            ),
+          ),
     ),
     Effect.bind('resolvedChannel', ({ teamId, event }) => resolveChannel(teamId, event.id)),
     Effect.tap(({ teamId, event, resolvedChannel }) =>
@@ -370,9 +389,14 @@ const rpcHandlers = Effect.Do.pipe(
             }),
           ),
           Effect.tap(({ member }) =>
-            rsvps
-              .upsertRsvp(event_id, member.id, response, message)
-              .pipe(Effect.catchTag('NoSuchElementException', Effect.die)),
+            rsvps.upsertRsvp(event_id, member.id, response, message).pipe(
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(
+                  () => `Failed upserting RSVP for event ${event_id} — no row returned`,
+                ),
+              ),
+            ),
           ),
           Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
         ),

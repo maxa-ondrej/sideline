@@ -33,5 +33,9 @@ export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
       }),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementException', () =>
+      Effect.logWarning(
+        `No mapping found for role ${event.role_id} in guild ${event.guild_id}, skipping role delete`,
+      ),
+    ),
   );

@@ -49,5 +49,9 @@ export const handleDeleted = (event: ChannelRpcEvents.ChannelDeletedEvent) =>
       }),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementException', () =>
+      Effect.logWarning(
+        `No mapping found for group ${event.group_id} in guild ${event.guild_id}, skipping channel delete`,
+      ),
+    ),
   );

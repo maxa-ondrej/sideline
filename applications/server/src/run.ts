@@ -37,6 +37,7 @@ const CreateDb = SqlClient.SqlClient.pipe(
   Effect.andThen((sql) => sql.unsafe(`CREATE DATABASE "${env.DATABASE_NAME}"`)),
   Effect.tap(Effect.logInfo),
   Effect.tapError(Effect.logWarning),
+  // DB may already exist — error is logged above, then swallowed intentionally
   Effect.option,
   Effect.asVoid,
   Effect.provide(

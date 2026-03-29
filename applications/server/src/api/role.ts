@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, RoleApi } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
@@ -72,7 +73,12 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.catchTag('RoleNameAlreadyTakenError', () =>
               Effect.fail(new RoleApi.RoleNameAlreadyTaken()),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(
+                () => `Failed creating role "${payload.name}" — no row returned`,
+              ),
+            ),
           ),
         )
         .handle('getRole', ({ path: { teamId, roleId } }) =>
@@ -156,7 +162,10 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.catchTag('RoleNameAlreadyTakenError', () =>
               Effect.fail(new RoleApi.RoleNameAlreadyTaken()),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => `Failed updating role ${roleId} — no row returned`),
+            ),
           ),
         )
         .handle('deleteRole', ({ path: { teamId, roleId } }) =>
@@ -188,7 +197,10 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               syncEvents.emitRoleDeleted(teamId, existing.id, existing.name),
             ),
             Effect.asVoid,
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => `Failed deleting role ${roleId} — no row returned`),
+            ),
           ),
         )
         .handle('assignRole', ({ path: { teamId, memberId }, payload }) =>
@@ -232,7 +244,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   `You have been assigned the "${role.name}" role.`,
                 )
                 .pipe(
-                  Effect.tapError((e) => Effect.logWarning('Failed to create notification', e)),
+                  Effect.tapError((e) =>
+                    Effect.logWarning('Failed to create role-assigned notification', e),
+                  ),
                   Effect.catchAll(() => Effect.void),
                 ),
             ),
@@ -248,7 +262,11 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                     user.discord_id,
                   ),
                 ),
-                Effect.catchTag('NoSuchElementException', () => Effect.void),
+                Effect.catchTag('NoSuchElementException', () =>
+                  Effect.logWarning(
+                    `User not found for member ${memberId} when emitting role-assigned sync event`,
+                  ),
+                ),
               ),
             ),
             Effect.asVoid,
@@ -295,7 +313,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   `You have been removed from the "${role.name}" role.`,
                 )
                 .pipe(
-                  Effect.catchAll((e) => Effect.logWarning('Failed to create notification', e)),
+                  Effect.catchAll((e) =>
+                    Effect.logWarning('Failed to create role-removed notification', e),
+                  ),
                 ),
             ),
             Effect.tap(({ targetMember, role }) =>
@@ -310,7 +330,11 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                     user.discord_id,
                   ),
                 ),
-                Effect.catchTag('NoSuchElementException', () => Effect.void),
+                Effect.catchTag('NoSuchElementException', () =>
+                  Effect.logWarning(
+                    `User not found for member ${memberId} when emitting role-unassigned sync event`,
+                  ),
+                ),
               ),
             ),
             Effect.asVoid,
