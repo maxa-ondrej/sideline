@@ -81,7 +81,7 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
 
       return Effect.all(edits, { concurrency: 1 }).pipe(
         Effect.tap(() =>
-          Effect.log(`Reordered ${Arr.length(edits)} message(s) in channel ${channelId}`),
+          Effect.logInfo(`Reordered ${Arr.length(edits)} message(s) in channel ${channelId}`),
         ),
         Effect.asVoid,
       );

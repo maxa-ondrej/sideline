@@ -1,6 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Notification, Team, User } from '@sideline/domain';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class NotificationRow extends Schema.Class<NotificationRow>('NotificationRow')({
   id: Notification.NotificationId,
@@ -111,18 +112,13 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     `,
   });
 
-  findByUser = (userId: User.UserId) =>
-    this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findByUser = (userId: User.UserId) => this.findByUserId(userId).pipe(catchSqlErrors);
 
   findByUserAndTeam = (userId: User.UserId, teamId: Team.TeamId) =>
-    this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findByUserIdAndTeamId({ user_id: userId, team_id: teamId }).pipe(catchSqlErrors);
 
   markAllAsReadForTeam = (userId: User.UserId, teamId: Team.TeamId) =>
-    this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.markAllReadForTeam({ user_id: userId, team_id: teamId }).pipe(catchSqlErrors);
 
   insert = (
     teamId: Team.TeamId,
@@ -130,10 +126,7 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
     type: Notification.NotificationType,
     title: string,
     body: string,
-  ) =>
-    this.insertOne({ team_id: teamId, user_id: userId, type, title, body }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+  ) => this.insertOne({ team_id: teamId, user_id: userId, type, title, body }).pipe(catchSqlErrors);
 
   insertBulk = (
     notifications: ReadonlyArray<{
@@ -154,16 +147,13 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
           body: n.body,
         }),
       ),
-    ).pipe(Effect.asVoid, Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    ).pipe(Effect.asVoid, catchSqlErrors);
 
   markAsRead = (notificationId: Notification.NotificationId) =>
-    this.markOneAsRead({ id: notificationId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.markOneAsRead({ id: notificationId }).pipe(catchSqlErrors);
 
-  markAllAsRead = (userId: User.UserId) =>
-    this.markAllRead(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  markAllAsRead = (userId: User.UserId) => this.markAllRead(userId).pipe(catchSqlErrors);
 
   findById = (notificationId: Notification.NotificationId) =>
-    this.findOneById(notificationId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findOneById(notificationId).pipe(catchSqlErrors);
 }

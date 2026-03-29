@@ -9,6 +9,7 @@ import {
 } from '@sideline/domain';
 import { Schemas, SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class AgeThresholdAlreadyExistsError extends Schema.TaggedError<AgeThresholdAlreadyExistsError>()(
   'AgeThresholdAlreadyExistsError',
@@ -154,11 +155,10 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  findRulesByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findRulesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
 
   findRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
-    this.findByIdQuery(ruleId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByIdQuery(ruleId).pipe(catchSqlErrors);
 
   insertRule = (
     teamId: Team.TeamId,
@@ -173,29 +173,24 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       max_age: maxAge,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new AgeThresholdAlreadyExistsError()),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 
   updateRuleById = (
     ruleId: AgeThreshold.AgeThresholdRuleId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
-  ) =>
-    this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+  ) => this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(catchSqlErrors);
 
   deleteRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
-    this.deleteRule(ruleId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.deleteRule(ruleId).pipe(catchSqlErrors);
 
   getAllTeamsWithRules = () =>
     this.findAllTeamsWithRulesQuery(void 0).pipe(
       Effect.map((rows) => rows.map((r) => r.team_id)),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 
   getMembersWithBirthDates = (teamId: Team.TeamId) =>
-    this.findMembersWithBirthDatesQuery(teamId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findMembersWithBirthDatesQuery(teamId).pipe(catchSqlErrors);
 }

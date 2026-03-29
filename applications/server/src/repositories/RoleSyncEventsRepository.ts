@@ -1,6 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Role, RoleSyncEvent, Team, TeamMember } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   team_id: Team.TeamId,
@@ -106,7 +107,7 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
             }),
         }),
       ),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 
   emitRoleCreated = (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
@@ -147,12 +148,11 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
       Option.some(discordUserId),
     );
 
-  findUnprocessed = (limit: number) =>
-    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
   markProcessed = (id: RoleSyncEvent.RoleSyncEventId) =>
-    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markEventProcessed({ id }).pipe(catchSqlErrors);
 
   markFailed = (id: RoleSyncEvent.RoleSyncEventId, error: string) =>
-    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markEventFailed({ id, error }).pipe(catchSqlErrors);
 }

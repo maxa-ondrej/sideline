@@ -2,6 +2,7 @@ import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { type DateTime, Effect, Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 const EventSyncEventType = Schema.Literal(
   'event_created',
@@ -131,7 +132,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
             }),
         }),
       ),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 
   emitEventCreated = (
@@ -230,12 +231,10 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       discordTargetChannelId,
     );
 
-  findUnprocessed = (limit: number) =>
-    this.findUnprocessedEvents(limit).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
-  markProcessed = (id: string) =>
-    this.markEventProcessed({ id }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  markProcessed = (id: string) => this.markEventProcessed({ id }).pipe(catchSqlErrors);
 
   markFailed = (id: string, error: string) =>
-    this.markEventFailed({ id, error }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markEventFailed({ id, error }).pipe(catchSqlErrors);
 }

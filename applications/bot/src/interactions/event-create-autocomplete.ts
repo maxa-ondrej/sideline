@@ -2,7 +2,8 @@ import { Discord as DiscordSchemas } from '@sideline/domain';
 import * as Ix from 'dfx/Interactions/index';
 import { FocusedOptionContext, Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Array, Effect, Option, pipe, Schema } from 'effect';
+import { Array, Effect, Metric, Option, pipe, Schema } from 'effect';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeUnknownSync(DiscordSchemas.Snowflake);
@@ -10,6 +11,12 @@ const decodeSnowflake = Schema.decodeUnknownSync(DiscordSchemas.Snowflake);
 export const EventCreateAutocomplete = Ix.autocomplete(
   (data, focused) => data.name === 'event' && focused.name === 'training_type',
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(
+        pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'autocomplete')),
+        1,
+      ),
+    ),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('focused', () => FocusedOptionContext),
     Effect.bind('rpc', () => SyncRpc),
@@ -73,7 +80,9 @@ export const EventCreateAutocomplete = Ix.autocomplete(
           { name: 'Other', value: '' },
         ]),
         Effect.tapError((err) => Effect.logError('[autocomplete] RPC error', err)),
-        Effect.catchAll(() => Effect.succeed<ReadonlyArray<{ name: string; value: string }>>([])),
+        Effect.catchTag('RpcClientError', () =>
+          Effect.succeed<ReadonlyArray<{ name: string; value: string }>>([]),
+        ),
         Effect.tap((choices) =>
           Effect.logInfo(`[autocomplete] returning ${choices.length} choices`),
         ),
@@ -85,5 +94,6 @@ export const EventCreateAutocomplete = Ix.autocomplete(
         ),
       );
     }),
+    Effect.withSpan('interaction/event-create-autocomplete'),
   ),
 );

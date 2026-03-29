@@ -37,6 +37,7 @@ const CreateDb = SqlClient.SqlClient.pipe(
   Effect.andThen((sql) => sql.unsafe(`CREATE DATABASE "${env.DATABASE_NAME}"`)),
   Effect.tap(Effect.logInfo),
   Effect.tapError(Effect.logWarning),
+  // DB may already exist — error is logged above, then swallowed intentionally
   Effect.option,
   Effect.asVoid,
   Effect.provide(
@@ -55,10 +56,10 @@ const App = AppLive.pipe(
   Layer.provide(PgClient.layerConfig(BasePg)),
   Layer.provide(NodeHttpServer.layer(createServer, { port: env.PORT })),
   Layer.launch,
-  Effect.withLogSpan('app'),
+  Effect.withSpan('app'),
 );
 
-const Health = HealthServerLive.pipe(Layer.launch, Effect.withLogSpan('health'));
+const Health = HealthServerLive.pipe(Layer.launch, Effect.withSpan('health'));
 
 const RepositoriesLive = Layer.mergeAll(
   AgeThresholdRepository.Default,
@@ -74,7 +75,6 @@ const Cron = AgeCheckCron.pipe(
       Layer.provideMerge(PgClient.layerConfig(BasePg)),
     ),
   ),
-  Effect.withLogSpan('age-check-cron'),
 );
 
 const EventHorizonRepositoriesLive = Layer.mergeAll(
@@ -87,7 +87,6 @@ const HorizonCron = EventHorizonCron.pipe(
   Effect.provide(
     EventHorizonRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
   ),
-  Effect.withLogSpan('event-horizon-cron'),
 );
 
 const RsvpReminderRepositoriesLive = Layer.mergeAll(
@@ -101,7 +100,6 @@ const ReminderCron = RsvpReminderCron.pipe(
   Effect.provide(
     RsvpReminderRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
   ),
-  Effect.withLogSpan('rsvp-reminder-cron'),
 );
 
 const TrainingAutoLogRepositoriesLive = Layer.mergeAll(
@@ -115,7 +113,6 @@ const AutoLogCron = TrainingAutoLogCron.pipe(
   Effect.provide(
     TrainingAutoLogRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
   ),
-  Effect.withLogSpan('training-auto-log-cron'),
 );
 
 Effect.Do.pipe(

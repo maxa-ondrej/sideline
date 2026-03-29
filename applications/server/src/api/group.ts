@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, GroupApi } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -82,7 +83,12 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.catchTag('GroupNameAlreadyTakenError', () =>
                 Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
-              Effect.catchTag('NoSuchElementException', Effect.die),
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(
+                  () => `Failed creating group "${payload.name}" — no row returned`,
+                ),
+              ),
             ),
           )
           .handle('getGroup', ({ path: { teamId, groupId } }) =>
@@ -172,7 +178,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.catchTag('GroupNameAlreadyTakenError', () =>
                 Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
-              Effect.catchTag('NoSuchElementException', Effect.die),
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(() => `Failed updating group ${groupId} — no row returned`),
+              ),
             ),
           )
           .handle('deleteGroup', ({ path: { teamId, groupId } }) =>
@@ -395,14 +404,15 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 Option.match(payload.parentId, {
                   onNone: () => Effect.void,
                   onSome: (pid) =>
-                    groups.getAncestorIds(pid).pipe(
-                      Effect.flatMap((ancestors) =>
-                        pipe(ancestors, Array.contains(groupId))
-                          ? Effect.fail(forbidden)
-                          : Effect.void,
+                    groups
+                      .getAncestorIds(pid)
+                      .pipe(
+                        Effect.flatMap((ancestors) =>
+                          pipe(ancestors, Array.contains(groupId))
+                            ? Effect.fail(forbidden)
+                            : Effect.void,
+                        ),
                       ),
-                      Effect.catchAll(() => Effect.void),
-                    ),
                 }),
               ),
               Effect.bind('updated', () => groups.moveGroup(groupId, payload.parentId)),
@@ -418,7 +428,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     memberCount,
                   }),
               ),
-              Effect.catchTag('NoSuchElementException', Effect.die),
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(() => `Failed moving group ${groupId} — no row returned`),
+              ),
             ),
           )
           .handle('getChannelMapping', ({ path: { teamId, groupId } }) =>

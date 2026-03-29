@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, TrainingTypeApi } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
@@ -72,7 +73,10 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating training type — no row returned'),
+            ),
           ),
         )
         .handle('getTrainingType', ({ path: { teamId, trainingTypeId } }) =>
@@ -166,7 +170,10 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating training type — no row returned'),
+            ),
           ),
         )
         .handle('deleteTrainingType', ({ path: { teamId, trainingTypeId } }) =>

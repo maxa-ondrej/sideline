@@ -173,6 +173,7 @@ export const runPromiseClient =
           }
         }),
       ),
+      // Error is already shown to the user via toast above — convert to Option.none
       Effect.option,
     );
     return await Effect.runPromise(effectResponse);

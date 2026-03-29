@@ -16,7 +16,7 @@ export const createGuildRole = (
     Effect.bind('role', ({ rest }) => rest.createGuildRole(guildId, { name: roleName })),
     Effect.retry(retryPolicy),
     Effect.tap(({ role }) =>
-      Effect.log(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),
+      Effect.logInfo(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),
     ),
     Effect.flatMap(({ role, rpc }) =>
       rpc['Role/UpsertMapping']({

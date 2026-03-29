@@ -2,6 +2,7 @@ import { SqlClient } from '@effect/sql';
 import type { ActivityType, Leaderboard, Team } from '@sideline/domain';
 import { TeamMember, User } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({
   team_member_id: TeamMember.TeamMemberId,
@@ -68,9 +69,6 @@ export class LeaderboardRepository extends Effect.Service<LeaderboardRepository>
       ORDER BY total_activities DESC, total_duration_minutes DESC
     `;
 
-    return query.pipe(
-      Effect.flatMap(decodeRows),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    return query.pipe(Effect.flatMap(decodeRows), catchSqlErrors);
   };
 }

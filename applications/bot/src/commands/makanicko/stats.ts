@@ -4,8 +4,9 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Option } from 'effect';
+import { Effect, Metric, Option } from 'effect';
 import { userLocale } from '~/locale.js';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -19,6 +20,9 @@ const formatDuration = (minutes: number): string => {
 };
 
 export const statsHandler = Interaction.pipe(
+  Effect.tap(() =>
+    Metric.update(Metric.tagged(discordInteractionsTotal, 'interaction_type', 'command'), 1),
+  ),
   Effect.flatMap((interaction) => {
     const locale = userLocale(interaction);
     const guildId = interaction.guild_id;
@@ -122,7 +126,7 @@ export const statsHandler = Interaction.pipe(
           Effect.catchTag('ActivityMemberNotFound', () =>
             Effect.succeed({ content: m.bot_makanicko_log_not_member({}, { locale }) }),
           ),
-          Effect.catchAll(() =>
+          Effect.catchTag('RpcClientError', () =>
             Effect.succeed({ content: m.bot_makanicko_stats_error({}, { locale }) }),
           ),
           Effect.flatMap((payload) =>
@@ -130,8 +134,12 @@ export const statsHandler = Interaction.pipe(
               payload,
             }),
           ),
-          Effect.catchAll((error) =>
-            Effect.logError('Failed to update makanicko stats response', error),
+          Effect.catchTag(
+            'RequestError',
+            'ResponseError',
+            'RatelimitedResponse',
+            'ErrorResponse',
+            (error) => Effect.logError('Failed to update makanicko stats response', error),
           ),
         ),
       ),
@@ -148,4 +156,5 @@ export const statsHandler = Interaction.pipe(
       }),
     );
   }),
+  Effect.withSpan('command/makanicko/stats'),
 );

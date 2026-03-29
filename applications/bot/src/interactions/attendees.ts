@@ -4,8 +4,9 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Schema } from 'effect';
+import { Effect, Metric, pipe, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { buildAttendeesEmbed } from '~/rest/events/buildAttendeesEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -15,6 +16,9 @@ const ATTENDEES_LIMIT = 15;
 export const AttendeesButton = Ix.messageComponent(
   Ix.idStartsWith('attendees:'),
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+    ),
     Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
@@ -46,7 +50,7 @@ export const AttendeesButton = Ix.messageComponent(
             components: payload.components,
           };
         }),
-        Effect.catchAll(() =>
+        Effect.catchTag('RpcClientError', () =>
           Effect.succeed({ content: m.bot_attendees_load_error({}, { locale }) }),
         ),
         Effect.flatMap((payload) =>
@@ -54,7 +58,13 @@ export const AttendeesButton = Ix.messageComponent(
             payload,
           }),
         ),
-        Effect.catchAll((error) => Effect.logError('Failed to update attendees response', error)),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update attendees response', error),
+        ),
       );
 
       return Effect.as(
@@ -65,12 +75,16 @@ export const AttendeesButton = Ix.messageComponent(
         }),
       );
     }),
+    Effect.withSpan('interaction/attendees'),
   ),
 );
 
 export const AttendeesPageButton = Ix.messageComponent(
   Ix.idStartsWith('attendees-page:'),
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+    ),
     Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
@@ -102,7 +116,7 @@ export const AttendeesPageButton = Ix.messageComponent(
             components: payload.components,
           };
         }),
-        Effect.catchAll(() =>
+        Effect.catchTag('RpcClientError', () =>
           Effect.succeed({ content: m.bot_attendees_load_error({}, { locale }) }),
         ),
         Effect.flatMap((payload) =>
@@ -110,8 +124,12 @@ export const AttendeesPageButton = Ix.messageComponent(
             payload,
           }),
         ),
-        Effect.catchAll((error) =>
-          Effect.logError('Failed to update attendees page response', error),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update attendees page response', error),
         ),
       );
 
@@ -122,5 +140,6 @@ export const AttendeesPageButton = Ix.messageComponent(
         }),
       );
     }),
+    Effect.withSpan('interaction/attendees-page'),
   ),
 );

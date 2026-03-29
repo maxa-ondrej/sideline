@@ -37,7 +37,7 @@ const setupNewMember = (
       deps.members.getPlayerRoleId(team.id).pipe(
         Effect.flatMap(
           Option.match({
-            onNone: () => Effect.log('No Player role found, skipping'),
+            onNone: () => Effect.logInfo('No Player role found, skipping'),
             onSome: (playerRole) => deps.members.assignRole(newMember.id, playerRole.id),
           }),
         ),
@@ -83,7 +83,7 @@ const registerMemberLogic =
       Effect.flatMap(({ teamOption }) =>
         Option.match(teamOption, {
           onNone: () =>
-            Effect.log(`No team found for guild ${guild_id}, skipping member registration`),
+            Effect.logInfo(`No team found for guild ${guild_id}, skipping member registration`),
           onSome: (team) =>
             Effect.Do.pipe(
               Effect.bind('user', () =>
@@ -98,7 +98,7 @@ const registerMemberLogic =
               ),
               Effect.tap(({ existingMembership, user }) =>
                 Option.isSome(existingMembership) && existingMembership.value.active
-                  ? Effect.log(`Member ${username} already active in team ${team.id}`)
+                  ? Effect.logInfo(`Member ${username} already active in team ${team.id}`)
                   : (Option.isNone(existingMembership)
                       ? deps.members.addMember({
                           team_id: team.id,
@@ -110,14 +110,16 @@ const registerMemberLogic =
                     ).pipe(
                       Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
                       Effect.tap(() =>
-                        Effect.log(`Registered member ${username} in team ${team.id}`),
+                        Effect.logInfo(`Registered member ${username} in team ${team.id}`),
                       ),
                     ),
               ),
             ),
         }),
       ),
-      Effect.catchAll((error) => Effect.logError(`RegisterMember failed for ${username}`, error)),
+      Effect.catchTag('MemberAlreadyExistsError', 'NoSuchElementException', (error) =>
+        Effect.logError(`RegisterMember failed for ${username}`, error),
+      ),
     );
 
 export const GuildsRpcLive = Effect.all([
@@ -197,7 +199,7 @@ export const GuildsRpcLive = Effect.all([
         }) =>
           Effect.Do.pipe(
             Effect.tap(() =>
-              Effect.log(`Reconciling ${membersList.length} members for guild ${guild_id}`),
+              Effect.logInfo(`Reconciling ${membersList.length} members for guild ${guild_id}`),
             ),
             Effect.tap(() =>
               Effect.all(
@@ -213,7 +215,7 @@ export const GuildsRpcLive = Effect.all([
                 { concurrency: 5 },
               ),
             ),
-            Effect.tap(() => Effect.log(`Reconciliation complete for guild ${guild_id}`)),
+            Effect.tap(() => Effect.logInfo(`Reconciliation complete for guild ${guild_id}`)),
           ),
       };
     },

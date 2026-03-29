@@ -24,7 +24,7 @@ export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
       rest.deleteGuildRole(event.guild_id, mapping.discord_role_id).pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ mapping }) =>
-      Effect.log(`Deleted Discord role ${mapping.discord_role_id} in guild ${event.guild_id}`),
+      Effect.logInfo(`Deleted Discord role ${mapping.discord_role_id} in guild ${event.guild_id}`),
     ),
     Effect.tap(({ rpc }) =>
       rpc['Role/DeleteMapping']({
@@ -33,5 +33,9 @@ export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
       }),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementException', () =>
+      Effect.logWarning(
+        `No mapping found for role ${event.role_id} in guild ${event.guild_id}, skipping role delete`,
+      ),
+    ),
   );

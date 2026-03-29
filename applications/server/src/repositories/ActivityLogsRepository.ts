@@ -1,6 +1,8 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityLog, ActivityLogApi, ActivityType, TeamMember } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class StatsRow extends Schema.Class<StatsRow>('StatsRow')({
   activity_type_id: ActivityType.ActivityTypeId,
@@ -148,17 +150,13 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
   });
 
   findByTeamMember = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findAllQuery(teamMemberId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findAllQuery(teamMemberId).pipe(catchSqlErrors);
 
   findByMember = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findByMemberQuery(teamMemberId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findByMemberQuery(teamMemberId).pipe(catchSqlErrors);
 
   findById = (id: ActivityLog.ActivityLogId, memberId: TeamMember.TeamMemberId) =>
-    this.findByIdQuery({ id, team_member_id: memberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findByIdQuery({ id, team_member_id: memberId }).pipe(catchSqlErrors);
 
   insert = (input: {
     team_member_id: TeamMember.TeamMemberId;
@@ -169,7 +167,11 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     source: ActivityLog.ActivitySource;
   }) =>
     this.insertQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
+      catchSqlErrors,
+      Effect.catchTag(
+        'NoSuchElementException',
+        LogicError.withMessage(() => 'Activity log insert returned no row'),
+      ),
     );
 
   update = (
@@ -213,7 +215,13 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
             onNone: () => existing.note,
             onSome: (v) => v,
           }),
-        }).pipe(Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die)),
+        }).pipe(
+          catchSqlErrors,
+          Effect.catchTag(
+            'NoSuchElementException',
+            LogicError.withMessage(() => 'Activity log update returned no row'),
+          ),
+        ),
       ),
     );
 
@@ -237,11 +245,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
           ? Effect.fail(new ActivityLogApi.AutoSourceForbidden())
           : Effect.void,
       ),
-      Effect.flatMap(() =>
-        this.deleteQuery({ id, team_member_id: memberId }).pipe(
-          Effect.catchTag('SqlError', 'ParseError', Effect.die),
-        ),
-      ),
+      Effect.flatMap(() => this.deleteQuery({ id, team_member_id: memberId }).pipe(catchSqlErrors)),
       Effect.asVoid,
     );
 }

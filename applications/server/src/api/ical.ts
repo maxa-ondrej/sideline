@@ -1,5 +1,6 @@
 import { HttpApiBuilder, HttpServerResponse } from '@effect/platform';
 import { Auth, ICalApi } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { env } from '~/env.js';
@@ -89,7 +90,10 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                   url: buildWebcalUrl(token.token),
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating iCal token — no row returned'),
+            ),
           ),
         )
         .handle('regenerateICalToken', () =>
@@ -103,7 +107,10 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                   url: buildWebcalUrl(token.token),
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed regenerating iCal token — no row returned'),
+            ),
           ),
         )
         .handle('getICalFeed', ({ path: { token } }) =>

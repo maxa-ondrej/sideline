@@ -1,6 +1,8 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
   guild_id: Discord.Snowflake,
@@ -53,19 +55,19 @@ export class BotGuildsRepository extends Effect.Service<BotGuildsRepository>()(
   });
 
   upsert = (guildId: Discord.Snowflake, guildName: string) =>
-    this._upsertGuild({ guild_id: guildId, guild_name: guildName }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this._upsertGuild({ guild_id: guildId, guild_name: guildName }).pipe(catchSqlErrors);
 
-  remove = (guildId: Discord.Snowflake) =>
-    this._removeGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  remove = (guildId: Discord.Snowflake) => this._removeGuild(guildId).pipe(catchSqlErrors);
 
   exists = (guildId: Discord.Snowflake) =>
     this._existsGuild(guildId).pipe(
       Effect.map((r) => r.exists),
-      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', Effect.die),
+      catchSqlErrors,
+      Effect.catchTag(
+        'NoSuchElementException',
+        LogicError.withMessage((e) => `Guild existence check returned no row: ${e}`),
+      ),
     );
 
-  findAll = () =>
-    this._findAllGuilds(undefined).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findAll = () => this._findAllGuilds(undefined).pipe(catchSqlErrors);
 }

@@ -10,6 +10,7 @@ import {
 } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { type DateTime, Effect, Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails')({
   id: Event.EventId,
@@ -435,25 +436,21 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
   });
 
   findUpcomingByGuildId = (guildId: Discord.Snowflake, offset: number, limit: number) =>
-    this.findUpcomingByGuild({ guild_id: guildId, offset, limit }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findUpcomingByGuild({ guild_id: guildId, offset, limit }).pipe(catchSqlErrors);
 
   countUpcomingByGuildId = (guildId: Discord.Snowflake) =>
     this.countUpcomingByGuild(guildId).pipe(
       Effect.map(Option.map((r) => r.count)),
       Effect.map(Option.getOrElse(() => 0)),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 
-  findEventsByUserId = (userId: string) =>
-    this.findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findEventsByUserId = (userId: string) => this.findByUserId(userId).pipe(catchSqlErrors);
 
-  findEventsByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findEventsByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
 
   findEventByIdWithDetails = (eventId: Event.EventId) =>
-    this.findByIdWithDetails(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByIdWithDetails(eventId).pipe(catchSqlErrors);
 
   insertEvent = ({
     teamId,
@@ -498,7 +495,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       discord_target_channel_id: discordTargetChannelId,
       owner_group_id: ownerGroupId,
       member_group_id: memberGroupId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(catchSqlErrors);
 
   updateEvent = ({
     id,
@@ -537,15 +534,12 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       discord_target_channel_id: discordTargetChannelId,
       owner_group_id: ownerGroupId,
       member_group_id: memberGroupId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(catchSqlErrors);
 
-  cancelEvent = (eventId: Event.EventId) =>
-    this.cancel(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  cancelEvent = (eventId: Event.EventId) => this.cancel(eventId).pipe(catchSqlErrors);
 
   getScopedTrainingTypeIds = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findScopedTrainingTypeIds(teamMemberId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findScopedTrainingTypeIds(teamMemberId).pipe(catchSqlErrors);
 
   saveDiscordMessageId = (
     eventId: Event.EventId,
@@ -556,34 +550,30 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       event_id: eventId,
       discord_channel_id: channelId,
       discord_message_id: messageId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(catchSqlErrors);
 
   getDiscordMessageId = (eventId: Event.EventId) =>
-    this.getDiscordMessage(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.getDiscordMessage(eventId).pipe(catchSqlErrors);
 
   findEventsByChannelId = (channelId: Discord.Snowflake) =>
-    this.findByChannelId(channelId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.findByChannelId(channelId).pipe(catchSqlErrors);
 
-  markReminderSent = (eventId: Event.EventId) =>
-    this.markReminder(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  markReminderSent = (eventId: Event.EventId) => this.markReminder(eventId).pipe(catchSqlErrors);
 
   markTrainingAutoLogged = (eventId: Event.EventId) =>
-    this.markAutoLogged(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markAutoLogged(eventId).pipe(catchSqlErrors);
 
-  findEndedTrainingsForAutoLog = () =>
-    this.findEndedTrainings(undefined).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findEndedTrainingsForAutoLog = () => this.findEndedTrainings(undefined).pipe(catchSqlErrors);
 
   markEventSeriesModified = (eventId: Event.EventId) =>
-    this.markModified(eventId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    this.markModified(eventId).pipe(catchSqlErrors);
 
   cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: Date) =>
-    this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(catchSqlErrors);
 
   findUpcomingWithRsvp = (teamId: Team.TeamId, teamMemberId: TeamMember.TeamMemberId) =>
     this.findUpcomingForDashboard({ team_id: teamId, team_member_id: teamMemberId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 
   updateFutureUnmodifiedInSeries = (
@@ -607,5 +597,5 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       start_time: fields.startTime,
       end_time: fields.endTime,
       location: fields.location,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(catchSqlErrors);
 }

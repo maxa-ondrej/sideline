@@ -16,7 +16,7 @@ export const handleMemberAdded = (event: ChannelRpcEvents.ChannelMemberAddedEven
         .pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ mapping }) =>
-      Effect.log(
+      Effect.logInfo(
         `Assigned role ${mapping.discord_role_id} to user ${event.discord_user_id} in guild ${event.guild_id}`,
       ),
     ),

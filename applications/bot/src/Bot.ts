@@ -9,6 +9,7 @@ const ixProgram = Effect.succeed(commandBuilder).pipe(
   Effect.map((cb) => cb.concat(interactionBuilder)),
   Effect.andThen(
     runIx((effect) =>
+      // Top-level interaction error boundary — catches all causes including defects
       Effect.catchAllCause(effect, (cause) => Effect.logError('Interaction error', cause)),
     ),
   ),
@@ -19,7 +20,7 @@ export const program = Effect.Do.pipe(
   Effect.bind('roles', () => RoleSyncService),
   Effect.bind('channels', () => ChannelSyncService),
   Effect.bind('eventSync', () => EventSyncService),
-  Effect.tap(() => Effect.log('Bot connected to Discord')),
+  Effect.tap(() => Effect.logInfo('Bot connected to Discord')),
   Effect.andThen(({ events, roles, channels, eventSync }) =>
     Effect.all(
       [ixProgram, ...events, roles.pollLoop(), channels.pollLoop(), eventSync.pollLoop()],

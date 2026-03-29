@@ -29,7 +29,7 @@ export const handleCancelled = (event: EventRpcEvents.EventCancelledEvent) =>
             })
             .pipe(
               Effect.tap(() =>
-                Effect.log(
+                Effect.logInfo(
                   `Marked event ${event.event_id} as cancelled in channel ${msg.discord_channel_id}`,
                 ),
               ),

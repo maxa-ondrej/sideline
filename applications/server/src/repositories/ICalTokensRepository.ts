@@ -1,6 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ICalToken } from '@sideline/domain';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class ICalTokensRepository extends Effect.Service<ICalTokensRepository>()(
   'api/ICalTokensRepository',
@@ -35,20 +36,16 @@ export class ICalTokensRepository extends Effect.Service<ICalTokensRepository>()
     execute: (userId) => this.sql`DELETE FROM ical_tokens WHERE user_id = ${userId}`,
   });
 
-  findByToken = (token: string) =>
-    this._findByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findByToken = (token: string) => this._findByToken(token).pipe(catchSqlErrors);
 
-  findByUserId = (userId: string) =>
-    this._findByUserId(userId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findByUserId = (userId: string) => this._findByUserId(userId).pipe(catchSqlErrors);
 
   create = (userId: string) =>
-    this._create({ user_id: userId, token: crypto.randomUUID() }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this._create({ user_id: userId, token: crypto.randomUUID() }).pipe(catchSqlErrors);
 
   regenerate = (userId: string) =>
     this._deleteByUserId(userId).pipe(
       Effect.flatMap(() => this._create({ user_id: userId, token: crypto.randomUUID() })),
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
+      catchSqlErrors,
     );
 }

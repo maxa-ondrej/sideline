@@ -52,7 +52,9 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
             }),
           ),
           Effect.tap((msg) =>
-            Effect.log(`Posted event "${event.title}" to channel ${channelId}, message ${msg.id}`),
+            Effect.logInfo(
+              `Posted event "${event.title}" to channel ${channelId}, message ${msg.id}`,
+            ),
           ),
           Effect.tap(() => reorderChannelMessages(channelId, locale)),
           Effect.asVoid,

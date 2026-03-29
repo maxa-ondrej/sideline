@@ -1,6 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, DiscordRoleMapping, Role, Team } from '@sideline/domain';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
   id: DiscordRoleMapping.DiscordRoleMappingId,
@@ -69,22 +70,17 @@ export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMapp
   });
 
   findByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
-    this.findByRole({ team_id: teamId, role_id: roleId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.findByRole({ team_id: teamId, role_id: roleId }).pipe(catchSqlErrors);
 
   insert = (teamId: Team.TeamId, roleId: Role.RoleId, discordRoleId: Discord.Snowflake) =>
     this.insertMapping({
       team_id: teamId,
       role_id: roleId,
       discord_role_id: discordRoleId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+    }).pipe(catchSqlErrors);
 
   deleteByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
-    this.deleteByRole({ team_id: teamId, role_id: roleId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', Effect.die),
-    );
+    this.deleteByRole({ team_id: teamId, role_id: roleId }).pipe(catchSqlErrors);
 
-  findAllByTeam = (teamId: Team.TeamId) =>
-    this._findAllByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', Effect.die));
+  findAllByTeam = (teamId: Team.TeamId) => this._findAllByTeamId(teamId).pipe(catchSqlErrors);
 }

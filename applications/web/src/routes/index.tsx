@@ -71,6 +71,9 @@ export const Route = createFileRoute('/')({
   loader: ({ context }) =>
     getLogin().pipe(
       Effect.map((url) => url.toString()),
+      Effect.tapError((e) => Effect.logWarning('Failed to generate login URL', e)),
+      // Intentional UI error boundary: any login URL failure redirects to /error page.
+      // The tapError above already logs the cause for debugging.
       Effect.catchAll(() => Effect.succeed('/error')),
       Effect.bindTo('loginUrl'),
       context.run,

@@ -4,8 +4,9 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Metric, Option, pipe, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -33,6 +34,9 @@ const modalValueOption = (
 export const EventCreateModal = Ix.modalSubmit(
   Ix.idStartsWith('event-create:'),
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'modal')), 1),
+    ),
     Effect.bind('data', () => ModalSubmitData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
@@ -121,14 +125,18 @@ export const EventCreateModal = Ix.modalSubmit(
         Effect.catchTag('CreateEventInvalidDate', () =>
           Effect.succeed(m.bot_event_invalid_date({}, { locale })),
         ),
-        Effect.catchAll(() => Effect.succeed(m.bot_event_error({}, { locale }))),
+        Effect.catchTag('RpcClientError', () => Effect.succeed(m.bot_event_error({}, { locale }))),
         Effect.flatMap((content) =>
           rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
             payload: { content },
           }),
         ),
-        Effect.catchAll((error) =>
-          Effect.logError('Failed to update event create response', error),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update event create response', error),
         ),
       );
 
@@ -140,5 +148,6 @@ export const EventCreateModal = Ix.modalSubmit(
         }),
       );
     }),
+    Effect.withSpan('interaction/event-create-modal'),
   ),
 );

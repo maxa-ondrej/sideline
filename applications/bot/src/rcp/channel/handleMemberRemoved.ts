@@ -37,6 +37,8 @@ export const handleMemberRemoved = (event: ChannelRpcEvents.ChannelMemberRemoved
     ),
     Effect.asVoid,
     Effect.catchTag('NoSuchElementException', () =>
-      Effect.logWarning(`No mapping found for group ${event.group_id}, skipping member_removed`),
+      Effect.logWarning(
+        `No mapping found for group ${event.group_id} in guild ${event.guild_id}, skipping member_removed`,
+      ),
     ),
   );

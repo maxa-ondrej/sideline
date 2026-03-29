@@ -1,5 +1,6 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { AgeThresholdApi, Auth } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -81,7 +82,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
               Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating age threshold — no row returned'),
+            ),
           ),
         )
         .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
@@ -120,7 +124,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: updated.max_age,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', Effect.die),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating age threshold — no row returned'),
+            ),
           ),
         )
         .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>

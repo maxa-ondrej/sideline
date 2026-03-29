@@ -16,7 +16,7 @@ export const handleMemberAdded = (event: RoleRpcEvents.RoleAssignedEvent) =>
         .pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ roleId }) =>
-      Effect.log(
+      Effect.logInfo(
         `Assigned role ${roleId} to user ${event.discord_user_id} in guild ${event.guild_id}`,
       ),
     ),
