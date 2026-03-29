@@ -86,38 +86,37 @@ Return the PR URL to the user.
 
 ---
 
-### Step 6: Verify CI
+### Step 6: Wait for CI and code review (background)
 
-After pushing, check that CI pipelines pass:
+After pushing, run **both** CI verification and review comment polling concurrently in the background:
 
-```bash
-gh run list --limit 1
-```
+1. **Launch a background agent** that watches CI:
+   - Run `gh run watch` to wait for the latest run to complete
+   - If it fails, capture the failed logs with `gh run view --log-failed`
 
-If the latest run is still in progress, wait and check again with `gh run watch`. If it fails, investigate the logs with `gh run view --log-failed`, fix the issue, and restart from Step 3.
+2. **Launch a second background agent** that polls for review comments:
+   - Get the PR number with `gh pr view --json number -q '.number'`
+   - Poll every 30 seconds for up to 6 minutes:
+     ```bash
+     gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
+     gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
+     ```
+   - Collect any comments found
 
----
-
-### Step 7: Wait for code review
-
-After CI passes, poll for review comments:
-
-```bash
-gh pr view --json number -q '.number'
-gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
-gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
-```
-
-Wait 5 minutes before the first check, then poll every 30 seconds for up to 3 more minutes. If no comments arrive, stop.
+Both agents run in the background (`run_in_background: true`). You will be notified when each completes — do **not** poll or sleep while waiting.
 
 ---
 
-### Step 8: Address review comments
+### Step 7: Handle results
 
-If comments were found, invoke the `/revise` skill to address them.
+Once both background agents finish:
+
+- **CI failed**: investigate the logs, fix the issue, and restart from Step 3.
+- **Review comments found**: invoke the `/revise` skill to address them.
+- **Both passed with no comments**: proceed to Step 8.
 
 ---
 
-### Step 9: Done
+### Step 8: Done
 
 Report the PR URL and CI status. Do **not** update Notion statuses — that is the `/agile-coach` agent's responsibility.
