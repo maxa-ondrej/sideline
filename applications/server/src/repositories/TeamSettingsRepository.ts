@@ -15,6 +15,7 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   discord_channel_meeting: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_social: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_other: Schema.OptionFromNullOr(Discord.Snowflake),
+  create_discord_channel_on_group: Schema.Boolean,
 }) {}
 
 class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
@@ -30,6 +31,7 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   discord_channel_meeting: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_social: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_other: Schema.OptionFromNullOr(Discord.Snowflake),
+  create_discord_channel_on_group: Schema.Boolean,
 }) {}
 
 class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeedingReminder')({
@@ -56,7 +58,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
              min_players_threshold, rsvp_reminder_hours,
              discord_channel_training, discord_channel_match,
              discord_channel_tournament, discord_channel_meeting,
-             discord_channel_social, discord_channel_other
+             discord_channel_social, discord_channel_other,
+             create_discord_channel_on_group
       FROM team_settings
       WHERE team_id = ${teamId}
     `,
@@ -70,12 +73,14 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                                  min_players_threshold, rsvp_reminder_hours,
                                  discord_channel_training, discord_channel_match,
                                  discord_channel_tournament, discord_channel_meeting,
-                                 discord_channel_social, discord_channel_other)
+                                 discord_channel_social, discord_channel_other,
+                                 create_discord_channel_on_group)
       VALUES (${input.team_id}, ${input.event_horizon_days},
               ${input.min_players_threshold}, ${input.rsvp_reminder_hours},
               ${input.discord_channel_training}, ${input.discord_channel_match},
               ${input.discord_channel_tournament}, ${input.discord_channel_meeting},
-              ${input.discord_channel_social}, ${input.discord_channel_other})
+              ${input.discord_channel_social}, ${input.discord_channel_other},
+              ${input.create_discord_channel_on_group})
       ON CONFLICT (team_id) DO UPDATE SET
         event_horizon_days = ${input.event_horizon_days},
         min_players_threshold = ${input.min_players_threshold},
@@ -86,12 +91,14 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
         discord_channel_meeting = ${input.discord_channel_meeting},
         discord_channel_social = ${input.discord_channel_social},
         discord_channel_other = ${input.discord_channel_other},
+        create_discord_channel_on_group = ${input.create_discord_channel_on_group},
         updated_at = now()
       RETURNING team_id, event_horizon_days,
                 min_players_threshold, rsvp_reminder_hours,
                 discord_channel_training, discord_channel_match,
                 discord_channel_tournament, discord_channel_meeting,
-                discord_channel_social, discord_channel_other
+                discord_channel_social, discord_channel_other,
+                create_discord_channel_on_group
     `,
   });
 
@@ -134,6 +141,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordChannelMeeting = Option.none(),
     discordChannelSocial = Option.none(),
     discordChannelOther = Option.none(),
+    createDiscordChannelOnGroup = true,
   }: {
     teamId: Team.TeamId;
     eventHorizonDays: number;
@@ -145,6 +153,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordChannelMeeting?: Option.Option<Discord.Snowflake>;
     discordChannelSocial?: Option.Option<Discord.Snowflake>;
     discordChannelOther?: Option.Option<Discord.Snowflake>;
+    createDiscordChannelOnGroup?: boolean;
   }) =>
     this._upsertSettings({
       team_id: teamId,
@@ -157,6 +166,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_channel_meeting: discordChannelMeeting,
       discord_channel_social: discordChannelSocial,
       discord_channel_other: discordChannelOther,
+      create_discord_channel_on_group: createDiscordChannelOnGroup,
     }).pipe(catchSqlErrors);
 
   getHorizonDays = (teamId: Team.TeamId) =>

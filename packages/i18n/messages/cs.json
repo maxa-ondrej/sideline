@@ -401,6 +401,8 @@
   "teamSettings_channelSocial": "Výchozí kanál: Společenská",
   "teamSettings_channelOther": "Výchozí kanál: Ostatní",
   "teamSettings_channelNone": "Žádný",
+  "teamSettings_createDiscordChannelOnGroup": "Automaticky vytvořit Discord kanál pro skupiny",
+  "teamSettings_createDiscordChannelOnGroupHelp": "Automaticky vytvořit Discord kanál při vytvoření nové skupiny.",
   "teamSettings_description": "Popis",
   "teamSettings_descriptionHelp": "Kratky popis vaseho tymu (max 500 znaku).",
   "teamSettings_discordChannels": "Výchozí Discord kanály",

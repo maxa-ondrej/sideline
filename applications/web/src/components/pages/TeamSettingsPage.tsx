@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Separator } from '~/components/ui/separator';
+import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -76,6 +77,9 @@ export function TeamSettingsPage({
   const [channelOther, setChannelOther] = React.useState(
     Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE),
   );
+  const [createDiscordChannelOnGroup, setCreateDiscordChannelOnGroup] = React.useState(
+    settings.createDiscordChannelOnGroup,
+  );
   const [savingSettings, setSavingSettings] = React.useState(false);
 
   const hasProfileChanges =
@@ -93,7 +97,8 @@ export function TeamSettingsPage({
     channelTournament !== Option.getOrElse(settings.discordChannelTournament, () => NONE_VALUE) ||
     channelMeeting !== Option.getOrElse(settings.discordChannelMeeting, () => NONE_VALUE) ||
     channelSocial !== Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE) ||
-    channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE);
+    channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE) ||
+    createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup;
 
   const channelToOption = React.useCallback(
     (value: string) =>
@@ -150,6 +155,7 @@ export function TeamSettingsPage({
             discordChannelMeeting: Option.some(channelToOption(channelMeeting)),
             discordChannelSocial: Option.some(channelToOption(channelSocial)),
             discordChannelOther: Option.some(channelToOption(channelOther)),
+            createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
           },
         }),
       ),
@@ -171,6 +177,7 @@ export function TeamSettingsPage({
     channelMeeting,
     channelSocial,
     channelOther,
+    createDiscordChannelOnGroup,
     run,
     router,
     channelToOption,
@@ -390,6 +397,24 @@ export function TeamSettingsPage({
             <CardDescription>{m.teamSettings_discordChannelsHelp()}</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className='flex flex-col gap-4'>
+              <div className='flex items-start justify-between gap-4'>
+                <div>
+                  <label htmlFor='create-discord-channel' className='text-sm font-medium block'>
+                    {m.teamSettings_createDiscordChannelOnGroup()}
+                  </label>
+                  <p className='text-xs text-muted-foreground mt-1'>
+                    {m.teamSettings_createDiscordChannelOnGroupHelp()}
+                  </p>
+                </div>
+                <Switch
+                  id='create-discord-channel'
+                  checked={createDiscordChannelOnGroup}
+                  onCheckedChange={setCreateDiscordChannelOnGroup}
+                />
+              </div>
+              <Separator />
+            </div>
             <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
               {channelConfigs.map(({ key, value, setter, label }) => (
                 <div key={key}>

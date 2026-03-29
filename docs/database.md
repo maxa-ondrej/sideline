@@ -180,10 +180,11 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `discord_channel_meeting` | TEXT | — | — |
 | `discord_channel_social` | TEXT | — | — |
 | `discord_channel_other` | TEXT | — | — |
+| `create_discord_channel_on_group` | BOOLEAN | NOT NULL | `true` |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
-**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type.
+**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type. `create_discord_channel_on_group` controls whether the bot automatically creates a Discord channel when a group is created.
 
 ---
 

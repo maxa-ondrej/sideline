@@ -10,6 +10,7 @@ import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsReposit
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
@@ -25,8 +26,19 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
     Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
     Effect.bind('teams', () => TeamsRepository),
     Effect.bind('discordChannels', () => DiscordChannelsRepository),
+    Effect.bind('teamSettings', () => TeamSettingsRepository),
     Effect.map(
-      ({ members, groups, roles, channelSync, users, channelMappings, teams, discordChannels }) =>
+      ({
+        members,
+        groups,
+        roles,
+        channelSync,
+        users,
+        channelMappings,
+        teams,
+        discordChannels,
+        teamSettings,
+      }) =>
         handlers
           .handle('listGroups', ({ path: { teamId } }) =>
             Effect.Do.pipe(
@@ -66,8 +78,15 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('group', () =>
                 groups.insertGroup(teamId, payload.name, payload.parentId, payload.emoji),
               ),
-              Effect.tap(({ group }) =>
-                channelSync.emitChannelCreated(teamId, group.id, group.name),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ group, settings }) =>
+                Option.match(settings, {
+                  onNone: () => channelSync.emitChannelCreated(teamId, group.id, group.name),
+                  onSome: (s) =>
+                    s.create_discord_channel_on_group
+                      ? channelSync.emitChannelCreated(teamId, group.id, group.name)
+                      : Effect.void,
+                }),
               ),
               Effect.map(
                 ({ group }) =>

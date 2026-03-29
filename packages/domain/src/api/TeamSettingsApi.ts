@@ -16,6 +16,7 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordChannelMeeting: Schema.OptionFromNullOr(Snowflake),
   discordChannelSocial: Schema.OptionFromNullOr(Snowflake),
   discordChannelOther: Schema.OptionFromNullOr(Snowflake),
+  createDiscordChannelOnGroup: Schema.Boolean,
 }) {}
 
 export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
@@ -46,6 +47,7 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
   discordChannelOther: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
+  createDiscordChannelOnGroup: Schema.optionalWith(Schema.Boolean, { as: 'Option' }),
 }) {}
 
 export class TeamSettingsApiGroup extends HttpApiGroup.make('teamSettings')
