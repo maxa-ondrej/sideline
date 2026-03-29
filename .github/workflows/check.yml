@@ -57,9 +57,14 @@ jobs:
         env:
           NODE_OPTIONS: --max_old_space_size=8192
   e2e:
-    name: E2E Tests
+    name: E2E (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
@@ -69,9 +74,10 @@ jobs:
       - name: Build packages
         run: pnpm build:packages
       - name: Type-check E2E tests
+        if: matrix.shardIndex == 1
         run: pnpm check:e2e
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           SERVER_URL: http://localhost:4000
           DISCORD_CLIENT_ID: dummy-client-id
@@ -79,13 +85,37 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.shardIndex }}
           path: e2e/results/
           retention-days: 7
-      - name: Upload HTML report
+      - name: Upload blob report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
+          name: e2e-blob-report-${{ matrix.shardIndex }}
+          path: e2e/blob-report/
+          retention-days: 1
+  e2e-report:
+    name: E2E Report
+    if: ${{ !cancelled() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: e2e-blob-report-*
+          path: e2e/all-blob-reports
+          merge-multiple: true
+      - name: Merge reports
+        run: pnpm exec playwright merge-reports --reporter=html ./e2e/all-blob-reports
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
           name: e2e-report
-          path: e2e/report/
+          path: playwright-report/
           retention-days: 7
