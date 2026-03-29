@@ -75,6 +75,13 @@ function getTeamNavGroups(
       items: [
         { title: m.team_members(), icon: Users, to: '/teams/$teamId/members', params: { teamId } },
         {
+          title: m.team_groups(),
+          icon: UserCog,
+          to: '/teams/$teamId/groups',
+          params: { teamId },
+          requiredPermission: 'group:manage' satisfies Role.Permission,
+        },
+        {
           title: m.team_rosters(),
           icon: UsersRound,
           to: '/teams/$teamId/rosters',
@@ -86,13 +93,6 @@ function getTeamNavGroups(
           to: '/teams/$teamId/training-types',
           params: { teamId },
           requiredPermission: 'training-type:create' satisfies Role.Permission,
-        },
-        {
-          title: m.team_groups(),
-          icon: UserCog,
-          to: '/teams/$teamId/groups',
-          params: { teamId },
-          requiredPermission: 'group:manage' satisfies Role.Permission,
         },
       ],
     },
