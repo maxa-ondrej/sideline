@@ -2,10 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Theme Toggle', () => {
   test.beforeEach(async ({ page }) => {
-    // Clear stored theme before each test
+    // Clear stored theme before the app scripts run to avoid an extra reload
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('sideline-theme');
+    });
     await page.goto('/');
-    await page.evaluate(() => localStorage.removeItem('sideline-theme'));
-    await page.reload();
     // Wait for the page to finish loading
     await page.waitForFunction(() => !document.body.textContent?.includes('Loading...'), {
       timeout: 30000,
@@ -13,29 +14,33 @@ test.describe('Theme Toggle', () => {
   });
 
   test('defaults to system theme with no stored preference', async ({ page }) => {
-    await page.evaluate(() => localStorage.removeItem('sideline-theme'));
-    await page.reload();
     const stored = await page.evaluate(() => localStorage.getItem('sideline-theme'));
     expect(stored).toBeNull();
   });
 
   test('system theme applies dark class when prefers-color-scheme is dark', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await page.evaluate(() => localStorage.removeItem('sideline-theme'));
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('sideline-theme');
+    });
     await page.reload();
     await expect(page.locator('html')).toHaveClass(/dark/);
   });
 
   test('system theme omits dark class when prefers-color-scheme is light', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.evaluate(() => localStorage.removeItem('sideline-theme'));
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('sideline-theme');
+    });
     await page.reload();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
   });
 
   test('clicking theme toggle cycles through themes', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.evaluate(() => localStorage.removeItem('sideline-theme'));
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('sideline-theme');
+    });
     await page.reload();
 
     const themeButton = page.locator('header').getByRole('button', { name: /Theme/ });

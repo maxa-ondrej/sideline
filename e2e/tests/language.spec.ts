@@ -6,18 +6,22 @@ test.describe('Language Switcher', () => {
   // Allow extra time for these tests since locale changes can trigger reloads
   test.setTimeout(120000);
 
-  async function waitForPageReady(page: import('@playwright/test').Page) {
-    await page.waitForFunction(() => !document.body.textContent?.includes('Loading...'), {
-      timeout: 60000,
-    });
+  async function waitForHomepageReady(page: import('@playwright/test').Page) {
+    // Wait for the hero heading in either language (locale-agnostic)
+    await expect(
+      page.getByRole('heading', {
+        name: /Manage your sports team, effortlessly|Spravujte svůj sportovní tým bez námahy/,
+      }),
+    ).toBeVisible({ timeout: 60000 });
   }
 
   test.beforeEach(async ({ page }) => {
-    // Ensure we start with English
+    // Set locale before the app scripts run to avoid an extra reload
+    await page.addInitScript(() => {
+      window.localStorage.setItem('PARAGLIDE_LOCALE', 'en');
+    });
     await page.goto('/');
-    await page.evaluate(() => localStorage.setItem('PARAGLIDE_LOCALE', 'en'));
-    await page.reload();
-    await waitForPageReady(page);
+    await waitForHomepageReady(page);
   });
 
   test('defaults to English', async ({ page }) => {
@@ -34,8 +38,8 @@ test.describe('Language Switcher', () => {
     // Select Czech
     await page.getByRole('option', { name: /Čeština/ }).click();
 
-    // Wait for potential page reload after locale change
-    await waitForPageReady(page);
+    // Wait for page to settle after locale change
+    await waitForHomepageReady(page);
 
     // Verify headline changed to Czech
     await expect(
@@ -48,7 +52,7 @@ test.describe('Language Switcher', () => {
     const trigger = page.locator('header').getByRole('combobox');
     await trigger.click();
     await page.getByRole('option', { name: /Čeština/ }).click();
-    await waitForPageReady(page);
+    await waitForHomepageReady(page);
 
     // Verify Czech
     await expect(
@@ -58,7 +62,7 @@ test.describe('Language Switcher', () => {
     // Switch back to English
     await trigger.click();
     await page.getByRole('option', { name: /English/ }).click();
-    await waitForPageReady(page);
+    await waitForHomepageReady(page);
 
     // Verify English
     await expect(
@@ -74,7 +78,7 @@ test.describe('Language Switcher', () => {
     const trigger = page.locator('header').getByRole('combobox');
     await trigger.click();
     await page.getByRole('option', { name: /Čeština/ }).click();
-    await waitForPageReady(page);
+    await waitForHomepageReady(page);
 
     // Verify footer changed
     await expect(footer).toContainText('Vytvořeno pro týmy používající Discord', {
@@ -89,7 +93,7 @@ test.describe('Language Switcher', () => {
     const trigger = page.locator('header').getByRole('combobox');
     await trigger.click();
     await page.getByRole('option', { name: /Čeština/ }).click();
-    await waitForPageReady(page);
+    await waitForHomepageReady(page);
 
     // Verify sign-in button changed
     await expect(page.getByRole('link', { name: /Přihlásit se přes Discord/ })).toBeVisible({

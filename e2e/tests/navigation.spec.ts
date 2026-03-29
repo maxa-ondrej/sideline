@@ -96,7 +96,7 @@ test.describe('Navigation & Routing', () => {
     });
   });
 
-  test('no console errors on homepage', async ({ page }) => {
+  test('no uncaught exceptions on homepage', async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
 
