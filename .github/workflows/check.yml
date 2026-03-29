@@ -77,7 +77,7 @@ jobs:
         if: matrix.shardIndex == 1
         run: pnpm check:e2e
       - name: Run E2E tests
-        run: pnpm test:e2e -- --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: pnpm exec playwright test --config e2e/playwright.config.ts --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           SERVER_URL: http://localhost:4000
           DISCORD_CLIENT_ID: dummy-client-id
