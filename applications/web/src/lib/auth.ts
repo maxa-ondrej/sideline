@@ -15,6 +15,7 @@ const get = (key: string) =>
   KeyValueStore.KeyValueStore.pipe(
     Effect.flatMap((store) => store.get(key)),
     Effect.provide(kvLayer),
+    Effect.tapError((e) => Effect.logDebug(`Failed to read browser storage key "${key}"`, e)),
     Effect.catchTag('BadArgument', 'SystemError', () => Effect.succeed(Option.none<string>())),
   );
 

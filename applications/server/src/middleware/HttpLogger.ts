@@ -4,6 +4,9 @@ import { Clock, Effect, Metric, pipe } from 'effect';
 
 const statusClass = (status: number): string => `${Math.floor(status / 100)}xx`;
 
+/** Strip query string from URL to avoid leaking sensitive params in spans/logs. */
+const sanitizeUrl = (url: string): string => url.split('?')[0];
+
 const recordHttpMetrics = (method: string, status: number, durationMs: number) =>
   Effect.all(
     [
@@ -21,8 +24,8 @@ const recordHttpMetrics = (method: string, status: number, durationMs: number) =
   );
 
 /**
- * Custom HTTP logger middleware that logs RPC polling requests at INFO level
- * to reduce log noise from the bot's 5-second polling interval.
+ * Custom HTTP logger middleware that records request metrics, logs responses,
+ * and wraps each request in an OpenTelemetry span.
  */
 export const HttpLogger = HttpMiddleware.make((httpApp) =>
   Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
@@ -45,7 +48,7 @@ export const HttpLogger = HttpMiddleware.make((httpApp) =>
                   : Effect.logError('Sent HTTP response'),
                 {
                   'http.method': request.method,
-                  'http.url': request.url,
+                  'http.url': sanitizeUrl(request.url),
                   'http.status': response.status,
                 },
               ),
@@ -61,7 +64,7 @@ export const HttpLogger = HttpMiddleware.make((httpApp) =>
             recordHttpMetrics(request.method, exit.value.status, durationMs),
             Effect.annotateLogs(log('Sent HTTP response'), {
               'http.method': request.method,
-              'http.url': request.url,
+              'http.url': sanitizeUrl(request.url),
               'http.status': exit.value.status,
             }),
           ],
@@ -70,7 +73,7 @@ export const HttpLogger = HttpMiddleware.make((httpApp) =>
       }),
       Effect.flatMap(({ exit }) => exit),
       Effect.withSpan('http.request', {
-        attributes: { 'http.method': request.method, 'http.url': request.url },
+        attributes: { 'http.method': request.method, 'http.url': sanitizeUrl(request.url) },
       }),
     ),
   ),
