@@ -20,6 +20,7 @@
     "preview": "node build/esm/run.js",
     "check": "tsc -b tsconfig.json",
     "test": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "coverage": "vitest --coverage"
   },
   "dependencies": {
@@ -47,5 +48,8 @@
         "**/*.ts"
       ]
     }
+  },
+  "devDependencies": {
+    "testcontainers": "^11.13.0"
   }
 }

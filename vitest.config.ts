@@ -31,6 +31,7 @@ export default defineConfig({
             concurrent: true,
           },
           include: ['test/**/*.test.ts'],
+          exclude: ['test/integration/**'],
           alias: {
             ...alias('bot', 'applications'),
             ...alias('domain'),

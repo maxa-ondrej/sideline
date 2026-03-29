@@ -148,9 +148,47 @@ describe("MyService", () => {
 ### Running Tests
 
 ```bash
-pnpm test                    # Run all tests
+pnpm test                    # Run all unit tests (no DB needed)
+pnpm test:unit               # Alias for pnpm test
 pnpm test --watch            # Watch mode
 cd packages/domain && pnpm test  # Specific package
+```
+
+### Integration Tests
+
+Integration tests live in `applications/server/test/integration/` and use **testcontainers** to spin up a real PostgreSQL 17 database.
+
+```bash
+pnpm test:integration        # Run integration tests (needs Docker)
+```
+
+**Prerequisites:**
+- Docker must be running
+- Run `pnpm build` first (migrations package must be compiled)
+
+**Structure:**
+```
+applications/server/test/integration/
+├── globalSetup.ts      — Starts PostgreSQL container, runs migrations, writes connection info to /tmp
+├── setupFile.ts        — Reads connection info and sets process.env for each worker
+├── helpers.ts          — TestPgClient layer and cleanDatabase effect
+└── repositories/       — Repository integration tests
+    ├── TeamsRepository.test.ts
+    └── UsersRepository.test.ts
+```
+
+**Key helpers:**
+- `TestPgClient` — a `Layer` that creates PgClient from env vars set by setupFile
+- `cleanDatabase` — an Effect that truncates all public tables (except `migrations_*`) before each test
+
+**Writing integration tests:**
+```typescript
+import { TestPgClient, cleanDatabase } from '../helpers.js'
+import { beforeEach } from 'vitest'
+
+const TestLayer = MyRepository.Default.pipe(Layer.provideMerge(TestPgClient))
+
+beforeEach(() => cleanDatabase.pipe(Effect.provide(TestPgClient), Effect.runPromise))
 ```
 
 ## E2E Testing

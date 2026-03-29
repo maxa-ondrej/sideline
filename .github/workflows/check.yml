@@ -56,6 +56,19 @@ jobs:
       - run: pnpm test
         env:
           NODE_OPTIONS: --max_old_space_size=8192
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: Run integration tests
+        run: pnpm test:integration
+        env:
+          NODE_OPTIONS: --max_old_space_size=8192
   e2e:
     name: E2E (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     runs-on: ubuntu-latest
