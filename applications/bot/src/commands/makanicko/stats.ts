@@ -4,8 +4,9 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Option } from 'effect';
+import { Effect, Metric, Option } from 'effect';
 import { userLocale } from '~/locale.js';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -19,6 +20,9 @@ const formatDuration = (minutes: number): string => {
 };
 
 export const statsHandler = Interaction.pipe(
+  Effect.tap(() =>
+    Metric.update(Metric.tagged(discordInteractionsTotal, 'interaction_type', 'command'), 1),
+  ),
   Effect.flatMap((interaction) => {
     const locale = userLocale(interaction);
     const guildId = interaction.guild_id;
@@ -152,4 +156,5 @@ export const statsHandler = Interaction.pipe(
       }),
     );
   }),
+  Effect.withSpan('command/makanicko/stats'),
 );

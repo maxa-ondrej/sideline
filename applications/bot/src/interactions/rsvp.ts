@@ -4,8 +4,9 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Metric, Option, pipe, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -29,6 +30,9 @@ const decodeRsvpResponse = Schema.decodeUnknownSync(EventRsvp.RsvpResponse);
 export const RsvpButton = Ix.messageComponent(
   Ix.idStartsWith('rsvp:'),
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+    ),
     Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.map(({ data, interaction }) => {
@@ -63,6 +67,7 @@ export const RsvpButton = Ix.messageComponent(
         },
       });
     }),
+    Effect.withSpan('interaction/rsvp-button'),
   ),
 );
 
@@ -86,6 +91,9 @@ const modalValueOption = (
 export const RsvpModal = Ix.modalSubmit(
   Ix.idStartsWith('rsvp-modal:'),
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'modal')), 1),
+    ),
     Effect.bind('data', () => ModalSubmitData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
@@ -201,5 +209,6 @@ export const RsvpModal = Ix.modalSubmit(
         }),
       );
     }),
+    Effect.withSpan('interaction/rsvp-modal'),
   ),
 );

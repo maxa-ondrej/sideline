@@ -1,7 +1,8 @@
 import type { ChannelRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Array, Effect, Match } from 'effect';
+import { Array, Effect, Match, Metric, pipe } from 'effect';
+import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { handleCreated } from './handleCreated.js';
@@ -25,6 +26,16 @@ const processEvent = Effect.Do.pipe(
       (event: ChannelRpcEvents.UnprocessedChannelEvent) =>
         action(event).pipe(
           Effect.flatMap(() => rpc['Channel/MarkEventProcessed']({ id: event.id })),
+          Effect.tap(() =>
+            Metric.update(
+              pipe(
+                syncEventsProcessedTotal,
+                Metric.tagged('sync_type', 'channel'),
+                Metric.tagged('action', event._tag),
+              ),
+              1,
+            ),
+          ),
           Effect.catchTag(
             'RpcClientError',
             'RequestError',
@@ -36,10 +47,19 @@ const processEvent = Effect.Do.pipe(
                 Effect.tap(() =>
                   Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
                 ),
+                Effect.tap(() =>
+                  Metric.update(
+                    pipe(syncEventsFailedTotal, Metric.tagged('sync_type', 'channel')),
+                    1,
+                  ),
+                ),
               ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
+          Effect.withSpan(`sync/channel/${event._tag}`, {
+            attributes: { 'event.id': String(event.id) },
+          }),
         ),
   ),
 );

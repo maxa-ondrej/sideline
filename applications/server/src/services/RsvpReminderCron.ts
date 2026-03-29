@@ -1,4 +1,5 @@
 import { Array, Effect, Option, Schedule } from 'effect';
+import { withCronMetrics } from '~/metrics.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -42,6 +43,7 @@ const cronEffect = Effect.Do.pipe(
     Effect.logInfo(`RsvpReminderCron: cycle complete, ${String(events.length)} event(s) processed`),
   ),
   Effect.asVoid,
+  withCronMetrics('rsvp-reminder'),
 );
 
 const cronSchedule = Schedule.cron('* * * * *');

@@ -1,4 +1,5 @@
 import { Effect, Schedule } from 'effect';
+import { withCronMetrics } from '~/metrics.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 
@@ -27,6 +28,7 @@ const cronEffect = Effect.Do.pipe(
   ),
   Effect.tap(() => Effect.logInfo('AgeCheckCron: evaluation cycle complete')),
   Effect.asVoid,
+  withCronMetrics('age-check'),
 );
 
 const cronSchedule = Schedule.cron('0 2 * * *');

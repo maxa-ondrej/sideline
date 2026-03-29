@@ -4,14 +4,18 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Effect } from 'effect';
+import { Effect, Metric, pipe } from 'effect';
 import { userLocale } from '~/locale.js';
+import { discordInteractionsTotal } from '~/metrics.js';
 import { buildEventListEmbed, PAGE_SIZE } from '~/rest/events/buildEventListEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 export const EventListPageButton = Ix.messageComponent(
   Ix.idStartsWith('event-list-page:'),
   Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+    ),
     Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
@@ -61,5 +65,6 @@ export const EventListPageButton = Ix.messageComponent(
         }),
       );
     }),
+    Effect.withSpan('interaction/event-list-page'),
   ),
 );

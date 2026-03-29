@@ -1,4 +1,5 @@
 import { Array, DateTime, Effect, Option, Schedule } from 'effect';
+import { withCronMetrics } from '~/metrics.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
@@ -65,6 +66,7 @@ const cronEffect = Effect.Do.pipe(
   ),
   Effect.tap(() => Effect.logInfo('EventHorizonCron: generation cycle complete')),
   Effect.asVoid,
+  withCronMetrics('event-horizon'),
 );
 
 const cronSchedule = Schedule.cron('0 3 * * *');

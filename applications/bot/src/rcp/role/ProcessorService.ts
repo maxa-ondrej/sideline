@@ -1,7 +1,8 @@
 import type { RoleRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Array, Effect, Match } from 'effect';
+import { Array, Effect, Match, Metric, pipe } from 'effect';
+import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
 import { POLL_BATCH_SIZE } from '../../rest/utils.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
 import { handleMemberAdded } from './handleAssigned.js';
@@ -25,6 +26,16 @@ const processEvent = Effect.Do.pipe(
       (event: RoleRpcEvents.UnprocessedRoleEvent) =>
         action(event).pipe(
           Effect.flatMap(() => rpc['Role/MarkEventProcessed']({ id: event.id })),
+          Effect.tap(() =>
+            Metric.update(
+              pipe(
+                syncEventsProcessedTotal,
+                Metric.tagged('sync_type', 'role'),
+                Metric.tagged('action', event._tag),
+              ),
+              1,
+            ),
+          ),
           Effect.catchTag(
             'RpcClientError',
             'RequestError',
@@ -36,10 +47,16 @@ const processEvent = Effect.Do.pipe(
                 Effect.tap(() =>
                   Effect.logWarning(`Failed to process role sync event ${event.id}`, error),
                 ),
+                Effect.tap(() =>
+                  Metric.update(pipe(syncEventsFailedTotal, Metric.tagged('sync_type', 'role')), 1),
+                ),
               ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
+          Effect.withSpan(`sync/role/${event._tag}`, {
+            attributes: { 'event.id': String(event.id) },
+          }),
         ),
   ),
 );

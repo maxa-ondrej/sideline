@@ -1,9 +1,10 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, DateTime, Effect, Option, pipe } from 'effect';
+import { Array, DateTime, Effect, Metric, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -162,6 +163,12 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 Effect.catchTag(
                   'NoSuchElementException',
                   LogicError.withMessage(() => 'Failed upserting RSVP — no row returned'),
+                ),
+                Effect.tap(() =>
+                  Metric.update(
+                    Metric.tagged(rsvpSubmissionsTotal, 'response', payload.response),
+                    1,
+                  ),
                 ),
               ),
             ),

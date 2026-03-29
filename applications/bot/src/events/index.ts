@@ -2,7 +2,8 @@ import { Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
-import { Array as Arr, Effect, Option, Schema } from 'effect';
+import { Array as Arr, Effect, Metric, Option, pipe, Schema } from 'effect';
+import { discordEventsTotal } from '~/metrics.js';
 import { DfxGuildMember, DfxTextChannel, DfxUser } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -18,6 +19,9 @@ export const eventHandlers = Effect.Do.pipe(
   Effect.let('guildCreate', ({ gateway, rpc, rest }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
       Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_create')), 1),
+        ),
         Effect.tap(() => Effect.logInfo(`Guild available: ${guild.name} (${guild.id})`)),
         Effect.tap(() =>
           rpc['Guild/RegisterGuild']({
@@ -90,6 +94,7 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.catchTag('RpcClientError', (error) =>
           Effect.logError(`Failed to register guild ${guild.id}`, error),
         ),
+        Effect.withSpan('discord/guild_create', { attributes: { 'guild.id': guild.id } }),
       ),
     ),
   ),
@@ -98,6 +103,12 @@ export const eventHandlers = Effect.Do.pipe(
       guild.unavailable
         ? Effect.logInfo(`Guild unavailable (outage): ${guild.id}`)
         : Effect.Do.pipe(
+            Effect.tap(() =>
+              Metric.update(
+                pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_delete')),
+                1,
+              ),
+            ),
             Effect.tap(() => Effect.logInfo(`Guild removed: ${guild.id}`)),
             Effect.tap(() =>
               rpc['Guild/UnregisterGuild']({
@@ -107,6 +118,7 @@ export const eventHandlers = Effect.Do.pipe(
             Effect.catchTag('RpcClientError', (error) =>
               Effect.logError(`Failed to unregister guild ${guild.id}`, error),
             ),
+            Effect.withSpan('discord/guild_delete', { attributes: { 'guild.id': guild.id } }),
           ),
     ),
   ),
@@ -114,6 +126,12 @@ export const eventHandlers = Effect.Do.pipe(
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberAdd, (member) => {
       const user = decodeUser(member.user);
       return Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(
+            pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_member_add')),
+            1,
+          ),
+        ),
         Effect.tap(() =>
           Effect.logInfo(`Member joined: ${user.username} in guild ${member.guild_id}`),
         ),
@@ -131,17 +149,46 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.catchTag('RpcClientError', (error) =>
           Effect.logError(`Failed to register member ${user.username}`, error),
         ),
+        Effect.withSpan('discord/guild_member_add', {
+          attributes: { 'guild.id': member.guild_id },
+        }),
       );
     }),
   ),
   Effect.let('guildMemberRemove', ({ gateway }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberRemove, (member) =>
-      Effect.logInfo(`Member left: ${member.user.username} from guild ${member.guild_id}`),
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(
+            pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_member_remove')),
+            1,
+          ),
+        ),
+        Effect.tap(() =>
+          Effect.logInfo(`Member left: ${member.user.username} from guild ${member.guild_id}`),
+        ),
+        Effect.withSpan('discord/guild_member_remove', {
+          attributes: { 'guild.id': member.guild_id },
+        }),
+      ),
     ),
   ),
   Effect.let('guildMemberUpdate', ({ gateway }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberUpdate, (member) =>
-      Effect.logInfo(`Member updated: ${member.user.username} in guild ${member.guild_id}`),
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(
+            pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_member_update')),
+            1,
+          ),
+        ),
+        Effect.tap(() =>
+          Effect.logInfo(`Member updated: ${member.user.username} in guild ${member.guild_id}`),
+        ),
+        Effect.withSpan('discord/guild_member_update', {
+          attributes: { 'guild.id': member.guild_id },
+        }),
+      ),
     ),
   ),
   Effect.map(

@@ -11,7 +11,8 @@ import {
   User,
 } from '@sideline/domain';
 import { Bind, LogicError, Options } from '@sideline/effect-lib';
-import { Array, Data, DateTime, Effect, flow, Option, Schema } from 'effect';
+import { Array, Data, DateTime, Effect, flow, Metric, Option, pipe, Schema } from 'effect';
+import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -395,6 +396,9 @@ const rpcHandlers = Effect.Do.pipe(
                 LogicError.withMessage(
                   () => `Failed upserting RSVP for event ${event_id} — no row returned`,
                 ),
+              ),
+              Effect.tap(() =>
+                Metric.update(pipe(rsvpSubmissionsTotal, Metric.tagged('response', response)), 1),
               ),
             ),
           ),

@@ -2,6 +2,8 @@ export * as Bind from './Bind.js';
 
 export * as LogicError from './LogicError.js';
 
+export * as Metrics from './Metrics.js';
+
 export * as Options from './Options.js';
 
 export * as Runtime from './Runtime.js';
