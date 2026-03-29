@@ -1,4 +1,4 @@
-import type { GroupModel, TeamMember, TrainingType } from '@sideline/domain';
+import type { GroupModel, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Array, Effect, Option, pipe } from 'effect';
 import type { EventsRepository } from '~/repositories/EventsRepository.js';
 import type { GroupsRepository } from '~/repositories/GroupsRepository.js';
@@ -45,6 +45,7 @@ export const checkTrainingTypeOwnerGroup = <E>(
   trainingTypeId: Option.Option<TrainingType.TrainingTypeId>,
   isAdmin: boolean,
   forbidden: E,
+  teamId: Team.TeamId,
 ) => {
   if (isAdmin) return Effect.void;
   if (Option.isNone(trainingTypeId)) return Effect.void;
@@ -52,6 +53,7 @@ export const checkTrainingTypeOwnerGroup = <E>(
     Effect.flatMap((found) => {
       if (Option.isNone(found)) return Effect.void;
       const tt = found.value;
+      if (tt.team_id !== teamId) return Effect.fail(forbidden);
       if (Option.isNone(tt.owner_group_id)) return Effect.void;
       const ownerGroupId = tt.owner_group_id.value;
       return groups

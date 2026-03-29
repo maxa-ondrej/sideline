@@ -51,6 +51,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 payload.trainingTypeId,
                 isAdmin,
                 forbidden,
+                teamId,
               ),
             ),
             // Inherit groups from training type if not provided
@@ -331,6 +332,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 }),
                 isAdmin,
                 forbidden,
+                teamId,
               ),
             ),
             Effect.let('resolved', ({ existing }) => ({

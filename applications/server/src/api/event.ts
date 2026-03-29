@@ -83,6 +83,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 payload.trainingTypeId,
                 isAdmin,
                 forbidden,
+                teamId,
               ),
             ),
             // Inherit groups from training type if not provided
@@ -284,6 +285,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 }),
                 isAdmin,
                 forbidden,
+                teamId,
               ),
             ),
             Effect.bind('updated', ({ existing }) =>
