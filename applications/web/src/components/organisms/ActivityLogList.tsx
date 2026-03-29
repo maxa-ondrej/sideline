@@ -283,7 +283,7 @@ export function ActivityLogList({
           <SheetHeader>
             <SheetTitle>{m.activityLog_editTitle()}</SheetTitle>
           </SheetHeader>
-          <div className='flex flex-col gap-4 mt-4'>
+          <div className='flex flex-col gap-4 px-4 pb-4'>
             <div>
               <Label className='text-sm font-medium mb-2 block'>
                 {m.activityLog_activityType()}

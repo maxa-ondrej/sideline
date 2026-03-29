@@ -629,5 +629,6 @@
   "event_seriesSaved": "Série aktualizována",
   "event_eventCreated": "Událost vytvořena",
   "event_seriesCreated": "Série vytvořena",
-  "event_rsvpSubmitted": "RSVP odesláno"
+  "event_rsvpSubmitted": "RSVP odesláno",
+  "role_perm_groupManage": "Spravovat skupiny"
 }

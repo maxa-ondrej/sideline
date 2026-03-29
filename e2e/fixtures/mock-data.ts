@@ -50,6 +50,7 @@ export const mockUserTeams = [
       'event:create',
       'event:edit',
       'event:cancel',
+      'group:manage',
     ],
   },
 ];
