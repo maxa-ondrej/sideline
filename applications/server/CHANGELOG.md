@@ -1,5 +1,24 @@
 # @sideline/server
 
+## 0.14.2
+
+### Patch Changes
+
+- [#140](https://github.com/maxa-ondrej/sideline/pull/140) [`247fa44`](https://github.com/maxa-ondrej/sideline/commit/247fa444ad52fc44796e54ac9231a73221c29ff0) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add team setting to control whether Discord channels are auto-created for new groups
+
+- [#142](https://github.com/maxa-ondrej/sideline/pull/142) [`1ab70cd`](https://github.com/maxa-ondrej/sideline/commit/1ab70cdf1318882d9fdb9490a671b69b33a63606) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix group member count to include members from all descendant groups using recursive CTEs
+
+- [#141](https://github.com/maxa-ondrej/sideline/pull/141) [`e4f8969`](https://github.com/maxa-ondrej/sideline/commit/e4f8969bcaf1278169e6e5a6aa2b3af49701ec78) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix incorrect permissions: add group:manage permission, gate nav items by role, fix avatar rendering and drawer padding
+
+- [#136](https://github.com/maxa-ondrej/sideline/pull/136) [`dc1ed99`](https://github.com/maxa-ondrej/sideline/commit/dc1ed99d334839bddf17636b48e525b665321a18) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add comprehensive observability with tracing spans, metrics (HTTP, cron, Discord, sync, RSVP), and improve error handling with explicit catchTag patterns and descriptive LogicError messages
+
+- [#144](https://github.com/maxa-ondrej/sideline/pull/144) [`126d784`](https://github.com/maxa-ondrej/sideline/commit/126d7848dd926d5ae8f285cdff335a9af6f56d0d) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add owner group authorization for training type event creation and enhance list page with group selectors
+
+- Updated dependencies [[`247fa44`](https://github.com/maxa-ondrej/sideline/commit/247fa444ad52fc44796e54ac9231a73221c29ff0), [`e4f8969`](https://github.com/maxa-ondrej/sideline/commit/e4f8969bcaf1278169e6e5a6aa2b3af49701ec78), [`dc1ed99`](https://github.com/maxa-ondrej/sideline/commit/dc1ed99d334839bddf17636b48e525b665321a18)]:
+  - @sideline/domain@0.14.2
+  - @sideline/migrations@0.12.2
+  - @sideline/effect-lib@0.0.7
+
 ## 0.14.1
 
 ### Patch Changes

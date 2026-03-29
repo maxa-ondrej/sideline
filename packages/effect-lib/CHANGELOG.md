@@ -1,5 +1,11 @@
 # @sideline/effect-lib
 
+## 0.0.7
+
+### Patch Changes
+
+- [#136](https://github.com/maxa-ondrej/sideline/pull/136) [`dc1ed99`](https://github.com/maxa-ondrej/sideline/commit/dc1ed99d334839bddf17636b48e525b665321a18) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add comprehensive observability with tracing spans, metrics (HTTP, cron, Discord, sync, RSVP), and improve error handling with explicit catchTag patterns and descriptive LogicError messages
+
 ## 0.0.6
 
 ### Patch Changes
