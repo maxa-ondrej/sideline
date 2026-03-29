@@ -76,9 +76,25 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Request: Schema.String,
     Result: GroupWithCount,
     execute: (teamId) => this.sql`
+            WITH RECURSIVE group_tree AS (
+              SELECT g.id AS root_id, g.id AS descendant_id
+              FROM groups g
+              WHERE g.team_id = ${teamId} AND g.is_archived = false
+              UNION ALL
+              SELECT gt.root_id, child.id
+              FROM group_tree gt
+              JOIN groups child ON child.parent_id = gt.descendant_id AND child.is_archived = false AND child.team_id = ${teamId}
+            ),
+            member_counts AS (
+              SELECT gt.root_id, COUNT(DISTINCT gm.team_member_id)::int AS member_count
+              FROM group_tree gt
+              LEFT JOIN group_members gm ON gm.group_id = gt.descendant_id
+              GROUP BY gt.root_id
+            )
             SELECT g.id, g.team_id, g.parent_id, g.name, g.emoji, g.created_at,
-                   (SELECT COUNT(*) FROM group_members gm WHERE gm.group_id = g.id)::int AS member_count
+                   COALESCE(mc.member_count, 0) AS member_count
             FROM groups g
+            LEFT JOIN member_counts mc ON mc.root_id = g.id
             WHERE g.team_id = ${teamId} AND g.is_archived = false
             ORDER BY g.name ASC
           `,
@@ -172,8 +188,16 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
   private countMembersForGroup = SqlSchema.single({
     Request: GroupModel.GroupId,
     Result: Schema.Struct({ count: Schema.Number }),
-    execute: (groupId) =>
-      this.sql`SELECT COUNT(*)::int AS count FROM group_members WHERE group_id = ${groupId}`,
+    execute: (groupId) => this.sql`
+            WITH RECURSIVE descendants AS (
+              SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId} AND g.is_archived = false
+              UNION ALL
+              SELECT g.id, g.team_id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false AND g.team_id = d.team_id
+            )
+            SELECT COUNT(DISTINCT gm.team_member_id)::int AS count
+            FROM descendants d
+            LEFT JOIN group_members gm ON gm.group_id = d.id
+          `,
   });
 
   private findChildren = SqlSchema.findAll({
@@ -202,9 +226,9 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Result: DescendantMemberRow,
     execute: (groupId) => this.sql`
             WITH RECURSIVE descendants AS (
-              SELECT ${groupId}::uuid AS id
+              SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId}
               UNION ALL
-              SELECT g.id FROM groups g JOIN descendants d ON g.parent_id = d.id
+              SELECT g.id, g.team_id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false AND g.team_id = d.team_id
             )
             SELECT DISTINCT gm.team_member_id
             FROM descendants d
