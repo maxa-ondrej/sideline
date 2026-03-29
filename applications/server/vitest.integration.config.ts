@@ -12,9 +12,7 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 120_000,
     pool: 'forks',
-    sequence: {
-      concurrent: false,
-    },
+    fileParallelism: false,
     env: {
       DATABASE_HOST: 'localhost',
       DATABASE_PORT: '5432',
