@@ -201,7 +201,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   memberGroupName: Option.none(),
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating event series — no row returned'),
+            ),
           ),
         )
         .handle('listEventSeries', ({ path: { teamId } }) =>
@@ -473,7 +476,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     hasPermission(membership, 'event:cancel') && detail.status === 'active',
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating event series — no row returned'),
+            ),
           ),
         )
         .handle('cancelEventSeries', ({ path: { teamId, seriesId } }) =>

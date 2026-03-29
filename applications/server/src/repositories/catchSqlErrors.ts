@@ -4,7 +4,7 @@ import { Effect } from 'effect';
 /**
  * Catches `SqlError` and `ParseError` from `@effect/sql` and converts them
  * into `LogicError` defects.  Drop-in replacement for the verbose
- * `Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom)` pattern
+ * `Effect.catchTag('SqlError', 'ParseError', LogicError.withMessage(...))` pattern
  * used across all repository methods.
  *
  * Designed for use in `.pipe()` chains:
@@ -21,7 +21,7 @@ export const catchSqlErrors = <A, E extends { readonly _tag: string }, R>(
 > =>
   effect.pipe(
     Effect.catchTags({
-      SqlError: LogicError.dieFrom,
-      ParseError: LogicError.dieFrom,
-    }),
+      SqlError: LogicError.withMessage((e) => `SQL query failed: ${e}`),
+      ParseError: LogicError.withMessage((e) => `SQL result parsing failed: ${e}`),
+    } as never),
   ) as never;

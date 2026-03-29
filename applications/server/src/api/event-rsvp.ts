@@ -158,9 +158,12 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
               ),
             ),
             Effect.tap(({ membership }) =>
-              rsvps
-                .upsertRsvp(eventId, membership.id, payload.response, payload.message)
-                .pipe(Effect.catchTag('NoSuchElementException', LogicError.dieFrom)),
+              rsvps.upsertRsvp(eventId, membership.id, payload.response, payload.message).pipe(
+                Effect.catchTag(
+                  'NoSuchElementException',
+                  LogicError.withMessage(() => 'Failed upserting RSVP — no row returned'),
+                ),
+              ),
             ),
             Effect.andThen(({ event }) =>
               syncEvents.emitEventUpdated(

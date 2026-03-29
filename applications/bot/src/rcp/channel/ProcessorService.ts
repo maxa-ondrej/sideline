@@ -25,12 +25,18 @@ const processEvent = Effect.Do.pipe(
       (event: ChannelRpcEvents.UnprocessedChannelEvent) =>
         action(event).pipe(
           Effect.flatMap(() => rpc['Channel/MarkEventProcessed']({ id: event.id })),
-          Effect.catchAll((error) =>
-            rpc['Channel/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
+          Effect.catchTag(
+            'RpcClientError',
+            'RequestError',
+            'ResponseError',
+            'RatelimitedResponse',
+            'ErrorResponse',
+            (error) =>
+              rpc['Channel/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
+                Effect.tap(() =>
+                  Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
+                ),
               ),
-            ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),

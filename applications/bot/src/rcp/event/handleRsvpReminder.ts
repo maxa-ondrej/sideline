@@ -131,10 +131,15 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
               }),
             ),
             Effect.tap(() => Effect.logInfo(`Sent RSVP reminder DM to Discord user ${discordId}`)),
-            Effect.catchAll((err) =>
-              Effect.logWarning(
-                `Failed to send RSVP reminder DM to Discord user ${discordId}: ${err}`,
-              ),
+            Effect.catchTag(
+              'RequestError',
+              'ResponseError',
+              'RatelimitedResponse',
+              'ErrorResponse',
+              (err) =>
+                Effect.logWarning(
+                  `Failed to send RSVP reminder DM to Discord user ${discordId}: ${err}`,
+                ),
             ),
           ),
         ),

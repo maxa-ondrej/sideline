@@ -73,6 +73,9 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
   }) =>
     this.updateTeamQuery(input).pipe(
       catchSqlErrors,
-      Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+      Effect.catchTag(
+        'NoSuchElementException',
+        LogicError.withMessage(() => 'Team update returned no row'),
+      ),
     );
 }

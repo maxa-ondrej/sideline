@@ -117,7 +117,9 @@ const registerMemberLogic =
             ),
         }),
       ),
-      Effect.catchAll((error) => Effect.logError(`RegisterMember failed for ${username}`, error)),
+      Effect.catchTag('MemberAlreadyExistsError', 'NoSuchElementException', (error) =>
+        Effect.logError(`RegisterMember failed for ${username}`, error),
+      ),
     );
 
 export const GuildsRpcLive = Effect.all([

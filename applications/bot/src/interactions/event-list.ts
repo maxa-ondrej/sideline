@@ -37,14 +37,20 @@ export const EventListPageButton = Ix.messageComponent(
           });
           return { embeds: payload.embeds, components: payload.components };
         }),
-        Effect.catchAll(() => Effect.succeed({ content: m.bot_event_list_error({}, { locale }) })),
+        Effect.catchTag('RpcClientError', () =>
+          Effect.succeed({ content: m.bot_event_list_error({}, { locale }) }),
+        ),
         Effect.flatMap((payload) =>
           rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
             payload,
           }),
         ),
-        Effect.catchAll((error) =>
-          Effect.logError('Failed to update event list page response', error),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update event list page response', error),
         ),
       );
 

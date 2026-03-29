@@ -46,7 +46,7 @@ export const AttendeesButton = Ix.messageComponent(
             components: payload.components,
           };
         }),
-        Effect.catchAll(() =>
+        Effect.catchTag('RpcClientError', () =>
           Effect.succeed({ content: m.bot_attendees_load_error({}, { locale }) }),
         ),
         Effect.flatMap((payload) =>
@@ -54,7 +54,13 @@ export const AttendeesButton = Ix.messageComponent(
             payload,
           }),
         ),
-        Effect.catchAll((error) => Effect.logError('Failed to update attendees response', error)),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update attendees response', error),
+        ),
       );
 
       return Effect.as(
@@ -102,7 +108,7 @@ export const AttendeesPageButton = Ix.messageComponent(
             components: payload.components,
           };
         }),
-        Effect.catchAll(() =>
+        Effect.catchTag('RpcClientError', () =>
           Effect.succeed({ content: m.bot_attendees_load_error({}, { locale }) }),
         ),
         Effect.flatMap((payload) =>
@@ -110,8 +116,12 @@ export const AttendeesPageButton = Ix.messageComponent(
             payload,
           }),
         ),
-        Effect.catchAll((error) =>
-          Effect.logError('Failed to update attendees page response', error),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update attendees page response', error),
         ),
       );
 

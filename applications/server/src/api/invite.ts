@@ -105,7 +105,10 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.catchTag('MemberAlreadyExistsError', () =>
               Effect.fail(new Invite.AlreadyMember()),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed joining via invite — no row returned'),
+            ),
           ),
         )
         .handle('regenerateInvite', ({ path: { teamId } }) =>
@@ -137,7 +140,10 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   active: newInvite.active,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed regenerating invite — no row returned'),
+            ),
           ),
         )
         .handle('disableInvite', ({ path: { teamId } }) =>

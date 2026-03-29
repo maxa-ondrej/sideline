@@ -53,7 +53,7 @@ export const listHandler = Interaction.pipe(
           Effect.catchTag('GuildNotFound', () =>
             Effect.succeed({ content: m.bot_event_not_member({}, { locale }) }),
           ),
-          Effect.catchAll(() =>
+          Effect.catchTag('RpcClientError', () =>
             Effect.succeed({ content: m.bot_event_list_error({}, { locale }) }),
           ),
           Effect.flatMap((payload) =>
@@ -61,8 +61,12 @@ export const listHandler = Interaction.pipe(
               payload,
             }),
           ),
-          Effect.catchAll((error) =>
-            Effect.logError('Failed to update event list response', error),
+          Effect.catchTag(
+            'RequestError',
+            'ResponseError',
+            'RatelimitedResponse',
+            'ErrorResponse',
+            (error) => Effect.logError('Failed to update event list response', error),
           ),
         ),
       ),

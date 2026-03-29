@@ -121,14 +121,18 @@ export const EventCreateModal = Ix.modalSubmit(
         Effect.catchTag('CreateEventInvalidDate', () =>
           Effect.succeed(m.bot_event_invalid_date({}, { locale })),
         ),
-        Effect.catchAll(() => Effect.succeed(m.bot_event_error({}, { locale }))),
+        Effect.catchTag('RpcClientError', () => Effect.succeed(m.bot_event_error({}, { locale }))),
         Effect.flatMap((content) =>
           rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
             payload: { content },
           }),
         ),
-        Effect.catchAll((error) =>
-          Effect.logError('Failed to update event create response', error),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update event create response', error),
         ),
       );
 

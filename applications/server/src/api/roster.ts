@@ -122,7 +122,12 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   avatar: entry.avatar,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(
+                () => 'Failed updating roster member profile — no row returned',
+              ),
+            ),
           ),
         )
         .handle('deactivateMember', ({ path: { teamId, memberId } }) =>
@@ -146,7 +151,10 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
             Effect.asVoid,
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed deactivating roster member — no row returned'),
+            ),
           ),
         )
         .handle('listRosters', ({ path: { teamId } }) =>
@@ -193,7 +201,10 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               rosters.insert({ team_id: teamId, name: payload.name, active: true }),
             ),
             Effect.map(({ roster }) => toRosterInfo(roster, 0)),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating roster — no row returned'),
+            ),
           ),
         )
         .handle('getRoster', ({ path: { teamId, rosterId } }) =>
@@ -257,7 +268,10 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
             ),
             Effect.map(({ updated, memberCount }) => toRosterInfo(updated, memberCount)),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating roster — no row returned'),
+            ),
           ),
         )
         .handle('deleteRoster', ({ path: { teamId, rosterId } }) =>

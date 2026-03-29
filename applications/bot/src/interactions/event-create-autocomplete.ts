@@ -73,7 +73,9 @@ export const EventCreateAutocomplete = Ix.autocomplete(
           { name: 'Other', value: '' },
         ]),
         Effect.tapError((err) => Effect.logError('[autocomplete] RPC error', err)),
-        Effect.catchAll(() => Effect.succeed<ReadonlyArray<{ name: string; value: string }>>([])),
+        Effect.catchTag('RpcClientError', () =>
+          Effect.succeed<ReadonlyArray<{ name: string; value: string }>>([]),
+        ),
         Effect.tap((choices) =>
           Effect.logInfo(`[autocomplete] returning ${choices.length} choices`),
         ),

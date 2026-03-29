@@ -63,7 +63,10 @@ export class BotGuildsRepository extends Effect.Service<BotGuildsRepository>()(
     this._existsGuild(guildId).pipe(
       Effect.map((r) => r.exists),
       catchSqlErrors,
-      Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+      Effect.catchTag(
+        'NoSuchElementException',
+        LogicError.withMessage((e) => `Guild existence check returned no row: ${e}`),
+      ),
     );
 
   findAll = () => this._findAllGuilds(undefined).pipe(catchSqlErrors);

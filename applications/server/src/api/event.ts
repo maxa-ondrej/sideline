@@ -183,7 +183,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   seriesId: event.series_id,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating event — no row returned'),
+            ),
           ),
         )
         .handle('getEvent', ({ path: { teamId, eventId } }) =>
@@ -391,7 +394,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   memberGroupName: detail.member_group_name,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating event — no row returned'),
+            ),
           ),
         )
         .handle('cancelEvent', ({ path: { teamId, eventId } }) =>

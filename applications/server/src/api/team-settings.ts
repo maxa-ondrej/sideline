@@ -132,7 +132,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelOther: result.discord_channel_other,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed upserting team settings — no row returned'),
+            ),
           ),
         ),
     ),

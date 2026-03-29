@@ -45,8 +45,13 @@ export const eventHandlers = Effect.Do.pipe(
                 channels,
               }),
             ),
-            Effect.catchAll((error) =>
-              Effect.logError(`Failed to sync channels for guild ${guild.id}`, error),
+            Effect.catchTag(
+              'RequestError',
+              'ResponseError',
+              'RatelimitedResponse',
+              'ErrorResponse',
+              'RpcClientError',
+              (error) => Effect.logError(`Failed to sync channels for guild ${guild.id}`, error),
             ),
           ),
         ),
@@ -71,12 +76,20 @@ export const eventHandlers = Effect.Do.pipe(
                 members,
               }),
             ),
-            Effect.catchAll((error) =>
-              Effect.logError(`Failed to reconcile members for guild ${guild.id}`, error),
+            Effect.catchTag(
+              'RequestError',
+              'ResponseError',
+              'RatelimitedResponse',
+              'ErrorResponse',
+              'RpcClientError',
+              (error) =>
+                Effect.logError(`Failed to reconcile members for guild ${guild.id}`, error),
             ),
           ),
         ),
-        Effect.catchAll((error) => Effect.logError(`Failed to register guild ${guild.id}`, error)),
+        Effect.catchTag('RpcClientError', (error) =>
+          Effect.logError(`Failed to register guild ${guild.id}`, error),
+        ),
       ),
     ),
   ),
@@ -91,7 +104,7 @@ export const eventHandlers = Effect.Do.pipe(
                 guild_id: decodeSnowflake(guild.id),
               }),
             ),
-            Effect.catchAll((error) =>
+            Effect.catchTag('RpcClientError', (error) =>
               Effect.logError(`Failed to unregister guild ${guild.id}`, error),
             ),
           ),
@@ -115,7 +128,7 @@ export const eventHandlers = Effect.Do.pipe(
                 roles: Arr.map(member.roles, (r) => decodeSnowflake(r)),
               }),
         ),
-        Effect.catchAll((error) =>
+        Effect.catchTag('RpcClientError', (error) =>
           Effect.logError(`Failed to register member ${user.username}`, error),
         ),
       );

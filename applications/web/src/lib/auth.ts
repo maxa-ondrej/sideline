@@ -15,7 +15,7 @@ const get = (key: string) =>
   KeyValueStore.KeyValueStore.pipe(
     Effect.flatMap((store) => store.get(key)),
     Effect.provide(kvLayer),
-    Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+    Effect.catchTag('BadArgument', 'SystemError', () => Effect.succeed(Option.none<string>())),
   );
 
 const set = (key: string, value: string) =>
@@ -23,7 +23,7 @@ const set = (key: string, value: string) =>
     Effect.flatMap((store) => store.set(key, value)),
     Effect.provide(kvLayer),
     Effect.tapError((e) => Effect.logWarning(`Failed to set browser storage key "${key}"`, e)),
-    Effect.catchAll(() => Effect.void),
+    Effect.catchTag('BadArgument', 'SystemError', () => Effect.void),
   );
 
 const remove = (key: string) =>
@@ -31,7 +31,7 @@ const remove = (key: string) =>
     Effect.flatMap((store) => store.remove(key)),
     Effect.provide(kvLayer),
     Effect.tapError((e) => Effect.logWarning(`Failed to remove browser storage key "${key}"`, e)),
-    Effect.catchAll(() => Effect.void),
+    Effect.catchTag('BadArgument', 'SystemError', () => Effect.void),
   );
 
 export const finishLogin = (token: string) => set(TOKEN, token);

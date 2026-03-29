@@ -90,7 +90,10 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                   url: buildWebcalUrl(token.token),
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating iCal token — no row returned'),
+            ),
           ),
         )
         .handle('regenerateICalToken', () =>
@@ -104,7 +107,10 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                   url: buildWebcalUrl(token.token),
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed regenerating iCal token — no row returned'),
+            ),
           ),
         )
         .handle('getICalFeed', ({ path: { token } }) =>

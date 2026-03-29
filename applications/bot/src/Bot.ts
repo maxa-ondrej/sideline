@@ -9,6 +9,7 @@ const ixProgram = Effect.succeed(commandBuilder).pipe(
   Effect.map((cb) => cb.concat(interactionBuilder)),
   Effect.andThen(
     runIx((effect) =>
+      // Top-level interaction error boundary — catches all causes including defects
       Effect.catchAllCause(effect, (cause) => Effect.logError('Interaction error', cause)),
     ),
   ),

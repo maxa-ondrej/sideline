@@ -153,7 +153,10 @@ const handleDiscordLogin = ({
         Effect.flatMap(() => Effect.fail(AuthError.withReason('rate_limited'))),
       ),
     ),
-    Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+    Effect.catchTag(
+      'NoSuchElementException',
+      LogicError.withMessage(() => 'OAuth token exchange — failed to create user session'),
+    ),
   );
 
 const emptyTeams: ReadonlyArray<Auth.UserTeam> = [];
@@ -274,7 +277,10 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating locale — no row returned'),
+            ),
           ),
         )
         .handle('updateProfile', ({ payload }) =>
@@ -303,7 +309,10 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating admin profile — no row returned'),
+            ),
           ),
         )
         .handle('completeProfile', ({ payload }) =>
@@ -332,7 +341,10 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   locale: updated.locale,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed completing user profile — no row returned'),
+            ),
           ),
         )
         .handle('myTeams', () =>
@@ -462,8 +474,14 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   permissions: [...Role.defaultPermissions.Admin],
                 }),
             ),
-            Effect.catchTag('MemberAlreadyExistsError', LogicError.dieFrom),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'MemberAlreadyExistsError',
+              LogicError.withMessage(() => 'Unexpected duplicate member during team creation'),
+            ),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating team — no row returned'),
+            ),
           ),
         )
         .handle('autoJoinTeams', () => {
@@ -562,7 +580,12 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                   ),
             ),
             // NoSuchElementException can be produced by Auth.CurrentUserContext when no session exists
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(
+                () => 'Auto-join teams — unexpected missing session or current user',
+              ),
+            ),
           );
         }),
     ),

@@ -99,7 +99,7 @@ export const leaderboardHandler = Interaction.pipe(
           Effect.catchTag('ActivityMemberNotFound', () =>
             Effect.succeed({ content: m.bot_makanicko_log_not_member({}, { locale }) }),
           ),
-          Effect.catchAll(() =>
+          Effect.catchTag('RpcClientError', () =>
             Effect.succeed({ content: m.bot_makanicko_leaderboard_error({}, { locale }) }),
           ),
           Effect.flatMap((payload) =>
@@ -107,8 +107,12 @@ export const leaderboardHandler = Interaction.pipe(
               payload,
             }),
           ),
-          Effect.catchAll((error) =>
-            Effect.logError('Failed to update makanicko leaderboard response', error),
+          Effect.catchTag(
+            'RequestError',
+            'ResponseError',
+            'RatelimitedResponse',
+            'ErrorResponse',
+            (error) => Effect.logError('Failed to update makanicko leaderboard response', error),
           ),
         ),
       ),

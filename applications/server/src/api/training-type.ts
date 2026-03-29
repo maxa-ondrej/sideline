@@ -73,7 +73,10 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating training type — no row returned'),
+            ),
           ),
         )
         .handle('getTrainingType', ({ path: { teamId, trainingTypeId } }) =>
@@ -167,7 +170,10 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             Effect.catchTag('TrainingTypeNameAlreadyTakenError', () =>
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating training type — no row returned'),
+            ),
           ),
         )
         .handle('deleteTrainingType', ({ path: { teamId, trainingTypeId } }) =>

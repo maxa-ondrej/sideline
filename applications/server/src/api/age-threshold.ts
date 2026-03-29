@@ -82,7 +82,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
               Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed creating age threshold — no row returned'),
+            ),
           ),
         )
         .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
@@ -121,7 +124,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   maxAge: updated.max_age,
                 }),
             ),
-            Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => 'Failed updating age threshold — no row returned'),
+            ),
           ),
         )
         .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>

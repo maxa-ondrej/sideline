@@ -168,7 +168,10 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
   }) =>
     this.insertQuery(input).pipe(
       catchSqlErrors,
-      Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
+      Effect.catchTag(
+        'NoSuchElementException',
+        LogicError.withMessage(() => 'Activity log insert returned no row'),
+      ),
     );
 
   update = (
@@ -212,7 +215,13 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
             onNone: () => existing.note,
             onSome: (v) => v,
           }),
-        }).pipe(catchSqlErrors, Effect.catchTag('NoSuchElementException', LogicError.dieFrom)),
+        }).pipe(
+          catchSqlErrors,
+          Effect.catchTag(
+            'NoSuchElementException',
+            LogicError.withMessage(() => 'Activity log update returned no row'),
+          ),
+        ),
       ),
     );
 

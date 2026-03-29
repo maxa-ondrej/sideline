@@ -155,8 +155,12 @@ export const RsvpModal = Ix.modalSubmit(
                   }),
               }),
             ),
-            Effect.catchAll((error) =>
-              Effect.logError('Failed to update event embed after RSVP', error),
+            Effect.catchTag(
+              'RequestError',
+              'ResponseError',
+              'RatelimitedResponse',
+              'ErrorResponse',
+              (error) => Effect.logError('Failed to update event embed after RSVP', error),
             ),
           );
         }),
@@ -180,7 +184,13 @@ export const RsvpModal = Ix.modalSubmit(
             payload: { content },
           }),
         ),
-        Effect.catchAll((error) => Effect.logError('Failed to update RSVP response', error)),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update RSVP response', error),
+        ),
       );
 
       return Effect.as(

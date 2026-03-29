@@ -91,7 +91,9 @@ Typed errors automatically merge into unions. Handle specific errors with `Effec
 
    // ✓ Good — explicit about which errors are handled
    Effect.catchTag('NoSuchElementException', () => Effect.void)
-   Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom)
+   Effect.catchTag('SqlError', 'ParseError', LogicError.withMessage(
+     (e) => `Failed fetching user ${id}: ${e}`
+   ))
    ```
 
 2. **Never use `Effect.orDie` or `Effect.die`** — use `LogicError` from `@sideline/effect-lib` instead:
@@ -102,12 +104,9 @@ Typed errors automatically merge into unions. Handle specific errors with `Effec
    Effect.orDie
    Effect.catchTag('SqlError', Effect.die)
 
-   // ✓ Good — descriptive defect with cause chain (drop-in for Effect.die)
-   Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom)
-
-   // ✓ Good — custom message for extra context
-   Effect.catchTag('SqlError', LogicError.withMessage(
-     (e) => `Failed fetching user ${id}: ${e.message}`
+   // ✓ Good — descriptive defect with cause chain
+   Effect.catchTag('SqlError', 'ParseError', LogicError.withMessage(
+     (e) => `Failed fetching user ${id}: ${e}`
    ))
 
    // ✓ Good — standalone defect
@@ -124,12 +123,12 @@ Typed errors automatically merge into unions. Handle specific errors with `Effec
    Effect.catchTag('NoSuchElementException', () => Effect.void)
    ```
 
-4. **Repository error boundary** — all repositories catch `SqlError` and `ParseError` at the public method level using `LogicError.dieFrom`:
+4. **Repository error boundary** — all repositories catch `SqlError` and `ParseError` at the public method level using `catchSqlErrors`:
    ```typescript
+   import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
+
    findByTeamId = (teamId: Team.TeamId) =>
-     this.findByTeamQuery(teamId).pipe(
-       Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-     );
+     this.findByTeamQuery(teamId).pipe(catchSqlErrors);
    ```
 
 ### Resource Management

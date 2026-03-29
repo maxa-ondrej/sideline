@@ -25,12 +25,18 @@ const processEvent = Effect.Do.pipe(
       (event: RoleRpcEvents.UnprocessedRoleEvent) =>
         action(event).pipe(
           Effect.flatMap(() => rpc['Role/MarkEventProcessed']({ id: event.id })),
-          Effect.catchAll((error) =>
-            rpc['Role/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process role sync event ${event.id}`, error),
+          Effect.catchTag(
+            'RpcClientError',
+            'RequestError',
+            'ResponseError',
+            'RatelimitedResponse',
+            'ErrorResponse',
+            (error) =>
+              rpc['Role/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
+                Effect.tap(() =>
+                  Effect.logWarning(`Failed to process role sync event ${event.id}`, error),
+                ),
               ),
-            ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
