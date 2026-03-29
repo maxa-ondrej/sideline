@@ -83,7 +83,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
               UNION ALL
               SELECT gt.root_id, child.id
               FROM group_tree gt
-              JOIN groups child ON child.parent_id = gt.descendant_id AND child.is_archived = false
+              JOIN groups child ON child.parent_id = gt.descendant_id AND child.is_archived = false AND child.team_id = ${teamId}
             ),
             member_counts AS (
               SELECT gt.root_id, COUNT(DISTINCT gm.team_member_id)::int AS member_count
@@ -190,9 +190,9 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Result: Schema.Struct({ count: Schema.Number }),
     execute: (groupId) => this.sql`
             WITH RECURSIVE descendants AS (
-              SELECT ${groupId}::uuid AS id
+              SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId} AND g.is_archived = false
               UNION ALL
-              SELECT g.id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false
+              SELECT g.id, g.team_id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false AND g.team_id = d.team_id
             )
             SELECT COUNT(DISTINCT gm.team_member_id)::int AS count
             FROM descendants d
@@ -226,9 +226,9 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Result: DescendantMemberRow,
     execute: (groupId) => this.sql`
             WITH RECURSIVE descendants AS (
-              SELECT ${groupId}::uuid AS id
+              SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId}
               UNION ALL
-              SELECT g.id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false
+              SELECT g.id, g.team_id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false AND g.team_id = d.team_id
             )
             SELECT DISTINCT gm.team_member_id
             FROM descendants d
