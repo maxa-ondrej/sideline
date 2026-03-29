@@ -2,6 +2,7 @@ import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { type Discord, Team } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, type Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class TeamUpdateInput extends Schema.Class<TeamUpdateInput>('TeamUpdateInput')({
   id: Schema.String,
@@ -34,9 +35,7 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
   });
 
   findByGuildId = (guildId: Discord.Snowflake) =>
-    this.findByGuildQuery(guildId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.findByGuildQuery(guildId).pipe(catchSqlErrors);
 
   findByGuildIds = (
     guildIds: ReadonlyArray<typeof Discord.Snowflake.Type>,
@@ -46,7 +45,7 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
     }
     return this.sql`SELECT * FROM teams WHERE guild_id IN ${this.sql.in(guildIds)}`.pipe(
       Effect.flatMap(Schema.decodeUnknown(Schema.Array(Team.Team))),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
   };
 
@@ -73,6 +72,7 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
     readonly logo_url: Option.Option<string>;
   }) =>
     this.updateTeamQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', 'NoSuchElementException', LogicError.dieFrom),
+      catchSqlErrors,
+      Effect.catchTag('NoSuchElementException', LogicError.dieFrom),
     );
 }

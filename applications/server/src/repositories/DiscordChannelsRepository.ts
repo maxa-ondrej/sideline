@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, type Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({
   channel_id: Discord.Snowflake,
@@ -74,9 +74,8 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
           { concurrency: 1 },
         ),
       ),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
 
-  findByGuildId = (guildId: Discord.Snowflake) =>
-    this.selectByGuild(guildId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findByGuildId = (guildId: Discord.Snowflake) => this.selectByGuild(guildId).pipe(catchSqlErrors);
 }

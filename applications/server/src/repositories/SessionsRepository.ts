@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Session } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class SessionsRepository extends Effect.Service<SessionsRepository>()(
   'api/SessionsRepository',
@@ -31,12 +31,9 @@ export class SessionsRepository extends Effect.Service<SessionsRepository>()(
     execute: (token) => this.sql`DELETE FROM sessions WHERE token = ${token}`,
   });
 
-  create = (input: typeof Session.Session.insert.Type) =>
-    this._create(input).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  create = (input: typeof Session.Session.insert.Type) => this._create(input).pipe(catchSqlErrors);
 
-  findByToken = (token: string) =>
-    this._findByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findByToken = (token: string) => this._findByToken(token).pipe(catchSqlErrors);
 
-  deleteByToken = (token: string) =>
-    this._deleteByToken(token).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  deleteByToken = (token: string) => this._deleteByToken(token).pipe(catchSqlErrors);
 }

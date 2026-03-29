@@ -1,7 +1,8 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team } from '@sideline/domain';
-import { LogicError, SqlErrors } from '@sideline/effect-lib';
+import { SqlErrors } from '@sideline/effect-lib';
 import { Array, Effect, type Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class RoleNameAlreadyTakenError extends Schema.TaggedError<RoleNameAlreadyTakenError>()(
   'RoleNameAlreadyTakenError',
@@ -192,34 +193,26 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     `,
   });
 
-  findRolesByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findRolesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findRoleById = (roleId: Role.RoleId) =>
-    this.findById(roleId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findRoleById = (roleId: Role.RoleId) => this.findById(roleId).pipe(catchSqlErrors);
 
   getPermissionsForRoleId = (roleId: Role.RoleId) =>
-    this.findPermissions(roleId).pipe(
-      Effect.map(Array.map((r) => r.permission)),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.findPermissions(roleId).pipe(Effect.map(Array.map((r) => r.permission)), catchSqlErrors);
 
   insertRole = (teamId: Team.TeamId, name: string) =>
     this.insertQuery({ team_id: teamId, name, is_built_in: false }).pipe(
       SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
 
   updateRole = (roleId: Role.RoleId, name: Option.Option<string>) =>
     this.updateQuery({ id: roleId, name }).pipe(
       SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
 
-  archiveRoleById = (roleId: Role.RoleId) =>
-    this.archiveRoleQuery(roleId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+  archiveRoleById = (roleId: Role.RoleId) => this.archiveRoleQuery(roleId).pipe(catchSqlErrors);
 
   setRolePermissions = (roleId: Role.RoleId, permissions: ReadonlyArray<Role.Permission>) =>
     this.deletePermissions(roleId).pipe(
@@ -229,18 +222,14 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
         ),
       ),
       Effect.asVoid,
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
 
   initializeTeamRoles = (teamId: Team.TeamId) =>
-    this.initTeamRoles({ team_id: teamId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.initTeamRoles({ team_id: teamId }).pipe(catchSqlErrors);
 
   findRoleByTeamAndName = (teamId: Team.TeamId, name: string) =>
-    this.findByTeamAndName({ team_id: teamId, name }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.findByTeamAndName({ team_id: teamId, name }).pipe(catchSqlErrors);
 
   seedTeamRolesWithPermissions = (teamId: Team.TeamId) =>
     this.initializeTeamRoles(teamId).pipe(
@@ -253,27 +242,21 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
           }),
         ),
       ),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
 
   getMemberCountForRole = (roleId: Role.RoleId) =>
     this.countMembersForRole(roleId).pipe(
       Effect.map((r) => r.count),
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
+      catchSqlErrors,
     );
 
   findGroupsForRole = (roleId: Role.RoleId) =>
-    this.findGroupsForRoleIdQuery(roleId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.findGroupsForRoleIdQuery(roleId).pipe(catchSqlErrors);
 
   assignRoleToGroup = (roleId: Role.RoleId, groupId: GroupModel.GroupId) =>
-    this.assignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.assignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(catchSqlErrors);
 
   unassignRoleFromGroup = (roleId: Role.RoleId, groupId: GroupModel.GroupId) =>
-    this.unassignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.unassignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(catchSqlErrors);
 }

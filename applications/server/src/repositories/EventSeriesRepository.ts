@@ -1,7 +1,8 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, EventSeries, GroupModel, Team, TeamMember, TrainingType } from '@sideline/domain';
-import { LogicError, Schemas } from '@sideline/effect-lib';
+import { Schemas } from '@sideline/effect-lib';
 import { type DateTime, Effect, Option, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   id: EventSeries.EventSeriesId,
@@ -280,13 +281,12 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       discord_target_channel_id: discordTargetChannelId,
       owner_group_id: ownerGroupId,
       member_group_id: memberGroupId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+    }).pipe(catchSqlErrors);
 
-  findSeriesByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findSeriesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
 
   findSeriesById = (seriesId: EventSeries.EventSeriesId) =>
-    this.findById(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+    this.findById(seriesId).pipe(catchSqlErrors);
 
   updateEventSeries = ({
     id,
@@ -328,18 +328,14 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       discord_target_channel_id: discordTargetChannelId,
       owner_group_id: ownerGroupId,
       member_group_id: memberGroupId,
-    }).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+    }).pipe(catchSqlErrors);
 
   cancelEventSeries = (seriesId: EventSeries.EventSeriesId) =>
-    this.cancelSeries(seriesId).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+    this.cancelSeries(seriesId).pipe(catchSqlErrors);
 
   getActiveForGeneration = () =>
-    this.findActiveForGeneration(undefined as undefined).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.findActiveForGeneration(undefined as undefined).pipe(catchSqlErrors);
 
   updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: DateTime.Utc) =>
-    this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(catchSqlErrors);
 }

@@ -1,7 +1,7 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { User } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
   discord_id: Schema.String,
@@ -32,9 +32,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   });
 
   findByDiscordId = (discordId: string) =>
-    this.findByDiscordIdQuery(discordId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.findByDiscordIdQuery(discordId).pipe(catchSqlErrors);
 
   findById = (id: User.UserId) => this.repo.findById(id);
 
@@ -53,9 +51,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   });
 
   upsertFromDiscord = (input: UpsertDiscordInput) =>
-    this.upsertFromDiscordQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.upsertFromDiscordQuery(input).pipe(catchSqlErrors);
 
   private completeProfileQuery = SqlSchema.single({
     Request: CompleteProfileInput,
@@ -73,9 +69,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   });
 
   completeProfile = (input: Schema.Schema.Type<typeof CompleteProfileInput>) =>
-    this.completeProfileQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.completeProfileQuery(input).pipe(catchSqlErrors);
 
   private updateLocaleQuery = SqlSchema.single({
     Request: Schema.Struct({ id: User.UserId, locale: User.Locale }),
@@ -90,9 +84,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   });
 
   updateLocale = (input: { readonly id: User.UserId; readonly locale: User.Locale }) =>
-    this.updateLocaleQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.updateLocaleQuery(input).pipe(catchSqlErrors);
 
   private updateAdminProfileQuery = SqlSchema.single({
     Request: AdminUpdateProfileInput,
@@ -109,7 +101,5 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   });
 
   updateAdminProfile = (input: Schema.Schema.Type<typeof AdminUpdateProfileInput>) =>
-    this.updateAdminProfileQuery(input).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+    this.updateAdminProfileQuery(input).pipe(catchSqlErrors);
 }

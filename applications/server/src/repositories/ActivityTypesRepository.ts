@@ -1,7 +1,7 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityType, Team } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class ActivityTypeRow extends Schema.Class<ActivityTypeRow>('ActivityTypeRow')({
   id: ActivityType.ActivityTypeId,
@@ -38,14 +38,9 @@ export class ActivityTypesRepository extends Effect.Service<ActivityTypesReposit
     execute: (id) => this.sql`SELECT id, team_id, name, slug FROM activity_types WHERE id = ${id}`,
   });
 
-  findBySlug = (slug: string) =>
-    this.findBySlugQuery(slug).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findBySlug = (slug: string) => this.findBySlugQuery(slug).pipe(catchSqlErrors);
 
-  findByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamIdQuery(teamId).pipe(
-      Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom),
-    );
+  findByTeamId = (teamId: Team.TeamId) => this.findByTeamIdQuery(teamId).pipe(catchSqlErrors);
 
-  findById = (id: ActivityType.ActivityTypeId) =>
-    this.findByIdQuery(id).pipe(Effect.catchTag('SqlError', 'ParseError', LogicError.dieFrom));
+  findById = (id: ActivityType.ActivityTypeId) => this.findByIdQuery(id).pipe(catchSqlErrors);
 }
