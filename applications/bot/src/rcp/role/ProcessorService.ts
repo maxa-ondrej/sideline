@@ -47,7 +47,7 @@ export const ProcessorService = Effect.Do.pipe(
       Effect.provideService(DiscordREST, discord),
     ),
   ),
-  Effect.tap(() => Effect.logDebug('RoleSyncService initialized')),
+  Effect.tap(() => Effect.logInfo('RoleSyncService initialized')),
   Effect.let('processTick', ({ rpc, processEvent }) =>
     rpc['Role/GetUnprocessedEvents']({ limit: POLL_BATCH_SIZE }).pipe(
       Effect.tap((events) => Effect.logDebug(`Role sync poll: ${events.length} event(s)`)),
@@ -55,11 +55,11 @@ export const ProcessorService = Effect.Do.pipe(
         events.length === 0
           ? Effect.void
           : Effect.all(Array.map(events, processEvent), { concurrency: 1 }).pipe(
-              Effect.tap(() => Effect.log(`Processed ${events.length} role sync event(s)`)),
+              Effect.tap(() => Effect.logInfo(`Processed ${events.length} role sync event(s)`)),
               Effect.asVoid,
             ),
       ),
-      Effect.tapError((error) => Effect.logWarning('Error polling role sync events', error)),
+      Effect.tapError((error) => Effect.logError('Error polling role sync events', error)),
     ),
   ),
   Bind.remove('rpc'),

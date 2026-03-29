@@ -39,7 +39,7 @@ const processEvent = Effect.Do.pipe(
 );
 
 export const ProcessorService = Effect.Do.pipe(
-  Effect.tap(() => Effect.logDebug('EventSyncService initialized')),
+  Effect.tap(() => Effect.logInfo('EventSyncService initialized')),
   Effect.bind('rpc', () => SyncRpc),
   Effect.bind('discord', () => DiscordREST),
   Effect.bind('processEvent', ({ rpc, discord }) =>
@@ -55,11 +55,11 @@ export const ProcessorService = Effect.Do.pipe(
         events.length === 0
           ? Effect.void
           : Effect.all(Array.map(events, processEvent), { concurrency: 1 }).pipe(
-              Effect.tap(() => Effect.log(`Processed ${events.length} event sync event(s)`)),
+              Effect.tap(() => Effect.logInfo(`Processed ${events.length} event sync event(s)`)),
               Effect.asVoid,
             ),
       ),
-      Effect.tapError((error) => Effect.logWarning('Error polling event sync events', error)),
+      Effect.tapError((error) => Effect.logError('Error polling event sync events', error)),
     ),
   ),
   Bind.remove('rpc'),

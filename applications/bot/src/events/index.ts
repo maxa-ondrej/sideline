@@ -18,7 +18,7 @@ export const eventHandlers = Effect.Do.pipe(
   Effect.let('guildCreate', ({ gateway, rpc, rest }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
       Effect.Do.pipe(
-        Effect.tap(() => Effect.log(`Guild available: ${guild.name} (${guild.id})`)),
+        Effect.tap(() => Effect.logInfo(`Guild available: ${guild.name} (${guild.id})`)),
         Effect.tap(() =>
           rpc['Guild/RegisterGuild']({
             guild_id: decodeSnowflake(guild.id),
@@ -83,9 +83,9 @@ export const eventHandlers = Effect.Do.pipe(
   Effect.let('guildDelete', ({ gateway, rpc }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildDelete, (guild) =>
       guild.unavailable
-        ? Effect.log(`Guild unavailable (outage): ${guild.id}`)
+        ? Effect.logInfo(`Guild unavailable (outage): ${guild.id}`)
         : Effect.Do.pipe(
-            Effect.tap(() => Effect.log(`Guild removed: ${guild.id}`)),
+            Effect.tap(() => Effect.logInfo(`Guild removed: ${guild.id}`)),
             Effect.tap(() =>
               rpc['Guild/UnregisterGuild']({
                 guild_id: decodeSnowflake(guild.id),
@@ -101,10 +101,12 @@ export const eventHandlers = Effect.Do.pipe(
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberAdd, (member) => {
       const user = decodeUser(member.user);
       return Effect.Do.pipe(
-        Effect.tap(() => Effect.log(`Member joined: ${user.username} in guild ${member.guild_id}`)),
+        Effect.tap(() =>
+          Effect.logInfo(`Member joined: ${user.username} in guild ${member.guild_id}`),
+        ),
         Effect.tap(() =>
           user.bot
-            ? Effect.log('Skipping bot')
+            ? Effect.logInfo('Skipping bot')
             : rpc['Guild/RegisterMember']({
                 guild_id: decodeSnowflake(member.guild_id),
                 discord_id: user.id,
@@ -121,12 +123,12 @@ export const eventHandlers = Effect.Do.pipe(
   ),
   Effect.let('guildMemberRemove', ({ gateway }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberRemove, (member) =>
-      Effect.log(`Member left: ${member.user.username} from guild ${member.guild_id}`),
+      Effect.logInfo(`Member left: ${member.user.username} from guild ${member.guild_id}`),
     ),
   ),
   Effect.let('guildMemberUpdate', ({ gateway }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildMemberUpdate, (member) =>
-      Effect.log(`Member updated: ${member.user.username} in guild ${member.guild_id}`),
+      Effect.logInfo(`Member updated: ${member.user.username} in guild ${member.guild_id}`),
     ),
   ),
   Effect.map(

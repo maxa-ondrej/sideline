@@ -2,7 +2,7 @@ import { HttpMiddleware, HttpServerError, HttpServerRequest } from '@effect/plat
 import { Effect } from 'effect';
 
 /**
- * Custom HTTP logger middleware that logs RPC polling requests at DEBUG level
+ * Custom HTTP logger middleware that logs RPC polling requests at INFO level
  * to reduce log noise from the bot's 5-second polling interval.
  */
 export const HttpLogger = HttpMiddleware.make((httpApp) => {
@@ -29,7 +29,7 @@ export const HttpLogger = HttpMiddleware.make((httpApp) => {
           );
         }
 
-        const log = exit.value.status >= 400 ? Effect.logWarning : Effect.logDebug;
+        const log = exit.value.status >= 400 ? Effect.logWarning : Effect.logInfo;
         return Effect.zipRight(
           Effect.annotateLogs(log('Sent HTTP response'), {
             'http.method': request.method,

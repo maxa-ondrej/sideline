@@ -38,7 +38,7 @@ export const handleDeleted = (event: ChannelRpcEvents.ChannelDeletedEvent) =>
       rest.deleteChannel(mapping.discord_channel_id).pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ mapping }) =>
-      Effect.log(
+      Effect.logInfo(
         `Deleted Discord channel ${mapping.discord_channel_id} in guild ${event.guild_id}`,
       ),
     ),

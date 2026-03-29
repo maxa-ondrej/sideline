@@ -42,7 +42,7 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
               });
             }),
             Effect.tap(() =>
-              Effect.log(
+              Effect.logInfo(
                 `Updated event message for "${event.title}" in channel ${msg.discord_channel_id}`,
               ),
             ),

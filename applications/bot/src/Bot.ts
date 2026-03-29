@@ -19,7 +19,7 @@ export const program = Effect.Do.pipe(
   Effect.bind('roles', () => RoleSyncService),
   Effect.bind('channels', () => ChannelSyncService),
   Effect.bind('eventSync', () => EventSyncService),
-  Effect.tap(() => Effect.log('Bot connected to Discord')),
+  Effect.tap(() => Effect.logInfo('Bot connected to Discord')),
   Effect.andThen(({ events, roles, channels, eventSync }) =>
     Effect.all(
       [ixProgram, ...events, roles.pollLoop(), channels.pollLoop(), eventSync.pollLoop()],
