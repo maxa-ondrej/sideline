@@ -488,8 +488,16 @@ Logs, traces, and metrics are exported via OpenTelemetry to **SigNoz**. The tele
 | Attribute | Source | Example |
 |-----------|--------|---------|
 | `service.name` | `OTEL_SERVICE_NAME` | `sideline-server` |
-| `deployment.environment` | `APP_ENV` | `preview` |
+| `deployment.environment` | `APP_ENV` | `preview` \| `development` \| `production` |
 | `service.origin` | `APP_ORIGIN` | `sideline-preview.majksa.net` |
+
+### Environments
+
+| Environment | `APP_ENV` | Description |
+|-------------|-----------|-------------|
+| Development | `development` | Local development |
+| Preview | `preview` | Per-PR preview deployments |
+| Production | `production` | Live production environment |
 
 ### Querying Logs
 
