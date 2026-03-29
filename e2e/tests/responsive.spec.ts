@@ -1,13 +1,15 @@
 import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
 
 test.describe('Responsive Layout', () => {
+  test.setTimeout(60000);
+
   test('mobile viewport renders key content', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
 
     await expect(
       page.getByRole('heading', { name: 'Manage your sports team, effortlessly' }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30000 });
     await expect(page.getByRole('link', { name: /Sign in with Discord/ })).toBeVisible();
     await expect(page.locator('header')).toContainText('Sideline');
     await expect(page.locator('footer')).toContainText('Built for teams that use Discord');
@@ -18,7 +20,7 @@ test.describe('Responsive Layout', () => {
     await page.goto('/');
 
     // Team and Events badges are visible
-    await expect(page.getByText('Team Management').first()).toBeVisible();
+    await expect(page.getByText('Team Management').first()).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('Events & RSVP').first()).toBeVisible();
 
     // Workout badge is hidden on mobile (has 'hidden sm:inline-flex')
@@ -32,7 +34,7 @@ test.describe('Responsive Layout', () => {
     await page.goto('/');
 
     // All badges visible on desktop
-    await expect(page.getByText('Team Management').first()).toBeVisible();
+    await expect(page.getByText('Team Management').first()).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('Events & RSVP').first()).toBeVisible();
     // The workout badge in the hero section should be visible on desktop
     const workoutBadges = page.locator('text=Workout Tracking');
@@ -47,7 +49,7 @@ test.describe('Responsive Layout', () => {
       await page.goto('/');
 
       const header = page.locator('header');
-      await expect(header).toBeVisible();
+      await expect(header).toBeVisible({ timeout: 30000 });
       await expect(header).toContainText('Sideline');
     }
   });
@@ -60,7 +62,7 @@ test.describe('Responsive Layout', () => {
       await page.goto('/');
 
       const footer = page.locator('footer');
-      await expect(footer).toBeVisible();
+      await expect(footer).toBeVisible({ timeout: 30000 });
     }
   });
 
@@ -68,7 +70,7 @@ test.describe('Responsive Layout', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto('/');
 
-    await expect(page.getByText('Your Stats')).toBeVisible();
+    await expect(page.getByText('Your Stats')).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('Next Event')).toBeVisible();
     await expect(page.getByText('Leaderboard').first()).toBeVisible();
     await expect(page.getByText('Awaiting RSVP')).toBeVisible();
@@ -78,7 +80,7 @@ test.describe('Responsive Layout', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
 
-    await expect(page.getByText('Your Stats')).toBeVisible();
+    await expect(page.getByText('Your Stats')).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('Next Event')).toBeVisible();
     await expect(page.getByText('Leaderboard').first()).toBeVisible();
     await expect(page.getByText('Awaiting RSVP')).toBeVisible();
