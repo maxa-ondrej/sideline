@@ -10,7 +10,15 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/training-ty
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     return ApiClient.pipe(
-      Effect.flatMap((api) => api.trainingType.listTrainingTypes({ path: { teamId } })),
+      Effect.flatMap((api) =>
+        Effect.all({
+          trainingTypesData: api.trainingType.listTrainingTypes({ path: { teamId } }),
+          groups: api.group.listGroups({ path: { teamId } }).pipe(
+            Effect.tapError((e) => Effect.logWarning('Failed to load groups', e)),
+            Effect.catchAll(() => Effect.succeed([] as const)),
+          ),
+        }),
+      ),
       warnAndCatchAll,
       context.run,
     );
@@ -19,9 +27,14 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/training-ty
 
 function TrainingTypesRoute() {
   const { teamId: teamIdRaw } = Route.useParams();
-  const { canAdmin, trainingTypes } = Route.useLoaderData();
+  const { trainingTypesData, groups } = Route.useLoaderData();
 
   return (
-    <TrainingTypesListPage teamId={teamIdRaw} trainingTypes={trainingTypes} canAdmin={canAdmin} />
+    <TrainingTypesListPage
+      teamId={teamIdRaw}
+      trainingTypes={trainingTypesData.trainingTypes}
+      canAdmin={trainingTypesData.canAdmin}
+      groups={groups}
+    />
   );
 }
