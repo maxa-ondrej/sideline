@@ -153,6 +153,43 @@ pnpm test --watch            # Watch mode
 cd packages/domain && pnpm test  # Specific package
 ```
 
+## E2E Testing
+
+E2E tests live in the `e2e/` directory at the monorepo root and use **Playwright**.
+
+### Structure
+
+```
+e2e/
+├── playwright.config.ts   — Playwright configuration (baseURL, projects, webServer)
+├── tsconfig.json          — Standalone tsconfig for e2e tests
+└── tests/
+    └── *.spec.ts          — Test files (use .spec.ts extension)
+```
+
+### Writing E2E Tests
+
+```typescript
+import { expect, test } from '@playwright/test';
+
+test.describe('Feature', () => {
+  test('should do something', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveTitle(/Sideline/);
+  });
+});
+```
+
+### Running E2E Tests
+
+```bash
+pnpm test:e2e              # Run E2E tests (starts dev server automatically)
+pnpm test:e2e:ui           # Open Playwright UI mode for debugging
+pnpm exec playwright install chromium  # Install browser (first-time setup)
+```
+
+The `webServer` config in `playwright.config.ts` automatically starts `pnpm --filter @sideline/web dev` when running tests locally. In CI, `reuseExistingServer` is disabled so Playwright always manages the server lifecycle.
+
 ## Package Structure Conventions
 
 ```
@@ -179,6 +216,8 @@ packages/{name}/
 pnpm build               # Build all packages
 pnpm check               # Type check
 pnpm test                # Run tests
+pnpm test:e2e            # Run Playwright E2E tests
+pnpm test:e2e:ui         # Open Playwright UI mode
 pnpm format              # Biome formatting and linting
 pnpm codegen             # Regenerate generated code
 pnpm clean               # Remove stale artifacts
@@ -203,6 +242,7 @@ The `check.yml` workflow runs on pushes to `main` and on pull requests:
 | **Build** | `pnpm codegen && pnpm build` | Verifies codegen + builds all packages |
 | **Types** | `pnpm check` | Type-checks all packages |
 | **Test** | `pnpm build && pnpm test` | Builds packages, then runs tests |
+| **E2E Tests** | `pnpm build && pnpm test:e2e` | Builds packages, then runs Playwright E2E tests |
 
 > **Why Build is critical:** Workspace packages use `publishConfig.directory: "dist"`, so pnpm symlinks consumers to `packages/*/dist`. Stale `.d.ts` files cause false type errors and cryptic test failures. **Always rebuild `packages/domain` after changing domain source files.**
 
