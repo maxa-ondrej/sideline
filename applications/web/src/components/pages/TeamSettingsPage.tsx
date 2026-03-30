@@ -425,67 +425,56 @@ export function TeamSettingsPage({
             <CardDescription>{m.teamSettings_discordChannelsHelp()}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className='flex flex-col gap-4'>
-              <div className='flex items-start justify-between gap-4'>
-                <div>
-                  <label htmlFor='create-discord-channel' className='text-sm font-medium block'>
-                    {m.teamSettings_createDiscordChannelOnGroup()}
-                  </label>
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    {m.teamSettings_createDiscordChannelOnGroupHelp()}
-                  </p>
+            <div className='flex flex-col gap-6'>
+              {/* Event notification channels */}
+              <div>
+                <h4 className='text-sm font-semibold mb-3'>
+                  {m.teamSettings_discordEventChannels()}
+                </h4>
+                <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                  {channelConfigs.map(({ key, value, setter, label }) => (
+                    <div key={key}>
+                      <label htmlFor={`channel-${key}`} className='text-sm font-medium mb-1 block'>
+                        {label}
+                      </label>
+                      <Select value={value} onValueChange={setter}>
+                        <SelectTrigger id={`channel-${key}`}>
+                          <SelectValue placeholder={m.teamSettings_channelNone()} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
+                          {discordChannels.map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              # {ch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
                 </div>
-                <Switch
-                  id='create-discord-channel'
-                  checked={createDiscordChannelOnGroup}
-                  onCheckedChange={setCreateDiscordChannelOnGroup}
-                />
               </div>
-              <div className='flex items-start justify-between gap-4'>
-                <div>
-                  <label
-                    htmlFor='create-discord-channel-roster'
-                    className='text-sm font-medium block'
-                  >
-                    {m.teamSettings_createDiscordChannelOnRoster()}
-                  </label>
-                  <p className='text-xs text-muted-foreground mt-1'>
-                    {m.teamSettings_createDiscordChannelOnRosterHelp()}
-                  </p>
-                </div>
-                <Switch
-                  id='create-discord-channel-roster'
-                  checked={createDiscordChannelOnRoster}
-                  onCheckedChange={setCreateDiscordChannelOnRoster}
-                />
-              </div>
+
               <Separator />
-            </div>
-            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-              {channelConfigs.map(({ key, value, setter, label }) => (
-                <div key={key}>
-                  <label htmlFor={`channel-${key}`} className='text-sm font-medium mb-1 block'>
-                    {label}
-                  </label>
-                  <Select value={value} onValueChange={setter}>
-                    <SelectTrigger id={`channel-${key}`}>
-                      <SelectValue placeholder={m.teamSettings_channelNone()} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
-                      {discordChannels.map((ch) => (
-                        <SelectItem key={ch.id} value={ch.id}>
-                          # {ch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-            <div className='mt-4'>
-              <Separator className='mb-4' />
+
+              {/* Group channels sub-section */}
               <div className='flex flex-col gap-4'>
+                <h4 className='text-sm font-semibold'>{m.teamSettings_groupChannelSettings()}</h4>
+                <div className='flex items-start justify-between gap-4'>
+                  <div>
+                    <label htmlFor='create-discord-channel' className='text-sm font-medium block'>
+                      {m.teamSettings_createDiscordChannelOnGroup()}
+                    </label>
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      {m.teamSettings_createDiscordChannelOnGroupHelp()}
+                    </p>
+                  </div>
+                  <Switch
+                    id='create-discord-channel'
+                    checked={createDiscordChannelOnGroup}
+                    onCheckedChange={setCreateDiscordChannelOnGroup}
+                  />
+                </div>
                 <div>
                   <label
                     htmlFor='cleanup-on-group-delete'
@@ -506,6 +495,31 @@ export function TeamSettingsPage({
                       <SelectItem value='archive'>{m.teamSettings_cleanupArchive()}</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Roster channels sub-section */}
+              <div className='flex flex-col gap-4'>
+                <h4 className='text-sm font-semibold'>{m.teamSettings_rosterChannelSettings()}</h4>
+                <div className='flex items-start justify-between gap-4'>
+                  <div>
+                    <label
+                      htmlFor='create-discord-channel-roster'
+                      className='text-sm font-medium block'
+                    >
+                      {m.teamSettings_createDiscordChannelOnRoster()}
+                    </label>
+                    <p className='text-xs text-muted-foreground mt-1'>
+                      {m.teamSettings_createDiscordChannelOnRosterHelp()}
+                    </p>
+                  </div>
+                  <Switch
+                    id='create-discord-channel-roster'
+                    checked={createDiscordChannelOnRoster}
+                    onCheckedChange={setCreateDiscordChannelOnRoster}
+                  />
                 </div>
                 <div>
                   <label
@@ -531,8 +545,12 @@ export function TeamSettingsPage({
                     </SelectContent>
                   </Select>
                 </div>
-                {(cleanupOnGroupDelete === 'archive' ||
-                  cleanupOnRosterDeactivate === 'archive') && (
+              </div>
+
+              {/* Archive category (shared, shown when either mode is archive) */}
+              {(cleanupOnGroupDelete === 'archive' || cleanupOnRosterDeactivate === 'archive') && (
+                <>
+                  <Separator />
                   <div>
                     <label htmlFor='archive-category' className='text-sm font-medium mb-1 block'>
                       {m.teamSettings_archiveCategory()}
@@ -556,8 +574,8 @@ export function TeamSettingsPage({
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
