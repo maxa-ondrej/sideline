@@ -102,13 +102,15 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     teamId: Team.TeamId,
     eventType: ChannelSyncEvent.ChannelSyncEventType,
     entityType: ChannelSyncEvent.ChannelSyncEntityType,
-    groupId: Option.Option<GroupModel.GroupId> = Option.none(),
-    groupName: Option.Option<string> = Option.none(),
-    teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
-    discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
-    rosterId: Option.Option<RosterModel.RosterId> = Option.none(),
-    rosterName: Option.Option<string> = Option.none(),
-    existingChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    fields: {
+      groupId?: Option.Option<GroupModel.GroupId>;
+      groupName?: Option.Option<string>;
+      teamMemberId?: Option.Option<TeamMember.TeamMemberId>;
+      discordUserId?: Option.Option<Discord.Snowflake>;
+      rosterId?: Option.Option<RosterModel.RosterId>;
+      rosterName?: Option.Option<string>;
+      existingChannelId?: Option.Option<Discord.Snowflake>;
+    } = {},
   ) =>
     this.lookupGuildId(teamId).pipe(
       Effect.flatMap(
@@ -120,13 +122,13 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
               guild_id,
               event_type: eventType,
               entity_type: entityType,
-              group_id: groupId,
-              group_name: groupName,
-              team_member_id: teamMemberId,
-              discord_user_id: discordUserId,
-              roster_id: rosterId,
-              roster_name: rosterName,
-              existing_channel_id: existingChannelId,
+              group_id: fields.groupId ?? Option.none(),
+              group_name: fields.groupName ?? Option.none(),
+              team_member_id: fields.teamMemberId ?? Option.none(),
+              discord_user_id: fields.discordUserId ?? Option.none(),
+              roster_id: fields.rosterId ?? Option.none(),
+              roster_name: fields.rosterName ?? Option.none(),
+              existing_channel_id: fields.existingChannelId ?? Option.none(),
             }),
         }),
       ),
@@ -134,22 +136,16 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     );
 
   emitChannelCreated = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
-    this._emitIfGuildLinked(
-      teamId,
-      'channel_created',
-      'group',
-      Option.some(groupId),
-      Option.some(groupName),
-    );
+    this._emitIfGuildLinked(teamId, 'channel_created', 'group', {
+      groupId: Option.some(groupId),
+      groupName: Option.some(groupName),
+    });
 
   emitChannelDeleted = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
-    this._emitIfGuildLinked(
-      teamId,
-      'channel_deleted',
-      'group',
-      Option.some(groupId),
-      Option.some(groupName),
-    );
+    this._emitIfGuildLinked(teamId, 'channel_deleted', 'group', {
+      groupId: Option.some(groupId),
+      groupName: Option.some(groupName),
+    });
 
   emitMemberAdded = (
     teamId: Team.TeamId,
@@ -158,15 +154,12 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     teamMemberId: TeamMember.TeamMemberId,
     discordUserId: Discord.Snowflake,
   ) =>
-    this._emitIfGuildLinked(
-      teamId,
-      'member_added',
-      'group',
-      Option.some(groupId),
-      Option.some(groupName),
-      Option.some(teamMemberId),
-      Option.some(discordUserId),
-    );
+    this._emitIfGuildLinked(teamId, 'member_added', 'group', {
+      groupId: Option.some(groupId),
+      groupName: Option.some(groupName),
+      teamMemberId: Option.some(teamMemberId),
+      discordUserId: Option.some(discordUserId),
+    });
 
   emitMemberRemoved = (
     teamId: Team.TeamId,
@@ -175,15 +168,12 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     teamMemberId: TeamMember.TeamMemberId,
     discordUserId: Discord.Snowflake,
   ) =>
-    this._emitIfGuildLinked(
-      teamId,
-      'member_removed',
-      'group',
-      Option.some(groupId),
-      Option.some(groupName),
-      Option.some(teamMemberId),
-      Option.some(discordUserId),
-    );
+    this._emitIfGuildLinked(teamId, 'member_removed', 'group', {
+      groupId: Option.some(groupId),
+      groupName: Option.some(groupName),
+      teamMemberId: Option.some(teamMemberId),
+      discordUserId: Option.some(discordUserId),
+    });
 
   emitRosterChannelCreated = (
     teamId: Team.TeamId,
@@ -191,35 +181,21 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     rosterName: string,
     existingChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this._emitIfGuildLinked(
-      teamId,
-      'channel_created',
-      'roster',
-      Option.none(),
-      Option.none(),
-      Option.none(),
-      Option.none(),
-      Option.some(rosterId),
-      Option.some(rosterName),
+    this._emitIfGuildLinked(teamId, 'channel_created', 'roster', {
+      rosterId: Option.some(rosterId),
+      rosterName: Option.some(rosterName),
       existingChannelId,
-    );
+    });
 
   emitRosterChannelDeleted = (
     teamId: Team.TeamId,
     rosterId: RosterModel.RosterId,
     rosterName: string,
   ) =>
-    this._emitIfGuildLinked(
-      teamId,
-      'channel_deleted',
-      'roster',
-      Option.none(),
-      Option.none(),
-      Option.none(),
-      Option.none(),
-      Option.some(rosterId),
-      Option.some(rosterName),
-    );
+    this._emitIfGuildLinked(teamId, 'channel_deleted', 'roster', {
+      rosterId: Option.some(rosterId),
+      rosterName: Option.some(rosterName),
+    });
 
   findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
