@@ -23,7 +23,10 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
     Effect.tap(() => sql`ALTER TABLE discord_channel_mappings ALTER COLUMN group_id DROP NOT NULL`),
     Effect.tap(
       () =>
-        sql`ALTER TABLE discord_channel_mappings DROP CONSTRAINT IF EXISTS discord_channel_mappings_team_id_group_id_key`,
+        sql`DO $$ BEGIN
+          ALTER TABLE discord_channel_mappings DROP CONSTRAINT IF EXISTS discord_channel_mappings_team_id_group_id_key;
+          ALTER TABLE discord_channel_mappings DROP CONSTRAINT IF EXISTS discord_channel_mappings_team_id_subgroup_id_key;
+        END $$`,
     ),
     Effect.tap(
       () =>
