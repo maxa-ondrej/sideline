@@ -12,9 +12,13 @@ export const ChannelSyncEventType = Schema.Literal(
   'channel_created',
   'channel_deleted',
   'channel_archived',
+  'channel_detached',
   'member_added',
   'member_removed',
 );
+
+export const ChannelCleanupMode = Schema.Literal('nothing', 'delete', 'archive');
+export type ChannelCleanupMode = typeof ChannelCleanupMode.Type;
 export type ChannelSyncEventType = typeof ChannelSyncEventType.Type;
 
 export const ChannelSyncEntityType = Schema.Literal('group', 'roster');

@@ -255,6 +255,34 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       archiveCategoryId: Option.some(archiveCategoryId),
     });
 
+  emitChannelDetached = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    groupName: string,
+    discordChannelId: Discord.Snowflake,
+    discordRoleId: Option.Option<Discord.Snowflake>,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'channel_detached', 'group', {
+      groupId: Option.some(groupId),
+      groupName: Option.some(groupName),
+      existingChannelId: Option.some(discordChannelId),
+      discordRoleId,
+    });
+
+  emitRosterChannelDetached = (
+    teamId: Team.TeamId,
+    rosterId: RosterModel.RosterId,
+    rosterName: string,
+    discordChannelId: Discord.Snowflake,
+    discordRoleId: Option.Option<Discord.Snowflake>,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'channel_detached', 'roster', {
+      rosterId: Option.some(rosterId),
+      rosterName: Option.some(rosterName),
+      existingChannelId: Option.some(discordChannelId),
+      discordRoleId,
+    });
+
   findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
   markProcessed = (id: ChannelSyncEvent.ChannelSyncEventId) =>

@@ -399,7 +399,9 @@ Returns the team's current settings.
 | `discordChannelOther` | `Snowflake \| null` | Yes | Default Discord channel for other events |
 | `createDiscordChannelOnGroup` | `boolean` | No | Auto-create Discord channel when a group is created |
 | `createDiscordChannelOnRoster` | `boolean` | No | Auto-create Discord channel when a roster is created |
-| `discordArchiveCategoryId` | `Snowflake \| null` | Yes | Discord category channel to move channels into when a group is deleted or roster is deactivated; null means channels are deleted |
+| `discordArchiveCategoryId` | `Snowflake \| null` | Yes | Discord category channel used when cleanup mode is `archive` |
+| `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a group is deleted: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
+| `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a roster is deactivated: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
 
 **Errors:**
 
@@ -435,7 +437,9 @@ Updates the team's settings. `eventHorizonDays` is required; all other fields ar
 | `discordChannelMeeting` | `Snowflake \| null` | No | — | Channel for meeting events |
 | `discordChannelSocial` | `Snowflake \| null` | No | — | Channel for social events |
 | `discordChannelOther` | `Snowflake \| null` | No | — | Channel for other events |
-| `discordArchiveCategoryId` | `Snowflake \| null` | No | — | Discord category to archive channels into on group deletion or roster deactivation |
+| `discordArchiveCategoryId` | `Snowflake \| null` | No | — | Discord category used when cleanup mode is `archive` |
+| `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a group is deleted |
+| `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a roster is deactivated |
 
 **Response:** `200 OK` — `TeamSettingsInfo` (see `GET /teams/:teamId/settings` for field descriptions)
 

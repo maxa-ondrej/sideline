@@ -1,5 +1,5 @@
 import { SqlClient, SqlSchema } from '@effect/sql';
-import { Discord, Event, GroupModel, Team } from '@sideline/domain';
+import { ChannelSyncEvent, Discord, Event, GroupModel, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
@@ -18,6 +18,8 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   create_discord_channel_on_group: Schema.Boolean,
   create_discord_channel_on_roster: Schema.Boolean,
   discord_archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_cleanup_on_group_delete: ChannelSyncEvent.ChannelCleanupMode,
+  discord_channel_cleanup_on_roster_deactivate: ChannelSyncEvent.ChannelCleanupMode,
 }) {}
 
 class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
@@ -36,6 +38,8 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   create_discord_channel_on_group: Schema.Boolean,
   create_discord_channel_on_roster: Schema.Boolean,
   discord_archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_cleanup_on_group_delete: ChannelSyncEvent.ChannelCleanupMode,
+  discord_channel_cleanup_on_roster_deactivate: ChannelSyncEvent.ChannelCleanupMode,
 }) {}
 
 class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeedingReminder')({
@@ -64,7 +68,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
              discord_channel_tournament, discord_channel_meeting,
              discord_channel_social, discord_channel_other,
              create_discord_channel_on_group, create_discord_channel_on_roster,
-             discord_archive_category_id
+             discord_archive_category_id,
+             discord_channel_cleanup_on_group_delete,
+             discord_channel_cleanup_on_roster_deactivate
       FROM team_settings
       WHERE team_id = ${teamId}
     `,
@@ -80,14 +86,18 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                                  discord_channel_tournament, discord_channel_meeting,
                                  discord_channel_social, discord_channel_other,
                                  create_discord_channel_on_group, create_discord_channel_on_roster,
-                                 discord_archive_category_id)
+                                 discord_archive_category_id,
+                                 discord_channel_cleanup_on_group_delete,
+                                 discord_channel_cleanup_on_roster_deactivate)
       VALUES (${input.team_id}, ${input.event_horizon_days},
               ${input.min_players_threshold}, ${input.rsvp_reminder_hours},
               ${input.discord_channel_training}, ${input.discord_channel_match},
               ${input.discord_channel_tournament}, ${input.discord_channel_meeting},
               ${input.discord_channel_social}, ${input.discord_channel_other},
               ${input.create_discord_channel_on_group}, ${input.create_discord_channel_on_roster},
-              ${input.discord_archive_category_id})
+              ${input.discord_archive_category_id},
+              ${input.discord_channel_cleanup_on_group_delete},
+              ${input.discord_channel_cleanup_on_roster_deactivate})
       ON CONFLICT (team_id) DO UPDATE SET
         event_horizon_days = ${input.event_horizon_days},
         min_players_threshold = ${input.min_players_threshold},
@@ -101,6 +111,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
         create_discord_channel_on_group = ${input.create_discord_channel_on_group},
         create_discord_channel_on_roster = ${input.create_discord_channel_on_roster},
         discord_archive_category_id = ${input.discord_archive_category_id},
+        discord_channel_cleanup_on_group_delete = ${input.discord_channel_cleanup_on_group_delete},
+        discord_channel_cleanup_on_roster_deactivate = ${input.discord_channel_cleanup_on_roster_deactivate},
         updated_at = now()
       RETURNING team_id, event_horizon_days,
                 min_players_threshold, rsvp_reminder_hours,
@@ -108,7 +120,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                 discord_channel_tournament, discord_channel_meeting,
                 discord_channel_social, discord_channel_other,
                 create_discord_channel_on_group, create_discord_channel_on_roster,
-                discord_archive_category_id
+                discord_archive_category_id,
+                discord_channel_cleanup_on_group_delete,
+                discord_channel_cleanup_on_roster_deactivate
     `,
   });
 
@@ -154,6 +168,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     createDiscordChannelOnGroup = true,
     createDiscordChannelOnRoster = true,
     discordArchiveCategoryId = Option.none(),
+    discordChannelCleanupOnGroupDelete = 'delete' as ChannelSyncEvent.ChannelCleanupMode,
+    discordChannelCleanupOnRosterDeactivate = 'delete' as ChannelSyncEvent.ChannelCleanupMode,
   }: {
     teamId: Team.TeamId;
     eventHorizonDays: number;
@@ -168,6 +184,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     createDiscordChannelOnGroup?: boolean;
     createDiscordChannelOnRoster?: boolean;
     discordArchiveCategoryId?: Option.Option<Discord.Snowflake>;
+    discordChannelCleanupOnGroupDelete?: ChannelSyncEvent.ChannelCleanupMode;
+    discordChannelCleanupOnRosterDeactivate?: ChannelSyncEvent.ChannelCleanupMode;
   }) =>
     this._upsertSettings({
       team_id: teamId,
@@ -183,6 +201,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       create_discord_channel_on_group: createDiscordChannelOnGroup,
       create_discord_channel_on_roster: createDiscordChannelOnRoster,
       discord_archive_category_id: discordArchiveCategoryId,
+      discord_channel_cleanup_on_group_delete: discordChannelCleanupOnGroupDelete,
+      discord_channel_cleanup_on_roster_deactivate: discordChannelCleanupOnRosterDeactivate,
     }).pipe(catchSqlErrors);
 
   getHorizonDays = (teamId: Team.TeamId) =>

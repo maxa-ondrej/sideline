@@ -99,6 +99,38 @@ export const ChannelArchivedEvent = Schema.Union(
 );
 export type ChannelArchivedEvent = Schema.Schema.Type<typeof ChannelArchivedEvent>;
 
+// --- channel_detached ---
+
+export class GroupChannelDetachedEvent extends Schema.TaggedClass<GroupChannelDetachedEvent>()(
+  'group_channel_detached',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    group_id: GroupModel.GroupId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  },
+) {}
+
+export class RosterChannelDetachedEvent extends Schema.TaggedClass<RosterChannelDetachedEvent>()(
+  'roster_channel_detached',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    roster_id: RosterModel.RosterId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  },
+) {}
+
+export const ChannelDetachedEvent = Schema.Union(
+  GroupChannelDetachedEvent,
+  RosterChannelDetachedEvent,
+);
+export type ChannelDetachedEvent = Schema.Schema.Type<typeof ChannelDetachedEvent>;
+
 // --- member_added ---
 
 export class GroupMemberAddedEvent extends Schema.TaggedClass<GroupMemberAddedEvent>()(
@@ -169,6 +201,8 @@ export const UnprocessedChannelEvent = Schema.Union(
   ChannelDeletedEvent,
   GroupChannelArchivedEvent,
   RosterChannelArchivedEvent,
+  GroupChannelDetachedEvent,
+  RosterChannelDetachedEvent,
   ChannelMemberAddedEvent,
   ChannelMemberRemovedEvent,
 );

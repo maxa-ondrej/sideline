@@ -183,10 +183,12 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `create_discord_channel_on_group` | BOOLEAN | NOT NULL | `true` |
 | `create_discord_channel_on_roster` | BOOLEAN | NOT NULL | `true` |
 | `discord_archive_category_id` | TEXT | — | — |
+| `discord_channel_cleanup_on_group_delete` | TEXT | NOT NULL | `'delete'` |
+| `discord_channel_cleanup_on_roster_deactivate` | TEXT | NOT NULL | `'delete'` |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
-**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when a group is deleted or a roster is deactivated; if null, channels are deleted instead.
+**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743700000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`).
 
 ---
 
@@ -572,7 +574,7 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 | `id` | UUID | PK | `gen_random_uuid()` |
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `guild_id` | TEXT | NOT NULL | — |
-| `event_type` | TEXT | NOT NULL, CHECK (`'channel_created'`, `'channel_deleted'`, `'channel_archived'`, `'member_added'`, `'member_removed'`) | — |
+| `event_type` | TEXT | NOT NULL, CHECK (`'channel_created'`, `'channel_deleted'`, `'channel_archived'`, `'channel_detached'`, `'member_added'`, `'member_removed'`) | — |
 | `entity_type` | TEXT | NOT NULL | `'group'` |
 | `group_id` | UUID | — | — |
 | `group_name` | TEXT | — | — |
@@ -589,7 +591,7 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 
 **Indexes**: `idx_channel_sync_events_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: `entity_type` is `'group'` or `'roster'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set. `existing_channel_id` and `discord_role_id` hold the Discord channel and role IDs for delete and archive events. `archive_category_id` is set for `channel_archived` events and holds the Discord category to move the channel into.
+**Notes**: `entity_type` is `'group'` or `'roster'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set. `existing_channel_id` and `discord_role_id` hold the Discord channel and role IDs for delete, archive, and detach events. `archive_category_id` is set for `channel_archived` events and holds the Discord category to move the channel into. `channel_detached` events represent the `'nothing'` cleanup mode: the channel is kept in Discord but the role and mapping are removed.
 
 ---
 
@@ -778,6 +780,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743400000 | `add_roster_discord_channel` | Adds `discord_channel_id TEXT` to rosters |
 | 1743500000 | `add_roster_channel_settings` | Adds `create_discord_channel_on_roster` to team_settings; adds `entity_type`, `roster_id`, `roster_name` to channel_sync_events and discord_channel_mappings; makes `group_id` nullable |
 | 1743600000 | `add_archive_category` | Adds `discord_archive_category_id` to team_settings; adds `archive_category_id` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_archived'` |
+| 1743700000 | `add_channel_cleanup_modes` | Adds `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` to team_settings (TEXT NOT NULL DEFAULT `'delete'`); extends channel_sync_events event_type check to include `'channel_detached'` |
 
 ### After Migrations (seed data)
 
@@ -796,7 +799,7 @@ Three tables act as outbox queues for bot-server communication:
 | Table | Bot worker | Event types |
 |---|---|---|
 | `role_sync_events` | Role Sync | `role_created`, `role_deleted`, `role_assigned`, `role_unassigned` |
-| `channel_sync_events` | Channel Sync | `channel_created`, `channel_deleted`, `channel_archived`, `member_added`, `member_removed` |
+| `channel_sync_events` | Channel Sync | `channel_created`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed` |
 | `event_sync_events` | Event Sync | `event_created`, `event_updated`, `event_cancelled`, `rsvp_reminder` |
 
 The server inserts rows when the relevant domain action occurs. The bot polls `WHERE processed_at IS NULL ORDER BY created_at` and updates `processed_at` (and optionally `error`) when processing is complete. Partial indexes on `(created_at) WHERE processed_at IS NULL` make these polls efficient. Event data is denormalised into snapshot columns so that the bot's message content remains accurate even if the source row is subsequently modified.

@@ -292,6 +292,8 @@ export const mockTeamSettings = {
   discordChannelSocial: null,
   discordChannelOther: null,
   discordArchiveCategoryId: null,
+  discordChannelCleanupOnGroupDelete: 'delete',
+  discordChannelCleanupOnRosterDeactivate: 'delete',
 };
 
 export const mockDiscordChannels: unknown[] = [];

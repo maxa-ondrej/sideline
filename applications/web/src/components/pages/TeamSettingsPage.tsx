@@ -80,6 +80,12 @@ export function TeamSettingsPage({
   const [archiveCategory, setArchiveCategory] = React.useState(
     Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE),
   );
+  const [cleanupOnGroupDelete, setCleanupOnGroupDelete] = React.useState<string>(
+    settings.discordChannelCleanupOnGroupDelete,
+  );
+  const [cleanupOnRosterDeactivate, setCleanupOnRosterDeactivate] = React.useState<string>(
+    settings.discordChannelCleanupOnRosterDeactivate,
+  );
   const [createDiscordChannelOnGroup, setCreateDiscordChannelOnGroup] = React.useState(
     settings.createDiscordChannelOnGroup,
   );
@@ -105,6 +111,8 @@ export function TeamSettingsPage({
     channelSocial !== Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE) ||
     channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE) ||
     archiveCategory !== Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE) ||
+    cleanupOnGroupDelete !== settings.discordChannelCleanupOnGroupDelete ||
+    cleanupOnRosterDeactivate !== settings.discordChannelCleanupOnRosterDeactivate ||
     createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup ||
     createDiscordChannelOnRoster !== settings.createDiscordChannelOnRoster;
 
@@ -164,6 +172,12 @@ export function TeamSettingsPage({
             discordChannelSocial: Option.some(channelToOption(channelSocial)),
             discordChannelOther: Option.some(channelToOption(channelOther)),
             discordArchiveCategoryId: Option.some(channelToOption(archiveCategory)),
+            discordChannelCleanupOnGroupDelete: Option.some(
+              cleanupOnGroupDelete as 'nothing' | 'delete' | 'archive',
+            ),
+            discordChannelCleanupOnRosterDeactivate: Option.some(
+              cleanupOnRosterDeactivate as 'nothing' | 'delete' | 'archive',
+            ),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
             createDiscordChannelOnRoster: Option.some(createDiscordChannelOnRoster),
           },
@@ -188,6 +202,8 @@ export function TeamSettingsPage({
     channelSocial,
     channelOther,
     archiveCategory,
+    cleanupOnGroupDelete,
+    cleanupOnRosterDeactivate,
     createDiscordChannelOnGroup,
     createDiscordChannelOnRoster,
     run,
@@ -469,28 +485,78 @@ export function TeamSettingsPage({
             </div>
             <div className='mt-4'>
               <Separator className='mb-4' />
-              <div>
-                <label htmlFor='archive-category' className='text-sm font-medium mb-1 block'>
-                  {m.teamSettings_archiveCategory()}
-                </label>
-                <p className='text-xs text-muted-foreground mb-2'>
-                  {m.teamSettings_archiveCategoryHelp()}
-                </p>
-                <Select value={archiveCategory} onValueChange={setArchiveCategory}>
-                  <SelectTrigger id='archive-category'>
-                    <SelectValue placeholder={m.teamSettings_channelNone()} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
-                    {discordChannels
-                      .filter((ch) => ch.type === 4)
-                      .map((ch) => (
-                        <SelectItem key={ch.id} value={ch.id}>
-                          {ch.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+              <div className='flex flex-col gap-4'>
+                <div>
+                  <label
+                    htmlFor='cleanup-on-group-delete'
+                    className='text-sm font-medium mb-1 block'
+                  >
+                    {m.teamSettings_channelCleanupOnGroupDelete()}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>
+                    {m.teamSettings_channelCleanupOnGroupDeleteHelp()}
+                  </p>
+                  <Select value={cleanupOnGroupDelete} onValueChange={setCleanupOnGroupDelete}>
+                    <SelectTrigger id='cleanup-on-group-delete'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='nothing'>{m.teamSettings_cleanupNothing()}</SelectItem>
+                      <SelectItem value='delete'>{m.teamSettings_cleanupDelete()}</SelectItem>
+                      <SelectItem value='archive'>{m.teamSettings_cleanupArchive()}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label
+                    htmlFor='cleanup-on-roster-deactivate'
+                    className='text-sm font-medium mb-1 block'
+                  >
+                    {m.teamSettings_channelCleanupOnRosterDeactivate()}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>
+                    {m.teamSettings_channelCleanupOnRosterDeactivateHelp()}
+                  </p>
+                  <Select
+                    value={cleanupOnRosterDeactivate}
+                    onValueChange={setCleanupOnRosterDeactivate}
+                  >
+                    <SelectTrigger id='cleanup-on-roster-deactivate'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='nothing'>{m.teamSettings_cleanupNothing()}</SelectItem>
+                      <SelectItem value='delete'>{m.teamSettings_cleanupDelete()}</SelectItem>
+                      <SelectItem value='archive'>{m.teamSettings_cleanupArchive()}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(cleanupOnGroupDelete === 'archive' ||
+                  cleanupOnRosterDeactivate === 'archive') && (
+                  <div>
+                    <label htmlFor='archive-category' className='text-sm font-medium mb-1 block'>
+                      {m.teamSettings_archiveCategory()}
+                    </label>
+                    <p className='text-xs text-muted-foreground mb-2'>
+                      {m.teamSettings_archiveCategoryHelp()}
+                    </p>
+                    <Select value={archiveCategory} onValueChange={setArchiveCategory}>
+                      <SelectTrigger id='archive-category'>
+                        <SelectValue placeholder={m.teamSettings_channelNone()} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
+                        {discordChannels
+                          .filter((ch) => ch.type === 4)
+                          .map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              {ch.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>

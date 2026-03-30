@@ -370,10 +370,6 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
               Effect.tap(({ existing, updated, settings }) => {
                 const isDeactivated = existing.active === true && updated.active === false;
-                const archiveCategoryId = Option.flatMap(
-                  settings,
-                  (s) => s.discord_archive_category_id,
-                );
 
                 if (isDeactivated) {
                   return Option.isSome(existing.discord_channel_id)
@@ -381,10 +377,37 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                         Effect.flatMap(
                           Option.match({
                             onNone: () => Effect.void,
-                            onSome: (mapping) =>
-                              Option.match(archiveCategoryId, {
-                                onNone: () =>
-                                  channelSync
+                            onSome: (mapping) => {
+                              const cleanupMode = Option.match(settings, {
+                                onNone: () => 'delete' as const,
+                                onSome: (s) => s.discord_channel_cleanup_on_roster_deactivate,
+                              });
+                              const archiveCategoryId = Option.flatMap(
+                                settings,
+                                (s) => s.discord_archive_category_id,
+                              );
+                              const effectiveMode =
+                                cleanupMode === 'archive' && Option.isNone(archiveCategoryId)
+                                  ? ('delete' as const)
+                                  : cleanupMode;
+
+                              switch (effectiveMode) {
+                                case 'nothing':
+                                  return channelSync
+                                    .emitRosterChannelDetached(
+                                      teamId,
+                                      rosterId,
+                                      existing.name,
+                                      mapping.discord_channel_id,
+                                      mapping.discord_role_id,
+                                    )
+                                    .pipe(
+                                      Effect.tap(() =>
+                                        channelMappings.deleteByRosterId(teamId, rosterId),
+                                      ),
+                                    );
+                                case 'delete':
+                                  return channelSync
                                     .emitRosterChannelDeleted(
                                       teamId,
                                       rosterId,
@@ -396,17 +419,18 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                                       Effect.tap(() =>
                                         channelMappings.deleteByRosterId(teamId, rosterId),
                                       ),
-                                    ),
-                                onSome: (categoryId) =>
-                                  channelSync.emitRosterChannelArchived(
+                                    );
+                                case 'archive':
+                                  return channelSync.emitRosterChannelArchived(
                                     teamId,
                                     rosterId,
                                     existing.name,
                                     mapping.discord_channel_id,
                                     mapping.discord_role_id,
-                                    categoryId,
-                                  ),
-                              }),
+                                    Option.getOrThrow(archiveCategoryId),
+                                  );
+                              }
+                            },
                           }),
                         ),
                       )
@@ -501,13 +525,36 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                         Option.match({
                           onNone: () => Effect.void,
                           onSome: (mapping) => {
+                            const cleanupMode = Option.match(settings, {
+                              onNone: () => 'delete' as const,
+                              onSome: (s) => s.discord_channel_cleanup_on_roster_deactivate,
+                            });
                             const archiveCategoryId = Option.flatMap(
                               settings,
                               (s) => s.discord_archive_category_id,
                             );
-                            return Option.match(archiveCategoryId, {
-                              onNone: () =>
-                                channelSync
+                            const effectiveMode =
+                              cleanupMode === 'archive' && Option.isNone(archiveCategoryId)
+                                ? ('delete' as const)
+                                : cleanupMode;
+
+                            switch (effectiveMode) {
+                              case 'nothing':
+                                return channelSync
+                                  .emitRosterChannelDetached(
+                                    teamId,
+                                    rosterId,
+                                    existing.name,
+                                    mapping.discord_channel_id,
+                                    mapping.discord_role_id,
+                                  )
+                                  .pipe(
+                                    Effect.tap(() =>
+                                      channelMappings.deleteByRosterId(teamId, rosterId),
+                                    ),
+                                  );
+                              case 'delete':
+                                return channelSync
                                   .emitRosterChannelDeleted(
                                     teamId,
                                     rosterId,
@@ -519,17 +566,17 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                                     Effect.tap(() =>
                                       channelMappings.deleteByRosterId(teamId, rosterId),
                                     ),
-                                  ),
-                              onSome: (categoryId) =>
-                                channelSync.emitRosterChannelArchived(
+                                  );
+                              case 'archive':
+                                return channelSync.emitRosterChannelArchived(
                                   teamId,
                                   rosterId,
                                   existing.name,
                                   mapping.discord_channel_id,
                                   mapping.discord_role_id,
-                                  categoryId,
-                                ),
-                            });
+                                  Option.getOrThrow(archiveCategoryId),
+                                );
+                            }
                           },
                         }),
                       ),

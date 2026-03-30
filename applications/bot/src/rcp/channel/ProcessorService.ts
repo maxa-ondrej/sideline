@@ -8,6 +8,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 import { handleGroupArchived, handleRosterArchived } from './handleArchived.js';
 import { handleCreated } from './handleCreated.js';
 import { handleDeleted, handleRosterDeleted } from './handleDeleted.js';
+import { handleGroupDetached, handleRosterDetached } from './handleDetached.js';
 import { handleMemberAdded, handleRosterMemberAdded } from './handleMemberAdded.js';
 import { handleMemberRemoved, handleRosterMemberRemoved } from './handleMemberRemoved.js';
 import { handleRosterChannelCreated } from './handleRosterChannelCreated.js';
@@ -19,6 +20,8 @@ const action = Match.type<ChannelRpcEvents.UnprocessedChannelEvent>().pipe(
   Match.tag('roster_channel_deleted', handleRosterDeleted),
   Match.tag('group_channel_archived', handleGroupArchived),
   Match.tag('roster_channel_archived', handleRosterArchived),
+  Match.tag('group_channel_detached', handleGroupDetached),
+  Match.tag('roster_channel_detached', handleRosterDetached),
   Match.tag('group_member_added', handleMemberAdded),
   Match.tag('roster_member_added', handleRosterMemberAdded),
   Match.tag('group_member_removed', handleMemberRemoved),

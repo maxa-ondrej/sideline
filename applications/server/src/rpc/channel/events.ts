@@ -249,10 +249,50 @@ const channelArchivedFromSql = (r: EventRow) =>
     Match.exhaustive,
   );
 
+const channelDetachedFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('group', () =>
+      Effect.Do.pipe(
+        Effect.bind('group_id', () => nullable(r, 'group_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.map(
+          ({ group_id, discord_channel_id }) =>
+            new ChannelRpcEvents.GroupChannelDetachedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              group_id,
+              discord_channel_id,
+              discord_role_id: r.discord_role_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.Do.pipe(
+        Effect.bind('roster_id', () => nullable(r, 'roster_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.map(
+          ({ roster_id, discord_channel_id }) =>
+            new ChannelRpcEvents.RosterChannelDetachedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              roster_id,
+              discord_channel_id,
+              discord_role_id: r.discord_role_id,
+            }),
+        ),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
 export const constructEvent = Match.type<EventRow>().pipe(
   Match.when({ event_type: 'channel_created' }, channelCreatedFromSql),
   Match.when({ event_type: 'channel_deleted' }, channelDeletedFromSql),
   Match.when({ event_type: 'channel_archived' }, channelArchivedFromSql),
+  Match.when({ event_type: 'channel_detached' }, channelDetachedFromSql),
   Match.when({ event_type: 'member_added' }, memberAddedFromSql),
   Match.when({ event_type: 'member_removed' }, memberRemovedFromSql),
   Match.exhaustive,
