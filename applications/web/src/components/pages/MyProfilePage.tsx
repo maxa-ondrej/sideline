@@ -1,61 +1,14 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
-import { Auth } from '@sideline/domain';
+import type { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
-import { Effect, Option, Schema } from 'effect';
-import { useForm } from 'react-hook-form';
+import { useRouter } from '@tanstack/react-router';
+import { Option } from 'effect';
+import { ArrowLeft } from 'lucide-react';
 
+import { LanguageSwitcher } from '~/components/organisms/LanguageSwitcher';
+import { ProfileEditForm } from '~/components/organisms/ProfileEditForm';
+import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
-import { DatePicker } from '~/components/ui/date-picker';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '~/components/ui/form';
-import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
-import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-
-const currentYear = new Date().getFullYear();
-const maxBirthYear = currentYear - Auth.MIN_AGE;
-const defaultBirthMonth = new Date(currentYear - Auth.DEFAULT_BIRTH_YEAR_OFFSET, 0);
-
-const NONE_VALUE = '__none__';
-
-const ProfileEditSchema = Schema.Struct({
-  name: Schema.String,
-  birthDate: Schema.String.pipe(
-    Schema.filter((s) => {
-      if (s === '') return true;
-      const d = new Date(s);
-      if (Number.isNaN(d.getTime())) return m.validation_required();
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - Auth.MIN_AGE);
-      if (d > minDate) return m.validation_minAge({ minAge: Auth.MIN_AGE });
-      return true;
-    }),
-  ),
-  gender: Schema.Union(
-    Schema.Literal('male', 'female', 'other'),
-    Schema.Literal(NONE_VALUE),
-  ).annotations({ message: () => m.validation_invalidOption() }),
-});
-
-type ProfileEditValues = Schema.Schema.Type<typeof ProfileEditSchema>;
-
-const genderOptions = [
-  { value: 'male', label: () => m.profile_complete_genderMale() },
-  { value: 'female', label: () => m.profile_complete_genderFemale() },
-  { value: 'other', label: () => m.profile_complete_genderOther() },
-] as const;
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 
 function discordAvatarUrl(discordId: string, avatar: string): string {
   return `https://cdn.discordapp.com/avatars/${discordId}/${avatar}.png?size=128`;
@@ -67,130 +20,51 @@ interface MyProfilePageProps {
 }
 
 export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
-  const run = useRun();
-
-  const defaultValues: ProfileEditValues = {
-    name: Option.getOrElse(user.name, () => ''),
-    birthDate: Option.getOrElse(user.birthDate, () => ''),
-    gender: Option.getOrElse(user.gender, () => NONE_VALUE),
-  };
-
-  const form = useForm<ProfileEditValues>({
-    resolver: effectTsResolver(ProfileEditSchema),
-    mode: 'onChange',
-    defaultValues,
-  });
-
-  const onSubmit = async (values: ProfileEditValues) => {
-    const result = await ApiClient.pipe(
-      Effect.flatMap((api) =>
-        api.auth.updateProfile({
-          payload: {
-            name: values.name ? Option.some(values.name) : Option.none(),
-            birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
-            gender: values.gender === NONE_VALUE ? Option.none() : Option.some(values.gender),
-          },
-        }),
-      ),
-      Effect.catchAll(() => ClientError.make(m.profile_updateFailed())),
-      run({ success: m.profile_saveSuccess() }),
-    );
-    if (Option.isSome(result)) {
-      onUpdated();
-    }
-  };
+  const router = useRouter();
 
   const initials = Option.getOrElse(user.name, () => user.username)
     .slice(0, 2)
     .toUpperCase();
 
   return (
-    <div>
-      <header className='mb-8'>
-        <div className='flex items-center gap-4'>
-          {Option.isSome(user.avatar) ? (
-            <img
-              src={discordAvatarUrl(user.discordId, user.avatar.value)}
-              alt={m.profile_discordAvatar()}
-              className='h-16 w-16 rounded-full'
-            />
-          ) : (
-            <div className='bg-muted flex h-16 w-16 items-center justify-center rounded-full text-lg font-semibold'>
-              {initials}
-            </div>
-          )}
-          <div>
-            <h1 className='text-2xl font-bold'>{m.profile_title()}</h1>
-            <p className='text-muted-foreground text-sm'>@{user.username}</p>
-          </div>
+    <div className='flex min-h-screen flex-col'>
+      <header className='sticky top-0 z-10 flex items-center justify-between border-b bg-background px-6 py-4'>
+        <Button
+          variant='ghost'
+          size='icon'
+          aria-label={m.profile_backToDashboard()}
+          onClick={() => router.history.back()}
+        >
+          <ArrowLeft className='size-5' />
+        </Button>
+        <span className='text-lg font-bold'>{m.app_name()}</span>
+        <div className='flex items-center gap-3'>
+          <LanguageSwitcher isAuthenticated />
         </div>
       </header>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className='flex flex-col gap-4'>
-          <FormField
-            {...form.register('name')}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{m.profile_complete_displayName()}</FormLabel>
-                <FormControl>
-                  <Input placeholder={m.profile_complete_displayNamePlaceholder()} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            {...form.register('birthDate')}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{m.profile_complete_birthDate()}</FormLabel>
-                <FormControl>
-                  <DatePicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder={m.profile_complete_birthDatePlaceholder()}
-                    fromYear={1900}
-                    toYear={maxBirthYear}
-                    defaultMonth={defaultBirthMonth}
+      <main className='flex flex-1 flex-col items-center px-6 pt-16 pb-24'>
+        <Card className='w-full max-w-md'>
+          <CardHeader className='text-center'>
+            <div className='flex justify-center mb-2'>
+              <Avatar className='size-12'>
+                {Option.isSome(user.avatar) && (
+                  <AvatarImage
+                    src={discordAvatarUrl(user.discordId, user.avatar.value)}
+                    alt={m.profile_discordAvatar()}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            {...form.register('gender')}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{m.profile_complete_gender()}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className='w-full'>
-                      <SelectValue placeholder={m.profile_complete_genderPlaceholder()} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value={NONE_VALUE}>—</SelectItem>
-                    {genderOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <Button type='submit' disabled={form.formState.isSubmitting} className='mt-2'>
-            {form.formState.isSubmitting ? m.profile_saving() : m.profile_saveChanges()}
-          </Button>
-        </form>
-      </Form>
+                )}
+                <AvatarFallback>{initials}</AvatarFallback>
+              </Avatar>
+            </div>
+            <CardTitle>{m.profile_title()}</CardTitle>
+            <CardDescription>@{user.username}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProfileEditForm user={user} onSuccess={onUpdated} />
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }
