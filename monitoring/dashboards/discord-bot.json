@@ -1,0 +1,764 @@
+{
+  "createdAt": "2026-03-29T15:53:56.582305Z",
+  "updatedAt": "2026-03-29T22:50:29.036441Z",
+  "createdBy": "ondrej.maxa11@gmail.com",
+  "updatedBy": "ondrej.maxa11@gmail.com",
+  "id": "019d3a4d-4866-74bb-9bba-ec0f761fff28",
+  "data": {
+    "description": "Discord bot metrics \u2014 gateway events, user interactions, and sync event processing.",
+    "layout": [
+      {
+        "h": 3,
+        "i": "gateway_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 3,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "interaction_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 3,
+        "x": 3,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "sync_processed",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 3,
+        "x": 6,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "sync_success_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 3,
+        "x": 9,
+        "y": 0
+      },
+      {
+        "h": 7,
+        "i": "gateway_by_type",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      {
+        "h": 7,
+        "i": "interactions_by_type",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      {
+        "h": 7,
+        "i": "sync_processed_graph",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 0,
+        "y": 10
+      },
+      {
+        "h": 7,
+        "i": "sync_failed_graph",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 6,
+        "y": 10
+      }
+    ],
+    "panelMap": {},
+    "tags": ["sideline", "discord", "bot", "sync"],
+    "title": "Sideline: Discord Bot",
+    "variables": {
+      "environment": {
+        "allSelected": false,
+        "customValue": "production,preview,development",
+        "description": "Filter by deployment environment",
+        "id": "environment",
+        "key": "environment",
+        "name": "environment",
+        "order": 0,
+        "selectedValue": "staging",
+        "showALLOption": true,
+        "sort": "ASC",
+        "type": "CUSTOM"
+      }
+    },
+    "widgets": [
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Discord gateway events per second",
+        "id": "gateway_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(rate({\"discord_events_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Gateway Events/s",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Discord interactions per second",
+        "id": "interaction_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(rate({\"discord_interactions_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Interactions/s",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Sync events processed in the last hour",
+        "id": "sync_processed",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(increase({\"sync_events_processed_total\", \"deployment.environment\"=~\"$environment\"}[1h]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Sync Processed",
+        "yAxisUnit": "short"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Percentage of sync events processed successfully",
+        "id": "sync_success_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": true,
+              "name": "A",
+              "query": "sum(rate({\"sync_events_processed_total\", \"deployment.environment\"=~\"$environment\"}[1h]))"
+            },
+            {
+              "disabled": true,
+              "name": "B",
+              "query": "sum(rate({\"sync_events_failed_total\", \"deployment.environment\"=~\"$environment\"}[1h]))"
+            },
+            {
+              "disabled": false,
+              "name": "F1",
+              "query": "A / (A + B)"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Sync Success Rate",
+        "yAxisUnit": "percentunit"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Discord gateway event rate by event type",
+        "id": "gateway_by_type",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "{{event_type}}",
+              "name": "A",
+              "query": "sum by (event_type) (rate({\"discord_events_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Gateway Events by Type",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Discord interaction rate by type",
+        "id": "interactions_by_type",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "{{interaction_type}}",
+              "name": "A",
+              "query": "sum by (interaction_type) (rate({\"discord_interactions_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Interactions by Type",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Sync events processed by type and action",
+        "id": "sync_processed_graph",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "{{sync_type}}/{{action}}",
+              "name": "A",
+              "query": "sum by (sync_type, action) (increase({\"sync_events_processed_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Sync Events Processed",
+        "yAxisUnit": "short"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Failed sync events by type",
+        "id": "sync_failed_graph",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "{{sync_type}}",
+              "name": "A",
+              "query": "sum by (sync_type) (increase({\"sync_events_failed_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Sync Events Failed",
+        "yAxisUnit": "short"
+      }
+    ]
+  },
+  "locked": false,
+  "org_id": "019d302a-ce5f-7528-a834-45e4bfecea8b"
+}

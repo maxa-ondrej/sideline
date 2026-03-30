@@ -34,7 +34,26 @@ If any package source code changed (not just docs/config), create a changeset fi
 
 ---
 
-### Step 3: Run all checks
+### Step 3: Update documentation and agent config
+
+Run the `/docs` and `/meta` agents **in parallel** (both in one message):
+
+1. **`/docs` agent** — Updates `docs/` and `docs/thesis/` files:
+   - Reads the diff to identify affected documentation
+   - Makes targeted edits to API docs, database docs, ER diagrams, use-cases, etc.
+   - Checks and updates E2E mock data if API schemas changed
+
+2. **`/meta` agent** — Updates AGENTS.md files and `.claude/` configuration:
+   - Reads the diff to identify new patterns, conventions, or architecture changes
+   - Updates the relevant AGENTS.md files with precise, unambiguous instructions
+   - Updates agent/skill definitions if workflow changed
+   - Verifies cross-references between all agent infrastructure files
+
+If either agent makes changes, stage them before proceeding.
+
+---
+
+### Step 4: Run all checks
 
 Run these commands and make sure they all pass:
 
@@ -49,7 +68,7 @@ Stage any files modified by format/codegen before proceeding.
 
 ---
 
-### Step 4: Commit
+### Step 5: Commit
 
 - Stage all relevant files (avoid secrets like `.env`, credentials)
 - Write a concise commit message describing **why**, not what
@@ -59,7 +78,7 @@ Stage any files modified by format/codegen before proceeding.
 
 ---
 
-### Step 5: Push and open PR
+### Step 6: Push and open PR
 
 Run `git push` to push the commit to the remote. If the branch has no upstream yet, use `git push -u origin <branch>`.
 
@@ -86,7 +105,7 @@ Return the PR URL to the user.
 
 ---
 
-### Step 6: Wait for CI and code review (background)
+### Step 7: Wait for CI and code review (background)
 
 After pushing, run **both** CI verification and review comment polling concurrently in the background:
 
@@ -107,16 +126,16 @@ Both agents run in the background (`run_in_background: true`). You will be notif
 
 ---
 
-### Step 7: Handle results
+### Step 8: Handle results
 
 Once both background agents finish:
 
-- **CI failed**: investigate the logs, fix the issue, and restart from Step 3.
+- **CI failed**: investigate the logs, fix the issue, and restart from Step 4.
 - **Review comments found**: invoke the `/revise` skill to address them.
-- **Both passed with no comments**: proceed to Step 8.
+- **Both passed with no comments**: proceed to Step 9.
 
 ---
 
-### Step 8: Done
+### Step 9: Done
 
 Report the PR URL and CI status. Do **not** update Notion statuses — that is the `/agile-coach` agent's responsibility.

@@ -1,0 +1,262 @@
+{
+  "data": {
+    "title": "Sideline: RPC Overview",
+    "description": "RPC request rates, latencies, and error rates for the Sideline server.",
+    "tags": ["sideline", "rpc", "server", "performance"],
+    "variables": {
+      "environment": {
+        "allSelected": false,
+        "customValue": "production,preview,development",
+        "description": "Filter by deployment environment",
+        "id": "environment",
+        "key": "environment",
+        "name": "environment",
+        "order": 0,
+        "selectedValue": "preview",
+        "showALLOption": true,
+        "sort": "ASC",
+        "type": "CUSTOM"
+      }
+    },
+    "layout": [
+      {
+        "h": 3,
+        "i": "request_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "error_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "success_ratio",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      {
+        "h": 7,
+        "i": "rate_by_method",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      {
+        "h": 7,
+        "i": "errors_by_method",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      {
+        "h": 7,
+        "i": "latency_percentiles",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      }
+    ],
+    "panelMap": {},
+    "widgets": [
+      {
+        "bucketCount": 30,
+        "contextLinks": { "linksData": [] },
+        "description": "RPC requests per second across all methods",
+        "id": "request_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": { "queryData": [], "queryFormulas": [] },
+          "clickhouse_sql": [{ "disabled": false, "name": "A", "query": "" }],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(rate({\"rpc_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [],
+        "selectedTracesFields": [],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Request Rate",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": { "linksData": [] },
+        "description": "Failed RPC requests per second",
+        "id": "error_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": { "queryData": [], "queryFormulas": [] },
+          "clickhouse_sql": [{ "disabled": false, "name": "A", "query": "" }],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(rate({\"rpc_requests_total\", \"deployment.environment\"=~\"$environment\", \"result\"=\"failure\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [],
+        "selectedTracesFields": [],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Error Rate",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": { "linksData": [] },
+        "description": "Percentage of RPC requests that succeed",
+        "id": "success_ratio",
+        "panelTypes": "value",
+        "query": {
+          "builder": { "queryData": [], "queryFormulas": [] },
+          "clickhouse_sql": [{ "disabled": false, "name": "A", "query": "" }],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(rate({\"rpc_requests_total\", \"deployment.environment\"=~\"$environment\", \"result\"=\"success\"}[5m])) / sum(rate({\"rpc_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m])) * 100"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [],
+        "selectedTracesFields": [],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Success Rate",
+        "yAxisUnit": "percent"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": { "linksData": [] },
+        "description": "RPC request rate broken down by method",
+        "id": "rate_by_method",
+        "panelTypes": "graph",
+        "query": {
+          "builder": { "queryData": [], "queryFormulas": [] },
+          "clickhouse_sql": [{ "disabled": false, "name": "A", "query": "" }],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum by (rpc) (rate({\"rpc_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [],
+        "selectedTracesFields": [],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Rate by Method",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": { "linksData": [] },
+        "description": "Failed RPC requests broken down by method",
+        "id": "errors_by_method",
+        "panelTypes": "graph",
+        "query": {
+          "builder": { "queryData": [], "queryFormulas": [] },
+          "clickhouse_sql": [{ "disabled": false, "name": "A", "query": "" }],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum by (rpc) (rate({\"rpc_requests_total\", \"deployment.environment\"=~\"$environment\", \"result\"=\"failure\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [],
+        "selectedTracesFields": [],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Errors by Method",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": { "linksData": [] },
+        "description": "RPC request duration percentiles (p50, p95, p99)",
+        "id": "latency_percentiles",
+        "panelTypes": "graph",
+        "query": {
+          "builder": { "queryData": [], "queryFormulas": [] },
+          "clickhouse_sql": [{ "disabled": false, "name": "A", "query": "" }],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "histogram_quantile(0.5, sum by (le) (rate({\"rpc_request_duration_ms_bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))",
+              "legend": "p50"
+            },
+            {
+              "disabled": false,
+              "name": "B",
+              "query": "histogram_quantile(0.95, sum by (le) (rate({\"rpc_request_duration_ms_bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))",
+              "legend": "p95"
+            },
+            {
+              "disabled": false,
+              "name": "C",
+              "query": "histogram_quantile(0.99, sum by (le) (rate({\"rpc_request_duration_ms_bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))",
+              "legend": "p99"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [],
+        "selectedTracesFields": [],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Latency Percentiles",
+        "yAxisUnit": "ms"
+      }
+    ]
+  }
+}

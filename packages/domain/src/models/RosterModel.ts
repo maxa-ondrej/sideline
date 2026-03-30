@@ -1,5 +1,6 @@
 import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { Snowflake } from '~/models/Discord.js';
 import { TeamId } from '~/models/Team.js';
 
 export const RosterId = Schema.String.pipe(Schema.brand('RosterId'));
@@ -10,5 +11,6 @@ export class Roster extends Model.Class<Roster>('Roster')({
   team_id: TeamId,
   name: Schema.String,
   active: Schema.Boolean,
+  discord_channel_id: Schema.OptionFromNullOr(Snowflake),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

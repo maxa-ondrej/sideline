@@ -6,14 +6,12 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 import { HIDDEN, READ_WRITE } from '../permissions.js';
 import { allow, deny, retryPolicy } from '../utils.js';
 
-export const createChannelWithRole = (
-  teamId: Team.TeamId,
-  groupId: GroupModel.GroupId,
+/** Creates a hidden Discord text channel with an associated role. Returns channel + role IDs. */
+export const createDiscordChannelAndRole = (
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('channel', ({ rest }) =>
       rest
@@ -48,16 +46,28 @@ export const createChannelWithRole = (
     Effect.tap(({ channel, role }) =>
       Effect.logInfo(`Set role ${role.id} permission overwrite on channel ${channel.id}`),
     ),
-    Effect.tap(({ channel, role, rpc }) =>
+    Effect.map(({ channel, role }) => ({
+      discord_channel_id: channel.id as DiscordSchemas.Snowflake,
+      discord_role_id: role.id as DiscordSchemas.Snowflake,
+    })),
+  );
+
+export const createChannelWithRole = (
+  teamId: Team.TeamId,
+  groupId: GroupModel.GroupId,
+  guildId: DiscordSchemas.Snowflake,
+  channelName: string,
+) =>
+  Effect.Do.pipe(
+    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('result', () => createDiscordChannelAndRole(guildId, channelName)),
+    Effect.tap(({ result, rpc }) =>
       rpc['Channel/UpsertMapping']({
         team_id: teamId,
         group_id: groupId,
-        discord_channel_id: channel.id as DiscordSchemas.Snowflake,
-        discord_role_id: role.id as DiscordSchemas.Snowflake,
+        discord_channel_id: result.discord_channel_id,
+        discord_role_id: result.discord_role_id,
       }),
     ),
-    Effect.map(({ channel, role }) => ({
-      discord_channel_id: channel.id,
-      discord_role_id: role.id,
-    })),
+    Effect.map(({ result }) => result),
   );

@@ -367,7 +367,7 @@ The development workflow is split into composable skills:
 |-------|---------|
 | `/work` | Orchestrator: picks up a Notion story → `/implement` → `/ship` → updates Notion |
 | `/implement` | Full dev loop: research → plan → TDD → verify tests → implement → verify → review → refactor |
-| `/ship` | Delivery loop: changeset → checks → commit → push → PR → CI → code review → `/revise` |
+| `/ship` | Delivery loop: changeset → `/docs` → checks → commit → push → PR → CI → code review → `/revise` |
 | `/revise` | Triage review comments with `/architect` → `/implement` fixes → `/ship` |
 | `/refactor` | Refactor code with before/after explanation, verified by tests |
 | `/complete` | Mark story/bug as done after PR is merged (story → Done, bug → Fixed) |
@@ -472,6 +472,16 @@ Configuration:
 
 Both files are sourced automatically by `bin/psql`. The `bin/` directory is added to `PATH` via `.envrc`.
 
+### Editing migrations after PR creation
+
+Migrations run automatically when a preview environment is deployed. If you edit a migration **after** the PR has already been created (and the preview deployed), the migration runner will skip it because it was already marked as executed. You must apply the new SQL statements manually:
+
+```bash
+psql --pr <PR_NUMBER> -c "ALTER TABLE ... ADD COLUMN IF NOT EXISTS ..."
+```
+
+Always use `IF NOT EXISTS` / `IF EXISTS` guards so the command is idempotent. Run each new statement from the migration that was added after the initial deploy.
+
 ## Logs & Monitoring
 
 Logs, traces, and metrics are exported via OpenTelemetry to **SigNoz**. The telemetry layer is configured in each application's `run.ts` using `makeTelemetryLayer` from `@sideline/effect-lib`.
@@ -548,4 +558,4 @@ The `docs/thesis/` directory contains Mermaid diagrams and documentation for the
 
 ---
 
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-03-30

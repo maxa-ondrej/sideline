@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$ro
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const rosterId = Schema.decodeSync(RosterModel.RosterId)(params.rosterId);
-    const [rosterDetail, allMembers] = await Promise.all([
+    const [rosterDetail, allMembers, discordChannels] = await Promise.all([
       ApiClient.pipe(
         Effect.flatMap((api) => api.roster.getRoster({ path: { teamId, rosterId } })),
         warnAndCatchAll,
@@ -21,15 +21,21 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$ro
         warnAndCatchAll,
         context.run,
       ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.group.listDiscordChannels({ path: { teamId } })),
+        Effect.tapError((e) => Effect.logWarning('Failed to load Discord channels', e)),
+        Effect.catchAll(() => Effect.succeed([])),
+        context.run,
+      ),
     ]);
-    return { rosterDetail, allMembers };
+    return { rosterDetail, allMembers, discordChannels };
   },
 });
 
 function RosterDetailRoute() {
   const { user } = Route.useRouteContext();
   const { teamId: teamIdRaw, rosterId: rosterIdRaw } = Route.useParams();
-  const { rosterDetail, allMembers } = Route.useLoaderData();
+  const { rosterDetail, allMembers, discordChannels } = Route.useLoaderData();
 
   return (
     <RosterDetailPage
@@ -39,6 +45,7 @@ function RosterDetailRoute() {
       allMembers={allMembers}
       canManage={rosterDetail.canManage}
       userId={user.id}
+      discordChannels={discordChannels}
     />
   );
 }

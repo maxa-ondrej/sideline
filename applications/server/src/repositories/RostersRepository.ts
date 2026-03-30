@@ -1,6 +1,6 @@
 import { Model, SqlClient, SqlSchema } from '@effect/sql';
-import { RosterModel, Team, TeamMember } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
+import { Effect, Option, Schema } from 'effect';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 
@@ -9,6 +9,7 @@ class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
   team_id: Team.TeamId,
   name: Schema.String,
   active: Schema.Boolean,
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   created_at: Model.DateTimeFromDate,
   member_count: Schema.Number,
 }) {}
@@ -23,6 +24,9 @@ class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInp
   id: RosterModel.RosterId,
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
+  discord_channel_id: Schema.optionalWith(Schema.OptionFromNullOr(Discord.Snowflake), {
+    as: 'Option',
+  }),
 }) {}
 
 class RosterMemberInput extends Schema.Class<RosterMemberInput>('RosterMemberInput')({
@@ -46,7 +50,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     Request: Schema.String,
     Result: RosterWithCount,
     execute: (teamId) => this.sql`
-      SELECT r.id, r.team_id, r.name, r.active, r.created_at,
+      SELECT r.id, r.team_id, r.name, r.active, r.discord_channel_id, r.created_at,
              (SELECT COUNT(*) FROM roster_members rm WHERE rm.roster_id = r.id)::int AS member_count
       FROM rosters r
       WHERE r.team_id = ${teamId}
@@ -71,13 +75,20 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
   });
 
   private updateOne = SqlSchema.single({
-    Request: RosterUpdateInput,
+    Request: Schema.Struct({
+      id: RosterModel.RosterId,
+      name: Schema.OptionFromNullOr(Schema.String),
+      active: Schema.OptionFromNullOr(Schema.Boolean),
+      update_channel: Schema.Boolean,
+      discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    }),
     Result: RosterModel.Roster,
-    execute: (input) => this.sql`
+    execute: (i) => this.sql`
       UPDATE rosters
-      SET name = COALESCE(${input.name}, name),
-          active = COALESCE(${input.active}, active)
-      WHERE id = ${input.id}
+      SET name = COALESCE(${i.name}, name),
+          active = COALESCE(${i.active}, active),
+          discord_channel_id = CASE WHEN ${i.update_channel} THEN ${i.discord_channel_id} ELSE discord_channel_id END
+      WHERE id = ${i.id}
       RETURNING *
     `,
   });
@@ -150,7 +161,16 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
 
   insert = (input: RosterInsertInput) => this.insertOne(input).pipe(catchSqlErrors);
 
-  update = (input: RosterUpdateInput) => this.updateOne(input).pipe(catchSqlErrors);
+  update = (input: typeof RosterUpdateInput.Type) => {
+    const parsed = new RosterUpdateInput(input);
+    return this.updateOne({
+      id: parsed.id,
+      name: parsed.name,
+      active: parsed.active,
+      update_channel: Option.isSome(parsed.discord_channel_id),
+      discord_channel_id: Option.getOrElse(parsed.discord_channel_id, () => Option.none()),
+    }).pipe(catchSqlErrors);
+  };
 
   delete = (id: RosterModel.RosterId) => this.deleteOne(id).pipe(catchSqlErrors);
 

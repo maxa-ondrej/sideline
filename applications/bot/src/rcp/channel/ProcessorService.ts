@@ -6,15 +6,20 @@ import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { handleCreated } from './handleCreated.js';
-import { handleDeleted } from './handleDeleted.js';
-import { handleMemberAdded } from './handleMemberAdded.js';
-import { handleMemberRemoved } from './handleMemberRemoved.js';
+import { handleDeleted, handleRosterDeleted } from './handleDeleted.js';
+import { handleMemberAdded, handleRosterMemberAdded } from './handleMemberAdded.js';
+import { handleMemberRemoved, handleRosterMemberRemoved } from './handleMemberRemoved.js';
+import { handleRosterChannelCreated } from './handleRosterChannelCreated.js';
 
 const action = Match.type<ChannelRpcEvents.UnprocessedChannelEvent>().pipe(
-  Match.tag('channel_created', handleCreated),
-  Match.tag('channel_deleted', handleDeleted),
-  Match.tag('channel_member_added', handleMemberAdded),
-  Match.tag('channel_member_removed', handleMemberRemoved),
+  Match.tag('group_channel_created', handleCreated),
+  Match.tag('roster_channel_created', handleRosterChannelCreated),
+  Match.tag('group_channel_deleted', handleDeleted),
+  Match.tag('roster_channel_deleted', handleRosterDeleted),
+  Match.tag('group_member_added', handleMemberAdded),
+  Match.tag('roster_member_added', handleRosterMemberAdded),
+  Match.tag('group_member_removed', handleMemberRemoved),
+  Match.tag('roster_member_removed', handleRosterMemberRemoved),
   Match.exhaustive,
 );
 

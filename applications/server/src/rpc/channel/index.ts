@@ -3,13 +3,16 @@ import {
   ChannelRpcModels,
   type ChannelSyncEvent,
   type Discord,
+  type DiscordChannelMapping,
   type GroupModel,
+  type RosterModel,
   type Team,
 } from '@sideline/domain';
-import { Bind } from '@sideline/effect-lib';
+import { Bind, LogicError } from '@sideline/effect-lib';
 import { Array, Data, Effect, flow, Option } from 'effect';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
+import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
 
 class NoChanges extends Data.TaggedError('NoChanges')<{
@@ -18,9 +21,29 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
   static make = () => new NoChanges({ count: 0 });
 }
 
+const toChannelMapping = (m: {
+  readonly id: DiscordChannelMapping.DiscordChannelMappingId;
+  readonly team_id: Team.TeamId;
+  readonly entity_type: ChannelSyncEvent.ChannelSyncEntityType;
+  readonly group_id: Option.Option<GroupModel.GroupId>;
+  readonly roster_id: Option.Option<RosterModel.RosterId>;
+  readonly discord_channel_id: Discord.Snowflake;
+  readonly discord_role_id: Option.Option<Discord.Snowflake>;
+}) =>
+  new ChannelRpcModels.ChannelMapping({
+    id: m.id,
+    team_id: m.team_id,
+    entity_type: m.entity_type,
+    group_id: m.group_id,
+    roster_id: m.roster_id,
+    discord_channel_id: m.discord_channel_id,
+    discord_role_id: m.discord_role_id,
+  });
+
 export const ChannelsRpcLive = Effect.Do.pipe(
   Effect.bind('syncEvents', () => ChannelSyncEventsRepository),
   Effect.bind('mappings', () => DiscordChannelMappingRepository),
+  Effect.bind('rosters', () => RostersRepository),
   Effect.let(
     'Channel/GetUnprocessedEvents',
     ({ syncEvents }) =>
@@ -71,6 +94,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
       }) =>
         syncEvents.markFailed(id, error),
   ),
+  // Group mapping RPCs
   Effect.let(
     'Channel/GetMapping',
     ({ mappings }) =>
@@ -81,20 +105,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         readonly team_id: Team.TeamId;
         readonly group_id: GroupModel.GroupId;
       }) =>
-        mappings.findByGroupId(team_id, group_id).pipe(
-          Effect.map(
-            Option.map(
-              (m) =>
-                new ChannelRpcModels.ChannelMapping({
-                  id: m.id,
-                  team_id: m.team_id,
-                  group_id: m.group_id,
-                  discord_channel_id: m.discord_channel_id,
-                  discord_role_id: m.discord_role_id,
-                }),
-            ),
-          ),
-        ),
+        mappings.findByGroupId(team_id, group_id).pipe(Effect.map(Option.map(toChannelMapping))),
   ),
   Effect.let(
     'Channel/UpsertMapping',
@@ -124,7 +135,75 @@ export const ChannelsRpcLive = Effect.Do.pipe(
       }) =>
         mappings.deleteByGroupId(team_id, group_id),
   ),
+  // Roster mapping RPCs
+  Effect.let(
+    'Channel/GetRosterMapping',
+    ({ mappings }) =>
+      ({
+        team_id,
+        roster_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly roster_id: RosterModel.RosterId;
+      }) =>
+        mappings.findByRosterId(team_id, roster_id).pipe(Effect.map(Option.map(toChannelMapping))),
+  ),
+  Effect.let(
+    'Channel/UpsertRosterMapping',
+    ({ mappings }) =>
+      ({
+        team_id,
+        roster_id,
+        discord_channel_id,
+        discord_role_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly roster_id: RosterModel.RosterId;
+        readonly discord_channel_id: Discord.Snowflake;
+        readonly discord_role_id: Discord.Snowflake;
+      }) =>
+        mappings.insertRoster(team_id, roster_id, discord_channel_id, discord_role_id),
+  ),
+  Effect.let(
+    'Channel/DeleteRosterMapping',
+    ({ mappings }) =>
+      ({
+        team_id,
+        roster_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly roster_id: RosterModel.RosterId;
+      }) =>
+        mappings.deleteByRosterId(team_id, roster_id),
+  ),
+  // Roster channel update
+  Effect.let(
+    'Channel/UpdateRosterChannel',
+    ({ rosters }) =>
+      ({
+        roster_id,
+        discord_channel_id,
+      }: {
+        readonly roster_id: RosterModel.RosterId;
+        readonly discord_channel_id: Option.Option<Discord.Snowflake>;
+      }) =>
+        rosters
+          .update({
+            id: roster_id,
+            name: Option.none(),
+            active: Option.none(),
+            discord_channel_id: Option.some(discord_channel_id),
+          })
+          .pipe(
+            Effect.catchTag(
+              'NoSuchElementException',
+              LogicError.withMessage(() => `Roster ${roster_id} not found when updating channel`),
+            ),
+            Effect.asVoid,
+          ),
+  ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),
+  Bind.remove('rosters'),
   (handlers) => ChannelRpcGroup.ChannelRpcGroup.toLayer(handlers),
 );

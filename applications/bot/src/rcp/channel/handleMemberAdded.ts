@@ -1,18 +1,23 @@
-import type { ChannelRpcEvents } from '@sideline/domain';
+import type { ChannelRpcEvents, Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx';
 import { Effect } from 'effect';
 import { ensureMapping } from '~/rest/channels/ensureMapping.js';
 import { retryPolicy } from '~/rest/utils.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
-export const handleMemberAdded = (event: ChannelRpcEvents.ChannelMemberAddedEvent) =>
+export const handleMemberAdded = (event: ChannelRpcEvents.GroupMemberAddedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('mapping', () =>
       ensureMapping(event.team_id, event.group_id, event.guild_id, event.group_name),
     ),
-    Effect.bind('guildRole', ({ rest, mapping }) =>
+    Effect.tap(({ rest, mapping }) =>
       rest
-        .addGuildMemberRole(event.guild_id, event.discord_user_id, mapping.discord_role_id)
+        .addGuildMemberRole(
+          event.guild_id,
+          event.discord_user_id,
+          mapping.discord_role_id as Discord.Snowflake,
+        )
         .pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ mapping }) =>
@@ -21,4 +26,31 @@ export const handleMemberAdded = (event: ChannelRpcEvents.ChannelMemberAddedEven
       ),
     ),
     Effect.asVoid,
+  );
+
+export const handleRosterMemberAdded = (event: ChannelRpcEvents.RosterMemberAddedEvent) =>
+  Effect.Do.pipe(
+    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('cached', ({ rpc }) =>
+      rpc['Channel/GetRosterMapping']({ team_id: event.team_id, roster_id: event.roster_id }),
+    ),
+    Effect.bind('mapping', ({ cached }) => cached),
+    Effect.bind('roleId', ({ mapping }) => mapping.discord_role_id),
+    Effect.tap(({ rest, roleId }) =>
+      rest
+        .addGuildMemberRole(event.guild_id, event.discord_user_id, roleId)
+        .pipe(Effect.retry(retryPolicy)),
+    ),
+    Effect.tap(({ roleId }) =>
+      Effect.logInfo(
+        `Assigned role ${roleId} to user ${event.discord_user_id} in guild ${event.guild_id}`,
+      ),
+    ),
+    Effect.asVoid,
+    Effect.catchTag('NoSuchElementException', () =>
+      Effect.logWarning(
+        `No mapping or role found for roster ${event.roster_id} in guild ${event.guild_id}, skipping member_added`,
+      ),
+    ),
   );

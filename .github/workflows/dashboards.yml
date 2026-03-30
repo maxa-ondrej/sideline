@@ -1,0 +1,188 @@
+name: Dashboards
+
+on:
+  pull_request:
+    paths:
+      - monitoring/dashboards/**
+  push:
+    branches:
+      - main
+    paths:
+      - monitoring/dashboards/**
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate JSON syntax
+        run: |
+          ERRORS=0
+          for file in monitoring/dashboards/*.json; do
+            if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
+              echo "::error file=$file::Invalid JSON syntax"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS dashboard(s) have invalid JSON"
+            exit 1
+          fi
+          echo "All dashboard JSON files are syntactically valid"
+
+      - name: Validate dashboard structure
+        run: |
+          ERRORS=0
+          for file in monitoring/dashboards/*.json; do
+            RESULT=$(python3 << PYEOF
+          import json, sys
+
+          with open("$file") as f:
+              dashboard = json.load(f)
+
+          errors = []
+          data = dashboard.get("data", dashboard)
+
+          if not data.get("title"):
+              errors.append("missing 'data.title'")
+
+          if not isinstance(data.get("widgets"), list):
+              errors.append("missing or invalid 'data.widgets' (must be array)")
+
+          if not isinstance(data.get("layout"), list):
+              errors.append("missing or invalid 'data.layout' (must be array)")
+
+          widgets = data.get("widgets", [])
+          layout_ids = {item["i"] for item in data.get("layout", []) if "i" in item}
+          widget_ids = {w["id"] for w in widgets if "id" in w}
+
+          for wid in widget_ids - layout_ids:
+              errors.append(f"widget '{wid}' has no layout entry")
+
+          for lid in layout_ids - widget_ids:
+              errors.append(f"layout entry '{lid}' has no matching widget")
+
+          for w in widgets:
+              if not w.get("query"):
+                  errors.append(f"widget '{w.get('id', '?')}' has no query")
+              elif not w["query"].get("queryType"):
+                  errors.append(f"widget '{w.get('id', '?')}' has no queryType")
+
+          if errors:
+              for e in errors:
+                  print(f"::error file=$file::{e}")
+              sys.exit(1)
+          else:
+              print(f"OK: {data['title']} ({len(widgets)} widgets)")
+          PYEOF
+          )
+            EXIT_CODE=$?
+            echo "$RESULT"
+            if [ $EXIT_CODE -ne 0 ]; then
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS dashboard(s) have structural issues"
+            exit 1
+          fi
+          echo "All dashboards are structurally valid"
+
+  sync:
+    name: Sync to SigNoz
+    if: github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Sync dashboards
+        env:
+          SIGNOZ_ENDPOINT: ${{ secrets.SIGNOZ_ENDPOINT }}
+          SIGNOZ_TOKEN: ${{ secrets.SIGNOZ_TOKEN }}
+        run: |
+          if [ -z "$SIGNOZ_ENDPOINT" ]; then
+            echo "::error::SIGNOZ_ENDPOINT secret is not set"
+            exit 1
+          fi
+
+          AUTH_HEADER=""
+          if [ -n "$SIGNOZ_TOKEN" ]; then
+            AUTH_HEADER="Authorization: Bearer $SIGNOZ_TOKEN"
+          fi
+
+          CURL_OPTS=(-s -S -H "Content-Type: application/json")
+          if [ -n "$AUTH_HEADER" ]; then
+            CURL_OPTS+=(-H "$AUTH_HEADER")
+          fi
+
+          echo "Fetching existing dashboards from SigNoz..."
+          EXISTING=$(curl "${CURL_OPTS[@]}" "$SIGNOZ_ENDPOINT/api/v1/dashboards" 2>/dev/null || echo '{"data":[]}')
+
+          ERRORS=0
+          for file in monitoring/dashboards/*.json; do
+            [ -f "$file" ] || continue
+
+            TITLE=$(python3 -c "import json; print(json.load(open('$file')).get('data',{}).get('title',''))")
+            echo ""
+            echo "Processing: $TITLE ($(basename "$file"))"
+
+            # Check if dashboard with this title already exists
+            DASHBOARD_ID=$(echo "$EXISTING" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin).get('data', [])
+          title = '$TITLE'
+          for d in data:
+              t = d.get('data', {}).get('title', d.get('name', ''))
+              if t == title:
+                  print(d.get('uuid', d.get('id', '')))
+                  break
+          " 2>/dev/null)
+
+            # Build the payload
+            PAYLOAD=$(python3 -c "
+          import json
+          with open('$file') as f:
+              d = json.load(f)
+          # If the file has a 'data' wrapper, use it; otherwise wrap it
+          if 'data' in d and 'widgets' in d.get('data', {}):
+              print(json.dumps(d))
+          else:
+              print(json.dumps({'data': d}))
+          ")
+
+            if [ -n "$DASHBOARD_ID" ]; then
+              echo "  Updating existing dashboard (id: $DASHBOARD_ID)"
+              RESPONSE=$(curl "${CURL_OPTS[@]}" -X PUT "$SIGNOZ_ENDPOINT/api/v1/dashboards/$DASHBOARD_ID" -d "$PAYLOAD" 2>&1)
+            else
+              echo "  Creating new dashboard"
+              RESPONSE=$(curl "${CURL_OPTS[@]}" -X POST "$SIGNOZ_ENDPOINT/api/v1/dashboards" -d "$PAYLOAD" 2>&1)
+            fi
+
+            # Check for errors
+            if echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'error' not in d else 1)" 2>/dev/null; then
+              echo "  OK"
+            else
+              ERROR_MSG=$(echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error','unknown error'))" 2>/dev/null || echo "$RESPONSE")
+              echo "::error file=$file::Failed to sync: $ERROR_MSG"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          echo ""
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS dashboard(s) failed to sync"
+            exit 1
+          fi
+          echo "All dashboards synced successfully"

@@ -193,7 +193,7 @@ flowchart LR
     subgraph ROSTER["Roster Operations"]
         UC_LIST_ROSTERS["List Rosters\n(GET /teams/:teamId/rosters)"]
         UC_CREATE_ROSTER["Create Roster\n(POST /teams/:teamId/rosters)"]
-        UC_UPDATE_ROSTER["Update Roster\n(PATCH /teams/:teamId/rosters/:rosterId)\nname · active status"]
+        UC_UPDATE_ROSTER["Update Roster\n(PATCH /teams/:teamId/rosters/:rosterId)\nname · active status · discord channel"]
         UC_DELETE_ROSTER["Delete Roster\n(DELETE /teams/:teamId/rosters/:rosterId)"]
         UC_ADD_ROSTER_MEMBER["Add Member to Roster\n(POST /teams/:teamId/rosters/:rosterId/members)"]
         UC_REMOVE_ROSTER_MEMBER["Remove Member from Roster\n(DELETE /teams/:teamId/rosters/:rosterId/members/:memberId)"]

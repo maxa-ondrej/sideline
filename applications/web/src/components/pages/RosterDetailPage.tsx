@@ -1,5 +1,5 @@
-import type { Roster as RosterDomain } from '@sideline/domain';
-import { RosterModel, Team, TeamMember } from '@sideline/domain';
+import type { GroupApi, Roster as RosterDomain } from '@sideline/domain';
+import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
@@ -7,6 +7,7 @@ import React from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { Separator } from '~/components/ui/separator';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface RosterDetailPageProps {
@@ -23,6 +25,7 @@ interface RosterDetailPageProps {
   allMembers: ReadonlyArray<RosterDomain.RosterPlayer>;
   canManage: boolean;
   userId: string;
+  discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
 }
 
 export function RosterDetailPage({
@@ -31,10 +34,12 @@ export function RosterDetailPage({
   rosterDetail,
   allMembers,
   canManage,
+  discordChannels,
 }: RosterDetailPageProps) {
   const run = useRun();
   const router = useRouter();
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
+  const [selectedChannelId, setSelectedChannelId] = React.useState('');
 
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
   const rosterIdBranded = Schema.decodeSync(RosterModel.RosterId)(rosterId);
@@ -47,7 +52,11 @@ export function RosterDetailPage({
       Effect.flatMap((api) =>
         api.roster.updateRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
-          payload: { name: Option.none(), active: Option.some(!rosterDetail.active) },
+          payload: {
+            name: Option.none(),
+            active: Option.some(!rosterDetail.active),
+            discordChannelId: Option.none(),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
@@ -57,6 +66,67 @@ export function RosterDetailPage({
       router.invalidate();
     }
   }, [teamIdBranded, rosterIdBranded, rosterDetail.active, run, router]);
+
+  const handleLinkChannel = React.useCallback(async () => {
+    if (!selectedChannelId) return;
+    const snowflake = Schema.decodeSync(Discord.Snowflake)(selectedChannelId);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.roster.updateRoster({
+          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          payload: {
+            name: Option.none(),
+            active: Option.none(),
+            discordChannelId: Option.some(Option.some(snowflake)),
+          },
+        }),
+      ),
+      Effect.catchTag('ChannelAlreadyLinked', () =>
+        ClientError.make(m.roster_channelAlreadyLinked()),
+      ),
+      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      run({ success: m.roster_channelLinked() }),
+    );
+    if (Option.isSome(result)) {
+      setSelectedChannelId('');
+      router.invalidate();
+    }
+  }, [selectedChannelId, teamIdBranded, rosterIdBranded, run, router]);
+
+  const handleUnlinkChannel = React.useCallback(async () => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.roster.updateRoster({
+          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          payload: {
+            name: Option.none(),
+            active: Option.none(),
+            discordChannelId: Option.some(Option.none()),
+          },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      run({ success: m.roster_channelUnlinked() }),
+    );
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [teamIdBranded, rosterIdBranded, run, router]);
+
+  const handleCreateChannel = React.useCallback(async () => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.roster.createChannel({
+          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.roster_channelCreateFailed())),
+      run({ success: m.roster_channelCreateRequested() }),
+    );
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [teamIdBranded, rosterIdBranded, run, router]);
 
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
@@ -143,6 +213,68 @@ export function RosterDetailPage({
           )}
         </div>
       </header>
+
+      {canManage && (
+        <Card className='mb-6 max-w-md'>
+          <CardHeader>
+            <CardTitle className='text-base'>{m.roster_discordChannel()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Option.isSome(rosterDetail.discordChannelId) ? (
+              <div className='flex items-center justify-between'>
+                <span className='text-sm font-medium'>
+                  #{' '}
+                  {Option.getOrElse(rosterDetail.discordChannelName, () =>
+                    Option.getOrElse(rosterDetail.discordChannelId, () => ''),
+                  )}
+                </span>
+                <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
+                  {m.roster_unlinkChannel()}
+                </Button>
+              </div>
+            ) : (
+              <div className='flex flex-col gap-4'>
+                <Button className='w-full' onClick={handleCreateChannel}>
+                  {m.roster_createChannel()}
+                </Button>
+
+                <div className='relative'>
+                  <div className='absolute inset-0 flex items-center'>
+                    <Separator className='w-full' />
+                  </div>
+                  <div className='relative flex justify-center text-xs uppercase'>
+                    <span className='bg-card px-2 text-muted-foreground'>
+                      {m.roster_orLinkExisting()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex gap-2'>
+                  <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+                    <SelectTrigger className='flex-1'>
+                      <SelectValue placeholder={m.roster_selectChannel()} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {discordChannels.map((ch) => (
+                        <SelectItem key={ch.id} value={ch.id}>
+                          # {ch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant='outline'
+                    onClick={handleLinkChannel}
+                    disabled={!selectedChannelId}
+                  >
+                    {m.roster_linkChannel()}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {canManage && (
         <div className='flex gap-2 mb-6 max-w-md'>

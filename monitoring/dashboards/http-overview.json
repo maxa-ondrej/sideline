@@ -1,0 +1,596 @@
+{
+  "createdAt": "2026-03-29T15:53:04.305325Z",
+  "updatedAt": "2026-03-29T22:49:44.598832Z",
+  "createdBy": "ondrej.maxa11@gmail.com",
+  "updatedBy": "ondrej.maxa11@gmail.com",
+  "id": "019d3a4c-7c31-7509-a0f5-cd7d6d0a7912",
+  "data": {
+    "description": "HTTP request metrics for the Sideline server \u2014 request rates, error rates, and latency percentiles.",
+    "layout": [
+      {
+        "h": 3,
+        "i": "request_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "error_rate",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
+      {
+        "h": 3,
+        "i": "p95_latency",
+        "minH": 2,
+        "minW": 2,
+        "moved": false,
+        "static": false,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
+      {
+        "h": 7,
+        "i": "rate_by_status",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      {
+        "h": 7,
+        "i": "rate_by_method",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      {
+        "h": 7,
+        "i": "latency_percentiles",
+        "minH": 5,
+        "minW": 4,
+        "moved": false,
+        "static": false,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      }
+    ],
+    "panelMap": {},
+    "tags": ["sideline", "http", "server", "performance"],
+    "title": "Sideline: HTTP Overview",
+    "variables": {
+      "environment": {
+        "allSelected": false,
+        "customValue": "production,preview,development",
+        "description": "Filter by deployment environment",
+        "id": "environment",
+        "key": "environment",
+        "name": "environment",
+        "order": 0,
+        "selectedValue": "preview",
+        "showALLOption": true,
+        "sort": "ASC",
+        "type": "CUSTOM"
+      }
+    },
+    "widgets": [
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "HTTP requests per second",
+        "id": "request_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "sum(rate({\"http_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Request Rate",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "Percentage of 4xx and 5xx responses",
+        "id": "error_rate",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": true,
+              "name": "A",
+              "query": "sum(rate({\"http_requests_total\", \"deployment.environment\"=~\"$environment\", status_class=~\"4xx|5xx\"}[5m]))"
+            },
+            {
+              "disabled": true,
+              "name": "B",
+              "query": "sum(rate({\"http_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            },
+            {
+              "disabled": false,
+              "name": "F1",
+              "query": "A / B"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Error Rate",
+        "yAxisUnit": "percentunit"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "95th percentile HTTP request latency",
+        "id": "p95_latency",
+        "panelTypes": "value",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": "histogram_quantile(0.95, sum by (le) (rate({\"http_request_duration_ms.bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "P95 Latency",
+        "yAxisUnit": "ms"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "HTTP request rate grouped by status class (2xx, 4xx, 5xx)",
+        "id": "rate_by_status",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "{{status_class}}",
+              "name": "A",
+              "query": "sum by (status_class) (rate({\"http_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Request Rate by Status",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "HTTP request rate grouped by HTTP method",
+        "id": "rate_by_method",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "{{method}}",
+              "name": "A",
+              "query": "sum by (method) (rate({\"http_requests_total\", \"deployment.environment\"=~\"$environment\"}[5m]))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Request Rate by Method",
+        "yAxisUnit": "ops"
+      },
+      {
+        "bucketCount": 30,
+        "contextLinks": {
+          "linksData": []
+        },
+        "description": "P50, P95, P99 HTTP request latency over time",
+        "id": "latency_percentiles",
+        "legendPosition": "bottom",
+        "panelTypes": "graph",
+        "query": {
+          "builder": {
+            "queryData": [],
+            "queryFormulas": []
+          },
+          "clickhouse_sql": [
+            {
+              "disabled": false,
+              "name": "A",
+              "query": ""
+            }
+          ],
+          "promql": [
+            {
+              "disabled": false,
+              "legend": "P50",
+              "name": "A",
+              "query": "histogram_quantile(0.50, sum by (le) (rate({\"http_request_duration_ms.bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))"
+            },
+            {
+              "disabled": false,
+              "legend": "P95",
+              "name": "B",
+              "query": "histogram_quantile(0.95, sum by (le) (rate({\"http_request_duration_ms.bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))"
+            },
+            {
+              "disabled": false,
+              "legend": "P99",
+              "name": "C",
+              "query": "histogram_quantile(0.99, sum by (le) (rate({\"http_request_duration_ms.bucket\", \"deployment.environment\"=~\"$environment\"}[5m])))"
+            }
+          ],
+          "queryType": "promql"
+        },
+        "selectedLogFields": [
+          {
+            "fieldContext": "log",
+            "name": "timestamp",
+            "signal": "logs",
+            "type": "log"
+          },
+          {
+            "fieldContext": "log",
+            "name": "body",
+            "signal": "logs",
+            "type": "log"
+          }
+        ],
+        "selectedTracesFields": [
+          {
+            "fieldContext": "resource",
+            "fieldDataType": "string",
+            "name": "service.name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "fieldDataType": "string",
+            "name": "name",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "duration_nano",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "http_method",
+            "signal": "traces"
+          },
+          {
+            "fieldContext": "span",
+            "name": "response_status_code",
+            "signal": "traces"
+          }
+        ],
+        "softMax": 0,
+        "softMin": 0,
+        "thresholds": [],
+        "title": "Latency Percentiles",
+        "yAxisUnit": "ms"
+      }
+    ]
+  },
+  "locked": false,
+  "org_id": "019d302a-ce5f-7528-a834-45e4bfecea8b"
+}

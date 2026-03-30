@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { Snowflake } from '~/models/Discord.js';
 import { Permission } from '~/models/Role.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
@@ -40,6 +41,12 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()(
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
+export class ChannelAlreadyLinked extends Schema.TaggedError<ChannelAlreadyLinked>()(
+  'ChannelAlreadyLinked',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class RosterNotFound extends Schema.TaggedError<RosterNotFound>()(
   'RosterNotFound',
   {},
@@ -53,6 +60,8 @@ export class RosterInfo extends Schema.Class<RosterInfo>('RosterInfo')({
   active: Schema.Boolean,
   memberCount: Schema.Number,
   createdAt: Schema.String,
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  discordChannelName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class RosterListResponse extends Schema.Class<RosterListResponse>('RosterListResponse')({
@@ -68,6 +77,8 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   createdAt: Schema.String,
   members: Schema.Array(RosterPlayer),
   canManage: Schema.Boolean,
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  discordChannelName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({
@@ -77,6 +88,7 @@ export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('Crea
 export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('UpdateRosterRequest')({
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
 export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>(
@@ -146,6 +158,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .addSuccess(RosterInfo)
       .addError(Forbidden, { status: 403 })
       .addError(RosterNotFound, { status: 404 })
+      .addError(ChannelAlreadyLinked, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
       .setPayload(UpdateRosterRequest)
       .middleware(AuthMiddleware),
@@ -175,5 +188,13 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .addError(RosterNotFound, { status: 404 })
       .addError(PlayerNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId, memberId: TeamMemberId }))
+      .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel')
+      .addSuccess(Schema.Void)
+      .addError(Forbidden, { status: 403 })
+      .addError(RosterNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
       .middleware(AuthMiddleware),
   ) {}

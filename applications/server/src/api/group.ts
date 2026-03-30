@@ -231,9 +231,22 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     )
                   : Effect.void,
               ),
+              Effect.bind('mappingToDelete', () => channelMappings.findByGroupId(teamId, groupId)),
               Effect.tap(() => groups.archiveGroupById(groupId)),
-              Effect.tap(({ existing }) =>
-                channelSync.emitChannelDeleted(teamId, groupId, existing.name),
+              Effect.tap(({ existing, mappingToDelete }) =>
+                Option.match(mappingToDelete, {
+                  onNone: () => Effect.void,
+                  onSome: (mapping) =>
+                    channelSync
+                      .emitChannelDeleted(
+                        teamId,
+                        groupId,
+                        existing.name,
+                        mapping.discord_channel_id,
+                        mapping.discord_role_id,
+                      )
+                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId))),
+                }),
               ),
               Effect.asVoid,
             ),
@@ -526,10 +539,26 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.tap(() =>
+                channelMappings
+                  .findAllByTeam(teamId)
+                  .pipe(
+                    Effect.flatMap((mappings) =>
+                      mappings.some((m) => m.discord_channel_id === payload.discordChannelId)
+                        ? Effect.fail(forbidden)
+                        : Effect.void,
+                    ),
+                  ),
+              ),
+              Effect.tap(() =>
                 channelMappings.insertWithoutRole(teamId, groupId, payload.discordChannelId),
               ),
               Effect.tap(({ _group }) =>
-                channelSync.emitChannelCreated(teamId, groupId, _group.name),
+                channelSync.emitChannelCreated(
+                  teamId,
+                  groupId,
+                  _group.name,
+                  Option.some(payload.discordChannelId),
+                ),
               ),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
@@ -573,6 +602,25 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                           : Effect.succeed(g),
                     }),
                   ),
+                ),
+              ),
+              Effect.bind('mapping', () =>
+                channelMappings.findByGroupId(teamId, groupId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(({ _group, mapping }) =>
+                channelSync.emitChannelDeleted(
+                  teamId,
+                  groupId,
+                  _group.name,
+                  mapping.discord_channel_id,
+                  mapping.discord_role_id,
                 ),
               ),
               Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
@@ -623,18 +671,22 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
-              Effect.map(({ channels }) =>
-                Array.map(
-                  channels,
-                  (ch) =>
-                    new GroupApi.DiscordChannelInfo({
-                      id: ch.channel_id,
-                      name: ch.name,
-                      type: ch.type,
-                      parentId: ch.parent_id,
-                    }),
-                ),
-              ),
+              Effect.bind('mappings', () => channelMappings.findAllByTeam(teamId)),
+              Effect.map(({ channels, mappings }) => {
+                const mappedChannelIds = new Set(mappings.map((m) => m.discord_channel_id));
+                return Array.filterMap(channels, (ch) =>
+                  mappedChannelIds.has(ch.channel_id)
+                    ? Option.none()
+                    : Option.some(
+                        new GroupApi.DiscordChannelInfo({
+                          id: ch.channel_id,
+                          name: ch.name,
+                          type: ch.type,
+                          parentId: ch.parent_id,
+                        }),
+                      ),
+                );
+              }),
             ),
           ),
     ),

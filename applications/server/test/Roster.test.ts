@@ -161,6 +161,7 @@ type RosterRecord = {
   team_id: Team.TeamId;
   name: string;
   active: boolean;
+  discord_channel_id: Option.Option<Discord.Snowflake>;
   created_at: DateTime.Utc;
 };
 
@@ -175,6 +176,7 @@ rostersStore.set(TEST_ROSTER_ID, {
   team_id: TEST_TEAM_ID,
   name: 'Test Roster',
   active: true,
+  discord_channel_id: Option.none(),
   created_at: DateTime.unsafeNow(),
 });
 
@@ -347,6 +349,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
         team_id: r.team_id,
         name: r.name,
         active: r.active,
+        discord_channel_id: r.discord_channel_id,
         created_at: r.created_at,
         member_count: Array.from(rosterMembersStore.values()).filter((rm) => rm.roster_id === r.id)
           .length,
@@ -364,6 +367,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
       team_id: input.team_id as Team.TeamId,
       name: input.name,
       active: input.active,
+      discord_channel_id: Option.none(),
       created_at: DateTime.unsafeNow(),
     };
     rostersStore.set(id, roster);
@@ -373,6 +377,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     id: RosterModel.RosterId;
     name: Option.Option<string>;
     active: Option.Option<boolean>;
+    discord_channel_id?: Option.Option<Option.Option<Discord.Snowflake>>;
   }) => {
     const roster = rostersStore.get(input.id);
     if (!roster) return Effect.die(new Error('Roster not found'));
@@ -380,6 +385,10 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
       ...roster,
       name: Option.getOrElse(input.name, () => roster.name),
       active: Option.getOrElse(input.active, () => roster.active),
+      discord_channel_id:
+        input.discord_channel_id !== undefined
+          ? Option.getOrElse(input.discord_channel_id, () => roster.discord_channel_id)
+          : roster.discord_channel_id,
     };
     rostersStore.set(input.id, updated);
     return Effect.succeed(updated);
@@ -548,6 +557,8 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   emitChannelDeleted: () => Effect.void,
   emitMemberAdded: () => Effect.void,
   emitMemberRemoved: () => Effect.void,
+  emitRosterChannelCreated: () => Effect.void,
+  emitRosterChannelDeleted: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
@@ -565,9 +576,13 @@ const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsReposito
 
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: () => Effect.succeed(Option.none()),
+  findByRosterId: () => Effect.succeed(Option.none()),
   insert: () => Effect.void,
   insertWithoutRole: () => Effect.void,
+  insertRoster: () => Effect.void,
   deleteByGroupId: () => Effect.void,
+  deleteByRosterId: () => Effect.void,
+  findAllByTeam: () => Effect.succeed([]),
 } as unknown as DiscordChannelMappingRepository);
 
 const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {
@@ -922,6 +937,20 @@ describe('Rosters API', () => {
       expect(body).toHaveProperty('canManage');
       expect(Array.isArray(body.rosters)).toBe(true);
     });
+
+    it('GET roster list includes discordChannelId in each roster item', async () => {
+      const response = await handler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters`, {
+          headers: { Authorization: 'Bearer user-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.rosters.length).toBeGreaterThan(0);
+      const roster = body.rosters[0];
+      expect(roster).toHaveProperty('discordChannelId');
+      expect(roster).toHaveProperty('discordChannelName');
+    });
   });
 
   describe('POST /teams/:teamId/rosters', () => {
@@ -999,6 +1028,20 @@ describe('Rosters API', () => {
       expect(body.name).toBe('Test Roster');
       expect(Array.isArray(body.members)).toBe(true);
     });
+
+    it('GET roster detail includes discordChannelId', async () => {
+      const response = await handler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {
+          headers: { Authorization: 'Bearer user-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body).toHaveProperty('discordChannelId');
+      expect(body).toHaveProperty('discordChannelName');
+      expect(body.discordChannelId).toBeNull();
+      expect(body.discordChannelName).toBeNull();
+    });
   });
 
   describe('PATCH /teams/:teamId/rosters/:rosterId', () => {
@@ -1045,6 +1088,83 @@ describe('Rosters API', () => {
         }),
       );
       expect(response.status).toBe(404);
+    });
+
+    it('PATCH update roster discord_channel_id', async () => {
+      // Reset roster to have no discord channel
+      rostersStore.set(TEST_ROSTER_ID, {
+        id: TEST_ROSTER_ID,
+        team_id: TEST_TEAM_ID,
+        name: 'Test Roster',
+        active: true,
+        discord_channel_id: Option.none(),
+        created_at: DateTime.unsafeNow(),
+      });
+      const response = await handler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: null, active: null, discordChannelId: '123456789' }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.discordChannelId).toBe('123456789');
+    });
+
+    it('PATCH clear roster discord_channel_id', async () => {
+      // Set roster to have a discord channel
+      rostersStore.set(TEST_ROSTER_ID, {
+        id: TEST_ROSTER_ID,
+        team_id: TEST_TEAM_ID,
+        name: 'Test Roster',
+        active: true,
+        discord_channel_id: Option.some('987654321' as Discord.Snowflake),
+        created_at: DateTime.unsafeNow(),
+      });
+      const response = await handler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: null, active: null, discordChannelId: null }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.discordChannelId).toBeNull();
+    });
+
+    it('PATCH update roster without discord_channel_id preserves existing', async () => {
+      const existingChannelId = '555555555' as Discord.Snowflake;
+      // Set roster to have a discord channel
+      rostersStore.set(TEST_ROSTER_ID, {
+        id: TEST_ROSTER_ID,
+        team_id: TEST_TEAM_ID,
+        name: 'Test Roster',
+        active: true,
+        discord_channel_id: Option.some(existingChannelId),
+        created_at: DateTime.unsafeNow(),
+      });
+      const response = await handler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: 'New Name', active: null }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.name).toBe('New Name');
+      expect(body.discordChannelId).toBe(existingChannelId);
     });
   });
 
