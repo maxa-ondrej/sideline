@@ -418,7 +418,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.tap(({ membership }) =>
                 requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
               ),
-              Effect.bind('_existing', () =>
+              Effect.bind('existing', () =>
                 rosters.findRosterById(rosterId).pipe(
                   Effect.flatMap(
                     Option.match({
@@ -427,6 +427,13 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     }),
                   ),
                 ),
+              ),
+              Effect.tap(({ existing }) =>
+                Option.isSome(existing.discord_channel_id)
+                  ? channelSync
+                      .emitRosterChannelDeleted(teamId, rosterId, existing.name)
+                      .pipe(Effect.tap(() => channelMappings.deleteByRosterId(teamId, rosterId)))
+                  : Effect.void,
               ),
               Effect.tap(() => rosters.delete(rosterId)),
               Effect.asVoid,
