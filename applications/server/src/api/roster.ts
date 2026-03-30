@@ -447,20 +447,60 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                               Effect.flatMap(
                                 Option.match({
                                   onNone: () => Effect.void,
-                                  onSome: (mapping) =>
-                                    channelSync
-                                      .emitRosterChannelDeleted(
-                                        teamId,
-                                        rosterId,
-                                        existing.name,
-                                        mapping.discord_channel_id,
-                                        mapping.discord_role_id,
-                                      )
-                                      .pipe(
-                                        Effect.tap(() =>
-                                          channelMappings.deleteByRosterId(teamId, rosterId),
-                                        ),
-                                      ),
+                                  onSome: (mapping) => {
+                                    const cleanupMode = Option.match(settings, {
+                                      onNone: () => 'delete' as const,
+                                      onSome: (s) => s.discord_channel_cleanup_on_roster_deactivate,
+                                    });
+                                    const archiveCategoryId = Option.flatMap(
+                                      settings,
+                                      (s) => s.discord_archive_category_id,
+                                    );
+                                    const effectiveMode =
+                                      cleanupMode === 'archive' && Option.isNone(archiveCategoryId)
+                                        ? ('delete' as const)
+                                        : cleanupMode;
+
+                                    switch (effectiveMode) {
+                                      case 'nothing':
+                                        return channelSync
+                                          .emitRosterChannelDetached(
+                                            teamId,
+                                            rosterId,
+                                            existing.name,
+                                            mapping.discord_channel_id,
+                                            mapping.discord_role_id,
+                                          )
+                                          .pipe(
+                                            Effect.tap(() =>
+                                              channelMappings.deleteByRosterId(teamId, rosterId),
+                                            ),
+                                          );
+                                      case 'delete':
+                                        return channelSync
+                                          .emitRosterChannelDeleted(
+                                            teamId,
+                                            rosterId,
+                                            existing.name,
+                                            mapping.discord_channel_id,
+                                            mapping.discord_role_id,
+                                          )
+                                          .pipe(
+                                            Effect.tap(() =>
+                                              channelMappings.deleteByRosterId(teamId, rosterId),
+                                            ),
+                                          );
+                                      case 'archive':
+                                        return channelSync.emitRosterChannelArchived(
+                                          teamId,
+                                          rosterId,
+                                          existing.name,
+                                          mapping.discord_channel_id,
+                                          mapping.discord_role_id,
+                                          Option.getOrThrow(archiveCategoryId),
+                                        );
+                                    }
+                                  },
                                 }),
                               ),
                             )
