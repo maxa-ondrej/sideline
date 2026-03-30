@@ -1,0 +1,57 @@
+{
+  "title": "Bot Overview",
+  "description": "Discord bot event processing, sync pipelines, and interaction metrics",
+  "tags": ["bot", "discord", "sync"],
+  "layout": [
+    {
+      "id": "discord_events_rate",
+      "title": "Discord Gateway Events (per minute)",
+      "description": "Rate of Discord gateway events by type",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(discord_events_total{service_name=\"sideline-bot\"}[1m])) by (event_type) * 60"
+      }
+    },
+    {
+      "id": "discord_interactions_rate",
+      "title": "Discord Interactions (per minute)",
+      "description": "Rate of Discord interactions (slash commands, buttons, modals)",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(discord_interactions_total{service_name=\"sideline-bot\"}[1m])) by (interaction_type) * 60"
+      }
+    },
+    {
+      "id": "sync_events_processed",
+      "title": "Sync Events Processed (per minute)",
+      "description": "Rate of successfully processed sync events by type and action",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(sync_events_processed_total{service_name=\"sideline-bot\"}[1m])) by (sync_type, action) * 60"
+      }
+    },
+    {
+      "id": "sync_events_failed",
+      "title": "Sync Events Failed (per minute)",
+      "description": "Rate of failed sync events by type",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(sync_events_failed_total{service_name=\"sideline-bot\"}[1m])) by (sync_type) * 60"
+      }
+    },
+    {
+      "id": "sync_success_ratio",
+      "title": "Sync Success Rate (%)",
+      "description": "Percentage of sync events processed successfully",
+      "panelType": "value",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(sync_events_processed_total{service_name=\"sideline-bot\"}[5m])) / (sum(rate(sync_events_processed_total{service_name=\"sideline-bot\"}[5m])) + sum(rate(sync_events_failed_total{service_name=\"sideline-bot\"}[5m]))) * 100"
+      }
+    }
+  ]
+}

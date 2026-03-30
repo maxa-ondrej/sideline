@@ -1,0 +1,77 @@
+{
+  "title": "RPC Overview",
+  "description": "RPC request rates, latencies, and error rates for the Sideline server",
+  "tags": ["rpc", "server"],
+  "layout": [
+    {
+      "id": "rpc_requests_rate",
+      "title": "RPC Requests Rate (per minute)",
+      "description": "Rate of RPC requests by method",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(rpc_requests_total{service_name=\"sideline-server\"}[1m])) by (rpc) * 60"
+      }
+    },
+    {
+      "id": "rpc_error_rate",
+      "title": "RPC Error Rate (per minute)",
+      "description": "Rate of failed RPC requests by method",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(rpc_requests_total{service_name=\"sideline-server\", result=\"failure\"}[1m])) by (rpc) * 60"
+      }
+    },
+    {
+      "id": "rpc_success_ratio",
+      "title": "RPC Success Rate (%)",
+      "description": "Percentage of successful RPC requests",
+      "panelType": "value",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rate(rpc_requests_total{service_name=\"sideline-server\", result=\"success\"}[5m])) / sum(rate(rpc_requests_total{service_name=\"sideline-server\"}[5m])) * 100"
+      }
+    },
+    {
+      "id": "rpc_duration_p50",
+      "title": "RPC Duration p50 (ms)",
+      "description": "Median RPC request duration by method",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "histogram_quantile(0.5, sum(rate(rpc_request_duration_ms_bucket{service_name=\"sideline-server\"}[5m])) by (le, rpc))"
+      }
+    },
+    {
+      "id": "rpc_duration_p95",
+      "title": "RPC Duration p95 (ms)",
+      "description": "95th percentile RPC request duration by method",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "histogram_quantile(0.95, sum(rate(rpc_request_duration_ms_bucket{service_name=\"sideline-server\"}[5m])) by (le, rpc))"
+      }
+    },
+    {
+      "id": "rpc_duration_p99",
+      "title": "RPC Duration p99 (ms)",
+      "description": "99th percentile RPC request duration by method",
+      "panelType": "graph",
+      "query": {
+        "queryType": "promql",
+        "promql": "histogram_quantile(0.99, sum(rate(rpc_request_duration_ms_bucket{service_name=\"sideline-server\"}[5m])) by (le, rpc))"
+      }
+    },
+    {
+      "id": "rpc_total_by_method",
+      "title": "Total RPC Calls by Method",
+      "description": "Cumulative count of RPC calls per method",
+      "panelType": "table",
+      "query": {
+        "queryType": "promql",
+        "promql": "sum(rpc_requests_total{service_name=\"sideline-server\"}) by (rpc, result)"
+      }
+    }
+  ]
+}
