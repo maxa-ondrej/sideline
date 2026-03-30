@@ -34,15 +34,22 @@ If any package source code changed (not just docs/config), create a changeset fi
 
 ---
 
-### Step 3: Update documentation
+### Step 3: Update documentation and agent config
 
-Invoke the `/docs` agent to update `docs/` and `docs/thesis/` files based on the current changes. The agent will:
-- Read the diff to understand what changed
-- Determine which docs need updating (API, database, bot, deployment, thesis diagrams, etc.)
-- Make targeted edits to keep documentation in sync
-- Check and update E2E mock data if API schemas changed
+Run the `/docs` and `/meta` agents **in parallel** (both in one message):
 
-If the agent makes changes, stage them before proceeding.
+1. **`/docs` agent** — Updates `docs/` and `docs/thesis/` files:
+   - Reads the diff to identify affected documentation
+   - Makes targeted edits to API docs, database docs, ER diagrams, use-cases, etc.
+   - Checks and updates E2E mock data if API schemas changed
+
+2. **`/meta` agent** — Updates AGENTS.md files and `.claude/` configuration:
+   - Reads the diff to identify new patterns, conventions, or architecture changes
+   - Updates the relevant AGENTS.md files with precise, unambiguous instructions
+   - Updates agent/skill definitions if workflow changed
+   - Verifies cross-references between all agent infrastructure files
+
+If either agent makes changes, stage them before proceeding.
 
 ---
 

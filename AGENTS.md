@@ -367,7 +367,7 @@ The development workflow is split into composable skills:
 |-------|---------|
 | `/work` | Orchestrator: picks up a Notion story → `/implement` → `/ship` → updates Notion |
 | `/implement` | Full dev loop: research → plan → TDD → verify tests → implement → verify → review → refactor |
-| `/ship` | Delivery loop: changeset → checks → commit → push → PR → CI → code review → `/revise` |
+| `/ship` | Delivery loop: changeset → `/docs` → checks → commit → push → PR → CI → code review → `/revise` |
 | `/revise` | Triage review comments with `/architect` → `/implement` fixes → `/ship` |
 | `/refactor` | Refactor code with before/after explanation, verified by tests |
 | `/complete` | Mark story/bug as done after PR is merged (story → Done, bug → Fixed) |
@@ -548,4 +548,4 @@ The `docs/thesis/` directory contains Mermaid diagrams and documentation for the
 
 ---
 
-**Last Updated**: 2026-03-28
+**Last Updated**: 2026-03-30
