@@ -10,6 +10,7 @@ import { SyncRpcs } from '@sideline/domain';
 import { Layer } from 'effect';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
+import { RpcObservability, RpcObservabilityLive } from '~/middleware/RpcObservability.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
@@ -43,8 +44,11 @@ import { env } from './env.js';
 import { HttpLogger } from './middleware/HttpLogger.js';
 import { SyncRpcsLive } from './rpc/index.js';
 
-const RpcLive = RpcServer.layer(SyncRpcs.SyncRpcs).pipe(
+const ObservableSyncRpcs = SyncRpcs.SyncRpcs.middleware(RpcObservability);
+
+const RpcLive = RpcServer.layer(ObservableSyncRpcs).pipe(
   Layer.provide(SyncRpcsLive),
+  Layer.provide(RpcObservabilityLive),
   Layer.provide(
     RpcServer.layerProtocolHttp({
       path: env.RPC_PREFIX as HttpRouter.PathInput,
