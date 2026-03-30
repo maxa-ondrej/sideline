@@ -20,11 +20,8 @@ import {
 import { Separator } from '~/components/ui/separator';
 import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
+import { DISCORD_CHANNEL_TYPE_CATEGORY, DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-
-/** Discord channel type constants */
-const DISCORD_CHANNEL_TYPE_TEXT = 0;
-const DISCORD_CHANNEL_TYPE_CATEGORY = 4;
 
 interface TeamSettingsPageProps {
   teamId: string;

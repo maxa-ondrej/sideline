@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Separator } from '~/components/ui/separator';
+import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface RosterDetailPageProps {
@@ -255,11 +256,13 @@ export function RosterDetailPage({
                       <SelectValue placeholder={m.roster_selectChannel()} />
                     </SelectTrigger>
                     <SelectContent>
-                      {discordChannels.map((ch) => (
-                        <SelectItem key={ch.id} value={ch.id}>
-                          # {ch.name}
-                        </SelectItem>
-                      ))}
+                      {discordChannels
+                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                        .map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>
+                            # {ch.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <Button
