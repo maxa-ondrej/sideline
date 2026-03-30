@@ -7,6 +7,7 @@ import React from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { Separator } from '~/components/ui/separator';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface RosterDetailPageProps {
@@ -108,6 +110,21 @@ export function RosterDetailPage({
     }
   }, [teamIdBranded, rosterIdBranded, run, router]);
 
+  const handleCreateChannel = React.useCallback(async () => {
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.roster.createChannel({
+          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.roster_channelCreateFailed())),
+      run({ success: m.roster_channelCreateRequested() }),
+    );
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [teamIdBranded, rosterIdBranded, run, router]);
+
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(selectedMemberId);
@@ -194,13 +211,15 @@ export function RosterDetailPage({
         </div>
       </header>
 
-      {canManage &&
-        (Option.isSome(rosterDetail.discordChannelId) || discordChannels.length > 0) && (
-          <div className='mb-6'>
-            <p className='text-sm font-medium mb-2'>{m.roster_discordChannel()}</p>
+      {canManage && (
+        <Card className='mb-6 max-w-md'>
+          <CardHeader>
+            <CardTitle className='text-base'>{m.roster_discordChannel()}</CardTitle>
+          </CardHeader>
+          <CardContent>
             {Option.isSome(rosterDetail.discordChannelId) ? (
-              <div className='flex items-center gap-2'>
-                <span className='text-sm'>
+              <div className='flex items-center justify-between'>
+                <span className='text-sm font-medium'>
                   #{' '}
                   {Option.getOrElse(rosterDetail.discordChannelName, () =>
                     Option.getOrElse(rosterDetail.discordChannelId, () => ''),
@@ -211,26 +230,48 @@ export function RosterDetailPage({
                 </Button>
               </div>
             ) : (
-              <div className='flex gap-2 max-w-md'>
-                <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
-                  <SelectTrigger className='flex-1'>
-                    <SelectValue placeholder={m.roster_selectChannel()} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {discordChannels.map((ch) => (
-                      <SelectItem key={ch.id} value={ch.id}>
-                        # {ch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleLinkChannel} disabled={!selectedChannelId}>
-                  {m.roster_linkChannel()}
+              <div className='flex flex-col gap-4'>
+                <Button className='w-full' onClick={handleCreateChannel}>
+                  {m.roster_createChannel()}
                 </Button>
+
+                <div className='relative'>
+                  <div className='absolute inset-0 flex items-center'>
+                    <Separator className='w-full' />
+                  </div>
+                  <div className='relative flex justify-center text-xs uppercase'>
+                    <span className='bg-card px-2 text-muted-foreground'>
+                      {m.roster_orLinkExisting()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex gap-2'>
+                  <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+                    <SelectTrigger className='flex-1'>
+                      <SelectValue placeholder={m.roster_selectChannel()} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {discordChannels.map((ch) => (
+                        <SelectItem key={ch.id} value={ch.id}>
+                          # {ch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant='outline'
+                    onClick={handleLinkChannel}
+                    disabled={!selectedChannelId}
+                  >
+                    {m.roster_linkChannel()}
+                  </Button>
+                </div>
               </div>
             )}
-          </div>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
       {canManage && (
         <div className='flex gap-2 mb-6 max-w-md'>

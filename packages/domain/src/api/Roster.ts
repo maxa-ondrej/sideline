@@ -182,4 +182,12 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .addError(PlayerNotFound, { status: 404 })
       .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId, memberId: TeamMemberId }))
       .middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel')
+      .addSuccess(Schema.Void)
+      .addError(Forbidden, { status: 403 })
+      .addError(RosterNotFound, { status: 404 })
+      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
+      .middleware(AuthMiddleware),
   ) {}

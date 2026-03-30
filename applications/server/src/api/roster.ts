@@ -448,6 +448,31 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.tap(() => rosters.removeMemberById(rosterId, memberId)),
             Effect.asVoid,
           ),
+        )
+        .handle('createChannel', ({ path: { teamId, rosterId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+            ),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+            ),
+            Effect.bind('roster', () =>
+              rosters.findRosterById(rosterId).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            Effect.tap(({ roster }) =>
+              channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
+            ),
+            Effect.asVoid,
+          ),
         ),
     ),
   ),
