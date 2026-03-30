@@ -443,11 +443,13 @@ export function TeamSettingsPage({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
-                          {discordChannels.map((ch) => (
-                            <SelectItem key={ch.id} value={ch.id}>
-                              # {ch.name}
-                            </SelectItem>
-                          ))}
+                          {discordChannels
+                            .filter((ch) => ch.type === 0)
+                            .map((ch) => (
+                              <SelectItem key={ch.id} value={ch.id}>
+                                # {ch.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
