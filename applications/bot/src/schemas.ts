@@ -12,6 +12,14 @@ export const DfxTextChannel = Schema.Struct({
   parent_id: Nullish(Discord.Snowflake),
 });
 
+/** Subset of dfx GuildChannelResponse for synced channel types (text + category). */
+export const DfxSyncableChannel = Schema.Struct({
+  id: Discord.Snowflake,
+  name: Schema.String,
+  type: Schema.Literal(0, 4),
+  parent_id: Nullish(Discord.Snowflake),
+});
+
 /** Subset of dfx UserResponse. */
 export const DfxUser = Schema.Struct({
   id: Discord.Snowflake,

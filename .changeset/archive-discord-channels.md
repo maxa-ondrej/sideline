@@ -7,4 +7,4 @@
 "@sideline/i18n": patch
 ---
 
-Move Discord channels to archive category on group deletion or roster deactivation instead of deleting them
+Add 3-mode Discord channel cleanup (nothing, delete, archive) with separate settings for groups and rosters

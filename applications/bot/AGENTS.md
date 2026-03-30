@@ -11,6 +11,7 @@ src/
 ├── HealthServerLive.ts — Health check HTTP endpoint with gateway shard status
 ├── env.ts           — Environment config (token, intents, health port)
 ├── run.ts           — Runtime entrypoint (config, logging, NodeRuntime)
+├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser)
 ├── commands/        — Slash command registry (ping.ts, index.ts)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member lifecycle)
@@ -46,7 +47,7 @@ Event types: `role_created`, `role_deleted`, `role_assigned`, `role_unassigned`
 
 ### Channel Sync (groups ↔ Discord channels)
 
-Syncs groups to private Discord text channels. The bot creates private channels (denying `@everyone` VIEW_CHANNEL+SEND_MESSAGES) and manages per-user permission overwrites.
+Syncs groups to private Discord text channels with per-user permission overwrites. The guild sync uses `DfxSyncableChannel` (type 0 = text, type 4 = category) to sync both text and category channels from Discord to the database.
 
 | Component | File |
 |-----------|------|
