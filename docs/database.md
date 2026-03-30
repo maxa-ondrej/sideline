@@ -673,6 +673,7 @@ Named match-day squad lists managed per team.
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `name` | TEXT | NOT NULL | — |
 | `active` | BOOLEAN | NOT NULL | `true` |
+| `discord_channel_id` | TEXT | — | `NULL` |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
 **Indexes**: `idx_rosters_team` on `(team_id)`
@@ -764,6 +765,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1742900000 | `add_activity_source_and_training_type` | Creates `activity_types` table; seeds 4 global built-ins; adds `activity_type_id` FK to activity_logs; migrates data; drops the inline `activity_type TEXT` column; adds auto-dedup unique index |
 | 1743000000 | `add_auto_logged_at` | Adds `auto_logged_at TIMESTAMPTZ` to events (set by TrainingAutoLogCron) |
 | 1743100000 | `add_team_profile_fields` | Adds `description`, `sport`, and `logo_url` columns to teams |
+| 1743400000 | `add_roster_discord_channel` | Adds `discord_channel_id TEXT` to rosters |
 
 ### After Migrations (seed data)
 

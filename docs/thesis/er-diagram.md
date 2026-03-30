@@ -533,6 +533,7 @@ erDiagram
         UUID team_id FK
         TEXT name
         BOOLEAN active
+        TEXT discord_channel_id
         TIMESTAMPTZ created_at
     }
 

@@ -47,7 +47,11 @@ export function RosterDetailPage({
       Effect.flatMap((api) =>
         api.roster.updateRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
-          payload: { name: Option.none(), active: Option.some(!rosterDetail.active) },
+          payload: {
+            name: Option.none(),
+            active: Option.some(!rosterDetail.active),
+            discordChannelId: Option.none(),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),

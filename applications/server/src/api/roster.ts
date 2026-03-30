@@ -1,12 +1,14 @@
 import { HttpApiBuilder } from '@effect/platform';
-import { Auth, Roster, type RosterModel } from '@sideline/domain';
+import { Auth, type Discord, Roster, type RosterModel } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
+import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 const toRosterPlayer = (entry: RosterEntry) =>
@@ -24,7 +26,21 @@ const toRosterPlayer = (entry: RosterEntry) =>
     avatar: entry.avatar,
   });
 
-const toRosterInfo = (r: RosterModel.Roster, memberCount: number): Roster.RosterInfo =>
+type ChannelLike = { readonly channel_id: Discord.Snowflake; readonly name: string };
+
+const resolveChannelName = (
+  channelId: Option.Option<Discord.Snowflake>,
+  allChannels: readonly ChannelLike[],
+): Option.Option<string> =>
+  Option.flatMap(channelId, (id) =>
+    Option.fromNullable(allChannels.find((ch) => ch.channel_id === id)?.name),
+  );
+
+const toRosterInfo = (
+  r: RosterModel.Roster,
+  memberCount: number,
+  allChannels: readonly ChannelLike[],
+): Roster.RosterInfo =>
   new Roster.RosterInfo({
     rosterId: r.id,
     teamId: r.team_id,
@@ -32,6 +48,8 @@ const toRosterInfo = (r: RosterModel.Roster, memberCount: number): Roster.Roster
     active: r.active,
     memberCount,
     createdAt: DateTime.formatIso(r.created_at),
+    discordChannelId: r.discord_channel_id,
+    discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
   });
 
 export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
@@ -39,7 +57,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('users', () => UsersRepository),
     Effect.bind('rosters', () => RostersRepository),
-    Effect.map(({ members, users, rosters }) =>
+    Effect.bind('teams', () => TeamsRepository),
+    Effect.bind('discordChannels', () => DiscordChannelsRepository),
+    Effect.map(({ members, users, rosters, teams, discordChannels }) =>
       handlers
         .handle('listMembers', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -168,8 +188,17 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.let('canManage', ({ membership }) => hasPermission(membership, 'roster:manage')),
             Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
+            Effect.bind('team', () =>
+              teams.findById(teamId).pipe(
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () =>
+                  Effect.fail(new Roster.Forbidden()),
+                ),
+              ),
+            ),
+            Effect.bind('allChannels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
             Effect.map(
-              ({ rosterList, canManage }) =>
+              ({ rosterList, canManage, allChannels }) =>
                 new Roster.RosterListResponse({
                   canManage,
                   rosters: Array.map(
@@ -182,6 +211,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                         active: r.active,
                         memberCount: r.member_count,
                         createdAt: DateTime.formatIso(r.created_at),
+                        discordChannelId: r.discord_channel_id,
+                        discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
                       }),
                   ),
                 }),
@@ -200,7 +231,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             Effect.bind('roster', () =>
               rosters.insert({ team_id: teamId, name: payload.name, active: true }),
             ),
-            Effect.map(({ roster }) => toRosterInfo(roster, 0)),
+            Effect.map(({ roster }) => toRosterInfo(roster, 0, [])),
             Effect.catchTag(
               'NoSuchElementException',
               LogicError.withMessage(() => 'Failed creating roster — no row returned'),
@@ -228,8 +259,17 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
             ),
             Effect.bind('rosterMembers', ({ roster }) => rosters.findMemberEntriesById(roster.id)),
+            Effect.bind('team', () =>
+              teams.findById(teamId).pipe(
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () =>
+                  Effect.fail(new Roster.Forbidden()),
+                ),
+              ),
+            ),
+            Effect.bind('allChannels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
             Effect.map(
-              ({ roster, rosterMembers, canManage }) =>
+              ({ roster, rosterMembers, canManage, allChannels }) =>
                 new Roster.RosterDetail({
                   rosterId: roster.id,
                   teamId: roster.team_id,
@@ -238,6 +278,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   createdAt: DateTime.formatIso(roster.created_at),
                   members: Array.map(rosterMembers, toRosterPlayer),
                   canManage,
+                  discordChannelId: roster.discord_channel_id,
+                  discordChannelName: resolveChannelName(roster.discord_channel_id, allChannels),
                 }),
             ),
           ),
@@ -262,12 +304,28 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
             ),
             Effect.bind('updated', () =>
-              rosters.update({ id: rosterId, name: payload.name, active: payload.active }),
+              rosters.update({
+                id: rosterId,
+                name: payload.name,
+                active: payload.active,
+                discord_channel_id: payload.discordChannelId,
+              }),
             ),
             Effect.bind('memberCount', ({ updated }) =>
               rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
             ),
-            Effect.map(({ updated, memberCount }) => toRosterInfo(updated, memberCount)),
+            Effect.bind('team', () =>
+              teams.findById(teamId).pipe(
+                Effect.flatten,
+                Effect.catchTag('NoSuchElementException', () =>
+                  Effect.fail(new Roster.Forbidden()),
+                ),
+              ),
+            ),
+            Effect.bind('allChannels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
+            Effect.map(({ updated, memberCount, allChannels }) =>
+              toRosterInfo(updated, memberCount, allChannels),
+            ),
             Effect.catchTag(
               'NoSuchElementException',
               LogicError.withMessage(() => 'Failed updating roster — no row returned'),

@@ -666,6 +666,8 @@ Lists all rosters for a team with member counts.
 | `name` | `string` | No | Roster name |
 | `active` | `boolean` | No | Whether the roster is active |
 | `memberCount` | `number` | No | Number of members on this roster |
+| `discordChannelId` | `string` | Yes | Linked Discord channel ID |
+| `discordChannelName` | `string` | Yes | Resolved Discord channel name |
 | `createdAt` | `string` | No | Creation timestamp |
 
 **Errors:**
@@ -730,6 +732,8 @@ Returns full roster details including the member list.
 | `createdAt` | `string` | No | Creation timestamp |
 | `members` | `RosterPlayer[]` | No | Members on this roster |
 | `canManage` | `boolean` | No | Whether the user can manage this roster |
+| `discordChannelId` | `string` | Yes | Linked Discord channel ID |
+| `discordChannelName` | `string` | Yes | Resolved Discord channel name |
 
 **Errors:**
 
@@ -760,6 +764,7 @@ Updates a roster's name or active status.
 |---|---|---|---|
 | `name` | `string \| null` | No | New name (null keeps current) |
 | `active` | `boolean \| null` | No | Active status (null keeps current) |
+| `discordChannelId` | `string \| null` | No | Discord channel ID (null clears, omit to keep current) |
 
 **Response:** `200 OK` — `RosterInfo`
 

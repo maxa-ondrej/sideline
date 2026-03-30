@@ -1,6 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { Snowflake } from '~/models/Discord.js';
 import { Permission } from '~/models/Role.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
@@ -53,6 +54,8 @@ export class RosterInfo extends Schema.Class<RosterInfo>('RosterInfo')({
   active: Schema.Boolean,
   memberCount: Schema.Number,
   createdAt: Schema.String,
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  discordChannelName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class RosterListResponse extends Schema.Class<RosterListResponse>('RosterListResponse')({
@@ -68,6 +71,8 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   createdAt: Schema.String,
   members: Schema.Array(RosterPlayer),
   canManage: Schema.Boolean,
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
+  discordChannelName: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({
@@ -77,6 +82,7 @@ export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('Crea
 export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('UpdateRosterRequest')({
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
+  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
 export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>(
