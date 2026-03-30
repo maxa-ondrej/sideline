@@ -9,6 +9,7 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
     ),
     Effect.tap(() => sql`ALTER TABLE channel_sync_events ADD COLUMN roster_id TEXT`),
     Effect.tap(() => sql`ALTER TABLE channel_sync_events ADD COLUMN roster_name TEXT`),
+    Effect.tap(() => sql`ALTER TABLE channel_sync_events ADD COLUMN existing_channel_id TEXT`),
     Effect.tap(() => sql`ALTER TABLE channel_sync_events ALTER COLUMN group_id DROP NOT NULL`),
     Effect.tap(
       () =>

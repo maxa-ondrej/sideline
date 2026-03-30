@@ -22,6 +22,7 @@ export class RosterChannelCreatedEvent extends Schema.TaggedClass<RosterChannelC
     guild_id: Discord.Snowflake,
     roster_id: RosterModel.RosterId,
     roster_name: Schema.String,
+    existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 

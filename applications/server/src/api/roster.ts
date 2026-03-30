@@ -334,8 +334,13 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                       Option.isSome(existing.discord_channel_id)
                         ? channelSync.emitRosterChannelDeleted(teamId, rosterId, existing.name)
                         : Effect.void,
-                    onSome: () =>
-                      channelSync.emitRosterChannelCreated(teamId, updated.id, updated.name),
+                    onSome: (channelId) =>
+                      channelSync.emitRosterChannelCreated(
+                        teamId,
+                        updated.id,
+                        updated.name,
+                        channelId,
+                      ),
                   }),
               }),
             ),

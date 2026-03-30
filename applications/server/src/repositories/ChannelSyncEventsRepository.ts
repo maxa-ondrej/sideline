@@ -21,6 +21,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
   roster_id: Schema.OptionFromNullOr(RosterModel.RosterId),
   roster_name: Schema.OptionFromNullOr(Schema.String),
+  existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
@@ -39,6 +40,7 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
   discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
   roster_id: Schema.OptionFromNullOr(RosterModel.RosterId),
   roster_name: Schema.OptionFromNullOr(Schema.String),
+  existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
@@ -59,8 +61,8 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
   private insertEvent = SqlSchema.void({
     Request: InsertInput,
     execute: (input) => this.sql`
-      INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name)
-      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.entity_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id}, ${input.roster_id}, ${input.roster_name})
+      INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.entity_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id}, ${input.roster_id}, ${input.roster_name}, ${input.existing_channel_id})
     `,
   });
 
@@ -74,7 +76,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     Request: Schema.Number,
     Result: EventRow,
     execute: (limit) => this.sql`
-      SELECT id, team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name
+      SELECT id, team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id
       FROM channel_sync_events
       WHERE processed_at IS NULL
       ORDER BY created_at ASC
@@ -107,6 +109,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       discordUserId?: Discord.Snowflake;
       rosterId?: RosterModel.RosterId;
       rosterName?: string;
+      existingChannelId?: Discord.Snowflake;
     } = {},
   ) =>
     this.lookupGuildId(teamId).pipe(
@@ -125,6 +128,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
               discord_user_id: Option.fromNullable(fields.discordUserId ?? null),
               roster_id: Option.fromNullable(fields.rosterId ?? null),
               roster_name: Option.fromNullable(fields.rosterName ?? null),
+              existing_channel_id: Option.fromNullable(fields.existingChannelId ?? null),
             }),
         }),
       ),
@@ -169,7 +173,13 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     teamId: Team.TeamId,
     rosterId: RosterModel.RosterId,
     rosterName: string,
-  ) => this._emitIfGuildLinked(teamId, 'channel_created', 'roster', { rosterId, rosterName });
+    existingChannelId?: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'channel_created', 'roster', {
+      rosterId,
+      rosterName,
+      ...(existingChannelId !== undefined ? { existingChannelId } : {}),
+    });
 
   emitRosterChannelDeleted = (
     teamId: Team.TeamId,
