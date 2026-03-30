@@ -339,7 +339,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                         teamId,
                         updated.id,
                         updated.name,
-                        channelId,
+                        Option.some(channelId),
                       ),
                   }),
               }),
