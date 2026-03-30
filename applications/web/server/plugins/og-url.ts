@@ -13,15 +13,17 @@ export default defineNitroPlugin((nitroApp) => {
     if (!contentType.includes('text/html')) return res;
 
     const body = await res.text();
-    const rewritten = body.replace(
-      /content="\/og-image\.png"/g,
-      `content="${webUrl}/og-image.png"`,
-    );
+    const absoluteImageUrl = new URL('/og-image.png', webUrl).toString();
+    const rewritten = body.replace(/content="\/og-image\.png"/g, `content="${absoluteImageUrl}"`);
+
+    const headers = new Headers(res.headers);
+    headers.delete('content-length');
+    headers.delete('content-encoding');
 
     return new Response(rewritten, {
       status: res.status,
       statusText: res.statusText,
-      headers: res.headers,
+      headers,
     });
   };
 });
