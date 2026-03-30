@@ -42,67 +42,166 @@ const nullable = <
     ),
   ) as Effect.Effect<E[K] extends Option.Option<infer T> ? T : never, EventPropertyMissing>;
 
+const channelCreatedFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('group', () =>
+      Effect.Do.pipe(
+        Effect.bind('group_id', () => nullable(r, 'group_id')),
+        Effect.bind('group_name', () => nullable(r, 'group_name')),
+        Effect.map(
+          ({ group_id, group_name }) =>
+            new ChannelRpcEvents.GroupChannelCreatedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              group_id,
+              group_name,
+            }),
+        ),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.Do.pipe(
+        Effect.bind('roster_id', () => nullable(r, 'roster_id')),
+        Effect.bind('roster_name', () => nullable(r, 'roster_name')),
+        Effect.map(
+          ({ roster_id, roster_name }) =>
+            new ChannelRpcEvents.RosterChannelCreatedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              roster_id,
+              roster_name,
+            }),
+        ),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
+const channelDeletedFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('group', () =>
+      Effect.Do.pipe(
+        Effect.bind('group_id', () => nullable(r, 'group_id')),
+        Effect.map(
+          ({ group_id }) =>
+            new ChannelRpcEvents.GroupChannelDeletedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              group_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.Do.pipe(
+        Effect.bind('roster_id', () => nullable(r, 'roster_id')),
+        Effect.map(
+          ({ roster_id }) =>
+            new ChannelRpcEvents.RosterChannelDeletedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              roster_id,
+            }),
+        ),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
+const memberAddedFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('group', () =>
+      Effect.Do.pipe(
+        Effect.bind('group_id', () => nullable(r, 'group_id')),
+        Effect.bind('group_name', () => nullable(r, 'group_name')),
+        Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
+        Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
+        Effect.map(
+          ({ group_id, group_name, team_member_id, discord_user_id }) =>
+            new ChannelRpcEvents.GroupMemberAddedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              group_id,
+              group_name,
+              team_member_id,
+              discord_user_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.Do.pipe(
+        Effect.bind('roster_id', () => nullable(r, 'roster_id')),
+        Effect.bind('roster_name', () => nullable(r, 'roster_name')),
+        Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
+        Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
+        Effect.map(
+          ({ roster_id, roster_name, team_member_id, discord_user_id }) =>
+            new ChannelRpcEvents.RosterMemberAddedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              roster_id,
+              roster_name,
+              team_member_id,
+              discord_user_id,
+            }),
+        ),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
+const memberRemovedFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('group', () =>
+      Effect.Do.pipe(
+        Effect.bind('group_id', () => nullable(r, 'group_id')),
+        Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
+        Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
+        Effect.map(
+          ({ group_id, team_member_id, discord_user_id }) =>
+            new ChannelRpcEvents.GroupMemberRemovedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              group_id,
+              team_member_id,
+              discord_user_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.Do.pipe(
+        Effect.bind('roster_id', () => nullable(r, 'roster_id')),
+        Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
+        Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
+        Effect.map(
+          ({ roster_id, team_member_id, discord_user_id }) =>
+            new ChannelRpcEvents.RosterMemberRemovedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              roster_id,
+              team_member_id,
+              discord_user_id,
+            }),
+        ),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
 export const constructEvent = Match.type<EventRow>().pipe(
-  Match.when({ event_type: 'channel_created' }, (r) =>
-    Effect.Do.pipe(
-      Effect.bind('group_name', () => nullable(r, 'group_name')),
-      Effect.map(
-        ({ group_name }) =>
-          new ChannelRpcEvents.ChannelCreatedEvent({
-            id: r.id,
-            team_id: r.team_id,
-            guild_id: r.guild_id,
-            group_id: r.group_id,
-            group_name,
-          }),
-      ),
-    ),
-  ),
-  Match.when({ event_type: 'channel_deleted' }, (r) =>
-    Effect.succeed(
-      new ChannelRpcEvents.ChannelDeletedEvent({
-        id: r.id,
-        team_id: r.team_id,
-        guild_id: r.guild_id,
-        group_id: r.group_id,
-      }),
-    ),
-  ),
-  Match.when({ event_type: 'member_added' }, (r) =>
-    Effect.Do.pipe(
-      Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
-      Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
-      Effect.bind('group_name', () => nullable(r, 'group_name')),
-      Effect.map(
-        ({ discord_user_id, team_member_id, group_name }) =>
-          new ChannelRpcEvents.ChannelMemberAddedEvent({
-            id: r.id,
-            team_id: r.team_id,
-            guild_id: r.guild_id,
-            group_id: r.group_id,
-            group_name,
-            discord_user_id,
-            team_member_id,
-          }),
-      ),
-    ),
-  ),
-  Match.when({ event_type: 'member_removed' }, (r) =>
-    Effect.Do.pipe(
-      Effect.bind('discord_user_id', () => nullable(r, 'discord_user_id')),
-      Effect.bind('team_member_id', () => nullable(r, 'team_member_id')),
-      Effect.map(
-        ({ discord_user_id, team_member_id }) =>
-          new ChannelRpcEvents.ChannelMemberRemovedEvent({
-            id: r.id,
-            team_id: r.team_id,
-            guild_id: r.guild_id,
-            group_id: r.group_id,
-            discord_user_id,
-            team_member_id,
-          }),
-      ),
-    ),
-  ),
+  Match.when({ event_type: 'channel_created' }, channelCreatedFromSql),
+  Match.when({ event_type: 'channel_deleted' }, channelDeletedFromSql),
+  Match.when({ event_type: 'member_added' }, memberAddedFromSql),
+  Match.when({ event_type: 'member_removed' }, memberRemovedFromSql),
   Match.exhaustive,
 );

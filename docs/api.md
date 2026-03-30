@@ -397,6 +397,8 @@ Returns the team's current settings.
 | `discordChannelMeeting` | `Snowflake \| null` | Yes | Default Discord channel for meeting events |
 | `discordChannelSocial` | `Snowflake \| null` | Yes | Default Discord channel for social events |
 | `discordChannelOther` | `Snowflake \| null` | Yes | Default Discord channel for other events |
+| `createDiscordChannelOnGroup` | `boolean` | No | Auto-create Discord channel when a group is created |
+| `createDiscordChannelOnRoster` | `boolean` | No | Auto-create Discord channel when a roster is created |
 
 **Errors:**
 

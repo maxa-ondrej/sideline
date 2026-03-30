@@ -63,10 +63,14 @@ const setupNewMember = (
           Effect.all(
             pipe(
               mappings,
-              Array.filter(
-                (m) => Option.isSome(m.discord_role_id) && roles.includes(m.discord_role_id.value),
+              Array.filterMap((m) =>
+                Option.flatMap(m.group_id, (groupId) =>
+                  Option.flatMap(m.discord_role_id, (roleId) =>
+                    roles.includes(roleId) ? Option.some(groupId) : Option.none(),
+                  ),
+                ),
               ),
-              Array.map((m) => deps.groups.addMemberById(m.group_id, newMember.id)),
+              Array.map((groupId) => deps.groups.addMemberById(groupId, newMember.id)),
             ),
             { concurrency: 'unbounded' },
           ),

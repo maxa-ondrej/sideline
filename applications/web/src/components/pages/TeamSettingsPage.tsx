@@ -80,6 +80,9 @@ export function TeamSettingsPage({
   const [createDiscordChannelOnGroup, setCreateDiscordChannelOnGroup] = React.useState(
     settings.createDiscordChannelOnGroup,
   );
+  const [createDiscordChannelOnRoster, setCreateDiscordChannelOnRoster] = React.useState(
+    settings.createDiscordChannelOnRoster,
+  );
   const [savingSettings, setSavingSettings] = React.useState(false);
 
   const hasProfileChanges =
@@ -98,7 +101,8 @@ export function TeamSettingsPage({
     channelMeeting !== Option.getOrElse(settings.discordChannelMeeting, () => NONE_VALUE) ||
     channelSocial !== Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE) ||
     channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE) ||
-    createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup;
+    createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup ||
+    createDiscordChannelOnRoster !== settings.createDiscordChannelOnRoster;
 
   const channelToOption = React.useCallback(
     (value: string) =>
@@ -156,6 +160,7 @@ export function TeamSettingsPage({
             discordChannelSocial: Option.some(channelToOption(channelSocial)),
             discordChannelOther: Option.some(channelToOption(channelOther)),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
+            createDiscordChannelOnRoster: Option.some(createDiscordChannelOnRoster),
           },
         }),
       ),
@@ -178,6 +183,7 @@ export function TeamSettingsPage({
     channelSocial,
     channelOther,
     createDiscordChannelOnGroup,
+    createDiscordChannelOnRoster,
     run,
     router,
     channelToOption,
@@ -411,6 +417,24 @@ export function TeamSettingsPage({
                   id='create-discord-channel'
                   checked={createDiscordChannelOnGroup}
                   onCheckedChange={setCreateDiscordChannelOnGroup}
+                />
+              </div>
+              <div className='flex items-start justify-between gap-4'>
+                <div>
+                  <label
+                    htmlFor='create-discord-channel-roster'
+                    className='text-sm font-medium block'
+                  >
+                    {m.teamSettings_createDiscordChannelOnRoster()}
+                  </label>
+                  <p className='text-xs text-muted-foreground mt-1'>
+                    {m.teamSettings_createDiscordChannelOnRosterHelp()}
+                  </p>
+                </div>
+                <Switch
+                  id='create-discord-channel-roster'
+                  checked={createDiscordChannelOnRoster}
+                  onCheckedChange={setCreateDiscordChannelOnRoster}
                 />
               </div>
               <Separator />

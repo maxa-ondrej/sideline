@@ -4,10 +4,12 @@ import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
+import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
@@ -59,7 +61,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
     Effect.bind('rosters', () => RostersRepository),
     Effect.bind('teams', () => TeamsRepository),
     Effect.bind('discordChannels', () => DiscordChannelsRepository),
-    Effect.map(({ members, users, rosters, teams, discordChannels }) =>
+    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
+    Effect.bind('teamSettings', () => TeamSettingsRepository),
+    Effect.map(({ members, users, rosters, teams, discordChannels, channelSync, teamSettings }) =>
       handlers
         .handle('listMembers', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -230,6 +234,16 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
             ),
             Effect.bind('roster', () =>
               rosters.insert({ team_id: teamId, name: payload.name, active: true }),
+            ),
+            Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+            Effect.tap(({ roster, settings }) =>
+              Option.match(settings, {
+                onNone: () => channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
+                onSome: (s) =>
+                  s.create_discord_channel_on_roster
+                    ? channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name)
+                    : Effect.void,
+              }),
             ),
             Effect.map(({ roster }) => toRosterInfo(roster, 0, [])),
             Effect.catchTag(

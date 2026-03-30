@@ -518,20 +518,22 @@ Links an application role to its corresponding Discord role in a guild.
 
 #### `discord_channel_mappings`
 
-Links an application group to its corresponding Discord channel. Optionally stores the associated Discord role ID for permission syncing.
+Links a group or roster to its corresponding Discord channel and role for permission syncing.
 
 | Column | Type | Constraints | Default |
 |---|---|---|---|
 | `id` | UUID | PK | `gen_random_uuid()` |
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
-| `group_id` | UUID | NOT NULL, FK → `groups(id)` ON DELETE CASCADE | — |
+| `entity_type` | TEXT | NOT NULL | `'group'` |
+| `group_id` | UUID | — | — |
+| `roster_id` | UUID | — | — |
 | `discord_channel_id` | TEXT | NOT NULL | — |
 | `discord_role_id` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
-**Unique**: `(team_id, group_id)`, `(team_id, discord_channel_id)`
+**Unique**: `(team_id, group_id) WHERE group_id IS NOT NULL`, `(team_id, roster_id) WHERE roster_id IS NOT NULL`, `(team_id, discord_channel_id)`
 
-**Notes**: `discord_role_id` added in migration `1741000001`.
+**Notes**: `entity_type` is `'group'` or `'roster'`. Exactly one of `group_id` or `roster_id` is set.
 
 ---
 
@@ -569,8 +571,11 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `guild_id` | TEXT | NOT NULL | — |
 | `event_type` | TEXT | NOT NULL, CHECK (`'channel_created'`, `'channel_deleted'`, `'member_added'`, `'member_removed'`) | — |
-| `group_id` | UUID | NOT NULL | — |
+| `entity_type` | TEXT | NOT NULL | `'group'` |
+| `group_id` | UUID | — | — |
 | `group_name` | TEXT | — | — |
+| `roster_id` | UUID | — | — |
+| `roster_name` | TEXT | — | — |
 | `team_member_id` | UUID | — | — |
 | `discord_user_id` | TEXT | — | — |
 | `processed_at` | TIMESTAMPTZ | — | — |
@@ -579,7 +584,7 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 
 **Indexes**: `idx_channel_sync_events_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: Originally used `subgroup_id` / `subgroup_name`; renamed to `group_id` / `group_name` in migration `1741100000`.
+**Notes**: `entity_type` is `'group'` or `'roster'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set.
 
 ---
 
@@ -766,6 +771,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743000000 | `add_auto_logged_at` | Adds `auto_logged_at TIMESTAMPTZ` to events (set by TrainingAutoLogCron) |
 | 1743100000 | `add_team_profile_fields` | Adds `description`, `sport`, and `logo_url` columns to teams |
 | 1743400000 | `add_roster_discord_channel` | Adds `discord_channel_id TEXT` to rosters |
+| 1743500000 | `add_roster_channel_settings` | Adds `create_discord_channel_on_roster` to team_settings; adds `entity_type`, `roster_id`, `roster_name` to channel_sync_events and discord_channel_mappings; makes `group_id` nullable |
 
 ### After Migrations (seed data)
 

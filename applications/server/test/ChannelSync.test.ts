@@ -674,6 +674,7 @@ const makeTeamSettingsRow = (createDiscordChannelOnGroup: boolean) => ({
   discord_channel_social: Option.none(),
   discord_channel_other: Option.none(),
   create_discord_channel_on_group: createDiscordChannelOnGroup,
+  create_discord_channel_on_roster: true,
 });
 
 const buildTestLayer = (settingsLayer: Layer.Layer<TeamSettingsRepository>) =>

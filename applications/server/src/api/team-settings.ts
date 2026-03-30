@@ -38,6 +38,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelSocial: Option.none(),
                     discordChannelOther: Option.none(),
                     createDiscordChannelOnGroup: true,
+                    createDiscordChannelOnRoster: true,
                   }),
                 onSome: (s) =>
                   new TeamSettingsApi.TeamSettingsInfo({
@@ -52,6 +53,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelSocial: s.discord_channel_social,
                     discordChannelOther: s.discord_channel_other,
                     createDiscordChannelOnGroup: s.create_discord_channel_on_group,
+                    createDiscordChannelOnRoster: s.create_discord_channel_on_roster,
                   }),
               }),
             ),
@@ -81,6 +83,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelOther: Option.flatten(payload.discordChannelOther),
                     createDiscordChannelOnGroup: Option.getOrElse(
                       payload.createDiscordChannelOnGroup,
+                      () => true,
+                    ),
+                    createDiscordChannelOnRoster: Option.getOrElse(
+                      payload.createDiscordChannelOnRoster,
                       () => true,
                     ),
                   }),
@@ -124,6 +130,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.createDiscordChannelOnGroup,
                       () => s.create_discord_channel_on_group,
                     ),
+                    createDiscordChannelOnRoster: Option.getOrElse(
+                      payload.createDiscordChannelOnRoster,
+                      () => s.create_discord_channel_on_roster,
+                    ),
                   }),
               }),
             ),
@@ -141,6 +151,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelSocial: result.discord_channel_social,
                   discordChannelOther: result.discord_channel_other,
                   createDiscordChannelOnGroup: result.create_discord_channel_on_group,
+                  createDiscordChannelOnRoster: result.create_discord_channel_on_roster,
                 }),
             ),
             Effect.catchTag(

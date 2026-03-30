@@ -1,4 +1,4 @@
-import type { ChannelRpcEvents, Discord } from '@sideline/domain';
+import type { ChannelRpcEvents, ChannelRpcModels, Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx';
 import { Effect, type Option } from 'effect';
 import { retryPolicy } from '~/rest/utils.js';
@@ -21,24 +21,44 @@ const removeRole = (
     Effect.catchTag('NoSuchElementException', () => Effect.void),
   );
 
-export const handleMemberRemoved = (event: ChannelRpcEvents.ChannelMemberRemovedEvent) =>
+const removeRoleFromMapping = (
+  guildId: Discord.Snowflake,
+  discordUserId: Discord.Snowflake,
+  mapping: ChannelRpcModels.ChannelMapping,
+) => removeRole(guildId, discordUserId, mapping.discord_role_id);
+
+export const handleMemberRemoved = (event: ChannelRpcEvents.GroupMemberRemovedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
     Effect.bind('cached', ({ rpc }) =>
-      rpc['Channel/GetMapping']({
-        team_id: event.team_id,
-        group_id: event.group_id,
-      }),
+      rpc['Channel/GetMapping']({ team_id: event.team_id, group_id: event.group_id }),
     ),
     Effect.bind('mapping', ({ cached }) => cached),
     Effect.tap(({ mapping }) =>
-      removeRole(event.guild_id, event.discord_user_id, mapping.discord_role_id),
+      removeRoleFromMapping(event.guild_id, event.discord_user_id, mapping),
     ),
     Effect.asVoid,
     Effect.catchTag('NoSuchElementException', () =>
       Effect.logWarning(
         `No mapping found for group ${event.group_id} in guild ${event.guild_id}, skipping member_removed`,
+      ),
+    ),
+  );
+
+export const handleRosterMemberRemoved = (event: ChannelRpcEvents.RosterMemberRemovedEvent) =>
+  Effect.Do.pipe(
+    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('cached', ({ rpc }) =>
+      rpc['Channel/GetRosterMapping']({ team_id: event.team_id, roster_id: event.roster_id }),
+    ),
+    Effect.bind('mapping', ({ cached }) => cached),
+    Effect.tap(({ mapping }) =>
+      removeRoleFromMapping(event.guild_id, event.discord_user_id, mapping),
+    ),
+    Effect.asVoid,
+    Effect.catchTag('NoSuchElementException', () =>
+      Effect.logWarning(
+        `No mapping found for roster ${event.roster_id} in guild ${event.guild_id}, skipping member_removed`,
       ),
     ),
   );

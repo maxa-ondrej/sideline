@@ -8,6 +8,7 @@ export class TeamSettings extends Model.Class<TeamSettings>('TeamSettings')({
   min_players_threshold: Schema.Int,
   rsvp_reminder_hours: Schema.Int,
   create_discord_channel_on_group: Schema.Boolean,
+  create_discord_channel_on_roster: Schema.Boolean,
   created_at: Model.DateTimeInsertFromDate,
   updated_at: Model.DateTimeUpdateFromDate,
 }) {}

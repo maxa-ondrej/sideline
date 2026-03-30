@@ -184,6 +184,8 @@ erDiagram
         TEXT discord_channel_meeting
         TEXT discord_channel_social
         TEXT discord_channel_other
+        BOOLEAN create_discord_channel_on_group
+        BOOLEAN create_discord_channel_on_roster
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
@@ -425,7 +427,9 @@ erDiagram
     discord_channel_mappings {
         UUID id PK
         UUID team_id FK
+        TEXT entity_type
         UUID group_id FK
+        UUID roster_id FK
         TEXT discord_channel_id
         TEXT discord_role_id
         TIMESTAMPTZ created_at
@@ -450,8 +454,11 @@ erDiagram
         UUID team_id FK
         TEXT guild_id
         TEXT event_type
+        TEXT entity_type
         UUID group_id
         TEXT group_name
+        UUID roster_id
+        TEXT roster_name
         UUID team_member_id
         TEXT discord_user_id
         TIMESTAMPTZ processed_at
@@ -485,6 +492,7 @@ erDiagram
     teams ||--o{ event_sync_events : "logs"
     roles ||--o{ discord_role_mappings : "linked via"
     groups ||--o{ discord_channel_mappings : "linked via"
+    rosters ||--o{ discord_channel_mappings : "linked via"
     events ||--o{ event_sync_events : "triggers"
 ```
 

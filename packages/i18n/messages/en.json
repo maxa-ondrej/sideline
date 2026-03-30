@@ -403,6 +403,8 @@
   "teamSettings_channelNone": "None",
   "teamSettings_createDiscordChannelOnGroup": "Auto-create Discord channel for groups",
   "teamSettings_createDiscordChannelOnGroupHelp": "Automatically create a Discord channel when a new group is created.",
+  "teamSettings_createDiscordChannelOnRoster": "Auto-create Discord channel for rosters",
+  "teamSettings_createDiscordChannelOnRosterHelp": "Automatically create a Discord channel when a new roster is created.",
   "teamSettings_description": "Description",
   "teamSettings_descriptionHelp": "A short description of your team (max 500 characters).",
   "teamSettings_discordChannels": "Discord Channel Defaults",
