@@ -472,6 +472,16 @@ Configuration:
 
 Both files are sourced automatically by `bin/psql`. The `bin/` directory is added to `PATH` via `.envrc`.
 
+### Editing migrations after PR creation
+
+Migrations run automatically when a preview environment is deployed. If you edit a migration **after** the PR has already been created (and the preview deployed), the migration runner will skip it because it was already marked as executed. You must apply the new SQL statements manually:
+
+```bash
+psql --pr <PR_NUMBER> -c "ALTER TABLE ... ADD COLUMN IF NOT EXISTS ..."
+```
+
+Always use `IF NOT EXISTS` / `IF EXISTS` guards so the command is idempotent. Run each new statement from the migration that was added after the initial deploy.
+
 ## Logs & Monitoring
 
 Logs, traces, and metrics are exported via OpenTelemetry to **SigNoz**. The telemetry layer is configured in each application's `run.ts` using `makeTelemetryLayer` from `@sideline/effect-lib`.
