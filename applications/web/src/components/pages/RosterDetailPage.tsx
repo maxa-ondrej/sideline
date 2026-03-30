@@ -81,6 +81,9 @@ export function RosterDetailPage({
           },
         }),
       ),
+      Effect.catchTag('ChannelAlreadyLinked', () =>
+        ClientError.make(m.roster_channelAlreadyLinked()),
+      ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_channelLinked() }),
     );

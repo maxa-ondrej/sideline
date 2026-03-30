@@ -5,6 +5,7 @@ import { Array, DateTime, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import type { RosterEntry } from '~/repositories/TeamMembersRepository.js';
@@ -63,422 +64,465 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
     Effect.bind('discordChannels', () => DiscordChannelsRepository),
     Effect.bind('channelSync', () => ChannelSyncEventsRepository),
     Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.map(({ members, users, rosters, teams, discordChannels, channelSync, teamSettings }) =>
-      handlers
-        .handle('listMembers', ({ path: { teamId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'member:view', new Roster.Forbidden()),
-            ),
-            Effect.bind('roster', () => members.findRosterByTeam(teamId)),
-            Effect.map(({ roster }) => Array.map(roster, toRosterPlayer)),
-          ),
-        )
-        .handle('getMember', ({ path: { teamId, memberId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'member:view', new Roster.Forbidden()),
-            ),
-            Effect.bind('entry', () =>
-              members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.PlayerNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+    Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
+    Effect.map(
+      ({
+        members,
+        users,
+        rosters,
+        teams,
+        discordChannels,
+        channelSync,
+        teamSettings,
+        channelMappings,
+      }) =>
+        handlers
+          .handle('listMembers', ({ path: { teamId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
-            ),
-            Effect.map(({ entry }) => toRosterPlayer(entry)),
-          ),
-        )
-        .handle('updateMember', ({ path: { teamId, memberId }, payload }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'member:edit', new Roster.Forbidden()),
-            ),
-            Effect.bind('entry', () =>
-              members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.PlayerNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'member:view', new Roster.Forbidden()),
               ),
+              Effect.bind('roster', () => members.findRosterByTeam(teamId)),
+              Effect.map(({ roster }) => Array.map(roster, toRosterPlayer)),
             ),
-            Effect.bind('updated', ({ entry }) =>
-              users.updateAdminProfile({
-                id: entry.user_id,
-                name: payload.name,
-                birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
-                gender: payload.gender,
-              }),
-            ),
-            Effect.tap(({ entry }) =>
-              members.setJerseyNumber(entry.member_id, payload.jerseyNumber),
-            ),
-            Effect.map(
-              ({ entry, updated }) =>
-                new Roster.RosterPlayer({
-                  memberId: entry.member_id,
-                  userId: entry.user_id,
-                  discordId: entry.discord_id,
-                  roleNames: entry.role_names,
-                  permissions: entry.permissions,
-                  name: updated.name,
-                  birthDate: Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
-                  gender: updated.gender,
-                  jerseyNumber: payload.jerseyNumber,
-                  username: entry.username,
-                  avatar: entry.avatar,
-                }),
-            ),
-            Effect.catchTag(
-              'NoSuchElementException',
-              LogicError.withMessage(
-                () => 'Failed updating roster member profile — no row returned',
+          )
+          .handle('getMember', ({ path: { teamId, memberId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
-            ),
-          ),
-        )
-        .handle('deactivateMember', ({ path: { teamId, memberId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'member:remove', new Roster.Forbidden()),
-            ),
-            Effect.bind('_check', () =>
-              members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.PlayerNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'member:view', new Roster.Forbidden()),
               ),
-            ),
-            Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
-            Effect.asVoid,
-            Effect.catchTag(
-              'NoSuchElementException',
-              LogicError.withMessage(() => 'Failed deactivating roster member — no row returned'),
-            ),
-          ),
-        )
-        .handle('listRosters', ({ path: { teamId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:view', new Roster.Forbidden()),
-            ),
-            Effect.let('canManage', ({ membership }) => hasPermission(membership, 'roster:manage')),
-            Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
-            Effect.bind('team', () =>
-              teams.findById(teamId).pipe(
-                Effect.flatten,
-                Effect.catchTag('NoSuchElementException', () =>
-                  Effect.fail(new Roster.Forbidden()),
-                ),
-              ),
-            ),
-            Effect.bind('allChannels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
-            Effect.map(
-              ({ rosterList, canManage, allChannels }) =>
-                new Roster.RosterListResponse({
-                  canManage,
-                  rosters: Array.map(
-                    rosterList,
-                    (r) =>
-                      new Roster.RosterInfo({
-                        rosterId: r.id,
-                        teamId: r.team_id,
-                        name: r.name,
-                        active: r.active,
-                        memberCount: r.member_count,
-                        createdAt: DateTime.formatIso(r.created_at),
-                        discordChannelId: r.discord_channel_id,
-                        discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
-                      }),
+              Effect.bind('entry', () =>
+                members.findRosterMemberByIds(teamId, memberId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.PlayerNotFound()),
+                      onSome: Effect.succeed,
+                    }),
                   ),
+                ),
+              ),
+              Effect.map(({ entry }) => toRosterPlayer(entry)),
+            ),
+          )
+          .handle('updateMember', ({ path: { teamId, memberId }, payload }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'member:edit', new Roster.Forbidden()),
+              ),
+              Effect.bind('entry', () =>
+                members.findRosterMemberByIds(teamId, memberId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.PlayerNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.bind('updated', ({ entry }) =>
+                users.updateAdminProfile({
+                  id: entry.user_id,
+                  name: payload.name,
+                  birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
+                  gender: payload.gender,
                 }),
-            ),
-          ),
-        )
-        .handle('createRoster', ({ path: { teamId }, payload }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
-            ),
-            Effect.bind('roster', () =>
-              rosters.insert({ team_id: teamId, name: payload.name, active: true }),
-            ),
-            Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
-            Effect.tap(({ roster, settings }) =>
-              Option.match(settings, {
-                onNone: () => channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
-                onSome: (s) =>
-                  s.create_discord_channel_on_roster
-                    ? channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name)
-                    : Effect.void,
-              }),
-            ),
-            Effect.map(({ roster }) => toRosterInfo(roster, 0, [])),
-            Effect.catchTag(
-              'NoSuchElementException',
-              LogicError.withMessage(() => 'Failed creating roster — no row returned'),
-            ),
-          ),
-        )
-        .handle('getRoster', ({ path: { teamId, rosterId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:view', new Roster.Forbidden()),
-            ),
-            Effect.let('canManage', ({ membership }) => hasPermission(membership, 'roster:manage')),
-            Effect.bind('roster', () =>
-              rosters.findRosterById(rosterId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
-                    onSome: Effect.succeed,
+              ),
+              Effect.tap(({ entry }) =>
+                members.setJerseyNumber(entry.member_id, payload.jerseyNumber),
+              ),
+              Effect.map(
+                ({ entry, updated }) =>
+                  new Roster.RosterPlayer({
+                    memberId: entry.member_id,
+                    userId: entry.user_id,
+                    discordId: entry.discord_id,
+                    roleNames: entry.role_names,
+                    permissions: entry.permissions,
+                    name: updated.name,
+                    birthDate: Option.map(updated.birth_date, DateTime.formatIsoDateUtc),
+                    gender: updated.gender,
+                    jerseyNumber: payload.jerseyNumber,
+                    username: entry.username,
+                    avatar: entry.avatar,
                   }),
+              ),
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(
+                  () => 'Failed updating roster member profile — no row returned',
                 ),
               ),
             ),
-            Effect.bind('rosterMembers', ({ roster }) => rosters.findMemberEntriesById(roster.id)),
-            Effect.bind('team', () =>
-              teams.findById(teamId).pipe(
-                Effect.flatten,
-                Effect.catchTag('NoSuchElementException', () =>
-                  Effect.fail(new Roster.Forbidden()),
+          )
+          .handle('deactivateMember', ({ path: { teamId, memberId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'member:remove', new Roster.Forbidden()),
+              ),
+              Effect.bind('_check', () =>
+                members.findRosterMemberByIds(teamId, memberId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.PlayerNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
                 ),
               ),
+              Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
+              Effect.asVoid,
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(() => 'Failed deactivating roster member — no row returned'),
+              ),
             ),
-            Effect.bind('allChannels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
-            Effect.map(
-              ({ roster, rosterMembers, canManage, allChannels }) =>
-                new Roster.RosterDetail({
-                  rosterId: roster.id,
-                  teamId: roster.team_id,
-                  name: roster.name,
-                  active: roster.active,
-                  createdAt: DateTime.formatIso(roster.created_at),
-                  members: Array.map(rosterMembers, toRosterPlayer),
-                  canManage,
-                  discordChannelId: roster.discord_channel_id,
-                  discordChannelName: resolveChannelName(roster.discord_channel_id, allChannels),
+          )
+          .handle('listRosters', ({ path: { teamId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:view', new Roster.Forbidden()),
+              ),
+              Effect.let('canManage', ({ membership }) =>
+                hasPermission(membership, 'roster:manage'),
+              ),
+              Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
+              Effect.bind('team', () =>
+                teams.findById(teamId).pipe(
+                  Effect.flatten,
+                  Effect.catchTag('NoSuchElementException', () =>
+                    Effect.fail(new Roster.Forbidden()),
+                  ),
+                ),
+              ),
+              Effect.bind('allChannels', ({ team }) =>
+                discordChannels.findByGuildId(team.guild_id),
+              ),
+              Effect.map(
+                ({ rosterList, canManage, allChannels }) =>
+                  new Roster.RosterListResponse({
+                    canManage,
+                    rosters: Array.map(
+                      rosterList,
+                      (r) =>
+                        new Roster.RosterInfo({
+                          rosterId: r.id,
+                          teamId: r.team_id,
+                          name: r.name,
+                          active: r.active,
+                          memberCount: r.member_count,
+                          createdAt: DateTime.formatIso(r.created_at),
+                          discordChannelId: r.discord_channel_id,
+                          discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
+                        }),
+                    ),
+                  }),
+              ),
+            ),
+          )
+          .handle('createRoster', ({ path: { teamId }, payload }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('roster', () =>
+                rosters.insert({ team_id: teamId, name: payload.name, active: true }),
+              ),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ roster, settings }) =>
+                Option.match(settings, {
+                  onNone: () =>
+                    channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
+                  onSome: (s) =>
+                    s.create_discord_channel_on_roster
+                      ? channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name)
+                      : Effect.void,
                 }),
+              ),
+              Effect.map(({ roster }) => toRosterInfo(roster, 0, [])),
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(() => 'Failed creating roster — no row returned'),
+              ),
+            ),
+          )
+          .handle('getRoster', ({ path: { teamId, rosterId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:view', new Roster.Forbidden()),
+              ),
+              Effect.let('canManage', ({ membership }) =>
+                hasPermission(membership, 'roster:manage'),
+              ),
+              Effect.bind('roster', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.bind('rosterMembers', ({ roster }) =>
+                rosters.findMemberEntriesById(roster.id),
+              ),
+              Effect.bind('team', () =>
+                teams.findById(teamId).pipe(
+                  Effect.flatten,
+                  Effect.catchTag('NoSuchElementException', () =>
+                    Effect.fail(new Roster.Forbidden()),
+                  ),
+                ),
+              ),
+              Effect.bind('allChannels', ({ team }) =>
+                discordChannels.findByGuildId(team.guild_id),
+              ),
+              Effect.map(
+                ({ roster, rosterMembers, canManage, allChannels }) =>
+                  new Roster.RosterDetail({
+                    rosterId: roster.id,
+                    teamId: roster.team_id,
+                    name: roster.name,
+                    active: roster.active,
+                    createdAt: DateTime.formatIso(roster.created_at),
+                    members: Array.map(rosterMembers, toRosterPlayer),
+                    canManage,
+                    discordChannelId: roster.discord_channel_id,
+                    discordChannelName: resolveChannelName(roster.discord_channel_id, allChannels),
+                  }),
+              ),
+            ),
+          )
+          .handle('updateRoster', ({ path: { teamId, rosterId }, payload }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('existing', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(() =>
+                Option.match(payload.discordChannelId, {
+                  onNone: () => Effect.void,
+                  onSome: (inner) =>
+                    Option.match(inner, {
+                      onNone: () => Effect.void,
+                      onSome: (channelId) =>
+                        channelMappings
+                          .findAllByTeam(teamId)
+                          .pipe(
+                            Effect.flatMap((mappings) =>
+                              mappings.some((m) => m.discord_channel_id === channelId)
+                                ? Effect.fail(new Roster.ChannelAlreadyLinked())
+                                : Effect.void,
+                            ),
+                          ),
+                    }),
+                }),
+              ),
+              Effect.bind('updated', () =>
+                rosters.update({
+                  id: rosterId,
+                  name: payload.name,
+                  active: payload.active,
+                  discord_channel_id: payload.discordChannelId,
+                }),
+              ),
+              Effect.tap(({ existing, updated }) =>
+                Option.match(payload.discordChannelId, {
+                  onNone: () => Effect.void,
+                  onSome: (channelIdOption) =>
+                    Option.match(channelIdOption, {
+                      onNone: () =>
+                        Option.isSome(existing.discord_channel_id)
+                          ? channelSync.emitRosterChannelDeleted(teamId, rosterId, existing.name)
+                          : Effect.void,
+                      onSome: (channelId) =>
+                        channelSync.emitRosterChannelCreated(
+                          teamId,
+                          updated.id,
+                          updated.name,
+                          Option.some(channelId),
+                        ),
+                    }),
+                }),
+              ),
+              Effect.bind('memberCount', ({ updated }) =>
+                rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
+              ),
+              Effect.bind('team', () =>
+                teams.findById(teamId).pipe(
+                  Effect.flatten,
+                  Effect.catchTag('NoSuchElementException', () =>
+                    Effect.fail(new Roster.Forbidden()),
+                  ),
+                ),
+              ),
+              Effect.bind('allChannels', ({ team }) =>
+                discordChannels.findByGuildId(team.guild_id),
+              ),
+              Effect.map(({ updated, memberCount, allChannels }) =>
+                toRosterInfo(updated, memberCount, allChannels),
+              ),
+              Effect.catchTag(
+                'NoSuchElementException',
+                LogicError.withMessage(() => 'Failed updating roster — no row returned'),
+              ),
+            ),
+          )
+          .handle('deleteRoster', ({ path: { teamId, rosterId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('_existing', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(() => rosters.delete(rosterId)),
+              Effect.asVoid,
+            ),
+          )
+          .handle('addRosterMember', ({ path: { teamId, rosterId }, payload }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('_roster', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.bind('_member', () =>
+                members.findRosterMemberByIds(teamId, payload.memberId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.PlayerNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(() => rosters.addMemberById(rosterId, payload.memberId)),
+              Effect.asVoid,
+            ),
+          )
+          .handle('removeRosterMember', ({ path: { teamId, rosterId, memberId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('_roster', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.bind('_member', () =>
+                members.findRosterMemberByIds(teamId, memberId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.PlayerNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(() => rosters.removeMemberById(rosterId, memberId)),
+              Effect.asVoid,
+            ),
+          )
+          .handle('createChannel', ({ path: { teamId, rosterId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('roster', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(({ roster }) =>
+                channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
+              ),
+              Effect.asVoid,
             ),
           ),
-        )
-        .handle('updateRoster', ({ path: { teamId, rosterId }, payload }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
-            ),
-            Effect.bind('existing', () =>
-              rosters.findRosterById(rosterId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.bind('updated', () =>
-              rosters.update({
-                id: rosterId,
-                name: payload.name,
-                active: payload.active,
-                discord_channel_id: payload.discordChannelId,
-              }),
-            ),
-            Effect.tap(({ existing, updated }) =>
-              Option.match(payload.discordChannelId, {
-                onNone: () => Effect.void,
-                onSome: (channelIdOption) =>
-                  Option.match(channelIdOption, {
-                    onNone: () =>
-                      Option.isSome(existing.discord_channel_id)
-                        ? channelSync.emitRosterChannelDeleted(teamId, rosterId, existing.name)
-                        : Effect.void,
-                    onSome: (channelId) =>
-                      channelSync.emitRosterChannelCreated(
-                        teamId,
-                        updated.id,
-                        updated.name,
-                        Option.some(channelId),
-                      ),
-                  }),
-              }),
-            ),
-            Effect.bind('memberCount', ({ updated }) =>
-              rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
-            ),
-            Effect.bind('team', () =>
-              teams.findById(teamId).pipe(
-                Effect.flatten,
-                Effect.catchTag('NoSuchElementException', () =>
-                  Effect.fail(new Roster.Forbidden()),
-                ),
-              ),
-            ),
-            Effect.bind('allChannels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
-            Effect.map(({ updated, memberCount, allChannels }) =>
-              toRosterInfo(updated, memberCount, allChannels),
-            ),
-            Effect.catchTag(
-              'NoSuchElementException',
-              LogicError.withMessage(() => 'Failed updating roster — no row returned'),
-            ),
-          ),
-        )
-        .handle('deleteRoster', ({ path: { teamId, rosterId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
-            ),
-            Effect.bind('_existing', () =>
-              rosters.findRosterById(rosterId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.tap(() => rosters.delete(rosterId)),
-            Effect.asVoid,
-          ),
-        )
-        .handle('addRosterMember', ({ path: { teamId, rosterId }, payload }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
-            ),
-            Effect.bind('_roster', () =>
-              rosters.findRosterById(rosterId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.bind('_member', () =>
-              members.findRosterMemberByIds(teamId, payload.memberId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.PlayerNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.tap(() => rosters.addMemberById(rosterId, payload.memberId)),
-            Effect.asVoid,
-          ),
-        )
-        .handle('removeRosterMember', ({ path: { teamId, rosterId, memberId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
-            ),
-            Effect.bind('_roster', () =>
-              rosters.findRosterById(rosterId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.bind('_member', () =>
-              members.findRosterMemberByIds(teamId, memberId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.PlayerNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.tap(() => rosters.removeMemberById(rosterId, memberId)),
-            Effect.asVoid,
-          ),
-        )
-        .handle('createChannel', ({ path: { teamId, rosterId } }) =>
-          Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
-            ),
-            Effect.tap(({ membership }) =>
-              requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
-            ),
-            Effect.bind('roster', () =>
-              rosters.findRosterById(rosterId).pipe(
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new Roster.RosterNotFound()),
-                    onSome: Effect.succeed,
-                  }),
-                ),
-              ),
-            ),
-            Effect.tap(({ roster }) =>
-              channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
-            ),
-            Effect.asVoid,
-          ),
-        ),
     ),
   ),
 );

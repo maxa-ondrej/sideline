@@ -623,6 +623,7 @@
   "roster_createChannel": "Create Channel",
   "roster_channelCreateRequested": "Discord channel creation requested.",
   "roster_channelCreateFailed": "Failed to create Discord channel.",
+  "roster_channelAlreadyLinked": "This channel is already linked to another group or roster.",
   "roster_orLinkExisting": "Or link an existing one",
   "group_groupCreated": "Group created",
   "group_groupSaved": "Group saved",

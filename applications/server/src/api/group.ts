@@ -626,18 +626,22 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
-              Effect.map(({ channels }) =>
-                Array.map(
-                  channels,
-                  (ch) =>
-                    new GroupApi.DiscordChannelInfo({
-                      id: ch.channel_id,
-                      name: ch.name,
-                      type: ch.type,
-                      parentId: ch.parent_id,
-                    }),
-                ),
-              ),
+              Effect.bind('mappings', () => channelMappings.findAllByTeam(teamId)),
+              Effect.map(({ channels, mappings }) => {
+                const mappedChannelIds = new Set(mappings.map((m) => m.discord_channel_id));
+                return Array.filterMap(channels, (ch) =>
+                  mappedChannelIds.has(ch.channel_id)
+                    ? Option.none()
+                    : Option.some(
+                        new GroupApi.DiscordChannelInfo({
+                          id: ch.channel_id,
+                          name: ch.name,
+                          type: ch.type,
+                          parentId: ch.parent_id,
+                        }),
+                      ),
+                );
+              }),
             ),
           ),
     ),

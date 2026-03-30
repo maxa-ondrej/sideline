@@ -41,6 +41,12 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()(
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
+export class ChannelAlreadyLinked extends Schema.TaggedError<ChannelAlreadyLinked>()(
+  'ChannelAlreadyLinked',
+  {},
+  HttpApiSchema.annotations({ status: 409 }),
+) {}
+
 export class RosterNotFound extends Schema.TaggedError<RosterNotFound>()(
   'RosterNotFound',
   {},
@@ -152,6 +158,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .addSuccess(RosterInfo)
       .addError(Forbidden, { status: 403 })
       .addError(RosterNotFound, { status: 404 })
+      .addError(ChannelAlreadyLinked, { status: 409 })
       .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
       .setPayload(UpdateRosterRequest)
       .middleware(AuthMiddleware),

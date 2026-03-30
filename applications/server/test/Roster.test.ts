@@ -576,9 +576,13 @@ const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsReposito
 
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: () => Effect.succeed(Option.none()),
+  findByRosterId: () => Effect.succeed(Option.none()),
   insert: () => Effect.void,
   insertWithoutRole: () => Effect.void,
+  insertRoster: () => Effect.void,
   deleteByGroupId: () => Effect.void,
+  deleteByRosterId: () => Effect.void,
+  findAllByTeam: () => Effect.succeed([]),
 } as unknown as DiscordChannelMappingRepository);
 
 const MockBotGuildsRepositoryLayer = Layer.succeed(BotGuildsRepository, {

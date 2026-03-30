@@ -623,6 +623,7 @@
   "roster_createChannel": "Vytvořit kanál",
   "roster_channelCreateRequested": "Požadavek na vytvoření Discord kanálu odeslán.",
   "roster_channelCreateFailed": "Vytvoření Discord kanálu selhalo.",
+  "roster_channelAlreadyLinked": "Tento kanál je již propojen s jinou skupinou nebo soupiskou.",
   "roster_orLinkExisting": "Nebo propojte existující",
   "group_groupCreated": "Skupina vytvořena",
   "group_groupSaved": "Skupina uložena",
