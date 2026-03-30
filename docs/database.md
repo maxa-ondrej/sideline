@@ -500,7 +500,7 @@ Cached channel list fetched from Discord for each registered guild.
 
 **Unique**: `(guild_id, channel_id)`
 
-**Notes**: `type` uses Discord's channel type integer enum (0 = text channel). `parent_id` is the Discord ID of the parent category channel, stored as plain text rather than a FK.
+**Notes**: `type` uses Discord's channel type integer enum (0 = text channel, 4 = category channel). Both types are synced on `GUILD_CREATE` so that category channels are available as options in team settings (e.g. the archive category dropdown). `parent_id` is the Discord ID of the parent category channel, stored as plain text rather than a FK.
 
 ---
 

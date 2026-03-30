@@ -329,7 +329,7 @@ Fired when the bot joins a guild, or when Discord sends the initial `GUILD_CREAT
 **Actions (in order):**
 
 1. Calls `Guild/RegisterGuild` RPC with `guild_id` and `guild_name`.
-2. Calls `Guild/SyncGuildChannels` RPC with all text channels in the guild (channel ID, name, type, parent category ID).
+2. Calls `Guild/SyncGuildChannels` RPC with all text channels (type 0) and category channels (type 4) in the guild (channel ID, name, type, parent category ID).
 3. Fetches up to 1000 guild members via the Discord REST API, filters out bots, and calls `Guild/ReconcileMembers` RPC with the full member list (discord ID, username, avatar, role IDs).
 
 Each step catches errors independently so a failure in channel sync or member reconciliation does not prevent guild registration.
