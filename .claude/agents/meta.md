@@ -1,7 +1,7 @@
 ---
 name: meta
 description: Maintains AGENTS.md files and .claude/ configuration (agents, skills) to reflect codebase changes. Writes precise, unambiguous prompts.
-model: sonnet
+model: opus
 tools: Bash, Read, Write, Edit, Glob, Grep
 color: yellow
 ---
