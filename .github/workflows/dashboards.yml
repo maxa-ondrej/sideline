@@ -110,21 +110,16 @@ jobs:
       - name: Sync dashboards
         env:
           SIGNOZ_ENDPOINT: ${{ secrets.SIGNOZ_ENDPOINT }}
-          SIGNOZ_TOKEN: ${{ secrets.SIGNOZ_TOKEN }}
+          SIGNOZ_API_KEY: ${{ secrets.SIGNOZ_API_KEY }}
         run: |
           if [ -z "$SIGNOZ_ENDPOINT" ]; then
             echo "::error::SIGNOZ_ENDPOINT secret is not set"
             exit 1
           fi
 
-          AUTH_HEADER=""
-          if [ -n "$SIGNOZ_TOKEN" ]; then
-            AUTH_HEADER="SIGNOZ-API-KEY: $SIGNOZ_TOKEN"
-          fi
-
           CURL_OPTS=(-s -S -H "Content-Type: application/json")
-          if [ -n "$AUTH_HEADER" ]; then
-            CURL_OPTS+=(-H "$AUTH_HEADER")
+          if [ -n "$SIGNOZ_API_KEY" ]; then
+            CURL_OPTS+=(-H "SIGNOZ-API-KEY: $SIGNOZ_API_KEY")
           fi
 
           echo "Fetching existing dashboards from SigNoz..."
@@ -134,32 +129,32 @@ jobs:
           for file in monitoring/dashboards/*.json; do
             [ -f "$file" ] || continue
 
-            TITLE=$(python3 -c "import json; print(json.load(open('$file')).get('data',{}).get('title',''))")
+            TITLE=$(python3 -c "import json; d=json.load(open('$file')); print(d.get('data',{}).get('title',''))")
             echo ""
             echo "Processing: $TITLE ($(basename "$file"))"
 
             # Check if dashboard with this title already exists
+            # Handle both correct (data.title) and broken (data.data.title) nesting
             DASHBOARD_ID=$(echo "$EXISTING" | python3 -c "
           import sys, json
           data = json.load(sys.stdin).get('data', [])
           title = '$TITLE'
           for d in data:
-              t = d.get('data', {}).get('title', d.get('name', ''))
+              dd = d.get('data', {})
+              t = dd.get('title') or dd.get('data', {}).get('title', '')
               if t == title:
                   print(d.get('uuid', d.get('id', '')))
                   break
           " 2>/dev/null)
 
-            # Build the payload
+            # Build the payload — SigNoz expects the dashboard content directly (no wrapper)
             PAYLOAD=$(python3 -c "
           import json
           with open('$file') as f:
               d = json.load(f)
-          # If the file has a 'data' wrapper, use it; otherwise wrap it
-          if 'data' in d and 'widgets' in d.get('data', {}):
-              print(json.dumps(d))
-          else:
-              print(json.dumps({'data': d}))
+          # Files use { 'data': { title, widgets, ... } } format — extract the content
+          content = d.get('data', d)
+          print(json.dumps(content))
           ")
 
             if [ -n "$DASHBOARD_ID" ]; then

@@ -1,9 +1,4 @@
 {
-  "createdAt": "2026-03-29T15:54:31.086944Z",
-  "updatedAt": "2026-03-29T22:52:33.883266Z",
-  "createdBy": "ondrej.maxa11@gmail.com",
-  "updatedBy": "ondrej.maxa11@gmail.com",
-  "id": "019d3a4d-cf2e-7e83-9be3-12f5e7ccaa07",
   "data": {
     "description": "Business metrics (RSVP submissions) and service health overview.",
     "layout": [
@@ -690,7 +685,5 @@
         "yAxisUnit": "short"
       }
     ]
-  },
-  "locked": false,
-  "org_id": "019d302a-ce5f-7528-a834-45e4bfecea8b"
+  }
 }
