@@ -3,6 +3,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import { Calendar } from '~/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover';
+import { useDateFnsLocale } from '~/hooks/useDateFnsLocale';
 import { cn } from '~/lib/utils';
 
 interface DatePickerProps {
@@ -24,6 +25,7 @@ function DatePicker({
   toYear,
   defaultMonth: defaultMonthProp,
 }: DatePickerProps) {
+  const dateFnsLocale = useDateFnsLocale();
   const selected = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
 
   return (
@@ -35,7 +37,7 @@ function DatePicker({
           className={cn('w-full justify-start text-left font-normal', !value && 'text-muted-foreground')}
         >
           <CalendarIcon className='mr-2 size-4' />
-          {selected ? format(selected, 'PPP') : <span>{placeholder}</span>}
+          {selected ? format(selected, 'PPP', { locale: dateFnsLocale }) : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-auto p-0' align='start'>

@@ -1,5 +1,6 @@
 import type { Event, EventApi, TrainingTypeApi } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
+import { getLocale } from '@sideline/i18n/runtime';
 import { Link } from '@tanstack/react-router';
 import { format } from 'date-fns';
 import { Option } from 'effect';
@@ -13,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useDateFnsLocale } from '~/hooks/useDateFnsLocale';
 import {
   buildMonthGrid,
   buildWeekDays,
@@ -48,6 +50,7 @@ interface EventCalendarViewProps {
 
 export function EventCalendarView({ teamId, events, trainingTypes }: EventCalendarViewProps) {
   const now = new Date();
+  const dateFnsLocale = useDateFnsLocale();
   const [calendarMode, setCalendarMode] = React.useState<'month' | 'week'>('month');
   const [currentYear, setCurrentYear] = React.useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = React.useState(now.getMonth());
@@ -74,7 +77,8 @@ export function EventCalendarView({ teamId, events, trainingTypes }: EventCalend
     [currentWeekDate, filteredEvents],
   );
 
-  const weekdayHeaders = React.useMemo(() => getWeekdayHeaders(), []);
+  const localeTag = getLocale();
+  const weekdayHeaders = React.useMemo(() => getWeekdayHeaders(localeTag), [localeTag]);
 
   const handlePrev = () => {
     if (calendarMode === 'month') {
@@ -105,8 +109,8 @@ export function EventCalendarView({ teamId, events, trainingTypes }: EventCalend
 
   const title =
     calendarMode === 'month'
-      ? format(new Date(currentYear, currentMonth), 'MMMM yyyy')
-      : `${format(weekDays[0]?.date ?? currentWeekDate, 'MMM d')} – ${format(weekDays[6]?.date ?? currentWeekDate, 'MMM d, yyyy')}`;
+      ? format(new Date(currentYear, currentMonth), 'MMMM yyyy', { locale: dateFnsLocale })
+      : `${format(weekDays[0]?.date ?? currentWeekDate, 'MMM d', { locale: dateFnsLocale })} – ${format(weekDays[6]?.date ?? currentWeekDate, 'MMM d, yyyy', { locale: dateFnsLocale })}`;
 
   return (
     <div className='flex flex-col gap-4'>
@@ -320,6 +324,7 @@ function WeekGrid({
   teamId: string;
   colorMap: TrainingTypeColorMap;
 }) {
+  const dateFnsLocale = useDateFnsLocale();
   return (
     <>
       {/* Desktop: 7-column grid */}
@@ -333,7 +338,9 @@ function WeekGrid({
             )}
           >
             <div className='flex items-center gap-1 mb-2'>
-              <span className='text-xs text-muted-foreground'>{format(day.date, 'EEE')}</span>
+              <span className='text-xs text-muted-foreground'>
+                {format(day.date, 'EEE', { locale: dateFnsLocale })}
+              </span>
               <span
                 className={cn(
                   'text-sm font-medium w-6 h-6 flex items-center justify-center rounded-full',
@@ -366,7 +373,7 @@ function WeekGrid({
         {days.map((day) => (
           <div key={day.date.toISOString()}>
             <div className={cn('text-sm font-medium mb-1 px-1', day.isToday && 'text-primary')}>
-              {format(day.date, 'EEEE, MMM d')}
+              {format(day.date, 'EEEE, MMM d', { locale: dateFnsLocale })}
             </div>
             {day.events.length === 0 ? (
               <p className='text-xs text-muted-foreground px-1'>{m.event_calendarNoEvents()}</p>

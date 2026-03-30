@@ -332,11 +332,25 @@ setLocale('cs');
 
 ### Date Formatting
 
-`useFormatDate` hook provides locale-aware formatting via `Intl` API:
+**`Intl` API** — use `useFormatDate` hook for general date display:
 
 ```typescript
 const { formatDate, formatTime, formatDateTime, formatRelative } = useFormatDate();
 ```
+
+**`date-fns`** — when calling `format()` from `date-fns` (e.g. in calendar components, date pickers), always pass the locale option via `useDateFnsLocale()`:
+
+```typescript
+import { useDateFnsLocale } from '~/hooks/useDateFnsLocale';
+import { format } from 'date-fns';
+
+const dateFnsLocale = useDateFnsLocale();
+format(someDate, 'MMMM yyyy', { locale: dateFnsLocale });
+```
+
+The locale mapping lives in `src/lib/date-locale.ts` (`getDateFnsLocale()`). When adding a new Paraglide locale, add a corresponding entry to the `localeMap` in that file.
+
+**Never call `date-fns` `format()` without `{ locale: dateFnsLocale }`** — it defaults to the browser locale, ignoring the user's app language setting.
 
 ### Language Switcher
 
