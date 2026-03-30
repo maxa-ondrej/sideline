@@ -6,6 +6,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import {
   Select,
@@ -14,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { Separator } from '~/components/ui/separator';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface GroupDetailPageProps {
@@ -367,54 +369,62 @@ export function GroupDetailPage({
         </div>
 
         {/* Discord Channel */}
-        <div>
-          <p className='text-sm font-medium mb-2'>{m.group_discordChannel()}</p>
-          {Option.isSome(channelMapping) ? (
-            <div className='flex items-center gap-2'>
-              <span className='text-sm' title={channelMapping.value.discordChannelId}>
-                #{' '}
-                {Option.getOrElse(
-                  channelMapping.value.discordChannelName,
-                  () => channelMapping.value.discordChannelId,
-                )}
-                {Option.isSome(channelMapping.value.discordRoleId) && (
-                  <>
-                    {' '}
-                    (Role: <code title={channelMapping.value.discordRoleId.value}>synced</code>)
-                  </>
-                )}
-              </span>
-              <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
-                {m.group_unlinkChannel()}
-              </Button>
-            </div>
-          ) : (
-            <div className='flex flex-col gap-2'>
-              <div className='flex gap-2'>
-                <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
-                  <SelectTrigger className='flex-1'>
-                    <SelectValue placeholder={m.group_selectChannel()} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {discordChannels.map((ch) => (
-                      <SelectItem key={ch.id} value={ch.id}>
-                        # {ch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleLinkChannel} disabled={!selectedChannelId}>
-                  {m.group_linkChannel()}
+        <Card className='max-w-md'>
+          <CardHeader>
+            <CardTitle className='text-base'>{m.group_discordChannel()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {Option.isSome(channelMapping) ? (
+              <div className='flex items-center justify-between'>
+                <span className='text-sm font-medium'>
+                  #{' '}
+                  {Option.getOrElse(
+                    channelMapping.value.discordChannelName,
+                    () => channelMapping.value.discordChannelId,
+                  )}
+                </span>
+                <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
+                  {m.group_unlinkChannel()}
                 </Button>
               </div>
-              <div>
-                <Button variant='outline' onClick={handleCreateChannel}>
+            ) : (
+              <div className='flex flex-col gap-4'>
+                <Button className='w-full' onClick={handleCreateChannel}>
                   {m.group_createChannel()}
                 </Button>
+
+                <div className='relative'>
+                  <div className='absolute inset-0 flex items-center'>
+                    <Separator className='w-full' />
+                  </div>
+                  <div className='relative flex justify-center text-xs uppercase'>
+                    <span className='bg-card px-2 text-muted-foreground'>
+                      {m.group_orLinkExisting()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex gap-2'>
+                  <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
+                    <SelectTrigger className='flex-1'>
+                      <SelectValue placeholder={m.group_selectChannel()} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {discordChannels.map((ch) => (
+                        <SelectItem key={ch.id} value={ch.id}>
+                          # {ch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleLinkChannel} disabled={!selectedChannelId}>
+                    {m.group_linkChannel()}
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Members */}
         <div>

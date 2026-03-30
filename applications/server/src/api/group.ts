@@ -526,10 +526,26 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.tap(() =>
+                channelMappings
+                  .findAllByTeam(teamId)
+                  .pipe(
+                    Effect.flatMap((mappings) =>
+                      mappings.some((m) => m.discord_channel_id === payload.discordChannelId)
+                        ? Effect.fail(forbidden)
+                        : Effect.void,
+                    ),
+                  ),
+              ),
+              Effect.tap(() =>
                 channelMappings.insertWithoutRole(teamId, groupId, payload.discordChannelId),
               ),
               Effect.tap(({ _group }) =>
-                channelSync.emitChannelCreated(teamId, groupId, _group.name),
+                channelSync.emitChannelCreated(
+                  teamId,
+                  groupId,
+                  _group.name,
+                  Option.some(payload.discordChannelId),
+                ),
               ),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(

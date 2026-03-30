@@ -272,6 +272,7 @@
   "group_parentChanged": "Group parent changed.",
   "group_moveGroupFailed": "Failed to move group.",
   "group_createChannel": "Create Channel",
+  "group_orLinkExisting": "Or link an existing one",
   "group_channelCreateRequested": "Channel creation requested. It may take a moment to appear.",
   "group_channelCreateFailed": "Failed to request channel creation.",
   "guild_selectServer": "Select Discord Server",

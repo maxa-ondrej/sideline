@@ -56,6 +56,7 @@ const channelCreatedFromSql = (r: EventRow) =>
               guild_id: r.guild_id,
               group_id,
               group_name,
+              existing_channel_id: r.existing_channel_id,
             }),
         ),
       ),

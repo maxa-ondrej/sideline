@@ -135,10 +135,16 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       catchSqlErrors,
     );
 
-  emitChannelCreated = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>
+  emitChannelCreated = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    groupName: string,
+    existingChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+  ) =>
     this._emitIfGuildLinked(teamId, 'channel_created', 'group', {
       groupId: Option.some(groupId),
       groupName: Option.some(groupName),
+      existingChannelId,
     });
 
   emitChannelDeleted = (teamId: Team.TeamId, groupId: GroupModel.GroupId, groupName: string) =>

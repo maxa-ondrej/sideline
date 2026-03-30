@@ -11,6 +11,7 @@ export class GroupChannelCreatedEvent extends Schema.TaggedClass<GroupChannelCre
     guild_id: Discord.Snowflake,
     group_id: GroupModel.GroupId,
     group_name: Schema.String,
+    existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 

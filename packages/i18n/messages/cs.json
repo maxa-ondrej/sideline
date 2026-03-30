@@ -272,6 +272,7 @@
   "group_parentChanged": "Nadřazená skupina byla změněna.",
   "group_moveGroupFailed": "Přesun skupiny selhal.",
   "group_createChannel": "Vytvořit kanál",
+  "group_orLinkExisting": "Nebo propojte existující",
   "group_channelCreateRequested": "Vytvoření kanálu bylo vyžádáno. Může chvíli trvat, než se zobrazí.",
   "group_channelCreateFailed": "Vyžádání vytvoření kanálu selhalo.",
   "guild_selectServer": "Vyberte Discord server",
