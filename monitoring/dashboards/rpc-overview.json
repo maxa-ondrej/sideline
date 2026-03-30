@@ -1,7 +1,7 @@
 {
   "data": {
     "title": "Sideline: RPC Overview",
-    "description": "RPC request rates, latencies, and error rates for the Sideline server.",
+    "description": "RPC request rates, latencies, and error rates for the Sideline application.",
     "tags": ["sideline", "rpc", "server", "performance"],
     "variables": {
       "environment": {
