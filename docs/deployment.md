@@ -213,6 +213,7 @@ Build stages: `base` → `deps` → `build` → `production`. The Vite build out
 | `SERVER_URL` | Yes | — | URL of the server API, used for server-side fetch requests |
 | `PORT` | No | `3000` | Port on which the web server listens |
 | `DISCORD_CLIENT_ID` | Yes | — | Discord OAuth2 application client ID, used on the frontend for the OAuth flow |
+| `WEB_URL` | No | — | Public base URL of the web app (e.g. `https://sideline.example.com`). When set, the Nitro server plugin rewrites the relative `og:image` URL to an absolute URL for Open Graph / Twitter Card embeds |
 
 ---
 

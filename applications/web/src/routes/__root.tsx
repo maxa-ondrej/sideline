@@ -52,6 +52,28 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         name: 'apple-mobile-web-app-title',
         content: 'Sideline',
       },
+      {
+        name: 'description',
+        content:
+          'Events, attendance, workouts, and team management — all in one place. Integrated with Discord.',
+      },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: 'Sideline' },
+      { property: 'og:title', content: 'Sideline — Team Management' },
+      {
+        property: 'og:description',
+        content:
+          'Events, attendance, workouts, and team management — all in one place. Integrated with Discord.',
+      },
+      { property: 'og:image', content: '/og-image.png' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: 'Sideline — Team Management' },
+      {
+        name: 'twitter:description',
+        content:
+          'Events, attendance, workouts, and team management — all in one place. Integrated with Discord.',
+      },
+      { name: 'twitter:image', content: '/og-image.png' },
     ],
     links: [
       {

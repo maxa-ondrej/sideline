@@ -78,6 +78,7 @@ services:
     environment:
       SERVER_URL: ${SERVICE_URL_PROXY}/api
       PORT: 3000
+      WEB_URL: ${SERVICE_URL_PROXY}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
       interval: 30s
