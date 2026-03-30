@@ -39,6 +39,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelOther: Option.none(),
                     createDiscordChannelOnGroup: true,
                     createDiscordChannelOnRoster: true,
+                    discordArchiveCategoryId: Option.none(),
                   }),
                 onSome: (s) =>
                   new TeamSettingsApi.TeamSettingsInfo({
@@ -54,6 +55,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelOther: s.discord_channel_other,
                     createDiscordChannelOnGroup: s.create_discord_channel_on_group,
                     createDiscordChannelOnRoster: s.create_discord_channel_on_roster,
+                    discordArchiveCategoryId: s.discord_archive_category_id,
                   }),
               }),
             ),
@@ -89,6 +91,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.createDiscordChannelOnRoster,
                       () => true,
                     ),
+                    discordArchiveCategoryId: Option.flatten(payload.discordArchiveCategoryId),
                   }),
                 onSome: (s) =>
                   settings.upsert({
@@ -134,6 +137,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.createDiscordChannelOnRoster,
                       () => s.create_discord_channel_on_roster,
                     ),
+                    discordArchiveCategoryId: Option.match(payload.discordArchiveCategoryId, {
+                      onNone: () => s.discord_archive_category_id,
+                      onSome: (v) => v,
+                    }),
                   }),
               }),
             ),
@@ -152,6 +159,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelOther: result.discord_channel_other,
                   createDiscordChannelOnGroup: result.create_discord_channel_on_group,
                   createDiscordChannelOnRoster: result.create_discord_channel_on_roster,
+                  discordArchiveCategoryId: result.discord_archive_category_id,
                 }),
             ),
             Effect.catchTag(

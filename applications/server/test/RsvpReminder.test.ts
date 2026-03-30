@@ -481,6 +481,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_channel_other: Option.none(),
         create_discord_channel_on_group: true,
         create_discord_channel_on_roster: true,
+        discord_archive_category_id: Option.none(),
       }),
     ),
   findByTeamId: () =>
@@ -498,6 +499,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_channel_other: Option.none(),
         create_discord_channel_on_group: true,
         create_discord_channel_on_roster: true,
+        discord_archive_category_id: Option.none(),
       }),
     ),
   upsertSettings: (input: {
@@ -525,6 +527,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_channel_other: Option.none(),
       create_discord_channel_on_group: false,
       create_discord_channel_on_roster: true,
+      discord_archive_category_id: Option.none(),
     }),
   upsert: (input: {
     teamId: string;
@@ -554,6 +557,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_channel_other: Option.none(),
       create_discord_channel_on_group: false,
       create_discord_channel_on_roster: true,
+      discord_archive_category_id: Option.none(),
     });
   },
   getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),

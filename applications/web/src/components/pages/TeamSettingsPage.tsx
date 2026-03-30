@@ -77,6 +77,9 @@ export function TeamSettingsPage({
   const [channelOther, setChannelOther] = React.useState(
     Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE),
   );
+  const [archiveCategory, setArchiveCategory] = React.useState(
+    Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE),
+  );
   const [createDiscordChannelOnGroup, setCreateDiscordChannelOnGroup] = React.useState(
     settings.createDiscordChannelOnGroup,
   );
@@ -101,6 +104,7 @@ export function TeamSettingsPage({
     channelMeeting !== Option.getOrElse(settings.discordChannelMeeting, () => NONE_VALUE) ||
     channelSocial !== Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE) ||
     channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE) ||
+    archiveCategory !== Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE) ||
     createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup ||
     createDiscordChannelOnRoster !== settings.createDiscordChannelOnRoster;
 
@@ -159,6 +163,7 @@ export function TeamSettingsPage({
             discordChannelMeeting: Option.some(channelToOption(channelMeeting)),
             discordChannelSocial: Option.some(channelToOption(channelSocial)),
             discordChannelOther: Option.some(channelToOption(channelOther)),
+            discordArchiveCategoryId: Option.some(channelToOption(archiveCategory)),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
             createDiscordChannelOnRoster: Option.some(createDiscordChannelOnRoster),
           },
@@ -182,6 +187,7 @@ export function TeamSettingsPage({
     channelMeeting,
     channelSocial,
     channelOther,
+    archiveCategory,
     createDiscordChannelOnGroup,
     createDiscordChannelOnRoster,
     run,
@@ -460,6 +466,32 @@ export function TeamSettingsPage({
                   </Select>
                 </div>
               ))}
+            </div>
+            <div className='mt-4'>
+              <Separator className='mb-4' />
+              <div>
+                <label htmlFor='archive-category' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_archiveCategory()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>
+                  {m.teamSettings_archiveCategoryHelp()}
+                </p>
+                <Select value={archiveCategory} onValueChange={setArchiveCategory}>
+                  <SelectTrigger id='archive-category'>
+                    <SelectValue placeholder={m.teamSettings_channelNone()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
+                    {discordChannels
+                      .filter((ch) => ch.type === 4)
+                      .map((ch) => (
+                        <SelectItem key={ch.id} value={ch.id}>
+                          {ch.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>

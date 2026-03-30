@@ -11,6 +11,7 @@ export type ChannelSyncEventId = typeof ChannelSyncEventId.Type;
 export const ChannelSyncEventType = Schema.Literal(
   'channel_created',
   'channel_deleted',
+  'channel_archived',
   'member_added',
   'member_removed',
 );

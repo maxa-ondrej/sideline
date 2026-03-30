@@ -419,6 +419,7 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 |-----------|-------------|----------------|
 | `channel_created` | `handleCreated.ts` | Ensures a Discord channel (and associated role) exists for the group; calls `ensureMapping` which creates the channel+role if absent and upserts the mapping via `Channel/UpsertMapping` |
 | `channel_deleted` | `handleDeleted.ts` | Looks up the mapping via `Channel/GetMapping`, deletes the associated Discord role (if present) and the Discord channel via REST, then removes the mapping via `Channel/DeleteMapping` |
+| `channel_archived` | `handleArchived.ts` | Moves the Discord channel to the configured archive category via REST (`updateChannel`), removes the channel's permission overwrite for the associated role, deletes the Discord role (if present), then removes the mapping. Falls back to full deletion if the move fails. |
 | `channel_member_added` | `handleMemberAdded.ts` | Ensures the mapping exists (`ensureMapping`), then adds the channel's Discord role to the guild member via REST |
 | `channel_member_removed` | `handleMemberRemoved.ts` | Looks up the mapping via `Channel/GetMapping`, then removes the channel's Discord role from the guild member via REST |
 

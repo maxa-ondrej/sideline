@@ -232,20 +232,38 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   : Effect.void,
               ),
               Effect.bind('mappingToDelete', () => channelMappings.findByGroupId(teamId, groupId)),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
               Effect.tap(() => groups.archiveGroupById(groupId)),
-              Effect.tap(({ existing, mappingToDelete }) =>
+              Effect.tap(({ existing, mappingToDelete, settings }) =>
                 Option.match(mappingToDelete, {
                   onNone: () => Effect.void,
-                  onSome: (mapping) =>
-                    channelSync
-                      .emitChannelDeleted(
-                        teamId,
-                        groupId,
-                        existing.name,
-                        mapping.discord_channel_id,
-                        mapping.discord_role_id,
-                      )
-                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId))),
+                  onSome: (mapping) => {
+                    const archiveCategoryId = Option.flatMap(
+                      settings,
+                      (s) => s.discord_archive_category_id,
+                    );
+                    return Option.match(archiveCategoryId, {
+                      onNone: () =>
+                        channelSync
+                          .emitChannelDeleted(
+                            teamId,
+                            groupId,
+                            existing.name,
+                            mapping.discord_channel_id,
+                            mapping.discord_role_id,
+                          )
+                          .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId))),
+                      onSome: (categoryId) =>
+                        channelSync.emitChannelArchived(
+                          teamId,
+                          groupId,
+                          existing.name,
+                          mapping.discord_channel_id,
+                          mapping.discord_role_id,
+                          categoryId,
+                        ),
+                    });
+                  },
                 }),
               ),
               Effect.asVoid,

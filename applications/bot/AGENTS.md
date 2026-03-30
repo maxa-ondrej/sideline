@@ -14,7 +14,16 @@ src/
 ├── commands/        — Slash command registry (ping.ts, index.ts)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member lifecycle)
-└── services/        — Sync services (RoleSyncService, ChannelSyncService)
+├── services/        — Sync services (RoleSyncService, ChannelSyncService)
+└── rcp/channel/     — Channel sync event handlers
+    ├── ProcessorService.ts    — Match.tag dispatcher for channel events
+    ├── channelUtils.ts        — Shared Discord helpers (deleteRole, deleteChannelAndRole)
+    ├── handleCreated.ts       — channel_created handler
+    ├── handleDeleted.ts       — channel_deleted handler
+    ├── handleArchived.ts      — channel_archived handler (archive or fallback to delete)
+    ├── handleMemberAdded.ts   — member_added handler
+    ├── handleMemberRemoved.ts — member_removed handler
+    └── handleRosterChannelCreated.ts — roster channel_created handler
 ```
 
 Follows the **AppLive + run.ts** pattern.
@@ -45,7 +54,18 @@ Syncs groups to private Discord text channels. The bot creates private channels 
 | Bot service | `src/services/ChannelSyncService.ts` |
 | Mapping table | `discord_channel_mappings` (team_id + group_id → discord_channel_id) |
 
-Event types: `channel_created`, `channel_deleted`, `member_added`, `member_removed`
+Event types: `channel_created`, `channel_deleted`, `channel_archived`, `member_added`, `member_removed`
+
+#### Channel Archival
+
+When a team has `discord_archive_category_id` set, deleting a group or deactivating a roster emits `channel_archived` instead of `channel_deleted`. The bot handler in `src/rcp/channel/handleArchived.ts`:
+
+1. Moves the Discord channel to the archive category via `updateChannel({ parent_id })`
+2. Deletes the permission overwrite for the channel role
+3. Deletes the Discord role
+4. On any failure, falls back to full channel+role deletion (same as `channel_deleted`)
+
+Each handler (`handleGroupArchived`, `handleRosterArchived`) follows this pattern and then calls the appropriate RPC to clean up mappings.
 
 ### Sync Pattern (both types)
 

@@ -291,6 +291,7 @@ export const mockTeamSettings = {
   discordChannelMeeting: null,
   discordChannelSocial: null,
   discordChannelOther: null,
+  discordArchiveCategoryId: null,
 };
 
 export const mockDiscordChannels: unknown[] = [];

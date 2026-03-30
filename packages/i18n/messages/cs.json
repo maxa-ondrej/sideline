@@ -402,6 +402,8 @@
   "teamSettings_channelSocial": "Výchozí kanál: Společenská",
   "teamSettings_channelOther": "Výchozí kanál: Ostatní",
   "teamSettings_channelNone": "Žádný",
+  "teamSettings_archiveCategory": "Archivní kategorie",
+  "teamSettings_archiveCategoryHelp": "Kategorie Discord kanálu používaná pro archivované skupinové a soupiskové kanály.",
   "teamSettings_createDiscordChannelOnGroup": "Automaticky vytvořit Discord kanál pro skupiny",
   "teamSettings_createDiscordChannelOnGroupHelp": "Automaticky vytvořit Discord kanál při vytvoření nové skupiny.",
   "teamSettings_createDiscordChannelOnRoster": "Automaticky vytvořit Discord kanál pro soupisky",

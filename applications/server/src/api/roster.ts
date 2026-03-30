@@ -367,8 +367,53 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   discord_channel_id: payload.discordChannelId,
                 }),
               ),
-              Effect.tap(({ existing, updated }) =>
-                Option.match(payload.discordChannelId, {
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ existing, updated, settings }) => {
+                const isDeactivated = existing.active === true && updated.active === false;
+                const archiveCategoryId = Option.flatMap(
+                  settings,
+                  (s) => s.discord_archive_category_id,
+                );
+
+                if (isDeactivated) {
+                  return Option.isSome(existing.discord_channel_id)
+                    ? channelMappings.findByRosterId(teamId, rosterId).pipe(
+                        Effect.flatMap(
+                          Option.match({
+                            onNone: () => Effect.void,
+                            onSome: (mapping) =>
+                              Option.match(archiveCategoryId, {
+                                onNone: () =>
+                                  channelSync
+                                    .emitRosterChannelDeleted(
+                                      teamId,
+                                      rosterId,
+                                      existing.name,
+                                      mapping.discord_channel_id,
+                                      mapping.discord_role_id,
+                                    )
+                                    .pipe(
+                                      Effect.tap(() =>
+                                        channelMappings.deleteByRosterId(teamId, rosterId),
+                                      ),
+                                    ),
+                                onSome: (categoryId) =>
+                                  channelSync.emitRosterChannelArchived(
+                                    teamId,
+                                    rosterId,
+                                    existing.name,
+                                    mapping.discord_channel_id,
+                                    mapping.discord_role_id,
+                                    categoryId,
+                                  ),
+                              }),
+                          }),
+                        ),
+                      )
+                    : Effect.void;
+                }
+
+                return Option.match(payload.discordChannelId, {
                   onNone: () => Effect.void,
                   onSome: (channelIdOption) =>
                     Option.match(channelIdOption, {
@@ -404,8 +449,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                           Option.some(channelId),
                         ),
                     }),
-                }),
-              ),
+                });
+              }),
               Effect.bind('memberCount', ({ updated }) =>
                 rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
               ),
@@ -448,26 +493,44 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(({ existing }) =>
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ existing, settings }) =>
                 Option.isSome(existing.discord_channel_id)
                   ? channelMappings.findByRosterId(teamId, rosterId).pipe(
                       Effect.flatMap(
                         Option.match({
                           onNone: () => Effect.void,
-                          onSome: (mapping) =>
-                            channelSync
-                              .emitRosterChannelDeleted(
-                                teamId,
-                                rosterId,
-                                existing.name,
-                                mapping.discord_channel_id,
-                                mapping.discord_role_id,
-                              )
-                              .pipe(
-                                Effect.tap(() =>
-                                  channelMappings.deleteByRosterId(teamId, rosterId),
+                          onSome: (mapping) => {
+                            const archiveCategoryId = Option.flatMap(
+                              settings,
+                              (s) => s.discord_archive_category_id,
+                            );
+                            return Option.match(archiveCategoryId, {
+                              onNone: () =>
+                                channelSync
+                                  .emitRosterChannelDeleted(
+                                    teamId,
+                                    rosterId,
+                                    existing.name,
+                                    mapping.discord_channel_id,
+                                    mapping.discord_role_id,
+                                  )
+                                  .pipe(
+                                    Effect.tap(() =>
+                                      channelMappings.deleteByRosterId(teamId, rosterId),
+                                    ),
+                                  ),
+                              onSome: (categoryId) =>
+                                channelSync.emitRosterChannelArchived(
+                                  teamId,
+                                  rosterId,
+                                  existing.name,
+                                  mapping.discord_channel_id,
+                                  mapping.discord_role_id,
+                                  categoryId,
                                 ),
-                              ),
+                            });
+                          },
                         }),
                       ),
                     )
