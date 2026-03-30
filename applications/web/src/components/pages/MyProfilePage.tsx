@@ -32,7 +32,7 @@ export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
         <Button
           variant='ghost'
           size='icon'
-          aria-label={m.profile_backToDashboard()}
+          aria-label={m.guild_back()}
           onClick={() => router.history.back()}
         >
           <ArrowLeft className='size-5' />
