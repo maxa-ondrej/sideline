@@ -746,7 +746,7 @@ Returns full roster details including the member list.
 
 #### `PATCH /teams/:teamId/rosters/:rosterId`
 
-Updates a roster's name or active status.
+Updates a roster's name, active status, or linked Discord channel.
 
 **Auth:** Bearer token (AuthMiddleware)
 **Required Permission:** `roster:manage`
