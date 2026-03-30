@@ -12,6 +12,8 @@ import {
   type DayButton,
 } from "react-day-picker"
 
+import { getLocale } from "@sideline/i18n/runtime"
+import { useDateFnsLocale } from "~/hooks/useDateFnsLocale"
 import { cn } from "~/lib/utils"
 import { Button, buttonVariants } from "~/components/ui/button"
 
@@ -28,11 +30,13 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const dateFnsLocale = useDateFnsLocale()
 
   return (
     <DayPicker
       weekStartsOn={1}
       showOutsideDays={showOutsideDays}
+      locale={dateFnsLocale}
       className={cn(
         "group/calendar bg-background p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
@@ -42,7 +46,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString(getLocale(), { month: "short" }),
         ...formatters,
       }}
       classNames={{

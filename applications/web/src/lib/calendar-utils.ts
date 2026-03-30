@@ -80,10 +80,10 @@ export function navigateWeek(date: Date, direction: 'prev' | 'next'): Date {
   return direction === 'next' ? addWeeks(date, 1) : subWeeks(date, 1);
 }
 
-export function getWeekdayHeaders(): ReadonlyArray<string> {
+export function getWeekdayHeaders(locale?: string): ReadonlyArray<string> {
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   return eachDayOfInterval({
     start: weekStart,
     end: addDays(weekStart, 6),
-  }).map((d) => d.toLocaleDateString(undefined, { weekday: 'short' }));
+  }).map((d) => d.toLocaleDateString(locale, { weekday: 'short' }));
 }
