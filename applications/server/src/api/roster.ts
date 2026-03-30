@@ -325,6 +325,20 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 discord_channel_id: payload.discordChannelId,
               }),
             ),
+            Effect.tap(({ existing, updated }) =>
+              Option.match(payload.discordChannelId, {
+                onNone: () => Effect.void,
+                onSome: (channelIdOption) =>
+                  Option.match(channelIdOption, {
+                    onNone: () =>
+                      Option.isSome(existing.discord_channel_id)
+                        ? channelSync.emitRosterChannelDeleted(teamId, rosterId, existing.name)
+                        : Effect.void,
+                    onSome: () =>
+                      channelSync.emitRosterChannelCreated(teamId, updated.id, updated.name),
+                  }),
+              }),
+            ),
             Effect.bind('memberCount', ({ updated }) =>
               rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
             ),

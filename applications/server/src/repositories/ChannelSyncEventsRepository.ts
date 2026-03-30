@@ -171,6 +171,12 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     rosterName: string,
   ) => this._emitIfGuildLinked(teamId, 'channel_created', 'roster', { rosterId, rosterName });
 
+  emitRosterChannelDeleted = (
+    teamId: Team.TeamId,
+    rosterId: RosterModel.RosterId,
+    rosterName: string,
+  ) => this._emitIfGuildLinked(teamId, 'channel_deleted', 'roster', { rosterId, rosterName });
+
   findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
   markProcessed = (id: ChannelSyncEvent.ChannelSyncEventId) =>

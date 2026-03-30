@@ -558,6 +558,7 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   emitMemberAdded: () => Effect.void,
   emitMemberRemoved: () => Effect.void,
   emitRosterChannelCreated: () => Effect.void,
+  emitRosterChannelDeleted: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,

@@ -576,6 +576,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ),
               ),
               Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
+              Effect.tap(({ _group }) =>
+                channelSync.emitChannelDeleted(teamId, groupId, _group.name),
+              ),
               Effect.asVoid,
             ),
           )
