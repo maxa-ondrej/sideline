@@ -20,7 +20,10 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
         sql`ALTER TABLE discord_channel_mappings ADD COLUMN entity_type TEXT NOT NULL DEFAULT 'group'`,
     ),
     Effect.tap(() => sql`ALTER TABLE discord_channel_mappings ALTER COLUMN group_id DROP NOT NULL`),
-    Effect.tap(() => sql`DROP INDEX IF EXISTS discord_channel_mappings_team_id_subgroup_id_key`),
+    Effect.tap(
+      () =>
+        sql`ALTER TABLE discord_channel_mappings DROP CONSTRAINT IF EXISTS discord_channel_mappings_team_id_group_id_key`,
+    ),
     Effect.tap(
       () =>
         sql`CREATE UNIQUE INDEX discord_channel_mappings_team_group ON discord_channel_mappings (team_id, group_id) WHERE group_id IS NOT NULL`,
