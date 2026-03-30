@@ -55,7 +55,7 @@ Syncs groups to private Discord text channels with per-user permission overwrite
 | Bot service | `src/services/ChannelSyncService.ts` |
 | Mapping table | `discord_channel_mappings` (team_id + group_id → discord_channel_id) |
 
-Event types: `channel_created`, `channel_deleted`, `channel_archived`, `member_added`, `member_removed`
+Event types: `channel_created`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed`
 
 #### Channel Archival
 

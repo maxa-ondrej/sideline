@@ -22,6 +22,10 @@ import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
+/** Discord channel type constants */
+const DISCORD_CHANNEL_TYPE_TEXT = 0;
+const DISCORD_CHANNEL_TYPE_CATEGORY = 4;
+
 interface TeamSettingsPageProps {
   teamId: string;
   settings: TeamSettingsApi.TeamSettingsInfo;
@@ -444,7 +448,7 @@ export function TeamSettingsPage({
                         <SelectContent>
                           <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
                           {discordChannels
-                            .filter((ch) => ch.type === 0)
+                            .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
                             .map((ch) => (
                               <SelectItem key={ch.id} value={ch.id}>
                                 # {ch.name}
@@ -567,7 +571,7 @@ export function TeamSettingsPage({
                       <SelectContent>
                         <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
                         {discordChannels
-                          .filter((ch) => ch.type === 4)
+                          .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_CATEGORY)
                           .map((ch) => (
                             <SelectItem key={ch.id} value={ch.id}>
                               {ch.name}

@@ -188,7 +188,7 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
-**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743700000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`).
+**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743600000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`).
 
 ---
 
@@ -779,8 +779,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743100000 | `add_team_profile_fields` | Adds `description`, `sport`, and `logo_url` columns to teams |
 | 1743400000 | `add_roster_discord_channel` | Adds `discord_channel_id TEXT` to rosters |
 | 1743500000 | `add_roster_channel_settings` | Adds `create_discord_channel_on_roster` to team_settings; adds `entity_type`, `roster_id`, `roster_name` to channel_sync_events and discord_channel_mappings; makes `group_id` nullable |
-| 1743600000 | `add_archive_category` | Adds `discord_archive_category_id` to team_settings; adds `archive_category_id` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_archived'` |
-| 1743700000 | `add_channel_cleanup_modes` | Adds `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` to team_settings (TEXT NOT NULL DEFAULT `'delete'`); extends channel_sync_events event_type check to include `'channel_detached'` |
+| 1743600000 | `add_archive_category` | Adds `discord_archive_category_id`, `discord_channel_cleanup_on_group_delete`, `discord_channel_cleanup_on_roster_deactivate` to team_settings; adds `archive_category_id` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_archived'` and `'channel_detached'` |
 
 ### After Migrations (seed data)
 
