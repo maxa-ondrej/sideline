@@ -42,6 +42,8 @@ export class GroupChannelDeletedEvent extends Schema.TaggedClass<GroupChannelDel
     team_id: Team.TeamId,
     guild_id: Discord.Snowflake,
     group_id: GroupModel.GroupId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 
@@ -52,6 +54,8 @@ export class RosterChannelDeletedEvent extends Schema.TaggedClass<RosterChannelD
     team_id: Team.TeamId,
     guild_id: Discord.Snowflake,
     roster_id: RosterModel.RosterId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
   },
 ) {}
 

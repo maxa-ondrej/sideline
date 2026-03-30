@@ -231,9 +231,22 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     )
                   : Effect.void,
               ),
+              Effect.bind('mappingToDelete', () => channelMappings.findByGroupId(teamId, groupId)),
               Effect.tap(() => groups.archiveGroupById(groupId)),
-              Effect.tap(({ existing }) =>
-                channelSync.emitChannelDeleted(teamId, groupId, existing.name),
+              Effect.tap(({ existing, mappingToDelete }) =>
+                Option.match(mappingToDelete, {
+                  onNone: () => Effect.void,
+                  onSome: (mapping) =>
+                    channelSync
+                      .emitChannelDeleted(
+                        teamId,
+                        groupId,
+                        existing.name,
+                        mapping.discord_channel_id,
+                        mapping.discord_role_id,
+                      )
+                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId))),
+                }),
               ),
               Effect.asVoid,
             ),
@@ -591,9 +604,26 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(({ _group }) =>
-                channelSync.emitChannelDeleted(teamId, groupId, _group.name),
+              Effect.bind('mapping', () =>
+                channelMappings.findByGroupId(teamId, groupId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
               ),
+              Effect.tap(({ _group, mapping }) =>
+                channelSync.emitChannelDeleted(
+                  teamId,
+                  groupId,
+                  _group.name,
+                  mapping.discord_channel_id,
+                  mapping.discord_role_id,
+                ),
+              ),
+              Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
               Effect.asVoid,
             ),
           )

@@ -483,11 +483,50 @@ const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository
   markFailed: () => Effect.void,
 } as unknown as RoleSyncEventsRepository);
 
+const channelMappingsStore = new Map<
+  string,
+  { discord_channel_id: string; discord_role_id: Option.Option<string> }
+>();
+
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
-  findByGroupId: () => Effect.succeed(Option.none()),
-  insert: () => Effect.void,
-  insertWithoutRole: () => Effect.void,
-  deleteByGroupId: () => Effect.void,
+  findByGroupId: (_teamId: string, groupId: string) => {
+    const mapping = channelMappingsStore.get(groupId);
+    return Effect.succeed(
+      mapping
+        ? Option.some({
+            id: 'mock-mapping-id',
+            team_id: _teamId,
+            entity_type: 'group' as const,
+            group_id: Option.some(groupId),
+            roster_id: Option.none(),
+            discord_channel_id: mapping.discord_channel_id,
+            discord_role_id: mapping.discord_role_id,
+          })
+        : Option.none(),
+    );
+  },
+  findByRosterId: () => Effect.succeed(Option.none()),
+  insert: (_teamId: string, groupId: string, channelId: string, roleId: string) => {
+    channelMappingsStore.set(groupId, {
+      discord_channel_id: channelId,
+      discord_role_id: Option.some(roleId),
+    });
+    return Effect.void;
+  },
+  insertWithoutRole: (_teamId: string, groupId: string, channelId: string) => {
+    channelMappingsStore.set(groupId, {
+      discord_channel_id: channelId,
+      discord_role_id: Option.none(),
+    });
+    return Effect.void;
+  },
+  insertRoster: () => Effect.void,
+  deleteByGroupId: (_teamId: string, groupId: string) => {
+    channelMappingsStore.delete(groupId);
+    return Effect.void;
+  },
+  deleteByRosterId: () => Effect.void,
+  findAllByTeam: () => Effect.succeed([]),
 } as unknown as DiscordChannelMappingRepository);
 
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
@@ -788,6 +827,12 @@ describe('Channel Sync Events', () => {
         }),
       );
       const created = await createResponse.json();
+
+      // Set up a channel mapping so the delete emits a channel_deleted event
+      channelMappingsStore.set(created.groupId, {
+        discord_channel_id: '999888777',
+        discord_role_id: Option.some('111222333'),
+      });
       channelSyncEventCalls.length = 0;
 
       const response = await handler(
@@ -799,13 +844,11 @@ describe('Channel Sync Events', () => {
       expect(response.status).toBe(204);
 
       expect(channelSyncEventCalls).toHaveLength(1);
-      expect(channelSyncEventCalls[0]).toEqual({
+      expect(channelSyncEventCalls[0]).toMatchObject({
         teamId: TEST_TEAM_ID,
         eventType: 'channel_deleted',
         groupId: created.groupId,
         groupName: 'ToDelete',
-        teamMemberId: undefined,
-        discordUserId: undefined,
       });
     });
   });

@@ -32,6 +32,7 @@ export class ChannelSyncEvent extends Model.Class<ChannelSyncEvent>('ChannelSync
   roster_id: Schema.OptionFromNullOr(RosterId),
   roster_name: Schema.OptionFromNullOr(Schema.String),
   existing_channel_id: Schema.OptionFromNullOr(Schema.String),
+  discord_role_id: Schema.OptionFromNullOr(Schema.String),
   processed_at: Schema.OptionFromNullOr(Schema.String),
   error: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,

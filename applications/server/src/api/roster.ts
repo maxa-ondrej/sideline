@@ -374,7 +374,27 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     Option.match(channelIdOption, {
                       onNone: () =>
                         Option.isSome(existing.discord_channel_id)
-                          ? channelSync.emitRosterChannelDeleted(teamId, rosterId, existing.name)
+                          ? channelMappings.findByRosterId(teamId, rosterId).pipe(
+                              Effect.flatMap(
+                                Option.match({
+                                  onNone: () => Effect.void,
+                                  onSome: (mapping) =>
+                                    channelSync
+                                      .emitRosterChannelDeleted(
+                                        teamId,
+                                        rosterId,
+                                        existing.name,
+                                        mapping.discord_channel_id,
+                                        mapping.discord_role_id,
+                                      )
+                                      .pipe(
+                                        Effect.tap(() =>
+                                          channelMappings.deleteByRosterId(teamId, rosterId),
+                                        ),
+                                      ),
+                                }),
+                              ),
+                            )
                           : Effect.void,
                       onSome: (channelId) =>
                         channelSync.emitRosterChannelCreated(
@@ -430,7 +450,27 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
               Effect.tap(({ existing }) =>
                 Option.isSome(existing.discord_channel_id)
-                  ? channelSync.emitRosterChannelDeleted(teamId, rosterId, existing.name)
+                  ? channelMappings.findByRosterId(teamId, rosterId).pipe(
+                      Effect.flatMap(
+                        Option.match({
+                          onNone: () => Effect.void,
+                          onSome: (mapping) =>
+                            channelSync
+                              .emitRosterChannelDeleted(
+                                teamId,
+                                rosterId,
+                                existing.name,
+                                mapping.discord_channel_id,
+                                mapping.discord_role_id,
+                              )
+                              .pipe(
+                                Effect.tap(() =>
+                                  channelMappings.deleteByRosterId(teamId, rosterId),
+                                ),
+                              ),
+                        }),
+                      ),
+                    )
                   : Effect.void,
               ),
               Effect.tap(() => rosters.delete(rosterId)),
