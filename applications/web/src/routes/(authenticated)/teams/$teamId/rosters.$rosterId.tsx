@@ -1,6 +1,6 @@
 import { RosterModel, Team } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { RosterDetailPage } from '~/components/pages/RosterDetailPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
@@ -29,7 +29,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$ro
       ),
       ApiClient.pipe(
         Effect.flatMap((api) => api.team.getTeamInfo({ path: { teamId } })),
-        warnAndCatchAll,
+        Effect.map(Option.some),
+        Effect.tapError((e) => Effect.logWarning('Failed to load team info', e)),
+        Effect.catchAll(() => Effect.succeed(Option.none())),
         context.run,
       ),
     ]);
@@ -51,7 +53,7 @@ function RosterDetailRoute() {
       canManage={rosterDetail.canManage}
       userId={user.id}
       discordChannels={discordChannels}
-      guildId={teamInfo.guildId}
+      guildId={Option.map(teamInfo, (t: { guildId: string }) => t.guildId)}
     />
   );
 }

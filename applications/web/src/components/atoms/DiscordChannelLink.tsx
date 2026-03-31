@@ -27,15 +27,16 @@ export function DiscordChannelLink({
             rel='noopener noreferrer'
             aria-label={m.discord_openChannel({ channelName })}
             className={cn(
-              'inline-flex items-center gap-1 rounded-sm text-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
+              'inline-flex items-center gap-0.5 rounded bg-indigo-500/15 px-1.5 py-0.5 text-sm font-medium text-indigo-600 hover:bg-indigo-500/25 dark:text-indigo-400',
+              'focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
               className,
             )}
           >
-            <Hash className='size-3.5 shrink-0 text-muted-foreground' aria-hidden />
+            <Hash className='size-3.5 shrink-0' aria-hidden />
             {channelName}
           </a>
         </TooltipTrigger>
-        <TooltipContent>ID: {channelId}</TooltipContent>
+        <TooltipContent>{channelId}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );

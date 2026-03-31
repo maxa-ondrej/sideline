@@ -29,7 +29,7 @@ interface RosterDetailPageProps {
   canManage: boolean;
   userId: string;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
-  guildId: string;
+  guildId: Option.Option<string>;
 }
 
 export function RosterDetailPage({
@@ -243,13 +243,22 @@ export function RosterDetailPage({
               </div>
             ) : Option.isSome(rosterDetail.discordChannelId) ? (
               <div className='flex items-center justify-between'>
-                <DiscordChannelLink
-                  guildId={guildId}
-                  channelId={Option.getOrElse(rosterDetail.discordChannelId, () => '')}
-                  channelName={Option.getOrElse(rosterDetail.discordChannelName, () =>
-                    Option.getOrElse(rosterDetail.discordChannelId, () => ''),
-                  )}
-                />
+                {Option.isSome(guildId) ? (
+                  <DiscordChannelLink
+                    guildId={guildId.value}
+                    channelId={Option.getOrElse(rosterDetail.discordChannelId, () => '')}
+                    channelName={Option.getOrElse(rosterDetail.discordChannelName, () =>
+                      Option.getOrElse(rosterDetail.discordChannelId, () => ''),
+                    )}
+                  />
+                ) : (
+                  <span className='text-sm font-medium'>
+                    #{' '}
+                    {Option.getOrElse(rosterDetail.discordChannelName, () =>
+                      Option.getOrElse(rosterDetail.discordChannelId, () => ''),
+                    )}
+                  </span>
+                )}
                 <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
                   {m.roster_unlinkChannel()}
                 </Button>

@@ -30,7 +30,7 @@ interface GroupDetailPageProps {
   channelMapping: Option.Option<GroupApi.ChannelMappingInfo>;
   allGroups: ReadonlyArray<GroupApi.GroupInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
-  guildId: string;
+  guildId: Option.Option<string>;
 }
 
 export function GroupDetailPage({
@@ -397,14 +397,24 @@ export function GroupDetailPage({
               </div>
             ) : Option.isSome(channelMapping) ? (
               <div className='flex items-center justify-between'>
-                <DiscordChannelLink
-                  guildId={guildId}
-                  channelId={channelMapping.value.discordChannelId}
-                  channelName={Option.getOrElse(
-                    channelMapping.value.discordChannelName,
-                    () => channelMapping.value.discordChannelId,
-                  )}
-                />
+                {Option.isSome(guildId) ? (
+                  <DiscordChannelLink
+                    guildId={guildId.value}
+                    channelId={channelMapping.value.discordChannelId}
+                    channelName={Option.getOrElse(
+                      channelMapping.value.discordChannelName,
+                      () => channelMapping.value.discordChannelId,
+                    )}
+                  />
+                ) : (
+                  <span className='text-sm font-medium'>
+                    #{' '}
+                    {Option.getOrElse(
+                      channelMapping.value.discordChannelName,
+                      () => channelMapping.value.discordChannelId,
+                    )}
+                  </span>
+                )}
                 <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
                   {m.group_unlinkChannel()}
                 </Button>
