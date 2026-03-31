@@ -1,6 +1,6 @@
 import { GroupModel, Team } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
-import { Effect, Schema } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { GroupDetailPage } from '~/components/pages/GroupDetailPage';
 import { ApiClient, warnAndCatchAll } from '~/lib/runtime';
 
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const groupId = Schema.decodeSync(GroupModel.GroupId)(params.groupId);
-    const [groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels] =
+    const [groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels, guildId] =
       await Promise.all([
         ApiClient.pipe(
           Effect.flatMap((api) => api.group.getGroup({ path: { teamId, groupId } })),
@@ -42,8 +42,23 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
           warnAndCatchAll,
           context.run,
         ),
+        ApiClient.pipe(
+          Effect.flatMap((api) => api.team.getTeamInfo({ path: { teamId } })),
+          Effect.map((info) => Option.some(info.guildId)),
+          Effect.tapError((e) => Effect.logWarning('Failed to load team info', e)),
+          Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+          context.run,
+        ),
       ]);
-    return { groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels };
+    return {
+      groupDetail,
+      allMembers,
+      allRoles,
+      channelMapping,
+      allGroups,
+      discordChannels,
+      guildId,
+    };
   },
 });
 
@@ -56,6 +71,7 @@ function GroupDetailRoute() {
     channelMapping,
     allGroups,
     discordChannels,
+    guildId,
   } = Route.useLoaderData();
 
   return (
@@ -68,6 +84,7 @@ function GroupDetailRoute() {
       channelMapping={channelMapping}
       allGroups={allGroups}
       discordChannels={discordChannels}
+      guildId={guildId}
     />
   );
 }
