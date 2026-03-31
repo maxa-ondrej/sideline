@@ -10,7 +10,7 @@ export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) 
       Effect.Do.pipe(
         Effect.bind('rpc', () => SyncRpc),
         Effect.bind('result', () =>
-          createRoleForChannel(event.guild_id, channelId, event.group_name),
+          createRoleForChannel(event.guild_id, channelId, event.discord_role_name),
         ),
         Effect.tap(({ result, rpc }) =>
           rpc['Channel/UpsertMapping']({
@@ -28,7 +28,13 @@ export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) 
         Effect.asVoid,
       ),
     onNone: () =>
-      ensureMapping(event.team_id, event.group_id, event.guild_id, event.group_name).pipe(
+      ensureMapping(
+        event.team_id,
+        event.group_id,
+        event.guild_id,
+        event.discord_channel_name,
+        event.discord_role_name,
+      ).pipe(
         Effect.tap(({ discord_channel_id }) =>
           Effect.logInfo(
             `Synced group_channel_created (new): group ${event.group_id} → Discord channel ${discord_channel_id} in guild ${event.guild_id}`,

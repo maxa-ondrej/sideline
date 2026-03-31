@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -31,6 +32,16 @@ interface TeamSettingsPageProps {
 }
 
 const NONE_VALUE = '__none__';
+const DEFAULT_ROLE_FORMAT = '{emoji} {name}';
+const DEFAULT_CHANNEL_FORMAT = '{emoji}\u2502{name}';
+
+const isFormatValid = (format: string) => format.includes('{name}');
+
+const renderFormatPreview = (format: string, isChannel: boolean) => {
+  const emoji = '\u{1F3C0}';
+  const name = isChannel ? 'seniors' : 'Seniors';
+  return format.replaceAll('{emoji}', emoji).replaceAll('{name}', name).trim();
+};
 
 export function TeamSettingsPage({
   teamId,
@@ -93,6 +104,8 @@ export function TeamSettingsPage({
   const [createDiscordChannelOnRoster, setCreateDiscordChannelOnRoster] = React.useState(
     settings.createDiscordChannelOnRoster,
   );
+  const [roleFormat, setRoleFormat] = React.useState(settings.discordRoleFormat);
+  const [channelFormat, setChannelFormat] = React.useState(settings.discordChannelFormat);
   const [savingSettings, setSavingSettings] = React.useState(false);
 
   const hasProfileChanges =
@@ -115,7 +128,9 @@ export function TeamSettingsPage({
     cleanupOnGroupDelete !== settings.discordChannelCleanupOnGroupDelete ||
     cleanupOnRosterDeactivate !== settings.discordChannelCleanupOnRosterDeactivate ||
     createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup ||
-    createDiscordChannelOnRoster !== settings.createDiscordChannelOnRoster;
+    createDiscordChannelOnRoster !== settings.createDiscordChannelOnRoster ||
+    roleFormat !== settings.discordRoleFormat ||
+    channelFormat !== settings.discordChannelFormat;
 
   const channelToOption = React.useCallback(
     (value: string) =>
@@ -157,6 +172,7 @@ export function TeamSettingsPage({
     const parsedReminderHours = Number.parseInt(rsvpReminderHours, 10);
     if (Number.isNaN(parsedReminderHours) || parsedReminderHours < 0 || parsedReminderHours > 168)
       return;
+    if (!isFormatValid(roleFormat) || !isFormatValid(channelFormat)) return;
     setSavingSettings(true);
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
@@ -181,6 +197,8 @@ export function TeamSettingsPage({
             ),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
             createDiscordChannelOnRoster: Option.some(createDiscordChannelOnRoster),
+            discordRoleFormat: Option.some(roleFormat),
+            discordChannelFormat: Option.some(channelFormat),
           },
         }),
       ),
@@ -207,6 +225,8 @@ export function TeamSettingsPage({
     cleanupOnRosterDeactivate,
     createDiscordChannelOnGroup,
     createDiscordChannelOnRoster,
+    roleFormat,
+    channelFormat,
     run,
     router,
     channelToOption,
@@ -427,6 +447,75 @@ export function TeamSettingsPage({
           </CardHeader>
           <CardContent>
             <div className='flex flex-col gap-6'>
+              {/* Naming formats */}
+              <div className='space-y-4'>
+                <h4 className='font-medium'>{m.teamSettings_namingFormats()}</h4>
+                <div className='grid gap-4'>
+                  {/* Role format */}
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label>{m.teamSettings_roleFormat()}</Label>
+                      {roleFormat !== DEFAULT_ROLE_FORMAT && (
+                        <Button
+                          variant='link'
+                          size='sm'
+                          className='h-auto p-0 text-xs'
+                          onClick={() => setRoleFormat(DEFAULT_ROLE_FORMAT)}
+                        >
+                          {m.teamSettings_formatResetDefault()}
+                        </Button>
+                      )}
+                    </div>
+                    <p className='text-xs text-muted-foreground'>
+                      {m.teamSettings_roleFormatHelp({ emoji: '{emoji}', name: '{name}' })}
+                    </p>
+                    <Input value={roleFormat} onChange={(e) => setRoleFormat(e.target.value)} />
+                    <div className='text-xs text-muted-foreground'>
+                      <span>{m.teamSettings_formatPreview()} </span>
+                      <span className='font-mono'>{renderFormatPreview(roleFormat, false)}</span>
+                    </div>
+                    {!isFormatValid(roleFormat) && (
+                      <p className='text-xs text-destructive'>
+                        {m.teamSettings_formatMustIncludeName({ name: '{name}' })}
+                      </p>
+                    )}
+                  </div>
+                  {/* Channel format */}
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label>{m.teamSettings_channelFormat()}</Label>
+                      {channelFormat !== DEFAULT_CHANNEL_FORMAT && (
+                        <Button
+                          variant='link'
+                          size='sm'
+                          className='h-auto p-0 text-xs'
+                          onClick={() => setChannelFormat(DEFAULT_CHANNEL_FORMAT)}
+                        >
+                          {m.teamSettings_formatResetDefault()}
+                        </Button>
+                      )}
+                    </div>
+                    <p className='text-xs text-muted-foreground'>
+                      {m.teamSettings_channelFormatHelp({ emoji: '{emoji}', name: '{name}' })}
+                    </p>
+                    <Input
+                      value={channelFormat}
+                      onChange={(e) => setChannelFormat(e.target.value)}
+                    />
+                    <div className='text-xs text-muted-foreground'>
+                      <span>{m.teamSettings_formatPreview()} </span>
+                      <span className='font-mono'>{renderFormatPreview(channelFormat, true)}</span>
+                    </div>
+                    {!isFormatValid(channelFormat) && (
+                      <p className='text-xs text-destructive'>
+                        {m.teamSettings_formatMustIncludeName({ name: '{name}' })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <Separator />
+
               {/* Event notification channels */}
               <div>
                 <h4 className='text-sm font-semibold mb-3'>

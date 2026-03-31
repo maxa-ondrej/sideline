@@ -10,6 +10,7 @@ import { allow, deny, retryPolicy } from '../utils.js';
 export const createDiscordChannelAndRole = (
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
+  roleName: string,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
@@ -30,10 +31,10 @@ export const createDiscordChannelAndRole = (
       ),
     ),
     Effect.bind('role', ({ rest }) =>
-      rest.createGuildRole(guildId, { name: channelName }).pipe(Effect.retry(retryPolicy)),
+      rest.createGuildRole(guildId, { name: roleName }).pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ role }) =>
-      Effect.logInfo(`Auto-created Discord role "${channelName}" (${role.id}) in guild ${guildId}`),
+      Effect.logInfo(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),
     ),
     Effect.tap(({ channel, role, rest }) =>
       rest
@@ -57,10 +58,11 @@ export const createChannelWithRole = (
   groupId: GroupModel.GroupId,
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
+  roleName: string,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('result', () => createDiscordChannelAndRole(guildId, channelName)),
+    Effect.bind('result', () => createDiscordChannelAndRole(guildId, channelName, roleName)),
     Effect.tap(({ result, rpc }) =>
       rpc['Channel/UpsertMapping']({
         team_id: teamId,

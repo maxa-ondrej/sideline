@@ -6,6 +6,7 @@ import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { DEFAULT_CHANNEL_FORMAT, DEFAULT_ROLE_FORMAT } from '~/utils/applyDiscordFormat.js';
 
 const forbidden = new EventApi.Forbidden();
 
@@ -42,6 +43,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordArchiveCategoryId: Option.none(),
                     discordChannelCleanupOnGroupDelete: 'delete',
                     discordChannelCleanupOnRosterDeactivate: 'delete',
+                    discordRoleFormat: DEFAULT_ROLE_FORMAT,
+                    discordChannelFormat: DEFAULT_CHANNEL_FORMAT,
                   }),
                 onSome: (s) =>
                   new TeamSettingsApi.TeamSettingsInfo({
@@ -61,6 +64,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelCleanupOnGroupDelete: s.discord_channel_cleanup_on_group_delete,
                     discordChannelCleanupOnRosterDeactivate:
                       s.discord_channel_cleanup_on_roster_deactivate,
+                    discordRoleFormat: s.discord_role_format,
+                    discordChannelFormat: s.discord_channel_format,
                   }),
               }),
             ),
@@ -105,6 +110,12 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.discordChannelCleanupOnRosterDeactivate,
                       () => 'delete' as const,
                     ),
+                    ...(Option.isSome(payload.discordRoleFormat)
+                      ? { discordRoleFormat: payload.discordRoleFormat.value }
+                      : {}),
+                    ...(Option.isSome(payload.discordChannelFormat)
+                      ? { discordChannelFormat: payload.discordChannelFormat.value }
+                      : {}),
                   }),
                 onSome: (s) =>
                   settings.upsert({
@@ -162,6 +173,14 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.discordChannelCleanupOnRosterDeactivate,
                       () => s.discord_channel_cleanup_on_roster_deactivate,
                     ),
+                    discordRoleFormat: Option.getOrElse(
+                      payload.discordRoleFormat,
+                      () => s.discord_role_format,
+                    ),
+                    discordChannelFormat: Option.getOrElse(
+                      payload.discordChannelFormat,
+                      () => s.discord_channel_format,
+                    ),
                   }),
               }),
             ),
@@ -185,6 +204,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     result.discord_channel_cleanup_on_group_delete,
                   discordChannelCleanupOnRosterDeactivate:
                     result.discord_channel_cleanup_on_roster_deactivate,
+                  discordRoleFormat: result.discord_role_format,
+                  discordChannelFormat: result.discord_channel_format,
                 }),
             ),
             Effect.catchTag(

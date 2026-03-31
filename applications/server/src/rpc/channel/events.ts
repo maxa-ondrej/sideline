@@ -1,5 +1,5 @@
 import { ChannelRpcEvents, type ChannelSyncEvent } from '@sideline/domain';
-import { Data, Effect, Match, type Option } from 'effect';
+import { Data, Effect, Match, Option } from 'effect';
 import {
   ChannelSyncEventsRepository,
   type EventRow,
@@ -57,6 +57,8 @@ const channelCreatedFromSql = (r: EventRow) =>
               group_id,
               group_name,
               existing_channel_id: r.existing_channel_id,
+              discord_channel_name: Option.getOrElse(r.discord_channel_name, () => group_name),
+              discord_role_name: Option.getOrElse(r.discord_role_name, () => group_name),
             }),
         ),
       ),
@@ -74,6 +76,8 @@ const channelCreatedFromSql = (r: EventRow) =>
               roster_id,
               roster_name,
               existing_channel_id: r.existing_channel_id,
+              discord_channel_name: Option.getOrElse(r.discord_channel_name, () => roster_name),
+              discord_role_name: Option.getOrElse(r.discord_role_name, () => roster_name),
             }),
         ),
       ),

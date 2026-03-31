@@ -12,6 +12,8 @@ export class GroupChannelCreatedEvent extends Schema.TaggedClass<GroupChannelCre
     group_id: GroupModel.GroupId,
     group_name: Schema.String,
     existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    discord_channel_name: Schema.String,
+    discord_role_name: Schema.String,
   },
 ) {}
 
@@ -24,6 +26,8 @@ export class RosterChannelCreatedEvent extends Schema.TaggedClass<RosterChannelC
     roster_id: RosterModel.RosterId,
     roster_name: Schema.String,
     existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    discord_channel_name: Schema.String,
+    discord_role_name: Schema.String,
   },
 ) {}
 

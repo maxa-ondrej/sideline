@@ -3,6 +3,7 @@ import { ChannelSyncEvent, Discord, Event, GroupModel, Team } from '@sideline/do
 import { Schemas } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
+import { DEFAULT_CHANNEL_FORMAT, DEFAULT_ROLE_FORMAT } from '~/utils/applyDiscordFormat.js';
 
 class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   team_id: Team.TeamId,
@@ -20,6 +21,8 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   discord_archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_cleanup_on_group_delete: ChannelSyncEvent.ChannelCleanupMode,
   discord_channel_cleanup_on_roster_deactivate: ChannelSyncEvent.ChannelCleanupMode,
+  discord_role_format: Schema.String,
+  discord_channel_format: Schema.String,
 }) {}
 
 class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
@@ -40,6 +43,8 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   discord_archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_cleanup_on_group_delete: ChannelSyncEvent.ChannelCleanupMode,
   discord_channel_cleanup_on_roster_deactivate: ChannelSyncEvent.ChannelCleanupMode,
+  discord_role_format: Schema.String,
+  discord_channel_format: Schema.String,
 }) {}
 
 class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeedingReminder')({
@@ -70,7 +75,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
              create_discord_channel_on_group, create_discord_channel_on_roster,
              discord_archive_category_id,
              discord_channel_cleanup_on_group_delete,
-             discord_channel_cleanup_on_roster_deactivate
+             discord_channel_cleanup_on_roster_deactivate,
+             discord_role_format,
+             discord_channel_format
       FROM team_settings
       WHERE team_id = ${teamId}
     `,
@@ -88,7 +95,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                                  create_discord_channel_on_group, create_discord_channel_on_roster,
                                  discord_archive_category_id,
                                  discord_channel_cleanup_on_group_delete,
-                                 discord_channel_cleanup_on_roster_deactivate)
+                                 discord_channel_cleanup_on_roster_deactivate,
+                                 discord_role_format,
+                                 discord_channel_format)
       VALUES (${input.team_id}, ${input.event_horizon_days},
               ${input.min_players_threshold}, ${input.rsvp_reminder_hours},
               ${input.discord_channel_training}, ${input.discord_channel_match},
@@ -97,7 +106,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
               ${input.create_discord_channel_on_group}, ${input.create_discord_channel_on_roster},
               ${input.discord_archive_category_id},
               ${input.discord_channel_cleanup_on_group_delete},
-              ${input.discord_channel_cleanup_on_roster_deactivate})
+              ${input.discord_channel_cleanup_on_roster_deactivate},
+              ${input.discord_role_format},
+              ${input.discord_channel_format})
       ON CONFLICT (team_id) DO UPDATE SET
         event_horizon_days = ${input.event_horizon_days},
         min_players_threshold = ${input.min_players_threshold},
@@ -113,6 +124,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
         discord_archive_category_id = ${input.discord_archive_category_id},
         discord_channel_cleanup_on_group_delete = ${input.discord_channel_cleanup_on_group_delete},
         discord_channel_cleanup_on_roster_deactivate = ${input.discord_channel_cleanup_on_roster_deactivate},
+        discord_role_format = ${input.discord_role_format},
+        discord_channel_format = ${input.discord_channel_format},
         updated_at = now()
       RETURNING team_id, event_horizon_days,
                 min_players_threshold, rsvp_reminder_hours,
@@ -122,7 +135,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                 create_discord_channel_on_group, create_discord_channel_on_roster,
                 discord_archive_category_id,
                 discord_channel_cleanup_on_group_delete,
-                discord_channel_cleanup_on_roster_deactivate
+                discord_channel_cleanup_on_roster_deactivate,
+                discord_role_format,
+                discord_channel_format
     `,
   });
 
@@ -170,6 +185,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordArchiveCategoryId = Option.none(),
     discordChannelCleanupOnGroupDelete = 'delete' as ChannelSyncEvent.ChannelCleanupMode,
     discordChannelCleanupOnRosterDeactivate = 'delete' as ChannelSyncEvent.ChannelCleanupMode,
+    discordRoleFormat = DEFAULT_ROLE_FORMAT,
+    discordChannelFormat = DEFAULT_CHANNEL_FORMAT,
   }: {
     teamId: Team.TeamId;
     eventHorizonDays: number;
@@ -186,6 +203,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordArchiveCategoryId?: Option.Option<Discord.Snowflake>;
     discordChannelCleanupOnGroupDelete?: ChannelSyncEvent.ChannelCleanupMode;
     discordChannelCleanupOnRosterDeactivate?: ChannelSyncEvent.ChannelCleanupMode;
+    discordRoleFormat?: string;
+    discordChannelFormat?: string;
   }) =>
     this._upsertSettings({
       team_id: teamId,
@@ -203,6 +222,8 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_archive_category_id: discordArchiveCategoryId,
       discord_channel_cleanup_on_group_delete: discordChannelCleanupOnGroupDelete,
       discord_channel_cleanup_on_roster_deactivate: discordChannelCleanupOnRosterDeactivate,
+      discord_role_format: discordRoleFormat,
+      discord_channel_format: discordChannelFormat,
     }).pipe(catchSqlErrors);
 
   getHorizonDays = (teamId: Team.TeamId) =>

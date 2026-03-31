@@ -147,9 +147,32 @@ type ChannelSyncEventCall = {
   groupName: string;
   teamMemberId: TeamMember.TeamMemberId | undefined;
   discordUserId: string | undefined;
+  discordChannelName: string | undefined;
+  discordRoleName: string | undefined;
 };
 
 const channelSyncEventCalls: ChannelSyncEventCall[] = [];
+
+const recordChannelCreatedCall = (
+  teamId: Team.TeamId,
+  groupId: GroupModel.GroupId,
+  groupName: string,
+  _existingChannelId?: unknown,
+  discordChannelName?: string,
+  discordRoleName?: string,
+) => {
+  channelSyncEventCalls.push({
+    teamId,
+    eventType: 'channel_created',
+    groupId,
+    groupName,
+    teamMemberId: undefined,
+    discordUserId: undefined,
+    discordChannelName,
+    discordRoleName,
+  });
+  return Effect.void;
+};
 
 const recordCall =
   (eventType: ChannelSyncEvent.ChannelSyncEventType) =>
@@ -168,13 +191,15 @@ const recordCall =
       groupName,
       teamMemberId,
       discordUserId,
+      discordChannelName: undefined,
+      discordRoleName: undefined,
     });
     return Effect.void;
   };
 
 const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
   _tag: 'api/ChannelSyncEventsRepository',
-  emitChannelCreated: recordCall('channel_created'),
+  emitChannelCreated: recordChannelCreatedCall,
   emitChannelDeleted: recordCall('channel_deleted'),
   emitMemberAdded: recordCall('member_added'),
   emitMemberRemoved: recordCall('member_removed'),
@@ -716,6 +741,8 @@ const makeTeamSettingsRow = (createDiscordChannelOnGroup: boolean) => ({
   discord_channel_other: Option.none(),
   create_discord_channel_on_group: createDiscordChannelOnGroup,
   create_discord_channel_on_roster: true,
+  discord_role_format: '{emoji} {name}',
+  discord_channel_format: '{emoji}│{name}',
 });
 
 const buildTestLayer = (settingsLayer: Layer.Layer<TeamSettingsRepository>) =>
@@ -812,6 +839,8 @@ describe('Channel Sync Events', () => {
         groupName: 'Goalkeepers',
         teamMemberId: undefined,
         discordUserId: undefined,
+        discordChannelName: 'Goalkeepers',
+        discordRoleName: 'Goalkeepers',
       });
     });
   });
