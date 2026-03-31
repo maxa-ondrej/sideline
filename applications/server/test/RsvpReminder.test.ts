@@ -484,6 +484,8 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_archive_category_id: Option.none(),
         discord_channel_cleanup_on_group_delete: 'delete' as const,
         discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
+        discord_role_format: '{emoji} {name}',
+        discord_channel_format: '{emoji}│{name}',
       }),
     ),
   findByTeamId: () =>
@@ -504,6 +506,8 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_archive_category_id: Option.none(),
         discord_channel_cleanup_on_group_delete: 'delete' as const,
         discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
+        discord_role_format: '{emoji} {name}',
+        discord_channel_format: '{emoji}│{name}',
       }),
     ),
   upsertSettings: (input: {
@@ -534,6 +538,8 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_archive_category_id: Option.none(),
       discord_channel_cleanup_on_group_delete: 'delete' as const,
       discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
+      discord_role_format: '{emoji} {name}',
+      discord_channel_format: '{emoji}│{name}',
     }),
   upsert: (input: {
     teamId: string;
@@ -566,6 +572,8 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_archive_category_id: Option.none(),
       discord_channel_cleanup_on_group_delete: 'delete' as const,
       discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
+      discord_role_format: '{emoji} {name}',
+      discord_channel_format: '{emoji}│{name}',
     });
   },
   getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),

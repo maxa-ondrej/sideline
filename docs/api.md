@@ -402,6 +402,8 @@ Returns the team's current settings.
 | `discordArchiveCategoryId` | `Snowflake \| null` | Yes | Discord category channel used when cleanup mode is `archive` |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a group is deleted: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a roster is deactivated: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
+| `discordRoleFormat` | `string` | No | Template string for Discord role names (must contain `{name}`; may contain `{emoji}`) |
+| `discordChannelFormat` | `string` | No | Template string for Discord channel names (must contain `{name}`; may contain `{emoji}`) |
 
 **Errors:**
 
@@ -440,6 +442,8 @@ Updates the team's settings. `eventHorizonDays` is required; all other fields ar
 | `discordArchiveCategoryId` | `Snowflake \| null` | No | — | Discord category used when cleanup mode is `archive` |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a group is deleted |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a roster is deactivated |
+| `discordRoleFormat` | `string` | No | Must contain `{name}` | Template string for Discord role names |
+| `discordChannelFormat` | `string` | No | Must contain `{name}` | Template string for Discord channel names |
 
 **Response:** `200 OK` — `TeamSettingsInfo` (see `GET /teams/:teamId/settings` for field descriptions)
 

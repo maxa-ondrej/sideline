@@ -296,6 +296,8 @@ export const mockTeamSettings = {
   discordArchiveCategoryId: null,
   discordChannelCleanupOnGroupDelete: 'delete',
   discordChannelCleanupOnRosterDeactivate: 'delete',
+  discordRoleFormat: '{emoji} {name}',
+  discordChannelFormat: '{emoji}│{name}',
 };
 
 export const mockDiscordChannels: unknown[] = [];

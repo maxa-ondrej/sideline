@@ -13,6 +13,11 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+import {
+  applyDiscordFormat,
+  DEFAULT_CHANNEL_FORMAT,
+  DEFAULT_ROLE_FORMAT,
+} from '~/utils/applyDiscordFormat.js';
 
 const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
@@ -258,16 +263,46 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 rosters.insert({ team_id: teamId, name: payload.name, active: true }),
               ),
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
-              Effect.tap(({ roster, settings }) =>
-                Option.match(settings, {
+              Effect.tap(({ roster, settings }) => {
+                const channelName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_CHANNEL_FORMAT,
+                    onSome: (s) => s.discord_channel_format,
+                  }),
+                  roster.name,
+                  Option.none(),
+                );
+                const roleName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_ROLE_FORMAT,
+                    onSome: (s) => s.discord_role_format,
+                  }),
+                  roster.name,
+                  Option.none(),
+                );
+                return Option.match(settings, {
                   onNone: () =>
-                    channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
+                    channelSync.emitRosterChannelCreated(
+                      teamId,
+                      roster.id,
+                      roster.name,
+                      Option.none(),
+                      channelName,
+                      roleName,
+                    ),
                   onSome: (s) =>
                     s.create_discord_channel_on_roster
-                      ? channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name)
+                      ? channelSync.emitRosterChannelCreated(
+                          teamId,
+                          roster.id,
+                          roster.name,
+                          Option.none(),
+                          channelName,
+                          roleName,
+                        )
                       : Effect.void,
-                }),
-              ),
+                });
+              }),
               Effect.map(({ roster }) => toRosterInfo(roster, 0, [], false)),
               Effect.catchTag(
                 'NoSuchElementException',
@@ -515,13 +550,32 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                               ),
                             )
                           : Effect.void,
-                      onSome: (channelId) =>
-                        channelSync.emitRosterChannelCreated(
+                      onSome: (channelId) => {
+                        const channelName = applyDiscordFormat(
+                          Option.match(settings, {
+                            onNone: () => DEFAULT_CHANNEL_FORMAT,
+                            onSome: (s) => s.discord_channel_format,
+                          }),
+                          updated.name,
+                          Option.none(),
+                        );
+                        const roleName = applyDiscordFormat(
+                          Option.match(settings, {
+                            onNone: () => DEFAULT_ROLE_FORMAT,
+                            onSome: (s) => s.discord_role_format,
+                          }),
+                          updated.name,
+                          Option.none(),
+                        );
+                        return channelSync.emitRosterChannelCreated(
                           teamId,
                           updated.id,
                           updated.name,
                           Option.some(channelId),
-                        ),
+                          channelName,
+                          roleName,
+                        );
+                      },
                     }),
                 });
               }),
@@ -725,9 +779,33 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(({ roster }) =>
-                channelSync.emitRosterChannelCreated(teamId, roster.id, roster.name),
-              ),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ roster, settings }) => {
+                const channelName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_CHANNEL_FORMAT,
+                    onSome: (s) => s.discord_channel_format,
+                  }),
+                  roster.name,
+                  Option.none(),
+                );
+                const roleName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_ROLE_FORMAT,
+                    onSome: (s) => s.discord_role_format,
+                  }),
+                  roster.name,
+                  Option.none(),
+                );
+                return channelSync.emitRosterChannelCreated(
+                  teamId,
+                  roster.id,
+                  roster.name,
+                  Option.none(),
+                  channelName,
+                  roleName,
+                );
+              }),
               Effect.asVoid,
             ),
           ),

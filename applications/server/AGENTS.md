@@ -100,6 +100,25 @@ When API handlers create/delete resources that need Discord sync:
 2. Call `repo.emitIfGuildLinked(teamId, eventType, ...)` — looks up `guild_id` from `teams` table; if linked, inserts event row; if not, no-op
 3. Wrap emission in `Effect.catchAll(() => Effect.void)` so sync failures never break the primary operation
 
+### Discord Name Formatting
+
+The **server** applies Discord name formatting before emitting sync events. The bot receives pre-formatted `discord_channel_name` and `discord_role_name` fields and uses them directly.
+
+| Constant | Value | Location |
+|----------|-------|----------|
+| `DEFAULT_ROLE_FORMAT` | `{emoji} {name}` | `src/utils/applyDiscordFormat.ts` |
+| `DEFAULT_CHANNEL_FORMAT` | `{emoji}│{name}` | `src/utils/applyDiscordFormat.ts` |
+
+Format templates use `{emoji}` and `{name}` placeholders. The `applyDiscordFormat(template, name, emoji)` function handles missing emoji by stripping the placeholder and cleaning up leftover separators.
+
+When emitting `channel_created` or `roster_channel_created` events:
+
+1. Load team settings via `teamSettings.findByTeamId(teamId)`
+2. Resolve the channel format: `Option.match(settings, { onNone: () => DEFAULT_CHANNEL_FORMAT, onSome: (s) => s.discord_channel_format })`
+3. Resolve the role format: same pattern with `discord_role_format`
+4. Call `applyDiscordFormat(format, entityName, entityEmoji)` for both channel and role names
+5. Pass the formatted names as `discordChannelName` and `discordRoleName` to the emit method
+
 ## Testing
 
 Tests go in `test/` directory. When adding new repositories, add corresponding mock implementations to all test files that compose `AppLive` (e.g., `MockChannelSyncEventsRepository`).

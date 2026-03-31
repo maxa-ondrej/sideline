@@ -9,7 +9,15 @@ export const handleMemberAdded = (event: ChannelRpcEvents.GroupMemberAddedEvent)
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('mapping', () =>
-      ensureMapping(event.team_id, event.group_id, event.guild_id, event.group_name),
+      // Note: Using raw group_name as fallback channel/role name. In the normal flow, the channel
+      // is already created by channel_created with the correct format applied.
+      ensureMapping(
+        event.team_id,
+        event.group_id,
+        event.guild_id,
+        event.group_name,
+        event.group_name,
+      ),
     ),
     Effect.tap(({ rest, mapping }) =>
       rest

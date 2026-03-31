@@ -13,6 +13,11 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+import {
+  applyDiscordFormat,
+  DEFAULT_CHANNEL_FORMAT,
+  DEFAULT_ROLE_FORMAT,
+} from '~/utils/applyDiscordFormat.js';
 
 const forbidden = new GroupApi.Forbidden();
 
@@ -84,15 +89,46 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 groups.insertGroup(teamId, payload.name, payload.parentId, payload.emoji),
               ),
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
-              Effect.tap(({ group, settings }) =>
-                Option.match(settings, {
-                  onNone: () => channelSync.emitChannelCreated(teamId, group.id, group.name),
+              Effect.tap(({ group, settings }) => {
+                const channelName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_CHANNEL_FORMAT,
+                    onSome: (s) => s.discord_channel_format,
+                  }),
+                  group.name,
+                  group.emoji,
+                );
+                const roleName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_ROLE_FORMAT,
+                    onSome: (s) => s.discord_role_format,
+                  }),
+                  group.name,
+                  group.emoji,
+                );
+                return Option.match(settings, {
+                  onNone: () =>
+                    channelSync.emitChannelCreated(
+                      teamId,
+                      group.id,
+                      group.name,
+                      Option.none(),
+                      channelName,
+                      roleName,
+                    ),
                   onSome: (s) =>
                     s.create_discord_channel_on_group
-                      ? channelSync.emitChannelCreated(teamId, group.id, group.name)
+                      ? channelSync.emitChannelCreated(
+                          teamId,
+                          group.id,
+                          group.name,
+                          Option.none(),
+                          channelName,
+                          roleName,
+                        )
                       : Effect.void,
-                }),
-              ),
+                });
+              }),
               Effect.map(({ group, settings }) => {
                 const autoCreate = Option.match(settings, {
                   onNone: () => true,
@@ -604,14 +640,33 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.tap(() =>
                 channelMappings.insertWithoutRole(teamId, groupId, payload.discordChannelId),
               ),
-              Effect.tap(({ _group }) =>
-                channelSync.emitChannelCreated(
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ _group, settings }) => {
+                const channelName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_CHANNEL_FORMAT,
+                    onSome: (s) => s.discord_channel_format,
+                  }),
+                  _group.name,
+                  _group.emoji,
+                );
+                const roleName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_ROLE_FORMAT,
+                    onSome: (s) => s.discord_role_format,
+                  }),
+                  _group.name,
+                  _group.emoji,
+                );
+                return channelSync.emitChannelCreated(
                   teamId,
                   groupId,
                   _group.name,
                   Option.some(payload.discordChannelId),
-                ),
-              ),
+                  channelName,
+                  roleName,
+                );
+              }),
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
@@ -738,9 +793,33 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ),
                 ),
               ),
-              Effect.tap(({ group }) =>
-                channelSync.emitChannelCreated(teamId, groupId, group.name),
-              ),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ group, settings }) => {
+                const channelName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_CHANNEL_FORMAT,
+                    onSome: (s) => s.discord_channel_format,
+                  }),
+                  group.name,
+                  group.emoji,
+                );
+                const roleName = applyDiscordFormat(
+                  Option.match(settings, {
+                    onNone: () => DEFAULT_ROLE_FORMAT,
+                    onSome: (s) => s.discord_role_format,
+                  }),
+                  group.name,
+                  group.emoji,
+                );
+                return channelSync.emitChannelCreated(
+                  teamId,
+                  groupId,
+                  group.name,
+                  Option.none(),
+                  channelName,
+                  roleName,
+                );
+              }),
               Effect.asVoid,
             ),
           )

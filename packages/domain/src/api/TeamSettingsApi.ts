@@ -6,6 +6,12 @@ import { ChannelCleanupMode } from '~/models/ChannelSyncEvent.js';
 import { Snowflake } from '~/models/Discord.js';
 import { TeamId } from '~/models/Team.js';
 
+const DiscordFormatString = Schema.String.pipe(
+  Schema.filter((s) => s.includes('{name}'), {
+    message: () => 'Format must include {name}',
+  }),
+);
+
 export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettingsInfo')({
   teamId: TeamId,
   eventHorizonDays: Schema.Int,
@@ -22,6 +28,8 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordArchiveCategoryId: Schema.OptionFromNullOr(Snowflake),
   discordChannelCleanupOnGroupDelete: ChannelCleanupMode,
   discordChannelCleanupOnRosterDeactivate: ChannelCleanupMode,
+  discordRoleFormat: Schema.String,
+  discordChannelFormat: Schema.String,
 }) {}
 
 export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
@@ -61,6 +69,8 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
   discordChannelCleanupOnRosterDeactivate: Schema.optionalWith(ChannelCleanupMode, {
     as: 'Option',
   }),
+  discordRoleFormat: Schema.optionalWith(DiscordFormatString, { as: 'Option' }),
+  discordChannelFormat: Schema.optionalWith(DiscordFormatString, { as: 'Option' }),
 }) {}
 
 export class TeamSettingsApiGroup extends HttpApiGroup.make('teamSettings')

@@ -9,8 +9,14 @@ export const handleRosterChannelCreated = (event: ChannelRpcEvents.RosterChannel
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('result', () =>
       Option.match(event.existing_channel_id, {
-        onNone: () => createDiscordChannelAndRole(event.guild_id, event.roster_name),
-        onSome: (channelId) => createRoleForChannel(event.guild_id, channelId, event.roster_name),
+        onNone: () =>
+          createDiscordChannelAndRole(
+            event.guild_id,
+            event.discord_channel_name,
+            event.discord_role_name,
+          ),
+        onSome: (channelId) =>
+          createRoleForChannel(event.guild_id, channelId, event.discord_role_name),
       }),
     ),
     Effect.tap(({ result, rpc }) =>

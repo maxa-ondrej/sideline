@@ -57,6 +57,8 @@ Syncs groups to private Discord text channels with per-user permission overwrite
 
 Event types: `channel_created`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed`
 
+**Name fields on `channel_created` events**: The server pre-formats Discord names using team settings. Events carry separate `discord_channel_name` (for the Discord channel) and `discord_role_name` (for the Discord role). Bot handlers should use these fields instead of deriving names from `group_name` or `roster_name`. Exception: `member_added` handlers may fall back to `group_name` since the channel is normally already created by the `channel_created` event with the correct format. The `ensureMapping` and `createDiscordChannelAndRole` functions accept separate `channelName` and `roleName` parameters.
+
 #### Channel Archival
 
 When a team has `discord_archive_category_id` set, deleting a group or deactivating a roster emits `channel_archived` instead of `channel_deleted`. The bot handler in `src/rcp/channel/handleArchived.ts`:
