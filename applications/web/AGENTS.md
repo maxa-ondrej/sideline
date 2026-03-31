@@ -9,7 +9,7 @@ Components live in `src/components/` following **Atomic Design**:
 ```
 components/
 ├── ui/          — Shadcn/UI primitives (auto-generated, do not hand-edit)
-├── atoms/       — Smallest self-contained components (e.g. LanguageSwitcher)
+├── atoms/       — Smallest self-contained components (e.g. DiscordChannelLink)
 ├── molecules/   — Combinations of atoms (e.g. FormField = Label + Input)
 ├── organisms/   — Complex, multi-responsibility sections (e.g. ProfileCompleteForm)
 ├── pages/       — Full page components, one per route (e.g. HomePage, DashboardPage)

@@ -6,6 +6,7 @@ import { Effect, Option, Schema } from 'effect';
 import { Loader2 } from 'lucide-react';
 import React from 'react';
 
+import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
@@ -29,6 +30,7 @@ interface GroupDetailPageProps {
   channelMapping: Option.Option<GroupApi.ChannelMappingInfo>;
   allGroups: ReadonlyArray<GroupApi.GroupInfo>;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
+  guildId: string;
 }
 
 export function GroupDetailPage({
@@ -40,6 +42,7 @@ export function GroupDetailPage({
   channelMapping,
   allGroups,
   discordChannels,
+  guildId,
 }: GroupDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -394,13 +397,14 @@ export function GroupDetailPage({
               </div>
             ) : Option.isSome(channelMapping) ? (
               <div className='flex items-center justify-between'>
-                <span className='text-sm font-medium'>
-                  #{' '}
-                  {Option.getOrElse(
+                <DiscordChannelLink
+                  guildId={guildId}
+                  channelId={channelMapping.value.discordChannelId}
+                  channelName={Option.getOrElse(
                     channelMapping.value.discordChannelName,
                     () => channelMapping.value.discordChannelId,
                   )}
-                </span>
+                />
                 <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
                   {m.group_unlinkChannel()}
                 </Button>

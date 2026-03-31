@@ -168,6 +168,7 @@
   "group_saving": "Ukládání...",
   "group_saveChanges": "Uložit změny",
   "group_rename": "Přejmenovat",
+  "discord_openChannel": "Otevřít Discord kanál {channelName}",
   "discord_channelProvisioning": "Nastavuji Discord kanál...",
   "discord_channelProvisioningHint": "Obvykle to trvá jen pár sekund.",
   "ageThreshold_title": "Věkové prahy",

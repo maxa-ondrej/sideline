@@ -10,40 +10,60 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const groupId = Schema.decodeSync(GroupModel.GroupId)(params.groupId);
-    const [groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels] =
-      await Promise.all([
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.getGroup({ path: { teamId, groupId } })),
-          warnAndCatchAll,
-          context.run,
-        ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
-          warnAndCatchAll,
-          context.run,
-        ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.role.listRoles({ path: { teamId } })),
-          warnAndCatchAll,
-          context.run,
-        ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.getChannelMapping({ path: { teamId, groupId } })),
-          warnAndCatchAll,
-          context.run,
-        ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.listGroups({ path: { teamId } })),
-          warnAndCatchAll,
-          context.run,
-        ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.listDiscordChannels({ path: { teamId } })),
-          warnAndCatchAll,
-          context.run,
-        ),
-      ]);
-    return { groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels };
+    const [
+      groupDetail,
+      allMembers,
+      allRoles,
+      channelMapping,
+      allGroups,
+      discordChannels,
+      teamInfo,
+    ] = await Promise.all([
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.group.getGroup({ path: { teamId, groupId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.role.listRoles({ path: { teamId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.group.getChannelMapping({ path: { teamId, groupId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.group.listGroups({ path: { teamId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.group.listDiscordChannels({ path: { teamId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+      ApiClient.pipe(
+        Effect.flatMap((api) => api.team.getTeamInfo({ path: { teamId } })),
+        warnAndCatchAll,
+        context.run,
+      ),
+    ]);
+    return {
+      groupDetail,
+      allMembers,
+      allRoles,
+      channelMapping,
+      allGroups,
+      discordChannels,
+      teamInfo,
+    };
   },
 });
 
@@ -56,6 +76,7 @@ function GroupDetailRoute() {
     channelMapping,
     allGroups,
     discordChannels,
+    teamInfo,
   } = Route.useLoaderData();
 
   return (
@@ -68,6 +89,7 @@ function GroupDetailRoute() {
       channelMapping={channelMapping}
       allGroups={allGroups}
       discordChannels={discordChannels}
+      guildId={teamInfo.guildId}
     />
   );
 }

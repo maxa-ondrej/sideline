@@ -6,6 +6,7 @@ import { Effect, Option, Schema } from 'effect';
 import { Loader2 } from 'lucide-react';
 import React from 'react';
 
+import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
@@ -28,6 +29,7 @@ interface RosterDetailPageProps {
   canManage: boolean;
   userId: string;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
+  guildId: string;
 }
 
 export function RosterDetailPage({
@@ -37,6 +39,7 @@ export function RosterDetailPage({
   allMembers,
   canManage,
   discordChannels,
+  guildId,
 }: RosterDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -240,12 +243,13 @@ export function RosterDetailPage({
               </div>
             ) : Option.isSome(rosterDetail.discordChannelId) ? (
               <div className='flex items-center justify-between'>
-                <span className='text-sm font-medium'>
-                  #{' '}
-                  {Option.getOrElse(rosterDetail.discordChannelName, () =>
+                <DiscordChannelLink
+                  guildId={guildId}
+                  channelId={Option.getOrElse(rosterDetail.discordChannelId, () => '')}
+                  channelName={Option.getOrElse(rosterDetail.discordChannelName, () =>
                     Option.getOrElse(rosterDetail.discordChannelId, () => ''),
                   )}
-                </span>
+                />
                 <Button variant='outline' size='sm' onClick={handleUnlinkChannel}>
                   {m.roster_unlinkChannel()}
                 </Button>
