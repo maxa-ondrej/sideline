@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://json.schemastore.org/dependabot-2.0.json
+
+version: 2
+
+updates:
+  # ------------------------------------------------------------------
+  # GitHub Actions
+  # ------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps:"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # ------------------------------------------------------------------
+  # npm (pnpm workspaces — root + all workspace packages)
+  # ------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "deps:"
+    open-pull-requests-limit: 10
+    groups:
+      production-dependencies:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Effect runtime packages are tightly version-coupled; update manually
+      - dependency-name: "effect"
+      - dependency-name: "@effect/platform"
+      - dependency-name: "@effect/platform-node"
+      - dependency-name: "@effect/platform-browser"
+      - dependency-name: "@effect/rpc"
+      - dependency-name: "@effect/rpc-http"
+      - dependency-name: "@effect/sql"
+      - dependency-name: "@effect/sql-pg"
+      - dependency-name: "@effect/experimental"
+      - dependency-name: "@effect/opentelemetry"
+      - dependency-name: "@effect/schema"
+      - dependency-name: "@effect/cluster"
+      - dependency-name: "@effect/cluster-workflow"
