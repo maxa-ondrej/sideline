@@ -28,7 +28,7 @@ export function DiscordChannelLink({
             aria-label={m.discord_openChannel({ channelName })}
             className={cn(
               'inline-flex items-center gap-0.5 rounded bg-indigo-500/15 px-1.5 py-0.5 text-sm font-medium text-indigo-600 hover:bg-indigo-500/25 dark:text-indigo-400',
-              'focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2',
+              'outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
               className,
             )}
           >
