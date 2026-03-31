@@ -11,10 +11,9 @@ export const applyDiscordFormat = (
 ): string => {
   const emojiStr = Option.getOrElse(emoji, () => '');
   if (emojiStr === '') {
-    // Remove {emoji} and any adjacent whitespace, then clean leading separator chars
+    // Remove {emoji} and collapse adjacent whitespace into a single space
     const result = template
-      .replace(/\{emoji\}\s*/g, '')
-      .replace(/\s*\{emoji\}/g, '')
+      .replace(/\s*\{emoji\}\s*/g, ' ')
       .replaceAll('{name}', name)
       .trim();
     // Clean any leading/trailing separator chars (│, |) left when emoji is absent
