@@ -56,6 +56,14 @@ class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
   error: Schema.String,
 }) {}
 
+class ProvisioningGroupId extends Schema.Class<ProvisioningGroupId>('ProvisioningGroupId')({
+  group_id: GroupModel.GroupId,
+}) {}
+
+class ProvisioningRosterId extends Schema.Class<ProvisioningRosterId>('ProvisioningRosterId')({
+  roster_id: RosterModel.RosterId,
+}) {}
+
 export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEventsRepository>()(
   'api/ChannelSyncEventsRepository',
   {
@@ -85,6 +93,30 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       WHERE processed_at IS NULL
       ORDER BY created_at ASC
       LIMIT ${limit}
+    `,
+  });
+
+  private findUnprocessedForGroups = SqlSchema.findAll({
+    Request: Schema.Array(GroupModel.GroupId),
+    Result: ProvisioningGroupId,
+    execute: (groupIds) => this.sql`
+      SELECT DISTINCT group_id FROM channel_sync_events
+      WHERE entity_type = 'group'
+        AND group_id IN ${this.sql.in(groupIds)}
+        AND event_type IN ('channel_created', 'channel_deleted', 'channel_archived', 'channel_detached')
+        AND processed_at IS NULL AND error IS NULL
+    `,
+  });
+
+  private findUnprocessedForRosters = SqlSchema.findAll({
+    Request: Schema.Array(RosterModel.RosterId),
+    Result: ProvisioningRosterId,
+    execute: (rosterIds) => this.sql`
+      SELECT DISTINCT roster_id FROM channel_sync_events
+      WHERE entity_type = 'roster'
+        AND roster_id IN ${this.sql.in(rosterIds)}
+        AND event_type IN ('channel_created', 'channel_deleted', 'channel_archived', 'channel_detached')
+        AND processed_at IS NULL AND error IS NULL
     `,
   });
 
@@ -290,4 +322,24 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
 
   markFailed = (id: ChannelSyncEvent.ChannelSyncEventId, error: string) =>
     this.markEventFailed({ id, error }).pipe(catchSqlErrors);
+
+  hasUnprocessedForGroups = (
+    groupIds: ReadonlyArray<GroupModel.GroupId>,
+  ): Effect.Effect<ReadonlyArray<GroupModel.GroupId>, never, never> => {
+    if (groupIds.length === 0) return Effect.succeed([]);
+    return this.findUnprocessedForGroups([...groupIds]).pipe(
+      Effect.map((rows) => rows.map((r) => r.group_id)),
+      catchSqlErrors,
+    );
+  };
+
+  hasUnprocessedForRosters = (
+    rosterIds: ReadonlyArray<RosterModel.RosterId>,
+  ): Effect.Effect<ReadonlyArray<RosterModel.RosterId>, never, never> => {
+    if (rosterIds.length === 0) return Effect.succeed([]);
+    return this.findUnprocessedForRosters([...rosterIds]).pipe(
+      Effect.map((rows) => rows.map((r) => r.roster_id)),
+      catchSqlErrors,
+    );
+  };
 }

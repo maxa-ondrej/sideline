@@ -62,6 +62,7 @@ export class RosterInfo extends Schema.Class<RosterInfo>('RosterInfo')({
   createdAt: Schema.String,
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   discordChannelName: Schema.OptionFromNullOr(Schema.String),
+  discordChannelProvisioning: Schema.Boolean,
 }) {}
 
 export class RosterListResponse extends Schema.Class<RosterListResponse>('RosterListResponse')({
@@ -79,6 +80,7 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   canManage: Schema.Boolean,
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   discordChannelName: Schema.OptionFromNullOr(Schema.String),
+  discordChannelProvisioning: Schema.Boolean,
 }) {}
 
 export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({

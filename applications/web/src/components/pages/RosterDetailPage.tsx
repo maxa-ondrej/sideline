@@ -3,6 +3,7 @@ import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
+import { Loader2 } from 'lucide-react';
 import React from 'react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
@@ -44,6 +45,14 @@ export function RosterDetailPage({
 
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
   const rosterIdBranded = Schema.decodeSync(RosterModel.RosterId)(rosterId);
+
+  React.useEffect(() => {
+    if (!rosterDetail.discordChannelProvisioning) return;
+    const id = setInterval(() => {
+      router.invalidate();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [rosterDetail.discordChannelProvisioning, router]);
 
   const memberIdsInRoster = new Set(rosterDetail.members.map((m) => m.memberId));
   const availableMembers = allMembers.filter((m) => !memberIdsInRoster.has(m.memberId));
@@ -221,7 +230,15 @@ export function RosterDetailPage({
             <CardTitle className='text-base'>{m.roster_discordChannel()}</CardTitle>
           </CardHeader>
           <CardContent>
-            {Option.isSome(rosterDetail.discordChannelId) ? (
+            {rosterDetail.discordChannelProvisioning ? (
+              <div className='flex flex-col items-center gap-2 py-4'>
+                <Loader2 className='size-5 animate-spin text-muted-foreground' />
+                <p className='text-sm font-medium'>{m.discord_channelProvisioning()}</p>
+                <p className='text-xs text-muted-foreground'>
+                  {m.discord_channelProvisioningHint()}
+                </p>
+              </div>
+            ) : Option.isSome(rosterDetail.discordChannelId) ? (
               <div className='flex items-center justify-between'>
                 <span className='text-sm font-medium'>
                   #{' '}

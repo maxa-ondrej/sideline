@@ -43,6 +43,7 @@ const toRosterInfo = (
   r: RosterModel.Roster,
   memberCount: number,
   allChannels: readonly ChannelLike[],
+  discordChannelProvisioning: boolean,
 ): Roster.RosterInfo =>
   new Roster.RosterInfo({
     rosterId: r.id,
@@ -53,6 +54,7 @@ const toRosterInfo = (
     createdAt: DateTime.formatIso(r.created_at),
     discordChannelId: r.discord_channel_id,
     discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
+    discordChannelProvisioning,
   });
 
 export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
@@ -217,26 +219,30 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
               ),
-              Effect.map(
-                ({ rosterList, canManage, allChannels }) =>
-                  new Roster.RosterListResponse({
-                    canManage,
-                    rosters: Array.map(
-                      rosterList,
-                      (r) =>
-                        new Roster.RosterInfo({
-                          rosterId: r.id,
-                          teamId: r.team_id,
-                          name: r.name,
-                          active: r.active,
-                          memberCount: r.member_count,
-                          createdAt: DateTime.formatIso(r.created_at),
-                          discordChannelId: r.discord_channel_id,
-                          discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
-                        }),
-                    ),
-                  }),
+              Effect.bind('provisioningIds', ({ rosterList }) =>
+                channelSync.hasUnprocessedForRosters(rosterList.map((r) => r.id)),
               ),
+              Effect.map(({ rosterList, canManage, allChannels, provisioningIds }) => {
+                const provisioningSet = new Set(provisioningIds);
+                return new Roster.RosterListResponse({
+                  canManage,
+                  rosters: Array.map(
+                    rosterList,
+                    (r) =>
+                      new Roster.RosterInfo({
+                        rosterId: r.id,
+                        teamId: r.team_id,
+                        name: r.name,
+                        active: r.active,
+                        memberCount: r.member_count,
+                        createdAt: DateTime.formatIso(r.created_at),
+                        discordChannelId: r.discord_channel_id,
+                        discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
+                        discordChannelProvisioning: provisioningSet.has(r.id),
+                      }),
+                  ),
+                });
+              }),
             ),
           )
           .handle('createRoster', ({ path: { teamId }, payload }) =>
@@ -262,7 +268,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                       : Effect.void,
                 }),
               ),
-              Effect.map(({ roster }) => toRosterInfo(roster, 0, [])),
+              Effect.map(({ roster }) => toRosterInfo(roster, 0, [], false)),
               Effect.catchTag(
                 'NoSuchElementException',
                 LogicError.withMessage(() => 'Failed creating roster — no row returned'),
@@ -305,8 +311,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
               ),
+              Effect.bind('provisioningIds', () =>
+                channelSync.hasUnprocessedForRosters([rosterId]),
+              ),
               Effect.map(
-                ({ roster, rosterMembers, canManage, allChannels }) =>
+                ({ roster, rosterMembers, canManage, allChannels, provisioningIds }) =>
                   new Roster.RosterDetail({
                     rosterId: roster.id,
                     teamId: roster.team_id,
@@ -317,6 +326,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     canManage,
                     discordChannelId: roster.discord_channel_id,
                     discordChannelName: resolveChannelName(roster.discord_channel_id, allChannels),
+                    discordChannelProvisioning: provisioningIds.length > 0,
                   }),
               ),
             ),
@@ -529,8 +539,11 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
               ),
-              Effect.map(({ updated, memberCount, allChannels }) =>
-                toRosterInfo(updated, memberCount, allChannels),
+              Effect.bind('provisioningIds', ({ updated }) =>
+                channelSync.hasUnprocessedForRosters([updated.id]),
+              ),
+              Effect.map(({ updated, memberCount, allChannels, provisioningIds }) =>
+                toRosterInfo(updated, memberCount, allChannels, provisioningIds.length > 0),
               ),
               Effect.catchTag(
                 'NoSuchElementException',

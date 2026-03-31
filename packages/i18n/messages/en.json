@@ -168,6 +168,8 @@
   "group_saving": "Saving...",
   "group_saveChanges": "Save Changes",
   "group_rename": "Rename",
+  "discord_channelProvisioning": "Setting up Discord channel...",
+  "discord_channelProvisioningHint": "This usually takes a few seconds.",
   "ageThreshold_title": "Age Thresholds",
   "ageThreshold_selectGroup": "Select group",
   "ageThreshold_minAge": "Min Age",

@@ -50,8 +50,12 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('list', () => groups.findGroupsByTeamId(teamId)),
-              Effect.map(({ list }) =>
-                Array.map(
+              Effect.bind('provisioningIds', ({ list }) =>
+                channelSync.hasUnprocessedForGroups(list.map((g) => g.id)),
+              ),
+              Effect.map(({ list, provisioningIds }) => {
+                const provisioningSet = new Set(provisioningIds);
+                return Array.map(
                   list,
                   (g) =>
                     new GroupApi.GroupInfo({
@@ -61,9 +65,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       name: g.name,
                       emoji: g.emoji,
                       memberCount: g.member_count,
+                      discordChannelProvisioning: provisioningSet.has(g.id),
                     }),
-                ),
-              ),
+                );
+              }),
             ),
           )
           .handle('createGroup', ({ path: { teamId }, payload }) =>
@@ -88,17 +93,21 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       : Effect.void,
                 }),
               ),
-              Effect.map(
-                ({ group }) =>
-                  new GroupApi.GroupInfo({
-                    groupId: group.id,
-                    teamId: group.team_id,
-                    parentId: group.parent_id,
-                    name: group.name,
-                    emoji: group.emoji,
-                    memberCount: 0,
-                  }),
-              ),
+              Effect.map(({ group, settings }) => {
+                const autoCreate = Option.match(settings, {
+                  onNone: () => true,
+                  onSome: (s) => s.create_discord_channel_on_group,
+                });
+                return new GroupApi.GroupInfo({
+                  groupId: group.id,
+                  teamId: group.team_id,
+                  parentId: group.parent_id,
+                  name: group.name,
+                  emoji: group.emoji,
+                  memberCount: 0,
+                  discordChannelProvisioning: autoCreate,
+                });
+              }),
               Effect.catchTag('GroupNameAlreadyTakenError', () =>
                 Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
@@ -134,14 +143,16 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('groupMembers', () => groups.findMembersByGroupId(groupId)),
               Effect.bind('groupRoles', () => groups.getRolesForGroup(groupId)),
+              Effect.bind('provisioningIds', () => channelSync.hasUnprocessedForGroups([groupId])),
               Effect.map(
-                ({ group, groupMembers, groupRoles }) =>
+                ({ group, groupMembers, groupRoles, provisioningIds }) =>
                   new GroupApi.GroupDetail({
                     groupId: group.id,
                     teamId: group.team_id,
                     parentId: group.parent_id,
                     name: group.name,
                     emoji: group.emoji,
+                    discordChannelProvisioning: provisioningIds.length > 0,
                     roles: Array.map(groupRoles, (r) => ({
                       roleId: r.role_id,
                       roleName: r.role_name,
@@ -183,8 +194,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 groups.updateGroupById(groupId, payload.name, payload.emoji),
               ),
               Effect.bind('memberCount', () => groups.getMemberCount(groupId)),
+              Effect.bind('provisioningIds', () => channelSync.hasUnprocessedForGroups([groupId])),
               Effect.map(
-                ({ updated, memberCount }) =>
+                ({ updated, memberCount, provisioningIds }) =>
                   new GroupApi.GroupInfo({
                     groupId: updated.id,
                     teamId: updated.team_id,
@@ -192,6 +204,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     name: updated.name,
                     emoji: updated.emoji,
                     memberCount,
+                    discordChannelProvisioning: provisioningIds.length > 0,
                   }),
               ),
               Effect.catchTag('GroupNameAlreadyTakenError', () =>
@@ -486,8 +499,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('updated', () => groups.moveGroup(groupId, payload.parentId)),
               Effect.bind('memberCount', () => groups.getMemberCount(groupId)),
+              Effect.bind('provisioningIds', () => channelSync.hasUnprocessedForGroups([groupId])),
               Effect.map(
-                ({ updated, memberCount }) =>
+                ({ updated, memberCount, provisioningIds }) =>
                   new GroupApi.GroupInfo({
                     groupId: updated.id,
                     teamId: updated.team_id,
@@ -495,6 +509,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     name: updated.name,
                     emoji: updated.emoji,
                     memberCount,
+                    discordChannelProvisioning: provisioningIds.length > 0,
                   }),
               ),
               Effect.catchTag(

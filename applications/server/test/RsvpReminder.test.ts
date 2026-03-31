@@ -786,6 +786,8 @@ const TestLayer = ApiLive.pipe(
         findUnprocessed: () => Effect.succeed([]),
         markProcessed: () => Effect.void,
         markFailed: () => Effect.void,
+        hasUnprocessedForGroups: () => Effect.succeed([]),
+        hasUnprocessedForRosters: () => Effect.succeed([]),
       } as unknown as ChannelSyncEventsRepository),
       Layer.succeed(EventSyncEventsRepository, {
         emitEventCreated: () => Effect.void,

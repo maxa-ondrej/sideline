@@ -14,6 +14,7 @@ export class GroupInfo extends Schema.Class<GroupInfo>('GroupInfo')({
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
   memberCount: Schema.Number,
+  discordChannelProvisioning: Schema.Boolean,
 }) {}
 
 export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
@@ -35,6 +36,7 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
       username: Schema.String,
     }),
   ),
+  discordChannelProvisioning: Schema.Boolean,
 }) {}
 
 export class CreateGroupRequest extends Schema.Class<CreateGroupRequest>('CreateGroupRequest')({
