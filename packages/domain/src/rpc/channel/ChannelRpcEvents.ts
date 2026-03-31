@@ -65,6 +65,72 @@ export const ChannelDeletedEvent = Schema.Union(
 );
 export type ChannelDeletedEvent = Schema.Schema.Type<typeof ChannelDeletedEvent>;
 
+// --- channel_archived ---
+
+export class GroupChannelArchivedEvent extends Schema.TaggedClass<GroupChannelArchivedEvent>()(
+  'group_channel_archived',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    group_id: GroupModel.GroupId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    archive_category_id: Discord.Snowflake,
+  },
+) {}
+
+export class RosterChannelArchivedEvent extends Schema.TaggedClass<RosterChannelArchivedEvent>()(
+  'roster_channel_archived',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    roster_id: RosterModel.RosterId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    archive_category_id: Discord.Snowflake,
+  },
+) {}
+
+export const ChannelArchivedEvent = Schema.Union(
+  GroupChannelArchivedEvent,
+  RosterChannelArchivedEvent,
+);
+export type ChannelArchivedEvent = Schema.Schema.Type<typeof ChannelArchivedEvent>;
+
+// --- channel_detached ---
+
+export class GroupChannelDetachedEvent extends Schema.TaggedClass<GroupChannelDetachedEvent>()(
+  'group_channel_detached',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    group_id: GroupModel.GroupId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  },
+) {}
+
+export class RosterChannelDetachedEvent extends Schema.TaggedClass<RosterChannelDetachedEvent>()(
+  'roster_channel_detached',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    roster_id: RosterModel.RosterId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  },
+) {}
+
+export const ChannelDetachedEvent = Schema.Union(
+  GroupChannelDetachedEvent,
+  RosterChannelDetachedEvent,
+);
+export type ChannelDetachedEvent = Schema.Schema.Type<typeof ChannelDetachedEvent>;
+
 // --- member_added ---
 
 export class GroupMemberAddedEvent extends Schema.TaggedClass<GroupMemberAddedEvent>()(
@@ -133,6 +199,10 @@ export type ChannelMemberRemovedEvent = Schema.Schema.Type<typeof ChannelMemberR
 export const UnprocessedChannelEvent = Schema.Union(
   ChannelCreatedEvent,
   ChannelDeletedEvent,
+  GroupChannelArchivedEvent,
+  RosterChannelArchivedEvent,
+  GroupChannelDetachedEvent,
+  RosterChannelDetachedEvent,
   ChannelMemberAddedEvent,
   ChannelMemberRemovedEvent,
 );

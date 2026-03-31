@@ -481,6 +481,9 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_channel_other: Option.none(),
         create_discord_channel_on_group: true,
         create_discord_channel_on_roster: true,
+        discord_archive_category_id: Option.none(),
+        discord_channel_cleanup_on_group_delete: 'delete' as const,
+        discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
       }),
     ),
   findByTeamId: () =>
@@ -498,6 +501,9 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_channel_other: Option.none(),
         create_discord_channel_on_group: true,
         create_discord_channel_on_roster: true,
+        discord_archive_category_id: Option.none(),
+        discord_channel_cleanup_on_group_delete: 'delete' as const,
+        discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
       }),
     ),
   upsertSettings: (input: {
@@ -525,6 +531,9 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_channel_other: Option.none(),
       create_discord_channel_on_group: false,
       create_discord_channel_on_roster: true,
+      discord_archive_category_id: Option.none(),
+      discord_channel_cleanup_on_group_delete: 'delete' as const,
+      discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
     }),
   upsert: (input: {
     teamId: string;
@@ -554,6 +563,9 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_channel_other: Option.none(),
       create_discord_channel_on_group: false,
       create_discord_channel_on_roster: true,
+      discord_archive_category_id: Option.none(),
+      discord_channel_cleanup_on_group_delete: 'delete' as const,
+      discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
     });
   },
   getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
@@ -774,6 +786,8 @@ const TestLayer = ApiLive.pipe(
         findUnprocessed: () => Effect.succeed([]),
         markProcessed: () => Effect.void,
         markFailed: () => Effect.void,
+        hasUnprocessedForGroups: () => Effect.succeed([]),
+        hasUnprocessedForRosters: () => Effect.succeed([]),
       } as unknown as ChannelSyncEventsRepository),
       Layer.succeed(EventSyncEventsRepository, {
         emitEventCreated: () => Effect.void,

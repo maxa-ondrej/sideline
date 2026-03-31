@@ -329,7 +329,7 @@ Fired when the bot joins a guild, or when Discord sends the initial `GUILD_CREAT
 **Actions (in order):**
 
 1. Calls `Guild/RegisterGuild` RPC with `guild_id` and `guild_name`.
-2. Calls `Guild/SyncGuildChannels` RPC with all text channels in the guild (channel ID, name, type, parent category ID).
+2. Calls `Guild/SyncGuildChannels` RPC with all text channels (type 0) and category channels (type 4) in the guild (channel ID, name, type, parent category ID).
 3. Fetches up to 1000 guild members via the Discord REST API, filters out bots, and calls `Guild/ReconcileMembers` RPC with the full member list (discord ID, username, avatar, role IDs).
 
 Each step catches errors independently so a failure in channel sync or member reconciliation does not prevent guild registration.
@@ -419,6 +419,8 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 |-----------|-------------|----------------|
 | `channel_created` | `handleCreated.ts` | Ensures a Discord channel (and associated role) exists for the group; calls `ensureMapping` which creates the channel+role if absent and upserts the mapping via `Channel/UpsertMapping` |
 | `channel_deleted` | `handleDeleted.ts` | Looks up the mapping via `Channel/GetMapping`, deletes the associated Discord role (if present) and the Discord channel via REST, then removes the mapping via `Channel/DeleteMapping` |
+| `channel_archived` | `handleArchived.ts` | Moves the Discord channel to the configured archive category via REST (`updateChannel`); falls back to full channel deletion if the move fails. On success, removes the channel's permission overwrite for the associated role, deletes the Discord role (if present), then removes the mapping. |
+| `channel_detached` | `handleDetached.ts` | Deletes the associated Discord role (if present) and removes the mapping, but leaves the Discord channel untouched. Used when the cleanup mode is `nothing`. |
 | `channel_member_added` | `handleMemberAdded.ts` | Ensures the mapping exists (`ensureMapping`), then adds the channel's Discord role to the guild member via REST |
 | `channel_member_removed` | `handleMemberRemoved.ts` | Looks up the mapping via `Channel/GetMapping`, then removes the channel's Discord role from the guild member via REST |
 

@@ -26,6 +26,7 @@ import {
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
 import { dateOnlyToUtc, formatLocalDate } from '~/lib/datetime';
+import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const dayShortLabels: Record<number, () => string> = {
@@ -379,11 +380,13 @@ export function TrainingTypeDetailPage({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                {discordChannels.map((ch) => (
-                  <SelectItem key={ch.id} value={ch.id}>
-                    #{ch.name}
-                  </SelectItem>
-                ))}
+                {discordChannels
+                  .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                  .map((ch) => (
+                    <SelectItem key={ch.id} value={ch.id}>
+                      #{ch.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

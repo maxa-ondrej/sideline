@@ -3,6 +3,7 @@ import { Discord, GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
+import { Loader2 } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '~/components/ui/button';
@@ -16,6 +17,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Separator } from '~/components/ui/separator';
+import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 interface GroupDetailPageProps {
@@ -55,6 +57,14 @@ export function GroupDetailPage({
   const [parentGroupId, setParentGroupId] = React.useState<string>(
     Option.getOrElse(groupDetail.parentId, () => '__root__'),
   );
+
+  React.useEffect(() => {
+    if (!groupDetail.discordChannelProvisioning) return;
+    const id = setInterval(() => {
+      router.invalidate();
+    }, 5000);
+    return () => clearInterval(id);
+  }, [groupDetail.discordChannelProvisioning, router]);
 
   const memberIdsInGroup = new Set(groupDetail.members.map((m) => m.memberId));
   const availableMembers = allMembers.filter((m) => !memberIdsInGroup.has(m.memberId));
@@ -374,7 +384,15 @@ export function GroupDetailPage({
             <CardTitle className='text-base'>{m.group_discordChannel()}</CardTitle>
           </CardHeader>
           <CardContent>
-            {Option.isSome(channelMapping) ? (
+            {groupDetail.discordChannelProvisioning ? (
+              <div className='flex flex-col items-center gap-2 py-4'>
+                <Loader2 className='size-5 animate-spin text-muted-foreground' />
+                <p className='text-sm font-medium'>{m.discord_channelProvisioning()}</p>
+                <p className='text-xs text-muted-foreground'>
+                  {m.discord_channelProvisioningHint()}
+                </p>
+              </div>
+            ) : Option.isSome(channelMapping) ? (
               <div className='flex items-center justify-between'>
                 <span className='text-sm font-medium'>
                   #{' '}
@@ -410,11 +428,13 @@ export function GroupDetailPage({
                       <SelectValue placeholder={m.group_selectChannel()} />
                     </SelectTrigger>
                     <SelectContent>
-                      {discordChannels.map((ch) => (
-                        <SelectItem key={ch.id} value={ch.id}>
-                          # {ch.name}
-                        </SelectItem>
-                      ))}
+                      {discordChannels
+                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                        .map((ch) => (
+                          <SelectItem key={ch.id} value={ch.id}>
+                            # {ch.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <Button onClick={handleLinkChannel} disabled={!selectedChannelId}>

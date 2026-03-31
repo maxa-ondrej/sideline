@@ -4,11 +4,11 @@ import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
 import { Array as Arr, Effect, Metric, Option, pipe, Schema } from 'effect';
 import { discordEventsTotal } from '~/metrics.js';
-import { DfxGuildMember, DfxTextChannel, DfxUser } from '~/schemas.js';
+import { DfxGuildMember, DfxSyncableChannel, DfxUser } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
-const decodeTextChannel = Schema.decodeUnknownOption(DfxTextChannel);
+const decodeSyncableChannel = Schema.decodeUnknownOption(DfxSyncableChannel);
 const decodeGuildMember = Schema.decodeUnknownOption(DfxGuildMember);
 const decodeUser = Schema.decodeUnknownSync(DfxUser);
 
@@ -33,7 +33,7 @@ export const eventHandlers = Effect.Do.pipe(
           rest.listGuildChannels(guild.id).pipe(
             Effect.map((channels) =>
               Arr.filterMap(channels, (ch) =>
-                decodeTextChannel(ch).pipe(
+                decodeSyncableChannel(ch).pipe(
                   Option.map((decoded) => ({
                     channel_id: decoded.id,
                     name: decoded.name,

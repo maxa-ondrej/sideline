@@ -5,8 +5,10 @@ import { Array, Effect, Match, Metric, pipe } from 'effect';
 import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+import { handleGroupArchived, handleRosterArchived } from './handleArchived.js';
 import { handleCreated } from './handleCreated.js';
 import { handleDeleted, handleRosterDeleted } from './handleDeleted.js';
+import { handleGroupDetached, handleRosterDetached } from './handleDetached.js';
 import { handleMemberAdded, handleRosterMemberAdded } from './handleMemberAdded.js';
 import { handleMemberRemoved, handleRosterMemberRemoved } from './handleMemberRemoved.js';
 import { handleRosterChannelCreated } from './handleRosterChannelCreated.js';
@@ -16,6 +18,10 @@ const action = Match.type<ChannelRpcEvents.UnprocessedChannelEvent>().pipe(
   Match.tag('roster_channel_created', handleRosterChannelCreated),
   Match.tag('group_channel_deleted', handleDeleted),
   Match.tag('roster_channel_deleted', handleRosterDeleted),
+  Match.tag('group_channel_archived', handleGroupArchived),
+  Match.tag('roster_channel_archived', handleRosterArchived),
+  Match.tag('group_channel_detached', handleGroupDetached),
+  Match.tag('roster_channel_detached', handleRosterDetached),
   Match.tag('group_member_added', handleMemberAdded),
   Match.tag('roster_member_added', handleRosterMemberAdded),
   Match.tag('group_member_removed', handleMemberRemoved),

@@ -2,6 +2,7 @@ import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
+import { ChannelCleanupMode } from '~/models/ChannelSyncEvent.js';
 import { Snowflake } from '~/models/Discord.js';
 import { TeamId } from '~/models/Team.js';
 
@@ -18,6 +19,9 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordChannelOther: Schema.OptionFromNullOr(Snowflake),
   createDiscordChannelOnGroup: Schema.Boolean,
   createDiscordChannelOnRoster: Schema.Boolean,
+  discordArchiveCategoryId: Schema.OptionFromNullOr(Snowflake),
+  discordChannelCleanupOnGroupDelete: ChannelCleanupMode,
+  discordChannelCleanupOnRosterDeactivate: ChannelCleanupMode,
 }) {}
 
 export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
@@ -50,6 +54,13 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
   }),
   createDiscordChannelOnGroup: Schema.optionalWith(Schema.Boolean, { as: 'Option' }),
   createDiscordChannelOnRoster: Schema.optionalWith(Schema.Boolean, { as: 'Option' }),
+  discordArchiveCategoryId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
+    as: 'Option',
+  }),
+  discordChannelCleanupOnGroupDelete: Schema.optionalWith(ChannelCleanupMode, { as: 'Option' }),
+  discordChannelCleanupOnRosterDeactivate: Schema.optionalWith(ChannelCleanupMode, {
+    as: 'Option',
+  }),
 }) {}
 
 export class TeamSettingsApiGroup extends HttpApiGroup.make('teamSettings')

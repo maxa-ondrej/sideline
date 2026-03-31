@@ -28,6 +28,7 @@ import {
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
 import { formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
+import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const NONE_VALUE = '__none__';
@@ -526,11 +527,13 @@ export function EventDetailPage({
                           </FormControl>
                           <SelectContent>
                             <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                            {discordChannels.map((ch) => (
-                              <SelectItem key={ch.id} value={ch.id}>
-                                # {ch.name}
-                              </SelectItem>
-                            ))}
+                            {discordChannels
+                              .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                              .map((ch) => (
+                                <SelectItem key={ch.id} value={ch.id}>
+                                  # {ch.name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

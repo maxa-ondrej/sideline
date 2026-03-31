@@ -186,6 +186,9 @@ erDiagram
         TEXT discord_channel_other
         BOOLEAN create_discord_channel_on_group
         BOOLEAN create_discord_channel_on_roster
+        TEXT discord_archive_category_id
+        TEXT discord_channel_cleanup_on_group_delete
+        TEXT discord_channel_cleanup_on_roster_deactivate
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
@@ -461,6 +464,9 @@ erDiagram
         TEXT roster_name
         UUID team_member_id
         TEXT discord_user_id
+        TEXT existing_channel_id
+        TEXT discord_role_id
+        TEXT archive_category_id
         TIMESTAMPTZ processed_at
         TEXT error
         TIMESTAMPTZ created_at

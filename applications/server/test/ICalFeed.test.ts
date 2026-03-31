@@ -238,6 +238,8 @@ const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository
 } as unknown as RoleSyncEventsRepository);
 const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
   _tag: 'api/ChannelSyncEventsRepository',
+  hasUnprocessedForGroups: () => Effect.succeed([]),
+  hasUnprocessedForRosters: () => Effect.succeed([]),
 } as unknown as ChannelSyncEventsRepository);
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
   _tag: 'api/EventSyncEventsRepository',

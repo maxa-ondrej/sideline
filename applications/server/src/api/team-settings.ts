@@ -39,6 +39,9 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelOther: Option.none(),
                     createDiscordChannelOnGroup: true,
                     createDiscordChannelOnRoster: true,
+                    discordArchiveCategoryId: Option.none(),
+                    discordChannelCleanupOnGroupDelete: 'delete',
+                    discordChannelCleanupOnRosterDeactivate: 'delete',
                   }),
                 onSome: (s) =>
                   new TeamSettingsApi.TeamSettingsInfo({
@@ -54,6 +57,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelOther: s.discord_channel_other,
                     createDiscordChannelOnGroup: s.create_discord_channel_on_group,
                     createDiscordChannelOnRoster: s.create_discord_channel_on_roster,
+                    discordArchiveCategoryId: s.discord_archive_category_id,
+                    discordChannelCleanupOnGroupDelete: s.discord_channel_cleanup_on_group_delete,
+                    discordChannelCleanupOnRosterDeactivate:
+                      s.discord_channel_cleanup_on_roster_deactivate,
                   }),
               }),
             ),
@@ -88,6 +95,15 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     createDiscordChannelOnRoster: Option.getOrElse(
                       payload.createDiscordChannelOnRoster,
                       () => true,
+                    ),
+                    discordArchiveCategoryId: Option.flatten(payload.discordArchiveCategoryId),
+                    discordChannelCleanupOnGroupDelete: Option.getOrElse(
+                      payload.discordChannelCleanupOnGroupDelete,
+                      () => 'delete' as const,
+                    ),
+                    discordChannelCleanupOnRosterDeactivate: Option.getOrElse(
+                      payload.discordChannelCleanupOnRosterDeactivate,
+                      () => 'delete' as const,
                     ),
                   }),
                 onSome: (s) =>
@@ -134,6 +150,18 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.createDiscordChannelOnRoster,
                       () => s.create_discord_channel_on_roster,
                     ),
+                    discordArchiveCategoryId: Option.match(payload.discordArchiveCategoryId, {
+                      onNone: () => s.discord_archive_category_id,
+                      onSome: (v) => v,
+                    }),
+                    discordChannelCleanupOnGroupDelete: Option.getOrElse(
+                      payload.discordChannelCleanupOnGroupDelete,
+                      () => s.discord_channel_cleanup_on_group_delete,
+                    ),
+                    discordChannelCleanupOnRosterDeactivate: Option.getOrElse(
+                      payload.discordChannelCleanupOnRosterDeactivate,
+                      () => s.discord_channel_cleanup_on_roster_deactivate,
+                    ),
                   }),
               }),
             ),
@@ -152,6 +180,11 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelOther: result.discord_channel_other,
                   createDiscordChannelOnGroup: result.create_discord_channel_on_group,
                   createDiscordChannelOnRoster: result.create_discord_channel_on_roster,
+                  discordArchiveCategoryId: result.discord_archive_category_id,
+                  discordChannelCleanupOnGroupDelete:
+                    result.discord_channel_cleanup_on_group_delete,
+                  discordChannelCleanupOnRosterDeactivate:
+                    result.discord_channel_cleanup_on_roster_deactivate,
                 }),
             ),
             Effect.catchTag(

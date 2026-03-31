@@ -961,6 +961,8 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
+  hasUnprocessedForGroups: () => Effect.succeed([]),
+  hasUnprocessedForRosters: () => Effect.succeed([]),
 } as unknown as ChannelSyncEventsRepository);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
