@@ -62,6 +62,16 @@ Event types: `channel_created`, `channel_updated`, `channel_deleted`, `channel_a
 
 **Color field on `channel_created` and `channel_updated` events**: Events carry `discord_role_color` as `Option<number>` (Discord integer color). The server converts hex colors (e.g. `#FF0000`) to Discord integers before emitting. Bot handlers pass this value to `createRoleForChannel` or `updateGuildRole` as the `color` parameter.
 
+#### Channel Update
+
+When a group or roster name/emoji/color changes, the server emits `channel_updated`. The bot handler in `src/rcp/channel/handleUpdated.ts`:
+
+1. Updates the Discord role via `updateGuildRole` (name + color)
+2. Updates the Discord channel via `updateChannel` (name)
+3. Calls `rpc['Guild/UpdateChannelName']` to sync the new channel name back to the `discord_channels` table on the server
+
+Both `handleGroupChannelUpdated` and `handleRosterChannelUpdated` delegate to the same shared logic.
+
 #### Channel Archival
 
 When a team has `discord_archive_category_id` set, deleting a group or deactivating a roster emits `channel_archived` instead of `channel_deleted`. The bot handler in `src/rcp/channel/handleArchived.ts`:

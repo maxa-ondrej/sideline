@@ -87,10 +87,17 @@ const repo = Model.makeRepository(User, {
 
 ## RPC Transport
 
-Sync RPCs share a single `RoleSyncRpcs` group served at `/rpc/role-sync` (NDJSON over HTTP). Both role sync and channel sync RPCs live in the same group.
+RPC groups are served via NDJSON over HTTP. Each group has a domain definition and a server handler:
 
-- **Domain**: `packages/domain/src/rpc/RoleSyncRpc.ts` — RPC definitions
-- **Server**: `src/rpc/RoleSyncRpcLive.ts` — RPC handler implementations
+| Group | Domain definition | Server handler | Purpose |
+|-------|------------------|----------------|---------|
+| Role | `packages/domain/src/rpc/role/RoleRpcGroup.ts` | `src/rpc/role/index.ts` | Role sync events |
+| Channel | `packages/domain/src/rpc/channel/ChannelRpcGroup.ts` | `src/rpc/channel/index.ts` | Channel sync events |
+| Guild | `packages/domain/src/rpc/guild/GuildRpcGroup.ts` | `src/rpc/guild/index.ts` | Guild operations (sync channels, register members, update channel names) |
+| Event | `packages/domain/src/rpc/event/EventRpcGroup.ts` | `src/rpc/event/index.ts` | Event sync |
+| Activity | `packages/domain/src/rpc/activity/ActivityRpcGroup.ts` | `src/rpc/activity/index.ts` | Activity sync |
+
+The `Guild/UpdateChannelName` RPC updates the `discord_channels` table when the bot renames a Discord channel. The bot calls this after processing a `channel_updated` event to keep the server's `discord_channels.name` column in sync with the actual Discord channel name.
 
 ## Sync Event Pattern
 
