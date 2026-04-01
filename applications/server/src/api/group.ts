@@ -1,7 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform';
 import { Auth, GroupApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, Effect, Option, pipe } from 'effect';
+import { Array, Effect, Match, Option, pipe } from 'effect';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -367,39 +367,38 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                         ? ('delete' as const)
                         : cleanupMode;
 
-                    switch (effectiveMode) {
-                      case 'nothing':
-                        return channelSync
-                          .emitChannelDetached(
-                            teamId,
-                            groupId,
-                            existing.name,
-                            mapping.discord_channel_id,
-                            mapping.discord_role_id,
-                          )
-                          .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
-                      case 'delete':
-                        return channelSync
-                          .emitChannelDeleted(
-                            teamId,
-                            groupId,
-                            existing.name,
-                            mapping.discord_channel_id,
-                            mapping.discord_role_id,
-                          )
-                          .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
-                      case 'archive':
-                        return channelSync
-                          .emitChannelArchived(
-                            teamId,
-                            groupId,
-                            existing.name,
-                            mapping.discord_channel_id,
-                            mapping.discord_role_id,
-                            Option.getOrThrow(archiveCategoryId),
-                          )
-                          .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
-                    }
+                    return Match.value(effectiveMode).pipe(
+                      Match.when('nothing', () =>
+                        channelSync.emitChannelDetached(
+                          teamId,
+                          groupId,
+                          existing.name,
+                          mapping.discord_channel_id,
+                          mapping.discord_role_id,
+                        ),
+                      ),
+                      Match.when('delete', () =>
+                        channelSync.emitChannelDeleted(
+                          teamId,
+                          groupId,
+                          existing.name,
+                          mapping.discord_channel_id,
+                          mapping.discord_role_id,
+                        ),
+                      ),
+                      Match.when('archive', () =>
+                        channelSync.emitChannelArchived(
+                          teamId,
+                          groupId,
+                          existing.name,
+                          mapping.discord_channel_id,
+                          mapping.discord_role_id,
+                          Option.getOrThrow(archiveCategoryId),
+                        ),
+                      ),
+                      Match.exhaustive,
+                      Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
+                    );
                   },
                 }),
               ),
@@ -808,39 +807,38 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     ? ('delete' as const)
                     : cleanupMode;
 
-                switch (effectiveMode) {
-                  case 'nothing':
-                    return channelSync
-                      .emitChannelDetached(
-                        teamId,
-                        groupId,
-                        _group.name,
-                        mapping.discord_channel_id,
-                        mapping.discord_role_id,
-                      )
-                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
-                  case 'delete':
-                    return channelSync
-                      .emitChannelDeleted(
-                        teamId,
-                        groupId,
-                        _group.name,
-                        mapping.discord_channel_id,
-                        mapping.discord_role_id,
-                      )
-                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
-                  case 'archive':
-                    return channelSync
-                      .emitChannelArchived(
-                        teamId,
-                        groupId,
-                        _group.name,
-                        mapping.discord_channel_id,
-                        mapping.discord_role_id,
-                        Option.getOrThrow(archiveCategoryId),
-                      )
-                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
-                }
+                return Match.value(effectiveMode).pipe(
+                  Match.when('nothing', () =>
+                    channelSync.emitChannelDetached(
+                      teamId,
+                      groupId,
+                      _group.name,
+                      mapping.discord_channel_id,
+                      mapping.discord_role_id,
+                    ),
+                  ),
+                  Match.when('delete', () =>
+                    channelSync.emitChannelDeleted(
+                      teamId,
+                      groupId,
+                      _group.name,
+                      mapping.discord_channel_id,
+                      mapping.discord_role_id,
+                    ),
+                  ),
+                  Match.when('archive', () =>
+                    channelSync.emitChannelArchived(
+                      teamId,
+                      groupId,
+                      _group.name,
+                      mapping.discord_channel_id,
+                      mapping.discord_role_id,
+                      Option.getOrThrow(archiveCategoryId),
+                    ),
+                  ),
+                  Match.exhaustive,
+                  Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
+                );
               }),
               Effect.asVoid,
             ),
