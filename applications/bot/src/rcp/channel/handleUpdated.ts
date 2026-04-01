@@ -17,31 +17,26 @@ const handleChannelUpdated = (event: ChannelUpdatedFields) => {
   return Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
     Effect.tap(({ rest }) =>
-      Effect.all(
-        [
-          rest
-            .updateGuildRole(event.guild_id, event.discord_role_id, {
-              name: event.discord_role_name,
-              color: roleColor,
-            })
-            .pipe(
-              Effect.retry(retryPolicy),
-              Effect.tap(() =>
-                Effect.logInfo(
-                  `Updated Discord role ${event.discord_role_id} name="${event.discord_role_name}" in guild ${event.guild_id}`,
-                ),
-              ),
-            ),
-          rest.updateChannel(event.discord_channel_id, { name: event.discord_channel_name }).pipe(
-            Effect.retry(retryPolicy),
-            Effect.tap(() =>
-              Effect.logInfo(
-                `Updated Discord channel ${event.discord_channel_id} name="${event.discord_channel_name}" in guild ${event.guild_id}`,
-              ),
-            ),
-          ),
-        ],
-        { concurrency: 2 },
+      rest
+        .updateGuildRole(event.guild_id, event.discord_role_id, {
+          name: event.discord_role_name,
+          color: roleColor,
+        })
+        .pipe(Effect.retry(retryPolicy)),
+    ),
+    Effect.tap(() =>
+      Effect.logInfo(
+        `Updated Discord role ${event.discord_role_id} name="${event.discord_role_name}" in guild ${event.guild_id}`,
+      ),
+    ),
+    Effect.tap(({ rest }) =>
+      rest
+        .updateChannel(event.discord_channel_id, { name: event.discord_channel_name })
+        .pipe(Effect.retry(retryPolicy)),
+    ),
+    Effect.tap(() =>
+      Effect.logInfo(
+        `Updated Discord channel ${event.discord_channel_id} name="${event.discord_channel_name}" in guild ${event.guild_id}`,
       ),
     ),
     Effect.asVoid,
