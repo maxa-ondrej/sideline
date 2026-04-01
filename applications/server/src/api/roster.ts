@@ -484,14 +484,20 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                                       ),
                                     );
                                 case 'archive':
-                                  return channelSync.emitRosterChannelArchived(
-                                    teamId,
-                                    rosterId,
-                                    existing.name,
-                                    mapping.discord_channel_id,
-                                    mapping.discord_role_id,
-                                    Option.getOrThrow(archiveCategoryId),
-                                  );
+                                  return channelSync
+                                    .emitRosterChannelArchived(
+                                      teamId,
+                                      rosterId,
+                                      existing.name,
+                                      mapping.discord_channel_id,
+                                      mapping.discord_role_id,
+                                      Option.getOrThrow(archiveCategoryId),
+                                    )
+                                    .pipe(
+                                      Effect.tap(() =>
+                                        channelMappings.deleteByRosterId(teamId, rosterId),
+                                      ),
+                                    );
                               }
                             },
                           }),
@@ -554,14 +560,20 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                                             ),
                                           );
                                       case 'archive':
-                                        return channelSync.emitRosterChannelArchived(
-                                          teamId,
-                                          rosterId,
-                                          existing.name,
-                                          mapping.discord_channel_id,
-                                          mapping.discord_role_id,
-                                          Option.getOrThrow(archiveCategoryId),
-                                        );
+                                        return channelSync
+                                          .emitRosterChannelArchived(
+                                            teamId,
+                                            rosterId,
+                                            existing.name,
+                                            mapping.discord_channel_id,
+                                            mapping.discord_role_id,
+                                            Option.getOrThrow(archiveCategoryId),
+                                          )
+                                          .pipe(
+                                            Effect.tap(() =>
+                                              channelMappings.deleteByRosterId(teamId, rosterId),
+                                            ),
+                                          );
                                     }
                                   },
                                 }),
