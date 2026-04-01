@@ -290,13 +290,17 @@ export function RosterDetailPage({
             <div className='flex flex-col gap-2 sm:flex-row'>
               <div className='flex gap-2 flex-1'>
                 <Input
+                  id='roster-edit-emoji'
+                  aria-label={m.roster_emoji()}
                   value={editEmoji}
                   onChange={(e) => setEditEmoji(e.target.value)}
                   className='w-16 shrink-0'
                   placeholder='Emoji'
                 />
-                <ColorPicker value={editColor} onChange={setEditColor} />
+                <ColorPicker id='roster-edit-color' value={editColor} onChange={setEditColor} />
                 <Input
+                  id='roster-edit-name'
+                  aria-label={m.roster_rosterName()}
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className='flex-1'

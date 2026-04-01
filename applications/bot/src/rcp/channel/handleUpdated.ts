@@ -14,7 +14,10 @@ interface ChannelUpdatedFields {
 }
 
 const handleChannelUpdated = (event: ChannelUpdatedFields) => {
-  const roleColor = Option.getOrUndefined(event.discord_role_color);
+  const roleColor = Option.match(event.discord_role_color, {
+    onNone: () => 0,
+    onSome: (c) => c,
+  });
   return Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('rpc', () => SyncRpc),
