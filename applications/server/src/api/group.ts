@@ -828,14 +828,16 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       )
                       .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
                   case 'archive':
-                    return channelSync.emitChannelArchived(
-                      teamId,
-                      groupId,
-                      _group.name,
-                      mapping.discord_channel_id,
-                      mapping.discord_role_id,
-                      Option.getOrThrow(archiveCategoryId),
-                    );
+                    return channelSync
+                      .emitChannelArchived(
+                        teamId,
+                        groupId,
+                        _group.name,
+                        mapping.discord_channel_id,
+                        mapping.discord_role_id,
+                        Option.getOrThrow(archiveCategoryId),
+                      )
+                      .pipe(Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)));
                 }
               }),
               Effect.asVoid,
