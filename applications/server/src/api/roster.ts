@@ -495,98 +495,90 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     : Effect.void;
                 }
 
-                return Option.match(payload.discordChannelId, {
-                  onNone: () => Effect.void,
-                  onSome: (channelIdOption) =>
-                    Option.match(channelIdOption, {
-                      onNone: () =>
-                        Option.isSome(existing.discord_channel_id)
-                          ? channelMappings.findByRosterId(teamId, rosterId).pipe(
-                              Effect.flatMap(
-                                Option.match({
-                                  onNone: () => Effect.void,
-                                  onSome: (mapping) => {
-                                    const cleanupMode = Option.match(settings, {
-                                      onNone: () => 'delete' as const,
-                                      onSome: (s) => s.discord_channel_cleanup_on_roster_deactivate,
-                                    });
-                                    const archiveCategoryId = Option.flatMap(
-                                      settings,
-                                      (s) => s.discord_archive_category_id,
-                                    );
-                                    const effectiveMode =
-                                      cleanupMode === 'archive' && Option.isNone(archiveCategoryId)
-                                        ? ('delete' as const)
-                                        : cleanupMode;
+                if (Option.isNone(settings) || Option.isNone(payload.discordChannelId)) {
+                  return Effect.void;
+                }
 
-                                    return Match.value(effectiveMode).pipe(
-                                      Match.when('nothing', () =>
-                                        channelSync.emitRosterChannelDetached(
-                                          teamId,
-                                          rosterId,
-                                          existing.name,
-                                          mapping.discord_channel_id,
-                                          mapping.discord_role_id,
-                                        ),
-                                      ),
-                                      Match.when('delete', () =>
-                                        channelSync.emitRosterChannelDeleted(
-                                          teamId,
-                                          rosterId,
-                                          existing.name,
-                                          mapping.discord_channel_id,
-                                          mapping.discord_role_id,
-                                        ),
-                                      ),
-                                      Match.when('archive', () =>
+                return Option.match(payload.discordChannelId.value, {
+                  onNone: () =>
+                    Option.isSome(existing.discord_channel_id)
+                      ? channelMappings.findByRosterId(teamId, rosterId).pipe(
+                          Effect.flatMap(
+                            Option.match({
+                              onNone: () => Effect.void,
+                              onSome: (mapping) =>
+                                Match.value(
+                                  settings.value.discord_channel_cleanup_on_roster_deactivate,
+                                ).pipe(
+                                  Match.when('nothing', () =>
+                                    channelSync.emitRosterChannelDetached(
+                                      teamId,
+                                      rosterId,
+                                      existing.name,
+                                      mapping.discord_channel_id,
+                                      mapping.discord_role_id,
+                                    ),
+                                  ),
+                                  Match.when('delete', () =>
+                                    channelSync.emitRosterChannelDeleted(
+                                      teamId,
+                                      rosterId,
+                                      existing.name,
+                                      mapping.discord_channel_id,
+                                      mapping.discord_role_id,
+                                    ),
+                                  ),
+                                  Match.when('archive', () =>
+                                    Option.match(settings.value.discord_archive_category_id, {
+                                      onSome: (category) =>
                                         channelSync.emitRosterChannelArchived(
                                           teamId,
                                           rosterId,
                                           existing.name,
                                           mapping.discord_channel_id,
                                           mapping.discord_role_id,
-                                          Option.getOrThrow(archiveCategoryId),
+                                          category,
                                         ),
-                                      ),
-                                      Match.exhaustive,
-                                      Effect.tap(() =>
-                                        channelMappings.deleteByRosterId(teamId, rosterId),
-                                      ),
-                                    );
-                                  },
-                                }),
-                              ),
-                            )
-                          : Effect.void,
-                      onSome: (channelId) => {
-                        const channelName = applyDiscordFormat(
-                          Option.match(settings, {
-                            onNone: () => DEFAULT_CHANNEL_FORMAT,
-                            onSome: (s) => s.discord_channel_format,
-                          }),
-                          updated.name,
-                          updated.emoji,
-                        );
-                        const roleName = applyDiscordFormat(
-                          Option.match(settings, {
-                            onNone: () => DEFAULT_ROLE_FORMAT,
-                            onSome: (s) => s.discord_role_format,
-                          }),
-                          updated.name,
-                          updated.emoji,
-                        );
-                        const discordRoleColor = Option.map(updated.color, hexColorToDiscordInt);
-                        return channelSync.emitRosterChannelCreated(
-                          teamId,
-                          updated.id,
-                          updated.name,
-                          Option.some(channelId),
-                          channelName,
-                          roleName,
-                          discordRoleColor,
-                        );
-                      },
-                    }),
+                                      onNone: () => Effect.void,
+                                    }),
+                                  ),
+                                  Match.exhaustive,
+                                  Effect.tap(() =>
+                                    channelMappings.deleteByRosterId(teamId, rosterId),
+                                  ),
+                                ),
+                            }),
+                          ),
+                        )
+                      : Effect.void,
+                  onSome: (channelId) => {
+                    const channelName = applyDiscordFormat(
+                      Option.match(settings, {
+                        onNone: () => DEFAULT_CHANNEL_FORMAT,
+                        onSome: (s) => s.discord_channel_format,
+                      }),
+                      updated.name,
+                      updated.emoji,
+                    );
+                    const roleName = applyDiscordFormat(
+                      Option.match(settings, {
+                        onNone: () => DEFAULT_ROLE_FORMAT,
+                        onSome: (s) => s.discord_role_format,
+                      }),
+                      updated.name,
+                      updated.emoji,
+                    );
+                    const discordRoleColor = Option.map(updated.color, hexColorToDiscordInt);
+                    return channelSync.emitRosterChannelCreated(
+                      teamId,
+                      updated.id,
+                      updated.name,
+                      Option.some(channelId),
+                      channelName,
+                      roleName,
+                      discordRoleColor,
+                    );
+                  },
                 });
               }),
               Effect.tap(({ existing, updated, settings }) => {
@@ -695,63 +687,50 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 ),
               ),
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
-              Effect.tap(({ existing, settings }) =>
-                Option.isSome(existing.discord_channel_id)
-                  ? channelMappings.findByRosterId(teamId, rosterId).pipe(
-                      Effect.flatMap(
-                        Option.match({
+              Effect.bind('mapping', () => channelMappings.findByRosterId(teamId, rosterId)),
+              Effect.tap(({ existing, settings, mapping }) =>
+                existing.discord_channel_id.pipe(
+                  Option.bindTo('channel'),
+                  Option.bind('mapping', () => mapping),
+                  Option.bind('settings', () => settings),
+                  Option.map(({ mapping, settings }) =>
+                    Match.value(settings.discord_channel_cleanup_on_roster_deactivate).pipe(
+                      Match.when('nothing', () =>
+                        channelSync.emitRosterChannelDetached(
+                          teamId,
+                          rosterId,
+                          existing.name,
+                          mapping.discord_channel_id,
+                          mapping.discord_role_id,
+                        ),
+                      ),
+                      Match.when('delete', () =>
+                        channelSync.emitRosterChannelDeleted(
+                          teamId,
+                          rosterId,
+                          existing.name,
+                          mapping.discord_channel_id,
+                          mapping.discord_role_id,
+                        ),
+                      ),
+                      Match.when('archive', () =>
+                        Option.match(settings.discord_archive_category_id, {
+                          onSome: (category) =>
+                            channelSync.emitRosterChannelArchived(
+                              teamId,
+                              rosterId,
+                              existing.name,
+                              mapping.discord_channel_id,
+                              mapping.discord_role_id,
+                              category,
+                            ),
                           onNone: () => Effect.void,
-                          onSome: (mapping) => {
-                            const cleanupMode = Option.match(settings, {
-                              onNone: () => 'delete' as const,
-                              onSome: (s) => s.discord_channel_cleanup_on_roster_deactivate,
-                            });
-                            const archiveCategoryId = Option.flatMap(
-                              settings,
-                              (s) => s.discord_archive_category_id,
-                            );
-                            const effectiveMode =
-                              cleanupMode === 'archive' && Option.isNone(archiveCategoryId)
-                                ? ('delete' as const)
-                                : cleanupMode;
-
-                            return Match.value(effectiveMode).pipe(
-                              Match.when('nothing', () =>
-                                channelSync.emitRosterChannelDetached(
-                                  teamId,
-                                  rosterId,
-                                  existing.name,
-                                  mapping.discord_channel_id,
-                                  mapping.discord_role_id,
-                                ),
-                              ),
-                              Match.when('delete', () =>
-                                channelSync.emitRosterChannelDeleted(
-                                  teamId,
-                                  rosterId,
-                                  existing.name,
-                                  mapping.discord_channel_id,
-                                  mapping.discord_role_id,
-                                ),
-                              ),
-                              Match.when('archive', () =>
-                                channelSync.emitRosterChannelArchived(
-                                  teamId,
-                                  rosterId,
-                                  existing.name,
-                                  mapping.discord_channel_id,
-                                  mapping.discord_role_id,
-                                  Option.getOrThrow(archiveCategoryId),
-                                ),
-                              ),
-                              Match.exhaustive,
-                              Effect.tap(() => channelMappings.deleteByRosterId(teamId, rosterId)),
-                            );
-                          },
                         }),
                       ),
-                    )
-                  : Effect.void,
+                    ),
+                  ),
+                  Option.getOrElse(() => Effect.void),
+                ),
               ),
               Effect.tap(() => rosters.delete(rosterId)),
               Effect.asVoid,
