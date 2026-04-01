@@ -70,6 +70,8 @@ export function ColorPicker({ value, onChange, className, id }: ColorPickerProps
         <button
           id={id}
           type='button'
+          aria-label={value ? `Color: ${value}` : m.common_color()}
+          aria-haspopup='dialog'
           className={cn(
             'w-8 h-8 rounded border flex items-center justify-center shrink-0',
             value

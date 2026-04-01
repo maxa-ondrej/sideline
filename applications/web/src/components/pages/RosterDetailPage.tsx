@@ -101,8 +101,8 @@ export function RosterDetailPage({
             name: Option.none(),
             active: Option.some(!rosterDetail.active),
             discordChannelId: Option.none(),
-            color: Option.none(),
-            emoji: Option.none(),
+            color: rosterDetail.color,
+            emoji: rosterDetail.emoji,
           },
         }),
       ),
@@ -112,7 +112,15 @@ export function RosterDetailPage({
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [teamIdBranded, rosterIdBranded, rosterDetail.active, run, router]);
+  }, [
+    teamIdBranded,
+    rosterIdBranded,
+    rosterDetail.active,
+    rosterDetail.color,
+    rosterDetail.emoji,
+    run,
+    router,
+  ]);
 
   const handleLinkChannel = React.useCallback(async () => {
     if (!selectedChannelId) return;
@@ -125,8 +133,8 @@ export function RosterDetailPage({
             name: Option.none(),
             active: Option.none(),
             discordChannelId: Option.some(Option.some(snowflake)),
-            color: Option.none(),
-            emoji: Option.none(),
+            color: rosterDetail.color,
+            emoji: rosterDetail.emoji,
           },
         }),
       ),
@@ -140,7 +148,15 @@ export function RosterDetailPage({
       setSelectedChannelId('');
       router.invalidate();
     }
-  }, [selectedChannelId, teamIdBranded, rosterIdBranded, run, router]);
+  }, [
+    selectedChannelId,
+    teamIdBranded,
+    rosterIdBranded,
+    rosterDetail.color,
+    rosterDetail.emoji,
+    run,
+    router,
+  ]);
 
   const handleUnlinkChannel = React.useCallback(async () => {
     const result = await ApiClient.pipe(
@@ -151,8 +167,8 @@ export function RosterDetailPage({
             name: Option.none(),
             active: Option.none(),
             discordChannelId: Option.some(Option.none()),
-            color: Option.none(),
-            emoji: Option.none(),
+            color: rosterDetail.color,
+            emoji: rosterDetail.emoji,
           },
         }),
       ),
@@ -162,7 +178,7 @@ export function RosterDetailPage({
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [teamIdBranded, rosterIdBranded, run, router]);
+  }, [teamIdBranded, rosterIdBranded, rosterDetail.color, rosterDetail.emoji, run, router]);
 
   const handleCreateChannel = React.useCallback(async () => {
     const result = await ApiClient.pipe(
