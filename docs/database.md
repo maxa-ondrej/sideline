@@ -280,6 +280,7 @@ Hierarchical sub-divisions of a team (e.g. age brackets, skill tiers). Previousl
 | `parent_id` | UUID | FK → `groups(id)` ON DELETE SET NULL | — |
 | `name` | TEXT | NOT NULL | — |
 | `emoji` | TEXT | — | — |
+| `color` | TEXT | — | — |
 | `is_archived` | BOOLEAN | NOT NULL | `false` |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
@@ -576,7 +577,7 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 | `id` | UUID | PK | `gen_random_uuid()` |
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `guild_id` | TEXT | NOT NULL | — |
-| `event_type` | TEXT | NOT NULL, CHECK (`'channel_created'`, `'channel_deleted'`, `'channel_archived'`, `'channel_detached'`, `'member_added'`, `'member_removed'`) | — |
+| `event_type` | TEXT | NOT NULL, CHECK (`'channel_created'`, `'channel_updated'`, `'channel_deleted'`, `'channel_archived'`, `'channel_detached'`, `'member_added'`, `'member_removed'`) | — |
 | `entity_type` | TEXT | NOT NULL | `'group'` |
 | `group_id` | UUID | — | — |
 | `group_name` | TEXT | — | — |
@@ -588,6 +589,7 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 | `discord_role_id` | TEXT | — | — |
 | `discord_channel_name` | TEXT | — | — |
 | `discord_role_name` | TEXT | — | — |
+| `discord_role_color` | INTEGER | — | — |
 | `archive_category_id` | TEXT | — | — |
 | `processed_at` | TIMESTAMPTZ | — | — |
 | `error` | TEXT | — | — |
@@ -595,7 +597,7 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 
 **Indexes**: `idx_channel_sync_events_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: `entity_type` is `'group'` or `'roster'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set. `existing_channel_id` and `discord_role_id` hold the Discord channel and role IDs for delete, archive, and detach events. `discord_channel_name` and `discord_role_name` carry the pre-formatted names the bot should use when creating the channel and role for `channel_created` events; they are derived from the team's `discord_channel_format` and `discord_role_format` templates at the time the event is enqueued. `archive_category_id` is set for `channel_archived` events and holds the Discord category to move the channel into. `channel_detached` events represent the `'nothing'` cleanup mode: the channel is kept in Discord but the role and mapping are removed.
+**Notes**: `entity_type` is `'group'` or `'roster'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set. `existing_channel_id` and `discord_role_id` hold the Discord channel and role IDs for delete, archive, detach, and update events. `discord_channel_name` and `discord_role_name` carry the pre-formatted names the bot should use when creating or updating the channel and role; they are derived from the team's `discord_channel_format` and `discord_role_format` templates at the time the event is enqueued. `discord_role_color` carries the group/roster colour as a Discord integer (converted from the hex colour) for `channel_created` and `channel_updated` events. `archive_category_id` is set for `channel_archived` events and holds the Discord category to move the channel into. `channel_detached` events represent the `'nothing'` cleanup mode: the channel is kept in Discord but the role and mapping are removed.
 
 ---
 
@@ -689,6 +691,8 @@ Named match-day squad lists managed per team.
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `name` | TEXT | NOT NULL | — |
 | `active` | BOOLEAN | NOT NULL | `true` |
+| `color` | TEXT | — | — |
+| `emoji` | TEXT | — | — |
 | `discord_channel_id` | TEXT | — | `NULL` |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
@@ -785,6 +789,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743500000 | `add_roster_channel_settings` | Adds `create_discord_channel_on_roster` to team_settings; adds `entity_type`, `roster_id`, `roster_name` to channel_sync_events and discord_channel_mappings; makes `group_id` nullable |
 | 1743600000 | `add_archive_category` | Adds `discord_archive_category_id`, `discord_channel_cleanup_on_group_delete`, `discord_channel_cleanup_on_roster_deactivate` to team_settings; adds `archive_category_id` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_archived'` and `'channel_detached'` |
 | 1743700000 | `add_discord_format_options` | Adds `discord_role_format` and `discord_channel_format` to team_settings; adds `discord_channel_name` and `discord_role_name` to channel_sync_events |
+| 1743800000 | `add_color_and_roster_emoji` | Adds `color TEXT` to groups; adds `color TEXT` and `emoji TEXT` to rosters; adds `discord_role_color INTEGER` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_updated'` |
 
 ### After Migrations (seed data)
 
@@ -803,7 +808,7 @@ Three tables act as outbox queues for bot-server communication:
 | Table | Bot worker | Event types |
 |---|---|---|
 | `role_sync_events` | Role Sync | `role_created`, `role_deleted`, `role_assigned`, `role_unassigned` |
-| `channel_sync_events` | Channel Sync | `channel_created`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed` |
+| `channel_sync_events` | Channel Sync | `channel_created`, `channel_updated`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed` |
 | `event_sync_events` | Event Sync | `event_created`, `event_updated`, `event_cancelled`, `rsvp_reminder` |
 
 The server inserts rows when the relevant domain action occurs. The bot polls `WHERE processed_at IS NULL ORDER BY created_at` and updates `processed_at` (and optionally `error`) when processing is complete. Partial indexes on `(created_at) WHERE processed_at IS NULL` make these polls efficient. Event data is denormalised into snapshot columns so that the bot's message content remains accurate even if the source row is subsequently modified.

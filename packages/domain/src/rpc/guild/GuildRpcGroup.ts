@@ -26,6 +26,12 @@ export const GuildRpcGroup = RpcGroup.make(
       ),
     },
   }),
+  Rpc.make('UpdateChannelName', {
+    payload: {
+      channel_id: Discord.Snowflake,
+      name: Schema.String,
+    },
+  }),
   Rpc.make('ReconcileMembers', {
     payload: {
       guild_id: Discord.Snowflake,

@@ -4,7 +4,10 @@ import { Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
+import React from 'react';
 import { useForm } from 'react-hook-form';
+import { ColorDot } from '~/components/atoms/ColorDot.js';
+import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -34,6 +37,8 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
   const run = useRun();
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
+  const [createEmoji, setCreateEmoji] = React.useState('');
+  const [createColor, setCreateColor] = React.useState<string | undefined>(undefined);
 
   const form = useForm({
     resolver: effectTsResolver(CreateRosterSchema),
@@ -46,7 +51,11 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
       Effect.flatMap((api) =>
         api.roster.createRoster({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name },
+          payload: {
+            name: values.name,
+            emoji: createEmoji ? Option.some(createEmoji) : Option.none(),
+            color: createColor ? Option.some(createColor) : Option.none(),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_createFailed())),
@@ -54,6 +63,8 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
     );
     if (Option.isSome(result)) {
       form.reset();
+      setCreateEmoji('');
+      setCreateColor(undefined);
       router.invalidate();
     }
   };
@@ -71,19 +82,46 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
 
       {canManage && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='flex gap-2 mb-6 max-w-md'>
-            <FormField
-              {...form.register('name')}
-              render={({ field }) => (
-                <FormItem className='flex-1'>
-                  <FormLabel>{m.roster_rosterName()}</FormLabel>
-                  <FormControl>
-                    <Input {...field} placeholder={m.roster_rosterNamePlaceholder()} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:max-w-lg'
+          >
+            <div className='flex gap-2 items-end'>
+              <div className='flex flex-col'>
+                <label htmlFor='roster-create-emoji' className='text-sm font-medium mb-1'>
+                  {m.roster_emoji()}
+                </label>
+                <Input
+                  id='roster-create-emoji'
+                  value={createEmoji}
+                  onChange={(e) => setCreateEmoji(e.target.value)}
+                  className='w-16 shrink-0'
+                  placeholder='🏅'
+                />
+              </div>
+              <div className='flex flex-col'>
+                <label htmlFor='roster-create-color' className='text-sm font-medium mb-1'>
+                  {m.common_color()}
+                </label>
+                <ColorPicker
+                  id='roster-create-color'
+                  value={createColor}
+                  onChange={setCreateColor}
+                />
+              </div>
+              <FormField
+                {...form.register('name')}
+                render={({ field }) => (
+                  <FormItem className='flex-1'>
+                    <FormLabel>{m.roster_rosterName()}</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder={m.roster_rosterNamePlaceholder()} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <Button type='submit' disabled={form.formState.isSubmitting} className='self-end'>
               {m.roster_createRoster()}
             </Button>
@@ -99,13 +137,18 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
             {rosters.map((roster) => (
               <tr key={roster.rosterId} className='border-b'>
                 <td className='py-2 px-4'>
-                  <Link
-                    to='/teams/$teamId/rosters/$rosterId'
-                    params={{ teamId, rosterId: roster.rosterId }}
-                    className='font-medium hover:underline'
-                  >
-                    {roster.name}
-                  </Link>
+                  <div className='flex items-center gap-2'>
+                    <ColorDot color={Option.getOrUndefined(roster.color)} />
+                    <Link
+                      to='/teams/$teamId/rosters/$rosterId'
+                      params={{ teamId, rosterId: roster.rosterId }}
+                      className='font-medium hover:underline'
+                    >
+                      {Option.isSome(roster.emoji)
+                        ? `${roster.emoji.value} ${roster.name}`
+                        : roster.name}
+                    </Link>
+                  </div>
                   <p className='text-xs text-muted-foreground sm:hidden'>
                     <span className={roster.active ? 'text-green-700 font-medium' : 'font-medium'}>
                       {roster.active ? m.roster_active() : m.roster_inactive()}

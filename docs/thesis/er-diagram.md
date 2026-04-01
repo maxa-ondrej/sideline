@@ -258,6 +258,7 @@ erDiagram
         UUID parent_id FK
         TEXT name
         TEXT emoji
+        TEXT color
         BOOLEAN is_archived
         TIMESTAMPTZ created_at
     }
@@ -470,6 +471,7 @@ erDiagram
         TEXT discord_role_id
         TEXT discord_channel_name
         TEXT discord_role_name
+        INTEGER discord_role_color
         TEXT archive_category_id
         TIMESTAMPTZ processed_at
         TEXT error
@@ -551,6 +553,8 @@ erDiagram
         UUID team_id FK
         TEXT name
         BOOLEAN active
+        TEXT color
+        TEXT emoji
         TEXT discord_channel_id
         TIMESTAMPTZ created_at
     }

@@ -11,5 +11,6 @@ export class Group extends Model.Class<Group>('Group')({
   parent_id: Schema.OptionFromNullOr(GroupId),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

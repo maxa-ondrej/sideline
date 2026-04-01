@@ -4,13 +4,14 @@ import { createRoleForChannel } from '~/rest/channels/createRoleForChannel.js';
 import { ensureMapping } from '~/rest/channels/ensureMapping.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) =>
-  Option.match(event.existing_channel_id, {
+export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) => {
+  const roleColor = Option.getOrUndefined(event.discord_role_color);
+  return Option.match(event.existing_channel_id, {
     onSome: (channelId) =>
       Effect.Do.pipe(
         Effect.bind('rpc', () => SyncRpc),
         Effect.bind('result', () =>
-          createRoleForChannel(event.guild_id, channelId, event.discord_role_name),
+          createRoleForChannel(event.guild_id, channelId, event.discord_role_name, roleColor),
         ),
         Effect.tap(({ result, rpc }) =>
           rpc['Channel/UpsertMapping']({
@@ -34,6 +35,7 @@ export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) 
         event.guild_id,
         event.discord_channel_name,
         event.discord_role_name,
+        roleColor,
       ).pipe(
         Effect.tap(({ discord_channel_id }) =>
           Effect.logInfo(
@@ -43,3 +45,4 @@ export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) 
         Effect.asVoid,
       ),
   });
+};

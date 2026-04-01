@@ -9,7 +9,7 @@ import {
   type Team,
 } from '@sideline/domain';
 import { Bind, LogicError } from '@sideline/effect-lib';
-import { Array, Data, Effect, flow, Option } from 'effect';
+import { Array, Cause, Data, Effect, flow, Option } from 'effect';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
@@ -187,20 +187,27 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         readonly roster_id: RosterModel.RosterId;
         readonly discord_channel_id: Option.Option<Discord.Snowflake>;
       }) =>
-        rosters
-          .update({
-            id: roster_id,
-            name: Option.none(),
-            active: Option.none(),
-            discord_channel_id: Option.some(discord_channel_id),
-          })
-          .pipe(
-            Effect.catchTag(
-              'NoSuchElementException',
-              LogicError.withMessage(() => `Roster ${roster_id} not found when updating channel`),
-            ),
-            Effect.asVoid,
+        rosters.findRosterById(roster_id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.fail(new Cause.NoSuchElementException()),
+              onSome: (existing) =>
+                rosters.update({
+                  id: roster_id,
+                  name: Option.none(),
+                  active: Option.none(),
+                  color: existing.color,
+                  emoji: existing.emoji,
+                  discord_channel_id: Option.some(discord_channel_id),
+                }),
+            }),
           ),
+          Effect.catchTag(
+            'NoSuchElementException',
+            LogicError.withMessage(() => `Roster ${roster_id} not found when updating channel`),
+          ),
+          Effect.asVoid,
+        ),
   ),
   Bind.remove('syncEvents'),
   Bind.remove('mappings'),

@@ -15,6 +15,7 @@ class GroupWithCount extends Schema.Class<GroupWithCount>('GroupWithCount')({
   parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(Schema.String),
   created_at: Schema.DateFromSelf,
   member_count: Schema.Number,
 }) {}
@@ -25,6 +26,7 @@ class GroupRow extends Schema.Class<GroupRow>('GroupRow')({
   parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupMemberRow extends Schema.Class<GroupMemberRow>('GroupMemberRow')({
@@ -43,12 +45,14 @@ class GroupInsertInput extends Schema.Class<GroupInsertInput>('GroupInsertInput'
   parent_id: Schema.OptionFromNullOr(Schema.String),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupUpdateInput extends Schema.Class<GroupUpdateInput>('GroupUpdateInput')({
   id: GroupModel.GroupId,
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupMemberInput extends Schema.Class<GroupMemberInput>('GroupMemberInput')({
@@ -91,7 +95,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
               LEFT JOIN group_members gm ON gm.group_id = gt.descendant_id
               GROUP BY gt.root_id
             )
-            SELECT g.id, g.team_id, g.parent_id, g.name, g.emoji, g.created_at,
+            SELECT g.id, g.team_id, g.parent_id, g.name, g.emoji, g.color, g.created_at,
                    COALESCE(mc.member_count, 0) AS member_count
             FROM groups g
             LEFT JOIN member_counts mc ON mc.root_id = g.id
@@ -105,16 +109,16 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Result: GroupRow,
     execute: (id) =>
       this
-        .sql`SELECT id, team_id, parent_id, name, emoji FROM groups WHERE id = ${id} AND is_archived = false`,
+        .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE id = ${id} AND is_archived = false`,
   });
 
   private insert = SqlSchema.single({
     Request: GroupInsertInput,
     Result: GroupRow,
     execute: (input) => this.sql`
-            INSERT INTO groups (team_id, parent_id, name, emoji)
-            VALUES (${input.team_id}, ${input.parent_id}, ${input.name}, ${input.emoji})
-            RETURNING id, team_id, parent_id, name, emoji
+            INSERT INTO groups (team_id, parent_id, name, emoji, color)
+            VALUES (${input.team_id}, ${input.parent_id}, ${input.name}, ${input.emoji}, ${input.color})
+            RETURNING id, team_id, parent_id, name, emoji, color
           `,
   });
 
@@ -122,9 +126,9 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Request: GroupUpdateInput,
     Result: GroupRow,
     execute: (input) => this.sql`
-            UPDATE groups SET name = ${input.name}, emoji = ${input.emoji}
+            UPDATE groups SET name = ${input.name}, emoji = ${input.emoji}, color = ${input.color}
             WHERE id = ${input.id}
-            RETURNING id, team_id, parent_id, name, emoji
+            RETURNING id, team_id, parent_id, name, emoji, color
           `,
   });
 
@@ -139,7 +143,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     execute: (input) => this.sql`
             UPDATE groups SET parent_id = ${input.parent_id}
             WHERE id = ${input.id}
-            RETURNING id, team_id, parent_id, name, emoji
+            RETURNING id, team_id, parent_id, name, emoji, color
           `,
   });
 
@@ -205,7 +209,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     Result: GroupRow,
     execute: (groupId) =>
       this
-        .sql`SELECT id, team_id, parent_id, name, emoji FROM groups WHERE parent_id = ${groupId} AND is_archived = false`,
+        .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE parent_id = ${groupId} AND is_archived = false`,
   });
 
   private findAncestors = SqlSchema.findAll({
@@ -245,14 +249,20 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     name: string,
     parentId: Option.Option<string>,
     emoji: Option.Option<string>,
+    color: Option.Option<string>,
   ) =>
-    this.insert({ team_id: teamId, parent_id: parentId, name, emoji }).pipe(
+    this.insert({ team_id: teamId, parent_id: parentId, name, emoji, color }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
       catchSqlErrors,
     );
 
-  updateGroupById = (groupId: GroupModel.GroupId, name: string, emoji: Option.Option<string>) =>
-    this.update({ id: groupId, name, emoji }).pipe(
+  updateGroupById = (
+    groupId: GroupModel.GroupId,
+    name: string,
+    emoji: Option.Option<string>,
+    color: Option.Option<string>,
+  ) =>
+    this.update({ id: groupId, name, emoji, color }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
       catchSqlErrors,
     );

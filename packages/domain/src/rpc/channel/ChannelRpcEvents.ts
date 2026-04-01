@@ -14,6 +14,7 @@ export class GroupChannelCreatedEvent extends Schema.TaggedClass<GroupChannelCre
     existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     discord_channel_name: Schema.String,
     discord_role_name: Schema.String,
+    discord_role_color: Schema.OptionFromNullOr(Schema.Number),
   },
 ) {}
 
@@ -28,6 +29,7 @@ export class RosterChannelCreatedEvent extends Schema.TaggedClass<RosterChannelC
     existing_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     discord_channel_name: Schema.String,
     discord_role_name: Schema.String,
+    discord_role_color: Schema.OptionFromNullOr(Schema.Number),
   },
 ) {}
 
@@ -36,6 +38,44 @@ export const ChannelCreatedEvent = Schema.Union(
   RosterChannelCreatedEvent,
 );
 export type ChannelCreatedEvent = Schema.Schema.Type<typeof ChannelCreatedEvent>;
+
+// --- channel_updated ---
+
+export class GroupChannelUpdatedEvent extends Schema.TaggedClass<GroupChannelUpdatedEvent>()(
+  'group_channel_updated',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    group_id: GroupModel.GroupId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Discord.Snowflake,
+    discord_channel_name: Schema.String,
+    discord_role_name: Schema.String,
+    discord_role_color: Schema.OptionFromNullOr(Schema.Number),
+  },
+) {}
+
+export class RosterChannelUpdatedEvent extends Schema.TaggedClass<RosterChannelUpdatedEvent>()(
+  'roster_channel_updated',
+  {
+    id: ChannelSyncEvent.ChannelSyncEventId,
+    team_id: Team.TeamId,
+    guild_id: Discord.Snowflake,
+    roster_id: RosterModel.RosterId,
+    discord_channel_id: Discord.Snowflake,
+    discord_role_id: Discord.Snowflake,
+    discord_channel_name: Schema.String,
+    discord_role_name: Schema.String,
+    discord_role_color: Schema.OptionFromNullOr(Schema.Number),
+  },
+) {}
+
+export const ChannelUpdatedEvent = Schema.Union(
+  GroupChannelUpdatedEvent,
+  RosterChannelUpdatedEvent,
+);
+export type ChannelUpdatedEvent = Schema.Schema.Type<typeof ChannelUpdatedEvent>;
 
 // --- channel_deleted ---
 
@@ -202,6 +242,7 @@ export type ChannelMemberRemovedEvent = Schema.Schema.Type<typeof ChannelMemberR
 
 export const UnprocessedChannelEvent = Schema.Union(
   ChannelCreatedEvent,
+  ChannelUpdatedEvent,
   ChannelDeletedEvent,
   GroupChannelArchivedEvent,
   RosterChannelArchivedEvent,

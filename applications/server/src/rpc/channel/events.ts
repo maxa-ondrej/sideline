@@ -59,6 +59,7 @@ const channelCreatedFromSql = (r: EventRow) =>
               existing_channel_id: r.existing_channel_id,
               discord_channel_name: Option.getOrElse(r.discord_channel_name, () => group_name),
               discord_role_name: Option.getOrElse(r.discord_role_name, () => group_name),
+              discord_role_color: r.discord_role_color,
             }),
         ),
       ),
@@ -78,6 +79,7 @@ const channelCreatedFromSql = (r: EventRow) =>
               existing_channel_id: r.existing_channel_id,
               discord_channel_name: Option.getOrElse(r.discord_channel_name, () => roster_name),
               discord_role_name: Option.getOrElse(r.discord_role_name, () => roster_name),
+              discord_role_color: r.discord_role_color,
             }),
         ),
       ),
@@ -292,8 +294,72 @@ const channelDetachedFromSql = (r: EventRow) =>
     Match.exhaustive,
   );
 
+const channelUpdatedFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('group', () =>
+      Effect.Do.pipe(
+        Effect.bind('group_id', () => nullable(r, 'group_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.bind('discord_role_id', () => nullable(r, 'discord_role_id')),
+        Effect.bind('discord_channel_name', () => nullable(r, 'discord_channel_name')),
+        Effect.bind('discord_role_name', () => nullable(r, 'discord_role_name')),
+        Effect.map(
+          ({
+            group_id,
+            discord_channel_id,
+            discord_role_id,
+            discord_channel_name,
+            discord_role_name,
+          }) =>
+            new ChannelRpcEvents.GroupChannelUpdatedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              group_id,
+              discord_channel_id,
+              discord_role_id,
+              discord_channel_name,
+              discord_role_name,
+              discord_role_color: r.discord_role_color,
+            }),
+        ),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.Do.pipe(
+        Effect.bind('roster_id', () => nullable(r, 'roster_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.bind('discord_role_id', () => nullable(r, 'discord_role_id')),
+        Effect.bind('discord_channel_name', () => nullable(r, 'discord_channel_name')),
+        Effect.bind('discord_role_name', () => nullable(r, 'discord_role_name')),
+        Effect.map(
+          ({
+            roster_id,
+            discord_channel_id,
+            discord_role_id,
+            discord_channel_name,
+            discord_role_name,
+          }) =>
+            new ChannelRpcEvents.RosterChannelUpdatedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              roster_id,
+              discord_channel_id,
+              discord_role_id,
+              discord_channel_name,
+              discord_role_name,
+              discord_role_color: r.discord_role_color,
+            }),
+        ),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
 export const constructEvent = Match.type<EventRow>().pipe(
   Match.when({ event_type: 'channel_created' }, channelCreatedFromSql),
+  Match.when({ event_type: 'channel_updated' }, channelUpdatedFromSql),
   Match.when({ event_type: 'channel_deleted' }, channelDeletedFromSql),
   Match.when({ event_type: 'channel_archived' }, channelArchivedFromSql),
   Match.when({ event_type: 'channel_detached' }, channelDetachedFromSql),

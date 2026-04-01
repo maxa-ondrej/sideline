@@ -52,6 +52,25 @@ export class User extends Model.Class<User>('User')({
 - **Never use `Schema.optional`** — always use `Schema.optionalWith({ as: 'Option' })` or `Schema.OptionFromNullOr(...)` so optional values are `Option<T>` instead of `T | undefined`
 - **`Schema.OptionFromNullOr`** for nullable API/DB fields — decodes `null`/`undefined` → `Option.none()`, values → `Option.some(value)`
 
+### Shared Schemas Across API Contracts
+
+When multiple API groups need the same schema, define it in one `api/*.ts` file and re-export from others:
+
+```typescript
+// src/api/GroupApi.ts — defines HexColor
+export const HexColor = Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/));
+
+// src/api/Roster.ts — re-exports HexColor
+import { HexColor } from '~/api/GroupApi.js';
+export { HexColor };
+```
+
+Current shared schemas:
+
+| Schema | Defined in | Re-exported by |
+|--------|-----------|----------------|
+| `HexColor` | `src/api/GroupApi.ts` | `src/api/Roster.ts` |
+
 ## Build Requirement
 
 **Critical**: After changing source files in this package, always rebuild before running type checks or tests in consuming packages:

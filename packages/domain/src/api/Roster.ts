@@ -1,12 +1,15 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { HexColor } from '~/api/GroupApi.js';
 import { Snowflake } from '~/models/Discord.js';
 import { Permission } from '~/models/Role.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 import { Gender, UserId } from '~/models/User.js';
+
+export { HexColor };
 
 export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   memberId: TeamMemberId,
@@ -60,6 +63,8 @@ export class RosterInfo extends Schema.Class<RosterInfo>('RosterInfo')({
   active: Schema.Boolean,
   memberCount: Schema.Number,
   createdAt: Schema.String,
+  color: Schema.OptionFromNullOr(HexColor),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   discordChannelName: Schema.OptionFromNullOr(Schema.String),
   discordChannelProvisioning: Schema.Boolean,
@@ -76,6 +81,8 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   name: Schema.String,
   active: Schema.Boolean,
   createdAt: Schema.String,
+  color: Schema.OptionFromNullOr(HexColor),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   members: Schema.Array(RosterPlayer),
   canManage: Schema.Boolean,
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
@@ -85,11 +92,15 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
 
 export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({
   name: Schema.String,
+  color: Schema.OptionFromNullOr(HexColor),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('UpdateRosterRequest')({
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
+  color: Schema.OptionFromNullOr(HexColor),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 

@@ -161,6 +161,8 @@ type RosterRecord = {
   team_id: Team.TeamId;
   name: string;
   active: boolean;
+  color: Option.Option<string>;
+  emoji: Option.Option<string>;
   discord_channel_id: Option.Option<Discord.Snowflake>;
   created_at: DateTime.Utc;
 };
@@ -176,6 +178,8 @@ rostersStore.set(TEST_ROSTER_ID, {
   team_id: TEST_TEAM_ID,
   name: 'Test Roster',
   active: true,
+  color: Option.none(),
+  emoji: Option.none(),
   discord_channel_id: Option.none(),
   created_at: DateTime.unsafeNow(),
 });
@@ -349,6 +353,8 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
         team_id: r.team_id,
         name: r.name,
         active: r.active,
+        color: r.color,
+        emoji: r.emoji,
         discord_channel_id: r.discord_channel_id,
         created_at: r.created_at,
         member_count: Array.from(rosterMembersStore.values()).filter((rm) => rm.roster_id === r.id)
@@ -360,13 +366,21 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     const roster = rostersStore.get(id);
     return Effect.succeed(roster ? Option.some(roster) : Option.none());
   },
-  insert: (input: { team_id: string; name: string; active: boolean }) => {
+  insert: (input: {
+    team_id: string;
+    name: string;
+    active: boolean;
+    color: Option.Option<string>;
+    emoji: Option.Option<string>;
+  }) => {
     const id = crypto.randomUUID() as RosterModel.RosterId;
     const roster: RosterRecord = {
       id,
       team_id: input.team_id as Team.TeamId,
       name: input.name,
       active: input.active,
+      color: input.color,
+      emoji: input.emoji,
       discord_channel_id: Option.none(),
       created_at: DateTime.unsafeNow(),
     };
@@ -377,6 +391,8 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
     id: RosterModel.RosterId;
     name: Option.Option<string>;
     active: Option.Option<boolean>;
+    color: Option.Option<string>;
+    emoji: Option.Option<string>;
     discord_channel_id?: Option.Option<Option.Option<Discord.Snowflake>>;
   }) => {
     const roster = rostersStore.get(input.id);
@@ -385,6 +401,8 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
       ...roster,
       name: Option.getOrElse(input.name, () => roster.name),
       active: Option.getOrElse(input.active, () => roster.active),
+      color: Option.isSome(input.color) ? input.color : roster.color,
+      emoji: Option.isSome(input.emoji) ? input.emoji : roster.emoji,
       discord_channel_id:
         input.discord_channel_id !== undefined
           ? Option.getOrElse(input.discord_channel_id, () => roster.discord_channel_id)
@@ -975,7 +993,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'New Roster' }),
+          body: JSON.stringify({ name: 'New Roster', color: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(403);
@@ -989,7 +1007,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'New Roster' }),
+          body: JSON.stringify({ name: 'New Roster', color: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(201);
@@ -1055,7 +1073,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer user-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Updated', active: null }),
+          body: JSON.stringify({ name: 'Updated', active: null, color: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(403);
@@ -1069,7 +1087,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Updated Roster', active: null }),
+          body: JSON.stringify({ name: 'Updated Roster', active: null, color: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(200);
@@ -1086,7 +1104,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: null, active: false }),
+          body: JSON.stringify({ name: null, active: false, color: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(404);
@@ -1099,6 +1117,8 @@ describe('Rosters API', () => {
         team_id: TEST_TEAM_ID,
         name: 'Test Roster',
         active: true,
+        color: Option.none(),
+        emoji: Option.none(),
         discord_channel_id: Option.none(),
         created_at: DateTime.unsafeNow(),
       });
@@ -1109,7 +1129,13 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: null, active: null, discordChannelId: '123456789' }),
+          body: JSON.stringify({
+            name: null,
+            active: null,
+            color: null,
+            emoji: null,
+            discordChannelId: '123456789',
+          }),
         }),
       );
       expect(response.status).toBe(200);
@@ -1124,6 +1150,8 @@ describe('Rosters API', () => {
         team_id: TEST_TEAM_ID,
         name: 'Test Roster',
         active: true,
+        color: Option.none(),
+        emoji: Option.none(),
         discord_channel_id: Option.some('987654321' as Discord.Snowflake),
         created_at: DateTime.unsafeNow(),
       });
@@ -1134,7 +1162,13 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: null, active: null, discordChannelId: null }),
+          body: JSON.stringify({
+            name: null,
+            active: null,
+            color: null,
+            emoji: null,
+            discordChannelId: null,
+          }),
         }),
       );
       expect(response.status).toBe(200);
@@ -1150,6 +1184,8 @@ describe('Rosters API', () => {
         team_id: TEST_TEAM_ID,
         name: 'Test Roster',
         active: true,
+        color: Option.none(),
+        emoji: Option.none(),
         discord_channel_id: Option.some(existingChannelId),
         created_at: DateTime.unsafeNow(),
       });
@@ -1160,7 +1196,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'New Name', active: null }),
+          body: JSON.stringify({ name: 'New Name', active: null, color: null, emoji: null }),
         }),
       );
       expect(response.status).toBe(200);
@@ -1201,7 +1237,7 @@ describe('Rosters API', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'To Delete' }),
+          body: JSON.stringify({ name: 'To Delete', color: null, emoji: null }),
         }),
       );
       const created = await createResponse.json();

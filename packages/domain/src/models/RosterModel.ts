@@ -12,5 +12,7 @@ export class Roster extends Model.Class<Roster>('Roster')({
   name: Schema.String,
   active: Schema.Boolean,
   discord_channel_id: Schema.OptionFromNullOr(Snowflake),
+  color: Schema.OptionFromNullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
 }) {}

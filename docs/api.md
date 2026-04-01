@@ -678,9 +678,11 @@ Lists all rosters for a team with member counts.
 | `name` | `string` | No | Roster name |
 | `active` | `boolean` | No | Whether the roster is active |
 | `memberCount` | `number` | No | Number of members on this roster |
+| `createdAt` | `string` | No | Creation timestamp |
+| `color` | `string \| null` | Yes | Hex colour string (e.g. `#3498db`), used for Discord role colour |
+| `emoji` | `string \| null` | Yes | Optional emoji for display |
 | `discordChannelId` | `string` | Yes | Linked Discord channel ID |
 | `discordChannelName` | `string` | Yes | Resolved Discord channel name |
-| `createdAt` | `string` | No | Creation timestamp |
 
 **Errors:**
 
@@ -708,6 +710,8 @@ Creates a new roster.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | `string` | Yes | Roster name |
+| `color` | `string \| null` | Yes | Hex colour string (null for none) |
+| `emoji` | `string \| null` | Yes | Optional emoji (null for none) |
 
 **Response:** `201 Created` — `RosterInfo`
 
@@ -742,6 +746,8 @@ Returns full roster details including the member list.
 | `name` | `string` | No | Roster name |
 | `active` | `boolean` | No | Whether the roster is active |
 | `createdAt` | `string` | No | Creation timestamp |
+| `color` | `string \| null` | Yes | Hex colour string (e.g. `#3498db`) |
+| `emoji` | `string \| null` | Yes | Optional emoji for display |
 | `members` | `RosterPlayer[]` | No | Members on this roster |
 | `canManage` | `boolean` | No | Whether the user can manage this roster |
 | `discordChannelId` | `string` | Yes | Linked Discord channel ID |
@@ -776,6 +782,8 @@ Updates a roster's name, active status, or linked Discord channel.
 |---|---|---|---|
 | `name` | `string \| null` | No | New name (null keeps current) |
 | `active` | `boolean \| null` | No | Active status (null keeps current) |
+| `color` | `string \| null` | No | Hex colour string (null clears) |
+| `emoji` | `string \| null` | No | Emoji (null clears) |
 | `discordChannelId` | `string \| null` | No | Discord channel ID (null clears, omit to keep current) |
 
 **Response:** `200 OK` — `RosterInfo`
@@ -1162,6 +1170,7 @@ Lists all groups for a team.
 | `parentId` | `GroupId \| null` | Yes | Parent group ID (for nested groups) |
 | `name` | `string` | No | Group name |
 | `emoji` | `string \| null` | Yes | Optional emoji for display |
+| `color` | `string \| null` | Yes | Hex colour string (e.g. `#3498db`), used for Discord role colour |
 | `memberCount` | `number` | No | Number of members in this group |
 
 **Errors:**
@@ -1192,6 +1201,7 @@ Creates a new group.
 | `name` | `string` | Yes | Non-empty group name (must be unique) |
 | `parentId` | `GroupId \| null` | Yes | Parent group ID (null for top-level) |
 | `emoji` | `string \| null` | Yes | Optional emoji (null for none) |
+| `color` | `string \| null` | Yes | Hex colour string (null for none) |
 
 **Response:** `201 Created` — `GroupInfo`
 
@@ -1226,6 +1236,7 @@ Returns full group details including members and assigned roles.
 | `parentId` | `GroupId \| null` | Yes | Parent group ID |
 | `name` | `string` | No | Group name |
 | `emoji` | `string \| null` | Yes | Optional emoji |
+| `color` | `string \| null` | Yes | Hex colour string (e.g. `#3498db`) |
 | `roles` | `{ roleId: RoleId, roleName: string }[]` | No | Roles assigned to this group |
 | `members` | `{ memberId: TeamMemberId, name: string \| null, username: string }[]` | No | Members in this group |
 
@@ -1240,7 +1251,7 @@ Returns full group details including members and assigned roles.
 
 #### `PATCH /teams/:teamId/groups/:groupId`
 
-Updates a group's name and/or emoji.
+Updates a group's name, emoji, and/or colour.
 
 **Auth:** Bearer token (AuthMiddleware)
 **Required Permission:** `team:manage`
@@ -1258,6 +1269,7 @@ Updates a group's name and/or emoji.
 |---|---|---|---|
 | `name` | `string` | Yes | Non-empty group name |
 | `emoji` | `string \| null` | Yes | Emoji (null clears) |
+| `color` | `string \| null` | Yes | Hex colour string (null clears) |
 
 **Response:** `200 OK` — `GroupInfo`
 

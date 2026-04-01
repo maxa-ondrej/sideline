@@ -228,6 +228,7 @@ type GroupLike = {
   parent_id: Option.Option<GroupModel.GroupId>;
   name: string;
   emoji: Option.Option<string>;
+  color: Option.Option<string>;
 };
 
 const groupsStore = new Map<GroupModel.GroupId, GroupLike>();
@@ -254,6 +255,7 @@ const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
     name: string,
     parentId: Option.Option<GroupModel.GroupId>,
     emoji: Option.Option<string>,
+    color: Option.Option<string>,
   ) => {
     const id =
       `00000000-0000-0000-0000-${String(nextGroupId++).padStart(12, '0')}` as GroupModel.GroupId;
@@ -263,6 +265,7 @@ const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
       parent_id: parentId,
       name,
       emoji,
+      color,
     };
     groupsStore.set(id, g);
     return Effect.succeed(g);
@@ -825,7 +828,7 @@ describe('Channel Sync Events', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Goalkeepers', parentId: null, emoji: null }),
+          body: JSON.stringify({ name: 'Goalkeepers', parentId: null, emoji: null, color: null }),
         }),
       );
       expect(response.status).toBe(201);
@@ -854,7 +857,7 @@ describe('Channel Sync Events', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'ToDelete', parentId: null, emoji: null }),
+          body: JSON.stringify({ name: 'ToDelete', parentId: null, emoji: null, color: null }),
         }),
       );
       const created = await createResponse.json();
@@ -893,7 +896,7 @@ describe('Channel Sync Events', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'WithMembers', parentId: null, emoji: null }),
+          body: JSON.stringify({ name: 'WithMembers', parentId: null, emoji: null, color: null }),
         }),
       );
       const created = await createResponse.json();
@@ -932,7 +935,7 @@ describe('Channel Sync Events', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'ForRemoval', parentId: null, emoji: null }),
+          body: JSON.stringify({ name: 'ForRemoval', parentId: null, emoji: null, color: null }),
         }),
       );
       const created = await createResponse.json();
@@ -982,7 +985,7 @@ describe('Channel Sync Events', () => {
             Authorization: 'Bearer admin-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'Resilient', parentId: null, emoji: null }),
+          body: JSON.stringify({ name: 'Resilient', parentId: null, emoji: null, color: null }),
         }),
       );
       expect(response.status).toBe(201);
@@ -1021,7 +1024,12 @@ describe('Channel Sync Events', () => {
               Authorization: 'Bearer admin-token',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name: 'DiscordEnabled', parentId: null, emoji: null }),
+            body: JSON.stringify({
+              name: 'DiscordEnabled',
+              parentId: null,
+              emoji: null,
+              color: null,
+            }),
           }),
         );
         expect(response.status).toBe(201);
@@ -1059,7 +1067,12 @@ describe('Channel Sync Events', () => {
               Authorization: 'Bearer admin-token',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name: 'DiscordDisabled', parentId: null, emoji: null }),
+            body: JSON.stringify({
+              name: 'DiscordDisabled',
+              parentId: null,
+              emoji: null,
+              color: null,
+            }),
           }),
         );
         expect(response.status).toBe(201);
@@ -1094,7 +1107,7 @@ describe('Channel Sync Events', () => {
               Authorization: 'Bearer admin-token',
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ name: 'NoSettings', parentId: null, emoji: null }),
+            body: JSON.stringify({ name: 'NoSettings', parentId: null, emoji: null, color: null }),
           }),
         );
         expect(response.status).toBe(201);

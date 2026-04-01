@@ -18,6 +18,7 @@ import {
   DEFAULT_CHANNEL_FORMAT,
   DEFAULT_ROLE_FORMAT,
 } from '~/utils/applyDiscordFormat.js';
+import { hexColorToDiscordInt } from '~/utils/hexColorToDiscordInt.js';
 
 const forbidden = new GroupApi.Forbidden();
 
@@ -69,6 +70,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       parentId: g.parent_id,
                       name: g.name,
                       emoji: g.emoji,
+                      color: g.color,
                       memberCount: g.member_count,
                       discordChannelProvisioning: provisioningSet.has(g.id),
                     }),
@@ -86,7 +88,13 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('group', () =>
-                groups.insertGroup(teamId, payload.name, payload.parentId, payload.emoji),
+                groups.insertGroup(
+                  teamId,
+                  payload.name,
+                  payload.parentId,
+                  payload.emoji,
+                  payload.color,
+                ),
               ),
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
               Effect.tap(({ group, settings }) => {
@@ -106,6 +114,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   group.name,
                   group.emoji,
                 );
+                const discordRoleColor = Option.map(group.color, hexColorToDiscordInt);
                 return Option.match(settings, {
                   onNone: () =>
                     channelSync.emitChannelCreated(
@@ -115,6 +124,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       Option.none(),
                       channelName,
                       roleName,
+                      discordRoleColor,
                     ),
                   onSome: (s) =>
                     s.create_discord_channel_on_group
@@ -125,6 +135,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                           Option.none(),
                           channelName,
                           roleName,
+                          discordRoleColor,
                         )
                       : Effect.void,
                 });
@@ -140,6 +151,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   parentId: group.parent_id,
                   name: group.name,
                   emoji: group.emoji,
+                  color: group.color,
                   memberCount: 0,
                   discordChannelProvisioning: autoCreate,
                 });
@@ -188,6 +200,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     parentId: group.parent_id,
                     name: group.name,
                     emoji: group.emoji,
+                    color: group.color,
                     discordChannelProvisioning: provisioningIds.length > 0,
                     roles: Array.map(groupRoles, (r) => ({
                       roleId: r.role_id,
@@ -227,8 +240,61 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   : Effect.void,
               ),
               Effect.bind('updated', () =>
-                groups.updateGroupById(groupId, payload.name, payload.emoji),
+                groups.updateGroupById(groupId, payload.name, payload.emoji, payload.color),
               ),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.bind('mapping', () => channelMappings.findByGroupId(teamId, groupId)),
+              Effect.tap(({ existing, updated, settings, mapping }) => {
+                const nameChanged = existing.name !== updated.name;
+                const emojiChanged =
+                  Option.getOrElse(existing.emoji, () => '') !==
+                  Option.getOrElse(updated.emoji, () => '');
+                const colorChanged =
+                  Option.getOrElse(existing.color, () => '') !==
+                  Option.getOrElse(updated.color, () => '');
+                const anythingChanged = nameChanged || emojiChanged || colorChanged;
+                return anythingChanged
+                  ? Option.match(mapping, {
+                      onNone: () => Effect.void,
+                      onSome: (m) => {
+                        return Option.match(m.discord_role_id, {
+                          onNone: () => Effect.void,
+                          onSome: (discordRoleId) => {
+                            const channelName = applyDiscordFormat(
+                              Option.match(settings, {
+                                onNone: () => DEFAULT_CHANNEL_FORMAT,
+                                onSome: (s) => s.discord_channel_format,
+                              }),
+                              updated.name,
+                              updated.emoji,
+                            );
+                            const roleName = applyDiscordFormat(
+                              Option.match(settings, {
+                                onNone: () => DEFAULT_ROLE_FORMAT,
+                                onSome: (s) => s.discord_role_format,
+                              }),
+                              updated.name,
+                              updated.emoji,
+                            );
+                            const discordRoleColor = Option.map(
+                              updated.color,
+                              hexColorToDiscordInt,
+                            );
+                            return channelSync.emitGroupChannelUpdated(
+                              teamId,
+                              groupId,
+                              m.discord_channel_id,
+                              discordRoleId,
+                              channelName,
+                              roleName,
+                              discordRoleColor,
+                            );
+                          },
+                        });
+                      },
+                    })
+                  : Effect.void;
+              }),
               Effect.bind('memberCount', () => groups.getMemberCount(groupId)),
               Effect.bind('provisioningIds', () => channelSync.hasUnprocessedForGroups([groupId])),
               Effect.map(
@@ -239,6 +305,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     parentId: updated.parent_id,
                     name: updated.name,
                     emoji: updated.emoji,
+                    color: updated.color,
                     memberCount,
                     discordChannelProvisioning: provisioningIds.length > 0,
                   }),
@@ -544,6 +611,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     parentId: updated.parent_id,
                     name: updated.name,
                     emoji: updated.emoji,
+                    color: updated.color,
                     memberCount,
                     discordChannelProvisioning: provisioningIds.length > 0,
                   }),
@@ -658,6 +726,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   _group.name,
                   _group.emoji,
                 );
+                const discordRoleColor = Option.map(_group.color, hexColorToDiscordInt);
                 return channelSync.emitChannelCreated(
                   teamId,
                   groupId,
@@ -665,6 +734,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   Option.some(payload.discordChannelId),
                   channelName,
                   roleName,
+                  discordRoleColor,
                 );
               }),
               Effect.bind('team', () =>
@@ -811,6 +881,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   group.name,
                   group.emoji,
                 );
+                const discordRoleColor = Option.map(group.color, hexColorToDiscordInt);
                 return channelSync.emitChannelCreated(
                   teamId,
                   groupId,
@@ -818,6 +889,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   Option.none(),
                   channelName,
                   roleName,
+                  discordRoleColor,
                 );
               }),
               Effect.asVoid,

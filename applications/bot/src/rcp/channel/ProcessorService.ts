@@ -12,10 +12,13 @@ import { handleGroupDetached, handleRosterDetached } from './handleDetached.js';
 import { handleMemberAdded, handleRosterMemberAdded } from './handleMemberAdded.js';
 import { handleMemberRemoved, handleRosterMemberRemoved } from './handleMemberRemoved.js';
 import { handleRosterChannelCreated } from './handleRosterChannelCreated.js';
+import { handleGroupChannelUpdated, handleRosterChannelUpdated } from './handleUpdated.js';
 
 const action = Match.type<ChannelRpcEvents.UnprocessedChannelEvent>().pipe(
   Match.tag('group_channel_created', handleCreated),
   Match.tag('roster_channel_created', handleRosterChannelCreated),
+  Match.tag('group_channel_updated', handleGroupChannelUpdated),
+  Match.tag('roster_channel_updated', handleRosterChannelUpdated),
   Match.tag('group_channel_deleted', handleDeleted),
   Match.tag('roster_channel_deleted', handleRosterDeleted),
   Match.tag('group_channel_archived', handleGroupArchived),

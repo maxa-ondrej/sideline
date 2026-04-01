@@ -4,8 +4,9 @@ import { createDiscordChannelAndRole } from '~/rest/channels/createChannelWithRo
 import { createRoleForChannel } from '~/rest/channels/createRoleForChannel.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-export const handleRosterChannelCreated = (event: ChannelRpcEvents.RosterChannelCreatedEvent) =>
-  Effect.Do.pipe(
+export const handleRosterChannelCreated = (event: ChannelRpcEvents.RosterChannelCreatedEvent) => {
+  const roleColor = Option.getOrUndefined(event.discord_role_color);
+  return Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('result', () =>
       Option.match(event.existing_channel_id, {
@@ -14,9 +15,10 @@ export const handleRosterChannelCreated = (event: ChannelRpcEvents.RosterChannel
             event.guild_id,
             event.discord_channel_name,
             event.discord_role_name,
+            roleColor,
           ),
         onSome: (channelId) =>
-          createRoleForChannel(event.guild_id, channelId, event.discord_role_name),
+          createRoleForChannel(event.guild_id, channelId, event.discord_role_name, roleColor),
       }),
     ),
     Effect.tap(({ result, rpc }) =>
@@ -40,3 +42,4 @@ export const handleRosterChannelCreated = (event: ChannelRpcEvents.RosterChannel
     ),
     Effect.asVoid,
   );
+};
