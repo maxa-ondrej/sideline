@@ -235,7 +235,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
             <FormField
               {...form.register('name')}
               render={({ field }) => (
-                <FormItem className='flex-1'>
+                <FormItem className='flex-1 min-w-48'>
                   <FormLabel>{m.group_groupName()}</FormLabel>
                   <FormControl>
                     <Input
