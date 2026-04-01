@@ -201,6 +201,14 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   _tag: 'api/ChannelSyncEventsRepository',
   emitChannelCreated: recordChannelCreatedCall,
   emitChannelDeleted: recordCall('channel_deleted'),
+  emitChannelArchived: recordCall('channel_archived'),
+  emitChannelDetached: recordCall('channel_detached'),
+  emitRosterChannelCreated: recordCall('channel_created'),
+  emitRosterChannelDeleted: recordCall('channel_deleted'),
+  emitRosterChannelArchived: recordCall('channel_archived'),
+  emitRosterChannelDetached: recordCall('channel_detached'),
+  emitGroupChannelUpdated: recordCall('channel_updated'),
+  emitRosterChannelUpdated: recordCall('channel_updated'),
   emitMemberAdded: recordCall('member_added'),
   emitMemberRemoved: recordCall('member_removed'),
   findUnprocessed: () => Effect.succeed([]),
@@ -731,7 +739,14 @@ const makeTestSettingsLayer = (findByTeamId: () => Effect.Effect<Option.Option<u
     getHorizonDays: () => Effect.succeed(30),
   } as unknown as TeamSettingsRepository);
 
-const makeTeamSettingsRow = (createDiscordChannelOnGroup: boolean) => ({
+const makeTeamSettingsRow = (
+  createDiscordChannelOnGroup: boolean,
+  overrides?: {
+    discord_channel_cleanup_on_group_delete?: 'nothing' | 'delete' | 'archive';
+    discord_channel_cleanup_on_roster_deactivate?: 'nothing' | 'delete' | 'archive';
+    discord_archive_category_id?: string;
+  },
+) => ({
   team_id: TEST_TEAM_ID,
   event_horizon_days: 30,
   min_players_threshold: 0,
@@ -746,6 +761,13 @@ const makeTeamSettingsRow = (createDiscordChannelOnGroup: boolean) => ({
   create_discord_channel_on_roster: true,
   discord_role_format: '{emoji} {name}',
   discord_channel_format: '{emoji}│{name}',
+  discord_channel_cleanup_on_group_delete:
+    overrides?.discord_channel_cleanup_on_group_delete ?? 'delete',
+  discord_channel_cleanup_on_roster_deactivate:
+    overrides?.discord_channel_cleanup_on_roster_deactivate ?? 'delete',
+  discord_archive_category_id: overrides?.discord_archive_category_id
+    ? Option.some(overrides.discord_archive_category_id)
+    : Option.none(),
 });
 
 const buildTestLayer = (settingsLayer: Layer.Layer<TeamSettingsRepository>) =>
@@ -884,6 +906,77 @@ describe('Channel Sync Events', () => {
         groupId: created.groupId,
         groupName: 'ToDelete',
       });
+    });
+  });
+
+  describe('deleteGroup — archive cleanup mode', () => {
+    let archiveHandler: (request: Request) => Promise<Response>;
+    let archiveDispose: () => Promise<void>;
+
+    beforeAll(() => {
+      const layer = buildTestLayer(
+        makeTestSettingsLayer(() =>
+          Effect.succeed(
+            Option.some(
+              makeTeamSettingsRow(true, {
+                discord_channel_cleanup_on_group_delete: 'archive',
+                discord_archive_category_id: '888777666',
+              }),
+            ),
+          ),
+        ),
+      );
+      const app = HttpApiBuilder.toWebHandler(layer);
+      archiveHandler = app.handler;
+      archiveDispose = app.dispose;
+    });
+
+    afterAll(async () => {
+      await archiveDispose();
+    });
+
+    beforeEach(() => {
+      channelSyncEventCalls.length = 0;
+    });
+
+    it('emits channel_archived sync event and deletes mapping', async () => {
+      const createResponse = await archiveHandler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups`, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: 'ToArchive', parentId: null, emoji: null, color: null }),
+        }),
+      );
+      const created = await createResponse.json();
+
+      // Set up a channel mapping
+      channelMappingsStore.set(created.groupId, {
+        discord_channel_id: '999888777',
+        discord_role_id: Option.some('111222333'),
+      });
+      channelSyncEventCalls.length = 0;
+
+      const response = await archiveHandler(
+        new Request(`http://localhost/teams/${TEST_TEAM_ID}/groups/${created.groupId}`, {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(204);
+
+      expect(channelSyncEventCalls).toHaveLength(1);
+      expect(channelSyncEventCalls[0]).toMatchObject({
+        teamId: TEST_TEAM_ID,
+        eventType: 'channel_archived',
+        groupId: created.groupId,
+        groupName: 'ToArchive',
+      });
+
+      // Verify the channel mapping was deleted
+      expect(channelMappingsStore.has(created.groupId)).toBe(false);
     });
   });
 
