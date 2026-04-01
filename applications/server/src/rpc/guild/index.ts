@@ -187,6 +187,14 @@ export const GuildsRpcLive = Effect.all([
             })),
           ),
 
+        'Guild/UpdateChannelName': ({
+          channel_id,
+          name,
+        }: {
+          readonly channel_id: Discord.Snowflake;
+          readonly name: string;
+        }) => discordChannels.updateChannelName(channel_id, name),
+
         'Guild/RegisterMember': (payload: RegisterMemberPayload) => register(payload),
 
         'Guild/ReconcileMembers': ({

@@ -77,5 +77,13 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
       catchSqlErrors,
     );
 
+  updateChannelName = (channelId: Discord.Snowflake, name: string) =>
+    SqlSchema.void({
+      Request: Schema.Struct({ channel_id: Discord.Snowflake, name: Schema.String }),
+      execute: (input) => this.sql`
+        UPDATE discord_channels SET name = ${input.name} WHERE channel_id = ${input.channel_id}
+      `,
+    })({ channel_id: channelId, name }).pipe(catchSqlErrors);
+
   findByGuildId = (guildId: Discord.Snowflake) => this.selectByGuild(guildId).pipe(catchSqlErrors);
 }

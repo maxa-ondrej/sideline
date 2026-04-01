@@ -2,6 +2,7 @@ import type { ChannelRpcEvents, Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Option } from 'effect';
 import { retryPolicy } from '~/rest/utils.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 interface ChannelUpdatedFields {
   readonly guild_id: Discord.Snowflake;
@@ -16,6 +17,7 @@ const handleChannelUpdated = (event: ChannelUpdatedFields) => {
   const roleColor = Option.getOrUndefined(event.discord_role_color);
   return Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rpc', () => SyncRpc),
     Effect.tap(({ rest }) =>
       rest
         .updateGuildRole(event.guild_id, event.discord_role_id, {
@@ -38,6 +40,15 @@ const handleChannelUpdated = (event: ChannelUpdatedFields) => {
       Effect.logInfo(
         `Updated Discord channel ${event.discord_channel_id} name="${event.discord_channel_name}" in guild ${event.guild_id}`,
       ),
+    ),
+    Effect.tap(({ rpc }) =>
+      rpc['Guild/UpdateChannelName']({
+        channel_id: event.discord_channel_id,
+        name: event.discord_channel_name,
+      }),
+    ),
+    Effect.tap(() =>
+      Effect.logInfo(`Synced channel name update for ${event.discord_channel_id} to server`),
     ),
     Effect.asVoid,
   );
