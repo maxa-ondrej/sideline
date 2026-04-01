@@ -9,6 +9,8 @@ class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
   team_id: Team.TeamId,
   name: Schema.String,
   active: Schema.Boolean,
+  color: Schema.OptionFromNullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   created_at: Model.DateTimeFromDate,
   member_count: Schema.Number,
@@ -18,12 +20,16 @@ class RosterInsertInput extends Schema.Class<RosterInsertInput>('RosterInsertInp
   team_id: Schema.String,
   name: Schema.String,
   active: Schema.Boolean,
+  color: Schema.OptionFromNullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInput')({
   id: RosterModel.RosterId,
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
+  color: Schema.OptionFromNullOr(Schema.String),
+  emoji: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.optionalWith(Schema.OptionFromNullOr(Discord.Snowflake), {
     as: 'Option',
   }),
@@ -50,7 +56,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     Request: Schema.String,
     Result: RosterWithCount,
     execute: (teamId) => this.sql`
-      SELECT r.id, r.team_id, r.name, r.active, r.discord_channel_id, r.created_at,
+      SELECT r.id, r.team_id, r.name, r.active, r.color, r.emoji, r.discord_channel_id, r.created_at,
              (SELECT COUNT(*) FROM roster_members rm WHERE rm.roster_id = r.id)::int AS member_count
       FROM rosters r
       WHERE r.team_id = ${teamId}
@@ -68,8 +74,8 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     Request: RosterInsertInput,
     Result: RosterModel.Roster,
     execute: (input) => this.sql`
-      INSERT INTO rosters (team_id, name, active)
-      VALUES (${input.team_id}, ${input.name}, ${input.active})
+      INSERT INTO rosters (team_id, name, active, color, emoji)
+      VALUES (${input.team_id}, ${input.name}, ${input.active}, ${input.color}, ${input.emoji})
       RETURNING *
     `,
   });
@@ -79,6 +85,8 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       id: RosterModel.RosterId,
       name: Schema.OptionFromNullOr(Schema.String),
       active: Schema.OptionFromNullOr(Schema.Boolean),
+      color: Schema.OptionFromNullOr(Schema.String),
+      emoji: Schema.OptionFromNullOr(Schema.String),
       update_channel: Schema.Boolean,
       discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     }),
@@ -87,6 +95,8 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       UPDATE rosters
       SET name = COALESCE(${i.name}, name),
           active = COALESCE(${i.active}, active),
+          color = ${i.color},
+          emoji = ${i.emoji},
           discord_channel_id = CASE WHEN ${i.update_channel} THEN ${i.discord_channel_id} ELSE discord_channel_id END
       WHERE id = ${i.id}
       RETURNING *
@@ -159,7 +169,8 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
 
   findRosterById = (rosterId: RosterModel.RosterId) => this.findById(rosterId).pipe(catchSqlErrors);
 
-  insert = (input: RosterInsertInput) => this.insertOne(input).pipe(catchSqlErrors);
+  insert = (input: typeof RosterInsertInput.Type) =>
+    this.insertOne(new RosterInsertInput(input)).pipe(catchSqlErrors);
 
   update = (input: typeof RosterUpdateInput.Type) => {
     const parsed = new RosterUpdateInput(input);
@@ -167,6 +178,8 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       id: parsed.id,
       name: parsed.name,
       active: parsed.active,
+      color: parsed.color,
+      emoji: parsed.emoji,
       update_channel: Option.isSome(parsed.discord_channel_id),
       discord_channel_id: Option.getOrElse(parsed.discord_channel_id, () => Option.none()),
     }).pipe(catchSqlErrors);

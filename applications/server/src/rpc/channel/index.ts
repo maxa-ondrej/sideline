@@ -192,6 +192,8 @@ export const ChannelsRpcLive = Effect.Do.pipe(
             id: roster_id,
             name: Option.none(),
             active: Option.none(),
+            color: Option.none(),
+            emoji: Option.none(),
             discord_channel_id: Option.some(discord_channel_id),
           })
           .pipe(

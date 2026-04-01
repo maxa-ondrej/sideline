@@ -71,7 +71,9 @@ const createGroup = (
   parentId: Option.Option<GroupModel.GroupId> = Option.none(),
 ) =>
   GroupsRepository.pipe(
-    Effect.andThen((repo) => repo.insertGroup(teamId, name, parentId, Option.none())),
+    Effect.andThen((repo) =>
+      repo.insertGroup(teamId, name, parentId, Option.none(), Option.none()),
+    ),
   );
 
 /** Adds a team member to a group. */

@@ -13,12 +13,15 @@ const createRoleForExistingChannel = (
   guildId: DiscordSchemas.Snowflake,
   channelId: DiscordSchemas.Snowflake,
   roleName: string,
+  roleColor?: number,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('role', ({ rest }) =>
-      rest.createGuildRole(guildId, { name: roleName }).pipe(Effect.retry(retryPolicy)),
+      rest
+        .createGuildRole(guildId, { name: roleName, color: roleColor })
+        .pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ role }) =>
       Effect.logInfo(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),
@@ -51,6 +54,7 @@ export const ensureMapping = (
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
   roleName: string,
+  roleColor?: number,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
@@ -73,12 +77,13 @@ export const ensureMapping = (
                 guildId,
                 mapping.discord_channel_id,
                 roleName,
+                roleColor,
               ),
             ),
           ),
         ),
         Effect.catchTag('NoSuchElementException', () =>
-          createChannelWithRole(teamId, groupId, guildId, channelName, roleName),
+          createChannelWithRole(teamId, groupId, guildId, channelName, roleName, roleColor),
         ),
       ),
     ),

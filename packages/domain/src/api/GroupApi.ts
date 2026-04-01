@@ -7,12 +7,15 @@ import { RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
+export const HexColor = Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/));
+
 export class GroupInfo extends Schema.Class<GroupInfo>('GroupInfo')({
   groupId: GroupId,
   teamId: TeamId,
   parentId: Schema.OptionFromNullOr(GroupId),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(HexColor),
   memberCount: Schema.Number,
   discordChannelProvisioning: Schema.Boolean,
 }) {}
@@ -23,6 +26,7 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
   parentId: Schema.OptionFromNullOr(GroupId),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(HexColor),
   roles: Schema.Array(
     Schema.Struct({
       roleId: RoleId,
@@ -43,11 +47,13 @@ export class CreateGroupRequest extends Schema.Class<CreateGroupRequest>('Create
   name: Schema.NonEmptyString,
   parentId: Schema.OptionFromNullOr(GroupId),
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(HexColor),
 }) {}
 
 export class UpdateGroupRequest extends Schema.Class<UpdateGroupRequest>('UpdateGroupRequest')({
   name: Schema.NonEmptyString,
   emoji: Schema.OptionFromNullOr(Schema.String),
+  color: Schema.OptionFromNullOr(HexColor),
 }) {}
 
 export class AddGroupMemberRequest extends Schema.Class<AddGroupMemberRequest>(

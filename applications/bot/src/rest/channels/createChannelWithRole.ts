@@ -11,6 +11,7 @@ export const createDiscordChannelAndRole = (
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
   roleName: string,
+  roleColor?: number,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
@@ -31,7 +32,9 @@ export const createDiscordChannelAndRole = (
       ),
     ),
     Effect.bind('role', ({ rest }) =>
-      rest.createGuildRole(guildId, { name: roleName }).pipe(Effect.retry(retryPolicy)),
+      rest
+        .createGuildRole(guildId, { name: roleName, color: roleColor })
+        .pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ role }) =>
       Effect.logInfo(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),
@@ -59,10 +62,13 @@ export const createChannelWithRole = (
   guildId: DiscordSchemas.Snowflake,
   channelName: string,
   roleName: string,
+  roleColor?: number,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('result', () => createDiscordChannelAndRole(guildId, channelName, roleName)),
+    Effect.bind('result', () =>
+      createDiscordChannelAndRole(guildId, channelName, roleName, roleColor),
+    ),
     Effect.tap(({ result, rpc }) =>
       rpc['Channel/UpsertMapping']({
         team_id: teamId,

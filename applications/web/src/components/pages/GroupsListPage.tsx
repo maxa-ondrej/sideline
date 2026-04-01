@@ -7,6 +7,8 @@ import { Effect, Option, Schema } from 'effect';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { ColorDot } from '~/components/atoms/ColorDot.js';
+import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -87,7 +89,8 @@ function GroupTreeNode({ node, teamId, depth, onCreateSubgroup }: GroupTreeNodeP
             ) : (
               <span className='mr-1 w-5' />
             )}
-            <div className='min-w-0'>
+            <div className='min-w-0 flex items-center gap-2'>
+              <ColorDot color={Option.getOrUndefined(node.group.color)} />
               <Link
                 to='/teams/$teamId/groups/$groupId'
                 params={{ teamId, groupId: node.group.groupId }}
@@ -146,6 +149,8 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
   const router = useRouter();
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
   const [selectedParentId, setSelectedParentId] = React.useState<string>('__root__');
+  const [createEmoji, setCreateEmoji] = React.useState('');
+  const [createColor, setCreateColor] = React.useState<string | undefined>(undefined);
 
   const tree = React.useMemo(() => buildTree(groups), [groups]);
 
@@ -164,7 +169,12 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
       Effect.flatMap((api) =>
         api.group.createGroup({
           path: { teamId: teamIdBranded },
-          payload: { name: values.name, parentId, emoji: Option.none() },
+          payload: {
+            name: values.name,
+            parentId,
+            emoji: createEmoji ? Option.some(createEmoji) : Option.none(),
+            color: createColor ? Option.some(createColor) : Option.none(),
+          },
         }),
       ),
       withFieldErrors(form, [
@@ -176,6 +186,8 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
     if (Option.isSome(result)) {
       form.reset();
       setSelectedParentId('__root__');
+      setCreateEmoji('');
+      setCreateColor(undefined);
       router.invalidate();
     }
   };
@@ -201,22 +213,42 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
           onSubmit={form.handleSubmit(onSubmit)}
           className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:max-w-lg'
         >
-          <FormField
-            {...form.register('name')}
-            render={({ field }) => (
-              <FormItem className='flex-1'>
-                <FormLabel>{m.group_groupName()}</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    id='group-name-input'
-                    placeholder={m.group_groupNamePlaceholder()}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className='flex gap-2 items-end'>
+            <div className='flex flex-col'>
+              <label htmlFor='group-create-emoji' className='text-sm font-medium mb-1'>
+                {m.roster_emoji()}
+              </label>
+              <Input
+                id='group-create-emoji'
+                value={createEmoji}
+                onChange={(e) => setCreateEmoji(e.target.value)}
+                className='w-16 shrink-0'
+                placeholder='🏅'
+              />
+            </div>
+            <div className='flex flex-col'>
+              <label htmlFor='group-create-color' className='text-sm font-medium mb-1'>
+                {m.common_color()}
+              </label>
+              <ColorPicker id='group-create-color' value={createColor} onChange={setCreateColor} />
+            </div>
+            <FormField
+              {...form.register('name')}
+              render={({ field }) => (
+                <FormItem className='flex-1'>
+                  <FormLabel>{m.group_groupName()}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      id='group-name-input'
+                      placeholder={m.group_groupNamePlaceholder()}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <div className='flex flex-col'>
             <label htmlFor='parent-group-select' className='text-sm font-medium mb-1'>
               {m.group_parentGroup()}

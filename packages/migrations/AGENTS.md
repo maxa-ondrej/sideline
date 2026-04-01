@@ -24,3 +24,18 @@ Example: `1740970000_create_role_sync.ts`
 - Use `VARCHAR` with appropriate lengths for string columns
 - Add appropriate indexes for frequently queried columns
 - Foreign keys should have `ON DELETE` behavior specified
+
+### Adding Columns to Existing Tables
+
+Use `ALTER TABLE ... ADD COLUMN` with separate statements per column. Chain statements with `Effect.tap`:
+
+```typescript
+export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
+  Effect.Do.pipe(
+    Effect.tap(() => sql`ALTER TABLE groups ADD COLUMN color TEXT`),
+    Effect.tap(() => sql`ALTER TABLE rosters ADD COLUMN emoji TEXT`),
+  ),
+);
+```
+
+New nullable columns do not need a `DEFAULT` clause — PostgreSQL defaults to `NULL`. Add `NOT NULL DEFAULT ...` only when the column must never be null.

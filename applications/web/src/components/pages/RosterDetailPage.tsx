@@ -6,10 +6,12 @@ import { Effect, Option, Schema } from 'effect';
 import { Loader2 } from 'lucide-react';
 import React from 'react';
 
+import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -45,6 +47,12 @@ export function RosterDetailPage({
   const router = useRouter();
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
   const [selectedChannelId, setSelectedChannelId] = React.useState('');
+  const [editName, setEditName] = React.useState(rosterDetail.name);
+  const [editEmoji, setEditEmoji] = React.useState(Option.getOrElse(rosterDetail.emoji, () => ''));
+  const [editColor, setEditColor] = React.useState<string | undefined>(
+    Option.getOrUndefined(rosterDetail.color),
+  );
+  const [saving, setSaving] = React.useState(false);
 
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
   const rosterIdBranded = Schema.decodeSync(RosterModel.RosterId)(rosterId);
@@ -60,6 +68,30 @@ export function RosterDetailPage({
   const memberIdsInRoster = new Set(rosterDetail.members.map((m) => m.memberId));
   const availableMembers = allMembers.filter((m) => !memberIdsInRoster.has(m.memberId));
 
+  const handleSaveNameEmojiColor = React.useCallback(async () => {
+    setSaving(true);
+    const result = await ApiClient.pipe(
+      Effect.flatMap((api) =>
+        api.roster.updateRoster({
+          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          payload: {
+            name: Option.some(editName),
+            active: Option.none(),
+            discordChannelId: Option.none(),
+            emoji: editEmoji ? Option.some(editEmoji) : Option.none(),
+            color: editColor ? Option.some(editColor) : Option.none(),
+          },
+        }),
+      ),
+      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      run({ success: m.roster_rosterSaved() }),
+    );
+    setSaving(false);
+    if (Option.isSome(result)) {
+      router.invalidate();
+    }
+  }, [teamIdBranded, rosterIdBranded, editName, editEmoji, editColor, run, router]);
+
   const handleToggleActive = React.useCallback(async () => {
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
@@ -69,6 +101,8 @@ export function RosterDetailPage({
             name: Option.none(),
             active: Option.some(!rosterDetail.active),
             discordChannelId: Option.none(),
+            color: Option.none(),
+            emoji: Option.none(),
           },
         }),
       ),
@@ -91,6 +125,8 @@ export function RosterDetailPage({
             name: Option.none(),
             active: Option.none(),
             discordChannelId: Option.some(Option.some(snowflake)),
+            color: Option.none(),
+            emoji: Option.none(),
           },
         }),
       ),
@@ -115,6 +151,8 @@ export function RosterDetailPage({
             name: Option.none(),
             active: Option.none(),
             discordChannelId: Option.some(Option.none()),
+            color: Option.none(),
+            emoji: Option.none(),
           },
         }),
       ),
@@ -226,6 +264,35 @@ export function RosterDetailPage({
           )}
         </div>
       </header>
+
+      {canManage && (
+        <Card className='mb-6 max-w-md'>
+          <CardHeader>
+            <CardTitle className='text-base'>{m.roster_nameEmojiColor()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className='flex flex-col gap-2 sm:flex-row'>
+              <div className='flex gap-2 flex-1'>
+                <Input
+                  value={editEmoji}
+                  onChange={(e) => setEditEmoji(e.target.value)}
+                  className='w-16 shrink-0'
+                  placeholder='Emoji'
+                />
+                <ColorPicker value={editColor} onChange={setEditColor} />
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className='flex-1'
+                />
+              </div>
+              <Button onClick={handleSaveNameEmojiColor} disabled={saving}>
+                {saving ? m.roster_saving() : m.roster_saveChanges()}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {canManage && (
         <Card className='mb-6 max-w-md'>

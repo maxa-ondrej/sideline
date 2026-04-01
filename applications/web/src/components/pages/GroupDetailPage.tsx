@@ -6,6 +6,7 @@ import { Effect, Option, Schema } from 'effect';
 import { Loader2 } from 'lucide-react';
 import React from 'react';
 
+import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
@@ -53,6 +54,9 @@ export function GroupDetailPage({
 
   const [name, setName] = React.useState(groupDetail.name);
   const [emoji, setEmoji] = React.useState(Option.getOrElse(groupDetail.emoji, () => ''));
+  const [color, setColor] = React.useState<string | undefined>(
+    Option.getOrUndefined(groupDetail.color),
+  );
   const [saving, setSaving] = React.useState(false);
   const [selectedMemberId, setSelectedMemberId] = React.useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = React.useState<string>('');
@@ -81,7 +85,11 @@ export function GroupDetailPage({
       Effect.flatMap((api) =>
         api.group.updateGroup({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
-          payload: { name, emoji: emoji ? Option.some(emoji) : Option.none() },
+          payload: {
+            name,
+            emoji: emoji ? Option.some(emoji) : Option.none(),
+            color: color ? Option.some(color) : Option.none(),
+          },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
@@ -91,7 +99,7 @@ export function GroupDetailPage({
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [teamIdBranded, groupIdBranded, name, emoji, run, router]);
+  }, [teamIdBranded, groupIdBranded, name, emoji, color, run, router]);
 
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
@@ -269,10 +277,10 @@ export function GroupDetailPage({
       </header>
 
       <div className='flex flex-col gap-6'>
-        {/* Rename / Emoji */}
+        {/* Rename / Emoji / Color */}
         <div>
           <label htmlFor='group-name' className='text-sm font-medium mb-1 block'>
-            {m.group_rename()}
+            {m.group_nameEmojiColor()}
           </label>
           <div className='flex flex-col gap-2 sm:flex-row'>
             <div className='flex gap-2 flex-1'>
@@ -283,6 +291,7 @@ export function GroupDetailPage({
                 className='w-16 shrink-0'
                 placeholder='Emoji'
               />
+              <ColorPicker value={color} onChange={setColor} />
               <Input
                 id='group-name'
                 value={name}

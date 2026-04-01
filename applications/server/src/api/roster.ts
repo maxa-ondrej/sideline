@@ -18,6 +18,7 @@ import {
   DEFAULT_CHANNEL_FORMAT,
   DEFAULT_ROLE_FORMAT,
 } from '~/utils/applyDiscordFormat.js';
+import { hexColorToDiscordInt } from '~/utils/hexColorToDiscordInt.js';
 
 const toRosterPlayer = (entry: RosterEntry) =>
   new Roster.RosterPlayer({
@@ -57,6 +58,8 @@ const toRosterInfo = (
     active: r.active,
     memberCount,
     createdAt: DateTime.formatIso(r.created_at),
+    color: r.color,
+    emoji: r.emoji,
     discordChannelId: r.discord_channel_id,
     discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
     discordChannelProvisioning,
@@ -241,6 +244,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                         active: r.active,
                         memberCount: r.member_count,
                         createdAt: DateTime.formatIso(r.created_at),
+                        color: r.color,
+                        emoji: r.emoji,
                         discordChannelId: r.discord_channel_id,
                         discordChannelName: resolveChannelName(r.discord_channel_id, allChannels),
                         discordChannelProvisioning: provisioningSet.has(r.id),
@@ -260,7 +265,13 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
               ),
               Effect.bind('roster', () =>
-                rosters.insert({ team_id: teamId, name: payload.name, active: true }),
+                rosters.insert({
+                  team_id: teamId,
+                  name: payload.name,
+                  active: true,
+                  color: payload.color,
+                  emoji: payload.emoji,
+                }),
               ),
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
               Effect.tap(({ roster, settings }) => {
@@ -270,7 +281,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     onSome: (s) => s.discord_channel_format,
                   }),
                   roster.name,
-                  Option.none(),
+                  roster.emoji,
                 );
                 const roleName = applyDiscordFormat(
                   Option.match(settings, {
@@ -278,8 +289,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     onSome: (s) => s.discord_role_format,
                   }),
                   roster.name,
-                  Option.none(),
+                  roster.emoji,
                 );
+                const discordRoleColor = Option.map(roster.color, hexColorToDiscordInt);
                 return Option.match(settings, {
                   onNone: () =>
                     channelSync.emitRosterChannelCreated(
@@ -289,6 +301,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                       Option.none(),
                       channelName,
                       roleName,
+                      discordRoleColor,
                     ),
                   onSome: (s) =>
                     s.create_discord_channel_on_roster
@@ -299,6 +312,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                           Option.none(),
                           channelName,
                           roleName,
+                          discordRoleColor,
                         )
                       : Effect.void,
                 });
@@ -357,6 +371,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     name: roster.name,
                     active: roster.active,
                     createdAt: DateTime.formatIso(roster.created_at),
+                    color: roster.color,
+                    emoji: roster.emoji,
                     members: Array.map(rosterMembers, toRosterPlayer),
                     canManage,
                     discordChannelId: roster.discord_channel_id,
@@ -409,6 +425,8 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   id: rosterId,
                   name: payload.name,
                   active: payload.active,
+                  color: payload.color,
+                  emoji: payload.emoji,
                   discord_channel_id: payload.discordChannelId,
                 }),
               ),
@@ -557,7 +575,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                             onSome: (s) => s.discord_channel_format,
                           }),
                           updated.name,
-                          Option.none(),
+                          updated.emoji,
                         );
                         const roleName = applyDiscordFormat(
                           Option.match(settings, {
@@ -565,8 +583,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                             onSome: (s) => s.discord_role_format,
                           }),
                           updated.name,
-                          Option.none(),
+                          updated.emoji,
                         );
+                        const discordRoleColor = Option.map(updated.color, hexColorToDiscordInt);
                         return channelSync.emitRosterChannelCreated(
                           teamId,
                           updated.id,
@@ -574,10 +593,71 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                           Option.some(channelId),
                           channelName,
                           roleName,
+                          discordRoleColor,
                         );
                       },
                     }),
                 });
+              }),
+              Effect.tap(({ existing, updated, settings }) => {
+                // Emit channel_updated when name/emoji/color changes but no channel linking change
+                const isDeactivated = existing.active === true && updated.active === false;
+                if (isDeactivated) return Effect.void;
+                if (Option.isSome(payload.discordChannelId)) return Effect.void;
+
+                const nameChanged = existing.name !== updated.name;
+                const emojiChanged =
+                  Option.getOrElse(existing.emoji, () => '') !==
+                  Option.getOrElse(updated.emoji, () => '');
+                const colorChanged =
+                  Option.getOrElse(existing.color, () => '') !==
+                  Option.getOrElse(updated.color, () => '');
+                const anythingChanged = nameChanged || emojiChanged || colorChanged;
+
+                if (!anythingChanged) return Effect.void;
+
+                return channelMappings.findByRosterId(teamId, rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.void,
+                      onSome: (mapping) =>
+                        Option.match(mapping.discord_role_id, {
+                          onNone: () => Effect.void,
+                          onSome: (discordRoleId) => {
+                            const channelName = applyDiscordFormat(
+                              Option.match(settings, {
+                                onNone: () => DEFAULT_CHANNEL_FORMAT,
+                                onSome: (s) => s.discord_channel_format,
+                              }),
+                              updated.name,
+                              updated.emoji,
+                            );
+                            const roleName = applyDiscordFormat(
+                              Option.match(settings, {
+                                onNone: () => DEFAULT_ROLE_FORMAT,
+                                onSome: (s) => s.discord_role_format,
+                              }),
+                              updated.name,
+                              updated.emoji,
+                            );
+                            const discordRoleColor = Option.map(
+                              updated.color,
+                              hexColorToDiscordInt,
+                            );
+                            return channelSync.emitRosterChannelUpdated(
+                              teamId,
+                              rosterId,
+                              mapping.discord_channel_id,
+                              discordRoleId,
+                              channelName,
+                              roleName,
+                              discordRoleColor,
+                            );
+                          },
+                        }),
+                    }),
+                  ),
+                );
               }),
               Effect.bind('memberCount', ({ updated }) =>
                 rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
@@ -787,7 +867,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     onSome: (s) => s.discord_channel_format,
                   }),
                   roster.name,
-                  Option.none(),
+                  roster.emoji,
                 );
                 const roleName = applyDiscordFormat(
                   Option.match(settings, {
@@ -795,8 +875,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     onSome: (s) => s.discord_role_format,
                   }),
                   roster.name,
-                  Option.none(),
+                  roster.emoji,
                 );
+                const discordRoleColor = Option.map(roster.color, hexColorToDiscordInt);
                 return channelSync.emitRosterChannelCreated(
                   teamId,
                   roster.id,
@@ -804,6 +885,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   Option.none(),
                   channelName,
                   roleName,
+                  discordRoleColor,
                 );
               }),
               Effect.asVoid,

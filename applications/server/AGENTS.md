@@ -111,13 +111,14 @@ The **server** applies Discord name formatting before emitting sync events. The 
 
 Format templates use `{emoji}` and `{name}` placeholders. The `applyDiscordFormat(template, name, emoji)` function handles missing emoji by stripping the placeholder and cleaning up leftover separators.
 
-When emitting `channel_created` or `roster_channel_created` events:
+When emitting `channel_created`, `roster_channel_created`, or `channel_updated` events:
 
 1. Load team settings via `teamSettings.findByTeamId(teamId)`
 2. Resolve the channel format: `Option.match(settings, { onNone: () => DEFAULT_CHANNEL_FORMAT, onSome: (s) => s.discord_channel_format })`
 3. Resolve the role format: same pattern with `discord_role_format`
 4. Call `applyDiscordFormat(format, entityName, entityEmoji)` for both channel and role names
 5. Pass the formatted names as `discordChannelName` and `discordRoleName` to the emit method
+6. For entities with a `color` field (hex string like `#FF0000`), convert to Discord integer using `hexColorToDiscordInt` from `src/utils/hexColorToDiscordInt.ts` and pass as `discordRoleColor`
 
 ## Testing
 

@@ -10,11 +10,14 @@ export const createRoleForChannel = (
   guildId: DiscordSchemas.Snowflake,
   channelId: DiscordSchemas.Snowflake,
   roleName: string,
+  roleColor?: number,
 ) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('role', ({ rest }) =>
-      rest.createGuildRole(guildId, { name: roleName }).pipe(Effect.retry(retryPolicy)),
+      rest
+        .createGuildRole(guildId, { name: roleName, color: roleColor })
+        .pipe(Effect.retry(retryPolicy)),
     ),
     Effect.tap(({ role }) =>
       Effect.logInfo(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),

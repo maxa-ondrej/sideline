@@ -26,6 +26,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_name: Schema.OptionFromNullOr(Schema.String),
+  discord_role_color: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
@@ -49,6 +50,7 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
   archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_name: Schema.OptionFromNullOr(Schema.String),
+  discord_role_color: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
 class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
@@ -77,8 +79,8 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
   private insertEvent = SqlSchema.void({
     Request: InsertInput,
     execute: (input) => this.sql`
-      INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name)
-      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.entity_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id}, ${input.roster_id}, ${input.roster_name}, ${input.existing_channel_id}, ${input.discord_role_id}, ${input.archive_category_id}, ${input.discord_channel_name}, ${input.discord_role_name})
+      INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.entity_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id}, ${input.roster_id}, ${input.roster_name}, ${input.existing_channel_id}, ${input.discord_role_id}, ${input.archive_category_id}, ${input.discord_channel_name}, ${input.discord_role_name}, ${input.discord_role_color})
     `,
   });
 
@@ -92,7 +94,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     Request: Schema.Number,
     Result: EventRow,
     execute: (limit) => this.sql`
-      SELECT id, team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name
+      SELECT id, team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color
       FROM channel_sync_events
       WHERE processed_at IS NULL
       ORDER BY created_at ASC
@@ -107,7 +109,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       SELECT DISTINCT group_id FROM channel_sync_events
       WHERE entity_type = 'group'
         AND group_id IN ${this.sql.in(groupIds)}
-        AND event_type IN ('channel_created', 'channel_deleted', 'channel_archived', 'channel_detached')
+        AND event_type IN ('channel_created', 'channel_updated', 'channel_deleted', 'channel_archived', 'channel_detached')
         AND processed_at IS NULL AND error IS NULL
     `,
   });
@@ -119,7 +121,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       SELECT DISTINCT roster_id FROM channel_sync_events
       WHERE entity_type = 'roster'
         AND roster_id IN ${this.sql.in(rosterIds)}
-        AND event_type IN ('channel_created', 'channel_deleted', 'channel_archived', 'channel_detached')
+        AND event_type IN ('channel_created', 'channel_updated', 'channel_deleted', 'channel_archived', 'channel_detached')
         AND processed_at IS NULL AND error IS NULL
     `,
   });
@@ -154,6 +156,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       archiveCategoryId?: Option.Option<Discord.Snowflake>;
       discordChannelName?: Option.Option<string>;
       discordRoleName?: Option.Option<string>;
+      discordRoleColor?: Option.Option<number>;
     } = {},
   ) =>
     this.lookupGuildId(teamId).pipe(
@@ -177,6 +180,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
               archive_category_id: fields.archiveCategoryId ?? Option.none(),
               discord_channel_name: fields.discordChannelName ?? Option.none(),
               discord_role_name: fields.discordRoleName ?? Option.none(),
+              discord_role_color: fields.discordRoleColor ?? Option.none(),
             }),
         }),
       ),
@@ -190,6 +194,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     existingChannelId: Option.Option<Discord.Snowflake> = Option.none(),
     discordChannelName?: string,
     discordRoleName?: string,
+    discordRoleColor?: Option.Option<number>,
   ) =>
     this._emitIfGuildLinked(teamId, 'channel_created', 'group', {
       groupId: Option.some(groupId),
@@ -198,6 +203,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       discordChannelName:
         discordChannelName !== undefined ? Option.some(discordChannelName) : Option.none(),
       discordRoleName: discordRoleName !== undefined ? Option.some(discordRoleName) : Option.none(),
+      discordRoleColor: discordRoleColor ?? Option.none(),
     });
 
   emitChannelDeleted = (
@@ -249,6 +255,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     existingChannelId: Option.Option<Discord.Snowflake> = Option.none(),
     discordChannelName?: string,
     discordRoleName?: string,
+    discordRoleColor?: Option.Option<number>,
   ) =>
     this._emitIfGuildLinked(teamId, 'channel_created', 'roster', {
       rosterId: Option.some(rosterId),
@@ -257,6 +264,7 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       discordChannelName:
         discordChannelName !== undefined ? Option.some(discordChannelName) : Option.none(),
       discordRoleName: discordRoleName !== undefined ? Option.some(discordRoleName) : Option.none(),
+      discordRoleColor: discordRoleColor ?? Option.none(),
     });
 
   emitRosterChannelDeleted = (
@@ -331,6 +339,42 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       rosterName: Option.some(rosterName),
       existingChannelId: Option.some(discordChannelId),
       discordRoleId,
+    });
+
+  emitGroupChannelUpdated = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    discordChannelId: Discord.Snowflake,
+    discordRoleId: Discord.Snowflake,
+    discordChannelName: string,
+    discordRoleName: string,
+    discordRoleColor: Option.Option<number>,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'channel_updated', 'group', {
+      groupId: Option.some(groupId),
+      existingChannelId: Option.some(discordChannelId),
+      discordRoleId: Option.some(discordRoleId),
+      discordChannelName: Option.some(discordChannelName),
+      discordRoleName: Option.some(discordRoleName),
+      discordRoleColor,
+    });
+
+  emitRosterChannelUpdated = (
+    teamId: Team.TeamId,
+    rosterId: RosterModel.RosterId,
+    discordChannelId: Discord.Snowflake,
+    discordRoleId: Discord.Snowflake,
+    discordChannelName: string,
+    discordRoleName: string,
+    discordRoleColor: Option.Option<number>,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'channel_updated', 'roster', {
+      rosterId: Option.some(rosterId),
+      existingChannelId: Option.some(discordChannelId),
+      discordRoleId: Option.some(discordRoleId),
+      discordChannelName: Option.some(discordChannelName),
+      discordRoleName: Option.some(discordRoleName),
+      discordRoleColor,
     });
 
   findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
