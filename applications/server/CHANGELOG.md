@@ -1,5 +1,11 @@
 # @sideline/server
 
+## 0.14.4
+
+### Patch Changes
+
+- [`d5a7c86`](https://github.com/maxa-ondrej/sideline/commit/d5a7c86429e4bcbcd9b18e2f4adcfad14fb48c6b) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Roles should not be synced to Discord.
+
 ## 0.14.3
 
 ### Patch Changes
