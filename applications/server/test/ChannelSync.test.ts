@@ -300,6 +300,7 @@ const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
   getMemberCount: () => Effect.succeed(0),
   getChildren: () => Effect.succeed([]),
   getAncestorIds: () => Effect.succeed([]),
+  getAncestors: () => Effect.succeed([]),
   getDescendantMemberIds: () => Effect.succeed([]),
 } as unknown as GroupsRepository);
 

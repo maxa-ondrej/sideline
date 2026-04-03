@@ -441,12 +441,32 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     Option.match({
                       onNone: () => Effect.void,
                       onSome: (user) =>
-                        channelSync.emitMemberAdded(
-                          teamId,
-                          groupId,
-                          _group.name,
-                          payload.memberId,
-                          user.discord_id,
+                        Effect.all(
+                          [
+                            channelSync.emitMemberAdded(
+                              teamId,
+                              groupId,
+                              _group.name,
+                              payload.memberId,
+                              user.discord_id,
+                            ),
+                            groups
+                              .getAncestors(groupId)
+                              .pipe(
+                                Effect.flatMap((ancestors) =>
+                                  Effect.forEach(ancestors, (ancestor) =>
+                                    channelSync.emitMemberAdded(
+                                      teamId,
+                                      ancestor.id,
+                                      ancestor.name,
+                                      payload.memberId,
+                                      user.discord_id,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                          { concurrency: 'unbounded' },
                         ),
                     }),
                   ),

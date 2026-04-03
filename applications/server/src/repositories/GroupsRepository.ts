@@ -65,10 +65,6 @@ class MoveGroupInput extends Schema.Class<MoveGroupInput>('MoveGroupInput')({
   parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
-class AncestorRow extends Schema.Class<AncestorRow>('AncestorRow')({
-  id: GroupModel.GroupId,
-}) {}
-
 class DescendantMemberRow extends Schema.Class<DescendantMemberRow>('DescendantMemberRow')({
   team_member_id: TeamMember.TeamMemberId,
 }) {}
@@ -214,14 +210,14 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
 
   private findAncestors = SqlSchema.findAll({
     Request: GroupModel.GroupId,
-    Result: AncestorRow,
+    Result: GroupRow,
     execute: (groupId) => this.sql`
             WITH RECURSIVE ancestors AS (
               SELECT parent_id AS id FROM groups WHERE id = ${groupId} AND parent_id IS NOT NULL
               UNION ALL
               SELECT g.parent_id FROM groups g JOIN ancestors a ON g.id = a.id WHERE g.parent_id IS NOT NULL
             )
-            SELECT id FROM ancestors
+            SELECT g.id, g.team_id, g.parent_id, g.name, g.emoji, g.color FROM groups g JOIN ancestors a ON g.id = a.id
           `,
   });
 
@@ -298,6 +294,8 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
       Effect.map((rows) => rows.map((r) => r.id)),
       catchSqlErrors,
     );
+
+  getAncestors = (groupId: GroupModel.GroupId) => this.findAncestors(groupId).pipe(catchSqlErrors);
 
   getDescendantMemberIds = (groupId: GroupModel.GroupId) =>
     this.findDescendantMembers(groupId).pipe(
