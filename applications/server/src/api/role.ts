@@ -5,10 +5,8 @@ import { Array, Effect, Option } from 'effect';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
-import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
-import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 const forbidden = new RoleApi.Forbidden();
 
@@ -17,9 +15,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
     Effect.bind('members', () => TeamMembersRepository),
     Effect.bind('roles', () => RolesRepository),
     Effect.bind('notifications', () => NotificationsRepository),
-    Effect.bind('syncEvents', () => RoleSyncEventsRepository),
-    Effect.bind('users', () => UsersRepository),
-    Effect.map(({ members, roles, notifications, syncEvents, users }) =>
+    Effect.map(({ members, roles, notifications }) =>
       handlers
         .handle('listRoles', ({ path: { teamId } }) =>
           Effect.Do.pipe(
@@ -58,7 +54,6 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(({ membership }) => requirePermission(membership, 'role:manage', forbidden)),
             Effect.bind('role', () => roles.insertRole(teamId, payload.name)),
             Effect.tap(({ role }) => roles.setRolePermissions(role.id, payload.permissions)),
-            Effect.tap(({ role }) => syncEvents.emitRoleCreated(teamId, role.id, role.name)),
             Effect.map(
               ({ role }) =>
                 new RoleApi.RoleDetail({
@@ -193,9 +188,6 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               memberCount > 0 ? Effect.fail(new RoleApi.RoleInUse()) : Effect.void,
             ),
             Effect.tap(() => roles.archiveRoleById(roleId)),
-            Effect.tap(({ existing }) =>
-              syncEvents.emitRoleDeleted(teamId, existing.id, existing.name),
-            ),
             Effect.asVoid,
             Effect.catchTag(
               'NoSuchElementException',
@@ -250,25 +242,6 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Effect.catchTag('NoSuchElementException', () => Effect.void),
                 ),
             ),
-            Effect.tap(({ targetMember, role }) =>
-              users.findById(targetMember.user_id).pipe(
-                Effect.flatten,
-                Effect.flatMap((user) =>
-                  syncEvents.emitRoleAssigned(
-                    teamId,
-                    payload.roleId,
-                    role.name,
-                    memberId,
-                    user.discord_id,
-                  ),
-                ),
-                Effect.catchTag('NoSuchElementException', () =>
-                  Effect.logWarning(
-                    `User not found for member ${memberId} when emitting role-assigned sync event`,
-                  ),
-                ),
-              ),
-            ),
             Effect.asVoid,
           ),
         )
@@ -317,25 +290,6 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                     Effect.logWarning('Failed to create role-removed notification', e),
                   ),
                 ),
-            ),
-            Effect.tap(({ targetMember, role }) =>
-              users.findById(targetMember.user_id).pipe(
-                Effect.flatten,
-                Effect.flatMap((user) =>
-                  syncEvents.emitRoleUnassigned(
-                    teamId,
-                    roleId,
-                    role.name,
-                    memberId,
-                    user.discord_id,
-                  ),
-                ),
-                Effect.catchTag('NoSuchElementException', () =>
-                  Effect.logWarning(
-                    `User not found for member ${memberId} when emitting role-unassigned sync event`,
-                  ),
-                ),
-              ),
             ),
             Effect.asVoid,
           ),

@@ -234,6 +234,20 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
       discordUserId: Option.some(discordUserId),
     });
 
+  emitRosterMemberAdded = (
+    teamId: Team.TeamId,
+    rosterId: RosterModel.RosterId,
+    rosterName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'member_added', 'roster', {
+      rosterId: Option.some(rosterId),
+      rosterName: Option.some(rosterName),
+      teamMemberId: Option.some(teamMemberId),
+      discordUserId: Option.some(discordUserId),
+    });
+
   emitMemberRemoved = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
@@ -244,6 +258,20 @@ export class ChannelSyncEventsRepository extends Effect.Service<ChannelSyncEvent
     this._emitIfGuildLinked(teamId, 'member_removed', 'group', {
       groupId: Option.some(groupId),
       groupName: Option.some(groupName),
+      teamMemberId: Option.some(teamMemberId),
+      discordUserId: Option.some(discordUserId),
+    });
+
+  emitRosterMemberRemoved = (
+    teamId: Team.TeamId,
+    rosterId: RosterModel.RosterId,
+    rosterName: string,
+    teamMemberId: TeamMember.TeamMemberId,
+    discordUserId: Discord.Snowflake,
+  ) =>
+    this._emitIfGuildLinked(teamId, 'member_removed', 'roster', {
+      rosterId: Option.some(rosterId),
+      rosterName: Option.some(rosterName),
       teamMemberId: Option.some(teamMemberId),
       discordUserId: Option.some(discordUserId),
     });

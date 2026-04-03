@@ -766,6 +766,23 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 ),
               ),
               Effect.tap(() => rosters.addMemberById(rosterId, payload.memberId)),
+              Effect.tap(({ _roster, _member }) =>
+                users.findById(_member.user_id).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.void,
+                      onSome: (user) =>
+                        channelSync.emitRosterMemberAdded(
+                          teamId,
+                          rosterId,
+                          _roster.name,
+                          payload.memberId,
+                          user.discord_id,
+                        ),
+                    }),
+                  ),
+                ),
+              ),
               Effect.asVoid,
             ),
           )
@@ -799,6 +816,23 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 ),
               ),
               Effect.tap(() => rosters.removeMemberById(rosterId, memberId)),
+              Effect.tap(({ _roster, _member }) =>
+                users.findById(_member.user_id).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.void,
+                      onSome: (user) =>
+                        channelSync.emitRosterMemberRemoved(
+                          teamId,
+                          rosterId,
+                          _roster.name,
+                          memberId,
+                          user.discord_id,
+                        ),
+                    }),
+                  ),
+                ),
+              ),
               Effect.asVoid,
             ),
           )
