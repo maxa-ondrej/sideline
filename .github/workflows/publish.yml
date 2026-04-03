@@ -13,7 +13,7 @@ jobs:
       is_app: ${{ steps.detect.outputs.is_app }}
       app: ${{ steps.detect.outputs.app }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - id: detect
         run: |
           NAME="${GITHUB_REF_NAME#@sideline/}"
@@ -34,7 +34,7 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Log in to GHCR
         uses: docker/login-action@v4
