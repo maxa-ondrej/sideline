@@ -2,4 +2,4 @@
 "@sideline/server": patch
 ---
 
-Roles should not be synced to discord.
+Roles should not be synced to Discord.
