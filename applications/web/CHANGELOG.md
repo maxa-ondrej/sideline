@@ -1,5 +1,29 @@
 # @sideline/web
 
+## 0.9.2
+
+### Patch Changes
+
+- [#153](https://github.com/maxa-ondrej/sideline/pull/153) [`690c5c0`](https://github.com/maxa-ondrej/sideline/commit/690c5c0be363ef1461e74a20ad0545ba140282db) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add 3-mode Discord channel cleanup (nothing, delete, archive) with separate settings for groups and rosters
+
+- [#150](https://github.com/maxa-ondrej/sideline/pull/150) [`2820c4a`](https://github.com/maxa-ondrej/sideline/commit/2820c4ad2d2773aee3240c98ef7adc508851d680) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix calendar components to use the app's selected language instead of browser locale
+
+- [#168](https://github.com/maxa-ondrej/sideline/pull/168) [`2284bea`](https://github.com/maxa-ondrej/sideline/commit/2284bea83d34f7f93768457ca401fc45dfe6d4e2) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Display Discord channels as clickable links that open the actual channel in Discord
+
+- [#154](https://github.com/maxa-ondrej/sideline/pull/154) [`883189a`](https://github.com/maxa-ondrej/sideline/commit/883189a4c56c2da0c2dcf92544bb72445bbc343a) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add configurable Discord channel/role name format templates to team settings
+
+- [#169](https://github.com/maxa-ondrej/sideline/pull/169) [`1e8def9`](https://github.com/maxa-ondrej/sideline/commit/1e8def9790e7b31c9eb15faf81c71641d69e9d2d) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add color and emoji support to groups and rosters with Discord role sync
+
+- [#149](https://github.com/maxa-ondrej/sideline/pull/149) [`34785f7`](https://github.com/maxa-ondrej/sideline/commit/34785f7d59bdf4116e70ca8f0cbc4991564cab25) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add Open Graph and Twitter Card meta tags for rich link preview embeds on Discord, Slack, Twitter, and other platforms
+
+- [#152](https://github.com/maxa-ondrej/sideline/pull/152) [`c2c0b8a`](https://github.com/maxa-ondrej/sideline/commit/c2c0b8a6ce767f1238c164cbf3725744160bc774) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Redesign profile editing page to match profile complete page UI with card-based centered layout
+
+- [#146](https://github.com/maxa-ondrej/sideline/pull/146) [`b871b3c`](https://github.com/maxa-ondrej/sideline/commit/b871b3c3def2b9eb2397a2072e88eb99d9c87170) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add discord channel linking to rosters with auto-creation, role management, and web UI
+
+- Updated dependencies [[`690c5c0`](https://github.com/maxa-ondrej/sideline/commit/690c5c0be363ef1461e74a20ad0545ba140282db), [`2284bea`](https://github.com/maxa-ondrej/sideline/commit/2284bea83d34f7f93768457ca401fc45dfe6d4e2), [`883189a`](https://github.com/maxa-ondrej/sideline/commit/883189a4c56c2da0c2dcf92544bb72445bbc343a), [`1e8def9`](https://github.com/maxa-ondrej/sideline/commit/1e8def9790e7b31c9eb15faf81c71641d69e9d2d), [`b871b3c`](https://github.com/maxa-ondrej/sideline/commit/b871b3c3def2b9eb2397a2072e88eb99d9c87170)]:
+  - @sideline/domain@0.14.3
+  - @sideline/i18n@0.3.5
+
 ## 0.9.1
 
 ### Patch Changes
