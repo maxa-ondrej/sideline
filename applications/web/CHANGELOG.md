@@ -1,5 +1,11 @@
 # @sideline/web
 
+## 0.9.4
+
+### Patch Changes
+
+- [`ecdebf6`](https://github.com/maxa-ondrej/sideline/commit/ecdebf6dbac861b9ddb133ab6f1bba54ebc79b96) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Redirect to home page when the last saved team no longer exists instead of navigating to a 404
+
 ## 0.9.3
 
 ### Patch Changes
