@@ -1,5 +1,15 @@
 # @sideline/bot
 
+## 0.9.4
+
+### Patch Changes
+
+- [`cc742d8`](https://github.com/maxa-ondrej/sideline/commit/cc742d8f5ae355e7485593255629b5fada51bda0) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Show a list of yes attendees on RSVP event embeds
+
+- Updated dependencies [[`cc742d8`](https://github.com/maxa-ondrej/sideline/commit/cc742d8f5ae355e7485593255629b5fada51bda0)]:
+  - @sideline/domain@0.14.4
+  - @sideline/i18n@0.3.6
+
 ## 0.9.3
 
 ### Patch Changes
