@@ -7,7 +7,7 @@ import * as Discord from 'dfx/types';
 import { Effect, Metric, Option, pipe, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
-import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -131,9 +131,10 @@ export const RsvpModal = Ix.modalSubmit(
           return Effect.all([
             rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
             rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
+            rpc['Event/GetYesAttendeesForEmbed']({ event_id: eventId, limit: YES_EMBED_LIMIT }),
             rest.getGuild(guildId),
           ] as const).pipe(
-            Effect.flatMap(([stored, embedInfo, guild]) =>
+            Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) =>
               Option.match(stored, {
                 onNone: () => Effect.void,
                 onSome: (msg) =>
@@ -153,6 +154,7 @@ export const RsvpModal = Ix.modalSubmit(
                         location: info.location,
                         eventType: info.event_type,
                         counts,
+                        yesAttendees,
                         locale: embedLocale,
                       });
                       return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {

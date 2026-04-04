@@ -440,6 +440,7 @@
   "bot_embed_when": "📅 Kdy",
   "bot_embed_where": "📍 Kde",
   "bot_embed_rsvps": "📊 Účast",
+  "bot_embed_going": "✅ Jdou",
   "bot_embed_rsvp_summary": "✅ {yes}  ·  ❌ {no}  ·  ❓ {maybe}",
   "bot_btn_yes": "✅ Ano",
   "bot_btn_no": "❌ Ne",

@@ -2,7 +2,7 @@ import { Discord, type EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Option, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
-import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { reorderChannelMessages } from './reorderChannelMessages.js';
@@ -15,8 +15,11 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
     Effect.bind('counts', ({ rpc }) => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
+    Effect.bind('yesAttendees', ({ rpc }) =>
+      rpc['Event/GetYesAttendeesForEmbed']({ event_id: event.event_id, limit: YES_EMBED_LIMIT }),
+    ),
     Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id).pipe(Effect.map(decodeGuild))),
-    Effect.flatMap(({ rpc, rest, counts, guild }) => {
+    Effect.flatMap(({ rpc, rest, counts, yesAttendees, guild }) => {
       const channelId = Option.getOrUndefined(
         Option.orElse(event.discord_channel_id, () => guild.system_channel_id),
       );
@@ -36,6 +39,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
         location: event.location,
         eventType: event.event_type,
         counts,
+        yesAttendees,
         locale,
       });
       return rest

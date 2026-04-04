@@ -137,6 +137,24 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
+  private findYesAttendeesWithLimit = SqlSchema.findAll({
+    Request: Schema.Struct({
+      event_id: Schema.String,
+      limit: Schema.Number,
+    }),
+    Result: RsvpWithDiscordInfo,
+    execute: (input) => this.sql`
+      SELECT u.discord_id, u.name AS member_name, u.username, r.response, r.message
+      FROM event_rsvps r
+      JOIN team_members tm ON tm.id = r.team_member_id
+      LEFT JOIN users u ON u.id = tm.user_id
+      WHERE r.event_id = ${input.event_id}
+        AND r.response = 'yes'
+      ORDER BY r.created_at ASC
+      LIMIT ${input.limit}
+    `,
+  });
+
   private findYesRsvpMemberIds = SqlSchema.findAll({
     Request: Event.EventId,
     Result: Schema.Struct({ team_member_id: TeamMember.TeamMemberId }),
@@ -226,6 +244,9 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
       Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
       catchSqlErrors,
     );
+
+  findYesAttendeesForEmbed = (eventId: Event.EventId, limit: number) =>
+    this.findYesAttendeesWithLimit({ event_id: eventId, limit }).pipe(catchSqlErrors);
 
   findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
     this.findYesRsvpMemberIds(eventId).pipe(

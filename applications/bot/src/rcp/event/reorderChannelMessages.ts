@@ -2,7 +2,11 @@ import { type Discord, Event, type EventRpcModels } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array as Arr, Effect, Option } from 'effect';
 import type { Locale } from '~/locale.js';
-import { buildCancelledEmbed, buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import {
+  buildCancelledEmbed,
+  buildEventEmbed,
+  YES_EMBED_LIMIT,
+} from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const sortSnowflakes = (ids: ReadonlyArray<Discord.Snowflake>): Array<Discord.Snowflake> =>
@@ -23,7 +27,13 @@ const editMessage = (
     Effect.bind('counts', ({ rpc }) =>
       rpc['Event/GetRsvpCounts']({ event_id: Event.EventId.make(entry.event_id) }),
     ),
-    Effect.flatMap(({ rpc, rest, counts }) => {
+    Effect.bind('yesAttendees', ({ rpc }) =>
+      rpc['Event/GetYesAttendeesForEmbed']({
+        event_id: Event.EventId.make(entry.event_id),
+        limit: YES_EMBED_LIMIT,
+      }),
+    ),
+    Effect.flatMap(({ rpc, rest, counts, yesAttendees }) => {
       const payload =
         entry.status === 'cancelled'
           ? buildCancelledEmbed(entry.title, locale)
@@ -37,6 +47,7 @@ const editMessage = (
               location: entry.location,
               eventType: entry.event_type,
               counts,
+              yesAttendees,
               locale,
             });
       return rest

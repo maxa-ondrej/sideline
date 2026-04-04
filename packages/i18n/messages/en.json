@@ -440,6 +440,7 @@
   "bot_embed_when": "📅 When",
   "bot_embed_where": "📍 Where",
   "bot_embed_rsvps": "📊 RSVPs",
+  "bot_embed_going": "✅ Going",
   "bot_embed_rsvp_summary": "✅ {yes}  ·  ❌ {no}  ·  ❓ {maybe}",
   "bot_btn_yes": "✅ Yes",
   "bot_btn_no": "❌ No",

@@ -1,8 +1,10 @@
 import type { EventRpcModels } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
-import { DateTime, Option } from 'effect';
+import { Array, DateTime, Option, pipe } from 'effect';
 import type { Locale } from '~/locale.js';
+
+export const YES_EMBED_LIMIT = 10;
 
 const EVENT_TYPE_COLORS: Record<string, number> = {
   training: 0x57f287, // green
@@ -41,6 +43,7 @@ export const buildEventEmbed = (opts: {
   location: Option.Option<string>;
   eventType: string;
   counts: EventRpcModels.RsvpCountsResult;
+  yesAttendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>;
   locale: Locale;
 }): {
   embeds: ReadonlyArray<Discord.RichEmbed>;
@@ -84,6 +87,23 @@ export const buildEventEmbed = (opts: {
       { locale },
     ),
   });
+
+  if (opts.yesAttendees.length > 0) {
+    const names = pipe(
+      opts.yesAttendees,
+      Array.filterMap((a) => Option.map(a.discord_id, (id) => `<@${id}>`)),
+      Array.join(''),
+    );
+    const extra =
+      opts.counts.yesCount > opts.yesAttendees.length
+        ? ` +${opts.counts.yesCount - opts.yesAttendees.length} more`
+        : '';
+    fields.push({
+      name: m.bot_embed_going({}, { locale }),
+      value: names + extra,
+      inline: false,
+    });
+  }
 
   const embeds: ReadonlyArray<Discord.RichEmbed> = [
     {

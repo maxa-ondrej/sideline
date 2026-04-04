@@ -613,6 +613,24 @@ export const EventsRpcLive = rpcHandlers.pipe(
         ),
   ),
   Effect.let(
+    'Event/GetYesAttendeesForEmbed',
+    ({ rsvps }) =>
+      ({ event_id, limit }: { readonly event_id: Event.EventId; readonly limit: number }) =>
+        rsvps.findYesAttendeesForEmbed(event_id, limit).pipe(
+          Effect.map(
+            Array.map(
+              (row) =>
+                new EventRpcModels.RsvpAttendeeEntry({
+                  discord_id: row.discord_id,
+                  name: row.member_name,
+                  response: row.response,
+                  message: row.message,
+                }),
+            ),
+          ),
+        ),
+  ),
+  Effect.let(
     'Event/CreateEvent',
     ({ deps: { sql, members, syncEvents, trainingTypesRepo }, events }) =>
       (input: {

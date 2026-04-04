@@ -12,6 +12,7 @@ import {
   EventEmbedInfo,
   GuildEventListResult,
   GuildNotFound,
+  RsvpAttendeeEntry,
   RsvpAttendeesResult,
   RsvpCountsResult,
   RsvpDeadlinePassed,
@@ -75,6 +76,10 @@ export const EventRpcGroup = RpcGroup.make(
   Rpc.make('GetRsvpAttendees', {
     payload: { event_id: Event.EventId, offset: Schema.Number, limit: Schema.Number },
     success: RsvpAttendeesResult,
+  }),
+  Rpc.make('GetYesAttendeesForEmbed', {
+    payload: { event_id: Event.EventId, limit: Schema.Number },
+    success: Schema.Array(RsvpAttendeeEntry),
   }),
   Rpc.make('GetRsvpReminderSummary', {
     payload: { event_id: Event.EventId },

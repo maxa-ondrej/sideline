@@ -2,7 +2,7 @@ import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect, Option } from 'effect';
 import { guildLocale } from '~/locale.js';
-import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { reorderChannelMessages } from './reorderChannelMessages.js';
 
@@ -21,8 +21,14 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
             `No Discord message stored for event ${event.event_id}, skipping update`,
           ),
         onSome: (msg) =>
-          rpc['Event/GetRsvpCounts']({ event_id: event.event_id }).pipe(
-            Effect.flatMap((counts) => {
+          Effect.all({
+            counts: rpc['Event/GetRsvpCounts']({ event_id: event.event_id }),
+            yesAttendees: rpc['Event/GetYesAttendeesForEmbed']({
+              event_id: event.event_id,
+              limit: YES_EMBED_LIMIT,
+            }),
+          }).pipe(
+            Effect.flatMap(({ counts, yesAttendees }) => {
               const locale = guildLocale({ guild_locale: guild.preferred_locale });
               const payload = buildEventEmbed({
                 teamId: event.team_id,
@@ -34,6 +40,7 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
                 location: event.location,
                 eventType: event.event_type,
                 counts,
+                yesAttendees,
                 locale,
               });
               return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
