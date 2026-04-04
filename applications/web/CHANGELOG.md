@@ -1,5 +1,11 @@
 # @sideline/web
 
+## 0.9.3
+
+### Patch Changes
+
+- [`a5b5aea`](https://github.com/maxa-ondrej/sideline/commit/a5b5aea8aecab3f572a92d6c64ce929861983bc9) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Redirect to home page after completing profile instead of prompting to create a team
+
 ## 0.9.2
 
 ### Patch Changes
