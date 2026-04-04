@@ -35,7 +35,7 @@
     "@t3-oss/env-core": "^0.13.8",
     "arctic": "^3.7.0",
     "dfx": "0.127.0",
-    "effect": "3.19.18"
+    "effect": "3.20.0"
   },
   "effect": {
     "generateExports": {
