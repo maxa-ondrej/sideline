@@ -14,7 +14,11 @@ export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complet
       ? Effect.Do.pipe(
           Effect.flatMap(() => getLastTeamId),
           Effect.flatten,
-          Effect.flatMap((teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } })),
+          Effect.flatMap((teamId) =>
+            Option.isSome(Array.findFirst(context.teams, (t) => t.teamId === teamId))
+              ? Redirect.make({ to: '/teams/$teamId', params: { teamId } })
+              : Redirect.make({ to: '/' }),
+          ),
           Effect.catchTag('NoSuchElementException', () => Effect.void),
           context.run,
         )
@@ -22,14 +26,18 @@ export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complet
 });
 
 function ProfileCompleteRoute() {
-  const { user } = Route.useRouteContext();
+  const { user, teams } = Route.useRouteContext();
   const navigate = useNavigate();
   const run = useRun();
 
   const handleSuccess = React.useCallback(async () => {
     const lastTeamId = Effect.runSync(getLastTeamId);
     if (Option.isSome(lastTeamId)) {
-      await navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
+      if (Option.isSome(Array.findFirst(teams, (t) => t.teamId === lastTeamId.value))) {
+        await navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
+      } else {
+        await navigate({ to: '/' });
+      }
       return;
     }
     const result = await ApiClient.pipe(
@@ -46,7 +54,7 @@ function ProfileCompleteRoute() {
     } else {
       await navigate({ to: '/' });
     }
-  }, [navigate, run]);
+  }, [navigate, run, teams]);
 
   return <ProfileCompletePage user={user} onSuccess={handleSuccess} />;
 }

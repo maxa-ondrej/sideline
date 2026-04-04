@@ -1,3 +1,4 @@
+import type { Auth } from '@sideline/domain';
 import { createFileRoute } from '@tanstack/react-router';
 import { Array, Data, Effect, Option, Schema } from 'effect';
 import { HomePage } from '~/components/pages/HomePage';
@@ -42,24 +43,30 @@ export const Route = createFileRoute('/')({
           onNone: () => Effect.void,
         }),
       ),
-      Effect.flatMap(() => getLastTeamId),
-      Effect.flatMap(
-        Option.match({
-          onSome: (teamId) => Redirect.make({ to: '/teams/$teamId', params: { teamId } }),
-          onNone: () => Effect.void,
-        }),
-      ),
       Effect.flatMap(() => client),
       Effect.flatMap((c) => c.auth.myTeams()),
-      Effect.map(Array.head),
       Effect.catchTag(
         'HttpApiDecodeError',
         'ParseError',
         'RequestError',
         'ResponseError',
         'Unauthorized',
-        () => Effect.succeed(Option.none()),
+        () => Effect.succeed([] as readonly Auth.UserTeam[]),
       ),
+      Effect.tap((teams) =>
+        getLastTeamId.pipe(
+          Effect.flatMap(
+            Option.match({
+              onSome: (teamId) =>
+                Option.isSome(Array.findFirst(teams, (t) => t.teamId === teamId))
+                  ? Redirect.make({ to: '/teams/$teamId', params: { teamId } })
+                  : Effect.void,
+              onNone: () => Effect.void,
+            }),
+          ),
+        ),
+      ),
+      Effect.map(Array.head),
       Effect.flatten,
       Effect.flatMap((team) =>
         Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
