@@ -44,7 +44,7 @@ function ProfileCompleteRoute() {
       toast.success(m.team_autoJoined({ teamName: team.teamName }));
       await navigate({ to: '/teams/$teamId', params: { teamId: team.teamId } });
     } else {
-      await navigate({ to: '/create-team' });
+      await navigate({ to: '/' });
     }
   }, [navigate, run]);
 
