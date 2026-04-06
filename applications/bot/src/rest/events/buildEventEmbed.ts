@@ -4,7 +4,7 @@ import type * as Discord from 'dfx/types';
 import { Array, DateTime, Option, pipe } from 'effect';
 import type { Locale } from '~/locale.js';
 
-export const YES_EMBED_LIMIT = 10;
+export const YES_EMBED_LIMIT = 20;
 
 const EVENT_TYPE_COLORS: Record<string, number> = {
   training: 0x57f287, // green
