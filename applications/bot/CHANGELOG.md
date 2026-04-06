@@ -1,5 +1,11 @@
 # @sideline/bot
 
+## 0.9.5
+
+### Patch Changes
+
+- [`e62e1d4`](https://github.com/maxa-ondrej/sideline/commit/e62e1d4ca51fb24c5bb0bd6c26885dca1739edff) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Increase the event embed yes attendees display limit from 10 to 20
+
 ## 0.9.4
 
 ### Patch Changes
