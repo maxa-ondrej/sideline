@@ -1693,14 +1693,11 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
 // Message preservation tests — COALESCE behavior
 // ============================================================
 //
-// These tests verify that the upsertRsvp operation uses COALESCE
-// semantics: an existing message is preserved when the incoming
-// message is Option.none() (button-click path), but is replaced
-// when a new non-None message is provided (modal-submit path).
-//
-// The tests should FAIL until the production EventRsvpsRepository
-// uses `COALESCE(EXCLUDED.message, event_rsvps.message)` in its
-// upsert SQL.
+// These tests are regression coverage for the COALESCE semantics in
+// EventRsvpsRepository: an existing message is preserved when the
+// incoming message is Option.none() (button-click path), replaced
+// when a new non-None message is provided (modal-submit path), and
+// cleared to None when clearMessage is true (clear-button path).
 
 describe('Event/SubmitRsvp RPC — RSVP message preservation', () => {
   beforeEach(() => {
@@ -1763,4 +1760,22 @@ describe('Event/SubmitRsvp RPC — RSVP message preservation', () => {
       );
     },
   );
+
+  itEffect.effect('should clear message when clearMessage is true', () => {
+    // First RSVP: set a message via modal submit
+    return makeSubmitRsvp({ response: 'yes', message: Option.some('I will be late') }).pipe(
+      Effect.flatMap(() =>
+        // Clear the message via the clear-message button path
+        makeSubmitRsvp({ response: 'yes', message: Option.none(), clearMessage: true }),
+      ),
+      Effect.tap(() => {
+        const key = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+        const stored = rpcRsvpsStore.get(key);
+        expect(stored).toBeDefined();
+        expect(Option.isNone(stored?.message ?? Option.none())).toBe(true);
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
 });

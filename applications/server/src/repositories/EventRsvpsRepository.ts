@@ -28,6 +28,12 @@ class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
+class UpsertClearInput extends Schema.Class<UpsertClearInput>('UpsertClearInput')({
+  event_id: Schema.String,
+  team_member_id: Schema.String,
+  response: Schema.String,
+}) {}
+
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
   discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
   member_name: Schema.OptionFromNullOr(Schema.String),
@@ -99,7 +105,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
   });
 
   private upsertClearing = SqlSchema.single({
-    Request: UpsertInput,
+    Request: UpsertClearInput,
     Result: RsvpRow,
     execute: (input) => this.sql`
       INSERT INTO event_rsvps (event_id, team_member_id, response, message)
@@ -229,7 +235,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     clearMessage = false,
   ) =>
     (clearMessage
-      ? this.upsertClearing({ event_id: eventId, team_member_id: teamMemberId, response, message })
+      ? this.upsertClearing({ event_id: eventId, team_member_id: teamMemberId, response })
       : this.upsert({ event_id: eventId, team_member_id: teamMemberId, response, message })
     ).pipe(catchSqlErrors);
 
