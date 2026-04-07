@@ -296,6 +296,7 @@ export const mockTeamSettings = {
   discordChannelMeeting: null,
   discordChannelSocial: null,
   discordChannelOther: null,
+  discordChannelLateRsvp: null,
   discordArchiveCategoryId: null,
   discordChannelCleanupOnGroupDelete: 'delete',
   discordChannelCleanupOnRosterDeactivate: 'delete',
