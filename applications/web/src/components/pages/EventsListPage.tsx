@@ -27,7 +27,13 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
-import { dateOnlyToUtc, formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
+import {
+  dateOnlyToUtc,
+  formatLocalDate,
+  formatLocalTime,
+  formatUtcTime,
+  localToUtc,
+} from '~/lib/datetime';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -234,8 +240,10 @@ export function EventsListPage({
             daysOfWeek: values.daysOfWeek,
             startDate: dateOnlyToUtc(values.startDate),
             endDate: values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
-            startTime: values.startTime,
-            endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
+            startTime: formatUtcTime(localToUtc(values.startDate, values.startTime)),
+            endTime: values.endTime
+              ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
+              : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE

@@ -25,7 +25,13 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
-import { dateOnlyToUtc, formatLocalDate } from '~/lib/datetime';
+import {
+  dateOnlyToUtc,
+  formatLocalDate,
+  formatUtcTime,
+  localToUtc,
+  utcTimeToLocal,
+} from '~/lib/datetime';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -201,8 +207,10 @@ export function TrainingTypeDetailPage({
             daysOfWeek: values.daysOfWeek,
             startDate: dateOnlyToUtc(values.startDate),
             endDate: values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
-            startTime: values.startTime,
-            endTime: values.endTime ? Option.some(values.endTime) : Option.none(),
+            startTime: formatUtcTime(localToUtc(values.startDate, values.startTime)),
+            endTime: values.endTime
+              ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
+              : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId: Option.none(),
             ownerGroupId: Option.none(),
@@ -254,8 +262,8 @@ export function TrainingTypeDetailPage({
           onNone: () => '',
           onSome: formatLocalDate,
         }),
-        startTime: s.startTime,
-        endTime: Option.getOrElse(s.endTime, () => ''),
+        startTime: utcTimeToLocal(s.startTime),
+        endTime: Option.match(s.endTime, { onNone: () => '', onSome: utcTimeToLocal }),
         location: Option.getOrElse(s.location, () => ''),
       });
       setEditingSeriesId(s.seriesId);
@@ -278,8 +286,12 @@ export function TrainingTypeDetailPage({
               values.description ? Option.some(values.description) : Option.none(),
             ),
             daysOfWeek: Option.some(values.daysOfWeek),
-            startTime: Option.some(values.startTime),
-            endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
+            startTime: Option.some(formatUtcTime(localToUtc(values.startDate, values.startTime))),
+            endTime: Option.some(
+              values.endTime
+                ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
+                : Option.none(),
+            ),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             endDate: Option.some(
               values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
@@ -461,9 +473,9 @@ export function TrainingTypeDetailPage({
                           {s.daysOfWeek.map((d) => dayShortLabels[d]()).join(', ')}
                         </td>
                         <td className='py-2 px-4 text-muted-foreground'>
-                          {s.startTime}
+                          {utcTimeToLocal(s.startTime)}
                           {s.endTime.pipe(
-                            Option.map((v) => ` - ${v}`),
+                            Option.map((v) => ` - ${utcTimeToLocal(v)}`),
                             Option.getOrElse(() => ''),
                           )}
                         </td>
