@@ -3,10 +3,12 @@ import { AttendeesButton, AttendeesPageButton } from './attendees.js';
 import { EventCreateModal } from './event-create.js';
 import { EventCreateAutocomplete } from './event-create-autocomplete.js';
 import { EventListPageButton } from './event-list.js';
-import { RsvpButton, RsvpModal } from './rsvp.js';
+import { RsvpAddMessageButton, RsvpButton, RsvpClearMessageButton, RsvpModal } from './rsvp.js';
 
 export const interactionBuilder = Ix.builder
   .add(RsvpButton)
+  .add(RsvpAddMessageButton)
+  .add(RsvpClearMessageButton)
   .add(RsvpModal)
   .add(AttendeesButton)
   .add(AttendeesPageButton)

@@ -221,32 +221,20 @@ All interaction handlers are registered in `applications/bot/src/interactions/in
 
 ### RSVP Button — `rsvp:{teamId}:{eventId}:{response}`
 
-Attached to every event embed message. Clicking opens a modal.
+Attached to every event embed message. Clicking saves the RSVP immediately and opens an ephemeral confirmation with message management buttons.
 
 **Custom ID pattern:** `rsvp:{teamId}:{eventId}:{response}` where `response` is one of `yes`, `no`, `maybe`.
 
 **Behavior:**
 
 1. Parses `teamId`, `eventId`, and `response` from the custom ID.
-2. Opens a modal with `custom_id` `rsvp-modal:{teamId}:{eventId}:{response}`.
-3. Modal has one optional multi-line text field (`custom_id: rsvp_message`, max 200 characters) for an optional personal message.
-
-**Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpButton`)
-
----
-
-### RSVP Modal — `rsvp-modal:{teamId}:{eventId}:{response}`
-
-Handles submission of the RSVP modal opened by the RSVP button.
-
-**Behavior:**
-
-1. Parses `teamId`, `eventId`, `response`, and optional `rsvp_message` from the submission.
 2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
-3. The background fiber calls `Event/SubmitRsvp` RPC, which returns a `SubmitRsvpResult`.
-4. On success, additionally fetches `Event/GetDiscordMessageId` and `Event/GetEventEmbedInfo` to update the original event embed message in the channel with the new RSVP counts (rebuilds the full embed and component set).
-5. If the result indicates a late RSVP (`isLateRsvp = true`) and `lateRsvpChannelId` is present, the fiber also calls `Event/GetEventEmbedInfo` (for the event title) and posts an orange-coloured notification embed to that channel identifying the member, their response, and the event name.
-6. Updates the ephemeral message with a localized confirmation. If the RSVP was late, a polite hint is appended to the confirmation informing the user that the late response was noted.
+3. The background fiber calls `Event/SubmitRsvp` RPC with `message: none` and `clearMessage: false`, which records the response while preserving any existing message (the SQL upsert uses `COALESCE(new_message, existing_message)`).
+4. On success, the background fiber also runs `postRsvpDiscordUpdates` to rebuild and edit the original event embed (fetching `Event/GetDiscordMessageId`, `Event/GetEventEmbedInfo`, `Event/GetYesAttendeesForEmbed`, and the guild locale). If the RSVP was late (`isLateRsvp = true`) and `lateRsvpChannelId` is present, it also posts an orange-coloured notification embed to that channel.
+5. Updates the ephemeral "thinking" message with a localised confirmation. If the RSVP was late, a polite hint is appended.
+6. The ephemeral message includes one action row of buttons based on whether the member already has a message:
+   - **No existing message:** `[💬 Add a message]` (`rsvp-add-msg:…`)
+   - **Message exists:** `[💬 Edit message]` (`rsvp-add-msg:…`) and `[🗑️ Clear message]` (`rsvp-clear-msg:…`)
 
 **Errors from `Event/SubmitRsvp`:**
 
@@ -256,6 +244,60 @@ Handles submission of the RSVP modal opened by the RSVP button.
 | `RsvpMemberNotFound` | Not a member of this team |
 | `RsvpNotGroupMember` | Not a member of the required group |
 | `RsvpEventNotFound` | Event not found |
+
+**Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpButton`)
+
+---
+
+### RSVP Add/Edit Message Button — `rsvp-add-msg:{teamId}:{eventId}:{response}`
+
+Appears in the ephemeral confirmation after clicking an RSVP button. Opens a modal so the member can add or edit their personal message without changing their RSVP response.
+
+**Custom ID pattern:** `rsvp-add-msg:{teamId}:{eventId}:{response}`
+
+**Behavior:**
+
+1. Parses `teamId`, `eventId`, and `response` from the custom ID.
+2. Opens a modal with `custom_id` `rsvp-modal:{teamId}:{eventId}:{response}`.
+3. The modal has one optional multi-line text field (`custom_id: rsvp_message`, max 200 characters).
+
+**Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpAddMessageButton`)
+
+---
+
+### RSVP Clear Message Button — `rsvp-clear-msg:{teamId}:{eventId}:{response}`
+
+Appears alongside the "Edit message" button in the ephemeral confirmation when the member already has a message. Clears the message without changing the RSVP response.
+
+**Custom ID pattern:** `rsvp-clear-msg:{teamId}:{eventId}:{response}`
+
+**Behavior:**
+
+1. Parses `teamId`, `eventId`, and `response` from the custom ID.
+2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Event/SubmitRsvp` RPC with `message: none` and `clearMessage: true`, which sets the stored message to NULL.
+4. Runs `postRsvpDiscordUpdates` to rebuild the event embed.
+5. Updates the ephemeral message with a localised "message cleared" confirmation and replaces the action row with only the `[💬 Add a message]` button.
+
+**Errors from `Event/SubmitRsvp`:** same as RSVP Button.
+
+**Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpClearMessageButton`)
+
+---
+
+### RSVP Modal — `rsvp-modal:{teamId}:{eventId}:{response}`
+
+Handles submission of the RSVP modal opened by the "Add/Edit message" button.
+
+**Behavior:**
+
+1. Parses `teamId`, `eventId`, `response`, and optional `rsvp_message` from the submission.
+2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Event/SubmitRsvp` RPC with the provided `message` and `clearMessage: false`.
+4. Runs `postRsvpDiscordUpdates` to rebuild the event embed.
+5. Updates the ephemeral message with a localised "Message saved." confirmation and rebuilds the action row (showing "Edit message" + "Clear message" if the message is set, or "Add a message" otherwise).
+
+**Errors from `Event/SubmitRsvp`:** same as RSVP Button.
 
 **Source file:** `applications/bot/src/interactions/rsvp.ts` (`RsvpModal`)
 
@@ -501,13 +543,14 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/CreateEvent` | Create a new event (from `/event create`) |
 | `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events for `/event list` |
 | `Event/GetTrainingTypesByGuild` | Fetch training type choices for autocomplete |
-| `Event/SubmitRsvp` | Record a member's RSVP response; returns `SubmitRsvpResult` with late-RSVP flag and optional notification channel |
+| `Event/SubmitRsvp` | Record a member's RSVP response; payload includes `clearMessage: boolean`; returns `SubmitRsvpResult` with late-RSVP flag, optional notification channel, and `message: Option<string>` |
 | `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |
 | `Event/GetRsvpAttendees` | Fetch paginated attendee list |
 | `Event/GetRsvpReminderSummary` | Fetch counts and non-responder list for a reminder |
 | `Event/SaveDiscordMessageId` | Persist the Discord message ID after posting an event embed |
 | `Event/GetDiscordMessageId` | Look up the stored Discord message for an event |
 | `Event/GetEventEmbedInfo` | Fetch event fields needed to rebuild the embed |
+| `Event/GetYesAttendeesForEmbed` | Fetch yes-attendee display names for the embed (used by `postRsvpDiscordUpdates` and event sync) |
 | `Event/GetChannelEvents` | Fetch all events in a Discord channel (for reordering) |
 
 ### Activity group (`Activity/`)

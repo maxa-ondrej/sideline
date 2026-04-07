@@ -22,6 +22,7 @@ export class SubmitRsvpResult extends Schema.Class<SubmitRsvpResult>('SubmitRsvp
   canRsvp: Schema.Boolean,
   isLateRsvp: Schema.Boolean,
   lateRsvpChannelId: Schema.OptionFromNullOr(Snowflake),
+  message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({

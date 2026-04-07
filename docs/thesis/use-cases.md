@@ -457,7 +457,7 @@ flowchart LR
     end
 
     subgraph BUTTONS["Button Interactions on Embeds"]
-        UC_BTN_RSVP["RSVP Button (Yes / No / Maybe)\nSubmits RSVP for the event in the embed\nupdates button counts in real time"]
+        UC_BTN_RSVP["RSVP Button (Yes / No / Maybe)\nSaves RSVP immediately on click (no modal)\nEphemeral confirm with Add/Edit/Clear message buttons\nupdates embed counts in real time"]
         UC_BTN_PAGE["Pagination Buttons\nNavigates event list forward / backward"]
     end
 
@@ -540,7 +540,7 @@ The following structured descriptions cover the most significant use cases in th
 |---|---|
 | **Actor** | Player (web); Discord User (via bot button) |
 | **Precondition** | The event exists and has not been cancelled. The RSVP deadline has not passed. The actor is a member of the team (or, if the event has a member group, is a member of that group). |
-| **Main Flow** | 1. The actor opens the event detail page (web) or sees the event embed in Discord. 2. The actor selects a response: Yes, No, or Maybe. Optionally provides a message. 3. The application calls `PUT /teams/:teamId/events/:eventId/rsvp` (web) or the bot calls `Event/SubmitRsvp` (RPC). 4. The server records the response and returns updated counts. 5. The bot updates the RSVP count display on the Discord embed. |
+| **Main Flow** | 1. The actor opens the event detail page (web) or sees the event embed in Discord. 2. The actor selects a response: Yes, No, or Maybe. 3. **Web:** The application calls `PUT /teams/:teamId/events/:eventId/rsvp` with an optional message. **Discord bot:** Clicking the RSVP button immediately saves the response via `Event/SubmitRsvp` (no modal); the bot replies with an ephemeral confirmation. 4. The server records the response and returns updated counts. 5. The bot updates the RSVP count display on the Discord embed. 6. **Discord bot (optional message):** The ephemeral confirmation includes a `[💬 Add a message]` button. Clicking it opens a modal where the actor can type an optional message; submitting saves the message via a second `Event/SubmitRsvp` call. If a message already exists the buttons shown are `[💬 Edit message]` and `[🗑️ Clear message]`. |
 | **Postcondition** | The actor's RSVP response is recorded. The Discord embed shows up-to-date attendance counts. |
 | **Alternate Flow** | If the RSVP deadline has passed the API returns `400 RsvpDeadlinePassed` and the UI informs the user. |
 

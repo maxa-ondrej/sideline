@@ -55,7 +55,7 @@ class ResponseCount extends Schema.Class<ResponseCount>('ResponseCount')({
 export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()(
   'api/EventRsvpsRepository',
   {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
+    effect: SqlClient.SqlClient.pipe(Effect.bindTo('sql')),
   },
 ) {
   private findByEventId = SqlSchema.findAll({
@@ -93,7 +93,19 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
       INSERT INTO event_rsvps (event_id, team_member_id, response, message)
       VALUES (${input.event_id}, ${input.team_member_id}, ${input.response}, ${input.message})
       ON CONFLICT (event_id, team_member_id)
-      DO UPDATE SET response = ${input.response}, message = ${input.message}, updated_at = now()
+      DO UPDATE SET response = ${input.response}, message = COALESCE(${input.message}, event_rsvps.message), updated_at = now()
+      RETURNING id, event_id, team_member_id, response, message
+    `,
+  });
+
+  private upsertClearing = SqlSchema.single({
+    Request: UpsertInput,
+    Result: RsvpRow,
+    execute: (input) => this.sql`
+      INSERT INTO event_rsvps (event_id, team_member_id, response, message)
+      VALUES (${input.event_id}, ${input.team_member_id}, ${input.response}, NULL)
+      ON CONFLICT (event_id, team_member_id)
+      DO UPDATE SET response = ${input.response}, message = NULL, updated_at = now()
       RETURNING id, event_id, team_member_id, response, message
     `,
   });
@@ -214,13 +226,12 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     teamMemberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
     message: Option.Option<string>,
+    clearMessage = false,
   ) =>
-    this.upsert({
-      event_id: eventId,
-      team_member_id: teamMemberId,
-      response,
-      message,
-    }).pipe(catchSqlErrors);
+    (clearMessage
+      ? this.upsertClearing({ event_id: eventId, team_member_id: teamMemberId, response, message })
+      : this.upsert({ event_id: eventId, team_member_id: teamMemberId, response, message })
+    ).pipe(catchSqlErrors);
 
   countRsvpsByEventId = (eventId: Event.EventId) =>
     this.countByEventId(eventId).pipe(catchSqlErrors);

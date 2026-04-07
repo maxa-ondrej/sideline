@@ -172,7 +172,7 @@ sequenceDiagram
 
 ## 4. RSVP via Discord Button
 
-An event embed posted to a Discord channel contains RSVP buttons (Yes / No / Maybe). When a member clicks one, the bot responds within 3 seconds with a modal requesting an optional message. On modal submission the bot immediately replies with an ephemeral acknowledgement and forks a daemon fiber. The fiber calls `Event/SubmitRsvp` over RPC, which records the response and returns updated RSVP counts. The fiber then fetches the Discord message ID and embed info, rebuilds the embed with fresh counts, and edits the original event message in the channel.
+An event embed posted to a Discord channel contains RSVP buttons (Yes / No / Maybe). When a member clicks one, the bot immediately saves the RSVP without opening a modal and replies with an ephemeral confirmation. The confirmation includes a `[💬 Add a message]` button if no message exists, or `[💬 Edit message]` and `[🗑️ Clear message]` buttons if a message is already stored. Clicking the add/edit button opens a modal where the member can type an optional message; submitting the modal saves the message via a second `Event/SubmitRsvp` call. At each step the bot rebuilds and edits the original event embed with fresh RSVP counts.
 
 ```mermaid
 sequenceDiagram
@@ -186,50 +186,38 @@ sequenceDiagram
     Discord->>Bot: Interaction payload (MESSAGE_COMPONENT)
 
     Note over Bot: Must respond within 3 seconds
-    Bot-->>Discord: MODAL response<br/>custom_id="rsvp-modal:{teamId}:{eventId}:{response}"<br/>Field: optional message (max 200 chars)
-
-    User->>Discord: Optionally fill message, submit
-    Discord->>Bot: Interaction payload (MODAL_SUBMIT)
-
-    Note over Bot: Must respond within 3 seconds
     Bot->>Bot: Fork daemon fiber (submitAndFollowUp)
     Bot-->>Discord: CHANNEL_MESSAGE_WITH_SOURCE (ephemeral)<br/>"Thinking..."
 
     Note over Bot: Daemon fiber continues
 
-    Bot->>Server: RPC Event/SubmitRsvp {event_id, team_id, discord_user_id, response, message}
+    Bot->>Server: RPC Event/SubmitRsvp {event_id, team_id, discord_user_id, response,<br/>message: none, clearMessage: false}
 
     Server->>DB: Resolve discord_user_id → team_member_id for team
     DB-->>Server: Member (or not found)
 
     alt Member not found
         Server-->>Bot: RPC error RsvpMemberNotFound
-        Bot->>Discord: Edit original → "You are not a member of this team"
+        Bot->>Discord: Edit original ephemeral → "You are not a member of this team"
     else Event not found
         Server-->>Bot: RPC error RsvpEventNotFound
-        Bot->>Discord: Edit original → "Event not found"
+        Bot->>Discord: Edit original ephemeral → "Event not found"
     else RSVP deadline passed
         Server-->>Bot: RPC error RsvpDeadlinePassed
-        Bot->>Discord: Edit original → "RSVP deadline has passed"
+        Bot->>Discord: Edit original ephemeral → "RSVP deadline has passed"
     else Not in member group
         Server-->>Bot: RPC error RsvpNotGroupMember
-        Bot->>Discord: Edit original → "You are not in the event's member group"
+        Bot->>Discord: Edit original ephemeral → "You are not in the event's member group"
     else Success
-        Server->>DB: UPSERT event_rsvps {event_id, member_id, response, message}
-        DB-->>Server: RSVP counts {yes, no, maybe}
+        Server->>DB: UPSERT event_rsvps {event_id, member_id, response}<br/>message = COALESCE(new_message, existing_message)
+        DB-->>Server: SubmitRsvpResult {yes, no, maybe, isLateRsvp, lateRsvpChannelId, message}
 
-        Server-->>Bot: RPC success — RSVP counts
+        Server-->>Bot: RPC success — SubmitRsvpResult
 
+        Note over Bot: postRsvpDiscordUpdates (concurrent)
         Bot->>Server: RPC Event/GetDiscordMessageId {event_id}
-        Server->>DB: SELECT discord_message_id, discord_channel_id FROM event_discord_messages
-        DB-->>Server: Stored message reference (Option)
-        Server-->>Bot: Option<{discord_channel_id, discord_message_id}>
-
         Bot->>Server: RPC Event/GetEventEmbedInfo {event_id}
-        Server->>DB: SELECT title, description, start_at, end_at, ... FROM events
-        DB-->>Server: Embed info (Option)
-        Server-->>Bot: Option<EmbedInfo>
-
+        Bot->>Server: RPC Event/GetYesAttendeesForEmbed {event_id}
         Bot->>Discord: GET /guilds/{guild_id} (fetch preferred locale)
         Discord-->>Bot: Guild {preferred_locale}
 
@@ -237,7 +225,52 @@ sequenceDiagram
         Bot->>Discord: PATCH /channels/{channel_id}/messages/{message_id}<br/>{embeds: [...], components: [...]}
         Discord-->>Bot: Updated message
 
-        Bot->>Discord: Edit original ephemeral → "Your response (Yes/No/Maybe) has been recorded"
+        opt isLateRsvp = true and lateRsvpChannelId present
+            Bot->>Discord: POST /channels/{lateRsvpChannelId}/messages<br/>(orange embed — late RSVP notification)
+        end
+
+        Note over Bot: Determine action row buttons<br/>message present → [Edit message] [Clear message]<br/>no message → [Add a message]
+        Bot->>Discord: Edit original ephemeral → "Your response (Yes/No/Maybe) has been recorded"<br/>+ action row with message management buttons
+    end
+
+    opt User clicks [Add a message] or [Edit message] (custom_id="rsvp-add-msg:…")
+        User->>Discord: Click "Add a message" / "Edit message" button
+        Discord->>Bot: Interaction payload (MESSAGE_COMPONENT)
+
+        Note over Bot: Must respond within 3 seconds
+        Bot-->>Discord: MODAL response<br/>custom_id="rsvp-modal:{teamId}:{eventId}:{response}"<br/>Field: optional message (max 200 chars)
+
+        User->>Discord: Fill message field, submit modal
+        Discord->>Bot: Interaction payload (MODAL_SUBMIT)
+
+        Note over Bot: Must respond within 3 seconds
+        Bot->>Bot: Fork daemon fiber
+        Bot-->>Discord: CHANNEL_MESSAGE_WITH_SOURCE (ephemeral)<br/>"Thinking..."
+
+        Bot->>Server: RPC Event/SubmitRsvp {event_id, team_id, discord_user_id, response,<br/>message: some(text), clearMessage: false}
+        Server->>DB: UPSERT event_rsvps — set message = provided text
+        DB-->>Server: SubmitRsvpResult {message: some(text), ...}
+        Server-->>Bot: RPC success
+
+        Note over Bot: postRsvpDiscordUpdates — rebuild event embed
+        Bot->>Discord: Edit original ephemeral → "Message saved."<br/>+ [Edit message] [Clear message] buttons
+    end
+
+    opt User clicks [Clear message] (custom_id="rsvp-clear-msg:…")
+        User->>Discord: Click "Clear message" button
+        Discord->>Bot: Interaction payload (MESSAGE_COMPONENT)
+
+        Note over Bot: Must respond within 3 seconds
+        Bot->>Bot: Fork daemon fiber
+        Bot-->>Discord: CHANNEL_MESSAGE_WITH_SOURCE (ephemeral)<br/>"Thinking..."
+
+        Bot->>Server: RPC Event/SubmitRsvp {event_id, team_id, discord_user_id, response,<br/>message: none, clearMessage: true}
+        Server->>DB: UPSERT event_rsvps — set message = NULL
+        DB-->>Server: SubmitRsvpResult {message: none, ...}
+        Server-->>Bot: RPC success
+
+        Note over Bot: postRsvpDiscordUpdates — rebuild event embed
+        Bot->>Discord: Edit original ephemeral → "Message cleared."<br/>+ [Add a message] button
     end
 ```
 
