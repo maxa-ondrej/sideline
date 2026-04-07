@@ -23,6 +23,7 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordChannelMeeting: Schema.OptionFromNullOr(Snowflake),
   discordChannelSocial: Schema.OptionFromNullOr(Snowflake),
   discordChannelOther: Schema.OptionFromNullOr(Snowflake),
+  discordChannelLateRsvp: Schema.OptionFromNullOr(Snowflake),
   createDiscordChannelOnGroup: Schema.Boolean,
   createDiscordChannelOnRoster: Schema.Boolean,
   discordArchiveCategoryId: Schema.OptionFromNullOr(Snowflake),
@@ -58,6 +59,9 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
     as: 'Option',
   }),
   discordChannelOther: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
+    as: 'Option',
+  }),
+  discordChannelLateRsvp: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
     as: 'Option',
   }),
   createDiscordChannelOnGroup: Schema.optionalWith(Schema.Boolean, { as: 'Option' }),

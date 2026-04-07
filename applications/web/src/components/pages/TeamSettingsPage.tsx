@@ -89,6 +89,9 @@ export function TeamSettingsPage({
   const [channelOther, setChannelOther] = React.useState(
     Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE),
   );
+  const [channelLateRsvp, setChannelLateRsvp] = React.useState(
+    Option.getOrElse(settings.discordChannelLateRsvp, () => NONE_VALUE),
+  );
   const [archiveCategory, setArchiveCategory] = React.useState(
     Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE),
   );
@@ -124,6 +127,7 @@ export function TeamSettingsPage({
     channelMeeting !== Option.getOrElse(settings.discordChannelMeeting, () => NONE_VALUE) ||
     channelSocial !== Option.getOrElse(settings.discordChannelSocial, () => NONE_VALUE) ||
     channelOther !== Option.getOrElse(settings.discordChannelOther, () => NONE_VALUE) ||
+    channelLateRsvp !== Option.getOrElse(settings.discordChannelLateRsvp, () => NONE_VALUE) ||
     archiveCategory !== Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE) ||
     cleanupOnGroupDelete !== settings.discordChannelCleanupOnGroupDelete ||
     cleanupOnRosterDeactivate !== settings.discordChannelCleanupOnRosterDeactivate ||
@@ -188,6 +192,7 @@ export function TeamSettingsPage({
             discordChannelMeeting: Option.some(channelToOption(channelMeeting)),
             discordChannelSocial: Option.some(channelToOption(channelSocial)),
             discordChannelOther: Option.some(channelToOption(channelOther)),
+            discordChannelLateRsvp: Option.some(channelToOption(channelLateRsvp)),
             discordArchiveCategoryId: Option.some(channelToOption(archiveCategory)),
             discordChannelCleanupOnGroupDelete: Option.some(
               cleanupOnGroupDelete as 'nothing' | 'delete' | 'archive',
@@ -220,6 +225,7 @@ export function TeamSettingsPage({
     channelMeeting,
     channelSocial,
     channelOther,
+    channelLateRsvp,
     archiveCategory,
     cleanupOnGroupDelete,
     cleanupOnRosterDeactivate,
@@ -268,6 +274,12 @@ export function TeamSettingsPage({
       value: channelOther,
       setter: setChannelOther,
       label: m.teamSettings_channelOther(),
+    },
+    {
+      key: 'lateRsvp',
+      value: channelLateRsvp,
+      setter: setChannelLateRsvp,
+      label: m.teamSettings_channelLateRsvp(),
     },
   ] as const;
 

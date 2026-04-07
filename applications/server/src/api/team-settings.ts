@@ -38,6 +38,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelMeeting: Option.none(),
                     discordChannelSocial: Option.none(),
                     discordChannelOther: Option.none(),
+                    discordChannelLateRsvp: Option.none(),
                     createDiscordChannelOnGroup: true,
                     createDiscordChannelOnRoster: true,
                     discordArchiveCategoryId: Option.none(),
@@ -58,6 +59,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelMeeting: s.discord_channel_meeting,
                     discordChannelSocial: s.discord_channel_social,
                     discordChannelOther: s.discord_channel_other,
+                    discordChannelLateRsvp: s.discord_channel_late_rsvp,
                     createDiscordChannelOnGroup: s.create_discord_channel_on_group,
                     createDiscordChannelOnRoster: s.create_discord_channel_on_roster,
                     discordArchiveCategoryId: s.discord_archive_category_id,
@@ -93,6 +95,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                     discordChannelMeeting: Option.flatten(payload.discordChannelMeeting),
                     discordChannelSocial: Option.flatten(payload.discordChannelSocial),
                     discordChannelOther: Option.flatten(payload.discordChannelOther),
+                    discordChannelLateRsvp: Option.flatten(payload.discordChannelLateRsvp),
                     createDiscordChannelOnGroup: Option.getOrElse(
                       payload.createDiscordChannelOnGroup,
                       () => true,
@@ -153,6 +156,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       onNone: () => s.discord_channel_other,
                       onSome: (v) => v,
                     }),
+                    discordChannelLateRsvp: Option.match(payload.discordChannelLateRsvp, {
+                      onNone: () => s.discord_channel_late_rsvp,
+                      onSome: (v) => v,
+                    }),
                     createDiscordChannelOnGroup: Option.getOrElse(
                       payload.createDiscordChannelOnGroup,
                       () => s.create_discord_channel_on_group,
@@ -197,6 +204,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   discordChannelMeeting: result.discord_channel_meeting,
                   discordChannelSocial: result.discord_channel_social,
                   discordChannelOther: result.discord_channel_other,
+                  discordChannelLateRsvp: result.discord_channel_late_rsvp,
                   createDiscordChannelOnGroup: result.create_discord_channel_on_group,
                   createDiscordChannelOnRoster: result.create_discord_channel_on_roster,
                   discordArchiveCategoryId: result.discord_archive_category_id,

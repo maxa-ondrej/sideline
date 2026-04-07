@@ -33,6 +33,7 @@ class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails'
   owner_group_name: Schema.OptionFromNullOr(Schema.String),
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   member_group_name: Schema.OptionFromNullOr(Schema.String),
+  reminder_sent_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
 }) {}
 
 class EventRow extends Schema.Class<EventRow>('EventRow')({
@@ -103,7 +104,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                    e.series_id, e.series_modified,
                    e.discord_target_channel_id,
                    e.owner_group_id, og.name AS owner_group_name,
-                   e.member_group_id, mg.name AS member_group_name
+                   e.member_group_id, mg.name AS member_group_name,
+                   e.reminder_sent_at
             FROM events e
             LEFT JOIN training_types tt ON tt.id = e.training_type_id
             LEFT JOIN team_members tm ON tm.id = e.created_by
@@ -127,7 +129,8 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                    e.series_id, e.series_modified,
                    e.discord_target_channel_id,
                    e.owner_group_id, og.name AS owner_group_name,
-                   e.member_group_id, mg.name AS member_group_name
+                   e.member_group_id, mg.name AS member_group_name,
+                   e.reminder_sent_at
             FROM events e
             LEFT JOIN training_types tt ON tt.id = e.training_type_id
             LEFT JOIN team_members tm ON tm.id = e.created_by

@@ -56,6 +56,25 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
         Array.join(', '),
       );
 
+      const yesAttendeeMentions = pipe(
+        summary.yesAttendees,
+        Array.filterMap((a) => Option.map(a.discord_id, (id) => `<@${id}>`)),
+        Array.join(', '),
+      );
+
+      const yesAttendeeNames = pipe(
+        summary.yesAttendees,
+        Array.filter((a) => Option.isNone(a.discord_id)),
+        Array.map((a) => Option.getOrElse(a.name, () => Option.getOrElse(a.username, () => '?'))),
+        Array.join(', '),
+      );
+
+      const yesAttendeeText = pipe(
+        [yesAttendeeMentions, yesAttendeeNames],
+        Array.filter(Boolean),
+        Array.join(', '),
+      );
+
       const fields = [
         {
           name: m.bot_embed_when({}, { locale }),
@@ -75,6 +94,14 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
           inline: false,
         },
       ];
+
+      if (yesAttendeeText) {
+        fields.push({
+          name: m.bot_embed_going({}, { locale }),
+          value: yesAttendeeText,
+          inline: false,
+        });
+      }
 
       if (nonResponderText) {
         fields.push({
