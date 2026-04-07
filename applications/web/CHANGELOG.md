@@ -1,5 +1,19 @@
 # @sideline/web
 
+## 0.10.0
+
+### Minor Changes
+
+- [#178](https://github.com/maxa-ondrej/sideline/pull/178) [`24174e9`](https://github.com/maxa-ondrej/sideline/commit/24174e90b31d73c8bf5f5181a087a41c3289ae54) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add late RSVP notifications: when a member responds after the reminder is sent, post a notification to a configurable team channel and show a polite hint in the RSVP confirmation. Also include the list of yes attendees in the reminder embed.
+
+### Patch Changes
+
+- [#180](https://github.com/maxa-ondrej/sideline/pull/180) [`0bd7e64`](https://github.com/maxa-ondrej/sideline/commit/0bd7e64c932b435ca0afdc052b5e9a2aa2451304) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix event series time display and storage: convert local times to UTC on submit and UTC back to local on display/edit.
+
+- Updated dependencies [[`24174e9`](https://github.com/maxa-ondrej/sideline/commit/24174e90b31d73c8bf5f5181a087a41c3289ae54)]:
+  - @sideline/domain@0.15.0
+  - @sideline/i18n@0.3.7
+
 ## 0.9.4
 
 ### Patch Changes
