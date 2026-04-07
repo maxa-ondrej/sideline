@@ -328,12 +328,14 @@ const rpcHandlers = Effect.Do.pipe(
         discord_user_id,
         response,
         message,
+        clearMessage,
       }: {
         readonly event_id: Event.EventId;
         readonly team_id: Team.TeamId;
         readonly discord_user_id: Discord.Snowflake;
         readonly response: EventRsvp.RsvpResponse;
         readonly message: Option.Option<string>;
+        readonly clearMessage: boolean;
       }) =>
         Effect.Do.pipe(
           Effect.tap(() =>
@@ -394,8 +396,8 @@ const rpcHandlers = Effect.Do.pipe(
           Effect.bind('priorRsvp', ({ member }) =>
             rsvps.findRsvpByEventAndMember(event_id, member.id),
           ),
-          Effect.tap(({ member }) =>
-            rsvps.upsertRsvp(event_id, member.id, response, message).pipe(
+          Effect.bind('savedRsvp', ({ member }) =>
+            rsvps.upsertRsvp(event_id, member.id, response, message, clearMessage).pipe(
               Effect.catchTag(
                 'NoSuchElementException',
                 LogicError.withMessage(
@@ -421,7 +423,7 @@ const rpcHandlers = Effect.Do.pipe(
               : Effect.succeed(Option.none<Discord.Snowflake>()),
           ),
           Effect.map(
-            ({ counts, isLateRsvp, lateRsvpChannelId }) =>
+            ({ counts, isLateRsvp, lateRsvpChannelId, savedRsvp }) =>
               new EventRpcModels.SubmitRsvpResult({
                 yesCount: counts.yesCount,
                 noCount: counts.noCount,
@@ -429,6 +431,7 @@ const rpcHandlers = Effect.Do.pipe(
                 canRsvp: counts.canRsvp,
                 isLateRsvp,
                 lateRsvpChannelId,
+                message: savedRsvp.message,
               }),
           ),
         ),

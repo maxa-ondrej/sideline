@@ -1,6 +1,12 @@
-import { Discord as DiscordSchemas, Event, EventRsvp, Team } from '@sideline/domain';
+import {
+  Discord as DiscordSchemas,
+  Event,
+  type EventRpcModels,
+  EventRsvp,
+  Team,
+} from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
-import { DiscordREST } from 'dfx/DiscordREST';
+import { DiscordREST, type DiscordRestService } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
@@ -27,8 +33,281 @@ const decodeEventId = Schema.decodeUnknownSync(Event.EventId);
 const decodeTeamId = Schema.decodeUnknownSync(Team.TeamId);
 const decodeRsvpResponse = Schema.decodeUnknownSync(EventRsvp.RsvpResponse);
 
+const buildMessageActionRow = (
+  teamId: string,
+  eventId: string,
+  response: EventRsvp.RsvpResponse,
+  locale: Locale,
+  hasMessage: boolean,
+): Discord.ActionRowComponentForMessageRequest => ({
+  type: 1,
+  components: hasMessage
+    ? [
+        {
+          type: 2,
+          style: 2,
+          label: m.bot_rsvp_edit_message({}, { locale }),
+          custom_id: `rsvp-add-msg:${teamId}:${eventId}:${response}`,
+        },
+        {
+          type: 2,
+          style: 4,
+          label: m.bot_rsvp_clear_message({}, { locale }),
+          custom_id: `rsvp-clear-msg:${teamId}:${eventId}:${response}`,
+        },
+      ]
+    : [
+        {
+          type: 2,
+          style: 2,
+          label: m.bot_rsvp_add_message({}, { locale }),
+          custom_id: `rsvp-add-msg:${teamId}:${eventId}:${response}`,
+        },
+      ],
+});
+
+const modalValueOption = (
+  submission: Discord.APIModalSubmission,
+  customId: string,
+): Option.Option<string> => {
+  for (const row of submission.components ?? []) {
+    if (row.type !== 1) continue;
+    for (const comp of row.components) {
+      if (comp.custom_id === customId) {
+        return comp.value && comp.value.trim().length > 0
+          ? Option.some(comp.value.trim())
+          : Option.none();
+      }
+    }
+  }
+  return Option.none();
+};
+
+const postRsvpDiscordUpdates = (params: {
+  interaction: Discord.APIInteraction;
+  rpc: SyncRpc;
+  rest: DiscordRestService;
+  eventId: Event.EventId;
+  teamId: Team.TeamId;
+  response: EventRsvp.RsvpResponse;
+  discordUserId: DiscordSchemas.Snowflake;
+  counts: EventRpcModels.SubmitRsvpResult;
+}) => {
+  const { interaction, rpc, rest, eventId, teamId, response, discordUserId, counts } = params;
+  const guildId = interaction.guild_id;
+  if (guildId === undefined) return Effect.void;
+  return Effect.all([
+    rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
+    rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
+    rpc['Event/GetYesAttendeesForEmbed']({ event_id: eventId, limit: YES_EMBED_LIMIT }),
+    rest.getGuild(guildId),
+  ] as const).pipe(
+    Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) => {
+      const embedLocale = guildLocale({ guild_locale: guild.preferred_locale });
+
+      const updateEmbed = Option.match(stored, {
+        onNone: () => Effect.void,
+        onSome: (msg) =>
+          Option.match(embedInfo, {
+            onNone: () => Effect.void,
+            onSome: (info) => {
+              const payload = buildEventEmbed({
+                teamId,
+                eventId,
+                title: info.title,
+                description: info.description,
+                startAt: info.start_at,
+                endAt: info.end_at,
+                location: info.location,
+                eventType: info.event_type,
+                counts,
+                yesAttendees,
+                locale: embedLocale,
+              });
+              return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
+                embeds: payload.embeds,
+                components: payload.components,
+              });
+            },
+          }),
+      });
+
+      const notifyLateRsvp = counts.isLateRsvp
+        ? Option.match(counts.lateRsvpChannelId, {
+            onNone: () => Effect.void,
+            onSome: (channelId) => {
+              const eventTitle = Option.match(embedInfo, {
+                onNone: () => m.bot_rsvp_event_not_found({}, { locale: embedLocale }),
+                onSome: (i) => i.title,
+              });
+              return rest.createMessage(channelId, {
+                embeds: [
+                  {
+                    color: 0xe67e22,
+                    description: m.bot_late_rsvp_notification(
+                      {
+                        user: `<@${discordUserId}>`,
+                        response: localizeRsvpResponse(response, embedLocale),
+                        event: eventTitle,
+                      },
+                      { locale: embedLocale },
+                    ),
+                  },
+                ],
+              });
+            },
+          })
+        : Effect.void;
+
+      return Effect.all([updateEmbed, notifyLateRsvp], {
+        concurrency: 'unbounded',
+      }).pipe(Effect.asVoid);
+    }),
+    Effect.catchTag(
+      'RequestError',
+      'ResponseError',
+      'RatelimitedResponse',
+      'ErrorResponse',
+      (error) => Effect.logError('Failed to handle post-RSVP Discord updates', error),
+    ),
+  );
+};
+
 export const RsvpButton = Ix.messageComponent(
   Ix.idStartsWith('rsvp:'),
+  Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+    ),
+    Effect.bind('data', () => MessageComponentData),
+    Effect.bind('interaction', () => Interaction),
+    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rest', () => DiscordREST),
+    Effect.flatMap(({ data, interaction, rpc, rest }) => {
+      const parts = data.custom_id.split(':');
+      const teamId = decodeTeamId(parts[1]);
+      const eventId = decodeEventId(parts[2]);
+      const response = decodeRsvpResponse(parts[3]);
+      const discordUserIdOption = interactionUserId(interaction);
+      const locale = userLocale(interaction);
+
+      if (Option.isNone(discordUserIdOption)) {
+        return Effect.succeed(
+          Ix.response({
+            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: m.bot_rsvp_user_error({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
+          }),
+        );
+      }
+
+      const discordUserId = decodeSnowflake(discordUserIdOption.value);
+
+      const submitAndFollowUp = rpc['Event/SubmitRsvp']({
+        event_id: eventId,
+        team_id: teamId,
+        discord_user_id: discordUserId,
+        response,
+        message: Option.none(),
+        clearMessage: false,
+      }).pipe(
+        Effect.tap((counts) =>
+          postRsvpDiscordUpdates({
+            interaction,
+            rpc,
+            rest,
+            eventId,
+            teamId,
+            response,
+            discordUserId,
+            counts,
+          }),
+        ),
+        Effect.map(
+          (counts) =>
+            ({
+              _tag: 'success' as const,
+              hasMessage: Option.isSome(counts.message),
+              content: counts.isLateRsvp
+                ? `${m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale })}\n\n${m.bot_rsvp_late_hint({}, { locale })}`
+                : m.bot_rsvp_recorded(
+                    { response: localizeRsvpResponse(response, locale) },
+                    { locale },
+                  ),
+            }) as const,
+        ),
+        Effect.catchTag('RsvpDeadlinePassed', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_deadline_passed({}, { locale }),
+          }),
+        ),
+        Effect.catchTag('RsvpMemberNotFound', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_not_member({}, { locale }),
+          }),
+        ),
+        Effect.catchTag('RsvpNotGroupMember', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_not_group_member({}, { locale }),
+          }),
+        ),
+        Effect.catchTag('RsvpEventNotFound', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_event_not_found({}, { locale }),
+          }),
+        ),
+        Effect.flatMap((result) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload:
+              result._tag === 'success'
+                ? {
+                    content: result.content,
+                    components: [
+                      buildMessageActionRow(
+                        parts[1],
+                        parts[2],
+                        response,
+                        locale,
+                        result.hasMessage,
+                      ),
+                    ],
+                  }
+                : { content: result.content },
+          }),
+        ),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update RSVP response', error),
+        ),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(submitAndFollowUp),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+        }),
+      );
+    }),
+    Effect.withSpan('interaction/rsvp-button'),
+  ),
+);
+
+export const RsvpAddMessageButton = Ix.messageComponent(
+  Ix.idStartsWith('rsvp-add-msg:'),
   Effect.Do.pipe(
     Effect.tap(() =>
       Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
@@ -67,26 +346,129 @@ export const RsvpButton = Ix.messageComponent(
         },
       });
     }),
-    Effect.withSpan('interaction/rsvp-button'),
+    Effect.withSpan('interaction/rsvp-add-message-button'),
   ),
 );
 
-const modalValueOption = (
-  submission: Discord.APIModalSubmission,
-  customId: string,
-): Option.Option<string> => {
-  for (const row of submission.components ?? []) {
-    if (row.type !== 1) continue;
-    for (const comp of row.components) {
-      if (comp.custom_id === customId) {
-        return comp.value && comp.value.trim().length > 0
-          ? Option.some(comp.value.trim())
-          : Option.none();
+export const RsvpClearMessageButton = Ix.messageComponent(
+  Ix.idStartsWith('rsvp-clear-msg:'),
+  Effect.Do.pipe(
+    Effect.tap(() =>
+      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+    ),
+    Effect.bind('data', () => MessageComponentData),
+    Effect.bind('interaction', () => Interaction),
+    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rest', () => DiscordREST),
+    Effect.flatMap(({ data, interaction, rpc, rest }) => {
+      const parts = data.custom_id.split(':');
+      const teamId = decodeTeamId(parts[1]);
+      const eventId = decodeEventId(parts[2]);
+      const response = decodeRsvpResponse(parts[3]);
+      const discordUserIdOption = interactionUserId(interaction);
+      const locale = userLocale(interaction);
+
+      if (Option.isNone(discordUserIdOption)) {
+        return Effect.succeed(
+          Ix.response({
+            type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: m.bot_rsvp_user_error({}, { locale }),
+              flags: Discord.MessageFlags.Ephemeral,
+            },
+          }),
+        );
       }
-    }
-  }
-  return Option.none();
-};
+
+      const discordUserId = decodeSnowflake(discordUserIdOption.value);
+
+      const clearAndFollowUp = rpc['Event/SubmitRsvp']({
+        event_id: eventId,
+        team_id: teamId,
+        discord_user_id: discordUserId,
+        response,
+        message: Option.none(),
+        clearMessage: true,
+      }).pipe(
+        Effect.tap((counts) =>
+          postRsvpDiscordUpdates({
+            interaction,
+            rpc,
+            rest,
+            eventId,
+            teamId,
+            response,
+            discordUserId,
+            counts,
+          }),
+        ),
+        Effect.map(
+          () =>
+            ({
+              _tag: 'success' as const,
+              content: m.bot_rsvp_message_cleared(
+                { response: localizeRsvpResponse(response, locale) },
+                { locale },
+              ),
+            }) as const,
+        ),
+        Effect.catchTag('RsvpDeadlinePassed', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            content: m.bot_rsvp_deadline_passed({}, { locale }),
+          }),
+        ),
+        Effect.catchTag('RsvpMemberNotFound', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            content: m.bot_rsvp_not_member({}, { locale }),
+          }),
+        ),
+        Effect.catchTag('RsvpNotGroupMember', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            content: m.bot_rsvp_not_group_member({}, { locale }),
+          }),
+        ),
+        Effect.catchTag('RsvpEventNotFound', () =>
+          Effect.succeed({
+            _tag: 'error' as const,
+            content: m.bot_rsvp_event_not_found({}, { locale }),
+          }),
+        ),
+        Effect.flatMap((result) =>
+          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+            payload:
+              result._tag === 'success'
+                ? {
+                    content: result.content,
+                    components: [
+                      buildMessageActionRow(parts[1], parts[2], response, locale, false),
+                    ],
+                  }
+                : { content: result.content },
+          }),
+        ),
+        Effect.catchTag(
+          'RequestError',
+          'ResponseError',
+          'RatelimitedResponse',
+          'ErrorResponse',
+          (error) => Effect.logError('Failed to update RSVP response', error),
+        ),
+      );
+
+      return Effect.as(
+        Effect.forkDaemon(clearAndFollowUp),
+        Ix.response({
+          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+        }),
+      );
+    }),
+    Effect.withSpan('interaction/rsvp-clear-message-button'),
+  ),
+);
 
 export const RsvpModal = Ix.modalSubmit(
   Ix.idStartsWith('rsvp-modal:'),
@@ -104,9 +486,10 @@ export const RsvpModal = Ix.modalSubmit(
       const eventId = decodeEventId(parts[2]);
       const response = decodeRsvpResponse(parts[3]);
       const message = modalValueOption(data, 'rsvp_message');
-      const discordUserId = interactionUserId(interaction);
+      const discordUserIdOption = interactionUserId(interaction);
       const locale = userLocale(interaction);
-      if (Option.isNone(discordUserId)) {
+
+      if (Option.isNone(discordUserIdOption)) {
         return Effect.succeed(
           Ix.response({
             type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -118,112 +501,84 @@ export const RsvpModal = Ix.modalSubmit(
         );
       }
 
+      const discordUserId = decodeSnowflake(discordUserIdOption.value);
+
       const submitAndFollowUp = rpc['Event/SubmitRsvp']({
         event_id: eventId,
         team_id: teamId,
-        discord_user_id: decodeSnowflake(discordUserId.value),
+        discord_user_id: discordUserId,
         response,
         message,
+        clearMessage: false,
       }).pipe(
-        Effect.tap((counts) => {
-          const guildId = interaction.guild_id;
-          if (guildId === undefined) return Effect.void;
-          return Effect.all([
-            rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
-            rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
-            rpc['Event/GetYesAttendeesForEmbed']({ event_id: eventId, limit: YES_EMBED_LIMIT }),
-            rest.getGuild(guildId),
-          ] as const).pipe(
-            Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) => {
-              const embedLocale = guildLocale({ guild_locale: guild.preferred_locale });
-
-              const updateEmbed = Option.match(stored, {
-                onNone: () => Effect.void,
-                onSome: (msg) =>
-                  Option.match(embedInfo, {
-                    onNone: () => Effect.void,
-                    onSome: (info) => {
-                      const payload = buildEventEmbed({
-                        teamId,
-                        eventId,
-                        title: info.title,
-                        description: info.description,
-                        startAt: info.start_at,
-                        endAt: info.end_at,
-                        location: info.location,
-                        eventType: info.event_type,
-                        counts,
-                        yesAttendees,
-                        locale: embedLocale,
-                      });
-                      return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                        embeds: payload.embeds,
-                        components: payload.components,
-                      });
-                    },
-                  }),
-              });
-
-              const notifyLateRsvp = counts.isLateRsvp
-                ? Option.match(counts.lateRsvpChannelId, {
-                    onNone: () => Effect.void,
-                    onSome: (channelId) => {
-                      const eventTitle = Option.match(embedInfo, {
-                        onNone: () => m.bot_rsvp_event_not_found({}, { locale: embedLocale }),
-                        onSome: (i) => i.title,
-                      });
-                      return rest.createMessage(channelId, {
-                        embeds: [
-                          {
-                            color: 0xe67e22,
-                            description: m.bot_late_rsvp_notification(
-                              {
-                                user: `<@${discordUserId.value}>`,
-                                response: localizeRsvpResponse(response, embedLocale),
-                                event: eventTitle,
-                              },
-                              { locale: embedLocale },
-                            ),
-                          },
-                        ],
-                      });
-                    },
-                  })
-                : Effect.void;
-
-              return Effect.all([updateEmbed, notifyLateRsvp], {
-                concurrency: 'unbounded',
-              }).pipe(Effect.asVoid);
-            }),
-            Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'RatelimitedResponse',
-              'ErrorResponse',
-              (error) => Effect.logError('Failed to handle post-RSVP Discord updates', error),
-            ),
-          );
-        }),
-        Effect.map((counts) =>
-          counts.isLateRsvp
-            ? `${m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale })}\n\n${m.bot_rsvp_late_hint({}, { locale })}`
-            : m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale }),
+        Effect.tap((counts) =>
+          postRsvpDiscordUpdates({
+            interaction,
+            rpc,
+            rest,
+            eventId,
+            teamId,
+            response,
+            discordUserId,
+            counts,
+          }),
+        ),
+        Effect.map(
+          (counts) =>
+            ({
+              _tag: 'success' as const,
+              hasMessage: Option.isSome(counts.message),
+              content: m.bot_rsvp_message_saved(
+                { response: localizeRsvpResponse(response, locale) },
+                { locale },
+              ),
+            }) as const,
         ),
         Effect.catchTag('RsvpDeadlinePassed', () =>
-          Effect.succeed(m.bot_rsvp_deadline_passed({}, { locale })),
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_deadline_passed({}, { locale }),
+          }),
         ),
         Effect.catchTag('RsvpMemberNotFound', () =>
-          Effect.succeed(m.bot_rsvp_not_member({}, { locale })),
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_not_member({}, { locale }),
+          }),
         ),
         Effect.catchTag('RsvpNotGroupMember', () =>
-          Effect.succeed(m.bot_rsvp_not_group_member({}, { locale })),
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_not_group_member({}, { locale }),
+          }),
         ),
         Effect.catchTag('RsvpEventNotFound', () =>
-          Effect.succeed(m.bot_rsvp_event_not_found({}, { locale })),
+          Effect.succeed({
+            _tag: 'error' as const,
+            hasMessage: false,
+            content: m.bot_rsvp_event_not_found({}, { locale }),
+          }),
         ),
-        Effect.flatMap((content) =>
+        Effect.flatMap((result) =>
           rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
-            payload: { content },
+            payload:
+              result._tag === 'success'
+                ? {
+                    content: result.content,
+                    components: [
+                      buildMessageActionRow(
+                        parts[1],
+                        parts[2],
+                        response,
+                        locale,
+                        result.hasMessage,
+                      ),
+                    ],
+                  }
+                : { content: result.content },
           }),
         ),
         Effect.catchTag(

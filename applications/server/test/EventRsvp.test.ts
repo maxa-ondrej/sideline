@@ -495,16 +495,22 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
     memberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
     message: Option.Option<string>,
+    clearMessage = false,
   ) => {
     const key = `${eventId}:${memberId}`;
     const existing = rsvpsStore.get(key);
     const id = existing?.id ?? (crypto.randomUUID() as EventRsvp.EventRsvpId);
+    const resolvedMessage = clearMessage
+      ? Option.none<string>()
+      : Option.isSome(message)
+        ? message
+        : (existing?.message ?? Option.none<string>());
     const record: RsvpRecord = {
       id,
       event_id: eventId,
       team_member_id: memberId,
       response,
-      message,
+      message: resolvedMessage,
       member_name: Option.none(),
       username: Option.none(),
     };
@@ -1318,16 +1324,27 @@ const MockRpcEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
     memberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
     message: Option.Option<string>,
+    clearMessage = false,
   ) => {
     const key = `${eventId}:${memberId}`;
     const existing = rpcRsvpsStore.get(key);
     const id = existing?.id ?? (crypto.randomUUID() as EventRsvp.EventRsvpId);
+    // When clearMessage is true, always clear the message.
+    // Otherwise COALESCE behavior: preserve the existing message when the new message is None.
+    // This mirrors `COALESCE(EXCLUDED.message, event_rsvps.message)` in SQL
+    const resolvedMessage = clearMessage
+      ? Option.none<string>()
+      : Option.isSome(message)
+        ? message
+        : existing
+          ? existing.message
+          : Option.none<string>();
     const record: RpcRsvpRecord = {
       id,
       event_id: eventId,
       team_member_id: memberId,
       response,
-      message,
+      message: resolvedMessage,
       member_name: Option.none(),
       username: Option.none(),
     };
@@ -1499,6 +1516,7 @@ const makeSubmitRsvp = (params: {
   discord_user_id?: Discord.Snowflake;
   response: EventRsvp.RsvpResponse;
   message?: Option.Option<string>;
+  clearMessage?: boolean;
 }): Effect.Effect<
   EventRpcModels.SubmitRsvpResult,
   unknown,
@@ -1514,6 +1532,7 @@ const makeSubmitRsvp = (params: {
             discord_user_id: params.discord_user_id ?? RPC_TEST_DISCORD_USER_ID,
             response: params.response,
             message: params.message ?? Option.none(),
+            clearMessage: params.clearMessage ?? false,
           }) as Effect.Effect<EventRpcModels.SubmitRsvpResult, unknown, never>,
       ),
     ),
@@ -1668,4 +1687,95 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
       );
     },
   );
+});
+
+// ============================================================
+// Message preservation tests — COALESCE behavior
+// ============================================================
+//
+// These tests are regression coverage for the COALESCE semantics in
+// EventRsvpsRepository: an existing message is preserved when the
+// incoming message is Option.none() (button-click path), replaced
+// when a new non-None message is provided (modal-submit path), and
+// cleared to None when clearMessage is true (clear-button path).
+
+describe('Event/SubmitRsvp RPC — RSVP message preservation', () => {
+  beforeEach(() => {
+    resetRpcStores();
+  });
+
+  itEffect.effect('should preserve existing message when re-RSVPing with no message', () => {
+    // First RSVP: button click with a message provided via modal
+    return makeSubmitRsvp({ response: 'yes', message: Option.some('I will be late') }).pipe(
+      Effect.flatMap(() =>
+        // Second RSVP: button click with no message (simulates the new immediate-save flow)
+        makeSubmitRsvp({ response: 'yes', message: Option.none() }),
+      ),
+      Effect.tap(() => {
+        const key = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+        const stored = rpcRsvpsStore.get(key);
+        expect(stored).toBeDefined();
+        expect(Option.getOrNull(stored?.message ?? Option.none())).toBe('I will be late');
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
+
+  itEffect.effect('should update message when re-RSVPing with a new message', () => {
+    // First RSVP with an initial message
+    return makeSubmitRsvp({ response: 'yes', message: Option.some('I will be late') }).pipe(
+      Effect.flatMap(() =>
+        // Second RSVP with a different message (modal submit with updated text)
+        makeSubmitRsvp({ response: 'yes', message: Option.some('Actually on time') }),
+      ),
+      Effect.tap(() => {
+        const key = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+        const stored = rpcRsvpsStore.get(key);
+        expect(stored).toBeDefined();
+        expect(Option.getOrNull(stored?.message ?? Option.none())).toBe('Actually on time');
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
+
+  itEffect.effect(
+    'should set message when submitting message after initial RSVP with no message',
+    () => {
+      // First RSVP: button click with no message (new immediate-save flow)
+      return makeSubmitRsvp({ response: 'yes', message: Option.none() }).pipe(
+        Effect.flatMap(() =>
+          // Second call: modal submit with a message (the "Add a message" flow)
+          makeSubmitRsvp({ response: 'yes', message: Option.some('Bringing snacks') }),
+        ),
+        Effect.tap(() => {
+          const key = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+          const stored = rpcRsvpsStore.get(key);
+          expect(stored).toBeDefined();
+          expect(Option.getOrNull(stored?.message ?? Option.none())).toBe('Bringing snacks');
+        }),
+        Effect.provide(RpcTestLayer),
+        Effect.asVoid,
+      );
+    },
+  );
+
+  itEffect.effect('should clear message when clearMessage is true', () => {
+    // First RSVP: set a message via modal submit
+    return makeSubmitRsvp({ response: 'yes', message: Option.some('I will be late') }).pipe(
+      Effect.flatMap(() =>
+        // Clear the message via the clear-message button path
+        makeSubmitRsvp({ response: 'yes', message: Option.none(), clearMessage: true }),
+      ),
+      Effect.tap(() => {
+        const key = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+        const stored = rpcRsvpsStore.get(key);
+        expect(stored).toBeDefined();
+        expect(Option.isNone(stored?.message ?? Option.none())).toBe(true);
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
 });

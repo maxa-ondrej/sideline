@@ -53,6 +53,7 @@ export const EventRpcGroup = RpcGroup.make(
       discord_user_id: Discord.Snowflake,
       response: EventRsvp.RsvpResponse,
       message: Schema.OptionFromNullOr(Schema.String),
+      clearMessage: Schema.Boolean,
     },
     success: SubmitRsvpResult,
     error: Schema.Union(
