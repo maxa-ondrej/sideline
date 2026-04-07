@@ -354,7 +354,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                 training_type_id = ${input.training_type_id},
                 description = ${input.description},
                 start_at = ((start_at AT TIME ZONE 'UTC')::date + ${input.start_time}::time) AT TIME ZONE 'UTC',
-                end_at = CASE WHEN ${input.end_time} IS NOT NULL THEN ((start_at AT TIME ZONE 'UTC')::date + ${input.end_time}::time) AT TIME ZONE 'UTC' ELSE NULL END,
+                end_at = CASE WHEN ${input.end_time}::time IS NOT NULL THEN ((start_at AT TIME ZONE 'UTC')::date + ${input.end_time}::time) AT TIME ZONE 'UTC' ELSE NULL END,
                 location = ${input.location},
                 updated_at = now()
               WHERE series_id = ${input.series_id}
