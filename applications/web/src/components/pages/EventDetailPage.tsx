@@ -196,86 +196,46 @@ export function EventDetailPage({
     const values = form.getValues();
     setSaving(true);
     setShowEditScope(false);
-    const { trainingTypeIdOption, startAt, endAt } = buildPayload(values);
+    const { trainingTypeIdOption } = buildPayload(values);
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
       eventDetail.seriesId.value,
     );
     const result = await ApiClient.pipe(
       Effect.flatMap((api) =>
-        Effect.all(
-          [
-            api.eventSeries.updateEventSeries({
-              path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
-              payload: {
-                title: Option.some(values.title),
-                trainingTypeId: Option.some(trainingTypeIdOption),
-                description: Option.some(
-                  values.description ? Option.some(values.description) : Option.none(),
-                ),
-                daysOfWeek: Option.none(),
-                startTime: Option.some(
-                  formatUtcTime(localToUtc(values.startDate, values.startTime)),
-                ),
-                endTime: Option.some(
-                  values.endTime
-                    ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
-                    : Option.none(),
-                ),
-                location: Option.some(
-                  values.location ? Option.some(values.location) : Option.none(),
-                ),
-                endDate: Option.none(),
-                discordChannelId: Option.some(
-                  values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                    ? Option.some(Discord.Snowflake.make(values.discordChannelId))
-                    : Option.none(),
-                ),
-                ownerGroupId: Option.some(
-                  values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
-                    ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
-                    : Option.none(),
-                ),
-                memberGroupId: Option.some(
-                  values.memberGroupId && values.memberGroupId !== NONE_VALUE
-                    ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
-                    : Option.none(),
-                ),
-              },
-            }),
-            api.event.updateEvent({
-              path: { teamId: teamIdBranded, eventId: eventIdBranded },
-              payload: {
-                title: Option.some(values.title),
-                eventType: Option.some(values.eventType),
-                trainingTypeId: Option.some(trainingTypeIdOption),
-                description: Option.some(
-                  values.description ? Option.some(values.description) : Option.none(),
-                ),
-                startAt: Option.some(startAt),
-                endAt: Option.some(endAt),
-                location: Option.some(
-                  values.location ? Option.some(values.location) : Option.none(),
-                ),
-                discordChannelId: Option.some(
-                  values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                    ? Option.some(Discord.Snowflake.make(values.discordChannelId))
-                    : Option.none(),
-                ),
-                ownerGroupId: Option.some(
-                  values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
-                    ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
-                    : Option.none(),
-                ),
-                memberGroupId: Option.some(
-                  values.memberGroupId && values.memberGroupId !== NONE_VALUE
-                    ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
-                    : Option.none(),
-                ),
-              },
-            }),
-          ],
-          { concurrency: 'unbounded' },
-        ),
+        api.eventSeries.updateEventSeries({
+          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          payload: {
+            title: Option.some(values.title),
+            trainingTypeId: Option.some(trainingTypeIdOption),
+            description: Option.some(
+              values.description ? Option.some(values.description) : Option.none(),
+            ),
+            daysOfWeek: Option.none(),
+            startTime: Option.some(formatUtcTime(localToUtc(values.startDate, values.startTime))),
+            endTime: Option.some(
+              values.endTime
+                ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
+                : Option.none(),
+            ),
+            location: Option.some(values.location ? Option.some(values.location) : Option.none()),
+            endDate: Option.none(),
+            discordChannelId: Option.some(
+              values.discordChannelId && values.discordChannelId !== NONE_VALUE
+                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                : Option.none(),
+            ),
+            ownerGroupId: Option.some(
+              values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.ownerGroupId))
+                : Option.none(),
+            ),
+            memberGroupId: Option.some(
+              values.memberGroupId && values.memberGroupId !== NONE_VALUE
+                ? Option.some(Schema.decodeSync(GroupModel.GroupId)(values.memberGroupId))
+                : Option.none(),
+            ),
+          },
+        }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_updateSeriesFailed())),
       run({ success: m.event_seriesSaved() }),
@@ -284,7 +244,7 @@ export function EventDetailPage({
     if (Option.isSome(result)) {
       router.invalidate();
     }
-  }, [form, teamIdBranded, eventIdBranded, eventDetail.seriesId, run, router]);
+  }, [form, teamIdBranded, eventDetail.seriesId, run, router]);
 
   const handleSave = form.handleSubmit(() => {
     if (hasSeries) {
