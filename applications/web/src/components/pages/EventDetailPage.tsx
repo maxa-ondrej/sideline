@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
-import { formatLocalDate, formatLocalTime, localToUtc } from '~/lib/datetime';
+import { formatLocalDate, formatLocalTime, formatUtcTime, localToUtc } from '~/lib/datetime';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -211,8 +211,12 @@ export function EventDetailPage({
               values.description ? Option.some(values.description) : Option.none(),
             ),
             daysOfWeek: Option.none(),
-            startTime: Option.some(values.startTime),
-            endTime: Option.some(values.endTime ? Option.some(values.endTime) : Option.none()),
+            startTime: Option.some(formatUtcTime(localToUtc(values.startDate, values.startTime))),
+            endTime: Option.some(
+              values.endTime
+                ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
+                : Option.none(),
+            ),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             endDate: Option.none(),
             discordChannelId: Option.some(

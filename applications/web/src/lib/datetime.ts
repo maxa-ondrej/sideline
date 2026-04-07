@@ -34,3 +34,23 @@ export const formatLocalTime = (dt: DateTime.Utc): string => {
   const mi = String(d.getMinutes()).padStart(2, '0');
   return `${h}:${mi}`;
 };
+
+/** Format a UTC DateTime as HH:mm in UTC (for storing time-of-day values). */
+export const formatUtcTime = (dt: DateTime.Utc): string => {
+  const d = new Date(Number(DateTime.toEpochMillis(dt)));
+  const h = String(d.getUTCHours()).padStart(2, '0');
+  const mi = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${h}:${mi}`;
+};
+
+/**
+ * Convert a stored UTC time string (HH:MM) back to the browser's local time string.
+ * Uses the current date's DST offset — best approximation for time-only values.
+ */
+export const utcTimeToLocal = (time: string): string => {
+  const today = new Date();
+  const y = today.getFullYear();
+  const mo = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return formatLocalTime(DateTime.unsafeMake(`${y}-${mo}-${d}T${time}:00Z`));
+};
