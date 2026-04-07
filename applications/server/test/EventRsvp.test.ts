@@ -1153,8 +1153,8 @@ describe('Event RSVP API', () => {
 // These tests verify the isLateRsvp and lateRsvpChannelId fields
 // returned by the Event/SubmitRsvp RPC handler.
 //
-// They are written in TDD style: they fail now (stubs return
-// isLateRsvp: false) and should pass after the feature is implemented.
+// They cover late and non-late RSVP scenarios for the isLateRsvp
+// and lateRsvpChannelId fields in the SubmitRsvpResult.
 
 const RPC_TEST_EVENT_ID = '00000000-0000-0000-0000-000000000070' as Event.EventId;
 const RPC_TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;

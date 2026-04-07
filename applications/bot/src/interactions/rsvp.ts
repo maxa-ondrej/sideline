@@ -134,16 +134,15 @@ export const RsvpModal = Ix.modalSubmit(
             rpc['Event/GetYesAttendeesForEmbed']({ event_id: eventId, limit: YES_EMBED_LIMIT }),
             rest.getGuild(guildId),
           ] as const).pipe(
-            Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) =>
-              Option.match(stored, {
+            Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) => {
+              const embedLocale = guildLocale({ guild_locale: guild.preferred_locale });
+
+              const updateEmbed = Option.match(stored, {
                 onNone: () => Effect.void,
                 onSome: (msg) =>
                   Option.match(embedInfo, {
                     onNone: () => Effect.void,
                     onSome: (info) => {
-                      const embedLocale = guildLocale({
-                        guild_locale: guild.preferred_locale,
-                      });
                       const payload = buildEventEmbed({
                         teamId,
                         eventId,
@@ -163,41 +162,14 @@ export const RsvpModal = Ix.modalSubmit(
                       });
                     },
                   }),
-              }),
-            ),
-            Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'RatelimitedResponse',
-              'ErrorResponse',
-              (error) => Effect.logError('Failed to update event embed after RSVP', error),
-            ),
-          );
-        }),
-        Effect.tap((counts) =>
-          !counts.isLateRsvp
-            ? Effect.void
-            : Option.match(counts.lateRsvpChannelId, {
-                onNone: () => Effect.void,
-                onSome: (channelId) => {
-                  const guildId = interaction.guild_id;
-                  const getGuildLocale =
-                    guildId !== undefined
-                      ? rest
-                          .getGuild(guildId)
-                          .pipe(
-                            Effect.map((guild) =>
-                              guildLocale({ guild_locale: guild.preferred_locale }),
-                            ),
-                          )
-                      : Effect.succeed(locale);
-                  return Effect.all([
-                    rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
-                    getGuildLocale,
-                  ] as const).pipe(
-                    Effect.flatMap(([embedInfo, notifLocale]) => {
+              });
+
+              const notifyLateRsvp = counts.isLateRsvp
+                ? Option.match(counts.lateRsvpChannelId, {
+                    onNone: () => Effect.void,
+                    onSome: (channelId) => {
                       const eventTitle = Option.match(embedInfo, {
-                        onNone: () => m.bot_rsvp_event_not_found({}, { locale: notifLocale }),
+                        onNone: () => m.bot_rsvp_event_not_found({}, { locale: embedLocale }),
                         onSome: (i) => i.title,
                       });
                       return rest.createMessage(channelId, {
@@ -207,26 +179,31 @@ export const RsvpModal = Ix.modalSubmit(
                             description: m.bot_late_rsvp_notification(
                               {
                                 user: `<@${discordUserId.value}>`,
-                                response: localizeRsvpResponse(response, notifLocale),
+                                response: localizeRsvpResponse(response, embedLocale),
                                 event: eventTitle,
                               },
-                              { locale: notifLocale },
+                              { locale: embedLocale },
                             ),
                           },
                         ],
                       });
-                    }),
-                    Effect.catchTag(
-                      'RequestError',
-                      'ResponseError',
-                      'RatelimitedResponse',
-                      'ErrorResponse',
-                      (error) => Effect.logError('Failed to send late RSVP notification', error),
-                    ),
-                  );
-                },
-              }),
-        ),
+                    },
+                  })
+                : Effect.void;
+
+              return Effect.all([updateEmbed, notifyLateRsvp], {
+                concurrency: 'unbounded',
+              }).pipe(Effect.asVoid);
+            }),
+            Effect.catchTag(
+              'RequestError',
+              'ResponseError',
+              'RatelimitedResponse',
+              'ErrorResponse',
+              (error) => Effect.logError('Failed to handle post-RSVP Discord updates', error),
+            ),
+          );
+        }),
         Effect.map((counts) =>
           counts.isLateRsvp
             ? `${m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale })}\n\n${m.bot_rsvp_late_hint({}, { locale })}`
