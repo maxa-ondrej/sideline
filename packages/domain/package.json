@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@sideline/domain",
   "version": "0.14.4",
   "type": "module",
