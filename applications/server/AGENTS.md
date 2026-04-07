@@ -127,6 +127,31 @@ When emitting `channel_created`, `roster_channel_created`, or `channel_updated` 
 5. Pass the formatted names as `discordChannelName` and `discordRoleName` to the emit method
 6. For entities with a `color` field (hex string like `#FF0000`), convert to Discord integer using `hexColorToDiscordInt` from `src/utils/hexColorToDiscordInt.ts` and pass as `discordRoleColor`
 
+## Before/After State Detection in Upsert Handlers
+
+When an RPC handler must detect whether an upsert changed meaningful state (e.g. "was this RSVP submitted after a reminder?"), read the prior record **before** the upsert and compare afterward:
+
+```typescript
+Effect.bind('priorRsvp', ({ member }) =>
+  rsvps.findRsvpByEventAndMember(event_id, member.id),
+),
+Effect.tap(({ member }) =>
+  rsvps.upsertRsvp(event_id, member.id, response, message),
+),
+Effect.let(
+  'isLateRsvp',
+  ({ event, priorRsvp }) =>
+    Option.isSome(event.reminder_sent_at) &&
+    (Option.isNone(priorRsvp) ||
+      Option.exists(priorRsvp, (r) => r.response !== response)),
+),
+```
+
+Rules:
+1. Always `Effect.bind` the prior state **before** the `Effect.tap` that performs the upsert
+2. Use `Option.isNone` to detect first-time inserts vs `Option.exists` to detect changed values
+3. Derive the boolean in an `Effect.let` after the upsert so the write is not conditional on the check
+
 ## Testing
 
 Tests go in `test/` directory. When adding new repositories, add corresponding mock implementations to all test files that compose `AppLive` (e.g., `MockChannelSyncEventsRepository`).

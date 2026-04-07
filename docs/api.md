@@ -397,6 +397,7 @@ Returns the team's current settings.
 | `discordChannelMeeting` | `Snowflake \| null` | Yes | Default Discord channel for meeting events |
 | `discordChannelSocial` | `Snowflake \| null` | Yes | Default Discord channel for social events |
 | `discordChannelOther` | `Snowflake \| null` | Yes | Default Discord channel for other events |
+| `discordChannelLateRsvp` | `Snowflake \| null` | Yes | Discord channel where late-RSVP notifications are posted |
 | `createDiscordChannelOnGroup` | `boolean` | No | Auto-create Discord channel when a group is created |
 | `createDiscordChannelOnRoster` | `boolean` | No | Auto-create Discord channel when a roster is created |
 | `discordArchiveCategoryId` | `Snowflake \| null` | Yes | Discord category channel used when cleanup mode is `archive` |
@@ -439,6 +440,7 @@ Updates the team's settings. `eventHorizonDays` is required; all other fields ar
 | `discordChannelMeeting` | `Snowflake \| null` | No | — | Channel for meeting events |
 | `discordChannelSocial` | `Snowflake \| null` | No | — | Channel for social events |
 | `discordChannelOther` | `Snowflake \| null` | No | — | Channel for other events |
+| `discordChannelLateRsvp` | `Snowflake \| null` | No | — | Channel for late-RSVP notifications |
 | `discordArchiveCategoryId` | `Snowflake \| null` | No | — | Discord category used when cleanup mode is `archive` |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a group is deleted |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a roster is deactivated |
@@ -3047,12 +3049,12 @@ Manages event embeds, RSVPs, and event sync outbox processing.
 | `Event/MarkEventFailed` | `id`, `error` | Marks an outbox event as failed |
 | `Event/SaveDiscordMessageId` | `event_id`, `discord_channel_id`, `discord_message_id` | Stores the Discord message ID for an event embed |
 | `Event/GetDiscordMessageId` | `event_id` → `EventDiscordMessage \| null` | Retrieves the stored Discord message for an event |
-| `Event/SubmitRsvp` | `event_id`, `team_id`, `discord_user_id`, `response`, `message` → `RsvpCountsResult` | Submits an RSVP from the bot |
+| `Event/SubmitRsvp` | `event_id`, `team_id`, `discord_user_id`, `response`, `message` → `SubmitRsvpResult` | Submits an RSVP from the bot; result includes late-RSVP flag and optional notification channel |
 | `Event/GetRsvpCounts` | `event_id` → `RsvpCountsResult` | Returns yes/no/maybe counts for an event |
 | `Event/GetEventEmbedInfo` | `event_id` → `EventEmbedInfo \| null` | Retrieves info needed to render the Discord embed |
 | `Event/GetChannelEvents` | `discord_channel_id` → `ChannelEventEntry[]` | Lists events posted in a Discord channel |
 | `Event/GetRsvpAttendees` | `event_id`, `offset`, `limit` → `RsvpAttendeesResult` | Returns paginated RSVP attendee list |
-| `Event/GetRsvpReminderSummary` | `event_id` → `RsvpReminderSummary` | Returns RSVP reminder data including non-responders |
+| `Event/GetRsvpReminderSummary` | `event_id` → `RsvpReminderSummary` | Returns RSVP reminder data including non-responders and yes-attendee list |
 | `Event/GetUpcomingGuildEvents` | `guild_id`, `offset`, `limit` → `GuildEventListResult` | Lists upcoming events for a guild |
 | `Event/GetTrainingTypesByGuild` | `guild_id` → `TrainingTypeChoice[]` | Lists training types for a guild (for autocomplete) |
 | `Event/CreateEvent` | `guild_id`, `discord_user_id`, `event_type`, `title`, `start_at`, ... → `CreateEventResult` | Creates an event from the bot slash command |

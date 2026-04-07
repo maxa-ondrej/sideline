@@ -243,9 +243,10 @@ Handles submission of the RSVP modal opened by the RSVP button.
 
 1. Parses `teamId`, `eventId`, `response`, and optional `rsvp_message` from the submission.
 2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
-3. The background fiber calls `Event/SubmitRsvp` RPC.
+3. The background fiber calls `Event/SubmitRsvp` RPC, which returns a `SubmitRsvpResult`.
 4. On success, additionally fetches `Event/GetDiscordMessageId` and `Event/GetEventEmbedInfo` to update the original event embed message in the channel with the new RSVP counts (rebuilds the full embed and component set).
-5. Updates the ephemeral message with a localized confirmation.
+5. If the result indicates a late RSVP (`isLateRsvp = true`) and `lateRsvpChannelId` is present, the fiber also calls `Event/GetEventEmbedInfo` (for the event title) and posts an orange-coloured notification embed to that channel identifying the member, their response, and the event name.
+6. Updates the ephemeral message with a localized confirmation. If the RSVP was late, a polite hint is appended to the confirmation informing the user that the late response was noted.
 
 **Errors from `Event/SubmitRsvp`:**
 
@@ -444,7 +445,7 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 | `event_created` | `handleCreated.ts` | Fetches RSVP counts (`Event/GetRsvpCounts`) and the guild's preferred locale, builds an event embed with RSVP buttons, posts it to the group's configured Discord channel (or the guild system channel as fallback), saves the resulting message ID via `Event/SaveDiscordMessageId`, then re-orders all event messages in the channel by start time |
 | `event_updated` | `handleUpdated.ts` | Looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts, rebuilds the embed, edits the existing Discord message, then re-orders channel messages |
 | `event_cancelled` | `handleCancelled.ts` | Looks up the stored Discord message, replaces the embed content with a cancelled-state embed (no RSVP buttons), edits the existing Discord message |
-| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list with Discord IDs), posts a yellow reminder embed to the channel mentioning all non-responders who have a linked Discord account, and sends a direct message to each of those non-responders with a link to the voting message |
+| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the channel mentioning all non-responders who have a linked Discord account (the embed also includes a "Going" field listing current yes-attendees), and sends a direct message to each of those non-responders with a link to the voting message |
 
 **Lifecycle RPCs:**
 - `Event/MarkEventProcessed`
@@ -500,7 +501,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/CreateEvent` | Create a new event (from `/event create`) |
 | `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events for `/event list` |
 | `Event/GetTrainingTypesByGuild` | Fetch training type choices for autocomplete |
-| `Event/SubmitRsvp` | Record a member's RSVP response |
+| `Event/SubmitRsvp` | Record a member's RSVP response; returns `SubmitRsvpResult` with late-RSVP flag and optional notification channel |
 | `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |
 | `Event/GetRsvpAttendees` | Fetch paginated attendee list |
 | `Event/GetRsvpReminderSummary` | Fetch counts and non-responder list for a reminder |

@@ -184,6 +184,7 @@ erDiagram
         TEXT discord_channel_meeting
         TEXT discord_channel_social
         TEXT discord_channel_other
+        TEXT discord_channel_late_rsvp
         BOOLEAN create_discord_channel_on_group
         BOOLEAN create_discord_channel_on_roster
         TEXT discord_archive_category_id

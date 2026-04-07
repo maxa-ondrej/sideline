@@ -18,6 +18,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
@@ -249,6 +250,7 @@ const rpcHandlers = Effect.Do.pipe(
       sql: SqlClient.SqlClient,
       trainingTypesRepo: TrainingTypesRepository,
       teamsRepo: TeamsRepository,
+      teamSettings: TeamSettingsRepository,
     }),
   ),
   Effect.let(
@@ -319,7 +321,7 @@ const rpcHandlers = Effect.Do.pipe(
   ),
   Effect.let(
     'Event/SubmitRsvp',
-    ({ rsvps, events, deps: { sql, groups } }) =>
+    ({ rsvps, events, deps: { sql, groups, teamSettings } }) =>
       ({
         event_id,
         team_id,
@@ -389,6 +391,9 @@ const rpcHandlers = Effect.Do.pipe(
                   ),
             }),
           ),
+          Effect.bind('priorRsvp', ({ member }) =>
+            rsvps.findRsvpByEventAndMember(event_id, member.id),
+          ),
           Effect.tap(({ member }) =>
             rsvps.upsertRsvp(event_id, member.id, response, message).pipe(
               Effect.catchTag(
@@ -402,7 +407,30 @@ const rpcHandlers = Effect.Do.pipe(
               ),
             ),
           ),
-          Effect.flatMap(() => getRsvpCounts(rsvps, event_id, events)),
+          Effect.bind('counts', () => getRsvpCounts(rsvps, event_id, events)),
+          Effect.let(
+            'isLateRsvp',
+            ({ event, priorRsvp }) =>
+              Option.isSome(event.reminder_sent_at) &&
+              (Option.isNone(priorRsvp) ||
+                Option.exists(priorRsvp, (r) => r.response !== response)),
+          ),
+          Effect.bind('lateRsvpChannelId', ({ isLateRsvp }) =>
+            isLateRsvp
+              ? teamSettings.findLateRsvpChannelId(team_id)
+              : Effect.succeed(Option.none<Discord.Snowflake>()),
+          ),
+          Effect.map(
+            ({ counts, isLateRsvp, lateRsvpChannelId }) =>
+              new EventRpcModels.SubmitRsvpResult({
+                yesCount: counts.yesCount,
+                noCount: counts.noCount,
+                maybeCount: counts.maybeCount,
+                canRsvp: counts.canRsvp,
+                isLateRsvp,
+                lateRsvpChannelId,
+              }),
+          ),
         ),
   ),
   Effect.let(
@@ -500,7 +528,8 @@ const rpcHandlers = Effect.Do.pipe(
           Effect.bind('nonResponders', ({ event }) =>
             event ? rsvps.findNonRespondersByEventId(event_id, event.team_id) : Effect.succeed([]),
           ),
-          Effect.map(({ counts, nonResponders }) => {
+          Effect.bind('yesAttendees', () => rsvps.findYesAttendeesForEmbed(event_id, 50)),
+          Effect.map(({ counts, nonResponders, yesAttendees }) => {
             let yesCount = 0;
             let noCount = 0;
             let maybeCount = 0;
@@ -520,6 +549,15 @@ const rpcHandlers = Effect.Do.pipe(
                     discord_id: nr.discord_id,
                     name: nr.member_name,
                     username: nr.username,
+                  }),
+              ),
+              yesAttendees: Array.map(
+                yesAttendees,
+                (a) =>
+                  new EventRpcModels.NonResponderRpcEntry({
+                    discord_id: a.discord_id,
+                    name: a.member_name,
+                    username: a.username,
                   }),
               ),
             });

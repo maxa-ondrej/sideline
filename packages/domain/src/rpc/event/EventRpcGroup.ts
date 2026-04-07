@@ -20,6 +20,7 @@ import {
   RsvpMemberNotFound,
   RsvpNotGroupMember,
   RsvpReminderSummary,
+  SubmitRsvpResult,
   TrainingTypeChoice,
 } from './EventRpcModels.js';
 
@@ -53,7 +54,7 @@ export const EventRpcGroup = RpcGroup.make(
       response: EventRsvp.RsvpResponse,
       message: Schema.OptionFromNullOr(Schema.String),
     },
-    success: RsvpCountsResult,
+    success: SubmitRsvpResult,
     error: Schema.Union(
       RsvpMemberNotFound,
       RsvpDeadlinePassed,

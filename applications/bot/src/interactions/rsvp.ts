@@ -174,8 +174,63 @@ export const RsvpModal = Ix.modalSubmit(
             ),
           );
         }),
-        Effect.map(() =>
-          m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale }),
+        Effect.tap((counts) =>
+          !counts.isLateRsvp
+            ? Effect.void
+            : Option.match(counts.lateRsvpChannelId, {
+                onNone: () => Effect.void,
+                onSome: (channelId) => {
+                  const guildId = interaction.guild_id;
+                  const getGuildLocale =
+                    guildId !== undefined
+                      ? rest
+                          .getGuild(guildId)
+                          .pipe(
+                            Effect.map((guild) =>
+                              guildLocale({ guild_locale: guild.preferred_locale }),
+                            ),
+                          )
+                      : Effect.succeed(locale);
+                  return Effect.all([
+                    rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
+                    getGuildLocale,
+                  ] as const).pipe(
+                    Effect.flatMap(([embedInfo, notifLocale]) => {
+                      const eventTitle = Option.match(embedInfo, {
+                        onNone: () => m.bot_rsvp_event_not_found({}, { locale: notifLocale }),
+                        onSome: (i) => i.title,
+                      });
+                      return rest.createMessage(channelId, {
+                        embeds: [
+                          {
+                            color: 0xe67e22,
+                            description: m.bot_late_rsvp_notification(
+                              {
+                                user: `<@${discordUserId.value}>`,
+                                response: localizeRsvpResponse(response, notifLocale),
+                                event: eventTitle,
+                              },
+                              { locale: notifLocale },
+                            ),
+                          },
+                        ],
+                      });
+                    }),
+                    Effect.catchTag(
+                      'RequestError',
+                      'ResponseError',
+                      'RatelimitedResponse',
+                      'ErrorResponse',
+                      (error) => Effect.logError('Failed to send late RSVP notification', error),
+                    ),
+                  );
+                },
+              }),
+        ),
+        Effect.map((counts) =>
+          counts.isLateRsvp
+            ? `${m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale })}\n\n${m.bot_rsvp_late_hint({}, { locale })}`
+            : m.bot_rsvp_recorded({ response: localizeRsvpResponse(response, locale) }, { locale }),
         ),
         Effect.catchTag('RsvpDeadlinePassed', () =>
           Effect.succeed(m.bot_rsvp_deadline_passed({}, { locale })),

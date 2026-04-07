@@ -16,6 +16,7 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   discord_channel_meeting: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_social: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_other: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_late_rsvp: Schema.OptionFromNullOr(Discord.Snowflake),
   create_discord_channel_on_group: Schema.Boolean,
   create_discord_channel_on_roster: Schema.Boolean,
   discord_archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
@@ -38,6 +39,7 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   discord_channel_meeting: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_social: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_other: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_channel_late_rsvp: Schema.OptionFromNullOr(Discord.Snowflake),
   create_discord_channel_on_group: Schema.Boolean,
   create_discord_channel_on_roster: Schema.Boolean,
   discord_archive_category_id: Schema.OptionFromNullOr(Discord.Snowflake),
@@ -72,6 +74,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
              discord_channel_training, discord_channel_match,
              discord_channel_tournament, discord_channel_meeting,
              discord_channel_social, discord_channel_other,
+             discord_channel_late_rsvp,
              create_discord_channel_on_group, create_discord_channel_on_roster,
              discord_archive_category_id,
              discord_channel_cleanup_on_group_delete,
@@ -92,6 +95,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                                  discord_channel_training, discord_channel_match,
                                  discord_channel_tournament, discord_channel_meeting,
                                  discord_channel_social, discord_channel_other,
+                                 discord_channel_late_rsvp,
                                  create_discord_channel_on_group, create_discord_channel_on_roster,
                                  discord_archive_category_id,
                                  discord_channel_cleanup_on_group_delete,
@@ -103,6 +107,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
               ${input.discord_channel_training}, ${input.discord_channel_match},
               ${input.discord_channel_tournament}, ${input.discord_channel_meeting},
               ${input.discord_channel_social}, ${input.discord_channel_other},
+              ${input.discord_channel_late_rsvp},
               ${input.create_discord_channel_on_group}, ${input.create_discord_channel_on_roster},
               ${input.discord_archive_category_id},
               ${input.discord_channel_cleanup_on_group_delete},
@@ -119,6 +124,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
         discord_channel_meeting = ${input.discord_channel_meeting},
         discord_channel_social = ${input.discord_channel_social},
         discord_channel_other = ${input.discord_channel_other},
+        discord_channel_late_rsvp = ${input.discord_channel_late_rsvp},
         create_discord_channel_on_group = ${input.create_discord_channel_on_group},
         create_discord_channel_on_roster = ${input.create_discord_channel_on_roster},
         discord_archive_category_id = ${input.discord_archive_category_id},
@@ -132,6 +138,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
                 discord_channel_training, discord_channel_match,
                 discord_channel_tournament, discord_channel_meeting,
                 discord_channel_social, discord_channel_other,
+                discord_channel_late_rsvp,
                 create_discord_channel_on_group, create_discord_channel_on_roster,
                 discord_archive_category_id,
                 discord_channel_cleanup_on_group_delete,
@@ -180,6 +187,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordChannelMeeting = Option.none(),
     discordChannelSocial = Option.none(),
     discordChannelOther = Option.none(),
+    discordChannelLateRsvp = Option.none(),
     createDiscordChannelOnGroup = true,
     createDiscordChannelOnRoster = true,
     discordArchiveCategoryId = Option.none(),
@@ -198,6 +206,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordChannelMeeting?: Option.Option<Discord.Snowflake>;
     discordChannelSocial?: Option.Option<Discord.Snowflake>;
     discordChannelOther?: Option.Option<Discord.Snowflake>;
+    discordChannelLateRsvp?: Option.Option<Discord.Snowflake>;
     createDiscordChannelOnGroup?: boolean;
     createDiscordChannelOnRoster?: boolean;
     discordArchiveCategoryId?: Option.Option<Discord.Snowflake>;
@@ -217,6 +226,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_channel_meeting: discordChannelMeeting,
       discord_channel_social: discordChannelSocial,
       discord_channel_other: discordChannelOther,
+      discord_channel_late_rsvp: discordChannelLateRsvp,
       create_discord_channel_on_group: createDiscordChannelOnGroup,
       create_discord_channel_on_roster: createDiscordChannelOnRoster,
       discord_archive_category_id: discordArchiveCategoryId,
@@ -229,6 +239,12 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
   getHorizonDays = (teamId: Team.TeamId) =>
     this._getHorizon(teamId).pipe(
       Effect.map((r) => r.event_horizon_days),
+      catchSqlErrors,
+    );
+
+  findLateRsvpChannelId = (teamId: Team.TeamId) =>
+    this.findByTeamId(teamId).pipe(
+      Effect.map(Option.flatMap((s) => s.discord_channel_late_rsvp)),
       catchSqlErrors,
     );
 

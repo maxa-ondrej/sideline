@@ -1,5 +1,9 @@
 import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
+import { RpcTest } from '@effect/rpc';
+import { SqlClient } from '@effect/sql';
+import { it as itEffect } from '@effect/vitest';
 import type { Auth, Discord, Event, EventRsvp, Role, Team, TeamMember } from '@sideline/domain';
+import { EventRpcGroup, type EventRpcModels } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -32,6 +36,7 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { EventsRpcLive } from '~/rpc/event/index.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
@@ -1139,4 +1144,528 @@ describe('Event RSVP API', () => {
       expect(body.rsvps).toHaveLength(2);
     });
   });
+});
+
+// ============================================================
+// Late RSVP feature tests — Event/SubmitRsvp RPC
+// ============================================================
+//
+// These tests verify the isLateRsvp and lateRsvpChannelId fields
+// returned by the Event/SubmitRsvp RPC handler.
+//
+// They are written in TDD style: they fail now (stubs return
+// isLateRsvp: false) and should pass after the feature is implemented.
+
+const RPC_TEST_EVENT_ID = '00000000-0000-0000-0000-000000000070' as Event.EventId;
+const RPC_TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
+const RPC_TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
+const RPC_TEST_DISCORD_USER_ID = '123456789012345678' as Discord.Snowflake;
+const LATE_RSVP_CHANNEL_ID = '999000999000999001' as Discord.Snowflake;
+
+// RPC-level event records include reminder_sent_at
+type RpcEventRecord = {
+  id: Event.EventId;
+  team_id: Team.TeamId;
+  training_type_id: Option.Option<string>;
+  event_type: Event.EventType;
+  title: string;
+  description: Option.Option<string>;
+  start_at: DateTime.Utc;
+  end_at: Option.Option<DateTime.Utc>;
+  location: Option.Option<string>;
+  status: Event.EventStatus;
+  created_by: TeamMember.TeamMemberId;
+  training_type_name: Option.Option<string>;
+  created_by_name: Option.Option<string>;
+  series_id: Option.Option<string>;
+  series_modified: boolean;
+  discord_target_channel_id: Option.Option<string>;
+  owner_group_id: Option.Option<string>;
+  owner_group_name: Option.Option<string>;
+  member_group_id: Option.Option<string>;
+  member_group_name: Option.Option<string>;
+  reminder_sent_at: Option.Option<DateTime.Utc>;
+};
+
+type RpcRsvpRecord = {
+  id: EventRsvp.EventRsvpId;
+  event_id: Event.EventId;
+  team_member_id: TeamMember.TeamMemberId;
+  response: EventRsvp.RsvpResponse;
+  message: Option.Option<string>;
+  member_name: Option.Option<string>;
+  username: Option.Option<string>;
+};
+
+let rpcEventsStore: Map<Event.EventId, RpcEventRecord>;
+let rpcRsvpsStore: Map<string, RpcRsvpRecord>;
+let rpcLateRsvpChannelId: Option.Option<Discord.Snowflake>;
+
+const resetRpcStores = () => {
+  rpcEventsStore = new Map();
+  rpcEventsStore.set(RPC_TEST_EVENT_ID, {
+    id: RPC_TEST_EVENT_ID,
+    team_id: RPC_TEST_TEAM_ID,
+    training_type_id: Option.none(),
+    event_type: 'training' as Event.EventType,
+    title: 'Future Training',
+    description: Option.none(),
+    start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
+    end_at: Option.none(),
+    location: Option.none(),
+    status: 'active' as Event.EventStatus,
+    created_by: RPC_TEST_MEMBER_ID,
+    training_type_name: Option.none(),
+    created_by_name: Option.none(),
+    series_id: Option.none(),
+    series_modified: false,
+    discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_id: Option.none(),
+    member_group_name: Option.none(),
+    reminder_sent_at: Option.none(),
+  });
+  rpcRsvpsStore = new Map();
+  rpcLateRsvpChannelId = Option.none();
+};
+
+// Mock SQL layer: returns the member ID for all queries
+// (used by Event/SubmitRsvp to look up member by discord_user_id)
+const MockSqlClientLayer = Layer.succeed(
+  SqlClient.SqlClient,
+  Object.assign(
+    function mockSql(_strings: TemplateStringsArray, ..._args: unknown[]) {
+      return Effect.succeed([{ id: RPC_TEST_MEMBER_ID }]);
+    },
+    {
+      safe: undefined as any,
+      withoutTransforms: function (this: any) {
+        return this;
+      },
+      reserve: Effect.die(new Error('reserve not implemented')),
+      withTransaction: <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E | any, R> =>
+        effect,
+      reactive: () => Effect.succeed([] as never[]),
+      reactiveMailbox: () => Effect.die(new Error('reactiveMailbox not implemented')),
+      unsafe: (_sql: string, _params?: ReadonlyArray<unknown>) =>
+        Effect.succeed([{ id: RPC_TEST_MEMBER_ID }]),
+      literal: (_sql: string) => ({ _tag: 'Fragment' as const, segments: [] }),
+      in: (..._args: unknown[]) => Effect.succeed([] as never[]),
+      insert: (..._args: unknown[]) => Effect.succeed([] as never[]),
+      update: (..._args: unknown[]) => Effect.succeed([] as never[]),
+      updateValues: (..._args: unknown[]) => Effect.succeed([] as never[]),
+      and: (..._args: unknown[]) => Effect.succeed([] as never[]),
+      or: (..._args: unknown[]) => Effect.succeed([] as never[]),
+    },
+  ) as unknown as SqlClient.SqlClient,
+);
+
+const MockRpcEventsRepositoryLayer = Layer.succeed(EventsRepository, {
+  _tag: 'api/EventsRepository',
+  findByTeamId: () => Effect.succeed([]),
+  findEventsByTeamId: () => Effect.succeed([]),
+  findByIdWithDetails: (id: Event.EventId) => {
+    const event = rpcEventsStore.get(id);
+    return Effect.succeed(event ? Option.some(event) : Option.none());
+  },
+  findEventByIdWithDetails: (id: Event.EventId) => {
+    const event = rpcEventsStore.get(id);
+    return Effect.succeed(event ? Option.some(event) : Option.none());
+  },
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertEvent: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateEvent: () => Effect.die(new Error('Not implemented')),
+  cancel: () => Effect.void,
+  cancelEvent: () => Effect.void,
+  findScopedTrainingTypeIds: () => Effect.succeed([]),
+  getScopedTrainingTypeIds: () => Effect.succeed([]),
+  markModified: () => Effect.void,
+  markEventSeriesModified: () => Effect.void,
+  markReminderSent: () => Effect.void,
+  cancelFuture: () => Effect.void,
+  cancelFutureInSeries: () => Effect.void,
+  updateFutureUnmodified: () => Effect.void,
+  updateFutureUnmodifiedInSeries: () => Effect.void,
+  findEventsByChannelId: () => Effect.succeed([]),
+  findUpcomingByGuildId: () => Effect.succeed([]),
+  countUpcomingByGuildId: () => Effect.succeed(0),
+  saveDiscordMessageId: () => Effect.void,
+  getDiscordMessageId: () => Effect.succeed(Option.none()),
+  findNonResponders: () => Effect.succeed([]),
+} as unknown as EventsRepository);
+
+const MockRpcEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
+  _tag: 'api/EventRsvpsRepository',
+  findByEventId: (eventId: Event.EventId) => {
+    const results = Array.from(rpcRsvpsStore.values()).filter((r) => r.event_id === eventId);
+    return Effect.succeed(results);
+  },
+  findRsvpsByEventId: (eventId: Event.EventId) => {
+    const results = Array.from(rpcRsvpsStore.values()).filter((r) => r.event_id === eventId);
+    return Effect.succeed(results);
+  },
+  findByEventAndMember: () => Effect.succeed(Option.none()),
+  findRsvpByEventAndMember: (eventId: Event.EventId, memberId: TeamMember.TeamMemberId) => {
+    const key = `${eventId}:${memberId}`;
+    const rsvp = rpcRsvpsStore.get(key);
+    return Effect.succeed(rsvp ? Option.some(rsvp) : Option.none());
+  },
+  upsert: () => Effect.die(new Error('Not implemented')),
+  upsertRsvp: (
+    eventId: Event.EventId,
+    memberId: TeamMember.TeamMemberId,
+    response: EventRsvp.RsvpResponse,
+    message: Option.Option<string>,
+  ) => {
+    const key = `${eventId}:${memberId}`;
+    const existing = rpcRsvpsStore.get(key);
+    const id = existing?.id ?? (crypto.randomUUID() as EventRsvp.EventRsvpId);
+    const record: RpcRsvpRecord = {
+      id,
+      event_id: eventId,
+      team_member_id: memberId,
+      response,
+      message,
+      member_name: Option.none(),
+      username: Option.none(),
+    };
+    rpcRsvpsStore.set(key, record);
+    return Effect.succeed(record);
+  },
+  countByEventId: () => Effect.succeed([]),
+  countRsvpsByEventId: (eventId: Event.EventId) => {
+    const rsvps = Array.from(rpcRsvpsStore.values()).filter((r) => r.event_id === eventId);
+    const counts = new Map<string, number>();
+    for (const r of rsvps) counts.set(r.response, (counts.get(r.response) ?? 0) + 1);
+    return Effect.succeed(
+      Array.from(counts.entries()).map(([response, count]) => ({
+        response: response as EventRsvp.RsvpResponse,
+        count,
+      })),
+    );
+  },
+  findNonResponders: () => Effect.succeed([]),
+  findNonRespondersByEventId: () => Effect.succeed([]),
+  findRsvpAttendeesPage: () => Effect.succeed([]),
+  countRsvpTotal: () => Effect.succeed(0),
+  findYesAttendeesForEmbed: () => Effect.succeed([]),
+} as unknown as EventRsvpsRepository);
+
+const MockRpcTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
+  _tag: 'api/TeamSettingsRepository',
+  findByTeam: (teamId: Team.TeamId) =>
+    Effect.succeed(
+      teamId === RPC_TEST_TEAM_ID
+        ? Option.some({
+            team_id: RPC_TEST_TEAM_ID,
+            event_horizon_days: 30,
+            min_players_threshold: 5,
+            rsvp_reminder_hours: 24,
+            discord_channel_training: Option.none<Discord.Snowflake>(),
+            discord_channel_match: Option.none<Discord.Snowflake>(),
+            discord_channel_tournament: Option.none<Discord.Snowflake>(),
+            discord_channel_meeting: Option.none<Discord.Snowflake>(),
+            discord_channel_social: Option.none<Discord.Snowflake>(),
+            discord_channel_other: Option.none<Discord.Snowflake>(),
+            discord_channel_late_rsvp: rpcLateRsvpChannelId,
+            create_discord_channel_on_group: false,
+            create_discord_channel_on_roster: false,
+            discord_archive_category_id: Option.none<Discord.Snowflake>(),
+            discord_channel_cleanup_on_group_delete: 'delete' as const,
+            discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
+            discord_role_format: '{emoji} {name}',
+            discord_channel_format: '{emoji}│{name}',
+          })
+        : Option.none(),
+    ),
+  findByTeamId: (teamId: Team.TeamId) =>
+    Effect.succeed(
+      teamId === RPC_TEST_TEAM_ID
+        ? Option.some({
+            team_id: RPC_TEST_TEAM_ID,
+            event_horizon_days: 30,
+            min_players_threshold: 5,
+            rsvp_reminder_hours: 24,
+            discord_channel_training: Option.none<Discord.Snowflake>(),
+            discord_channel_match: Option.none<Discord.Snowflake>(),
+            discord_channel_tournament: Option.none<Discord.Snowflake>(),
+            discord_channel_meeting: Option.none<Discord.Snowflake>(),
+            discord_channel_social: Option.none<Discord.Snowflake>(),
+            discord_channel_other: Option.none<Discord.Snowflake>(),
+            discord_channel_late_rsvp: rpcLateRsvpChannelId,
+            create_discord_channel_on_group: false,
+            create_discord_channel_on_roster: false,
+            discord_archive_category_id: Option.none<Discord.Snowflake>(),
+            discord_channel_cleanup_on_group_delete: 'delete' as const,
+            discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
+            discord_role_format: '{emoji} {name}',
+            discord_channel_format: '{emoji}│{name}',
+          })
+        : Option.none(),
+    ),
+  upsertSettings: () => Effect.die(new Error('Not implemented')),
+  upsert: () => Effect.die(new Error('Not implemented')),
+  getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+  getHorizonDays: () => Effect.succeed(30),
+  findEventsForReminder: () => Effect.succeed([]),
+  findEventsNeedingReminder: () => Effect.succeed([]),
+  findLateRsvpChannelId: (_teamId: Team.TeamId) => Effect.succeed(rpcLateRsvpChannelId),
+} as unknown as TeamSettingsRepository);
+
+const MockRpcEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
+  emitEventCreated: () => Effect.void,
+  emitEventUpdated: () => Effect.void,
+  emitEventCancelled: () => Effect.void,
+  emitRsvpReminder: () => Effect.void,
+  findUnprocessed: () => Effect.succeed([]),
+  markProcessed: () => Effect.void,
+  markFailed: () => Effect.void,
+} as unknown as EventSyncEventsRepository);
+
+const MockRpcTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
+  _tag: 'api/TeamMembersRepository',
+  addMember: () => Effect.die(new Error('Not implemented')),
+  findMembershipByIds: () => Effect.succeed(Option.none()),
+  findByTeam: () => Effect.succeed([]),
+  findByUser: () => Effect.succeed([]),
+  findRosterByTeam: () => Effect.succeed([]),
+  findRosterMemberByIds: () => Effect.succeed(Option.none()),
+  deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
+  getPlayerRoleId: () => Effect.succeed(Option.none()),
+  assignRole: () => Effect.void,
+  unassignRole: () => Effect.void,
+  setJerseyNumber: () => Effect.void,
+} as unknown as TeamMembersRepository);
+
+const MockRpcGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
+  _tag: 'api/GroupsRepository',
+  findGroupsByTeamId: () => Effect.succeed([]),
+  findGroupById: () => Effect.succeed(Option.none()),
+  insertGroup: () => Effect.die(new Error('Not implemented')),
+  updateGroupById: () => Effect.die(new Error('Not implemented')),
+  archiveGroupById: () => Effect.void,
+  moveGroup: () => Effect.die(new Error('Not implemented')),
+  findMembersByGroupId: () => Effect.succeed([]),
+  addMemberById: () => Effect.void,
+  removeMemberById: () => Effect.void,
+  getRolesForGroup: () => Effect.succeed([]),
+  getMemberCount: () => Effect.succeed(0),
+  getChildren: () => Effect.succeed([]),
+  getAncestorIds: () => Effect.succeed([]),
+  getDescendantMemberIds: () => Effect.succeed([]),
+} as unknown as GroupsRepository);
+
+const MockRpcTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
+  _tag: 'api/TeamsRepository',
+  findById: () => Effect.succeed(Option.none()),
+  findByGuildId: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+} as unknown as TeamsRepository);
+
+const MockRpcTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
+  findByTeamId: () => Effect.succeed([]),
+  findTrainingTypesByTeamId: () => Effect.succeed([]),
+  findById: () => Effect.succeed(Option.none()),
+  findTrainingTypeById: () => Effect.succeed(Option.none()),
+  findByIdWithGroup: () => Effect.succeed(Option.none()),
+  findTrainingTypeByIdWithGroup: () => Effect.succeed(Option.none()),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertTrainingType: () => Effect.die(new Error('Not implemented')),
+  update: () => Effect.die(new Error('Not implemented')),
+  updateTrainingType: () => Effect.die(new Error('Not implemented')),
+  deleteTrainingType: () => Effect.void,
+  deleteTrainingTypeById: () => Effect.void,
+} as unknown as TrainingTypesRepository);
+
+const RpcTestLayer = EventsRpcLive.pipe(
+  Layer.provide(MockRpcEventsRepositoryLayer),
+  Layer.provide(MockRpcEventRsvpsRepositoryLayer),
+  Layer.provide(MockRpcTeamSettingsRepositoryLayer),
+  Layer.provide(MockRpcEventSyncEventsRepositoryLayer),
+  Layer.provide(MockRpcTeamMembersRepositoryLayer),
+  Layer.provide(MockRpcGroupsRepositoryLayer),
+  Layer.provide(MockRpcTeamsRepositoryLayer),
+  Layer.provide(MockRpcTrainingTypesRepositoryLayer),
+  Layer.provide(MockSqlClientLayer),
+);
+
+// Helper to submit an RSVP via the Event/SubmitRsvp RPC handler
+// Uses Effect.scoped because RpcTest.makeClient requires Scope
+const makeSubmitRsvp = (params: {
+  event_id?: Event.EventId;
+  team_id?: Team.TeamId;
+  discord_user_id?: Discord.Snowflake;
+  response: EventRsvp.RsvpResponse;
+  message?: Option.Option<string>;
+}): Effect.Effect<
+  EventRpcModels.SubmitRsvpResult,
+  unknown,
+  typeof RpcTestLayer extends Layer.Layer<infer A, any, any> ? A : never
+> =>
+  Effect.scoped(
+    (RpcTest.makeClient(EventRpcGroup.EventRpcGroup) as Effect.Effect<any, never, any>).pipe(
+      Effect.flatMap(
+        (rpc: any) =>
+          rpc['Event/SubmitRsvp']({
+            event_id: params.event_id ?? RPC_TEST_EVENT_ID,
+            team_id: params.team_id ?? RPC_TEST_TEAM_ID,
+            discord_user_id: params.discord_user_id ?? RPC_TEST_DISCORD_USER_ID,
+            response: params.response,
+            message: params.message ?? Option.none(),
+          }) as Effect.Effect<EventRpcModels.SubmitRsvpResult, unknown, never>,
+      ),
+    ),
+  );
+
+describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
+  beforeEach(() => {
+    resetRpcStores();
+  });
+
+  itEffect.effect('isLateRsvp = false when reminder has not been sent', () =>
+    makeSubmitRsvp({ response: 'yes' }).pipe(
+      Effect.tap((result) => {
+        expect(result.isLateRsvp).toBe(false);
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    ),
+  );
+
+  itEffect.effect('isLateRsvp = true for first-time RSVP after reminder was sent', () => {
+    // Mark the event as having had the reminder sent
+    const event = rpcEventsStore.get(RPC_TEST_EVENT_ID);
+    if (event) {
+      rpcEventsStore.set(RPC_TEST_EVENT_ID, {
+        ...event,
+        reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+      });
+    }
+
+    return makeSubmitRsvp({ response: 'yes' }).pipe(
+      Effect.tap((result) => {
+        expect(result.isLateRsvp).toBe(true);
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
+
+  itEffect.effect('isLateRsvp = true when changing response after reminder was sent', () => {
+    // Pre-populate an existing RSVP with 'yes'
+    const priorKey = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+    rpcRsvpsStore.set(priorKey, {
+      id: crypto.randomUUID() as EventRsvp.EventRsvpId,
+      event_id: RPC_TEST_EVENT_ID,
+      team_member_id: RPC_TEST_MEMBER_ID,
+      response: 'yes',
+      message: Option.none(),
+      member_name: Option.none(),
+      username: Option.none(),
+    });
+
+    // Mark the event as having had the reminder sent
+    const event = rpcEventsStore.get(RPC_TEST_EVENT_ID);
+    if (event) {
+      rpcEventsStore.set(RPC_TEST_EVENT_ID, {
+        ...event,
+        reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+      });
+    }
+
+    // Submit a different response ('no' vs prior 'yes')
+    return makeSubmitRsvp({ response: 'no' }).pipe(
+      Effect.tap((result) => {
+        expect(result.isLateRsvp).toBe(true);
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
+
+  itEffect.effect('isLateRsvp = false for same-response resubmission after reminder', () => {
+    // Pre-populate an existing RSVP with 'yes'
+    const priorKey = `${RPC_TEST_EVENT_ID}:${RPC_TEST_MEMBER_ID}`;
+    rpcRsvpsStore.set(priorKey, {
+      id: crypto.randomUUID() as EventRsvp.EventRsvpId,
+      event_id: RPC_TEST_EVENT_ID,
+      team_member_id: RPC_TEST_MEMBER_ID,
+      response: 'yes',
+      message: Option.none(),
+      member_name: Option.none(),
+      username: Option.none(),
+    });
+
+    // Mark the event as having had the reminder sent
+    const event = rpcEventsStore.get(RPC_TEST_EVENT_ID);
+    if (event) {
+      rpcEventsStore.set(RPC_TEST_EVENT_ID, {
+        ...event,
+        reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+      });
+    }
+
+    // Resubmit same 'yes' response — should NOT be late
+    return makeSubmitRsvp({ response: 'yes' }).pipe(
+      Effect.tap((result) => {
+        expect(result.isLateRsvp).toBe(false);
+      }),
+      Effect.provide(RpcTestLayer),
+      Effect.asVoid,
+    );
+  });
+
+  itEffect.effect(
+    'lateRsvpChannelId is returned when discord_channel_late_rsvp is configured and RSVP is late',
+    () => {
+      // Configure the late RSVP channel
+      rpcLateRsvpChannelId = Option.some(LATE_RSVP_CHANNEL_ID);
+
+      // Mark the event as having had the reminder sent
+      const event = rpcEventsStore.get(RPC_TEST_EVENT_ID);
+      if (event) {
+        rpcEventsStore.set(RPC_TEST_EVENT_ID, {
+          ...event,
+          reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+        });
+      }
+
+      return makeSubmitRsvp({ response: 'yes' }).pipe(
+        Effect.tap((result) => {
+          expect(result.isLateRsvp).toBe(true);
+          expect(Option.isSome(result.lateRsvpChannelId)).toBe(true);
+          expect(Option.getOrNull(result.lateRsvpChannelId)).toBe(LATE_RSVP_CHANNEL_ID);
+        }),
+        Effect.provide(RpcTestLayer),
+        Effect.asVoid,
+      );
+    },
+  );
+
+  itEffect.effect(
+    'lateRsvpChannelId = None when no late RSVP channel configured, even if RSVP is late',
+    () => {
+      // No late RSVP channel configured (rpcLateRsvpChannelId stays Option.none())
+
+      // Mark the event as having had the reminder sent
+      const event = rpcEventsStore.get(RPC_TEST_EVENT_ID);
+      if (event) {
+        rpcEventsStore.set(RPC_TEST_EVENT_ID, {
+          ...event,
+          reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+        });
+      }
+
+      return makeSubmitRsvp({ response: 'yes' }).pipe(
+        Effect.tap((result) => {
+          expect(result.isLateRsvp).toBe(true);
+          expect(Option.isNone(result.lateRsvpChannelId)).toBe(true);
+        }),
+        Effect.provide(RpcTestLayer),
+        Effect.asVoid,
+      );
+    },
+  );
 });

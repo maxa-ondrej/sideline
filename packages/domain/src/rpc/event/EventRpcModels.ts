@@ -15,6 +15,15 @@ export class RsvpCountsResult extends Schema.Class<RsvpCountsResult>('RsvpCounts
   canRsvp: Schema.Boolean,
 }) {}
 
+export class SubmitRsvpResult extends Schema.Class<SubmitRsvpResult>('SubmitRsvpResult')({
+  yesCount: Schema.Number,
+  noCount: Schema.Number,
+  maybeCount: Schema.Number,
+  canRsvp: Schema.Boolean,
+  isLateRsvp: Schema.Boolean,
+  lateRsvpChannelId: Schema.OptionFromNullOr(Snowflake),
+}) {}
+
 export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
@@ -124,6 +133,7 @@ export class RsvpReminderSummary extends Schema.Class<RsvpReminderSummary>('Rsvp
   noCount: Schema.Number,
   maybeCount: Schema.Number,
   nonResponders: Schema.Array(NonResponderRpcEntry),
+  yesAttendees: Schema.Array(NonResponderRpcEntry),
 }) {}
 
 export class TrainingTypeChoice extends Schema.Class<TrainingTypeChoice>('TrainingTypeChoice')({

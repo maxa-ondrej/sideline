@@ -180,6 +180,7 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `discord_channel_meeting` | TEXT | — | — |
 | `discord_channel_social` | TEXT | — | — |
 | `discord_channel_other` | TEXT | — | — |
+| `discord_channel_late_rsvp` | TEXT | — | — |
 | `create_discord_channel_on_group` | BOOLEAN | NOT NULL | `true` |
 | `create_discord_channel_on_roster` | BOOLEAN | NOT NULL | `true` |
 | `discord_archive_category_id` | TEXT | — | — |
@@ -190,7 +191,7 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
-**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743600000`. `discord_role_format` and `discord_channel_format` added in `1743700000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`). `discord_role_format` and `discord_channel_format` are template strings used to format Discord role and channel names respectively; they must contain `{name}` and may contain `{emoji}`.
+**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743600000`. `discord_role_format` and `discord_channel_format` added in `1743700000`. `discord_channel_late_rsvp` added in `1743900000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type; `discord_channel_late_rsvp` is the channel where the bot posts a notification when a member submits or changes their RSVP after the reminder was sent. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`). `discord_role_format` and `discord_channel_format` are template strings used to format Discord role and channel names respectively; they must contain `{name}` and may contain `{emoji}`.
 
 ---
 
@@ -790,6 +791,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743600000 | `add_archive_category` | Adds `discord_archive_category_id`, `discord_channel_cleanup_on_group_delete`, `discord_channel_cleanup_on_roster_deactivate` to team_settings; adds `archive_category_id` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_archived'` and `'channel_detached'` |
 | 1743700000 | `add_discord_format_options` | Adds `discord_role_format` and `discord_channel_format` to team_settings; adds `discord_channel_name` and `discord_role_name` to channel_sync_events |
 | 1743800000 | `add_color_and_roster_emoji` | Adds `color TEXT` to groups; adds `color TEXT` and `emoji TEXT` to rosters; adds `discord_role_color INTEGER` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_updated'` |
+| 1743900000 | `add_late_rsvp_channel` | Adds `discord_channel_late_rsvp TEXT` to team_settings |
 
 ### After Migrations (seed data)
 
