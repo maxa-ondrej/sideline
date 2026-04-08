@@ -23,16 +23,16 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@effect/platform": "0.94.5",
-    "@effect/platform-node": "0.104.1",
-    "@effect/rpc": "0.73.0",
+    "@effect/platform": "0.96.0",
+    "@effect/platform-node": "0.106.0",
+    "@effect/rpc": "0.75.0",
     "@sideline/domain": "workspace:^",
     "@sideline/effect-lib": "workspace:^",
     "@sideline/i18n": "workspace:^",
     "@t3-oss/env-core": "^0.13.8",
     "dfx": "0.127.0",
     "discord-api-types": "0.38.39",
-    "effect": "3.20.0"
+    "effect": "3.21.0"
   },
   "effect": {
     "generateExports": {

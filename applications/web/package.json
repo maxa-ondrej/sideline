@@ -11,7 +11,7 @@
     "codegen": "tsr generate"
   },
   "dependencies": {
-    "@effect/platform": "0.94.5",
+    "@effect/platform": "0.96.0",
     "@faker-js/faker": "10.0.0",
     "@hookform/resolvers": "^5.2.2",
     "@sideline/domain": "workspace:^",
@@ -32,7 +32,7 @@
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "date-fns": "^4.1.0",
-    "effect": "3.20.0",
+    "effect": "3.21.0",
     "lucide-react": "0.561.0",
     "nitro": "npm:nitro-nightly@latest",
     "radix-ui": "1.4.3",
@@ -48,7 +48,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@effect/platform-browser": "0.74.0",
+    "@effect/platform-browser": "0.76.0",
     "@tanstack/devtools-vite": "0.3.11",
     "@tanstack/router-cli": "1.160.1",
     "@testing-library/dom": "10.4.0",
