@@ -34,7 +34,7 @@
     "@sideline/migrations": "workspace:^",
     "@t3-oss/env-core": "^0.13.8",
     "arctic": "^3.7.0",
-    "dfx": "0.127.0",
+    "dfx": "1.0.11",
     "effect": "3.19.18"
   },
   "effect": {

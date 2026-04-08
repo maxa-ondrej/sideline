@@ -113,8 +113,8 @@ importers:
         specifier: ^0.13.8
         version: 0.13.8(typescript@5.9.3)(zod@4.3.6)
       dfx:
-        specifier: 0.127.0
-        version: 0.127.0(@effect/platform@0.94.5(effect@3.19.18))(effect@3.19.18)
+        specifier: 1.0.11
+        version: 1.0.11(effect@3.19.18)
       discord-api-types:
         specifier: 0.38.39
         version: 0.38.39
@@ -158,8 +158,8 @@ importers:
         specifier: ^3.7.0
         version: 3.7.0
       dfx:
-        specifier: 0.127.0
-        version: 0.127.0(@effect/platform@0.94.5(effect@3.19.18))(effect@3.19.18)
+        specifier: 1.0.11
+        version: 1.0.11(effect@3.19.18)
       effect:
         specifier: 3.19.18
         version: 3.19.18
@@ -2996,8 +2996,8 @@ packages:
   '@types/node@22.19.11':
     resolution: {integrity: sha512-BH7YwL6rA93ReqeQS1c4bsPpcfOmJasG+Fkr6Y59q83f9M1WcBRHR2vM+P9eOisYRcN3ujQoiZY8uk5W+1WL8w==}
 
-  '@types/qs@6.14.0':
-    resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
+  '@types/qs@6.15.0':
+    resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
 
   '@types/range-parser@1.2.7':
     resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
@@ -3622,11 +3622,10 @@ packages:
   detect-node-es@1.1.0:
     resolution: {integrity: sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ==}
 
-  dfx@0.127.0:
-    resolution: {integrity: sha512-WQGzD80m8Jx0Kn8lqbrjTrMINUC+mTgU8C+4Kv6yxZc8ZK02rhqkeiBhdMzNDXQX8c/gr3R9GcUYoBJ31wQBoA==}
+  dfx@1.0.11:
+    resolution: {integrity: sha512-KlY8BqHhMYK+KksNx9PdJDjJkiLYUb0tCh9fxYRJDf/G2txHRygwCrB5POvOXxuI75Q0bwQVdd3CwTz/cTGlRw==}
     peerDependencies:
-      '@effect/platform': ^0.93
-      effect: ^3.19
+      effect: 4.0.0-beta.40
 
   diff@8.0.3:
     resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
@@ -3638,6 +3637,9 @@ packages:
 
   discord-api-types@0.38.39:
     resolution: {integrity: sha512-XRdDQvZvID1XvcFftjSmd4dcmMi/RL/jSy5sduBDAvCGFcNFHThdIQXCEBDZFe52lCNEzuIL0QJoKYAmRmxLUA==}
+
+  discord-api-types@0.38.44:
+    resolution: {integrity: sha512-q91MgBzP/gRaCLIbQTaOrOhbD8uVIaPKxpgX2sfFB2nZ9nSiTYM9P3NFQ7cbO6NCxctI6ODttc67MI+YhIfILg==}
 
   discord-verify@1.2.0:
     resolution: {integrity: sha512-8qlrMROW8DhpzWWzgNq9kpeLDxKanWa4EDVoj/ASVv2nr+dSr4JPmu2tFSydf3hAGI/OIJTnZyD0JulMYIxx4w==}
@@ -8634,7 +8636,7 @@ snapshots:
   '@types/express-serve-static-core@4.19.8':
     dependencies:
       '@types/node': 22.19.11
-      '@types/qs': 6.14.0
+      '@types/qs': 6.15.0
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
     optional: true
@@ -8643,7 +8645,7 @@ snapshots:
     dependencies:
       '@types/body-parser': 1.19.6
       '@types/express-serve-static-core': 4.19.8
-      '@types/qs': 6.14.0
+      '@types/qs': 6.15.0
       '@types/serve-static': 1.15.10
     optional: true
 
@@ -8667,7 +8669,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/qs@6.14.0':
+  '@types/qs@6.15.0':
     optional: true
 
   '@types/range-parser@1.2.7':
@@ -9290,10 +9292,9 @@ snapshots:
 
   detect-node-es@1.1.0: {}
 
-  dfx@0.127.0(@effect/platform@0.94.5(effect@3.19.18))(effect@3.19.18):
+  dfx@1.0.11(effect@3.19.18):
     dependencies:
-      '@effect/platform': 0.94.5(effect@3.19.18)
-      discord-api-types: 0.38.39
+      discord-api-types: 0.38.44
       effect: 3.19.18
     optionalDependencies:
       discord-verify: 1.2.0
@@ -9305,6 +9306,8 @@ snapshots:
       path-type: 4.0.0
 
   discord-api-types@0.38.39: {}
+
+  discord-api-types@0.38.44: {}
 
   discord-verify@1.2.0:
     dependencies:

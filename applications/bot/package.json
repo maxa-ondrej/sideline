@@ -30,7 +30,7 @@
     "@sideline/effect-lib": "workspace:^",
     "@sideline/i18n": "workspace:^",
     "@t3-oss/env-core": "^0.13.8",
-    "dfx": "0.127.0",
+    "dfx": "1.0.11",
     "discord-api-types": "0.38.39",
     "effect": "3.19.18"
   },
