@@ -44,9 +44,10 @@ test.describe('Responsive Layout', () => {
   test('header is visible at all viewport widths', async ({ page }) => {
     const widths = [375, 768, 1280];
 
+    await page.goto('/');
+
     for (const width of widths) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto('/');
 
       const header = page.locator('header');
       await expect(header).toBeVisible({ timeout: 30000 });
@@ -57,9 +58,10 @@ test.describe('Responsive Layout', () => {
   test('footer is visible at all viewport widths', async ({ page }) => {
     const widths = [375, 768, 1280];
 
+    await page.goto('/');
+
     for (const width of widths) {
       await page.setViewportSize({ width, height: 800 });
-      await page.goto('/');
 
       const footer = page.locator('footer');
       await expect(footer).toBeVisible({ timeout: 30000 });
