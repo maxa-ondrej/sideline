@@ -22,9 +22,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm --filter @sideline/web dev',
+    command: 'pnpm --filter @sideline/web build && pnpm --filter @sideline/web preview --port 3000',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 300_000,
   },
 });
