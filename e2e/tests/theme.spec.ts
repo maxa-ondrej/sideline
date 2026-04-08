@@ -1,17 +1,17 @@
 import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
 
 test.describe('Theme Toggle', () => {
-  // Theme tests that reload the page can be slow in CI
-  test.setTimeout(120000);
+  test.setTimeout(60000);
 
   async function waitForPageReady(page: import('@playwright/test').Page) {
-    await page.waitForFunction(() => !document.body.textContent?.includes('Loading...'), {
-      timeout: 60000,
-    });
+    // Wait for the home page's <header> element, which only appears after React
+    // has fully loaded and rendered the home page. The raw HTML shell never
+    // contains a <header>, so this reliably detects a complete render.
+    await page.waitForSelector('header', { timeout: 30000 });
   }
 
   test.beforeEach(async ({ page }) => {
-    // Clear stored theme before the app scripts run to avoid an extra reload
+    // Clear stored theme before the app scripts run to avoid an extra load
     await page.addInitScript(() => {
       window.localStorage.removeItem('sideline-theme');
     });
@@ -29,7 +29,7 @@ test.describe('Theme Toggle', () => {
     await page.addInitScript(() => {
       window.localStorage.removeItem('sideline-theme');
     });
-    await page.reload();
+    await page.goto('/');
     await waitForPageReady(page);
     await expect(page.locator('html')).toHaveClass(/dark/);
   });
@@ -39,7 +39,7 @@ test.describe('Theme Toggle', () => {
     await page.addInitScript(() => {
       window.localStorage.removeItem('sideline-theme');
     });
-    await page.reload();
+    await page.goto('/');
     await waitForPageReady(page);
     await expect(page.locator('html')).not.toHaveClass(/dark/);
   });
@@ -49,7 +49,7 @@ test.describe('Theme Toggle', () => {
     await page.addInitScript(() => {
       window.localStorage.removeItem('sideline-theme');
     });
-    await page.reload();
+    await page.goto('/');
     await waitForPageReady(page);
 
     const themeButton = page.locator('header').getByRole('button', { name: /Theme/ });
@@ -72,7 +72,7 @@ test.describe('Theme Toggle', () => {
     expect(afterThird).toBe('system');
   });
 
-  test('persists theme across page reload', async ({ page }) => {
+  test('persists theme across page load', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     const themeButton = page.locator('header').getByRole('button', { name: /Theme/ });
 
@@ -81,7 +81,7 @@ test.describe('Theme Toggle', () => {
     await themeButton.click();
     await expect(page.locator('html')).toHaveClass(/dark/);
 
-    // Verify localStorage was set before reloading
+    // Verify localStorage was set
     const stored = await page.evaluate(() => localStorage.getItem('sideline-theme'));
     expect(stored).toBe('dark');
 
@@ -91,7 +91,7 @@ test.describe('Theme Toggle', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('sideline-theme', 'dark');
     });
-    await page.reload();
+    await page.goto('/');
     await waitForPageReady(page);
     await expect(page.locator('html')).toHaveClass(/dark/, { timeout: 10000 });
   });
@@ -101,7 +101,7 @@ test.describe('Theme Toggle', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('sideline-theme', 'light');
     });
-    await page.reload();
+    await page.goto('/');
     await waitForPageReady(page);
     await expect(page.locator('html')).not.toHaveClass(/dark/);
   });
@@ -111,7 +111,7 @@ test.describe('Theme Toggle', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('sideline-theme', 'dark');
     });
-    await page.reload();
+    await page.goto('/');
     await waitForPageReady(page);
     await expect(page.locator('html')).toHaveClass(/dark/);
   });
