@@ -37,14 +37,16 @@
     "@changesets/changelog-github": "0.5.2",
     "@changesets/cli": "2.29.8",
     "@changesets/get-github-info": "0.6.0",
-    "@effect/build-utils": "0.7.9",
-    "@effect/language-service": "0.74.0",
-    "@effect/vitest": "0.27.0",
+    "@effect/build-utils": "0.8.9",
+    "@effect/cluster": "0.58.0",
+    "@effect/language-service": "0.84.3",
+    "@effect/vitest": "0.29.0",
+    "@effect/workflow": "0.18.0",
     "@playwright/test": "^1.52",
     "@types/node": "22.19.11",
     "@vitest/ui": "3.2.4",
     "babel-plugin-annotate-pure-calls": "0.5.0",
-    "effect": "3.19.18",
+    "effect": "3.21.0",
     "glob": "^11.1.0",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
@@ -55,6 +57,10 @@
     "vitest": "3.2.4"
   },
   "pnpm": {
+    "overrides": {
+      "@effect/cluster": "0.58.0",
+      "@effect/workflow": "0.18.0"
+    },
     "patchedDependencies": {
       "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
       "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch"

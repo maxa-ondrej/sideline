@@ -8,7 +8,7 @@ export const makeTelemetryLayer = (options: {
   readonly environment: string;
   readonly origin: string;
 }): Layer.Layer<never> =>
-  Otlp.layer({
+  Otlp.layerJson({
     baseUrl: options.endpoint,
     resource: {
       serviceName: options.serviceName,
