@@ -509,6 +509,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/IsGuildRegistered` | Check whether a guild is already registered |
 | `Guild/SyncGuildChannels` | Bulk-sync all text channels for a guild |
 | `Guild/UpdateChannelName` | Update the cached name of a single Discord channel after the bot renames it |
+| `Guild/UpsertChannel` | Insert or update a single Discord channel row in `discord_channels`; called after the bot auto-creates a channel so the web can display its name |
 | `Guild/ReconcileMembers` | Bulk-sync up to 1000 guild members on startup |
 | `Guild/RegisterMember` | Register a single new member |
 

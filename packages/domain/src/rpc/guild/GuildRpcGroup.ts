@@ -32,6 +32,15 @@ export const GuildRpcGroup = RpcGroup.make(
       name: Schema.String,
     },
   }),
+  Rpc.make('UpsertChannel', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      channel_id: Discord.Snowflake,
+      name: Schema.String,
+      type: Schema.Number,
+      parent_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    },
+  }),
   Rpc.make('ReconcileMembers', {
     payload: {
       guild_id: Discord.Snowflake,

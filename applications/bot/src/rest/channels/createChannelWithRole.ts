@@ -1,7 +1,7 @@
-import type { Discord as DiscordSchemas, GroupModel, Team } from '@sideline/domain';
+import { Discord as DiscordSchemas, type GroupModel, type Team } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Discord from 'dfx/types';
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { HIDDEN, READ_WRITE } from '../permissions.js';
 import { allow, deny, retryPolicy } from '../utils.js';
@@ -15,6 +15,7 @@ export const createDiscordChannelAndRole = (
 ) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rpc', () => SyncRpc),
     Effect.bind('channel', ({ rest }) =>
       rest
         .createGuildChannel(guildId, {
@@ -49,6 +50,23 @@ export const createDiscordChannelAndRole = (
     ),
     Effect.tap(({ channel, role }) =>
       Effect.logInfo(`Set role ${role.id} permission overwrite on channel ${channel.id}`),
+    ),
+    Effect.tap(({ channel, rpc }) =>
+      rpc['Guild/UpsertChannel']({
+        guild_id: guildId,
+        channel_id: channel.id as DiscordSchemas.Snowflake,
+        name: channelName,
+        type: Discord.ChannelTypes.GUILD_TEXT,
+        parent_id: Option.map(
+          Option.fromNullable(channel.parent_id),
+          DiscordSchemas.Snowflake.make,
+        ),
+      }).pipe(
+        Effect.tapError((e) =>
+          Effect.logWarning(`Failed to upsert discord_channels row for ${channel.id}`, e),
+        ),
+        Effect.catchTag('RpcClientError', () => Effect.void),
+      ),
     ),
     Effect.map(({ channel, role }) => ({
       discord_channel_id: channel.id as DiscordSchemas.Snowflake,

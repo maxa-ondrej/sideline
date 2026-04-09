@@ -195,6 +195,20 @@ export const GuildsRpcLive = Effect.all([
           readonly name: string;
         }) => discordChannels.updateChannelName(channel_id, name),
 
+        'Guild/UpsertChannel': ({
+          guild_id,
+          channel_id,
+          name,
+          type,
+          parent_id,
+        }: {
+          readonly guild_id: Discord.Snowflake;
+          readonly channel_id: Discord.Snowflake;
+          readonly name: string;
+          readonly type: number;
+          readonly parent_id: Option.Option<Discord.Snowflake>;
+        }) => discordChannels.upsertChannel(guild_id, channel_id, name, type, parent_id),
+
         'Guild/RegisterMember': (payload: RegisterMemberPayload) => register(payload),
 
         'Guild/ReconcileMembers': ({
