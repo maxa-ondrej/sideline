@@ -140,7 +140,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
       JOIN team_members tm ON tm.id = r.team_member_id
       LEFT JOIN users u ON u.id = tm.user_id
       WHERE r.event_id = ${input.event_id}
-      ORDER BY CASE r.response WHEN 'yes' THEN 1 WHEN 'maybe' THEN 2 WHEN 'no' THEN 3 ELSE 99 END ASC, r.created_at ASC
+      ORDER BY CASE r.response WHEN 'yes' THEN 1 WHEN 'maybe' THEN 2 WHEN 'no' THEN 3 ELSE 99 END ASC, r.created_at ASC, r.id ASC
       LIMIT ${input.limit} OFFSET ${input.offset}
     `,
   });
