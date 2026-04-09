@@ -85,5 +85,24 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
       `,
     })({ channel_id: channelId, name }).pipe(catchSqlErrors);
 
+  upsertChannel = (
+    guildId: Discord.Snowflake,
+    channelId: Discord.Snowflake,
+    name: string,
+    type: number,
+    parentId: Option.Option<Discord.Snowflake>,
+  ) =>
+    SqlSchema.void({
+      Request: SyncInput,
+      execute: (input) => this.sql`
+        INSERT INTO discord_channels (guild_id, channel_id, name, type, parent_id)
+        VALUES (${input.guild_id}, ${input.channel_id}, ${input.name}, ${input.type}, ${input.parent_id})
+        ON CONFLICT (guild_id, channel_id)
+        DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
+      `,
+    })({ guild_id: guildId, channel_id: channelId, name, type, parent_id: parentId }).pipe(
+      catchSqlErrors,
+    );
+
   findByGuildId = (guildId: Discord.Snowflake) => this.selectByGuild(guildId).pipe(catchSqlErrors);
 }
