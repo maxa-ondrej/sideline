@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.12.5
+
+### Patch Changes
+
+- [#189](https://github.com/maxa-ondrej/sideline/pull/189) [`bfbc107`](https://github.com/maxa-ondrej/sideline/commit/bfbc107dae79520fc5801792b5aede8f05ed4e83) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Remove RSVP buttons from Discord event messages after an event starts and mark events as started via a new cron job.
+
 ## 0.12.4
 
 ### Patch Changes
