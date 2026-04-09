@@ -1,5 +1,15 @@
 # @sideline/domain
 
+## 0.15.2
+
+### Patch Changes
+
+- [#193](https://github.com/maxa-ondrej/sideline/pull/193) [`9e6a3ea`](https://github.com/maxa-ondrej/sideline/commit/9e6a3ea57fffc2207ef32f2594476f437566771c) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Notify server when Discord channels are created, updated, or deleted so the internal channel list stays in sync.
+
+- [#191](https://github.com/maxa-ondrej/sideline/pull/191) [`c0ec370`](https://github.com/maxa-ondrej/sideline/commit/c0ec3701d6b72c2a0dbba3d216041fd4f1342f41) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix newly created Discord channels not showing their name on the web by upserting the channel into the discord_channels table immediately after creation.
+
+- [#189](https://github.com/maxa-ondrej/sideline/pull/189) [`bfbc107`](https://github.com/maxa-ondrej/sideline/commit/bfbc107dae79520fc5801792b5aede8f05ed4e83) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Remove RSVP buttons from Discord event messages after an event starts and mark events as started via a new cron job.
+
 ## 0.15.1
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @sideline/i18n
 
+## 0.3.9
+
+### Patch Changes
+
+- [#186](https://github.com/maxa-ondrej/sideline/pull/186) [`16192c7`](https://github.com/maxa-ondrej/sideline/commit/16192c762bbef950c6eb587a74c5925cec954cf3) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add preferredLanguage strategy to detect browser language for first-time visitors
+
+- [#189](https://github.com/maxa-ondrej/sideline/pull/189) [`bfbc107`](https://github.com/maxa-ondrej/sideline/commit/bfbc107dae79520fc5801792b5aede8f05ed4e83) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Remove RSVP buttons from Discord event messages after an event starts and mark events as started via a new cron job.
+
+- [#188](https://github.com/maxa-ondrej/sideline/pull/188) [`12fb74d`](https://github.com/maxa-ondrej/sideline/commit/12fb74d22d5c0c118dc803bc6cbbdfd3faeb9271) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add searchable select component with search filtering and alphabetical sorting to all dynamic select boxes (channels, groups, members, roles, training types) across the web app.
+
 ## 0.3.8
 
 ### Patch Changes
