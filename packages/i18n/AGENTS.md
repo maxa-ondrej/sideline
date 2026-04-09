@@ -8,5 +8,7 @@ This package provides locale management infrastructure. The actual translations 
 
 ## Strategies
 
-- **localStorage** — for client-side locale persistence (unauthenticated users)
-- **Cookie** — for server-side locale detection
+- **localStorage** — client-side locale persistence (manual language choice)
+- **cookie** — server-side locale detection
+- **preferredLanguage** — detects browser language via `navigator.languages` (first visit)
+- **baseLocale** — fallback to English when no other strategy resolves

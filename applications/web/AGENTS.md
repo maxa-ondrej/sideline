@@ -319,7 +319,7 @@ Parameterized strings use `{variable}` syntax: `"auth_signedInAs": "Signed in as
 ### Locale Persistence
 
 - **Authenticated users**: `locale` column on `users` table. Updated via `PATCH /auth/me/locale`.
-- **Unauthenticated users**: `localStorage` key `PARAGLIDE_LOCALE`.
+- **Unauthenticated users**: Strategy chain — localStorage (manual choice) → cookie → browser `navigator.languages` detection → English fallback.
 - **Root route** (`__root.tsx`): On load, if user is authenticated, calls `setLocale(user.locale)`.
 
 ### Locale Runtime API
