@@ -5,7 +5,7 @@ set -euo pipefail
 trap 'echo; echo "Work session stopped."; exit 0' INT
 
 while true; do
-  claude --model opus --permission-mode auto \
+  claude --model opus --permission-mode auto --dangerously-skip-permissions \
     --system-prompt "$(cat <<'SYSTEM'
 You are running an autonomous work session. You pick up one work item from the
 Notion sprint, implement it, ship a PR, handle review, finalise statuses, then
