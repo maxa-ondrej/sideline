@@ -14,7 +14,7 @@ src/
 ├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser)
 ├── commands/        — Slash command registry (ping.ts, index.ts)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
-├── events/          — Gateway event handler registry (guild, member lifecycle)
+├── events/          — Gateway event handler registry (guild, member, channel lifecycle)
 ├── services/        — Sync services (RoleSyncService, ChannelSyncService)
 ├── rcp/channel/     — Channel sync event handlers
 │   ├── ProcessorService.ts    — Match.tag dispatcher for channel events
@@ -36,6 +36,70 @@ src/
 ```
 
 Follows the **AppLive + run.ts** pattern.
+
+## Gateway Event Handlers (`src/events/index.ts`)
+
+Gateway event handlers react to Discord gateway dispatch events (e.g. `GuildCreate`, `ChannelDelete`, `GuildMemberAdd`). All handlers are defined in `src/events/index.ts` and registered via `gateway.handleDispatch`.
+
+### Pattern: Syncable Channel Events (ChannelCreate, ChannelDelete, ChannelUpdate)
+
+These handlers sync Discord channel state to the server's `discord_channels` table via Guild RPCs. They follow a strict pattern:
+
+1. Decode the raw payload with `decodeSyncableChannel(channel)` (returns `Option<DfxSyncableChannel>`)
+2. `Option.match` on the result:
+   - `onNone`: `Effect.logDebug('Skipping non-syncable channel event')` — silently skip unsupported channel types
+   - `onSome`: execute the handler body
+3. Handler body uses `Effect.Do.pipe`:
+   - `Effect.tap` → increment `discordEventsTotal` metric with `event_type` tag
+   - `Effect.tap` → `Effect.logInfo` with channel name, id, and guild_id
+   - `Effect.tap` → call the appropriate Guild RPC (`Guild/UpsertChannel` for create/update, `Guild/DeleteChannel` for delete)
+   - `Effect.catchTag('RpcClientError', (error) => Effect.logError(...))` — log and swallow RPC failures
+   - `Effect.withSpan('discord/<event_name>', { attributes: { 'guild.id': channel.guild_id } })`
+4. The `guild_id` comes from the raw `channel` payload (not the decoded struct), because the raw Discord payload includes `guild_id` at the top level
+
+```typescript
+// Example: ChannelCreate handler
+Effect.let('channelCreate', ({ gateway, rpc }) =>
+  gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.ChannelCreate, (channel) =>
+    Option.match(decodeSyncableChannel(channel), {
+      onNone: () => Effect.logDebug('Skipping non-syncable channel event'),
+      onSome: (decoded) =>
+        Effect.Do.pipe(
+          Effect.tap(() =>
+            Metric.update(pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_create')), 1),
+          ),
+          Effect.tap(() => Effect.logInfo(`Channel created: ${decoded.name} (${decoded.id}) in guild ${channel.guild_id}`)),
+          Effect.tap(() =>
+            rpc['Guild/UpsertChannel']({
+              guild_id: decodeSnowflake(channel.guild_id),
+              channel_id: decoded.id,
+              name: decoded.name,
+              type: decoded.type,
+              parent_id: decoded.parent_id,
+            }),
+          ),
+          Effect.catchTag('RpcClientError', (error) =>
+            Effect.logError(`Failed to upsert channel ${decoded.id}`, error),
+          ),
+          Effect.withSpan('discord/channel_create', {
+            attributes: { 'guild.id': channel.guild_id },
+          }),
+        ),
+    }),
+  ),
+),
+```
+
+### Adding a New Gateway Event Handler
+
+1. Add an `Effect.let('<handlerName>', ({ gateway, rpc, rest }) => ...)` entry in the `eventHandlers` pipe
+2. Use `gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.<Event>, (payload) => ...)` to register the handler
+3. If the event payload needs schema validation, decode with `Schema.decodeUnknownOption` and use `Option.match` (see channel pattern above)
+4. Always increment `discordEventsTotal` metric with `Metric.tagged('event_type', '<snake_case_name>')`
+5. Always add `Effect.withSpan('discord/<event_name>', { attributes: { 'guild.id': ... } })`
+6. Always catch expected errors (e.g. `RpcClientError`) with `Effect.catchTag` and log them — never let RPC failures crash the handler
+7. Add the handler name to the destructuring in the final `Effect.map` and include it in the returned array
+8. Add an `expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.<Event>)` assertion in `test/events.test.ts` and update the `toHaveLength` count
 
 ## Discord Sync Architecture
 

@@ -77,13 +77,35 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
       catchSqlErrors,
     );
 
+  private _updateChannelName = SqlSchema.void({
+    Request: Schema.Struct({ channel_id: Discord.Snowflake, name: Schema.String }),
+    execute: (input) => this.sql`
+      UPDATE discord_channels SET name = ${input.name} WHERE channel_id = ${input.channel_id}
+    `,
+  });
+
+  private _deleteChannel = SqlSchema.void({
+    Request: Schema.Struct({ guild_id: Discord.Snowflake, channel_id: Discord.Snowflake }),
+    execute: (input) => this.sql`
+      DELETE FROM discord_channels WHERE guild_id = ${input.guild_id} AND channel_id = ${input.channel_id}
+    `,
+  });
+
+  private _upsertChannel = SqlSchema.void({
+    Request: SyncInput,
+    execute: (input) => this.sql`
+      INSERT INTO discord_channels (guild_id, channel_id, name, type, parent_id)
+      VALUES (${input.guild_id}, ${input.channel_id}, ${input.name}, ${input.type}, ${input.parent_id})
+      ON CONFLICT (guild_id, channel_id)
+      DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
+    `,
+  });
+
   updateChannelName = (channelId: Discord.Snowflake, name: string) =>
-    SqlSchema.void({
-      Request: Schema.Struct({ channel_id: Discord.Snowflake, name: Schema.String }),
-      execute: (input) => this.sql`
-        UPDATE discord_channels SET name = ${input.name} WHERE channel_id = ${input.channel_id}
-      `,
-    })({ channel_id: channelId, name }).pipe(catchSqlErrors);
+    this._updateChannelName({ channel_id: channelId, name }).pipe(catchSqlErrors);
+
+  deleteChannel = (guild_id: Discord.Snowflake, channel_id: Discord.Snowflake) =>
+    this._deleteChannel({ guild_id, channel_id }).pipe(catchSqlErrors);
 
   upsertChannel = (
     guildId: Discord.Snowflake,
@@ -92,17 +114,13 @@ export class DiscordChannelsRepository extends Effect.Service<DiscordChannelsRep
     type: number,
     parentId: Option.Option<Discord.Snowflake>,
   ) =>
-    SqlSchema.void({
-      Request: SyncInput,
-      execute: (input) => this.sql`
-        INSERT INTO discord_channels (guild_id, channel_id, name, type, parent_id)
-        VALUES (${input.guild_id}, ${input.channel_id}, ${input.name}, ${input.type}, ${input.parent_id})
-        ON CONFLICT (guild_id, channel_id)
-        DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, parent_id = EXCLUDED.parent_id
-      `,
-    })({ guild_id: guildId, channel_id: channelId, name, type, parent_id: parentId }).pipe(
-      catchSqlErrors,
-    );
+    this._upsertChannel({
+      guild_id: guildId,
+      channel_id: channelId,
+      name,
+      type,
+      parent_id: parentId,
+    }).pipe(catchSqlErrors);
 
   findByGuildId = (guildId: Discord.Snowflake) => this.selectByGuild(guildId).pipe(catchSqlErrors);
 }

@@ -58,7 +58,10 @@ describe('events', () => {
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildMemberAdd);
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildMemberRemove);
     expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.GuildMemberUpdate);
-    expect(registeredEvents).toHaveLength(5);
+    expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.ChannelCreate);
+    expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.ChannelDelete);
+    expect(registeredEvents).toContain(Discord.GatewayDispatchEvents.ChannelUpdate);
+    expect(registeredEvents).toHaveLength(8);
   });
 
   it('returns the correct number of handler effects', async () => {
