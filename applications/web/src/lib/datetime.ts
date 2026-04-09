@@ -52,5 +52,6 @@ export const utcTimeToLocal = (time: string): string => {
   const y = today.getFullYear();
   const mo = String(today.getMonth() + 1).padStart(2, '0');
   const d = String(today.getDate()).padStart(2, '0');
-  return formatLocalTime(DateTime.unsafeMake(`${y}-${mo}-${d}T${time}:00Z`));
+  const hhmm = time.slice(0, 5);
+  return formatLocalTime(DateTime.unsafeMake(`${y}-${mo}-${d}T${hhmm}:00Z`));
 };
