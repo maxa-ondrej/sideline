@@ -8,12 +8,14 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 import { handleCancelled } from './handleCancelled.js';
 import { handleCreated } from './handleCreated.js';
 import { handleRsvpReminder } from './handleRsvpReminder.js';
+import { handleStarted } from './handleStarted.js';
 import { handleUpdated } from './handleUpdated.js';
 
 const action = Match.type<EventRpcEvents.UnprocessedEventSyncEvent>().pipe(
   Match.tag('event_created', handleCreated),
   Match.tag('event_updated', handleUpdated),
   Match.tag('event_cancelled', handleCancelled),
+  Match.tag('event_started', handleStarted),
   Match.tag('rsvp_reminder', handleRsvpReminder),
   Match.exhaustive,
 );

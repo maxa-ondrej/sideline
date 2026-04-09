@@ -10,6 +10,18 @@ export const eventTypeLabels: Record<Event.EventType, () => string> = {
   other: m.event_type_other,
 };
 
+export const eventStatusLabels: Record<Event.EventStatus, () => string> = {
+  active: m.event_status_active,
+  cancelled: m.event_status_cancelled,
+  started: m.event_status_started,
+};
+
+export const eventStatusClasses: Record<Event.EventStatus, string> = {
+  active: 'text-green-700 dark:text-green-400 font-medium',
+  cancelled: 'text-muted-foreground line-through',
+  started: 'text-amber-700 dark:text-amber-400 font-medium',
+};
+
 export const dayShortLabels: Record<number, () => string> = {
   0: m.event_day_short_0,
   1: m.event_day_short_1,

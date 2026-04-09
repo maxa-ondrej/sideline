@@ -69,7 +69,7 @@ Server, Bot, Web ────────────────────►
 
 ### 2.2 Server
 
-**Purpose:** The core HTTP API server. Exposes the REST API (under `$API_PREFIX`, default `/api`), an internal RPC endpoint for the bot (under `$RPC_PREFIX`, default `/rpc/sync`), and runs four background cron jobs.
+**Purpose:** The core HTTP API server. Exposes the REST API (under `$API_PREFIX`, default `/api`), an internal RPC endpoint for the bot (under `$RPC_PREFIX`, default `/rpc/sync`), and runs five background cron jobs.
 
 **Dockerfile:** `applications/server/Dockerfile`
 
@@ -93,12 +93,13 @@ Build stages:
 
 1. If `DATABASE_MAIN != DATABASE_NAME`, creates the target database (used for preview environments where each PR has an isolated database).
 2. Runs "before" migrations (schema changes).
-3. Launches all of the following concurrently (concurrency: 7):
+3. Launches all of the following concurrently (concurrency: 8):
    - HTTP application server (`AppLive`)
    - Health check server (`HealthServerLive`)
    - "After" migrations (seed data)
    - `AgeCheckCron`
    - `EventHorizonCron`
+   - `EventStartCron`
    - `RsvpReminderCron`
    - `TrainingAutoLogCron`
 
@@ -226,6 +227,7 @@ Source files: `applications/server/src/services/*Cron.ts`
 | Cron Job | Schedule | Purpose |
 |----------|----------|---------|
 | `EventHorizonCron` | `0 3 * * *` (daily at 03:00 UTC) | Reads all active event series and generates concrete `events` rows up to each series' horizon window. Updates `last_generated_date` on each series after generation. |
+| `EventStartCron` | `* * * * *` (every minute) | Finds `active` events whose `start_at` time has passed, transitions each to `started` status, and emits an `event_sync_events` row of type `event_started` for the bot to process (removes RSVP buttons from the Discord embed). |
 | `RsvpReminderCron` | `* * * * *` (every minute) | Finds events that need an RSVP reminder (as configured in team settings) and emits `event_sync_events` rows of type `rsvp_reminder` for the bot to process. Marks the event reminder as sent. |
 | `AgeCheckCron` | `0 2 * * *` (daily at 02:00 UTC) | Evaluates age threshold rules for every team that has them configured, and automatically moves members between groups based on their age. |
 | `TrainingAutoLogCron` | `*/5 * * * *` (every 5 minutes) | Finds ended training events that haven't been auto-logged yet. For each event, inserts an `activity_logs` row for every member who RSVP'd "yes". Ignores duplicate-key violations (idempotent). |

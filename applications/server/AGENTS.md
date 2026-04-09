@@ -152,6 +152,39 @@ Rules:
 2. Use `Option.isNone` to detect first-time inserts vs `Option.exists` to detect changed values
 3. Derive the boolean in an `Effect.let` after the upsert so the write is not conditional on the check
 
+## Cron Jobs
+
+Cron jobs are long-running Effects that repeat on a schedule. Each cron is defined in `src/services/` and wired as a concurrent fiber in `run.ts`.
+
+| Cron | File | Schedule | Purpose |
+|------|------|----------|---------|
+| `AgeCheckCron` | `src/services/AgeCheckCron.ts` | daily | Check member age thresholds |
+| `EventHorizonCron` | `src/services/EventHorizonCron.ts` | every 5 minutes | Generate recurring events |
+| `RsvpReminderCron` | `src/services/RsvpReminderCron.ts` | every minute | Send RSVP reminder sync events |
+| `TrainingAutoLogCron` | `src/services/TrainingAutoLogCron.ts` | every 5 minutes | Auto-log ended trainings |
+| `EventStartCron` | `src/services/EventStartCron.ts` | every minute | Mark active events as `started` when `start_at <= NOW()`, emit `event_started` sync events |
+
+### Pattern
+
+```typescript
+// 1. Define the single-cycle effect (exported for unit testing)
+export const myCronEffect = Effect.Do.pipe(
+  Effect.bind('repo', () => MyRepository),
+  // ... business logic ...
+  Effect.asVoid,
+  withCronMetrics('my-cron'),
+);
+
+// 2. Define the repeating cron (exported for run.ts)
+const cronSchedule = Schedule.cron('*/5 * * * *');
+export const MyCron = myCronEffect.pipe(Effect.repeat(cronSchedule), Effect.asVoid);
+```
+
+Key rules:
+1. Export the single-cycle effect (e.g. `eventStartCronEffect`) separately from the repeating cron (e.g. `EventStartCron`) so unit tests can run one cycle without waiting for the schedule
+2. Each cron gets its own repository layer in `run.ts` and runs as a separate concurrent fiber
+3. Always wrap with `withCronMetrics('name')` for observability
+
 ## Testing
 
 Tests go in `test/` directory. When adding new repositories, add corresponding mock implementations to all test files that compose `AppLive` (e.g., `MockChannelSyncEventsRepository`).

@@ -15,7 +15,7 @@ Mermaid `flowchart` diagrams are used throughout this document because Mermaid d
 | **Captain** | A team member holding the built-in `Captain` role. Inherits all Player capabilities and additionally holds `roster:manage`, `member:edit`, `role:view`, `event:create`, `event:edit`, and `event:cancel` permissions. |
 | **Admin** | A team member holding the built-in `Admin` role. Holds the full permission set including `team:manage`, `team:invite`, `member:remove`, `role:manage`, `training-type:create`, and `training-type:delete`, in addition to all Captain permissions. |
 | **Discord Bot** | The Sideline Discord bot application. Responds to slash commands (`/event list`, `/event create`, `/makanicko log`, `/makanicko leaderboard`, `/makanicko stats`) and reacts to button interactions on posted embeds (RSVP buttons, event list pagination). Receives RPC calls from the server to synchronise Discord roles and channels. |
-| **System (Cron/Background)** | Automated background processes running inside the API server. Responsible for generating recurring events from event series definitions, sending RSVP reminder notifications before events, auto-logging attendance from RSVP data, and evaluating age-threshold rules to move members between groups. |
+| **System (Cron/Background)** | Automated background processes running inside the API server. Responsible for generating recurring events from event series definitions, transitioning events to `started` status when their start time passes, sending RSVP reminder notifications before events, auto-logging attendance from RSVP data, and evaluating age-threshold rules to move members between groups. |
 
 ---
 
@@ -67,6 +67,7 @@ flowchart LR
         UC_CREATE_EVENT["Create Event / Series"]
         UC_EDIT_EVENT["Edit Event / Series"]
         UC_CANCEL_EVENT["Cancel Event / Series"]
+        UC_START_EVENT["Mark Event as Started"]
         UC_RSVP["Submit RSVP"]
         UC_VIEW_RSVP["View RSVP Responses"]
     end
@@ -139,6 +140,7 @@ flowchart LR
     BOT --> UC_BOT_POST_EMBED
 
     SYS --> UC_CREATE_EVENT
+    SYS --> UC_START_EVENT
     SYS --> UC_NOTIFICATIONS
     SYS --> UC_LOG_ACTIVITY
     SYS --> UC_AGE_THRESHOLDS
@@ -333,6 +335,7 @@ flowchart LR
         UC_CREATE_EVENT["Create Event\n(POST /teams/:teamId/events)\nrequires: event:create\ntitle · type · startAt · endAt\nlocation · trainingTypeId\ndiscordChannelId · ownerGroupId · memberGroupId"]
         UC_EDIT_EVENT["Edit Event\n(PATCH /teams/:teamId/events/:eventId)\nrequires: event:edit"]
         UC_CANCEL_EVENT["Cancel Event\n(POST /teams/:teamId/events/:eventId/cancel)\nrequires: event:cancel"]
+        UC_START_EVENT["Mark Event as Started\n(background scheduler)\ntransitions status: active → started\nremoves RSVP buttons in Discord"]
     end
 
     subgraph SERIES["Event Series (Recurring)"]
@@ -367,6 +370,7 @@ flowchart LR
     CP --> UC_NON_RESPONDERS
 
     SYS --> UC_GEN_EVENTS
+    SYS --> UC_START_EVENT
     SYS --> UC_RSVP_REMINDER
 ```
 

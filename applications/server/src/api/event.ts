@@ -252,7 +252,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               existing.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ existing }) =>
-              existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
+              existing.status !== 'active' ? Effect.fail(cancelled) : Effect.void,
             ),
             // Check owner group access
             Effect.tap(({ existing, membership, isAdmin }) =>
@@ -412,7 +412,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               existing.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ existing }) =>
-              existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
+              existing.status !== 'active' ? Effect.fail(cancelled) : Effect.void,
             ),
             // Check owner group access
             Effect.tap(({ existing, membership, isAdmin }) =>

@@ -39,3 +39,21 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
 ```
 
 New nullable columns do not need a `DEFAULT` clause — PostgreSQL defaults to `NULL`. Add `NOT NULL DEFAULT ...` only when the column must never be null.
+
+### Updating CHECK Constraints
+
+To add a new value to an existing CHECK constraint (e.g. adding a status enum value), drop the old constraint and create a new one:
+
+```typescript
+export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
+  Effect.Do.pipe(
+    Effect.tap(() => sql`ALTER TABLE events DROP CONSTRAINT events_status_check`),
+    Effect.tap(
+      () =>
+        sql`ALTER TABLE events ADD CONSTRAINT events_status_check CHECK (status IN ('active', 'cancelled', 'started'))`,
+    ),
+  ),
+);
+```
+
+Always use the exact constraint name. Check the original migration that created the constraint for the name.
