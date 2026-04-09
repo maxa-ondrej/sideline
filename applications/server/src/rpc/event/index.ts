@@ -354,7 +354,7 @@ const rpcHandlers = Effect.Do.pipe(
             ),
           ),
           Effect.tap(({ event }) =>
-            event.status === 'cancelled'
+            event.status !== 'active'
               ? Effect.fail(new EventRpcModels.RsvpDeadlinePassed())
               : Effect.void,
           ),

@@ -40,6 +40,13 @@ export class EventCancelledEvent extends Schema.TaggedClass<EventCancelledEvent>
   },
 ) {}
 
+export class EventStartedEvent extends Schema.TaggedClass<EventStartedEvent>()('event_started', {
+  id: Schema.String,
+  team_id: Team.TeamId,
+  guild_id: Discord.Snowflake,
+  event_id: Event.EventId,
+}) {}
+
 export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('rsvp_reminder', {
   id: Schema.String,
   team_id: Team.TeamId,
@@ -54,6 +61,7 @@ export const UnprocessedEventSyncEvent = Schema.Union(
   EventCreatedEvent,
   EventUpdatedEvent,
   EventCancelledEvent,
+  EventStartedEvent,
   RsvpReminderEvent,
 );
 

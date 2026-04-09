@@ -30,7 +30,7 @@ import {
 import { Textarea } from '~/components/ui/textarea';
 import { formatLocalDate, formatLocalTime, formatUtcTime, localToUtc } from '~/lib/datetime';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
-import { eventTypeLabels } from '~/lib/event-labels';
+import { eventStatusClasses, eventStatusLabels, eventTypeLabels } from '~/lib/event-labels';
 import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -313,7 +313,7 @@ export function EventDetailPage({
     }
   }, [teamIdBranded, eventIdBranded, rsvpResponse, rsvpMessage, run, router]);
 
-  const isActive = eventDetail.status === 'active';
+  const status = eventDetail.status;
 
   return (
     <div>
@@ -326,13 +326,7 @@ export function EventDetailPage({
         <h1 className='text-2xl font-bold'>{eventDetail.title}</h1>
         <div className='flex flex-wrap gap-2 sm:gap-4 text-sm text-muted-foreground mt-1'>
           <span>{eventTypeLabels[eventDetail.eventType]()}</span>
-          <span
-            className={
-              isActive ? 'text-green-700 font-medium' : 'text-muted-foreground line-through'
-            }
-          >
-            {isActive ? m.event_status_active() : m.event_status_cancelled()}
-          </span>
+          <span className={eventStatusClasses[status]}>{eventStatusLabels[status]()}</span>
           {Option.isSome(eventDetail.createdByName) && (
             <span>
               {m.event_createdBy()}: {eventDetail.createdByName.value}
@@ -350,7 +344,7 @@ export function EventDetailPage({
       <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_380px]'>
         <div className='order-2 lg:order-1'>
           <div className='flex flex-col gap-6 max-w-lg'>
-            {eventDetail.canEdit && isActive ? (
+            {eventDetail.canEdit && status === 'active' ? (
               <Form {...form}>
                 <form onSubmit={handleSave} className='flex flex-col gap-4'>
                   <FormField
@@ -679,7 +673,7 @@ export function EventDetailPage({
                     {eventDetail.memberGroupName.value}
                   </p>
                 )}
-                {eventDetail.canCancel && isActive && (
+                {eventDetail.canCancel && status === 'active' && (
                   <div>
                     <Button variant='destructive' onClick={handleCancel}>
                       {m.event_cancelEvent()}
@@ -691,7 +685,7 @@ export function EventDetailPage({
           </div>
         </div>
 
-        {isActive && (
+        {status === 'active' && (
           <div className='order-1 lg:order-2 lg:sticky lg:top-20 lg:self-start'>
             <EventRsvpPanel
               eventDetail={eventDetail}

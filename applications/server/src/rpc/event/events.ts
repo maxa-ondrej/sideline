@@ -84,5 +84,15 @@ export const constructEvent = Match.type<EventSyncEventRow>().pipe(
       }),
     ),
   ),
+  Match.when({ event_type: 'event_started' }, (r) =>
+    Effect.succeed(
+      new EventRpcEvents.EventStartedEvent({
+        id: r.id,
+        team_id: r.team_id,
+        guild_id: r.guild_id,
+        event_id: r.event_id,
+      }),
+    ),
+  ),
   Match.exhaustive,
 );

@@ -59,7 +59,7 @@ const buildICalFeed = (
     Option.map(event.location, (loc) => {
       lines.push(`LOCATION:${escapeICalText(loc)}`);
     });
-    lines.push(`STATUS:${event.status === 'active' ? 'CONFIRMED' : 'CANCELLED'}`);
+    lines.push(`STATUS:${event.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED'}`);
     lines.push('END:VEVENT');
   }
 

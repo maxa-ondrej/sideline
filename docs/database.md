@@ -402,7 +402,7 @@ Individual scheduled occurrences (training, match, tournament, meeting, social, 
 | `start_at` | TIMESTAMPTZ | NOT NULL | — |
 | `end_at` | TIMESTAMPTZ | — | — |
 | `location` | TEXT | — | — |
-| `status` | TEXT | NOT NULL, CHECK (`'active'`, `'cancelled'`) | `'active'` |
+| `status` | TEXT | NOT NULL, CHECK (`'active'`, `'cancelled'`, `'started'`) | `'active'` |
 | `discord_channel_id` | TEXT | — | — |
 | `discord_message_id` | TEXT | — | — |
 | `discord_target_channel_id` | TEXT | — | — |
@@ -416,7 +416,7 @@ Individual scheduled occurrences (training, match, tournament, meeting, social, 
 
 **Unique**: `idx_events_series_date` — partial unique index on `(series_id, (start_at AT TIME ZONE 'UTC')::date) WHERE series_id IS NOT NULL`, preventing duplicate series-generated events for the same day
 
-**Notes**: Original date/time columns (`event_date DATE`, `start_time TIME`, `end_time TIME`) were consolidated into `start_at` and `end_at` in migration `1741800000`. `discord_channel_id` and `discord_message_id` track where the event embed was posted. `discord_target_channel_id` overrides the default channel per-event. `auto_logged_at` is set by `TrainingAutoLogCron` when training attendance is auto-logged.
+**Notes**: Original date/time columns (`event_date DATE`, `start_time TIME`, `end_time TIME`) were consolidated into `start_at` and `end_at` in migration `1741800000`. `discord_channel_id` and `discord_message_id` track where the event embed was posted. `discord_target_channel_id` overrides the default channel per-event. `auto_logged_at` is set by `TrainingAutoLogCron` when training attendance is auto-logged. `status` was extended to include `'started'` in migration `1744000000`; events transition to `started` automatically when their `start_at` time passes (set by `EventStartCron`).
 
 ---
 
@@ -611,7 +611,7 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 | `id` | UUID | PK | `gen_random_uuid()` |
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `guild_id` | TEXT | NOT NULL | — |
-| `event_type` | TEXT | NOT NULL, CHECK (`'event_created'`, `'event_updated'`, `'event_cancelled'`, `'rsvp_reminder'`) | — |
+| `event_type` | TEXT | NOT NULL, CHECK (`'event_created'`, `'event_updated'`, `'event_cancelled'`, `'rsvp_reminder'`, `'event_started'`) | — |
 | `event_id` | UUID | NOT NULL, FK → `events(id)` ON DELETE CASCADE | — |
 | `event_title` | TEXT | NOT NULL | — |
 | `event_description` | TEXT | — | — |
@@ -626,7 +626,7 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 
 **Indexes**: `idx_event_sync_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively.
+**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes.
 
 ---
 
@@ -741,7 +741,7 @@ In-app alert records scoped to a specific team and user.
 
 ## Migration History
 
-All 39 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 40 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -792,6 +792,7 @@ All 39 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743700000 | `add_discord_format_options` | Adds `discord_role_format` and `discord_channel_format` to team_settings; adds `discord_channel_name` and `discord_role_name` to channel_sync_events |
 | 1743800000 | `add_color_and_roster_emoji` | Adds `color TEXT` to groups; adds `color TEXT` and `emoji TEXT` to rosters; adds `discord_role_color INTEGER` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_updated'` |
 | 1743900000 | `add_late_rsvp_channel` | Adds `discord_channel_late_rsvp TEXT` to team_settings |
+| 1744000000 | `add_event_started_status` | Extends events `status` CHECK to include `'started'`; extends event_sync_events `event_type` CHECK to include `'event_started'` |
 
 ### After Migrations (seed data)
 

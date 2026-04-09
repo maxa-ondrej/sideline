@@ -19,6 +19,8 @@ const DEFAULT_COLOR = 0x99aab5;
 
 const CANCELLED_COLOR = 0xed4245;
 
+const STARTED_COLOR = 0xfee75c; // yellow
+
 const toDiscordTimestamp = (
   dt: DateTime.Utc,
   style: 'D' | 'F' | 'R' | 'd' | 'f' | 't' = 'f',
@@ -45,12 +47,16 @@ export const buildEventEmbed = (opts: {
   counts: EventRpcModels.RsvpCountsResult;
   yesAttendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>;
   locale: Locale;
+  isStarted?: boolean;
 }): {
   embeds: ReadonlyArray<Discord.RichEmbed>;
   components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest>;
 } => {
   const locale = opts.locale;
   const descParts: string[] = [];
+  if (opts.isStarted) {
+    descParts.push(m.bot_event_started({}, { locale }));
+  }
   if (Option.isSome(opts.description)) {
     descParts.push(opts.description.value);
   }
@@ -88,7 +94,7 @@ export const buildEventEmbed = (opts: {
     ),
   });
 
-  if (opts.yesAttendees.length > 0) {
+  if (!opts.isStarted && opts.yesAttendees.length > 0) {
     const names = pipe(
       opts.yesAttendees,
       Array.filterMap((a) => Option.map(a.discord_id, (id) => `<@${id}>`)),
@@ -105,11 +111,15 @@ export const buildEventEmbed = (opts: {
     });
   }
 
+  const color = opts.isStarted
+    ? STARTED_COLOR
+    : (EVENT_TYPE_COLORS[opts.eventType] ?? DEFAULT_COLOR);
+
   const embeds: ReadonlyArray<Discord.RichEmbed> = [
     {
       title: opts.title,
       description: descParts.join('\n'),
-      color: EVENT_TYPE_COLORS[opts.eventType] ?? DEFAULT_COLOR,
+      color,
       fields,
     },
   ];
@@ -141,14 +151,18 @@ export const buildEventEmbed = (opts: {
     );
   }
 
-  rowButtons.push({
-    type: 2,
-    style: 2,
-    label: m.bot_btn_attendees({}, { locale }),
-    custom_id: `attendees:${opts.teamId}:${opts.eventId}:0`,
-  });
+  if (!opts.isStarted) {
+    rowButtons.push({
+      type: 2,
+      style: 2,
+      label: m.bot_btn_attendees({}, { locale }),
+      custom_id: `attendees:${opts.teamId}:${opts.eventId}:0`,
+    });
+  }
 
-  components.push({ type: 1, components: rowButtons });
+  if (rowButtons.length > 0) {
+    components.push({ type: 1, components: rowButtons });
+  }
 
   return { embeds, components };
 };

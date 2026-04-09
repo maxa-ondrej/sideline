@@ -22,6 +22,7 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { EventHorizonCron } from '~/services/EventHorizonCron.js';
+import { EventStartCron } from '~/services/EventStartCron.js';
 import { RsvpReminderCron } from '~/services/RsvpReminderCron.js';
 import { TrainingAutoLogCron } from '~/services/TrainingAutoLogCron.js';
 
@@ -115,13 +116,25 @@ const AutoLogCron = TrainingAutoLogCron.pipe(
   ),
 );
 
+const EventStartRepositoriesLive = Layer.mergeAll(
+  EventsRepository.Default,
+  EventSyncEventsRepository.Default,
+);
+
+const StartCron = EventStartCron.pipe(
+  Effect.provide(EventStartRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg)))),
+);
+
 Effect.Do.pipe(
   Effect.tap(() => (env.DATABASE_MAIN !== env.DATABASE_NAME ? CreateDb : Effect.void)),
   Effect.tap(() => MigrateBefore),
   Effect.andThen(() =>
-    Effect.all([App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron, AutoLogCron], {
-      concurrency: 7,
-    }),
+    Effect.all(
+      [App, Health, MigrateAfter, Cron, HorizonCron, ReminderCron, AutoLogCron, StartCron],
+      {
+        concurrency: 8,
+      },
+    ),
   ),
   Runtime.runMain(
     env.NODE_ENV,

@@ -40,6 +40,8 @@ import {
   DAY_ORDER,
   dayFullLabels,
   dayShortLabels,
+  eventStatusClasses,
+  eventStatusLabels,
   eventTypeLabels,
   sortDays,
 } from '~/lib/event-labels';
@@ -871,16 +873,8 @@ export function EventsListPage({
                         </span>
                       </div>
                     </div>
-                    <span
-                      className={`text-xs shrink-0 ${
-                        event.status === 'active'
-                          ? 'text-green-700 dark:text-green-400 font-medium'
-                          : 'text-muted-foreground line-through'
-                      }`}
-                    >
-                      {event.status === 'active'
-                        ? m.event_status_active()
-                        : m.event_status_cancelled()}
+                    <span className={`text-xs shrink-0 ${eventStatusClasses[event.status]}`}>
+                      {eventStatusLabels[event.status]()}
                     </span>
                   </Link>
                 ))}

@@ -1607,7 +1607,7 @@ Lists all known Discord channels for the team's linked guild.
 
 **EventType:** `"training"`, `"match"`, `"tournament"`, `"meeting"`, `"social"`, `"other"`
 
-**EventStatus:** `"active"`, `"cancelled"`
+**EventStatus:** `"active"`, `"cancelled"`, `"started"`
 
 ---
 
@@ -1642,7 +1642,7 @@ Lists all events for a team.
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
-| `status` | `EventStatus` | No | `"active"` or `"cancelled"` |
+| `status` | `EventStatus` | No | `"active"`, `"cancelled"`, or `"started"` |
 | `seriesId` | `EventSeriesId \| null` | Yes | Linked series ID (if part of a series) |
 
 **Errors:**
@@ -1718,7 +1718,7 @@ Returns full details for a specific event.
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
-| `status` | `EventStatus` | No | `"active"` or `"cancelled"` |
+| `status` | `EventStatus` | No | `"active"`, `"cancelled"`, or `"started"` |
 | `createdByName` | `string \| null` | Yes | Name of the member who created the event |
 | `canEdit` | `boolean` | No | Whether the user can edit this event |
 | `canCancel` | `boolean` | No | Whether the user can cancel this event |

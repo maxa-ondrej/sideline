@@ -9,6 +9,7 @@ const EventSyncEventType = Schema.Literal(
   'event_updated',
   'event_cancelled',
   'rsvp_reminder',
+  'event_started',
 );
 type EventSyncEventType = typeof EventSyncEventType.Type;
 
@@ -229,6 +230,28 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       location,
       eventEventType,
       discordTargetChannelId,
+    );
+
+  emitEventStarted = (
+    teamId: Team.TeamId,
+    eventId: Event.EventId,
+    title: string,
+    description: Option.Option<string>,
+    startAt: DateTime.Utc,
+    endAt: Option.Option<DateTime.Utc>,
+    location: Option.Option<string>,
+    eventEventType: string,
+  ) =>
+    this._emitIfGuildLinked(
+      teamId,
+      'event_started',
+      eventId,
+      title,
+      description,
+      startAt,
+      endAt,
+      location,
+      eventEventType,
     );
 
   findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);

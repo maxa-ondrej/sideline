@@ -97,6 +97,12 @@ export class EventCancelled extends Schema.TaggedError<EventCancelled>()(
   HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
+export class EventNotActive extends Schema.TaggedError<EventNotActive>()(
+  'EventNotActive',
+  {},
+  HttpApiSchema.annotations({ status: 400 }),
+) {}
+
 export class EventApiGroup extends HttpApiGroup.make('event')
   .add(
     HttpApiEndpoint.get('listEvents', '/teams/:teamId/events')
@@ -126,7 +132,7 @@ export class EventApiGroup extends HttpApiGroup.make('event')
       .addSuccess(EventDetail)
       .addError(Forbidden, { status: 403 })
       .addError(EventNotFound, { status: 404 })
-      .addError(EventCancelled, { status: 400 })
+      .addError(EventNotActive, { status: 400 })
       .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
       .setPayload(UpdateEventRequest)
       .middleware(AuthMiddleware),
@@ -136,7 +142,7 @@ export class EventApiGroup extends HttpApiGroup.make('event')
       .addSuccess(Schema.Void, { status: 204 })
       .addError(Forbidden, { status: 403 })
       .addError(EventNotFound, { status: 404 })
-      .addError(EventCancelled, { status: 400 })
+      .addError(EventNotActive, { status: 400 })
       .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
       .middleware(AuthMiddleware),
   ) {}

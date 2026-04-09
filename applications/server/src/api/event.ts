@@ -14,7 +14,7 @@ import { resolveChannel } from '~/services/EventChannelResolver.js';
 
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventApi.EventNotFound();
-const cancelled = new EventApi.EventCancelled();
+const notActive = new EventApi.EventNotActive();
 
 export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
   Effect.Do.pipe(
@@ -252,7 +252,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               existing.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ existing }) =>
-              existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
+              existing.status !== 'active' ? Effect.fail(notActive) : Effect.void,
             ),
             // Check owner group access
             Effect.tap(({ existing, membership, isAdmin }) =>
@@ -412,7 +412,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               existing.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ existing }) =>
-              existing.status === 'cancelled' ? Effect.fail(cancelled) : Effect.void,
+              existing.status !== 'active' ? Effect.fail(notActive) : Effect.void,
             ),
             // Check owner group access
             Effect.tap(({ existing, membership, isAdmin }) =>

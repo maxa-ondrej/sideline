@@ -20,7 +20,7 @@ export const EventType = Schema.Literal(
 );
 export type EventType = typeof EventType.Type;
 
-export const EventStatus = Schema.Literal('active', 'cancelled');
+export const EventStatus = Schema.Literal('active', 'cancelled', 'started');
 export type EventStatus = typeof EventStatus.Type;
 
 export class Event extends Model.Class<Event>('Event')({

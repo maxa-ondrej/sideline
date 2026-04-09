@@ -190,6 +190,34 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       this.sql`UPDATE events SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
   });
 
+  private start = SqlSchema.findOne({
+    Request: Event.EventId,
+    Result: Schema.Struct({ id: Event.EventId }),
+    execute: (id) =>
+      this
+        .sql`UPDATE events SET status = 'started', updated_at = now() WHERE id = ${id} AND status = 'active' RETURNING id`,
+  });
+
+  private findStartable = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: Schema.Struct({
+      id: Event.EventId,
+      team_id: Team.TeamId,
+      title: Schema.String,
+      description: Schema.OptionFromNullOr(Schema.String),
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+      location: Schema.OptionFromNullOr(Schema.String),
+      event_type: Schema.String,
+    }),
+    execute: () => this.sql`
+      SELECT id, team_id, title, description, start_at, end_at, location, event_type
+      FROM events
+      WHERE status = 'active'
+        AND start_at <= NOW()
+    `,
+  });
+
   private findScopedTrainingTypeIds = SqlSchema.findAll({
     Request: TeamMember.TeamMemberId,
     Result: ScopedTrainingTypeId,
@@ -284,7 +312,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       SELECT id, start_at, end_at
       FROM events
       WHERE event_type = 'training'
-        AND status = 'active'
+        AND status IN ('active', 'started')
         AND auto_logged_at IS NULL
         AND COALESCE(end_at, start_at) < NOW()
         AND COALESCE(end_at, start_at) > NOW() - INTERVAL '7 days'
@@ -420,7 +448,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
             JOIN team_members tm ON tm.team_id = t.id AND tm.active = true
             JOIN event_rsvps er ON er.event_id = e.id AND er.team_member_id = tm.id
             WHERE tm.user_id = ${userId}
-              AND e.status = 'active'
+              AND e.status IN ('active', 'started')
               AND er.response IN ('yes', 'maybe')
             ORDER BY e.start_at ASC
           `,
@@ -540,6 +568,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     }).pipe(catchSqlErrors);
 
   cancelEvent = (eventId: Event.EventId) => this.cancel(eventId).pipe(catchSqlErrors);
+
+  startEvent = (eventId: Event.EventId) => this.start(eventId).pipe(catchSqlErrors);
+
+  findEventsToStart = () => this.findStartable(undefined).pipe(catchSqlErrors);
 
   getScopedTrainingTypeIds = (teamMemberId: TeamMember.TeamMemberId) =>
     this.findScopedTrainingTypeIds(teamMemberId).pipe(catchSqlErrors);

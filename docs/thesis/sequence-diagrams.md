@@ -1,6 +1,6 @@
 # Sideline — Core System Sequence Diagrams
 
-This document provides sequence diagrams for the eight core flows in the Sideline platform. Each diagram is accompanied by a brief description of the flow and its key design decisions. The diagrams use Mermaid `sequenceDiagram` syntax and are intended for inclusion in a bachelor's thesis.
+This document provides sequence diagrams for the nine core flows in the Sideline platform. Each diagram is accompanied by a brief description of the flow and its key design decisions. The diagrams use Mermaid `sequenceDiagram` syntax and are intended for inclusion in a bachelor's thesis.
 
 ---
 
@@ -378,7 +378,71 @@ sequenceDiagram
 
 ---
 
-## 7. Team Creation and Guild Linking
+## 7. Event Started (Cron)
+
+The `EventStartCron` runs every minute (`* * * * *`). On each tick it queries for `active` events whose `start_at` timestamp is in the past, atomically transitions each to `started` status, and emits an `event_started` row in the `event_sync_events` outbox. The bot's Event Sync worker picks up the event and edits the Discord embed to remove the RSVP action-row buttons, preventing members from RSVPing after the event has begun.
+
+```mermaid
+sequenceDiagram
+    participant Clock as System Clock (cron)
+    participant Cron as EventStartCron
+    participant EventsRepo as EventsRepository
+    participant SyncRepo as EventSyncEventsRepository
+    participant DB as PostgreSQL
+    participant Bot as Bot Process (poll loop)
+    participant Discord as Discord API
+
+    Clock->>Cron: Trigger — every minute
+
+    Cron->>EventsRepo: findEventsToStart()
+    EventsRepo->>DB: SELECT * FROM events<br/>WHERE status='active' AND start_at <= now()
+    DB-->>EventsRepo: [event rows]
+    EventsRepo-->>Cron: [Event, ...]
+
+    loop For each event (concurrency: 1)
+        Cron->>EventsRepo: startEvent(event.id)
+        EventsRepo->>DB: UPDATE events SET status='started'<br/>WHERE id=? AND status='active'
+        DB-->>EventsRepo: updated row count
+
+        alt Already started (0 rows updated)
+            Note over Cron: Skip — another process beat us (idempotent)
+        else Successfully started
+            Cron->>SyncRepo: emitEventStarted(team_id, event_id, ...)
+            SyncRepo->>DB: INSERT event_sync_events {type='event_started', team_id, event_id, ...}
+            DB-->>SyncRepo: OK
+            Note over Cron: Log "marked event as started"
+        end
+    end
+
+    Note over Bot: Poll loop — every 5 seconds
+    Bot->>DB: RPC Event/GetUnprocessedEvents {limit: 50}
+    DB-->>Bot: [event_started event, ...]
+
+    loop For each event_started event
+        Bot->>DB: RPC Event/GetDiscordMessageId {event_id}
+        DB-->>Bot: Option<{discord_channel_id, discord_message_id}>
+
+        alt No message stored
+            Note over Bot: Log warning — skip
+        else Message stored
+            Bot->>DB: RPC Event/GetRsvpCounts {event_id}
+            Bot->>DB: RPC Event/GetEventEmbedInfo {event_id}
+            Bot->>DB: RPC Event/GetYesAttendeesForEmbed {event_id}
+            Bot->>Discord: GET /guilds/{guild_id} (preferred locale)
+            Discord-->>Bot: Guild {preferred_locale}
+
+            Note over Bot: Build embed — same as active embed<br/>but components array is empty (no RSVP buttons)
+            Bot->>Discord: PATCH /channels/{channel_id}/messages/{message_id}<br/>{embeds: [...], components: []}
+            Discord-->>Bot: Updated message
+        end
+
+        Bot->>DB: RPC Event/MarkEventProcessed {id}
+    end
+```
+
+---
+
+## 8. Team Creation and Guild Linking
 
 Before creating a team the user must select a Discord guild in which they hold Administrator or Manage Guild permission and where the Sideline bot is already installed. The web app calls `GET /auth/my-guilds`, which uses the stored OAuth access token to list the user's guilds, filters to those with sufficient permissions, and annotates each with a `botPresent` flag. The user selects a guild and submits the team creation form. The server inserts the team, seeds default roles with their permission sets (Admin, Coach, Player), creates a team membership for the creator, and assigns the Admin role.
 
@@ -427,7 +491,7 @@ sequenceDiagram
 
 ---
 
-## 8. Invite and Join Team
+## 9. Invite and Join Team
 
 An admin generates an invite link (or regenerates one) from the team settings page. The server creates a 12-character alphanumeric code, stores it in `team_invites`, and deactivates any previous codes for that team. A new user visits the invite URL in the browser, which first calls `GET /invite/{code}` to display the team name without authentication. When the user clicks "Accept", the front end redirects through the OAuth login flow (diagram 1), after which the app calls `POST /invite/{code}/join` with the session token. The server validates the code, checks the user is not already a member, resolves the "Player" role ID, inserts the membership, assigns the Player role, and returns a join result.
 

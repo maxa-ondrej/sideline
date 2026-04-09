@@ -16,16 +16,23 @@ src/
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member lifecycle)
 ├── services/        — Sync services (RoleSyncService, ChannelSyncService)
-└── rcp/channel/     — Channel sync event handlers
-    ├── ProcessorService.ts    — Match.tag dispatcher for channel events
-    ├── channelUtils.ts        — Shared Discord helpers (deleteRole, deleteChannelAndRole)
-    ├── handleCreated.ts       — channel_created handler
-    ├── handleUpdated.ts       — channel_updated handler (rename channel + role, update role color)
-    ├── handleDeleted.ts       — channel_deleted handler
-    ├── handleArchived.ts      — channel_archived handler (archive or fallback to delete)
-    ├── handleMemberAdded.ts   — member_added handler
-    ├── handleMemberRemoved.ts — member_removed handler
-    └── handleRosterChannelCreated.ts — roster channel_created handler
+├── rcp/channel/     — Channel sync event handlers
+│   ├── ProcessorService.ts    — Match.tag dispatcher for channel events
+│   ├── channelUtils.ts        — Shared Discord helpers (deleteRole, deleteChannelAndRole)
+│   ├── handleCreated.ts       — channel_created handler
+│   ├── handleUpdated.ts       — channel_updated handler (rename channel + role, update role color)
+│   ├── handleDeleted.ts       — channel_deleted handler
+│   ├── handleArchived.ts      — channel_archived handler (archive or fallback to delete)
+│   ├── handleMemberAdded.ts   — member_added handler
+│   ├── handleMemberRemoved.ts — member_removed handler
+│   └── handleRosterChannelCreated.ts — roster channel_created handler
+└── rcp/event/       — Event sync event handlers
+    ├── ProcessorService.ts    — Match.tag dispatcher for event sync events
+    ├── handleCreated.ts       — event_created handler
+    ├── handleUpdated.ts       — event_updated handler
+    ├── handleCancelled.ts     — event_cancelled handler
+    ├── handleStarted.ts       — event_started handler (updates embed, removes RSVP buttons)
+    └── handleRsvpReminder.ts  — rsvp_reminder handler
 ```
 
 Follows the **AppLive + run.ts** pattern.
@@ -83,7 +90,20 @@ When a team has `discord_archive_category_id` set, deleting a group or deactivat
 
 Each handler (`handleGroupArchived`, `handleRosterArchived`) follows this pattern and then calls the appropriate RPC to clean up mappings.
 
-### Sync Pattern (both types)
+### Event Sync (events → Discord messages)
+
+Syncs event lifecycle to Discord embed messages. When events are created/updated/cancelled/started, the server emits events to `event_sync_events`.
+
+| Component | File |
+|-----------|------|
+| Domain model | `packages/domain/src/rpc/event/EventRpcEvents.ts` |
+| Bot service | `src/rcp/event/ProcessorService.ts` |
+
+Event types: `event_created`, `event_updated`, `event_cancelled`, `event_started`, `rsvp_reminder`
+
+The `event_started` handler updates the Discord embed to remove RSVP buttons and rebuilds the embed with current RSVP counts.
+
+### Sync Pattern (all types)
 
 1. Bot service polls via `rpc.GetUnprocessed*Events({ limit: 50 })` every 5 seconds
 2. Processes each event (Discord REST calls with exponential retry)
