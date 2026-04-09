@@ -15,7 +15,7 @@
     "directory": "dist"
   },
   "scripts": {
-    "build": "paraglide-js compile --project ./project.inlang --outdir ./dist --emit-ts-declarations --strategy localStorage cookie baseLocale && node scripts/pack.js"
+    "build": "paraglide-js compile --project ./project.inlang --outdir ./dist --emit-ts-declarations --strategy localStorage cookie preferredLanguage baseLocale && node scripts/pack.js"
   },
   "exports": {
     "./messages": "./dist/messages.js",
