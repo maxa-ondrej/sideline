@@ -39,8 +39,38 @@ pnpm -C ./applications/web dlx shadcn@latest add button
 - `<button>` → `<Button>` from `components/ui/button`
 - `<a href>` → `<Button asChild><a href={...}>...</a></Button>`
 - `<input>` → `<Input>` from `components/ui/input`
-- `<select>` → `<Select>` from `components/ui/select`
+- `<select>` → `<Select>` from `components/ui/select` (fixed enums) or `<SearchableSelect>` from `components/atoms/SearchableSelect` (dynamic data)
 - `<label>` (in forms) → `<FormLabel>` from `components/ui/form`
+
+### SearchableSelect vs Select
+
+| Component | When to use | Example data |
+|-----------|------------|--------------|
+| `Select` (Shadcn `components/ui/select`) | Fixed enums with fewer than 6 static items | Event type (`training`, `match`, ...), cleanup mode (`nothing`, `delete`, `archive`) |
+| `SearchableSelect` (`components/atoms/SearchableSelect`) | Dynamic data, user-created lists, or any list that can grow | Groups, rosters, members, Discord channels, training types, roles |
+
+`SearchableSelect` provides search filtering, alphabetical sorting, and optional pinned values. It accepts `{ value: string; label: string }[]` options.
+
+```typescript
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
+
+<SearchableSelect
+  value={field.value}
+  onValueChange={field.onChange}
+  placeholder={m.event_useDefault()}
+  options={[
+    { value: NONE_VALUE, label: m.event_useDefault() },
+    ...items.map((item) => ({ value: item.id, label: item.name })),
+  ]}
+  pinnedValues={[NONE_VALUE]}
+/>
+```
+
+**Key rules:**
+- Always pass `pinnedValues` for sentinel values like `NONE_VALUE` or `__root__` or `__all__` so they stay at the top regardless of sort order.
+- In forms, wrap `SearchableSelect` directly with `<FormControl>` — do **not** nest `SelectTrigger`/`SelectContent` inside it.
+- Use shared helpers from `src/lib/group-options.ts` (`toGroupOptions`) when building options from `GroupApi.GroupInfo[]`.
+- Use shared label maps from `src/lib/event-labels.ts` (`eventTypeLabels`, `dayShortLabels`, `dayFullLabels`, `DAY_ORDER`, `sortDays`) — never duplicate these inline.
 
 ## Route File Convention
 
@@ -198,6 +228,26 @@ function MyForm({ onSuccess }: { onSuccess: () => void }) {
 - Spread `{...form.register('fieldName')}` on `<FormField>` — do **not** use `control={form.control} name='fieldName'`
 - Use `form.formState.isSubmitting` for loading state — no manual `submitting` state
 - For `<Select>`, use `onValueChange={field.onChange}` and `value={field.value}` — do **not** spread `{...field}` directly
+- For `<SearchableSelect>` in forms, wrap with `<FormControl>` directly:
+  ```typescript
+  <FormField
+    {...form.register('groupId')}
+    render={({ field }) => (
+      <FormItem>
+        <FormLabel>{m.group_groupName()}</FormLabel>
+        <FormControl>
+          <SearchableSelect
+            value={field.value}
+            onValueChange={field.onChange}
+            placeholder={m.group_selectGroup()}
+            options={groups.map((g) => ({ value: g.groupId, label: g.name }))}
+          />
+        </FormControl>
+        <FormMessage />
+      </FormItem>
+    )}
+  />
+  ```
 
 ## Auth Store — `lib/auth.ts`
 
@@ -355,6 +405,49 @@ The locale mapping lives in `src/lib/date-locale.ts` (`getDateFnsLocale()`). Whe
 ### Language Switcher
 
 `LanguageSwitcher` organism uses `LocaleSelect` molecule (Shadcn Select wrapper). Accepts `isAuthenticated` prop — when `true`, persists to server.
+
+## Shared Utility Modules (`src/lib/`)
+
+Reusable label maps and option builders live in `src/lib/`. Always import from these files instead of duplicating inline.
+
+| Module | Exports | Used by |
+|--------|---------|---------|
+| `src/lib/event-labels.ts` | `eventTypeLabels`, `dayShortLabels`, `dayFullLabels`, `DAY_ORDER`, `sortDays` | Event pages, calendar view, training type pages |
+| `src/lib/group-options.ts` | `toGroupOptions`, `toGroupOptionLabel` | Any page with a group `SearchableSelect` |
+| `src/lib/event-colors.ts` | `getEventColor`, color map utilities | Calendar view |
+| `src/lib/datetime.ts` | `formatLocalDate`, `formatLocalTime`, `formatUtcTime`, `localToUtc` | Event/training forms |
+| `src/lib/discord.ts` | `DISCORD_CHANNEL_TYPE_TEXT`, `DISCORD_CHANNEL_TYPE_CATEGORY` | Any page with Discord channel selects |
+
+## Testing React Components
+
+Web app tests use **jsdom** environment (configured in `vitest.config.ts`). A setup file (`test/setup.ts`) calls `cleanup()` from `@testing-library/react` after each test.
+
+```typescript
+// test/MyComponent.test.tsx
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+// Mock i18n messages used by the component
+vi.mock('@sideline/i18n/messages', () => ({
+  some_key: () => 'Some text',
+}));
+
+// Use dynamic import AFTER mocks are set up
+const { MyComponent } = await import('~/components/atoms/MyComponent.js');
+
+describe('MyComponent', () => {
+  it('renders correctly', () => {
+    render(<MyComponent prop='value' />);
+    expect(screen.getByText('Some text')).not.toBeNull();
+  });
+});
+```
+
+**Key rules:**
+- Always mock `@sideline/i18n/messages` with `vi.mock` before importing the component under test.
+- Use `await import(...)` (dynamic import) for the component after `vi.mock` calls — this ensures mocks are applied before module evaluation.
+- Test files live in `applications/web/test/` with `.test.tsx` extension.
+- Use `@testing-library/react` (`render`, `screen`, `fireEvent`) for DOM assertions.
 
 ## Troubleshooting
 

@@ -8,16 +8,10 @@ import React from 'react';
 
 import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { Separator } from '~/components/ui/separator';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
@@ -318,30 +312,27 @@ export function GroupDetailPage({
             {m.group_parentGroup()}
           </label>
           <div className='flex gap-2'>
-            <Select
+            <SearchableSelect
+              className='flex-1'
               value={parentGroupId}
               onValueChange={(value) => {
                 setParentGroupId(value);
                 handleMoveGroup(value);
               }}
-            >
-              <SelectTrigger className='flex-1'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='__root__'>{m.group_rootGroup()}</SelectItem>
-                {allGroups
+              pinnedValues={['__root__']}
+              options={[
+                { value: '__root__', label: m.group_rootGroup() },
+                ...allGroups
                   .filter((g) => g.groupId !== groupId)
-                  .map((g) => (
-                    <SelectItem key={g.groupId} value={g.groupId}>
-                      {g.emoji.pipe(
-                        Option.map((v) => `${v} ${g.name}`),
-                        Option.getOrElse(() => g.name),
-                      )}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+                  .map((g) => ({
+                    value: g.groupId,
+                    label: g.emoji.pipe(
+                      Option.map((v) => `${v} ${g.name}`),
+                      Option.getOrElse(() => g.name),
+                    ),
+                  })),
+              ]}
+            />
           </div>
         </div>
 
@@ -349,18 +340,13 @@ export function GroupDetailPage({
         <div>
           <p className='text-sm font-medium mb-2'>{m.group_roles()}</p>
           <div className='flex gap-2 mb-4'>
-            <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-              <SelectTrigger className='flex-1'>
-                <SelectValue placeholder={m.group_assignRole()} />
-              </SelectTrigger>
-              <SelectContent>
-                {availableRoles.map((role) => (
-                  <SelectItem key={role.roleId} value={role.roleId}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              className='flex-1'
+              value={selectedRoleId}
+              onValueChange={setSelectedRoleId}
+              placeholder={m.group_assignRole()}
+              options={availableRoles.map((role) => ({ value: role.roleId, label: role.name }))}
+            />
             <Button onClick={handleAssignRole} disabled={!selectedRoleId}>
               {m.group_assignRole()}
             </Button>
@@ -446,20 +432,15 @@ export function GroupDetailPage({
                 </div>
 
                 <div className='flex gap-2'>
-                  <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
-                    <SelectTrigger className='flex-1'>
-                      <SelectValue placeholder={m.group_selectChannel()} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {discordChannels
-                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                        .map((ch) => (
-                          <SelectItem key={ch.id} value={ch.id}>
-                            # {ch.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    className='flex-1'
+                    value={selectedChannelId}
+                    onValueChange={setSelectedChannelId}
+                    placeholder={m.group_selectChannel()}
+                    options={discordChannels
+                      .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                      .map((ch) => ({ value: ch.id, label: `# ${ch.name}` }))}
+                  />
                   <Button onClick={handleLinkChannel} disabled={!selectedChannelId}>
                     {m.group_linkChannel()}
                   </Button>
@@ -473,18 +454,16 @@ export function GroupDetailPage({
         <div>
           <p className='text-sm font-medium mb-2'>{m.group_members()}</p>
           <div className='flex gap-2 mb-4'>
-            <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-              <SelectTrigger className='flex-1'>
-                <SelectValue placeholder={m.group_addMember()} />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMembers.map((member) => (
-                  <SelectItem key={member.memberId} value={member.memberId}>
-                    {Option.getOrElse(member.name, () => member.username)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              className='flex-1'
+              value={selectedMemberId}
+              onValueChange={setSelectedMemberId}
+              placeholder={m.group_addMember()}
+              options={availableMembers.map((member) => ({
+                value: member.memberId,
+                label: Option.getOrElse(member.name, () => member.username),
+              }))}
+            />
             <Button onClick={handleAddMember} disabled={!selectedMemberId}>
               {m.group_addMember()}
             </Button>

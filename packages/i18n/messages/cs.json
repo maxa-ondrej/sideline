@@ -511,6 +511,8 @@
   "bot_event_list_footer": "Strana {page} z {totalPages} · celkem {total} událostí",
   "bot_event_list_error": "Nepodařilo se načíst události.",
   "bot_cmd_event_list_desc": "Zobrazit nadcházející události",
+  "searchable_select_search": "Hledat...",
+  "searchable_select_noResults": "Žádné výsledky.",
   "sidebar_overview": "Přehled",
   "sidebar_dashboard": "Nástěnka",
   "sidebar_makanicko": "Makáníčko",

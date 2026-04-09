@@ -8,17 +8,11 @@ import React from 'react';
 
 import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { Separator } from '~/components/ui/separator';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
@@ -368,20 +362,15 @@ export function RosterDetailPage({
                 </div>
 
                 <div className='flex gap-2'>
-                  <Select value={selectedChannelId} onValueChange={setSelectedChannelId}>
-                    <SelectTrigger className='flex-1'>
-                      <SelectValue placeholder={m.roster_selectChannel()} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {discordChannels
-                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                        .map((ch) => (
-                          <SelectItem key={ch.id} value={ch.id}>
-                            # {ch.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={selectedChannelId}
+                    onValueChange={setSelectedChannelId}
+                    placeholder={m.roster_selectChannel()}
+                    options={discordChannels
+                      .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                      .map((ch) => ({ value: ch.id, label: `# ${ch.name}` }))}
+                    className='flex-1'
+                  />
                   <Button
                     variant='outline'
                     onClick={handleLinkChannel}
@@ -398,18 +387,16 @@ export function RosterDetailPage({
 
       {canManage && (
         <div className='flex gap-2 mb-6 max-w-md'>
-          <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-            <SelectTrigger className='flex-1'>
-              <SelectValue placeholder={m.roster_addMember()} />
-            </SelectTrigger>
-            <SelectContent>
-              {availableMembers.map((member) => (
-                <SelectItem key={member.memberId} value={member.memberId}>
-                  {Option.getOrElse(member.name, () => member.username)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={selectedMemberId}
+            onValueChange={setSelectedMemberId}
+            placeholder={m.roster_addMember()}
+            options={availableMembers.map((member) => ({
+              value: member.memberId,
+              label: Option.getOrElse(member.name, () => member.username),
+            }))}
+            className='flex-1'
+          />
           <Button onClick={handleAddMember} disabled={!selectedMemberId}>
             {m.roster_addMember()}
           </Button>

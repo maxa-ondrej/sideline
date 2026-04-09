@@ -7,6 +7,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -17,13 +18,6 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const OptionalNumber = Schema.transform(Schema.String, Schema.Option(Schema.Number), {
@@ -153,20 +147,17 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
             render={({ field }) => (
               <FormItem className='flex-1'>
                 <FormLabel>{m.group_groupName()}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={m.ageThreshold_selectGroup()} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableGroups.map((group) => (
-                      <SelectItem key={group.groupId} value={group.groupId}>
-                        {group.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <SearchableSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder={m.ageThreshold_selectGroup()}
+                    options={availableGroups.map((group) => ({
+                      value: group.groupId,
+                      label: group.name,
+                    }))}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

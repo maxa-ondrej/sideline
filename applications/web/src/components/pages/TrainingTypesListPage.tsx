@@ -6,6 +6,7 @@ import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -16,14 +17,8 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { withFieldErrors } from '~/lib/form';
+import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateTrainingTypeSchema = Schema.Struct({
@@ -133,38 +128,36 @@ export function TrainingTypesListPage({
                     {m.event_ownerGroup()}
                   </label>
                   <p className='text-xs text-muted-foreground mb-2'>{m.event_ownerGroupHelp()}</p>
-                  <Select value={ownerGroupId} onValueChange={setOwnerGroupId}>
-                    <SelectTrigger id='owner-group-select' className='w-full sm:max-w-xs'>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                      {groups.map((g) => (
-                        <SelectItem key={g.groupId} value={g.groupId}>
-                          {g.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    id='owner-group-select'
+                    value={ownerGroupId}
+                    onValueChange={setOwnerGroupId}
+                    placeholder={m.event_useDefault()}
+                    options={[
+                      { value: NONE_VALUE, label: m.event_useDefault() },
+                      ...toGroupOptions(groups),
+                    ]}
+                    pinnedValues={[NONE_VALUE]}
+                    className='w-full sm:max-w-xs'
+                  />
                 </div>
                 <div className='flex-1'>
                   <label htmlFor='member-group-select' className='text-sm font-medium mb-1 block'>
                     {m.event_memberGroup()}
                   </label>
                   <p className='text-xs text-muted-foreground mb-2'>{m.event_memberGroupHelp()}</p>
-                  <Select value={memberGroupId} onValueChange={setMemberGroupId}>
-                    <SelectTrigger id='member-group-select' className='w-full sm:max-w-xs'>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                      {groups.map((g) => (
-                        <SelectItem key={g.groupId} value={g.groupId}>
-                          {g.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    id='member-group-select'
+                    value={memberGroupId}
+                    onValueChange={setMemberGroupId}
+                    placeholder={m.event_useDefault()}
+                    options={[
+                      { value: NONE_VALUE, label: m.event_useDefault() },
+                      ...toGroupOptions(groups),
+                    ]}
+                    pinnedValues={[NONE_VALUE]}
+                    className='w-full sm:max-w-xs'
+                  />
                 </div>
               </div>
             )}

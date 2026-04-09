@@ -1,11 +1,11 @@
 import type { GroupApi, TeamApi, TeamSettingsApi } from '@sideline/domain';
-import { Discord } from '@sideline/domain';
+import { ChannelSyncEvent, Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
-import { Effect, Option } from 'effect';
+import { Effect, Option, Schema } from 'effect';
 import { MessageSquare, Settings, Users } from 'lucide-react';
 import React from 'react';
-
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Avatar, AvatarFallback, AvatarImage } from '~/components/ui/avatar';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
@@ -95,10 +95,10 @@ export function TeamSettingsPage({
   const [archiveCategory, setArchiveCategory] = React.useState(
     Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE),
   );
-  const [cleanupOnGroupDelete, setCleanupOnGroupDelete] = React.useState<string>(
+  const [cleanupOnGroupDelete, setCleanupOnGroupDelete] = React.useState(
     settings.discordChannelCleanupOnGroupDelete,
   );
-  const [cleanupOnRosterDeactivate, setCleanupOnRosterDeactivate] = React.useState<string>(
+  const [cleanupOnRosterDeactivate, setCleanupOnRosterDeactivate] = React.useState(
     settings.discordChannelCleanupOnRosterDeactivate,
   );
   const [createDiscordChannelOnGroup, setCreateDiscordChannelOnGroup] = React.useState(
@@ -141,6 +141,8 @@ export function TeamSettingsPage({
       value !== NONE_VALUE ? Option.some(Discord.Snowflake.make(value)) : Option.none(),
     [],
   );
+
+  const decodeCleanupMode = Schema.decodeUnknownSync(ChannelSyncEvent.ChannelCleanupMode);
 
   const handleSaveProfile = React.useCallback(async () => {
     if (!teamName.trim()) return;
@@ -194,12 +196,8 @@ export function TeamSettingsPage({
             discordChannelOther: Option.some(channelToOption(channelOther)),
             discordChannelLateRsvp: Option.some(channelToOption(channelLateRsvp)),
             discordArchiveCategoryId: Option.some(channelToOption(archiveCategory)),
-            discordChannelCleanupOnGroupDelete: Option.some(
-              cleanupOnGroupDelete as 'nothing' | 'delete' | 'archive',
-            ),
-            discordChannelCleanupOnRosterDeactivate: Option.some(
-              cleanupOnRosterDeactivate as 'nothing' | 'delete' | 'archive',
-            ),
+            discordChannelCleanupOnGroupDelete: Option.some(cleanupOnGroupDelete),
+            discordChannelCleanupOnRosterDeactivate: Option.some(cleanupOnRosterDeactivate),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
             createDiscordChannelOnRoster: Option.some(createDiscordChannelOnRoster),
             discordRoleFormat: Option.some(roleFormat),
@@ -539,21 +537,19 @@ export function TeamSettingsPage({
                       <label htmlFor={`channel-${key}`} className='text-sm font-medium mb-1 block'>
                         {label}
                       </label>
-                      <Select value={value} onValueChange={setter}>
-                        <SelectTrigger id={`channel-${key}`}>
-                          <SelectValue placeholder={m.teamSettings_channelNone()} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
-                          {discordChannels
+                      <SearchableSelect
+                        id={`channel-${key}`}
+                        value={value}
+                        onValueChange={setter}
+                        placeholder={m.teamSettings_channelNone()}
+                        pinnedValues={[NONE_VALUE]}
+                        options={[
+                          { value: NONE_VALUE, label: m.teamSettings_channelNone() },
+                          ...discordChannels
                             .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                            .map((ch) => (
-                              <SelectItem key={ch.id} value={ch.id}>
-                                # {ch.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                            .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
+                        ]}
+                      />
                     </div>
                   ))}
                 </div>
@@ -589,7 +585,10 @@ export function TeamSettingsPage({
                   <p className='text-xs text-muted-foreground mb-2'>
                     {m.teamSettings_channelCleanupOnGroupDeleteHelp()}
                   </p>
-                  <Select value={cleanupOnGroupDelete} onValueChange={setCleanupOnGroupDelete}>
+                  <Select
+                    value={cleanupOnGroupDelete}
+                    onValueChange={(v) => setCleanupOnGroupDelete(decodeCleanupMode(v))}
+                  >
                     <SelectTrigger id='cleanup-on-group-delete'>
                       <SelectValue />
                     </SelectTrigger>
@@ -637,7 +636,7 @@ export function TeamSettingsPage({
                   </p>
                   <Select
                     value={cleanupOnRosterDeactivate}
-                    onValueChange={setCleanupOnRosterDeactivate}
+                    onValueChange={(v) => setCleanupOnRosterDeactivate(decodeCleanupMode(v))}
                   >
                     <SelectTrigger id='cleanup-on-roster-deactivate'>
                       <SelectValue />
@@ -662,21 +661,19 @@ export function TeamSettingsPage({
                     <p className='text-xs text-muted-foreground mb-2'>
                       {m.teamSettings_archiveCategoryHelp()}
                     </p>
-                    <Select value={archiveCategory} onValueChange={setArchiveCategory}>
-                      <SelectTrigger id='archive-category'>
-                        <SelectValue placeholder={m.teamSettings_channelNone()} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NONE_VALUE}>{m.teamSettings_channelNone()}</SelectItem>
-                        {discordChannels
+                    <SearchableSelect
+                      id='archive-category'
+                      value={archiveCategory}
+                      onValueChange={setArchiveCategory}
+                      placeholder={m.teamSettings_channelNone()}
+                      pinnedValues={[NONE_VALUE]}
+                      options={[
+                        { value: NONE_VALUE, label: m.teamSettings_channelNone() },
+                        ...discordChannels
                           .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_CATEGORY)
-                          .map((ch) => (
-                            <SelectItem key={ch.id} value={ch.id}>
-                              {ch.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                          .map((ch) => ({ value: ch.id, label: ch.name })),
+                      ]}
+                    />
                   </div>
                 </>
               )}

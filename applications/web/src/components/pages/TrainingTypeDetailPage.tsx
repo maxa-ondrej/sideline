@@ -7,6 +7,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -33,32 +34,9 @@ import {
   utcTimeToLocal,
 } from '~/lib/datetime';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
+import { DAY_ORDER, dayFullLabels, dayShortLabels, sortDays } from '~/lib/event-labels';
+import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
-
-const dayShortLabels: Record<number, () => string> = {
-  0: m.event_day_short_0,
-  1: m.event_day_short_1,
-  2: m.event_day_short_2,
-  3: m.event_day_short_3,
-  4: m.event_day_short_4,
-  5: m.event_day_short_5,
-  6: m.event_day_short_6,
-};
-
-const dayFullLabels: Record<number, () => string> = {
-  0: m.event_day_0,
-  1: m.event_day_1,
-  2: m.event_day_2,
-  3: m.event_day_3,
-  4: m.event_day_4,
-  5: m.event_day_5,
-  6: m.event_day_6,
-};
-
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
-
-const sortDays = (days: number[]): number[] =>
-  [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
 
 const CreateScheduleSchema = Schema.Struct({
   title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
@@ -222,7 +200,7 @@ export function TrainingTypeDetailPage({
       run({ success: m.trainingType_scheduleCreated() }),
     );
     if (Option.isSome(result)) {
-      scheduleForm.reset({ ...scheduleForm.formState.defaultValues } as Record<string, string>);
+      scheduleForm.reset();
       setShowCreateForm(false);
       router.invalidate();
     }
@@ -386,21 +364,19 @@ export function TrainingTypeDetailPage({
             <p className='text-xs text-muted-foreground mb-2'>
               {m.trainingType_discordChannelHelp()}
             </p>
-            <Select value={channelId} onValueChange={setChannelId}>
-              <SelectTrigger className='max-w-xs'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                {discordChannels
+            <SearchableSelect
+              value={channelId}
+              onValueChange={setChannelId}
+              placeholder={m.event_useDefault()}
+              options={[
+                { value: NONE_VALUE, label: m.event_useDefault() },
+                ...discordChannels
                   .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                  .map((ch) => (
-                    <SelectItem key={ch.id} value={ch.id}>
-                      #{ch.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+                  .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
+              ]}
+              pinnedValues={[NONE_VALUE]}
+              className='max-w-xs'
+            />
           </div>
         )}
 
@@ -412,38 +388,34 @@ export function TrainingTypeDetailPage({
                 {m.event_ownerGroup()}
               </label>
               <p className='text-xs text-muted-foreground mb-2'>{m.event_ownerGroupHelp()}</p>
-              <Select value={ownerGroupId} onValueChange={setOwnerGroupId}>
-                <SelectTrigger className='w-full sm:max-w-xs'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g.groupId} value={g.groupId}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={ownerGroupId}
+                onValueChange={setOwnerGroupId}
+                placeholder={m.event_useDefault()}
+                options={[
+                  { value: NONE_VALUE, label: m.event_useDefault() },
+                  ...toGroupOptions(groups),
+                ]}
+                pinnedValues={[NONE_VALUE]}
+                className='w-full sm:max-w-xs'
+              />
             </div>
             <div className='flex-1'>
               <label htmlFor='member-group' className='text-sm font-medium mb-1 block'>
                 {m.event_memberGroup()}
               </label>
               <p className='text-xs text-muted-foreground mb-2'>{m.event_memberGroupHelp()}</p>
-              <Select value={memberGroupId} onValueChange={setMemberGroupId}>
-                <SelectTrigger className='w-full sm:max-w-xs'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g.groupId} value={g.groupId}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={memberGroupId}
+                onValueChange={setMemberGroupId}
+                placeholder={m.event_useDefault()}
+                options={[
+                  { value: NONE_VALUE, label: m.event_useDefault() },
+                  ...toGroupOptions(groups),
+                ]}
+                pinnedValues={[NONE_VALUE]}
+                className='w-full sm:max-w-xs'
+              />
             </div>
           </div>
         )}

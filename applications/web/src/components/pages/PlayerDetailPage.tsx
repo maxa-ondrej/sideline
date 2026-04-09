@@ -12,6 +12,7 @@ import { Link } from '@tanstack/react-router';
 import { Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { ActivityLogList } from '~/components/organisms/ActivityLogList';
 import { ActivityStatsCard } from '~/components/organisms/ActivityStatsCard';
 import { Button } from '~/components/ui/button';
@@ -286,18 +287,13 @@ function RolesSection({
       )}
       {canManageRoles && assignableRoles.length > 0 ? (
         <div className='flex gap-2 items-end'>
-          <Select onValueChange={setSelectedRoleId} value={selectedRoleId}>
-            <SelectTrigger className='w-48'>
-              <SelectValue placeholder={m.roles_addRole()} />
-            </SelectTrigger>
-            <SelectContent>
-              {assignableRoles.map((r) => (
-                <SelectItem key={r.roleId} value={r.roleId}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={selectedRoleId}
+            onValueChange={setSelectedRoleId}
+            placeholder={m.roles_addRole()}
+            options={assignableRoles.map((r) => ({ value: r.roleId, label: r.name }))}
+            className='w-48'
+          />
           <Button size='sm' disabled={!selectedRoleId || assigning} onClick={handleAssign}>
             {m.roles_addRole()}
           </Button>
