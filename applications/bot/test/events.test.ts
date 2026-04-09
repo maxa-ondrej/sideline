@@ -1,7 +1,8 @@
+import { Discord as DomainDiscord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as Discord from 'dfx/types';
-import { Effect, Layer, Logger, LogLevel } from 'effect';
+import { Effect, Layer, Logger, LogLevel, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { eventHandlers } from '~/events/index.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -22,6 +23,34 @@ const makeRecordingGateway = () => {
   } as never);
 
   return { registeredEvents, layer };
+};
+
+/**
+ * A gateway that captures each registered handler so tests can invoke them
+ * directly. Returns Effect.void (not Effect.never) so eventHandlers completes.
+ */
+const makeCapturingGateway = () => {
+  const handlers = new Map<string, (payload: unknown) => Effect.Effect<void>>();
+
+  const layer = Layer.succeed(DiscordGateway, {
+    [DiscordGateway.key]: DiscordGateway.key,
+    dispatch: undefined as never,
+    fromDispatch: undefined as never,
+    handleDispatch: (event: string, handle: (payload: unknown) => Effect.Effect<void>) => {
+      handlers.set(event, handle);
+      return Effect.void;
+    },
+    send: undefined as never,
+    shards: Effect.succeed(new Set()),
+  } as never);
+
+  const dispatch = (event: string, payload: unknown): Effect.Effect<void> => {
+    const handler = handlers.get(event);
+    if (!handler) return Effect.die(new Error(`No handler registered for ${event}`));
+    return handler(payload);
+  };
+
+  return { handlers, layer, dispatch };
 };
 
 const MockSyncRpcLayer = Layer.succeed(
@@ -76,5 +105,170 @@ describe('events', () => {
     );
 
     expect(Array.isArray(result)).toBe(true);
+  });
+
+  describe('channel handlers', () => {
+    /** Builds a recording SyncRpc and runs eventHandlers with the capturing gateway. */
+    const setup = async () => {
+      const calls: { method: string; args: unknown }[] = [];
+
+      const RecordingSyncRpcLayer = Layer.succeed(
+        SyncRpc,
+        new Proxy({} as SyncRpc, {
+          get: (_target, method: string) => (args: unknown) => {
+            calls.push({ method, args });
+            return Effect.void;
+          },
+        }),
+      );
+
+      const { layer: gatewayLayer, dispatch } = makeCapturingGateway();
+
+      await Effect.runPromise(
+        eventHandlers.pipe(
+          Effect.provide(Layer.mergeAll(gatewayLayer, RecordingSyncRpcLayer, MockDiscordRESTLayer)),
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      return { calls, dispatch };
+    };
+
+    const syncableTextChannel = {
+      id: '111111111',
+      guild_id: '222222222',
+      name: 'general',
+      type: 0,
+      parent_id: null,
+    };
+
+    const syncableCategoryChannel = {
+      id: '444444444',
+      guild_id: '222222222',
+      name: 'Category',
+      type: 4,
+      parent_id: null,
+    };
+
+    const nonSyncableVoiceChannel = {
+      id: '333333333',
+      guild_id: '222222222',
+      name: 'voice-chat',
+      type: 2,
+      parent_id: null,
+    };
+
+    it('ChannelCreate with a syncable text channel calls Guild/UpsertChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelCreate, syncableTextChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
+      expect(upsertCalls).toHaveLength(1);
+      expect(upsertCalls[0].args).toMatchObject({
+        channel_id: DomainDiscord.Snowflake.make('111111111'),
+        guild_id: DomainDiscord.Snowflake.make('222222222'),
+        name: 'general',
+        type: 0,
+        parent_id: Option.none(),
+      });
+    });
+
+    it('ChannelCreate with a syncable category channel calls Guild/UpsertChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelCreate, syncableCategoryChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
+      expect(upsertCalls).toHaveLength(1);
+      expect(upsertCalls[0].args).toMatchObject({
+        channel_id: DomainDiscord.Snowflake.make('444444444'),
+        name: 'Category',
+        type: 4,
+      });
+    });
+
+    it('ChannelCreate with a non-syncable voice channel does NOT call Guild/UpsertChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelCreate, nonSyncableVoiceChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
+      expect(upsertCalls).toHaveLength(0);
+    });
+
+    it('ChannelDelete with a syncable channel calls Guild/DeleteChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelDelete, syncableTextChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const deleteCalls = calls.filter((c) => c.method === 'Guild/DeleteChannel');
+      expect(deleteCalls).toHaveLength(1);
+      expect(deleteCalls[0].args).toMatchObject({
+        channel_id: DomainDiscord.Snowflake.make('111111111'),
+        guild_id: DomainDiscord.Snowflake.make('222222222'),
+      });
+    });
+
+    it('ChannelDelete with a non-syncable voice channel does NOT call Guild/DeleteChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelDelete, nonSyncableVoiceChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const deleteCalls = calls.filter((c) => c.method === 'Guild/DeleteChannel');
+      expect(deleteCalls).toHaveLength(0);
+    });
+
+    it('ChannelUpdate with a syncable channel calls Guild/UpsertChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelUpdate, syncableTextChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
+      expect(upsertCalls).toHaveLength(1);
+      expect(upsertCalls[0].args).toMatchObject({
+        channel_id: DomainDiscord.Snowflake.make('111111111'),
+        guild_id: DomainDiscord.Snowflake.make('222222222'),
+        name: 'general',
+        type: 0,
+      });
+    });
+
+    it('ChannelUpdate with a non-syncable voice channel does NOT call Guild/UpsertChannel', async () => {
+      const { calls, dispatch } = await setup();
+
+      await Effect.runPromise(
+        dispatch(Discord.GatewayDispatchEvents.ChannelUpdate, nonSyncableVoiceChannel).pipe(
+          Logger.withMinimumLogLevel(LogLevel.None),
+        ),
+      );
+
+      const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
+      expect(upsertCalls).toHaveLength(0);
+    });
   });
 });

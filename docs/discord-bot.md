@@ -419,7 +419,7 @@ Fired when a member's roles, nickname, or other profile attributes change.
 
 ### CHANNEL_CREATE
 
-Fired when a channel is created in a guild. Filters to text channels (type 0) and category channels (type 4) only — voice, DM, and other channel types are silently ignored.
+Fired when a channel is created in a guild. Filters to text channels (type 0) and category channels (type 4) only — voice, DM, and other channel types are logged at debug level and ignored.
 
 Calls `Guild/UpsertChannel` RPC with the channel's ID, name, type, and parent ID to keep the server's `discord_channels` table in sync.
 
