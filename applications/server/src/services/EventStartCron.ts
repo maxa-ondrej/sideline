@@ -16,7 +16,7 @@ export const eventStartCronEffect = Effect.Do.pipe(
             Option.match({
               onNone: () =>
                 Effect.logDebug(
-                  `EventStartCron: event "${event.title}" (${event.id}) already started, skipping`,
+                  `EventStartCron: event "${event.title}" (${event.id}) no longer active, skipping`,
                 ),
               onSome: () =>
                 syncRepo

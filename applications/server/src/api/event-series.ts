@@ -17,7 +17,7 @@ import { computeHorizonEnd, generateOccurrenceDates } from '~/services/Recurrenc
 
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventSeriesApi.EventSeriesNotFound();
-const cancelled = new EventSeriesApi.EventSeriesCancelled();
+const notActive = new EventSeriesApi.EventSeriesNotActive();
 
 export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (handlers) =>
   Effect.Do.pipe(
@@ -299,7 +299,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               existing.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ existing }) =>
-              existing.status !== 'active' ? Effect.fail(cancelled) : Effect.void,
+              existing.status !== 'active' ? Effect.fail(notActive) : Effect.void,
             ),
             // Check owner group access
             Effect.tap(({ existing, membership, isAdmin }) =>
@@ -515,7 +515,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               existing.team_id !== teamId ? Effect.fail(notFound) : Effect.void,
             ),
             Effect.tap(({ existing }) =>
-              existing.status !== 'active' ? Effect.fail(cancelled) : Effect.void,
+              existing.status !== 'active' ? Effect.fail(notActive) : Effect.void,
             ),
             // Check owner group access
             Effect.tap(({ existing, membership, isAdmin }) =>

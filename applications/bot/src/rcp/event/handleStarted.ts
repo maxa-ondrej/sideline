@@ -12,8 +12,7 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
     Effect.bind('stored', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
     ),
-    Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id)),
-    Effect.flatMap(({ rpc, rest, stored, guild }) =>
+    Effect.flatMap(({ rpc, rest, stored }) =>
       Option.match(stored, {
         onNone: () =>
           Effect.logWarning(
@@ -27,8 +26,9 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
               event_id: event.event_id,
               limit: YES_EMBED_LIMIT,
             }),
+            guild: rest.getGuild(event.guild_id),
           }).pipe(
-            Effect.flatMap(({ counts, embedInfo, yesAttendees }) =>
+            Effect.flatMap(({ counts, embedInfo, yesAttendees, guild }) =>
               Option.match(embedInfo, {
                 onNone: () =>
                   Effect.logWarning(
@@ -48,18 +48,22 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
                     counts,
                     yesAttendees,
                     locale,
+                    isStarted: true,
                   });
-                  return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                    embeds: payload.embeds,
-                    components: payload.components,
-                  });
+                  return rest
+                    .updateMessage(msg.discord_channel_id, msg.discord_message_id, {
+                      embeds: payload.embeds,
+                      components: payload.components,
+                    })
+                    .pipe(
+                      Effect.tap(() =>
+                        Effect.logInfo(
+                          `Marked event ${event.event_id} as started in channel ${msg.discord_channel_id}`,
+                        ),
+                      ),
+                    );
                 },
               }),
-            ),
-            Effect.tap(() =>
-              Effect.logInfo(
-                `Marked event ${event.event_id} as started in channel ${msg.discord_channel_id}`,
-              ),
             ),
             Effect.asVoid,
           ),
