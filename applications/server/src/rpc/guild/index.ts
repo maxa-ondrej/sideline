@@ -1,11 +1,14 @@
 import { type Discord, GuildRpcGroup, type Team, type TeamMember } from '@sideline/domain';
-import { Array, Effect, Option, pipe } from 'effect';
+import { Array, type Cause, Effect, Option, pipe } from 'effect';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
-import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import {
+  type MemberAlreadyExistsError,
+  TeamMembersRepository,
+} from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
@@ -100,24 +103,32 @@ const registerMemberLogic =
               Effect.bind('existingMembership', ({ user }) =>
                 deps.members.findMembershipByIds(team.id, user.id),
               ),
-              Effect.tap(({ existingMembership, user }) =>
-                Option.isSome(existingMembership) && existingMembership.value.active
-                  ? Effect.logInfo(`Member ${username} already active in team ${team.id}`)
-                  : (Option.isNone(existingMembership)
-                      ? deps.members.addMember({
-                          team_id: team.id,
-                          user_id: user.id,
-                          active: true,
-                          joined_at: undefined,
-                        })
-                      : Effect.succeed(existingMembership.value as unknown as TeamMember.TeamMember)
-                    ).pipe(
-                      Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
-                      Effect.tap(() =>
-                        Effect.logInfo(`Registered member ${username} in team ${team.id}`),
-                      ),
-                    ),
-              ),
+              Effect.tap(({ existingMembership, user }) => {
+                if (Option.isSome(existingMembership) && existingMembership.value.active) {
+                  return Effect.logInfo(`Member ${username} already active in team ${team.id}`);
+                }
+                const resolveMemberId: Effect.Effect<
+                  { id: TeamMember.TeamMemberId },
+                  MemberAlreadyExistsError | Cause.NoSuchElementException,
+                  never
+                > = Option.isNone(existingMembership)
+                  ? Effect.map(
+                      deps.members.addMember({
+                        team_id: team.id,
+                        user_id: user.id,
+                        active: true,
+                        joined_at: undefined,
+                      }),
+                      (m) => ({ id: m.id }),
+                    )
+                  : Effect.succeed({ id: existingMembership.value.id });
+                return resolveMemberId.pipe(
+                  Effect.tap((newMember) => setupNewMember(deps, team, newMember, roles)),
+                  Effect.tap(() =>
+                    Effect.logInfo(`Registered member ${username} in team ${team.id}`),
+                  ),
+                );
+              }),
             ),
         }),
       ),
@@ -126,18 +137,120 @@ const registerMemberLogic =
       ),
     );
 
-export const GuildsRpcLive = Effect.all([
-  BotGuildsRepository,
-  DiscordChannelsRepository,
-  TeamsRepository,
-  UsersRepository,
-  TeamMembersRepository,
-  DiscordRoleMappingRepository,
-  DiscordChannelMappingRepository,
-  GroupsRepository,
-]).pipe(
+const buildHandlers = (
+  botGuilds: BotGuildsRepository,
+  discordChannels: DiscordChannelsRepository,
+  deps: Deps,
+) => {
+  const register = registerMemberLogic(deps);
+
+  return {
+    'Guild/RegisterGuild': ({
+      guild_id,
+      guild_name,
+    }: {
+      readonly guild_id: Discord.Snowflake;
+      readonly guild_name: string;
+    }) => botGuilds.upsert(guild_id, guild_name),
+
+    'Guild/UnregisterGuild': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+      botGuilds.remove(guild_id),
+
+    'Guild/IsGuildRegistered': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+      botGuilds.exists(guild_id),
+
+    'Guild/SyncGuildChannels': ({
+      guild_id,
+      channels,
+    }: {
+      readonly guild_id: Discord.Snowflake;
+      readonly channels: ReadonlyArray<{
+        readonly channel_id: Discord.Snowflake;
+        readonly name: string;
+        readonly type: number;
+        readonly parent_id: Option.Option<Discord.Snowflake>;
+      }>;
+    }) => discordChannels.syncChannels(guild_id, channels),
+
+    'Guild/UpdateChannelName': ({
+      channel_id,
+      name,
+    }: {
+      readonly channel_id: Discord.Snowflake;
+      readonly name: string;
+    }) => discordChannels.updateChannelName(channel_id, name),
+
+    'Guild/UpsertChannel': ({
+      guild_id,
+      channel_id,
+      name,
+      type,
+      parent_id,
+    }: {
+      readonly guild_id: Discord.Snowflake;
+      readonly channel_id: Discord.Snowflake;
+      readonly name: string;
+      readonly type: number;
+      readonly parent_id: Option.Option<Discord.Snowflake>;
+    }) => discordChannels.upsertChannel(guild_id, channel_id, name, type, parent_id),
+
+    'Guild/DeleteChannel': ({
+      guild_id,
+      channel_id,
+    }: {
+      readonly guild_id: Discord.Snowflake;
+      readonly channel_id: Discord.Snowflake;
+    }) => discordChannels.deleteChannel(guild_id, channel_id),
+
+    'Guild/RegisterMember': (payload: RegisterMemberPayload) => register(payload),
+
+    'Guild/ReconcileMembers': ({
+      guild_id,
+      members: membersList,
+    }: {
+      readonly guild_id: Discord.Snowflake;
+      readonly members: ReadonlyArray<{
+        readonly discord_id: string;
+        readonly username: string;
+        readonly avatar: Option.Option<string>;
+        readonly roles: ReadonlyArray<string>;
+      }>;
+    }) =>
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Effect.logInfo(`Reconciling ${membersList.length} members for guild ${guild_id}`),
+        ),
+        Effect.tap(() =>
+          Effect.all(
+            Array.map(membersList, (member) =>
+              register({
+                guild_id,
+                discord_id: member.discord_id,
+                username: member.username,
+                avatar: member.avatar,
+                roles: member.roles,
+              }),
+            ),
+            { concurrency: 5 },
+          ),
+        ),
+        Effect.tap(() => Effect.logInfo(`Reconciliation complete for guild ${guild_id}`)),
+        Effect.asVoid,
+      ),
+  };
+};
+
+export const GuildsRpcLive = Effect.Do.pipe(
+  Effect.bind('botGuilds', () => BotGuildsRepository),
+  Effect.bind('discordChannels', () => DiscordChannelsRepository),
+  Effect.bind('teams', () => TeamsRepository),
+  Effect.bind('users', () => UsersRepository),
+  Effect.bind('members', () => TeamMembersRepository),
+  Effect.bind('roleMappings', () => DiscordRoleMappingRepository),
+  Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
+  Effect.bind('groups', () => GroupsRepository),
   Effect.map(
-    ([
+    ({
       botGuilds,
       discordChannels,
       teams,
@@ -146,105 +259,15 @@ export const GuildsRpcLive = Effect.all([
       roleMappings,
       channelMappings,
       groups,
-    ]) => {
-      const deps: Deps = { teams, users, members, roleMappings, channelMappings, groups };
-      const register = registerMemberLogic(deps);
-
-      return {
-        'Guild/RegisterGuild': ({
-          guild_id,
-          guild_name,
-        }: {
-          readonly guild_id: Discord.Snowflake;
-          readonly guild_name: string;
-        }) => botGuilds.upsert(guild_id, guild_name),
-
-        'Guild/UnregisterGuild': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
-          botGuilds.remove(guild_id),
-
-        'Guild/IsGuildRegistered': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
-          botGuilds.exists(guild_id),
-
-        'Guild/SyncGuildChannels': ({
-          guild_id,
-          channels,
-        }: {
-          readonly guild_id: Discord.Snowflake;
-          readonly channels: ReadonlyArray<{
-            readonly channel_id: Discord.Snowflake;
-            readonly name: string;
-            readonly type: number;
-            readonly parent_id: Option.Option<Discord.Snowflake>;
-          }>;
-        }) =>
-          discordChannels.syncChannels(
-            guild_id,
-            channels.map((c) => ({
-              channel_id: c.channel_id,
-              name: c.name,
-              type: c.type,
-              parent_id: c.parent_id,
-            })),
-          ),
-
-        'Guild/UpdateChannelName': ({
-          channel_id,
-          name,
-        }: {
-          readonly channel_id: Discord.Snowflake;
-          readonly name: string;
-        }) => discordChannels.updateChannelName(channel_id, name),
-
-        'Guild/UpsertChannel': ({
-          guild_id,
-          channel_id,
-          name,
-          type,
-          parent_id,
-        }: {
-          readonly guild_id: Discord.Snowflake;
-          readonly channel_id: Discord.Snowflake;
-          readonly name: string;
-          readonly type: number;
-          readonly parent_id: Option.Option<Discord.Snowflake>;
-        }) => discordChannels.upsertChannel(guild_id, channel_id, name, type, parent_id),
-
-        'Guild/RegisterMember': (payload: RegisterMemberPayload) => register(payload),
-
-        'Guild/ReconcileMembers': ({
-          guild_id,
-          members: membersList,
-        }: {
-          readonly guild_id: Discord.Snowflake;
-          readonly members: ReadonlyArray<{
-            readonly discord_id: string;
-            readonly username: string;
-            readonly avatar: Option.Option<string>;
-            readonly roles: ReadonlyArray<string>;
-          }>;
-        }) =>
-          Effect.Do.pipe(
-            Effect.tap(() =>
-              Effect.logInfo(`Reconciling ${membersList.length} members for guild ${guild_id}`),
-            ),
-            Effect.tap(() =>
-              Effect.all(
-                Array.map(membersList, (member) =>
-                  register({
-                    guild_id,
-                    discord_id: member.discord_id,
-                    username: member.username,
-                    avatar: member.avatar,
-                    roles: member.roles,
-                  }),
-                ),
-                { concurrency: 5 },
-              ),
-            ),
-            Effect.tap(() => Effect.logInfo(`Reconciliation complete for guild ${guild_id}`)),
-          ),
-      };
-    },
+    }) =>
+      buildHandlers(botGuilds, discordChannels, {
+        teams,
+        users,
+        members,
+        roleMappings,
+        channelMappings,
+        groups,
+      }),
   ),
   (handlers) => GuildRpcGroup.GuildRpcGroup.toLayer(handlers),
 );

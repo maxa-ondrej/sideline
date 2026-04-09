@@ -93,11 +93,13 @@ RPC groups are served via NDJSON over HTTP. Each group has a domain definition a
 |-------|------------------|----------------|---------|
 | Role | `packages/domain/src/rpc/role/RoleRpcGroup.ts` | `src/rpc/role/index.ts` | Role sync events |
 | Channel | `packages/domain/src/rpc/channel/ChannelRpcGroup.ts` | `src/rpc/channel/index.ts` | Channel sync events |
-| Guild | `packages/domain/src/rpc/guild/GuildRpcGroup.ts` | `src/rpc/guild/index.ts` | Guild operations (sync channels, register members, update channel names) |
+| Guild | `packages/domain/src/rpc/guild/GuildRpcGroup.ts` | `src/rpc/guild/index.ts` | Guild operations (sync/upsert/delete channels, register members, update channel names) |
 | Event | `packages/domain/src/rpc/event/EventRpcGroup.ts` | `src/rpc/event/index.ts` | Event sync |
 | Activity | `packages/domain/src/rpc/activity/ActivityRpcGroup.ts` | `src/rpc/activity/index.ts` | Activity sync |
 
 The `Guild/UpdateChannelName` RPC updates the `discord_channels` table when the bot renames a Discord channel. The bot calls this after processing a `channel_updated` event to keep the server's `discord_channels.name` column in sync with the actual Discord channel name.
+
+The `Guild/UpsertChannel` and `Guild/DeleteChannel` RPCs are called by the bot's gateway event handlers (`ChannelCreate`, `ChannelUpdate`, `ChannelDelete`) to keep the `discord_channels` table in sync with real-time Discord channel changes. `UpsertChannel` inserts or updates a channel row (using `ON CONFLICT DO UPDATE`), and `DeleteChannel` removes a channel row by `guild_id` + `channel_id`.
 
 ## Sync Event Pattern
 

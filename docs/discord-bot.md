@@ -417,6 +417,30 @@ Fired when a member's roles, nickname, or other profile attributes change.
 
 ---
 
+### CHANNEL_CREATE
+
+Fired when a channel is created in a guild. Filters to text channels (type 0) and category channels (type 4) only — voice, DM, and other channel types are logged at debug level and ignored.
+
+Calls `Guild/UpsertChannel` RPC with the channel's ID, name, type, and parent ID to keep the server's `discord_channels` table in sync.
+
+---
+
+### CHANNEL_DELETE
+
+Fired when a channel is deleted from a guild. Applies the same type filter as `CHANNEL_CREATE`.
+
+Calls `Guild/DeleteChannel` RPC to remove the row from the server's `discord_channels` table.
+
+---
+
+### CHANNEL_UPDATE
+
+Fired when a channel is updated in a guild (e.g. renamed by a Discord admin). Applies the same type filter as `CHANNEL_CREATE`.
+
+Calls `Guild/UpsertChannel` RPC to update the channel's name and metadata in the `discord_channels` table. The upsert handles both create and update semantics.
+
+---
+
 ## RPC Sync Workers
 
 Three background worker loops run continuously inside the bot process. Each worker polls the server for unprocessed outbox events, processes them sequentially, and marks each as processed or failed. All three loops use a **5-second polling interval** (`Schedule.spaced('5 seconds')`) and fetch up to **50 events per poll** (`POLL_BATCH_SIZE = 50`).
@@ -510,6 +534,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/SyncGuildChannels` | Bulk-sync all text channels for a guild |
 | `Guild/UpdateChannelName` | Update the cached name of a single Discord channel after the bot renames it |
 | `Guild/UpsertChannel` | Insert or update a single Discord channel row in `discord_channels`; called after the bot auto-creates a channel so the web can display its name |
+| `Guild/DeleteChannel` | Delete a single channel row from `discord_channels` when a Discord channel is deleted |
 | `Guild/ReconcileMembers` | Bulk-sync up to 1000 guild members on startup |
 | `Guild/RegisterMember` | Register a single new member |
 

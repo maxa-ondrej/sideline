@@ -191,13 +191,128 @@ export const eventHandlers = Effect.Do.pipe(
       ),
     ),
   ),
+  Effect.let('channelCreate', ({ gateway, rpc }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.ChannelCreate, (channel) =>
+      Option.match(decodeSyncableChannel(channel), {
+        onNone: () => Effect.logDebug('Skipping non-syncable channel event'),
+        onSome: (decoded) =>
+          Effect.Do.pipe(
+            Effect.tap(() =>
+              Metric.update(
+                pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_create')),
+                1,
+              ),
+            ),
+            Effect.tap(() =>
+              Effect.logInfo(
+                `Channel created: ${decoded.name} (${decoded.id}) in guild ${channel.guild_id}`,
+              ),
+            ),
+            Effect.tap(() =>
+              rpc['Guild/UpsertChannel']({
+                guild_id: decodeSnowflake(channel.guild_id),
+                channel_id: decoded.id,
+                name: decoded.name,
+                type: decoded.type,
+                parent_id: decoded.parent_id,
+              }),
+            ),
+            Effect.catchTag('RpcClientError', (error) =>
+              Effect.logError(`Failed to upsert channel ${decoded.id}`, error),
+            ),
+            Effect.withSpan('discord/channel_create', {
+              attributes: { 'guild.id': channel.guild_id },
+            }),
+          ),
+      }),
+    ),
+  ),
+  Effect.let('channelDelete', ({ gateway, rpc }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.ChannelDelete, (channel) =>
+      Option.match(decodeSyncableChannel(channel), {
+        onNone: () => Effect.logDebug('Skipping non-syncable channel event'),
+        onSome: (decoded) =>
+          Effect.Do.pipe(
+            Effect.tap(() =>
+              Metric.update(
+                pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_delete')),
+                1,
+              ),
+            ),
+            Effect.tap(() =>
+              Effect.logInfo(`Channel deleted: ${decoded.id} in guild ${channel.guild_id}`),
+            ),
+            Effect.tap(() =>
+              rpc['Guild/DeleteChannel']({
+                guild_id: decodeSnowflake(channel.guild_id),
+                channel_id: decoded.id,
+              }),
+            ),
+            Effect.catchTag('RpcClientError', (error) =>
+              Effect.logError(`Failed to delete channel ${decoded.id}`, error),
+            ),
+            Effect.withSpan('discord/channel_delete', {
+              attributes: { 'guild.id': channel.guild_id },
+            }),
+          ),
+      }),
+    ),
+  ),
+  Effect.let('channelUpdate', ({ gateway, rpc }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.ChannelUpdate, (channel) =>
+      Option.match(decodeSyncableChannel(channel), {
+        onNone: () => Effect.logDebug('Skipping non-syncable channel event'),
+        onSome: (decoded) =>
+          Effect.Do.pipe(
+            Effect.tap(() =>
+              Metric.update(
+                pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_update')),
+                1,
+              ),
+            ),
+            Effect.tap(() =>
+              Effect.logInfo(
+                `Channel updated: ${decoded.name} (${decoded.id}) in guild ${channel.guild_id}`,
+              ),
+            ),
+            Effect.tap(() =>
+              rpc['Guild/UpsertChannel']({
+                guild_id: decodeSnowflake(channel.guild_id),
+                channel_id: decoded.id,
+                name: decoded.name,
+                type: decoded.type,
+                parent_id: decoded.parent_id,
+              }),
+            ),
+            Effect.catchTag('RpcClientError', (error) =>
+              Effect.logError(`Failed to upsert channel ${decoded.id}`, error),
+            ),
+            Effect.withSpan('discord/channel_update', {
+              attributes: { 'guild.id': channel.guild_id },
+            }),
+          ),
+      }),
+    ),
+  ),
   Effect.map(
-    ({ guildCreate, guildDelete, guildMemberAdd, guildMemberRemove, guildMemberUpdate }) => [
+    ({
       guildCreate,
       guildDelete,
       guildMemberAdd,
       guildMemberRemove,
       guildMemberUpdate,
+      channelCreate,
+      channelDelete,
+      channelUpdate,
+    }) => [
+      guildCreate,
+      guildDelete,
+      guildMemberAdd,
+      guildMemberRemove,
+      guildMemberUpdate,
+      channelCreate,
+      channelDelete,
+      channelUpdate,
     ],
   ),
 );
