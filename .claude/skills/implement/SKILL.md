@@ -17,14 +17,14 @@ Invoke each specialist agent directly via the Agent tool from the main thread �
 
 Whenever this skill needs user input (plan approval, confirmation, feedback):
 
-1. **Render the plan visually** using the `/canvas-design` skill. Pass the full plan content (architecture, design spec, task breakdown) to canvas-design so it produces a polished visual document (PNG/PDF) that the user can review at a glance.
+1. **Render the plan visually** using the `/canvas` skill. Pass the full plan content (architecture, design spec, task breakdown) to canvas so it produces a polished visual document (PNG/PDF) that the user can review at a glance.
 2. **Provide the file link** to the plan file (e.g., the plan markdown file path) so the user can review in their editor if they prefer
 3. **Ask the user** to choose one of:
    - **Accept** — proceed as-is
    - **Suggest changes** — provide feedback for revision
    - **Decline** — stop the skill
 
-Use this pattern for ALL plan presentations — always render via `/canvas-design` before asking for feedback.
+Use this pattern for ALL plan presentations — always render via `/canvas` before asking for feedback.
 
 ---
 
@@ -54,7 +54,7 @@ Run the architect and designer **in parallel** (launch both Agent calls in one m
 
 4. If the hater finds **blockers**, send the critique back to the `/architect` and/or `/designer` agent for revision. Repeat architect/designer -> hater until no blockers remain.
 
-5. Present the final plan and design to the user for approval using the **chat pattern** described above. Use the `/canvas-design` skill to render the architect's plan and the designer's design spec as a polished visual document. Provide a link to the plan file, and ask the user to **Accept**, **Suggest changes**, or **Decline**. If the user provides feedback, send it back to the relevant agent(s) for revision, re-render the updated plan via `/canvas-design`, and repeat.
+5. Present the final plan and design to the user for approval using the **chat pattern** described above. Use the `/canvas` skill to render the architect's plan and the designer's design spec as a polished visual document. Provide a link to the plan file, and ask the user to **Accept**, **Suggest changes**, or **Decline**. If the user provides feedback, send it back to the relevant agent(s) for revision, re-render the updated plan via `/canvas`, and repeat.
 
 ---
 
