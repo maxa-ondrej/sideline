@@ -9,6 +9,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { ColorDot } from '~/components/atoms/ColorDot.js';
 import { ColorPicker } from '~/components/atoms/ColorPicker.js';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Button } from '~/components/ui/button';
 import {
   Form,
@@ -19,13 +20,6 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
@@ -253,22 +247,23 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
             <label htmlFor='parent-group-select' className='text-sm font-medium mb-1'>
               {m.group_parentGroup()}
             </label>
-            <Select value={selectedParentId} onValueChange={setSelectedParentId}>
-              <SelectTrigger id='parent-group-select' className='w-full sm:w-48'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='__root__'>{m.group_rootGroup()}</SelectItem>
-                {groups.map((g) => (
-                  <SelectItem key={g.groupId} value={g.groupId}>
-                    {g.emoji.pipe(
-                      Option.map((v) => `${v} ${g.name}`),
-                      Option.getOrElse(() => g.name),
-                    )}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              id='parent-group-select'
+              className='w-full sm:w-48'
+              value={selectedParentId}
+              onValueChange={setSelectedParentId}
+              pinnedValues={['__root__']}
+              options={[
+                { value: '__root__', label: m.group_rootGroup() },
+                ...groups.map((g) => ({
+                  value: g.groupId,
+                  label: g.emoji.pipe(
+                    Option.map((v) => `${v} ${g.name}`),
+                    Option.getOrElse(() => g.name),
+                  ),
+                })),
+              ]}
+            />
           </div>
           <Button type='submit' disabled={form.formState.isSubmitting}>
             {m.group_createGroup()}

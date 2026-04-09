@@ -7,6 +7,7 @@ import { DateTime, Effect, Option, Schema } from 'effect';
 import { CalendarDays, List } from 'lucide-react';
 import React from 'react';
 import { useForm } from 'react-hook-form';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { EventCalendarView } from '~/components/organisms/EventCalendarView';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
@@ -35,6 +36,14 @@ import {
   localToUtc,
 } from '~/lib/datetime';
 import { DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
+import {
+  DAY_ORDER,
+  dayFullLabels,
+  dayShortLabels,
+  eventTypeLabels,
+  sortDays,
+} from '~/lib/event-labels';
+import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const NONE_VALUE = '__none__';
@@ -75,40 +84,6 @@ const CreateSeriesSchema = Schema.Struct({
 });
 
 type CreateSeriesValues = Schema.Schema.Type<typeof CreateSeriesSchema>;
-
-const eventTypeLabels: Record<Event.EventType, () => string> = {
-  training: m.event_type_training,
-  match: m.event_type_match,
-  tournament: m.event_type_tournament,
-  meeting: m.event_type_meeting,
-  social: m.event_type_social,
-  other: m.event_type_other,
-};
-
-const dayShortLabels: Record<number, () => string> = {
-  0: m.event_day_short_0,
-  1: m.event_day_short_1,
-  2: m.event_day_short_2,
-  3: m.event_day_short_3,
-  4: m.event_day_short_4,
-  5: m.event_day_short_5,
-  6: m.event_day_short_6,
-};
-
-const dayFullLabels: Record<number, () => string> = {
-  0: m.event_day_0,
-  1: m.event_day_1,
-  2: m.event_day_2,
-  3: m.event_day_3,
-  4: m.event_day_4,
-  5: m.event_day_5,
-  6: m.event_day_6,
-};
-
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
-
-const sortDays = (days: number[]): number[] =>
-  [...days].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
 
 interface EventsListPageProps {
   teamId: string;
@@ -371,23 +346,21 @@ export function EventsListPage({
                             render={({ field }) => (
                               <FormItem className='flex-1'>
                                 <FormLabel>{m.event_trainingType()}</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={m.event_noTrainingType()} />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value={NONE_VALUE}>
-                                      {m.event_noTrainingType()}
-                                    </SelectItem>
-                                    {trainingTypes.map((tt) => (
-                                      <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
-                                        {tt.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <SearchableSelect
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                    placeholder={m.event_noTrainingType()}
+                                    options={[
+                                      { value: NONE_VALUE, label: m.event_noTrainingType() },
+                                      ...trainingTypes.map((tt) => ({
+                                        value: tt.trainingTypeId,
+                                        label: tt.name,
+                                      })),
+                                    ]}
+                                    pinnedValues={[NONE_VALUE]}
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -487,23 +460,20 @@ export function EventsListPage({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{m.event_discordChannel()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={m.event_useDefault()} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                {discordChannels
-                                  .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                                  .map((ch) => (
-                                    <SelectItem key={ch.id} value={ch.id}>
-                                      # {ch.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <SearchableSelect
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                placeholder={m.event_useDefault()}
+                                options={[
+                                  { value: NONE_VALUE, label: m.event_useDefault() },
+                                  ...discordChannels
+                                    .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                                    .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
+                                ]}
+                                pinnedValues={[NONE_VALUE]}
+                              />
+                            </FormControl>
                             <p className='text-xs text-muted-foreground'>
                               {m.event_discordChannelHelp()}
                             </p>
@@ -517,21 +487,18 @@ export function EventsListPage({
                           render={({ field }) => (
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_ownerGroup()}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={m.event_useDefault()} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                  {groups.map((g) => (
-                                    <SelectItem key={g.groupId} value={g.groupId}>
-                                      {g.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <SearchableSelect
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                  placeholder={m.event_useDefault()}
+                                  options={[
+                                    { value: NONE_VALUE, label: m.event_useDefault() },
+                                    ...toGroupOptions(groups),
+                                  ]}
+                                  pinnedValues={[NONE_VALUE]}
+                                />
+                              </FormControl>
                               <p className='text-xs text-muted-foreground'>
                                 {m.event_ownerGroupHelp()}
                               </p>
@@ -544,21 +511,18 @@ export function EventsListPage({
                           render={({ field }) => (
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_memberGroup()}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={m.event_useDefault()} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                  {groups.map((g) => (
-                                    <SelectItem key={g.groupId} value={g.groupId}>
-                                      {g.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <SearchableSelect
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                  placeholder={m.event_useDefault()}
+                                  options={[
+                                    { value: NONE_VALUE, label: m.event_useDefault() },
+                                    ...toGroupOptions(groups),
+                                  ]}
+                                  pinnedValues={[NONE_VALUE]}
+                                />
+                              </FormControl>
                               <p className='text-xs text-muted-foreground'>
                                 {m.event_memberGroupHelp()}
                               </p>
@@ -600,23 +564,21 @@ export function EventsListPage({
                           render={({ field }) => (
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_trainingType()}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={m.event_noTrainingType()} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value={NONE_VALUE}>
-                                    {m.event_noTrainingType()}
-                                  </SelectItem>
-                                  {trainingTypes.map((tt) => (
-                                    <SelectItem key={tt.trainingTypeId} value={tt.trainingTypeId}>
-                                      {tt.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <SearchableSelect
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                  placeholder={m.event_noTrainingType()}
+                                  options={[
+                                    { value: NONE_VALUE, label: m.event_noTrainingType() },
+                                    ...trainingTypes.map((tt) => ({
+                                      value: tt.trainingTypeId,
+                                      label: tt.name,
+                                    })),
+                                  ]}
+                                  pinnedValues={[NONE_VALUE]}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -780,23 +742,20 @@ export function EventsListPage({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{m.event_discordChannel()}</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder={m.event_useDefault()} />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                {discordChannels
-                                  .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                                  .map((ch) => (
-                                    <SelectItem key={ch.id} value={ch.id}>
-                                      # {ch.name}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <SearchableSelect
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                placeholder={m.event_useDefault()}
+                                options={[
+                                  { value: NONE_VALUE, label: m.event_useDefault() },
+                                  ...discordChannels
+                                    .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                                    .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
+                                ]}
+                                pinnedValues={[NONE_VALUE]}
+                              />
+                            </FormControl>
                             <p className='text-xs text-muted-foreground'>
                               {m.event_discordChannelHelp()}
                             </p>
@@ -810,21 +769,18 @@ export function EventsListPage({
                           render={({ field }) => (
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_ownerGroup()}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={m.event_useDefault()} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                  {groups.map((g) => (
-                                    <SelectItem key={g.groupId} value={g.groupId}>
-                                      {g.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <SearchableSelect
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                  placeholder={m.event_useDefault()}
+                                  options={[
+                                    { value: NONE_VALUE, label: m.event_useDefault() },
+                                    ...toGroupOptions(groups),
+                                  ]}
+                                  pinnedValues={[NONE_VALUE]}
+                                />
+                              </FormControl>
                               <p className='text-xs text-muted-foreground'>
                                 {m.event_ownerGroupHelp()}
                               </p>
@@ -837,21 +793,18 @@ export function EventsListPage({
                           render={({ field }) => (
                             <FormItem className='flex-1'>
                               <FormLabel>{m.event_memberGroup()}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={m.event_useDefault()} />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value={NONE_VALUE}>{m.event_useDefault()}</SelectItem>
-                                  {groups.map((g) => (
-                                    <SelectItem key={g.groupId} value={g.groupId}>
-                                      {g.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <SearchableSelect
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                  placeholder={m.event_useDefault()}
+                                  options={[
+                                    { value: NONE_VALUE, label: m.event_useDefault() },
+                                    ...toGroupOptions(groups),
+                                  ]}
+                                  pinnedValues={[NONE_VALUE]}
+                                />
+                              </FormControl>
                               <p className='text-xs text-muted-foreground'>
                                 {m.event_memberGroupHelp()}
                               </p>

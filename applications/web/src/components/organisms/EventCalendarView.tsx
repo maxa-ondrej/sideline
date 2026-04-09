@@ -1,4 +1,4 @@
-import type { Event, EventApi, TrainingTypeApi } from '@sideline/domain';
+import type { EventApi, TrainingTypeApi } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { getLocale } from '@sideline/i18n/runtime';
 import { Link } from '@tanstack/react-router';
@@ -6,14 +6,8 @@ import { format } from 'date-fns';
 import { Option } from 'effect';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React from 'react';
+import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { Button } from '~/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '~/components/ui/select';
 import { useDateFnsLocale } from '~/hooks/useDateFnsLocale';
 import {
   buildMonthGrid,
@@ -29,18 +23,10 @@ import {
   getEventColor,
   type TrainingTypeColorMap,
 } from '~/lib/event-colors';
+import { eventTypeLabels } from '~/lib/event-labels';
 import { cn } from '~/lib/utils';
 
 const FILTER_ALL = '__all__';
-
-const eventTypeLabels: Record<Event.EventType, () => string> = {
-  training: m.event_type_training,
-  match: m.event_type_match,
-  tournament: m.event_type_tournament,
-  meeting: m.event_type_meeting,
-  social: m.event_type_social,
-  other: m.event_type_other,
-};
 
 interface EventCalendarViewProps {
   teamId: string;
@@ -131,19 +117,16 @@ export function EventCalendarView({ teamId, events, trainingTypes }: EventCalend
         <h2 className='text-lg font-semibold min-w-[180px]'>{title}</h2>
 
         <div className='ml-auto flex items-center gap-2'>
-          <Select value={filterTrainingType} onValueChange={setFilterTrainingType}>
-            <SelectTrigger className='w-[160px]'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={FILTER_ALL}>{m.event_calendarFilterAll()}</SelectItem>
-              {trainingTypes.map((tt) => (
-                <SelectItem key={tt.trainingTypeId} value={tt.name}>
-                  {tt.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={filterTrainingType}
+            onValueChange={setFilterTrainingType}
+            className='w-[160px]'
+            options={[
+              { value: FILTER_ALL, label: m.event_calendarFilterAll() },
+              ...trainingTypes.map((tt) => ({ value: tt.name, label: tt.name })),
+            ]}
+            pinnedValues={[FILTER_ALL]}
+          />
 
           <div className='flex rounded-md border'>
             <Button
