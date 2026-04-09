@@ -7,9 +7,8 @@ import { expect, unauthenticatedTest as test } from '../fixtures/api-mocks.js';
  * controls via the `locale` option) and auto-selects the locale on first visit.
  * The result is persisted to localStorage under the key `PARAGLIDE_LOCALE`.
  *
- * These tests are written in TDD mode and are expected to FAIL until the
- * `preferredLanguage` strategy is added to the Paraglide compile command in
- * `packages/i18n/package.json`.
+ * The `preferredLanguage` strategy is configured in the Paraglide compile
+ * command in `packages/i18n/package.json`.
  */
 
 // Reliable text that differs between EN and CS on the unauthenticated homepage.
