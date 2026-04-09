@@ -94,7 +94,7 @@ export const buildEventEmbed = (opts: {
     ),
   });
 
-  if (opts.yesAttendees.length > 0) {
+  if (!opts.isStarted && opts.yesAttendees.length > 0) {
     const names = pipe(
       opts.yesAttendees,
       Array.filterMap((a) => Option.map(a.discord_id, (id) => `<@${id}>`)),
