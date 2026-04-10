@@ -34,9 +34,10 @@ src/
     ├── handleStarted.ts       — event_started handler (updates embed, removes RSVP buttons)
     └── handleRsvpReminder.ts  — rsvp_reminder handler
 └── rest/events/     — Embed builder functions
-    ├── buildEventEmbed.ts         — Main event embed (RSVP counts, "Going" field)
-    ├── buildAttendeesEmbed.ts     — Paginated attendee list embed
-    └── buildUpcomingEventEmbed.ts — Per-user upcoming events embed (/event list, overview button)
+    ├── buildEventEmbed.ts              — Main event embed (RSVP counts, "Going" field)
+    ├── buildAttendeesEmbed.ts          — Paginated attendee list embed
+    ├── buildUpcomingEventEmbed.ts      — Per-user upcoming events embed (/event list, overview button)
+    └── sendUpcomingEventFollowups.ts   — Shared helper: sends one ephemeral follow-up message per event (max 10)
 ```
 
 Follows the **AppLive + run.ts** pattern.
@@ -246,15 +247,12 @@ Two pagination models are used:
 5. The slash command handler sends an initial ephemeral "thinking" response, forks a background fiber, then updates the message
 6. The page button interaction handler responds with `DEFERRED_UPDATE_MESSAGE` and edits in place
 
-#### Single-event pages (upcoming events)
+#### Single-event ephemeral messages (upcoming events)
 
-Used by `/event list` and the overview show button (`overview-show`). Each page shows one event with the invoking user's RSVP status.
+Used by `/event list` and the overview show button (`overview-show`). Instead of pagination, the bot sends one ephemeral follow-up message per upcoming event (max 10). Each message shows one event with the invoking user's RSVP status.
 
-1. `buildUpcomingEventPage` in `src/rest/events/buildUpcomingEventEmbed.ts` accepts `{ entry, currentIndex, total, locale }`
-2. Returns `{ embeds, components }` with **two** action rows:
-   - **Row 1 — RSVP buttons** (Yes / No / Maybe): `custom_id` = `upcoming-rsvp:{event_id}:{team_id}:{response}:{currentIndex}`. The button matching the user's current response uses a highlighted style (Success/Danger/Primary); others use Secondary
-   - **Row 2 — Navigation buttons** (Previous / Next): `custom_id` = `upcoming-page:{offset}`. Previous is disabled when `currentIndex === 0`; Next is disabled when `currentIndex >= total - 1`
-3. The slash command handler sends an ephemeral "thinking" response, forks a background fiber calling `Event/GetUpcomingEventsForUser` with `limit=1`, then updates the message
-4. `UpcomingPageButton` (`src/interactions/event-list.ts`) handles page navigation — responds with `DEFERRED_UPDATE_MESSAGE` and edits in place
-5. `UpcomingRsvpButton` (`src/interactions/upcoming-rsvp.ts`) handles inline RSVP — submits the RSVP via `Event/SubmitRsvp`, triggers embed updates via `postRsvpDiscordUpdates`, then re-fetches the current page to reflect the new RSVP state
-6. `OverviewShowButton` (`src/interactions/overview-channel.ts`) handles the `overview-show` button — calls `Event/GetUpcomingEventsForUser` and returns an ephemeral upcoming events embed
+1. `buildUpcomingEventPage` in `src/rest/events/buildUpcomingEventEmbed.ts` accepts `{ entry, locale }` and returns `{ embeds, components }` with a single action row:
+   - **Row 1 — RSVP buttons** (Yes / No / Maybe): `custom_id` = `upcoming-rsvp:{event_id}:{team_id}:{response}`. The button matching the user's current response uses a highlighted style (Success/Danger/Primary); others use Secondary
+2. `sendUpcomingEventFollowups` in `src/rest/events/sendUpcomingEventFollowups.ts` is the shared helper used by both `/event list` and `OverviewShowButton`. It calls `Event/GetUpcomingEventsForUser` (fetching up to 10 events), then sends one ephemeral follow-up message per event via `rest.createFollowupMessage`
+3. `UpcomingRsvpButton` (`src/interactions/upcoming-rsvp.ts`) handles inline RSVP — submits the RSVP via `Event/SubmitRsvp`, triggers embed updates via `postRsvpDiscordUpdates`, then edits the current ephemeral message to reflect the new RSVP state
+4. `OverviewShowButton` (`src/interactions/overview-channel.ts`) handles the `overview-show` button — delegates to `sendUpcomingEventFollowups`

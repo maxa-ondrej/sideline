@@ -103,17 +103,18 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 1. User with Manage Server permission invokes `/event overview`.
 2. The handler (`applications/bot/src/commands/event/overview.ts`) immediately returns an ephemeral acknowledgement.
 3. A background fiber posts a persistent public message containing a "Show My Events" button in the current channel.
-4. When a member clicks the button, the `OverviewShowButton` handler (`applications/bot/src/interactions/overview-channel.ts`) calls `Event/GetUpcomingEventsForUser` RPC and returns an ephemeral one-event-per-page embed with RSVP buttons.
+4. When a member clicks the button, the `OverviewShowButton` handler (`applications/bot/src/interactions/overview-channel.ts`) delegates to `sendUpcomingEventFollowups`, which calls `Event/GetUpcomingEventsForUser` RPC and sends one ephemeral message per upcoming event (up to 10), each with RSVP buttons.
 
 **Source files:**
 - `applications/bot/src/commands/event/overview.ts`
 - `applications/bot/src/interactions/overview-channel.ts` (`OverviewShowButton`)
+- `applications/bot/src/rest/events/sendUpcomingEventFollowups.ts`
 
 ---
 
 ### /event list
 
-**Description:** Show the invoking user's upcoming events with per-user RSVP visibility (one event per page).
+**Description:** Show the invoking user's upcoming events with per-user RSVP visibility (one ephemeral message per event).
 
 **Czech sub-command name:** `seznam`
 
@@ -122,11 +123,10 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 **Flow:**
 
 1. User invokes `/event list`.
-2. The handler (`applications/bot/src/commands/event/list.ts`) immediately returns an ephemeral "thinking" response and forks a background fiber.
-3. The background fiber calls `Event/GetUpcomingEventsForUser` RPC with `discord_user_id` (resolved via `interactionUserId` helper), `offset=0`, and `limit=1`.
-4. The response is rendered into a per-user embed showing: event title, description, Discord dynamic timestamps, optional location, RSVP counts, and the invoking user's own RSVP status.
-5. Previous/Next navigation buttons allow paging through events one at a time.
-6. The ephemeral message is updated with the embed and buttons.
+2. The handler (`applications/bot/src/commands/event/list.ts`) immediately returns an ephemeral acknowledgement and forks a background fiber.
+3. The background fiber delegates to `sendUpcomingEventFollowups`, which calls `Event/GetUpcomingEventsForUser` RPC with `discord_user_id` (resolved via `interactionUserId` helper) and `limit=10`.
+4. For each event in the response (up to 10), a separate ephemeral follow-up message is sent. Each message shows: event title, description, Discord dynamic timestamps, optional location, RSVP counts, and the invoking user's own RSVP status, with inline RSVP buttons.
+5. If there are no upcoming events, a single ephemeral "no events" message is sent instead.
 
 **Errors from `Event/GetUpcomingEventsForUser`:**
 
@@ -137,9 +137,9 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 
 **Source files:**
 - `applications/bot/src/commands/event/list.ts`
-- `applications/bot/src/interactions/event-list.ts`
 - `applications/bot/src/interactions/upcoming-rsvp.ts`
 - `applications/bot/src/rest/events/buildUpcomingEventEmbed.ts`
+- `applications/bot/src/rest/events/sendUpcomingEventFollowups.ts`
 
 ---
 
@@ -358,36 +358,18 @@ Updates an existing attendees embed when the user pages through the list.
 
 ---
 
-### Upcoming Events Page Button — `upcoming-page:{offset}`
+### Upcoming RSVP Button — `upcoming-rsvp:{eventId}:{teamId}:{response}`
 
-Navigates the per-user upcoming events embed created by `/event list` or the overview show button.
+Appears on each per-user upcoming event message (produced by `/event list` and the overview show button). Clicking saves the RSVP immediately and refreshes that message to show the updated response and counts.
 
-**Custom ID pattern:** `upcoming-page:{offset}`
-
-**Behavior:**
-
-1. Parses `offset` from the custom ID.
-2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
-3. The background fiber calls `Event/GetUpcomingEventsForUser` RPC with the new offset and `limit=1`.
-4. Rebuilds the embed and updates the existing message.
-
-**Source file:** `applications/bot/src/interactions/event-list.ts` (`UpcomingPageButton`)
-
----
-
-### Upcoming RSVP Button — `upcoming-rsvp:{eventId}:{teamId}:{response}:{offset}`
-
-Appears on the per-user upcoming events embed (produced by `/event list` and the overview show button). Clicking saves the RSVP immediately and refreshes the embed to show the updated response and counts, keeping the user on the same page.
-
-**Custom ID pattern:** `upcoming-rsvp:{eventId}:{teamId}:{response}:{offset}` where `response` is one of `yes`, `no`, `maybe` and `offset` is the current page index.
+**Custom ID pattern:** `upcoming-rsvp:{eventId}:{teamId}:{response}` where `response` is one of `yes`, `no`, `maybe`.
 
 **Behavior:**
 
-1. Parses `eventId`, `teamId`, `response`, and `offset` from the custom ID.
+1. Parses `eventId`, `teamId`, and `response` from the custom ID.
 2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
 3. The background fiber calls `Event/SubmitRsvp` RPC (same as the standard RSVP button), then runs `postRsvpDiscordUpdates` to rebuild the public event embed.
-4. After the RSVP is recorded, calls `Event/GetUpcomingEventsForUser` with the same `offset` and `limit=1`. If the event at that offset is no longer the same event (e.g., it has passed), falls back to `offset=0`.
-5. Rebuilds the per-user upcoming embed and updates the existing message in place.
+4. After the RSVP is recorded, re-fetches the event's embed info and rebuilds the per-user upcoming embed, updating the current ephemeral message in place.
 
 **Errors:** same as RSVP Button, plus `GuildNotFound` (shows "not a member" message).
 
