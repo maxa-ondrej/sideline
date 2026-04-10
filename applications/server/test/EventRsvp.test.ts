@@ -1513,6 +1513,7 @@ const RpcTestLayer = EventsRpcLive.pipe(
   Layer.provide(MockRpcTeamsRepositoryLayer),
   Layer.provide(MockRpcTrainingTypesRepositoryLayer),
   Layer.provide(MockRpcChannelEventDividersRepositoryLayer),
+  Layer.provide(MockDiscordChannelMappingRepositoryLayer),
   Layer.provide(MockSqlClientLayer),
 );
 

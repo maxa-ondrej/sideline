@@ -367,7 +367,7 @@ sequenceDiagram
                 DB-->>EventsRepo: event row {id, ...}
                 EventsRepo-->>Cron: event
 
-                Note over Cron: resolveChannel — priority order:<br/>1. event.discord_target_channel_id<br/>2. training_type.discord_channel_id<br/>3. team_settings.discord_channel_{event_type}
+                Note over Cron: resolveChannel — priority order:<br/>1. event.discord_target_channel_id<br/>2. training_type.discord_channel_id<br/>3. team_settings.discord_channel_{event_type}<br/>4. owner_group discord_channel_mapping.discord_channel_id
                 Cron->>DB: resolve target Discord channel for event
                 DB-->>Cron: Option<discord_channel_id>
 
