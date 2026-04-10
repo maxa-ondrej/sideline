@@ -3056,6 +3056,7 @@ Manages event embeds, RSVPs, and event sync outbox processing.
 | `Event/GetRsvpAttendees` | `event_id`, `offset`, `limit` → `RsvpAttendeesResult` | Returns paginated RSVP attendee list |
 | `Event/GetRsvpReminderSummary` | `event_id` → `RsvpReminderSummary` | Returns RSVP reminder data including non-responders and yes-attendee list |
 | `Event/GetUpcomingGuildEvents` | `guild_id`, `offset`, `limit` → `GuildEventListResult` | Lists upcoming events for a guild |
+| `Event/GetPendingRsvps` | `guild_id`, `discord_user_id`, `offset`, `limit` → `PendingRsvpListResult` | Lists events awaiting the user's RSVP (used by `/event pending`) |
 | `Event/GetTrainingTypesByGuild` | `guild_id` → `TrainingTypeChoice[]` | Lists training types for a guild (for autocomplete) |
 | `Event/CreateEvent` | `guild_id`, `discord_user_id`, `event_type`, `title`, `start_at`, ... → `CreateEventResult` | Creates an event from the bot slash command |
 

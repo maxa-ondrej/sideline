@@ -97,8 +97,14 @@ export const buildEventEmbed = (opts: {
   if (!opts.isStarted && opts.yesAttendees.length > 0) {
     const names = pipe(
       opts.yesAttendees,
-      Array.filterMap((a) => Option.map(a.discord_id, (id) => `<@${id}>`)),
-      Array.join(''),
+      Array.map((a) => {
+        const boldName = Option.map(a.name, (n) => `**${n}**`);
+        return Option.getOrElse(
+          Option.orElse(boldName, () => Option.map(a.discord_id, (id) => `<@${id}>`)),
+          () => '?',
+        );
+      }),
+      Array.join(', '),
     );
     const extra =
       opts.counts.yesCount > opts.yesAttendees.length

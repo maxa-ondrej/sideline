@@ -10,7 +10,7 @@ import {
   type TrainingType,
   User,
 } from '@sideline/domain';
-import { Bind, LogicError, Options } from '@sideline/effect-lib';
+import { Bind, LogicError, Options, Schemas } from '@sideline/effect-lib';
 import { Array, Data, DateTime, Effect, flow, Metric, Option, pipe, Schema } from 'effect';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
@@ -619,6 +619,181 @@ const rpcHandlers = Effect.Do.pipe(
                 ),
                 total,
                 team_id: teamId,
+              }),
+          ),
+        ),
+  ),
+  Effect.let(
+    'Event/GetPendingRsvps',
+    ({ deps: { sql } }) =>
+      ({
+        guild_id,
+        discord_user_id,
+        offset,
+        limit,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly discord_user_id: Discord.Snowflake;
+        readonly offset: number;
+        readonly limit: number;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('teamId', () =>
+            SqlSchema.findOne({
+              Request: Schema.String,
+              Result: TeamLookupResult,
+              execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
+            })(guild_id).pipe(
+              Effect.mapError(() => new EventRpcModels.GuildNotFound()),
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
+                  onSome: (r) => Effect.succeed(r.id),
+                }),
+              ),
+            ),
+          ),
+          Effect.bind('member', ({ teamId }) =>
+            SqlSchema.findOne({
+              Request: Schema.Struct({ discord_user_id: Schema.String, team_id: Schema.String }),
+              Result: Schema.Struct({
+                id: TeamMember.TeamMemberId,
+                group_id: Schema.OptionFromNullOr(Schema.String),
+              }),
+              execute: (input) => sql`
+                SELECT tm.id, tm.group_id FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
+                  AND tm.active = true
+              `,
+            })({ discord_user_id, team_id: teamId }).pipe(
+              Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
+                  onSome: (r) => Effect.succeed(r),
+                }),
+              ),
+            ),
+          ),
+          Effect.bind('rows', ({ teamId, member }) =>
+            SqlSchema.findAll({
+              Request: Schema.Struct({
+                team_id: Schema.String,
+                team_member_id: Schema.String,
+                member_group_id: Schema.OptionFromNullOr(Schema.String),
+                offset: Schema.Number,
+                limit: Schema.Number,
+              }),
+              Result: Schema.Struct({
+                event_id: Schema.String,
+                team_id: Schema.String,
+                title: Schema.String,
+                start_at: Schemas.DateTimeFromDate,
+                end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+                location: Schema.OptionFromNullOr(Schema.String),
+                event_type: Schema.String,
+              }),
+              execute: (input) => sql`
+                SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.end_at,
+                       e.location, e.event_type
+                FROM events e
+                WHERE e.team_id = ${input.team_id}
+                  AND e.status = 'active'
+                  AND e.start_at >= now()
+                  AND (
+                    e.member_group_id IS NULL
+                    OR ${input.member_group_id}::uuid IS NOT NULL AND ${input.member_group_id}::uuid IN (
+                      WITH RECURSIVE descendant_groups AS (
+                        SELECT id FROM groups WHERE id = e.member_group_id
+                        UNION ALL
+                        SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
+                      )
+                      SELECT id FROM descendant_groups
+                    )
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM event_rsvps er
+                    WHERE er.event_id = e.id AND er.team_member_id = ${input.team_member_id}
+                  )
+                ORDER BY e.start_at ASC
+                LIMIT ${input.limit} OFFSET ${input.offset}
+              `,
+            })({
+              team_id: teamId,
+              team_member_id: member.id,
+              member_group_id: member.group_id,
+              offset,
+              limit,
+            }).pipe(
+              Effect.catchTag(
+                'SqlError',
+                'ParseError',
+                LogicError.withMessage((e) => `Failed querying pending RSVPs: ${e.message}`),
+              ),
+            ),
+          ),
+          Effect.bind('total', ({ teamId, member }) =>
+            SqlSchema.findOne({
+              Request: Schema.Struct({
+                team_id: Schema.String,
+                team_member_id: Schema.String,
+                member_group_id: Schema.OptionFromNullOr(Schema.String),
+              }),
+              Result: Schema.Struct({ count: Schema.Number }),
+              execute: (input) => sql`
+                SELECT COUNT(*)::int AS count
+                FROM events e
+                WHERE e.team_id = ${input.team_id}
+                  AND e.status = 'active'
+                  AND e.start_at >= now()
+                  AND (
+                    e.member_group_id IS NULL
+                    OR ${input.member_group_id}::uuid IS NOT NULL AND ${input.member_group_id}::uuid IN (
+                      WITH RECURSIVE descendant_groups AS (
+                        SELECT id FROM groups WHERE id = e.member_group_id
+                        UNION ALL
+                        SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
+                      )
+                      SELECT id FROM descendant_groups
+                    )
+                  )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM event_rsvps er
+                    WHERE er.event_id = e.id AND er.team_member_id = ${input.team_member_id}
+                  )
+              `,
+            })({
+              team_id: teamId,
+              team_member_id: member.id,
+              member_group_id: member.group_id,
+            }).pipe(
+              Effect.catchTag(
+                'SqlError',
+                'ParseError',
+                LogicError.withMessage((e) => `Failed counting pending RSVPs: ${e.message}`),
+              ),
+              Effect.map(Option.map((r) => r.count)),
+              Effect.map(Option.getOrElse(() => 0)),
+            ),
+          ),
+          Effect.map(
+            ({ rows, total }) =>
+              new EventRpcModels.PendingRsvpListResult({
+                events: Array.map(
+                  rows,
+                  (row) =>
+                    new EventRpcModels.PendingRsvpEntry({
+                      event_id: row.event_id,
+                      team_id: row.team_id,
+                      title: row.title,
+                      start_at: row.start_at,
+                      end_at: row.end_at,
+                      location: row.location,
+                      event_type: row.event_type,
+                    }),
+                ),
+                total,
               }),
           ),
         ),

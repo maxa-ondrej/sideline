@@ -1,0 +1,121 @@
+import { Discord as DomainDiscord, EventRpcModels } from '@sideline/domain';
+import { DateTime, Option } from 'effect';
+import { describe, expect, it } from 'vitest';
+import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+
+const makeAttendee = (
+  discord_id: Option.Option<string>,
+  name: Option.Option<string>,
+): EventRpcModels.RsvpAttendeeEntry =>
+  new EventRpcModels.RsvpAttendeeEntry({
+    discord_id: Option.map(discord_id, DomainDiscord.Snowflake.make),
+    name,
+    response: 'yes',
+    message: Option.none(),
+  });
+
+const makeCounts = (yesCount = 0, noCount = 0, maybeCount = 0, canRsvp = true) =>
+  new EventRpcModels.RsvpCountsResult({ yesCount, noCount, maybeCount, canRsvp });
+
+const START_AT = DateTime.unsafeMake('2026-06-01T18:00:00Z');
+
+const baseOpts = {
+  teamId: 'team-1',
+  eventId: 'event-1',
+  title: 'Test Event',
+  description: Option.none<string>(),
+  startAt: START_AT,
+  endAt: Option.none<DateTime.Utc>(),
+  location: Option.none<string>(),
+  eventType: 'training',
+  locale: 'en' as const,
+};
+
+describe('buildEventEmbed', () => {
+  describe('"Going" field', () => {
+    it('shows bold names when name is available', () => {
+      const attendee = makeAttendee(Option.some('123'), Option.some('Alice'));
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(1, 0, 0),
+        yesAttendees: [attendee],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toContain('**Alice**');
+    });
+
+    it('falls back to <@id> when name is None', () => {
+      const attendee = makeAttendee(Option.some('456'), Option.none());
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(1, 0, 0),
+        yesAttendees: [attendee],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toContain('<@456>');
+    });
+
+    it('uses comma-space separator between names', () => {
+      const alice = makeAttendee(Option.some('111'), Option.some('Alice'));
+      const bob = makeAttendee(Option.some('222'), Option.some('Bob'));
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(2, 0, 0),
+        yesAttendees: [alice, bob],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toBe('**Alice**, **Bob**');
+    });
+
+    it('shows "+N more" suffix when yesCount > yesAttendees.length', () => {
+      const alice = makeAttendee(Option.some('111'), Option.some('Alice'));
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(5, 0, 0),
+        yesAttendees: [alice],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toContain('+4 more');
+    });
+
+    it('renders "?" when both name and discord_id are None', () => {
+      const attendee = makeAttendee(Option.none(), Option.none());
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(1, 0, 0),
+        yesAttendees: [attendee],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toBe('?');
+    });
+
+    it('is omitted when isStarted is true', () => {
+      const alice = makeAttendee(Option.some('111'), Option.some('Alice'));
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(1, 0, 0),
+        yesAttendees: [alice],
+        isStarted: true,
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeUndefined();
+    });
+  });
+});

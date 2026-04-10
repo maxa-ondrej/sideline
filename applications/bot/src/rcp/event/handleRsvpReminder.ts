@@ -35,43 +35,35 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       }
       const locale = guildLocale({ guild_locale: guild.preferred_locale });
 
-      const nonResponderMentions = pipe(
-        summary.nonResponders,
-        Array.filterMap((nr) => Option.map(nr.discord_id, (id) => `<@${id}>`)),
-        Array.join(', '),
-      );
-
-      const nonResponderNames = pipe(
-        summary.nonResponders,
-        Array.filter((nr) => Option.isNone(nr.discord_id)),
-        Array.map((nr) =>
-          Option.getOrElse(nr.name, () => Option.getOrElse(nr.username, () => '?')),
-        ),
-        Array.join(', '),
-      );
+      const formatReminderEntry = (entry: {
+        discord_id: Option.Option<string>;
+        name: Option.Option<string>;
+        username: Option.Option<string>;
+      }): string => {
+        const boldName = Option.orElse(
+          Option.map(entry.name, (n) => `**${n}**`),
+          () => Option.map(entry.username, (u) => `**${u}**`),
+        );
+        const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
+        return Option.match(boldName, {
+          onNone: () => Option.getOrElse(mention, () => '?'),
+          onSome: (bold) =>
+            Option.match(mention, {
+              onNone: () => bold,
+              onSome: (m) => `${bold} (${m})`,
+            }),
+        });
+      };
 
       const nonResponderText = pipe(
-        [nonResponderMentions, nonResponderNames],
-        Array.filter(Boolean),
-        Array.join(', '),
-      );
-
-      const yesAttendeeMentions = pipe(
-        summary.yesAttendees,
-        Array.filterMap((a) => Option.map(a.discord_id, (id) => `<@${id}>`)),
-        Array.join(', '),
-      );
-
-      const yesAttendeeNames = pipe(
-        summary.yesAttendees,
-        Array.filter((a) => Option.isNone(a.discord_id)),
-        Array.map((a) => Option.getOrElse(a.name, () => Option.getOrElse(a.username, () => '?'))),
+        summary.nonResponders,
+        Array.map(formatReminderEntry),
         Array.join(', '),
       );
 
       const yesAttendeeText = pipe(
-        [yesAttendeeMentions, yesAttendeeNames],
-        Array.filter(Boolean),
+        summary.yesAttendees,
+        Array.map(formatReminderEntry),
         Array.join(', '),
       );
 
