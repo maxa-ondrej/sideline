@@ -579,6 +579,9 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/GetEventEmbedInfo` | Fetch event fields needed to rebuild the embed |
 | `Event/GetYesAttendeesForEmbed` | Fetch yes-attendee display names for the embed (used by `postRsvpDiscordUpdates` and event sync) |
 | `Event/GetChannelEvents` | Fetch all events in a Discord channel (for reordering) |
+| `Event/GetChannelDivider` | Look up the stored divider message ID for a Discord channel |
+| `Event/SaveChannelDivider` | Persist the divider message ID for a Discord channel (upsert) |
+| `Event/DeleteChannelDivider` | Remove the divider message record for a Discord channel |
 
 ### Activity group (`Activity/`)
 

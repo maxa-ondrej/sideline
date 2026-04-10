@@ -13,6 +13,7 @@ import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
+import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -1496,6 +1497,12 @@ const MockRpcTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepositor
   deleteTrainingTypeById: () => Effect.void,
 } as unknown as TrainingTypesRepository);
 
+const MockRpcChannelEventDividersRepositoryLayer = Layer.succeed(ChannelEventDividersRepository, {
+  findByChannelId: () => Effect.succeed(Option.none()),
+  upsert: () => Effect.void,
+  deleteByChannelId: () => Effect.void,
+} as unknown as ChannelEventDividersRepository);
+
 const RpcTestLayer = EventsRpcLive.pipe(
   Layer.provide(MockRpcEventsRepositoryLayer),
   Layer.provide(MockRpcEventRsvpsRepositoryLayer),
@@ -1505,6 +1512,7 @@ const RpcTestLayer = EventsRpcLive.pipe(
   Layer.provide(MockRpcGroupsRepositoryLayer),
   Layer.provide(MockRpcTeamsRepositoryLayer),
   Layer.provide(MockRpcTrainingTypesRepositoryLayer),
+  Layer.provide(MockRpcChannelEventDividersRepositoryLayer),
   Layer.provide(MockSqlClientLayer),
 );
 

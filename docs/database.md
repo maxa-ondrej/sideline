@@ -630,6 +630,19 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 
 ---
 
+#### `channel_event_dividers`
+
+Stores the Discord message ID of the "divider" message posted in an event channel to visually separate past events from upcoming ones. One row per Discord channel.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `discord_channel_id` | TEXT | PK | — |
+| `discord_message_id` | TEXT | NOT NULL | — |
+
+**Notes**: Uses an upsert (`ON CONFLICT (discord_channel_id) DO UPDATE`) so there is always at most one divider message tracked per channel. Created in migration `1744100000`.
+
+---
+
 ### 8. Activity Tracking
 
 #### `activity_types`
@@ -741,7 +754,7 @@ In-app alert records scoped to a specific team and user.
 
 ## Migration History
 
-All 40 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 41 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -793,6 +806,7 @@ All 40 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743800000 | `add_color_and_roster_emoji` | Adds `color TEXT` to groups; adds `color TEXT` and `emoji TEXT` to rosters; adds `discord_role_color INTEGER` to channel_sync_events; extends channel_sync_events event_type check to include `'channel_updated'` |
 | 1743900000 | `add_late_rsvp_channel` | Adds `discord_channel_late_rsvp TEXT` to team_settings |
 | 1744000000 | `add_event_started_status` | Extends events `status` CHECK to include `'started'`; extends event_sync_events `event_type` CHECK to include `'event_started'` |
+| 1744100000 | `create_channel_event_dividers` | Creates `channel_event_dividers` table with `discord_channel_id TEXT PK` and `discord_message_id TEXT NOT NULL` |
 
 ### After Migrations (seed data)
 

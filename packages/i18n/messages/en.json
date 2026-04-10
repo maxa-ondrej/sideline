@@ -465,6 +465,7 @@
   "bot_attendees_footer": "Page {page} of {totalPages} · {total} total responses",
   "bot_event_cancelled": "This event has been **CANCELLED**.",
   "bot_event_started": "This event has started.",
+  "bot_event_divider_past": "⬆️ Events above are already over",
   "bot_attendees_load_error": "Failed to load attendees.",
   "bot_thinking": "Thinking...",
   "teamSettings_minPlayersThreshold": "Minimum players threshold",

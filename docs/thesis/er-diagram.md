@@ -404,7 +404,7 @@ erDiagram
 
 ### Discord Integration
 
-This domain bridges the application to a Discord bot. `bot_guilds` tracks which Discord servers the bot has joined. `discord_channels` caches the channel list for each guild. `discord_role_mappings` and `discord_channel_mappings` link application roles and groups to their Discord counterparts. The three sync-event tables (`role_sync_events`, `channel_sync_events`, `event_sync_events`) are outbox tables consumed by the bot worker to propagate state changes to Discord.
+This domain bridges the application to a Discord bot. `bot_guilds` tracks which Discord servers the bot has joined. `discord_channels` caches the channel list for each guild. `discord_role_mappings` and `discord_channel_mappings` link application roles and groups to their Discord counterparts. The three sync-event tables (`role_sync_events`, `channel_sync_events`, `event_sync_events`) are outbox tables consumed by the bot worker to propagate state changes to Discord. `channel_event_dividers` tracks the single divider message posted in each event channel to visually separate past events from upcoming ones.
 
 ```mermaid
 erDiagram
@@ -421,6 +421,11 @@ erDiagram
         TEXT name
         INTEGER type
         TEXT parent_id
+    }
+
+    channel_event_dividers {
+        TEXT discord_channel_id PK
+        TEXT discord_message_id
     }
 
     discord_role_mappings {
@@ -647,6 +652,7 @@ erDiagram
 | `role_sync_events` | Outbox records driving role-assignment changes in Discord. |
 | `channel_sync_events` | Outbox records driving channel-membership changes in Discord. |
 | `event_sync_events` | Outbox records driving event announcements and updates in Discord. |
+| `channel_event_dividers` | Tracks the divider message ID posted in each event channel to separate past from upcoming events. |
 | `activity_types` | Catalogue of activity kinds; global built-ins plus optional team-specific custom types. |
 | `activity_logs` | Individual physical activity session records belonging to a team member. |
 | `rosters` | Named match-day squad lists managed per team. |

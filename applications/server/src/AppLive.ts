@@ -15,6 +15,7 @@ import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
+import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -79,6 +80,7 @@ const Repositories = Layer.mergeAll(
   DiscordChannelsRepository.Default,
   EventsRepository.Default,
   EventRsvpsRepository.Default,
+  ChannelEventDividersRepository.Default,
   ICalTokensRepository.Default,
   EventSeriesRepository.Default,
   TeamSettingsRepository.Default,
