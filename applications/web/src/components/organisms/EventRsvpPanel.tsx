@@ -1,32 +1,60 @@
 import type { EventApi, EventRsvpApi } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
-import { Option } from 'effect';
+import { type Effect, Option } from 'effect';
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Button } from '~/components/ui/button';
 import { Textarea } from '~/components/ui/textarea';
+import type { ClientConfig } from '~/lib/client';
+import { type ApiClient, type ClientError, useRun } from '~/lib/runtime';
 
 interface EventRsvpPanelProps {
   eventDetail: EventApi.EventDetail;
   rsvpDetail: EventRsvpApi.EventRsvpDetail;
   nonResponders: ReadonlyArray<EventRsvpApi.NonResponderEntry>;
-  rsvpResponse: 'yes' | 'no' | 'maybe' | null;
-  rsvpMessage: string;
-  rsvpSubmitting: boolean;
-  onResponseChange: (response: 'yes' | 'no' | 'maybe') => void;
-  onMessageChange: (message: string) => void;
-  onSubmit: () => Promise<void>;
+  onRsvpSubmit: (
+    response: 'yes' | 'no' | 'maybe',
+    message: string,
+  ) => Effect.Effect<void, ClientError, ApiClient | ClientConfig>;
 }
 
 export function EventRsvpPanel({
   eventDetail,
   rsvpDetail,
   nonResponders,
-  rsvpResponse,
-  rsvpMessage,
-  rsvpSubmitting,
-  onResponseChange,
-  onMessageChange,
-  onSubmit,
+  onRsvpSubmit,
 }: EventRsvpPanelProps) {
+  const currentResponse = Option.getOrNull(rsvpDetail.myResponse);
+  const savedMessage = Option.getOrElse(rsvpDetail.myMessage, () => '');
+
+  const [submittingResponse, setSubmittingResponse] = useState<'yes' | 'no' | 'maybe' | null>(null);
+  const [draftMessage, setDraftMessage] = useState(savedMessage);
+  const [savingMessage, setSavingMessage] = useState(false);
+
+  useEffect(() => {
+    setDraftMessage(savedMessage);
+  }, [savedMessage]);
+
+  const run = useRun();
+
+  const isBusy = submittingResponse !== null || savingMessage;
+
+  const handleResponseClick = async (response: 'yes' | 'no' | 'maybe') => {
+    if (response === currentResponse) return;
+    if (isBusy) return;
+    setSubmittingResponse(response);
+    await run({ success: m.event_rsvpSubmitted() })(onRsvpSubmit(response, savedMessage));
+    setSubmittingResponse(null);
+  };
+
+  const handleSaveNote = async () => {
+    if (!currentResponse) return;
+    if (isBusy) return;
+    setSavingMessage(true);
+    await run({ success: m.event_rsvpSubmitted() })(onRsvpSubmit(currentResponse, draftMessage));
+    setSavingMessage(false);
+  };
+
   return (
     <div>
       <h2 className='text-lg font-semibold mb-4'>{m.rsvp_title()}</h2>
@@ -34,27 +62,32 @@ export function EventRsvpPanel({
       {rsvpDetail.canRsvp ? (
         <div className='flex flex-col gap-4'>
           <div className='flex gap-2'>
-            <Button
-              variant={rsvpResponse === 'yes' ? 'default' : 'outline'}
-              onClick={() => onResponseChange('yes')}
-            >
-              {m.rsvp_yes()}
-            </Button>
-            <Button
-              variant={rsvpResponse === 'maybe' ? 'secondary' : 'outline'}
-              onClick={() => onResponseChange('maybe')}
-            >
-              {m.rsvp_maybe()}
-            </Button>
-            <Button
-              variant={rsvpResponse === 'no' ? 'destructive' : 'outline'}
-              onClick={() => onResponseChange('no')}
-            >
-              {m.rsvp_no()}
-            </Button>
+            {(['yes', 'maybe', 'no'] as const).map((response) => {
+              const activeVariant =
+                response === 'yes' ? 'default' : response === 'maybe' ? 'secondary' : 'destructive';
+              const displayedResponse = submittingResponse ?? currentResponse;
+              const isActive = displayedResponse === response;
+              const isLoadingThis = submittingResponse === response;
+              return (
+                <Button
+                  key={response}
+                  variant={isActive ? activeVariant : 'outline'}
+                  onClick={() => handleResponseClick(response)}
+                  disabled={isBusy}
+                  aria-pressed={displayedResponse === response}
+                >
+                  {isLoadingThis && <Loader2 className='animate-spin' aria-hidden='true' />}
+                  {response === 'yes'
+                    ? m.rsvp_yes()
+                    : response === 'maybe'
+                      ? m.rsvp_maybe()
+                      : m.rsvp_no()}
+                </Button>
+              );
+            })}
           </div>
 
-          {rsvpResponse && (
+          {currentResponse && (
             <>
               <div>
                 <label htmlFor='rsvp-message' className='text-sm font-medium mb-1 block'>
@@ -62,15 +95,16 @@ export function EventRsvpPanel({
                 </label>
                 <Textarea
                   id='rsvp-message'
-                  value={rsvpMessage}
-                  onChange={(e) => onMessageChange(e.target.value)}
+                  value={draftMessage}
+                  onChange={(e) => setDraftMessage(e.target.value)}
                   placeholder={m.rsvp_messagePlaceholder()}
                   rows={2}
                 />
               </div>
               <div>
-                <Button onClick={onSubmit} disabled={rsvpSubmitting}>
-                  {rsvpSubmitting ? m.rsvp_submitting() : m.rsvp_submit()}
+                <Button onClick={handleSaveNote} disabled={isBusy}>
+                  {savingMessage && <Loader2 className='animate-spin' aria-hidden='true' />}
+                  {savingMessage ? m.rsvp_savingNote() : m.rsvp_saveNote()}
                 </Button>
               </div>
             </>
