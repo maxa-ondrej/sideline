@@ -333,7 +333,7 @@ sequenceDiagram
 
 ## 6. Recurring Event Generation (Cron)
 
-The `EventHorizonCron` runs on a daily schedule (`0 3 * * *` UTC). On each tick it fetches all active event series from the database, computes the generation horizon end date (the lesser of the series end date and `now + horizonDays`), calls `generateOccurrenceDates` to enumerate matching weekdays, inserts one event row per date (sequentially, concurrency 1), and updates the series' `last_generated_date` to the horizon end. The cron only generates dates from where it left off (`last_generated_date + 1 day`) so it is safe to run repeatedly.
+The `EventHorizonCron` runs on a daily schedule (`0 3 * * *` UTC). On each tick it fetches all active event series from the database, computes the generation horizon end date (the lesser of the series end date and `now + horizonDays`), calls `generateOccurrenceDates` to enumerate matching weekdays, and inserts one event row per date (sequentially, concurrency 1). After each insert it resolves the target Discord channel (checking the per-event override, the training-type default, and the team-settings event-type default in order) and emits an `event_created` row in the `event_sync_events` queue so the bot can publish an embed to Discord. If the sync-event emission fails, the failure is logged and suppressed — event insertion is never rolled back due to a notification error. Finally the cron updates the series' `last_generated_date` to the horizon end. The cron only generates dates from where it left off (`last_generated_date + 1 day`) so it is safe to run repeatedly.
 
 ```mermaid
 sequenceDiagram
@@ -341,6 +341,7 @@ sequenceDiagram
     participant Cron as EventHorizonCron
     participant SeriesRepo as EventSeriesRepository
     participant EventsRepo as EventsRepository
+    participant SyncRepo as EventSyncEventsRepository
     participant DB as PostgreSQL
 
     Clock->>Cron: Trigger — 03:00 UTC daily
@@ -361,10 +362,22 @@ sequenceDiagram
             Note over Cron: generateOccurrenceDates:<br/>enumerate daysOfWeek in [startFrom, effectiveEnd]<br/>applying weekly / biweekly filter
 
             loop For each date (concurrency: 1)
-                Cron->>EventsRepo: insertEvent {team_id, title, event_type='training',<br/>start_at, end_at, series_id, training_type_id, ...}
+                Cron->>EventsRepo: insertEvent {team_id, title, event_type='training',<br/>start_at, end_at, series_id, training_type_id,<br/>owner_group_id, member_group_id, ...}
                 EventsRepo->>DB: INSERT events
-                DB-->>EventsRepo: event row
-                EventsRepo-->>Cron: OK
+                DB-->>EventsRepo: event row {id, ...}
+                EventsRepo-->>Cron: event
+
+                Note over Cron: resolveChannel — priority order:<br/>1. event.discord_target_channel_id<br/>2. training_type.discord_channel_id<br/>3. team_settings.discord_channel_{event_type}
+                Cron->>DB: resolve target Discord channel for event
+                DB-->>Cron: Option<discord_channel_id>
+
+                Cron->>SyncRepo: emitEventCreated(team_id, event_id, title,<br/>description, start_at, end_at, location,<br/>event_type, resolved_channel_id)
+                SyncRepo->>DB: INSERT event_sync_events {type='event_created', ...}
+                DB-->>SyncRepo: OK
+
+                alt Sync event emission fails (defect)
+                    Note over Cron: Log warning — suppress failure,<br/>event creation is unaffected
+                end
             end
 
             Cron->>SeriesRepo: updateLastGeneratedDate(series.id, effectiveEnd)

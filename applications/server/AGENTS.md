@@ -107,7 +107,7 @@ When API handlers create/delete resources that need Discord sync:
 
 1. Perform the primary operation (e.g. insert group)
 2. Call `repo.emitIfGuildLinked(teamId, eventType, ...)` — looks up `guild_id` from `teams` table; if linked, inserts event row; if not, no-op
-3. Wrap emission in `Effect.catchAll(() => Effect.void)` so sync failures never break the primary operation
+3. Wrap emission in `Effect.catchAllDefect(() => Effect.void)` so sync failures never break the primary operation. Use `Effect.catchAllDefect` (not `Effect.catchAll`) because repository methods convert SQL/parse errors to defects via `catchSqlErrors`. Always log before catching with `Effect.tapDefect`
 
 ### Discord Name Formatting
 
@@ -161,7 +161,7 @@ Cron jobs are long-running Effects that repeat on a schedule. Each cron is defin
 | Cron | File | Schedule | Purpose |
 |------|------|----------|---------|
 | `AgeCheckCron` | `src/services/AgeCheckCron.ts` | daily | Check member age thresholds |
-| `EventHorizonCron` | `src/services/EventHorizonCron.ts` | every 5 minutes | Generate recurring events |
+| `EventHorizonCron` | `src/services/EventHorizonCron.ts` | daily 03:00 UTC | Generate recurring events from series, emit Discord sync events |
 | `RsvpReminderCron` | `src/services/RsvpReminderCron.ts` | every minute | Send RSVP reminder sync events |
 | `TrainingAutoLogCron` | `src/services/TrainingAutoLogCron.ts` | every 5 minutes | Auto-log ended trainings |
 | `EventStartCron` | `src/services/EventStartCron.ts` | every minute | Mark active events as `started` when `start_at <= NOW()`, emit `event_started` sync events |
