@@ -88,8 +88,12 @@ export const sortEntriesForChannel = (
       const bIsPast = DateTime.lessThan(b.start_at, now);
       if (aIsPast && !bIsPast) return -1;
       if (!aIsPast && bIsPast) return 1;
-      if (aIsPast && bIsPast) return DateTime.Order(a.start_at, b.start_at);
-      return DateTime.Order(b.start_at, a.start_at);
+      const timeOrder =
+        aIsPast && bIsPast
+          ? DateTime.Order(a.start_at, b.start_at)
+          : DateTime.Order(b.start_at, a.start_at);
+      if (timeOrder !== 0) return timeOrder;
+      return a.event_id < b.event_id ? -1 : a.event_id > b.event_id ? 1 : 0;
     }),
   );
 
@@ -223,29 +227,25 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
             Arr.zip(items, sortedMessageIds),
             ([item, targetMessageId]) => {
               if (item._tag === 'divider') {
-                return Option.flatMap(maybeDividerId, (currentId) =>
-                  currentId !== targetMessageId
-                    ? Option.some(
-                        rest
-                          .updateMessage(channelId, targetMessageId, buildDividerEmbed(locale))
-                          .pipe(
-                            Effect.tap(() =>
-                              rpc['Event/SaveChannelDivider']({
-                                discord_channel_id: channelId,
-                                discord_message_id: targetMessageId,
-                              }),
-                            ),
-                            Effect.tapError((e) =>
-                              Effect.logWarning(
-                                `Failed to update divider message to ${targetMessageId}`,
-                                e,
-                              ),
-                            ),
-                            Effect.catchTag('ErrorResponse', () => Effect.void),
-                            Effect.asVoid,
-                          ),
-                      )
-                    : Option.none(),
+                return Option.map(maybeDividerId, (currentId) =>
+                  rest.updateMessage(channelId, targetMessageId, buildDividerEmbed(locale)).pipe(
+                    Effect.tap(() =>
+                      currentId !== targetMessageId
+                        ? rpc['Event/SaveChannelDivider']({
+                            discord_channel_id: channelId,
+                            discord_message_id: targetMessageId,
+                          })
+                        : Effect.void,
+                    ),
+                    Effect.tapError((e) =>
+                      Effect.logWarning(
+                        `Failed to update divider message at ${targetMessageId}`,
+                        e,
+                      ),
+                    ),
+                    Effect.catchTag('ErrorResponse', () => Effect.void),
+                    Effect.asVoid,
+                  ),
                 );
               }
               return item.entry.discord_message_id !== targetMessageId
