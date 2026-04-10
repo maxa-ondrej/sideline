@@ -226,7 +226,7 @@ Source files: `applications/server/src/services/*Cron.ts`
 
 | Cron Job | Schedule | Purpose |
 |----------|----------|---------|
-| `EventHorizonCron` | `0 3 * * *` (daily at 03:00 UTC) | Reads all active event series and generates concrete `events` rows up to each series' horizon window. Updates `last_generated_date` on each series after generation. |
+| `EventHorizonCron` | `0 3 * * *` (daily at 03:00 UTC) | Reads all active event series and generates concrete `events` rows up to each series' horizon window. After inserting each event, resolves the target Discord channel and emits an `event_created` sync event so the bot publishes an embed to Discord. Sync-event failures are logged and suppressed so that event generation always completes. Updates `last_generated_date` on each series after generation. |
 | `EventStartCron` | `* * * * *` (every minute) | Finds `active` events whose `start_at` time has passed, transitions each to `started` status, and emits an `event_sync_events` row of type `event_started` for the bot to process (removes RSVP buttons from the Discord embed). |
 | `RsvpReminderCron` | `* * * * *` (every minute) | Finds events that need an RSVP reminder (as configured in team settings) and emits `event_sync_events` rows of type `rsvp_reminder` for the bot to process. Marks the event reminder as sent. |
 | `AgeCheckCron` | `0 2 * * *` (daily at 02:00 UTC) | Evaluates age threshold rules for every team that has them configured, and automatically moves members between groups based on their age. |

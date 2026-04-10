@@ -1,15 +1,18 @@
 import { Array, DateTime, Effect, Option, Schedule } from 'effect';
 import { withCronMetrics } from '~/metrics.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
-const cronEffect = Effect.Do.pipe(
+export const eventHorizonCronEffect = Effect.Do.pipe(
   Effect.bind('seriesRepo', () => EventSeriesRepository),
   Effect.bind('eventsRepo', () => EventsRepository),
+  Effect.bind('syncEvents', () => EventSyncEventsRepository),
   Effect.tap(() => Effect.logInfo('EventHorizonCron: starting generation cycle')),
   Effect.bind('allSeries', ({ seriesRepo }) => seriesRepo.getActiveForGeneration()),
-  Effect.tap(({ allSeries, seriesRepo, eventsRepo }) =>
+  Effect.tap(({ allSeries, seriesRepo, eventsRepo, syncEvents }) =>
     Effect.all(
       Array.map(allSeries, (s) => {
         const effectiveEnd = computeHorizonEnd({
@@ -38,19 +41,45 @@ const cronEffect = Effect.Do.pipe(
             const dateStr = DateTime.formatIsoDateUtc(date);
             const startAt = DateTime.unsafeMake(`${dateStr}T${s.start_time}Z`);
             const endAt = Option.map(s.end_time, (t) => DateTime.unsafeMake(`${dateStr}T${t}Z`));
-            return eventsRepo.insertEvent({
-              teamId: s.team_id,
-              trainingTypeId: s.training_type_id,
-              eventType: 'training',
-              title: s.title,
-              description: s.description,
-              startAt,
-              endAt,
-              location: s.location,
-              createdBy: s.created_by,
-              seriesId: Option.some(s.id),
-              discordTargetChannelId: s.discord_target_channel_id,
-            });
+            return eventsRepo
+              .insertEvent({
+                teamId: s.team_id,
+                trainingTypeId: s.training_type_id,
+                eventType: 'training',
+                title: s.title,
+                description: s.description,
+                startAt,
+                endAt,
+                location: s.location,
+                createdBy: s.created_by,
+                seriesId: Option.some(s.id),
+                discordTargetChannelId: s.discord_target_channel_id,
+                ownerGroupId: s.owner_group_id,
+                memberGroupId: s.member_group_id,
+              })
+              .pipe(
+                Effect.tap((event) =>
+                  resolveChannel(s.team_id, event.id).pipe(
+                    Effect.flatMap((resolved) =>
+                      syncEvents.emitEventCreated(
+                        s.team_id,
+                        event.id,
+                        event.title,
+                        event.description,
+                        event.start_at,
+                        event.end_at,
+                        event.location,
+                        event.event_type,
+                        resolved,
+                      ),
+                    ),
+                    Effect.tapDefect((defect) =>
+                      Effect.logWarning('EventHorizonCron: failed to emit sync event', defect),
+                    ),
+                    Effect.catchAllDefect(() => Effect.void),
+                  ),
+                ),
+              );
           }),
           { concurrency: 1 },
         ).pipe(
@@ -71,4 +100,7 @@ const cronEffect = Effect.Do.pipe(
 
 const cronSchedule = Schedule.cron('0 3 * * *');
 
-export const EventHorizonCron = cronEffect.pipe(Effect.repeat(cronSchedule), Effect.asVoid);
+export const EventHorizonCron = eventHorizonCronEffect.pipe(
+  Effect.repeat(cronSchedule),
+  Effect.asVoid,
+);

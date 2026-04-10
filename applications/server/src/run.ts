@@ -19,6 +19,7 @@ import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { AgeCheckCron } from '~/services/AgeCheckCron.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { EventHorizonCron } from '~/services/EventHorizonCron.js';
@@ -82,6 +83,8 @@ const EventHorizonRepositoriesLive = Layer.mergeAll(
   EventSeriesRepository.Default,
   EventsRepository.Default,
   TeamSettingsRepository.Default,
+  EventSyncEventsRepository.Default,
+  TrainingTypesRepository.Default,
 );
 
 const HorizonCron = EventHorizonCron.pipe(
