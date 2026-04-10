@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it } from '@effect/vitest';
-import type { Discord, Event, EventSeries, Team, TeamMember, TrainingType } from '@sideline/domain';
+import type {
+  Discord,
+  Event,
+  EventSeries,
+  GroupModel,
+  Team,
+  TeamMember,
+  TrainingType,
+} from '@sideline/domain';
 import { DateTime, Effect, Layer, Option } from 'effect';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -13,6 +22,8 @@ const SERIES_ID = '10000000-0000-0000-0000-000000000001' as EventSeries.EventSer
 const TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const CREATED_BY = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const DISCORD_CHANNEL_ID = '111222333444555666' as Discord.Snowflake;
+const GROUP_ID = 'group-abc-123' as GroupModel.GroupId;
+const GROUP_DISCORD_CHANNEL_ID = '999000999000' as Discord.Snowflake;
 
 // A date in the past that, when used as start_date, will produce occurrences
 // within a 30-day horizon from "today". We use a fixed Monday.
@@ -49,12 +60,16 @@ let insertCounter: number;
 // The emitEventCreated failure mode
 let emitShouldFail: boolean;
 
+// The group->channel mapping for the DiscordChannelMappingRepository mock
+let groupChannelMapping: Option.Option<Discord.Snowflake>;
+
 const resetStores = () => {
   insertedEvents = [];
   emittedCreated = [];
   updatedDates = [];
   insertCounter = 0;
   emitShouldFail = false;
+  groupChannelMapping = Option.none();
 };
 
 // --- Helpers to build a minimal EventSeriesForGeneration-shaped object ---
@@ -118,79 +133,89 @@ const makeMockEventSeriesRepository = (activeSeries: ReturnType<typeof makeActiv
     cancelEventSeries: () => Effect.die(new Error('Not implemented')),
   } as unknown as EventSeriesRepository);
 
-const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
-  insertEvent: (params: { teamId: Team.TeamId; title: string }) => {
-    insertCounter += 1;
-    const eventId =
-      `00000000-0000-0000-0000-0000000001${String(insertCounter).padStart(2, '0')}` as Event.EventId;
-    insertedEvents.push({ eventId, teamId: params.teamId, title: params.title });
-    return Effect.succeed({
-      id: eventId,
-      team_id: params.teamId,
-      title: params.title,
-      training_type_id: Option.none(),
-      event_type: 'training',
-      description: Option.none(),
-      start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
-      end_at: Option.none(),
-      location: Option.none(),
-      status: 'active',
-      created_by: CREATED_BY,
-      series_id: Option.none(),
-      series_modified: false,
-      discord_target_channel_id: Option.none(),
-      owner_group_id: Option.none(),
-      member_group_id: Option.none(),
-    });
-  },
-  // Stubs needed by resolveChannel
-  findEventByIdWithDetails: (eventId: Event.EventId) =>
-    Effect.succeed(
-      Option.some({
+const makeMockEventsRepositoryLayer = (
+  findEventByIdWithDetailsOverride?: (
+    eventId: Event.EventId,
+  ) => Effect.Effect<Option.Option<unknown>, never, never>,
+) =>
+  Layer.succeed(EventsRepository, {
+    insertEvent: (params: { teamId: Team.TeamId; title: string }) => {
+      insertCounter += 1;
+      const eventId =
+        `00000000-0000-0000-0000-0000000001${String(insertCounter).padStart(2, '0')}` as Event.EventId;
+      insertedEvents.push({ eventId, teamId: params.teamId, title: params.title });
+      return Effect.succeed({
         id: eventId,
-        team_id: TEAM_ID,
+        team_id: params.teamId,
+        title: params.title,
         training_type_id: Option.none(),
         event_type: 'training',
-        title: 'Weekly Training',
         description: Option.none(),
         start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
         end_at: Option.none(),
         location: Option.none(),
         status: 'active',
         created_by: CREATED_BY,
-        training_type_name: Option.none(),
-        created_by_name: Option.none(),
         series_id: Option.none(),
         series_modified: false,
         discord_target_channel_id: Option.none(),
         owner_group_id: Option.none(),
-        owner_group_name: Option.none(),
         member_group_id: Option.none(),
-        member_group_name: Option.none(),
-        reminder_sent_at: Option.none(),
-      }),
-    ),
-  // Other stubs
-  findEventsByTeamId: () => Effect.die(new Error('Not implemented')),
-  updateEvent: () => Effect.die(new Error('Not implemented')),
-  cancelEvent: () => Effect.die(new Error('Not implemented')),
-  startEvent: () => Effect.die(new Error('Not implemented')),
-  findEventsToStart: () => Effect.die(new Error('Not implemented')),
-  getScopedTrainingTypeIds: () => Effect.die(new Error('Not implemented')),
-  saveDiscordMessageId: () => Effect.die(new Error('Not implemented')),
-  getDiscordMessageId: () => Effect.die(new Error('Not implemented')),
-  findEventsByChannelId: () => Effect.die(new Error('Not implemented')),
-  markReminderSent: () => Effect.die(new Error('Not implemented')),
-  markEventSeriesModified: () => Effect.die(new Error('Not implemented')),
-  cancelFutureInSeries: () => Effect.die(new Error('Not implemented')),
-  updateFutureUnmodifiedInSeries: () => Effect.die(new Error('Not implemented')),
-  findUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
-  countUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
-  findEventsByUserId: () => Effect.die(new Error('Not implemented')),
-  findEndedTrainingsForAutoLog: () => Effect.die(new Error('Not implemented')),
-  markTrainingAutoLogged: () => Effect.die(new Error('Not implemented')),
-  findUpcomingWithRsvp: () => Effect.die(new Error('Not implemented')),
-} as unknown as EventsRepository);
+      });
+    },
+    findEventByIdWithDetails: (eventId: Event.EventId) => {
+      if (findEventByIdWithDetailsOverride) {
+        return findEventByIdWithDetailsOverride(eventId);
+      }
+      return Effect.succeed(
+        Option.some({
+          id: eventId,
+          team_id: TEAM_ID,
+          training_type_id: Option.none(),
+          event_type: 'training',
+          title: 'Weekly Training',
+          description: Option.none(),
+          start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+          end_at: Option.none(),
+          location: Option.none(),
+          status: 'active',
+          created_by: CREATED_BY,
+          training_type_name: Option.none(),
+          created_by_name: Option.none(),
+          series_id: Option.none(),
+          series_modified: false,
+          discord_target_channel_id: Option.none(),
+          owner_group_id: Option.none(),
+          owner_group_name: Option.none(),
+          member_group_id: Option.none(),
+          member_group_name: Option.none(),
+          reminder_sent_at: Option.none(),
+        }),
+      );
+    },
+    // Other stubs
+    findEventsByTeamId: () => Effect.die(new Error('Not implemented')),
+    updateEvent: () => Effect.die(new Error('Not implemented')),
+    cancelEvent: () => Effect.die(new Error('Not implemented')),
+    startEvent: () => Effect.die(new Error('Not implemented')),
+    findEventsToStart: () => Effect.die(new Error('Not implemented')),
+    getScopedTrainingTypeIds: () => Effect.die(new Error('Not implemented')),
+    saveDiscordMessageId: () => Effect.die(new Error('Not implemented')),
+    getDiscordMessageId: () => Effect.die(new Error('Not implemented')),
+    findEventsByChannelId: () => Effect.die(new Error('Not implemented')),
+    markReminderSent: () => Effect.die(new Error('Not implemented')),
+    markEventSeriesModified: () => Effect.die(new Error('Not implemented')),
+    cancelFutureInSeries: () => Effect.die(new Error('Not implemented')),
+    updateFutureUnmodifiedInSeries: () => Effect.die(new Error('Not implemented')),
+    findUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
+    countUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
+    findEventsByUserId: () => Effect.die(new Error('Not implemented')),
+    findEndedTrainingsForAutoLog: () => Effect.die(new Error('Not implemented')),
+    markTrainingAutoLogged: () => Effect.die(new Error('Not implemented')),
+    findUpcomingWithRsvp: () => Effect.die(new Error('Not implemented')),
+  } as unknown as EventsRepository);
+
+const MockEventsRepositoryLayer = makeMockEventsRepositoryLayer();
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   findTrainingTypeById: () => Effect.succeed(Option.none()),
@@ -264,15 +289,35 @@ const makeMockSyncEventsRepository = (
     markFailed: () => Effect.void,
   } as unknown as EventSyncEventsRepository);
 
+const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
+  findByGroupId: (_teamId: Team.TeamId, _groupId: GroupModel.GroupId) =>
+    Effect.succeed(
+      Option.map(groupChannelMapping, (channelId) => ({
+        discord_channel_id: channelId,
+      })),
+    ),
+  insert: () => Effect.die(new Error('Not implemented')),
+  insertWithoutRole: () => Effect.die(new Error('Not implemented')),
+  deleteByGroupId: () => Effect.die(new Error('Not implemented')),
+  findByRosterId: () => Effect.die(new Error('Not implemented')),
+  insertRoster: () => Effect.die(new Error('Not implemented')),
+  deleteByRosterId: () => Effect.die(new Error('Not implemented')),
+  findAllByTeam: () => Effect.die(new Error('Not implemented')),
+} as unknown as DiscordChannelMappingRepository);
+
 const makeTestLayer = (
   activeSeries: ReturnType<typeof makeActiveSeries>[],
   syncOverrides?: Parameters<typeof makeMockSyncEventsRepository>[0],
+  findEventByIdWithDetailsOverride?: Parameters<typeof makeMockEventsRepositoryLayer>[0],
 ) =>
   Layer.mergeAll(
     makeMockEventSeriesRepository(activeSeries),
-    MockEventsRepositoryLayer,
+    findEventByIdWithDetailsOverride
+      ? makeMockEventsRepositoryLayer(findEventByIdWithDetailsOverride)
+      : MockEventsRepositoryLayer,
     MockTrainingTypesRepositoryLayer,
     MockTeamSettingsRepositoryLayer,
+    MockDiscordChannelMappingRepositoryLayer,
     makeMockSyncEventsRepository(syncOverrides),
   );
 
@@ -380,6 +425,7 @@ describe('eventHorizonCronEffect', () => {
           MockEventsRepositoryLayer,
           MockTrainingTypesRepositoryLayer,
           MockTeamSettingsRepositoryLayer,
+          MockDiscordChannelMappingRepositoryLayer,
           noGuildSyncLayer,
         ),
       ),
@@ -469,6 +515,7 @@ describe('eventHorizonCronEffect', () => {
           MockEventsRepositoryLayer,
           MockTrainingTypesRepositoryLayer,
           TeamSettingsWithChannelLayer,
+          MockDiscordChannelMappingRepositoryLayer,
           trackingEmittedLayer,
         ),
       ),
@@ -489,6 +536,198 @@ describe('eventHorizonCronEffect', () => {
         Effect.sync(() => {
           expect(updatedDates).toHaveLength(1);
           expect(updatedDates[0].seriesId).toBe(SERIES_ID);
+        }),
+      ),
+      Effect.provide(makeTestLayer([series])),
+      Effect.asVoid,
+    );
+  });
+
+  it.effect('resolves channel from owner group when no other channel configured', () => {
+    // No per-event channel, no training type channel, no team settings channel,
+    // but the owner group has a Discord channel mapping.
+    const series = makeActiveSeries({
+      last_generated_date: Option.none(),
+      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      days_of_week: [1],
+      event_horizon_days: 7,
+      owner_group_id: Option.some(GROUP_ID),
+      discord_target_channel_id: Option.none(),
+    });
+
+    // Arrange: the group->channel mapping returns GROUP_DISCORD_CHANNEL_ID
+    groupChannelMapping = Option.some(GROUP_DISCORD_CHANNEL_ID);
+
+    // Arrange: the event returned by findEventByIdWithDetails has owner_group_id set
+    const findEventWithOwnerGroup = (eventId: Event.EventId) =>
+      Effect.succeed(
+        Option.some({
+          id: eventId,
+          team_id: TEAM_ID,
+          training_type_id: Option.none(),
+          event_type: 'training',
+          title: 'Weekly Training',
+          description: Option.none(),
+          start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+          end_at: Option.none(),
+          location: Option.none(),
+          status: 'active',
+          created_by: CREATED_BY,
+          training_type_name: Option.none(),
+          created_by_name: Option.none(),
+          series_id: Option.none(),
+          series_modified: false,
+          discord_target_channel_id: Option.none(),
+          owner_group_id: Option.some(GROUP_ID),
+          owner_group_name: Option.none(),
+          member_group_id: Option.none(),
+          member_group_name: Option.none(),
+          reminder_sent_at: Option.none(),
+        }),
+      );
+
+    return eventHorizonCronEffect.pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(emittedCreated.length).toBeGreaterThan(0);
+          // All emitted events should use the owner group's channel
+          for (const emitted of emittedCreated) {
+            expect(Option.isSome(emitted.discordTargetChannelId)).toBe(true);
+            if (Option.isSome(emitted.discordTargetChannelId)) {
+              expect(emitted.discordTargetChannelId.value).toBe(GROUP_DISCORD_CHANNEL_ID);
+            }
+          }
+        }),
+      ),
+      Effect.provide(makeTestLayer([series], undefined, findEventWithOwnerGroup)),
+      Effect.asVoid,
+    );
+  });
+
+  it.effect('team settings channel wins over owner group channel', () => {
+    // Both team settings channel AND owner group channel are configured.
+    // Team settings (fallback #3) should take priority over owner group (fallback #4).
+    const series = makeActiveSeries({
+      last_generated_date: Option.none(),
+      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      days_of_week: [1],
+      event_horizon_days: 7,
+      owner_group_id: Option.some(GROUP_ID),
+      discord_target_channel_id: Option.none(),
+    });
+
+    // Arrange: owner group mapping is set
+    groupChannelMapping = Option.some(GROUP_DISCORD_CHANNEL_ID);
+
+    // Arrange: team settings also has a channel configured
+    const TeamSettingsWithChannelLayer = Layer.succeed(TeamSettingsRepository, {
+      findByTeamId: () =>
+        Effect.succeed(
+          Option.some({
+            team_id: TEAM_ID,
+            event_horizon_days: 30,
+            min_players_threshold: 0,
+            rsvp_reminder_hours: 0,
+            discord_channel_training: Option.some(DISCORD_CHANNEL_ID),
+            discord_channel_match: Option.none(),
+            discord_channel_tournament: Option.none(),
+            discord_channel_meeting: Option.none(),
+            discord_channel_social: Option.none(),
+            discord_channel_other: Option.none(),
+            discord_channel_late_rsvp: Option.none(),
+            create_discord_channel_on_group: false,
+            create_discord_channel_on_roster: false,
+            discord_archive_category_id: Option.none(),
+            discord_channel_cleanup_on_group_delete: 'delete',
+            discord_channel_cleanup_on_roster_deactivate: 'delete',
+            discord_role_format: '{name}',
+            discord_channel_format: '{name}',
+          }),
+        ),
+      upsert: () => Effect.die(new Error('Not implemented')),
+      getHorizonDays: () => Effect.die(new Error('Not implemented')),
+      findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
+      findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
+    } as unknown as TeamSettingsRepository);
+
+    // Arrange: the event returned by findEventByIdWithDetails has owner_group_id set
+    const findEventWithOwnerGroup = (eventId: Event.EventId) =>
+      Effect.succeed(
+        Option.some({
+          id: eventId,
+          team_id: TEAM_ID,
+          training_type_id: Option.none(),
+          event_type: 'training',
+          title: 'Weekly Training',
+          description: Option.none(),
+          start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+          end_at: Option.none(),
+          location: Option.none(),
+          status: 'active',
+          created_by: CREATED_BY,
+          training_type_name: Option.none(),
+          created_by_name: Option.none(),
+          series_id: Option.none(),
+          series_modified: false,
+          discord_target_channel_id: Option.none(),
+          owner_group_id: Option.some(GROUP_ID),
+          owner_group_name: Option.none(),
+          member_group_id: Option.none(),
+          member_group_name: Option.none(),
+          reminder_sent_at: Option.none(),
+        }),
+      );
+
+    return eventHorizonCronEffect.pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(emittedCreated.length).toBeGreaterThan(0);
+          // Team settings channel (DISCORD_CHANNEL_ID) should win over group channel
+          for (const emitted of emittedCreated) {
+            expect(Option.isSome(emitted.discordTargetChannelId)).toBe(true);
+            if (Option.isSome(emitted.discordTargetChannelId)) {
+              expect(emitted.discordTargetChannelId.value).toBe(DISCORD_CHANNEL_ID);
+            }
+          }
+        }),
+      ),
+      Effect.provide(
+        Layer.mergeAll(
+          makeMockEventSeriesRepository([series]),
+          makeMockEventsRepositoryLayer(findEventWithOwnerGroup),
+          MockTrainingTypesRepositoryLayer,
+          TeamSettingsWithChannelLayer,
+          MockDiscordChannelMappingRepositoryLayer,
+          makeMockSyncEventsRepository(),
+        ),
+      ),
+      Effect.asVoid,
+    );
+  });
+
+  it.effect('no owner group returns Option.none for channel', () => {
+    // No per-event channel, no training type channel, no team settings channel,
+    // and owner_group_id is Option.none() — so channel should be Option.none().
+    const series = makeActiveSeries({
+      last_generated_date: Option.none(),
+      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      days_of_week: [1],
+      event_horizon_days: 7,
+      owner_group_id: Option.none(),
+      discord_target_channel_id: Option.none(),
+    });
+
+    // Arrange: no group mapping configured
+    groupChannelMapping = Option.none();
+
+    return eventHorizonCronEffect.pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(emittedCreated.length).toBeGreaterThan(0);
+          // All emitted events should have no channel resolved
+          for (const emitted of emittedCreated) {
+            expect(Option.isNone(emitted.discordTargetChannelId)).toBe(true);
+          }
         }),
       ),
       Effect.provide(makeTestLayer([series])),

@@ -28,7 +28,10 @@ export const resolveChannel = (
 ): Effect.Effect<
   Option.Option<Discord.Snowflake>,
   never,
-  EventsRepository | TrainingTypesRepository | TeamSettingsRepository
+  | EventsRepository
+  | TrainingTypesRepository
+  | TeamSettingsRepository
+  | DiscordChannelMappingRepository
 > =>
   Effect.Do.pipe(
     Effect.bind('events', () => EventsRepository),
@@ -62,6 +65,12 @@ export const resolveChannel = (
                         Option.flatMap(opt, (s) => s[eventTypeToSettingsField(ev.event_type)]),
                       ),
                     ),
+            ),
+            // 4. Owner group channel fallback
+            Effect.flatMap((channelFromSettings) =>
+              Option.isSome(channelFromSettings)
+                ? Effect.succeed(channelFromSettings)
+                : resolveOwnerGroupChannel(teamId, ev.owner_group_id),
             ),
           );
         },

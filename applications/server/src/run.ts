@@ -85,6 +85,7 @@ const EventHorizonRepositoriesLive = Layer.mergeAll(
   TeamSettingsRepository.Default,
   EventSyncEventsRepository.Default,
   TrainingTypesRepository.Default,
+  DiscordChannelMappingRepository.Default,
 );
 
 const HorizonCron = EventHorizonCron.pipe(
