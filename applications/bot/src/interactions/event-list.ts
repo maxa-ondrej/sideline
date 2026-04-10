@@ -24,7 +24,8 @@ export const UpcomingPageButton = Ix.messageComponent(
     Effect.bind('rest', () => DiscordREST),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
-      const offset = Number(parts[1]) || 0;
+      const parsedOffset = Number(parts[1]);
+      const offset = Number.isFinite(parsedOffset) ? Math.max(0, Math.trunc(parsedOffset)) : 0;
       const locale = userLocale(interaction);
       const discordUserIdOption = interactionUserId(interaction);
       const guildId = interaction.guild_id;
@@ -61,7 +62,18 @@ export const UpcomingPageButton = Ix.messageComponent(
         offset,
         limit: 1,
       }).pipe(
-        Effect.map((result) => {
+        Effect.flatMap((result) => {
+          if (!result.events[0] && result.total > 0) {
+            return rpc['Event/GetUpcomingEventsForUser']({
+              guild_id: Discord.Snowflake.make(guildId),
+              discord_user_id: discordUserId,
+              offset: 0,
+              limit: 1,
+            }).pipe(Effect.map((r) => ({ result: r, displayOffset: 0 })));
+          }
+          return Effect.succeed({ result, displayOffset: offset });
+        }),
+        Effect.map(({ result, displayOffset }) => {
           const entry = result.events[0];
           if (!entry) {
             return {
@@ -71,7 +83,7 @@ export const UpcomingPageButton = Ix.messageComponent(
           }
           const page = buildUpcomingEventPage({
             entry,
-            currentIndex: offset,
+            currentIndex: displayOffset,
             total: result.total,
             locale,
           });

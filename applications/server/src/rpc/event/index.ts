@@ -727,9 +727,9 @@ const rpcHandlers = Effect.Do.pipe(
                     e.member_group_id IS NULL
                     OR EXISTS (
                       WITH RECURSIVE descendant_groups AS (
-                        SELECT id FROM groups WHERE id = e.member_group_id
+                        SELECT id FROM groups WHERE id = e.member_group_id AND team_id = ${input.team_id}
                         UNION ALL
-                        SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
+                        SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id WHERE g.team_id = ${input.team_id}
                       )
                       SELECT 1 FROM group_members gm
                       WHERE gm.group_id IN (SELECT id FROM descendant_groups)
@@ -772,9 +772,9 @@ const rpcHandlers = Effect.Do.pipe(
                     e.member_group_id IS NULL
                     OR EXISTS (
                       WITH RECURSIVE descendant_groups AS (
-                        SELECT id FROM groups WHERE id = e.member_group_id
+                        SELECT id FROM groups WHERE id = e.member_group_id AND team_id = ${input.team_id}
                         UNION ALL
-                        SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
+                        SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id WHERE g.team_id = ${input.team_id}
                       )
                       SELECT 1 FROM group_members gm
                       WHERE gm.group_id IN (SELECT id FROM descendant_groups)

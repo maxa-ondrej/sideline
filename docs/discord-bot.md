@@ -105,7 +105,9 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 3. A background fiber posts a persistent public message containing a "Show My Events" button in the current channel.
 4. When a member clicks the button, the `OverviewShowButton` handler (`applications/bot/src/interactions/overview-channel.ts`) calls `Event/GetUpcomingEventsForUser` RPC and returns an ephemeral one-event-per-page embed with RSVP buttons.
 
-**Source file:** `applications/bot/src/commands/event/overview.ts`
+**Source files:**
+- `applications/bot/src/commands/event/overview.ts`
+- `applications/bot/src/interactions/overview-channel.ts` (`OverviewShowButton`)
 
 ---
 
@@ -133,7 +135,11 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 | `GuildNotFound` | Shows "not a member" message |
 | `RsvpMemberNotFound` | Shows "not a member" message |
 
-**Source file:** `applications/bot/src/commands/event/list.ts`
+**Source files:**
+- `applications/bot/src/commands/event/list.ts`
+- `applications/bot/src/interactions/event-list.ts`
+- `applications/bot/src/interactions/upcoming-rsvp.ts`
+- `applications/bot/src/rest/events/buildUpcomingEventEmbed.ts`
 
 ---
 
