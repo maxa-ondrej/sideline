@@ -88,6 +88,37 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 
 ---
 
+### /event pending
+
+**Description:** List events awaiting the invoking user's RSVP.
+
+**Czech sub-command name:** `cekajici`
+
+**Options:** None.
+
+**Flow:**
+
+1. User invokes `/event pending`.
+2. The handler (`applications/bot/src/commands/event/pending.ts`) immediately returns an ephemeral "thinking" response and forks a background fiber.
+3. The background fiber calls `Event/GetPendingRsvps` RPC with `discord_user_id` (resolved from `interaction.member.user.id` or `interaction.user.id`), `offset=0`, and `limit=PAGE_SIZE` (5).
+4. The response is rendered into a yellow embed. Each entry shows: event-type emoji, bold title, Discord dynamic timestamp (full), and optional location.
+5. If the total number of pending events exceeds `PAGE_SIZE`, Previous/Next pagination buttons are added with custom IDs `pending-rsvp-page:{guildId}:{discordUserId}:{offset}`.
+6. The ephemeral message is updated with the embed and buttons. If the user is not a member of the guild's team, an ephemeral error is shown instead.
+
+**Errors from `Event/GetPendingRsvps`:**
+
+| Error tag | Behavior |
+|-----------|----------|
+| `GuildNotFound` | Shows "not a member" message |
+| `RsvpMemberNotFound` | Shows "not a member" message |
+
+**Source files:**
+- `applications/bot/src/commands/event/pending.ts`
+- `applications/bot/src/interactions/pending-rsvp.ts`
+- `applications/bot/src/rest/events/buildPendingRsvpEmbed.ts`
+
+---
+
 ### /event list
 
 **Description:** List upcoming events for the guild.
@@ -332,6 +363,23 @@ Updates an existing attendees embed when the user pages through the list.
 
 ---
 
+### Pending RSVP Page Button — `pending-rsvp-page:{guildId}:{discordUserId}:{offset}`
+
+Paginates the pending-events embed created by `/event pending`.
+
+**Custom ID pattern:** `pending-rsvp-page:{guildId}:{discordUserId}:{offset}`
+
+**Behavior:**
+
+1. Parses `guildId`, `discordUserId`, and `offset` from the custom ID.
+2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
+3. The background fiber calls `Event/GetPendingRsvps` RPC with the new offset and `limit=PAGE_SIZE` (5).
+4. Rebuilds the embed and updates the existing message.
+
+**Source file:** `applications/bot/src/interactions/pending-rsvp.ts` (`PendingRsvpPageButton`)
+
+---
+
 ### Event List Page Button — `event-list-page:{guildId}:{offset}`
 
 Paginates the event list embed created by `/event list`.
@@ -512,7 +560,7 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 | `event_updated` | `handleUpdated.ts` | Looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts, rebuilds the embed, edits the existing Discord message, then re-orders channel messages |
 | `event_cancelled` | `handleCancelled.ts` | Looks up the stored Discord message, replaces the embed content with a cancelled-state embed (no RSVP buttons), edits the existing Discord message |
 | `event_started` | `handleStarted.ts` | Looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts and embed info, rebuilds the embed without RSVP action-row buttons, edits the existing Discord message. Emitted by `EventStartCron` when an event's `start_at` time passes. |
-| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the channel mentioning all non-responders who have a linked Discord account (the embed also includes a "Going" field listing current yes-attendees), and sends a direct message to each of those non-responders with a link to the voting message |
+| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the channel. Non-responders and yes-attendees are formatted as `**Name** (<@id>)` (dual format: bold name plus mention) when both are available; name-only when no Discord ID is linked; mention-only when only a Discord ID is known. The embed also includes a "Going" field listing current yes-attendees. Sends a direct message to each non-responder with a linked Discord account with a link to the voting message. |
 
 **Lifecycle RPCs:**
 - `Event/MarkEventProcessed`
@@ -569,6 +617,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/MarkEventFailed` | Record a processing failure |
 | `Event/CreateEvent` | Create a new event (from `/event create`) |
 | `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events for `/event list` |
+| `Event/GetPendingRsvps` | Fetch paginated events awaiting the user's RSVP for `/event pending` |
 | `Event/GetTrainingTypesByGuild` | Fetch training type choices for autocomplete |
 | `Event/SubmitRsvp` | Record a member's RSVP response; payload includes `clearMessage: boolean`; returns `SubmitRsvpResult` with late-RSVP flag, optional notification channel, and `message: Option<string>` |
 | `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |

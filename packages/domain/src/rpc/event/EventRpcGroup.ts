@@ -12,6 +12,7 @@ import {
   EventEmbedInfo,
   GuildEventListResult,
   GuildNotFound,
+  PendingRsvpListResult,
   RsvpAttendeeEntry,
   RsvpAttendeesResult,
   RsvpCountsResult,
@@ -95,6 +96,16 @@ export const EventRpcGroup = RpcGroup.make(
     },
     success: GuildEventListResult,
     error: GuildNotFound,
+  }),
+  Rpc.make('GetPendingRsvps', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+      offset: Schema.Number,
+      limit: Schema.Number,
+    },
+    success: PendingRsvpListResult,
+    error: Schema.Union(GuildNotFound, RsvpMemberNotFound),
   }),
   Rpc.make('GetTrainingTypesByGuild', {
     payload: { guild_id: Discord.Snowflake },

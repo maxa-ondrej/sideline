@@ -12,7 +12,7 @@ src/
 ├── env.ts           — Environment config (token, intents, health port)
 ├── run.ts           — Runtime entrypoint (config, logging, NodeRuntime)
 ├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser)
-├── commands/        — Slash command registry (ping.ts, index.ts)
+├── commands/        — Slash command registry (event/create, event/list, event/pending, makanicko/*)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member, channel lifecycle)
 ├── services/        — Sync services (RoleSyncService, ChannelSyncService)
@@ -33,6 +33,11 @@ src/
     ├── handleCancelled.ts     — event_cancelled handler
     ├── handleStarted.ts       — event_started handler (updates embed, removes RSVP buttons)
     └── handleRsvpReminder.ts  — rsvp_reminder handler
+└── rest/events/     — Embed builder functions
+    ├── buildEventEmbed.ts         — Main event embed (RSVP counts, "Going" field)
+    ├── buildAttendeesEmbed.ts     — Paginated attendee list embed
+    ├── buildEventListEmbed.ts     — Paginated event list embed (/event list)
+    └── buildPendingRsvpEmbed.ts   — Paginated pending RSVP embed (/event pending)
 ```
 
 Follows the **AppLive + run.ts** pattern.
@@ -208,3 +213,34 @@ Interaction.pipe(
 ```
 
 Prefer `guild_locale` (server-configured language) over `locale` (individual user's language) for server-wide consistency.
+
+## Embed Display Conventions
+
+### User Name Display in Embeds
+
+All Discord embeds that display user/member names must use the **bold name + mention dual format**. This ensures reliable display on mobile clients where `<@id>` mentions sometimes fail to resolve.
+
+| Scenario | Format | Example |
+|----------|--------|---------|
+| Name and discord_id both present | `**Name** (<@id>)` | `**Alice** (<@123>)` |
+| Only discord_id present | `<@id>` | `<@123>` |
+| Only name present | `**Name**` | `**Alice**` |
+| Neither present | `Unknown` or `?` | `Unknown` |
+
+This pattern is used in:
+- `buildEventEmbed.ts` — "Going" field (bold name only, no mention, comma-separated)
+- `buildAttendeesEmbed.ts` — attendee entries (`**Name** (<@id>)` with optional message)
+- `handleRsvpReminder.ts` — non-responder and yes-attendee lists in reminder embeds
+
+When building new embed functions that display user names, always follow this priority: bold name first, mention as parenthetical supplement.
+
+### Paginated Embed Pattern
+
+Commands that display paginated lists (`/event list`, `/event pending`, attendees) follow this structure:
+
+1. Embed builder function in `src/rest/events/` exports a `PAGE_SIZE` constant and a `build*Embed` function
+2. The builder returns `{ embeds, components }` where `components` contains Previous/Next buttons when `total > PAGE_SIZE`
+3. Button `custom_id` format: `{prefix}:{guildId}:{userId?}:{offset}` — offset-based pagination
+4. Previous button is disabled when `offset === 0`; Next button is disabled when `offset + PAGE_SIZE >= total`
+5. The slash command handler sends an initial ephemeral "thinking" response, forks a background fiber, then updates the message
+6. The page button interaction handler responds with `DEFERRED_UPDATE_MESSAGE` and edits in place

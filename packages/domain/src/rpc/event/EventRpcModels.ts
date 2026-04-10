@@ -109,9 +109,27 @@ export class GuildEventListResult extends Schema.Class<GuildEventListResult>(
 
 export class GuildNotFound extends Schema.TaggedError<GuildNotFound>()('GuildNotFound', {}) {}
 
+export class PendingRsvpEntry extends Schema.Class<PendingRsvpEntry>('PendingRsvpEntry')({
+  event_id: Schema.String,
+  team_id: Schema.String,
+  title: Schema.String,
+  start_at: Schemas.DateTimeFromIsoString,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
+  location: Schema.OptionFromNullOr(Schema.String),
+  event_type: Schema.String,
+}) {}
+
+export class PendingRsvpListResult extends Schema.Class<PendingRsvpListResult>(
+  'PendingRsvpListResult',
+)({
+  events: Schema.Array(PendingRsvpEntry),
+  total: Schema.Number,
+}) {}
+
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
   response: Schema.Literal('yes', 'no', 'maybe'),
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}

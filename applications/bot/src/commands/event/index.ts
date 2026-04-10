@@ -2,6 +2,7 @@ import * as Ix from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
 import { createHandler } from './create.js';
 import { listHandler } from './list.js';
+import { pendingHandler } from './pending.js';
 
 export const EventCommand = Ix.global(
   {
@@ -48,11 +49,19 @@ export const EventCommand = Ix.global(
         description: 'List upcoming events',
         description_localizations: { cs: 'Zobrazit nadcházející události' },
       },
+      {
+        type: DiscordTypes.ApplicationCommandOptionType.SUB_COMMAND,
+        name: 'pending',
+        name_localizations: { cs: 'cekajici' },
+        description: 'List events awaiting your RSVP',
+        description_localizations: { cs: 'Zobrazit události čekající na tvou odpověď' },
+      },
     ],
   } as const,
   (ix) =>
     ix.subCommands({
       create: createHandler,
       list: listHandler,
+      pending: pendingHandler,
     }),
 );
