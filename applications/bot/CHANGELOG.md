@@ -1,5 +1,15 @@
 # @sideline/bot
 
+## 0.10.3
+
+### Patch Changes
+
+- [#195](https://github.com/maxa-ondrej/sideline/pull/195) [`0704c17`](https://github.com/maxa-ondrej/sideline/commit/0704c17897ced04f67ee10a7ed65cd0ec51f74d7) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Reorder attendance channel messages so the nearest upcoming event is the last (most visible) message, and add a divider between past and future events
+
+- Updated dependencies [[`19d94f2`](https://github.com/maxa-ondrej/sideline/commit/19d94f2bb999bd6465b2a41955d7cae1a2dc7135), [`0704c17`](https://github.com/maxa-ondrej/sideline/commit/0704c17897ced04f67ee10a7ed65cd0ec51f74d7)]:
+  - @sideline/i18n@0.3.10
+  - @sideline/domain@0.15.3
+
 ## 0.10.2
 
 ### Patch Changes

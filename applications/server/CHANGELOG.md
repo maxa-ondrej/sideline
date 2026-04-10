@@ -1,5 +1,17 @@
 # @sideline/server
 
+## 0.15.3
+
+### Patch Changes
+
+- [#198](https://github.com/maxa-ondrej/sideline/pull/198) [`854c316`](https://github.com/maxa-ondrej/sideline/commit/854c316c91caf04897aa8dc9cf656ea2c09229ef) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Send Discord notifications when the EventHorizonCron generates recurring events from event series
+
+- [#195](https://github.com/maxa-ondrej/sideline/pull/195) [`0704c17`](https://github.com/maxa-ondrej/sideline/commit/0704c17897ced04f67ee10a7ed65cd0ec51f74d7) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Reorder attendance channel messages so the nearest upcoming event is the last (most visible) message, and add a divider between past and future events
+
+- Updated dependencies [[`0704c17`](https://github.com/maxa-ondrej/sideline/commit/0704c17897ced04f67ee10a7ed65cd0ec51f74d7)]:
+  - @sideline/domain@0.15.3
+  - @sideline/migrations@0.12.6
+
 ## 0.15.2
 
 ### Patch Changes
