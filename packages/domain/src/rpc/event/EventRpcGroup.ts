@@ -115,4 +115,17 @@ export const EventRpcGroup = RpcGroup.make(
     success: CreateEventResult,
     error: Schema.Union(CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate),
   }),
+  Rpc.make('GetChannelDivider', {
+    payload: { discord_channel_id: Discord.Snowflake },
+    success: Schema.OptionFromNullOr(Discord.Snowflake),
+  }),
+  Rpc.make('SaveChannelDivider', {
+    payload: {
+      discord_channel_id: Discord.Snowflake,
+      discord_message_id: Discord.Snowflake,
+    },
+  }),
+  Rpc.make('DeleteChannelDivider', {
+    payload: { discord_channel_id: Discord.Snowflake },
+  }),
 ).prefix('Event/');

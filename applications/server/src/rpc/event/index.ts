@@ -13,6 +13,7 @@ import {
 import { Bind, LogicError, Options } from '@sideline/effect-lib';
 import { Array, Data, DateTime, Effect, flow, Metric, Option, pipe, Schema } from 'effect';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
+import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -251,6 +252,7 @@ const rpcHandlers = Effect.Do.pipe(
       trainingTypesRepo: TrainingTypesRepository,
       teamsRepo: TeamsRepository,
       teamSettings: TeamSettingsRepository,
+      channelDividers: ChannelEventDividersRepository,
     }),
   ),
   Effect.let(
@@ -686,6 +688,30 @@ export const EventsRpcLive = rpcHandlers.pipe(
         readonly training_type_id: Option.Option<TrainingType.TrainingTypeId>;
       }) =>
         createEvent(sql, events, syncEvents, members, trainingTypesRepo, input),
+  ),
+  Effect.let(
+    'Event/GetChannelDivider',
+    ({ deps: { channelDividers } }) =>
+      ({ discord_channel_id }: { readonly discord_channel_id: Discord.Snowflake }) =>
+        channelDividers.findByChannelId(discord_channel_id),
+  ),
+  Effect.let(
+    'Event/SaveChannelDivider',
+    ({ deps: { channelDividers } }) =>
+      ({
+        discord_channel_id,
+        discord_message_id,
+      }: {
+        readonly discord_channel_id: Discord.Snowflake;
+        readonly discord_message_id: Discord.Snowflake;
+      }) =>
+        channelDividers.upsert(discord_channel_id, discord_message_id),
+  ),
+  Effect.let(
+    'Event/DeleteChannelDivider',
+    ({ deps: { channelDividers } }) =>
+      ({ discord_channel_id }: { readonly discord_channel_id: Discord.Snowflake }) =>
+        channelDividers.deleteByChannelId(discord_channel_id),
   ),
   Bind.remove('events'),
   Bind.remove('rsvps'),
