@@ -673,7 +673,7 @@ export function EventDetailPage({
           </div>
         </div>
 
-        {status === 'active' && (
+        {status !== 'cancelled' && (
           <div className='order-1 lg:order-2 lg:sticky lg:top-20 lg:self-start'>
             <EventRsvpPanel
               eventDetail={eventDetail}
