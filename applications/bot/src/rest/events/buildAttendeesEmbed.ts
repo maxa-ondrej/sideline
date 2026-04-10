@@ -7,7 +7,10 @@ import type { Locale } from '~/locale.js';
 const EVENT_COLOR = 0x5865f2;
 
 const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string => {
-  const boldName = Option.map(entry.name, (n) => `**${n}**`);
+  const boldName = Option.orElse(
+    Option.map(entry.name, (n) => `**${n}**`),
+    () => Option.map(entry.username, (u) => `**${u}**`),
+  );
   const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
   const name = Option.match(boldName, {
     onNone: () => Option.getOrElse(mention, () => 'Unknown'),

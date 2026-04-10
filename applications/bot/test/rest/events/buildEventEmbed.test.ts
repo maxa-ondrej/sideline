@@ -6,10 +6,12 @@ import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 const makeAttendee = (
   discord_id: Option.Option<string>,
   name: Option.Option<string>,
+  username: Option.Option<string> = Option.none(),
 ): EventRpcModels.RsvpAttendeeEntry =>
   new EventRpcModels.RsvpAttendeeEntry({
     discord_id: Option.map(discord_id, DomainDiscord.Snowflake.make),
     name,
+    username,
     response: 'yes',
     message: Option.none(),
   });
@@ -90,7 +92,21 @@ describe('buildEventEmbed', () => {
       expect(goingField?.value).toContain('+4 more');
     });
 
-    it('renders "?" when both name and discord_id are None', () => {
+    it('falls back to bold username when name is None but username is set', () => {
+      const attendee = makeAttendee(Option.some('789'), Option.none(), Option.some('alice123'));
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(1, 0, 0),
+        yesAttendees: [attendee],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toContain('**alice123**');
+    });
+
+    it('renders "?" when name, username, and discord_id are all None', () => {
       const attendee = makeAttendee(Option.none(), Option.none());
       const { embeds } = buildEventEmbed({
         ...baseOpts,

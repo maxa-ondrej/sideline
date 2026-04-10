@@ -6,12 +6,14 @@ import { buildAttendeesEmbed } from '~/rest/events/buildAttendeesEmbed.js';
 const makeAttendee = (opts: {
   discord_id?: Option.Option<string>;
   name?: Option.Option<string>;
+  username?: Option.Option<string>;
   message?: Option.Option<string>;
   response?: 'yes' | 'no' | 'maybe';
 }): EventRpcModels.RsvpAttendeeEntry =>
   new EventRpcModels.RsvpAttendeeEntry({
     discord_id: Option.map(opts.discord_id ?? Option.none(), DomainDiscord.Snowflake.make),
     name: opts.name ?? Option.none(),
+    username: opts.username ?? Option.none(),
     response: opts.response ?? 'yes',
     message: opts.message ?? Option.none(),
   });
@@ -92,5 +94,26 @@ describe('buildAttendeesEmbed - formatEntry', () => {
     });
     const text = collectFieldValues([attendee]);
     expect(text).toContain('**Bob** — "msg"');
+  });
+
+  it('falls back to bold username when name is None but username is set (with discord_id)', () => {
+    const attendee = makeAttendee({
+      discord_id: Option.some('123'),
+      name: Option.none(),
+      username: Option.some('bob_discord'),
+    });
+    const text = collectFieldValues([attendee]);
+    expect(text).toContain('**bob_discord** (<@123>)');
+  });
+
+  it('falls back to bold username when name is None but username is set (no discord_id)', () => {
+    const attendee = makeAttendee({
+      discord_id: Option.none(),
+      name: Option.none(),
+      username: Option.some('bob_discord'),
+    });
+    const text = collectFieldValues([attendee]);
+    expect(text).toContain('**bob_discord**');
+    expect(text).not.toContain('<@');
   });
 });

@@ -129,6 +129,7 @@ export class PendingRsvpListResult extends Schema.Class<PendingRsvpListResult>(
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
   response: Schema.Literal('yes', 'no', 'maybe'),
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}

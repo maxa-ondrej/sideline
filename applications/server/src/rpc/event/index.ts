@@ -512,6 +512,7 @@ const rpcHandlers = Effect.Do.pipe(
                     new EventRpcModels.RsvpAttendeeEntry({
                       discord_id: row.discord_id,
                       name: row.member_name,
+                      username: row.username,
                       response: row.response,
                       message: row.message,
                     }),
@@ -658,10 +659,9 @@ const rpcHandlers = Effect.Do.pipe(
               Request: Schema.Struct({ discord_user_id: Schema.String, team_id: Schema.String }),
               Result: Schema.Struct({
                 id: TeamMember.TeamMemberId,
-                group_id: Schema.OptionFromNullOr(Schema.String),
               }),
               execute: (input) => sql`
-                SELECT tm.id, tm.group_id FROM team_members tm
+                SELECT tm.id FROM team_members tm
                 JOIN users u ON u.id = tm.user_id
                 WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
                   AND tm.active = true
@@ -681,7 +681,6 @@ const rpcHandlers = Effect.Do.pipe(
               Request: Schema.Struct({
                 team_id: Schema.String,
                 team_member_id: Schema.String,
-                member_group_id: Schema.OptionFromNullOr(Schema.String),
                 offset: Schema.Number,
                 limit: Schema.Number,
               }),
@@ -703,13 +702,15 @@ const rpcHandlers = Effect.Do.pipe(
                   AND e.start_at >= now()
                   AND (
                     e.member_group_id IS NULL
-                    OR ${input.member_group_id}::uuid IS NOT NULL AND ${input.member_group_id}::uuid IN (
+                    OR EXISTS (
                       WITH RECURSIVE descendant_groups AS (
                         SELECT id FROM groups WHERE id = e.member_group_id
                         UNION ALL
                         SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
                       )
-                      SELECT id FROM descendant_groups
+                      SELECT 1 FROM group_members gm
+                      WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+                        AND gm.team_member_id = ${input.team_member_id}
                     )
                   )
                   AND NOT EXISTS (
@@ -722,7 +723,6 @@ const rpcHandlers = Effect.Do.pipe(
             })({
               team_id: teamId,
               team_member_id: member.id,
-              member_group_id: member.group_id,
               offset,
               limit,
             }).pipe(
@@ -738,7 +738,6 @@ const rpcHandlers = Effect.Do.pipe(
               Request: Schema.Struct({
                 team_id: Schema.String,
                 team_member_id: Schema.String,
-                member_group_id: Schema.OptionFromNullOr(Schema.String),
               }),
               Result: Schema.Struct({ count: Schema.Number }),
               execute: (input) => sql`
@@ -749,13 +748,15 @@ const rpcHandlers = Effect.Do.pipe(
                   AND e.start_at >= now()
                   AND (
                     e.member_group_id IS NULL
-                    OR ${input.member_group_id}::uuid IS NOT NULL AND ${input.member_group_id}::uuid IN (
+                    OR EXISTS (
                       WITH RECURSIVE descendant_groups AS (
                         SELECT id FROM groups WHERE id = e.member_group_id
                         UNION ALL
                         SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
                       )
-                      SELECT id FROM descendant_groups
+                      SELECT 1 FROM group_members gm
+                      WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+                        AND gm.team_member_id = ${input.team_member_id}
                     )
                   )
                   AND NOT EXISTS (
@@ -766,7 +767,6 @@ const rpcHandlers = Effect.Do.pipe(
             })({
               team_id: teamId,
               team_member_id: member.id,
-              member_group_id: member.group_id,
             }).pipe(
               Effect.catchTag(
                 'SqlError',
@@ -841,6 +841,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
                 new EventRpcModels.RsvpAttendeeEntry({
                   discord_id: row.discord_id,
                   name: row.member_name,
+                  username: row.username,
                   response: row.response,
                   message: row.message,
                 }),
