@@ -4,10 +4,11 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Metric } from 'effect';
+import { Effect, Metric, Option } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
-import { buildEventListEmbed, PAGE_SIZE } from '~/rest/events/buildEventListEmbed.js';
+import { buildUpcomingEventPage } from '~/rest/events/buildUpcomingEventEmbed.js';
+import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 export const listHandler = Interaction.pipe(
@@ -31,30 +32,52 @@ export const listHandler = Interaction.pipe(
     }
 
     const snowflakeGuildId = Discord.Snowflake.make(guildId);
+    const discordUserIdOption = interactionUserId(interaction);
+
+    if (Option.isNone(discordUserIdOption)) {
+      return Effect.succeed(
+        Ix.response({
+          type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: m.bot_event_not_member({}, { locale }),
+            flags: DiscordTypes.MessageFlags.Ephemeral,
+          },
+        }),
+      );
+    }
+
+    const snowflakeDiscordUserId = discordUserIdOption.value;
 
     const work = Effect.Do.pipe(
       Effect.bind('rpc', () => SyncRpc),
       Effect.bind('rest', () => DiscordREST),
       Effect.flatMap(({ rpc, rest }) =>
-        rpc['Event/GetUpcomingGuildEvents']({
+        rpc['Event/GetUpcomingEventsForUser']({
           guild_id: snowflakeGuildId,
+          discord_user_id: snowflakeDiscordUserId,
           offset: 0,
-          limit: PAGE_SIZE,
+          limit: 1,
         }).pipe(
           Effect.map((result) => {
-            const payload = buildEventListEmbed({
-              events: result.events,
+            if (result.total === 0) {
+              return { content: m.bot_upcoming_no_events({}, { locale }) };
+            }
+            const entry = result.events[0];
+            if (!entry) {
+              return { content: m.bot_upcoming_no_events({}, { locale }) };
+            }
+            const page = buildUpcomingEventPage({
+              entry,
+              currentIndex: 0,
               total: result.total,
-              offset: 0,
-              guildId,
               locale,
             });
-            return {
-              embeds: payload.embeds,
-              components: payload.components,
-            };
+            return { embeds: page.embeds, components: page.components };
           }),
           Effect.catchTag('GuildNotFound', () =>
+            Effect.succeed({ content: m.bot_event_not_member({}, { locale }) }),
+          ),
+          Effect.catchTag('RsvpMemberNotFound', () =>
             Effect.succeed({ content: m.bot_event_not_member({}, { locale }) }),
           ),
           Effect.catchTag('RpcClientError', () =>

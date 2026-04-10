@@ -109,23 +109,6 @@ export class GuildEventListResult extends Schema.Class<GuildEventListResult>(
 
 export class GuildNotFound extends Schema.TaggedError<GuildNotFound>()('GuildNotFound', {}) {}
 
-export class PendingRsvpEntry extends Schema.Class<PendingRsvpEntry>('PendingRsvpEntry')({
-  event_id: Schema.String,
-  team_id: Schema.String,
-  title: Schema.String,
-  start_at: Schemas.DateTimeFromIsoString,
-  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
-  location: Schema.OptionFromNullOr(Schema.String),
-  event_type: Schema.String,
-}) {}
-
-export class PendingRsvpListResult extends Schema.Class<PendingRsvpListResult>(
-  'PendingRsvpListResult',
-)({
-  events: Schema.Array(PendingRsvpEntry),
-  total: Schema.Number,
-}) {}
-
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
@@ -158,4 +141,30 @@ export class RsvpReminderSummary extends Schema.Class<RsvpReminderSummary>('Rsvp
 export class TrainingTypeChoice extends Schema.Class<TrainingTypeChoice>('TrainingTypeChoice')({
   id: TrainingTypeId,
   name: Schema.String,
+}) {}
+
+export class UpcomingEventForUserEntry extends Schema.Class<UpcomingEventForUserEntry>(
+  'UpcomingEventForUserEntry',
+)({
+  event_id: Schema.String,
+  team_id: Schema.String,
+  title: Schema.String,
+  description: Schema.OptionFromNullOr(Schema.String),
+  start_at: Schemas.DateTimeFromIsoString,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
+  location: Schema.OptionFromNullOr(Schema.String),
+  event_type: Schema.String,
+  yes_count: Schema.Number,
+  no_count: Schema.Number,
+  maybe_count: Schema.Number,
+  my_response: Schema.OptionFromNullOr(Schema.Literal('yes', 'no', 'maybe')),
+  my_message: Schema.OptionFromNullOr(Schema.String),
+}) {}
+
+export class UpcomingEventsForUserResult extends Schema.Class<UpcomingEventsForUserResult>(
+  'UpcomingEventsForUserResult',
+)({
+  events: Schema.Array(UpcomingEventForUserEntry),
+  total: Schema.Number,
+  team_id: Schema.String,
 }) {}

@@ -12,7 +12,7 @@ src/
 ├── env.ts           — Environment config (token, intents, health port)
 ├── run.ts           — Runtime entrypoint (config, logging, NodeRuntime)
 ├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser)
-├── commands/        — Slash command registry (event/create, event/list, event/pending, makanicko/*)
+├── commands/        — Slash command registry (event/create, event/list, event/overview, makanicko/*)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member, channel lifecycle)
 ├── services/        — Sync services (RoleSyncService, ChannelSyncService)
@@ -36,8 +36,7 @@ src/
 └── rest/events/     — Embed builder functions
     ├── buildEventEmbed.ts         — Main event embed (RSVP counts, "Going" field)
     ├── buildAttendeesEmbed.ts     — Paginated attendee list embed
-    ├── buildEventListEmbed.ts     — Paginated event list embed (/event list)
-    └── buildPendingRsvpEmbed.ts   — Paginated pending RSVP embed (/event pending)
+    └── buildUpcomingEventEmbed.ts — Per-user upcoming events embed (/event list, overview button)
 ```
 
 Follows the **AppLive + run.ts** pattern.
@@ -236,11 +235,26 @@ When building new embed functions that display user names, always follow this pr
 
 ### Paginated Embed Pattern
 
-Commands that display paginated lists (`/event list`, `/event pending`, attendees) follow this structure:
+Two pagination models are used:
 
-1. Embed builder function in `src/rest/events/` exports a `PAGE_SIZE` constant and a `build*Embed` function
+#### Multi-item pages (attendees)
+
+1. Embed builder in `src/rest/events/` exports a `PAGE_SIZE` constant and a `build*Embed` function
 2. The builder returns `{ embeds, components }` where `components` contains Previous/Next buttons when `total > PAGE_SIZE`
 3. Button `custom_id` format: `{prefix}:{guildId}:{userId?}:{offset}` — offset-based pagination
 4. Previous button is disabled when `offset === 0`; Next button is disabled when `offset + PAGE_SIZE >= total`
 5. The slash command handler sends an initial ephemeral "thinking" response, forks a background fiber, then updates the message
 6. The page button interaction handler responds with `DEFERRED_UPDATE_MESSAGE` and edits in place
+
+#### Single-event pages (upcoming events)
+
+Used by `/event list` and the overview show button (`overview-show`). Each page shows one event with the invoking user's RSVP status.
+
+1. `buildUpcomingEventPage` in `src/rest/events/buildUpcomingEventEmbed.ts` accepts `{ entry, currentIndex, total, locale }`
+2. Returns `{ embeds, components }` with **two** action rows:
+   - **Row 1 — RSVP buttons** (Yes / No / Maybe): `custom_id` = `upcoming-rsvp:{event_id}:{team_id}:{response}:{currentIndex}`. The button matching the user's current response uses a highlighted style (Success/Danger/Primary); others use Secondary
+   - **Row 2 — Navigation buttons** (Previous / Next): `custom_id` = `upcoming-page:{offset}`. Previous is disabled when `currentIndex === 0`; Next is disabled when `currentIndex >= total - 1`
+3. The slash command handler sends an ephemeral "thinking" response, forks a background fiber calling `Event/GetUpcomingEventsForUser` with `limit=1`, then updates the message
+4. `UpcomingPageButton` (`src/interactions/event-list.ts`) handles page navigation — responds with `DEFERRED_UPDATE_MESSAGE` and edits in place
+5. `UpcomingRsvpButton` (`src/interactions/upcoming-rsvp.ts`) handles inline RSVP — submits the RSVP via `Event/SubmitRsvp`, triggers embed updates via `postRsvpDiscordUpdates`, then re-fetches the current page to reflect the new RSVP state
+6. `OverviewShowButton` (`src/interactions/overview-channel.ts`) handles the `overview-show` button — calls `Event/GetUpcomingEventsForUser` and returns an ephemeral upcoming events embed

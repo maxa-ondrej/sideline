@@ -625,7 +625,7 @@ const rpcHandlers = Effect.Do.pipe(
         ),
   ),
   Effect.let(
-    'Event/GetPendingRsvps',
+    'Event/GetUpcomingEventsForUser',
     ({ deps: { sql } }) =>
       ({
         guild_id,
@@ -645,6 +645,7 @@ const rpcHandlers = Effect.Do.pipe(
               Result: TeamLookupResult,
               execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
             })(guild_id).pipe(
+              Effect.tapError((err) => Effect.logWarning('Guild lookup failed', err)),
               Effect.mapError(() => new EventRpcModels.GuildNotFound()),
               Effect.flatMap(
                 Option.match({
@@ -667,6 +668,7 @@ const rpcHandlers = Effect.Do.pipe(
                   AND tm.active = true
               `,
             })({ discord_user_id, team_id: teamId }).pipe(
+              Effect.tapError((err) => Effect.logWarning('Member lookup failed', err)),
               Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
               Effect.flatMap(
                 Option.match({
@@ -688,15 +690,36 @@ const rpcHandlers = Effect.Do.pipe(
                 event_id: Schema.String,
                 team_id: Schema.String,
                 title: Schema.String,
+                description: Schema.OptionFromNullOr(Schema.String),
                 start_at: Schemas.DateTimeFromDate,
                 end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
                 location: Schema.OptionFromNullOr(Schema.String),
                 event_type: Schema.String,
+                yes_count: Schema.Number,
+                no_count: Schema.Number,
+                maybe_count: Schema.Number,
+                my_response: Schema.OptionFromNullOr(Schema.Literal('yes', 'no', 'maybe')),
+                my_message: Schema.OptionFromNullOr(Schema.String),
               }),
               execute: (input) => sql`
-                SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.end_at,
-                       e.location, e.event_type
+                SELECT
+                  e.id AS event_id,
+                  e.team_id,
+                  e.title,
+                  e.description,
+                  e.start_at,
+                  e.end_at,
+                  e.location,
+                  e.event_type,
+                  COALESCE(SUM(CASE WHEN er.response = 'yes' THEN 1 ELSE 0 END), 0)::int AS yes_count,
+                  COALESCE(SUM(CASE WHEN er.response = 'no' THEN 1 ELSE 0 END), 0)::int AS no_count,
+                  COALESCE(SUM(CASE WHEN er.response = 'maybe' THEN 1 ELSE 0 END), 0)::int AS maybe_count,
+                  my_rsvp.response AS my_response,
+                  my_rsvp.message AS my_message
                 FROM events e
+                LEFT JOIN event_rsvps er ON er.event_id = e.id
+                LEFT JOIN event_rsvps my_rsvp ON my_rsvp.event_id = e.id
+                  AND my_rsvp.team_member_id = ${input.team_member_id}
                 WHERE e.team_id = ${input.team_id}
                   AND e.status = 'active'
                   AND e.start_at >= now()
@@ -713,10 +736,7 @@ const rpcHandlers = Effect.Do.pipe(
                         AND gm.team_member_id = ${input.team_member_id}
                     )
                   )
-                  AND NOT EXISTS (
-                    SELECT 1 FROM event_rsvps er
-                    WHERE er.event_id = e.id AND er.team_member_id = ${input.team_member_id}
-                  )
+                GROUP BY e.id, my_rsvp.response, my_rsvp.message
                 ORDER BY e.start_at ASC
                 LIMIT ${input.limit} OFFSET ${input.offset}
               `,
@@ -729,7 +749,9 @@ const rpcHandlers = Effect.Do.pipe(
               Effect.catchTag(
                 'SqlError',
                 'ParseError',
-                LogicError.withMessage((e) => `Failed querying pending RSVPs: ${e.message}`),
+                LogicError.withMessage(
+                  (e) => `Failed querying upcoming events for user: ${e.message}`,
+                ),
               ),
             ),
           ),
@@ -741,7 +763,7 @@ const rpcHandlers = Effect.Do.pipe(
               }),
               Result: Schema.Struct({ count: Schema.Number }),
               execute: (input) => sql`
-                SELECT COUNT(*)::int AS count
+                SELECT COUNT(DISTINCT e.id)::int AS count
                 FROM events e
                 WHERE e.team_id = ${input.team_id}
                   AND e.status = 'active'
@@ -759,10 +781,6 @@ const rpcHandlers = Effect.Do.pipe(
                         AND gm.team_member_id = ${input.team_member_id}
                     )
                   )
-                  AND NOT EXISTS (
-                    SELECT 1 FROM event_rsvps er
-                    WHERE er.event_id = e.id AND er.team_member_id = ${input.team_member_id}
-                  )
               `,
             })({
               team_id: teamId,
@@ -771,29 +789,38 @@ const rpcHandlers = Effect.Do.pipe(
               Effect.catchTag(
                 'SqlError',
                 'ParseError',
-                LogicError.withMessage((e) => `Failed counting pending RSVPs: ${e.message}`),
+                LogicError.withMessage(
+                  (e) => `Failed counting upcoming events for user: ${e.message}`,
+                ),
               ),
               Effect.map(Option.map((r) => r.count)),
               Effect.map(Option.getOrElse(() => 0)),
             ),
           ),
           Effect.map(
-            ({ rows, total }) =>
-              new EventRpcModels.PendingRsvpListResult({
+            ({ rows, total, teamId }) =>
+              new EventRpcModels.UpcomingEventsForUserResult({
                 events: Array.map(
                   rows,
                   (row) =>
-                    new EventRpcModels.PendingRsvpEntry({
+                    new EventRpcModels.UpcomingEventForUserEntry({
                       event_id: row.event_id,
                       team_id: row.team_id,
                       title: row.title,
+                      description: row.description,
                       start_at: row.start_at,
                       end_at: row.end_at,
                       location: row.location,
                       event_type: row.event_type,
+                      yes_count: row.yes_count,
+                      no_count: row.no_count,
+                      maybe_count: row.maybe_count,
+                      my_response: row.my_response,
+                      my_message: row.my_message,
                     }),
                 ),
                 total,
+                team_id: teamId,
               }),
           ),
         ),

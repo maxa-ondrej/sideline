@@ -1,8 +1,9 @@
+import * as m from '@sideline/i18n/messages';
 import * as Ix from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
 import { createHandler } from './create.js';
 import { listHandler } from './list.js';
-import { pendingHandler } from './pending.js';
+import { overviewHandler } from './overview.js';
 
 export const EventCommand = Ix.global(
   {
@@ -51,10 +52,10 @@ export const EventCommand = Ix.global(
       },
       {
         type: DiscordTypes.ApplicationCommandOptionType.SUB_COMMAND,
-        name: 'pending',
-        name_localizations: { cs: 'cekajici' },
-        description: 'List events awaiting your RSVP',
-        description_localizations: { cs: 'Zobrazit události čekající na tvou odpověď' },
+        name: 'overview',
+        name_localizations: { cs: 'prehled' },
+        description: m.bot_event_overview_description({}, { locale: 'en' }),
+        description_localizations: { cs: m.bot_event_overview_description({}, { locale: 'cs' }) },
       },
     ],
   } as const,
@@ -62,6 +63,6 @@ export const EventCommand = Ix.global(
     ix.subCommands({
       create: createHandler,
       list: listHandler,
-      pending: pendingHandler,
+      overview: overviewHandler,
     }),
 );

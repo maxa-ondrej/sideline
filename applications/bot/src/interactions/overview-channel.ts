@@ -2,7 +2,7 @@ import { Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
-import { Interaction, MessageComponentData } from 'dfx/Interactions/index';
+import { Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
 import { Effect, Metric, Option, pipe } from 'effect';
 import { userLocale } from '~/locale.js';
@@ -11,20 +11,17 @@ import { buildUpcomingEventPage } from '~/rest/events/buildUpcomingEventEmbed.js
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-// Handles upcoming-page:<offset> button clicks for the per-user upcoming events paginator
-export const UpcomingPageButton = Ix.messageComponent(
-  Ix.idStartsWith('upcoming-page:'),
+// Handles the "overview-show" button click — posts ephemeral upcoming events snapshot
+export const OverviewShowButton = Ix.messageComponent(
+  Ix.id('overview-show'),
   Effect.Do.pipe(
     Effect.tap(() =>
       Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
     ),
-    Effect.bind('data', () => MessageComponentData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('rest', () => DiscordREST),
-    Effect.flatMap(({ data, interaction, rpc, rest }) => {
-      const parts = data.custom_id.split(':');
-      const offset = Number(parts[1]) || 0;
+    Effect.flatMap(({ interaction, rpc, rest }) => {
       const locale = userLocale(interaction);
       const discordUserIdOption = interactionUserId(interaction);
       const guildId = interaction.guild_id;
@@ -54,24 +51,22 @@ export const UpcomingPageButton = Ix.messageComponent(
       }
 
       const discordUserId = discordUserIdOption.value;
+      const snowflakeGuildId = Discord.Snowflake.make(guildId);
 
       const work = rpc['Event/GetUpcomingEventsForUser']({
-        guild_id: Discord.Snowflake.make(guildId),
+        guild_id: snowflakeGuildId,
         discord_user_id: discordUserId,
-        offset,
+        offset: 0,
         limit: 1,
       }).pipe(
         Effect.map((result) => {
           const entry = result.events[0];
-          if (!entry) {
-            return {
-              content: m.bot_upcoming_no_events({}, { locale }),
-              components: [],
-            };
+          if (!entry || result.total === 0) {
+            return { content: m.bot_upcoming_no_events({}, { locale }) };
           }
           const page = buildUpcomingEventPage({
             entry,
-            currentIndex: offset,
+            currentIndex: 0,
             total: result.total,
             locale,
           });
@@ -96,17 +91,21 @@ export const UpcomingPageButton = Ix.messageComponent(
           'ResponseError',
           'RatelimitedResponse',
           'ErrorResponse',
-          (error) => Effect.logError('Failed to update upcoming page response', error),
+          (error) => Effect.logError('Failed to handle overview-show button', error),
         ),
       );
 
       return Effect.as(
         Effect.forkDaemon(work),
         Ix.response({
-          type: DiscordTypes.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
+          type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: m.bot_thinking({}, { locale }),
+            flags: DiscordTypes.MessageFlags.Ephemeral,
+          },
         }),
       );
     }),
-    Effect.withSpan('interaction/upcoming-page'),
+    Effect.withSpan('interaction/overview-show'),
   ),
 );
