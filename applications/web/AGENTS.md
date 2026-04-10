@@ -317,22 +317,69 @@ beforeLoad: ({ search, context }) =>
 
 **`Run` type** (what `useRun()` returns):
 ```typescript
-type Run = <A>(
-  effect: Effect.Effect<A, ClientError, ApiClient | ClientConfig>,
+type RunOptions = { readonly success?: string; readonly loading?: string };
+
+type Run = (
+  options?: RunOptions,
+) => <A>(
+  effect: Effect.Effect<A, ClientError | SilentClientError, ApiClient | ClientConfig>,
 ) => Promise<Option.Option<A>>;
 ```
 
+`Run` is curried: call it with optional `RunOptions` first, then pass the Effect. When `success` is provided, a success toast is shown automatically. When `loading` is provided, a loading toast is shown until the Effect completes.
+
 **Wiring**: The root loader creates `runPromiseClient(url)` and passes it to `RootDocument` as the `run` prop, which puts it in `RunProvider`. All organisms access it via `useRun()`.
 
-**Organisms** call `useRun()` directly and pipe effects into `run`:
+### Pattern A: Organism builds and runs its own Effect (default)
+
+The organism calls `useRun()`, builds the Effect pipeline internally, and runs it. This is the standard pattern for organisms that own their API logic.
+
 ```typescript
 const run = useRun();
 await ApiClient.pipe(
   Effect.flatMap((api) => api.someEndpoint(...)),
   Effect.catchTag('SomeError', () => ClientError.make('Error message')),
-  run,
+  run({ success: m.some_success_message() }),
 );
 ```
+
+### Pattern B: Parent passes an Effect pipeline as a prop (Effect-as-prop)
+
+The parent (page) builds the Effect pipeline and passes it as a prop. The child (organism) calls `useRun()` to execute it. Use this pattern when:
+- The parent owns the API context (route params, router invalidation) but the child owns the UI state (loading indicators, form fields)
+- Multiple UI interactions in the child trigger variations of the same Effect (e.g., different arguments)
+
+```typescript
+// Parent (page) — builds the Effect, does NOT run it
+const handleRsvpSubmit = React.useCallback(
+  (response: 'yes' | 'no' | 'maybe', message: string) =>
+    ApiClient.pipe(
+      Effect.flatMap((api) => api.eventRsvp.submitRsvp({ path: {...}, payload: {...} })),
+      Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
+      Effect.tap(() => Effect.sync(() => router.invalidate())),
+    ),
+  [teamIdBranded, eventIdBranded, router],
+);
+
+// Child (organism) — receives the Effect builder, runs it via useRun()
+interface MyPanelProps {
+  onSubmit: (arg: string) => Effect.Effect<void, ClientError, ApiClient | ClientConfig>;
+}
+
+function MyPanel({ onSubmit }: MyPanelProps) {
+  const run = useRun();
+  const handleClick = async (value: string) => {
+    await run({ success: m.some_message() })(onSubmit(value));
+  };
+  // ...
+}
+```
+
+**Key rules for Effect-as-prop:**
+- The prop type must be `(...args) => Effect.Effect<void, ClientError, ApiClient | ClientConfig>` — never `Effect.Effect` directly (the child needs to supply arguments).
+- The child organism must call `useRun()` and execute the Effect — the parent must never run it.
+- The parent must never import or depend on `useRun()` for this Effect — it only builds the pipeline.
+- Use `React.useCallback` in the parent to memoize the Effect builder.
 
 ## Internationalization (i18n)
 

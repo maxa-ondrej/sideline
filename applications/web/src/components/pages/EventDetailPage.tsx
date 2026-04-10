@@ -129,14 +129,6 @@ export function EventDetailPage({
   const [saving, setSaving] = React.useState(false);
   const [showEditScope, setShowEditScope] = React.useState(false);
   const [showCancelScope, setShowCancelScope] = React.useState(false);
-  const [rsvpResponse, setRsvpResponse] = React.useState<'yes' | 'no' | 'maybe' | null>(
-    Option.getOrNull(rsvpDetail.myResponse),
-  );
-  const [rsvpMessage, setRsvpMessage] = React.useState(
-    Option.getOrElse(rsvpDetail.myMessage, () => ''),
-  );
-  const [rsvpSubmitting, setRsvpSubmitting] = React.useState(false);
-
   const hasSeries = Option.isSome(eventDetail.seriesId);
 
   const doSaveThisOnly = React.useCallback(async () => {
@@ -291,27 +283,23 @@ export function EventDetailPage({
     }
   }, [hasSeries, doCancelThisOnly]);
 
-  const handleRsvpSubmit = React.useCallback(async () => {
-    if (!rsvpResponse) return;
-    setRsvpSubmitting(true);
-    const result = await ApiClient.pipe(
-      Effect.flatMap((api) =>
-        api.eventRsvp.submitRsvp({
-          path: { teamId: teamIdBranded, eventId: eventIdBranded },
-          payload: {
-            response: rsvpResponse,
-            message: rsvpMessage ? Option.some(rsvpMessage) : Option.none(),
-          },
-        }),
+  const handleRsvpSubmit = React.useCallback(
+    (response: 'yes' | 'no' | 'maybe', message: string) =>
+      ApiClient.pipe(
+        Effect.flatMap((api) =>
+          api.eventRsvp.submitRsvp({
+            path: { teamId: teamIdBranded, eventId: eventIdBranded },
+            payload: {
+              response,
+              message: message ? Option.some(message) : Option.none(),
+            },
+          }),
+        ),
+        Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
+        Effect.tap(() => Effect.sync(() => router.invalidate())),
       ),
-      Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
-      run({ success: m.event_rsvpSubmitted() }),
-    );
-    setRsvpSubmitting(false);
-    if (Option.isSome(result)) {
-      router.invalidate();
-    }
-  }, [teamIdBranded, eventIdBranded, rsvpResponse, rsvpMessage, run, router]);
+    [teamIdBranded, eventIdBranded, router],
+  );
 
   const status = eventDetail.status;
 
@@ -691,12 +679,7 @@ export function EventDetailPage({
               eventDetail={eventDetail}
               rsvpDetail={rsvpDetail}
               nonResponders={nonResponders}
-              rsvpResponse={rsvpResponse}
-              rsvpMessage={rsvpMessage}
-              rsvpSubmitting={rsvpSubmitting}
-              onResponseChange={setRsvpResponse}
-              onMessageChange={setRsvpMessage}
-              onSubmit={handleRsvpSubmit}
+              onRsvpSubmit={handleRsvpSubmit}
             />
           </div>
         )}
