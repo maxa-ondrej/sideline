@@ -65,7 +65,8 @@ export function EventRsvpPanel({
             {(['yes', 'maybe', 'no'] as const).map((response) => {
               const activeVariant =
                 response === 'yes' ? 'default' : response === 'maybe' ? 'secondary' : 'destructive';
-              const isActive = currentResponse === response || submittingResponse === response;
+              const displayedResponse = submittingResponse ?? currentResponse;
+              const isActive = displayedResponse === response;
               const isLoadingThis = submittingResponse === response;
               return (
                 <Button
@@ -73,7 +74,7 @@ export function EventRsvpPanel({
                   variant={isActive ? activeVariant : 'outline'}
                   onClick={() => handleResponseClick(response)}
                   disabled={isBusy}
-                  aria-pressed={currentResponse === response}
+                  aria-pressed={displayedResponse === response}
                 >
                   {isLoadingThis && <Loader2 className='animate-spin' aria-hidden='true' />}
                   {response === 'yes'
