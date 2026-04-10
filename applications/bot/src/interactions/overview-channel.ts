@@ -7,7 +7,7 @@ import * as DiscordTypes from 'dfx/types';
 import { Effect, Metric, Option, pipe } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
-import { buildUpcomingEventPage } from '~/rest/events/buildUpcomingEventEmbed.js';
+import { sendUpcomingEventFollowups } from '~/rest/events/sendUpcomingEventFollowups.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -57,34 +57,57 @@ export const OverviewShowButton = Ix.messageComponent(
         guild_id: snowflakeGuildId,
         discord_user_id: discordUserId,
         offset: 0,
-        limit: 1,
+        limit: 10,
       }).pipe(
-        Effect.map((result) => {
-          const entry = result.events[0];
-          if (!entry || result.total === 0) {
-            return { content: m.bot_upcoming_no_events({}, { locale }) };
+        Effect.flatMap((result) => {
+          if (result.total === 0 || result.events.length === 0) {
+            return rest
+              .executeWebhook(interaction.application_id, interaction.token, {
+                payload: {
+                  content: m.bot_upcoming_no_events({}, { locale }),
+                  flags: DiscordTypes.MessageFlags.Ephemeral,
+                },
+              })
+              .pipe(Effect.asVoid);
           }
-          const page = buildUpcomingEventPage({
-            entry,
-            currentIndex: 0,
+          return sendUpcomingEventFollowups({
+            rest,
+            applicationId: interaction.application_id,
+            interactionToken: interaction.token,
+            events: result.events,
             total: result.total,
             locale,
           });
-          return { embeds: page.embeds, components: page.components };
         }),
         Effect.catchTag('GuildNotFound', () =>
-          Effect.succeed({ content: m.bot_event_not_member({}, { locale }) }),
+          rest
+            .executeWebhook(interaction.application_id, interaction.token, {
+              payload: {
+                content: m.bot_event_not_member({}, { locale }),
+                flags: DiscordTypes.MessageFlags.Ephemeral,
+              },
+            })
+            .pipe(Effect.asVoid),
         ),
         Effect.catchTag('RsvpMemberNotFound', () =>
-          Effect.succeed({ content: m.bot_event_not_member({}, { locale }) }),
+          rest
+            .executeWebhook(interaction.application_id, interaction.token, {
+              payload: {
+                content: m.bot_event_not_member({}, { locale }),
+                flags: DiscordTypes.MessageFlags.Ephemeral,
+              },
+            })
+            .pipe(Effect.asVoid),
         ),
         Effect.catchTag('RpcClientError', () =>
-          Effect.succeed({ content: m.bot_event_list_error({}, { locale }) }),
-        ),
-        Effect.flatMap((payload) =>
-          rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
-            payload,
-          }),
+          rest
+            .executeWebhook(interaction.application_id, interaction.token, {
+              payload: {
+                content: m.bot_event_list_error({}, { locale }),
+                flags: DiscordTypes.MessageFlags.Ephemeral,
+              },
+            })
+            .pipe(Effect.asVoid),
         ),
         Effect.catchTag(
           'RequestError',
@@ -98,11 +121,7 @@ export const OverviewShowButton = Ix.messageComponent(
       return Effect.as(
         Effect.forkDaemon(work),
         Ix.response({
-          type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: m.bot_thinking({}, { locale }),
-            flags: DiscordTypes.MessageFlags.Ephemeral,
-          },
+          type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         }),
       );
     }),

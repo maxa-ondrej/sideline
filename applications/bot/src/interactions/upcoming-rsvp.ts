@@ -7,7 +7,7 @@ import * as Discord from 'dfx/types';
 import { Effect, Metric, Option, pipe, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
-import { buildUpcomingEventPage } from '~/rest/events/buildUpcomingEventEmbed.js';
+import { buildUpcomingEventEmbed } from '~/rest/events/buildUpcomingEventEmbed.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { postRsvpDiscordUpdates } from './rsvp.js';
@@ -16,7 +16,7 @@ const decodeEventId = Schema.decodeUnknownSync(Event.EventId);
 const decodeTeamId = Schema.decodeUnknownSync(Team.TeamId);
 const decodeRsvpResponse = Schema.decodeUnknownSync(EventRsvp.RsvpResponse);
 
-// Handles custom_id: upcoming-rsvp:<event_id>:<team_id>:<response>:<offset>
+// Handles custom_id: upcoming-rsvp:<event_id>:<team_id>:<response>
 export const UpcomingRsvpButton = Ix.messageComponent(
   Ix.idStartsWith('upcoming-rsvp:'),
   Effect.Do.pipe(
@@ -32,8 +32,6 @@ export const UpcomingRsvpButton = Ix.messageComponent(
       const eventId = decodeEventId(parts[1]);
       const teamId = decodeTeamId(parts[2]);
       const response = decodeRsvpResponse(parts[3]);
-      const parsedOffset = Number(parts[4]);
-      const offset = Number.isFinite(parsedOffset) ? Math.max(0, Math.trunc(parsedOffset)) : 0;
       const locale = userLocale(interaction);
       const discordUserIdOption = interactionUserId(interaction);
       const guildId = interaction.guild_id;
@@ -89,38 +87,18 @@ export const UpcomingRsvpButton = Ix.messageComponent(
           rpc['Event/GetUpcomingEventsForUser']({
             guild_id: snowflakeGuildId,
             discord_user_id: discordUserId,
-            offset,
-            limit: 1,
+            offset: 0,
+            limit: 10,
           }).pipe(
-            // If the event at the stale offset is no longer the same event, fetch page 0 instead
-            Effect.flatMap((result) => {
-              const entry = result.events[0];
-              if (entry && entry.event_id === eventId) {
-                return Effect.succeed(result);
-              }
-              return rpc['Event/GetUpcomingEventsForUser']({
-                guild_id: snowflakeGuildId,
-                discord_user_id: discordUserId,
-                offset: 0,
-                limit: 1,
-              });
-            }),
             Effect.map((result) => {
-              const entry = result.events[0];
+              const entry = result.events.find((e) => e.event_id === eventId);
               if (!entry) {
                 return {
-                  content: m.bot_upcoming_no_events({}, { locale }),
-                  components: [],
+                  content: m.bot_rsvp_event_not_found({}, { locale }),
+                  components: [] as ReadonlyArray<Discord.ActionRowComponentForMessageRequest>,
                 };
               }
-              // Use offset 0 as the display index when falling back, otherwise the stale offset
-              const displayOffset = entry.event_id === eventId ? offset : 0;
-              const page = buildUpcomingEventPage({
-                entry,
-                currentIndex: displayOffset,
-                total: result.total,
-                locale,
-              });
+              const page = buildUpcomingEventEmbed({ entry, locale });
               return { embeds: page.embeds, components: page.components };
             }),
           ),

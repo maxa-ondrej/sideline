@@ -54,16 +54,14 @@ const buildYourRsvpValue = (
   });
 };
 
-export const buildUpcomingEventPage = (params: {
+export const buildUpcomingEventEmbed = (params: {
   entry: EventRpcModels.UpcomingEventForUserEntry;
-  currentIndex: number;
-  total: number;
   locale: Locale;
 }): {
   embeds: ReadonlyArray<Discord.RichEmbed>;
   components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest>;
 } => {
-  const { entry, currentIndex, total, locale } = params;
+  const { entry, locale } = params;
 
   const descParts: string[] = [];
   if (Option.isSome(entry.description)) {
@@ -117,12 +115,6 @@ export const buildUpcomingEventPage = (params: {
       description: descParts.join('\n'),
       color,
       fields,
-      footer: {
-        text: m.bot_upcoming_footer(
-          { current: String(currentIndex + 1), total: String(total) },
-          { locale },
-        ),
-      },
     },
   ];
 
@@ -143,7 +135,7 @@ export const buildUpcomingEventPage = (params: {
       ? Discord.ButtonStyleTypes.PRIMARY
       : Discord.ButtonStyleTypes.SECONDARY;
 
-  // custom_id: upcoming-rsvp:<event_id>:<team_id>:<response>:<offset>
+  // custom_id: upcoming-rsvp:<event_id>:<team_id>:<response>
   const rsvpRow: Discord.ActionRowComponentForMessageRequest = {
     type: 1,
     components: [
@@ -151,46 +143,25 @@ export const buildUpcomingEventPage = (params: {
         type: 2,
         style: yesStyle,
         label: m.bot_btn_yes({}, { locale }),
-        custom_id: `upcoming-rsvp:${entry.event_id}:${entry.team_id}:yes:${currentIndex}`,
+        custom_id: `upcoming-rsvp:${entry.event_id}:${entry.team_id}:yes`,
       },
       {
         type: 2,
         style: noStyle,
         label: m.bot_btn_no({}, { locale }),
-        custom_id: `upcoming-rsvp:${entry.event_id}:${entry.team_id}:no:${currentIndex}`,
+        custom_id: `upcoming-rsvp:${entry.event_id}:${entry.team_id}:no`,
       },
       {
         type: 2,
         style: maybeStyle,
         label: m.bot_btn_maybe({}, { locale }),
-        custom_id: `upcoming-rsvp:${entry.event_id}:${entry.team_id}:maybe:${currentIndex}`,
-      },
-    ],
-  };
-
-  // Row 2: Navigation buttons
-  const navRow: Discord.ActionRowComponentForMessageRequest = {
-    type: 1,
-    components: [
-      {
-        type: 2,
-        style: 2,
-        label: m.bot_btn_prev({}, { locale }),
-        custom_id: `upcoming-page:${currentIndex - 1}`,
-        disabled: currentIndex === 0,
-      },
-      {
-        type: 2,
-        style: 2,
-        label: m.bot_btn_next({}, { locale }),
-        custom_id: `upcoming-page:${currentIndex + 1}`,
-        disabled: currentIndex >= total - 1,
+        custom_id: `upcoming-rsvp:${entry.event_id}:${entry.team_id}:maybe`,
       },
     ],
   };
 
   return {
     embeds,
-    components: [rsvpRow, navRow],
+    components: [rsvpRow],
   };
 };
