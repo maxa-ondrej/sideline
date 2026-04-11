@@ -143,7 +143,7 @@ describe('buildUpcomingEventEmbed', () => {
   });
 
   describe('RSVP buttons', () => {
-    it('returns one component row', () => {
+    it('returns one component row when user has no response', () => {
       const { components } = buildUpcomingEventEmbed({ ...baseParams, entry: makeEntry() });
       expect(components).toHaveLength(1);
     });
@@ -217,6 +217,68 @@ describe('buildUpcomingEventEmbed', () => {
       const { embeds } = buildUpcomingEventEmbed({ ...baseParams, entry });
       const allText = (embeds[0].fields ?? []).map((f) => f.value).join(' ');
       expect(allText).toContain('Cannot wait!');
+    });
+  });
+
+  describe('message action row', () => {
+    it('does not include message row when my_response is none', () => {
+      const entry = makeEntry({ my_response: Option.none() });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      expect(components).toHaveLength(1);
+    });
+
+    it('includes message row when my_response is some', () => {
+      const entry = makeEntry({ my_response: Option.some('yes') });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      expect(components).toHaveLength(2);
+    });
+
+    it('shows add message button when user has no message', () => {
+      const entry = makeEntry({ my_response: Option.some('yes'), my_message: Option.none() });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      const messageRow = components[1].components as ReadonlyArray<{ custom_id: string }>;
+      expect(messageRow).toHaveLength(1);
+      expect(messageRow[0].custom_id).toBe('u-add-msg:team-1:event-1:yes');
+    });
+
+    it('shows edit and clear buttons when user has a message', () => {
+      const entry = makeEntry({
+        my_response: Option.some('yes'),
+        my_message: Option.some('Ready!'),
+      });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      const messageRow = components[1].components as ReadonlyArray<{ custom_id: string }>;
+      expect(messageRow).toHaveLength(2);
+      expect(messageRow[0].custom_id).toBe('u-add-msg:team-1:event-1:yes');
+      expect(messageRow[1].custom_id).toBe('u-clear-msg:team-1:event-1:yes');
+    });
+
+    it('encodes team_id and event_id in custom_ids', () => {
+      const entry = makeEntry({
+        event_id: 'ev-99',
+        team_id: 'tm-5',
+        my_response: Option.some('maybe'),
+      });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      const messageRow = components[1].components as ReadonlyArray<{ custom_id: string }>;
+      expect(messageRow[0].custom_id).toBe('u-add-msg:tm-5:ev-99:maybe');
+    });
+
+    it('add/edit button uses secondary style (2)', () => {
+      const entry = makeEntry({ my_response: Option.some('yes'), my_message: Option.none() });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      const addBtn = components[1].components[0] as { style: number };
+      expect(addBtn.style).toBe(2);
+    });
+
+    it('clear button uses danger style (4)', () => {
+      const entry = makeEntry({
+        my_response: Option.some('yes'),
+        my_message: Option.some('Here!'),
+      });
+      const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      const clearBtn = components[1].components[1] as { style: number };
+      expect(clearBtn.style).toBe(4);
     });
   });
 });

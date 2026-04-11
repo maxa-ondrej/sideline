@@ -119,12 +119,11 @@ export const listHandler = Interaction.pipe(
       ),
     );
 
-    return Effect.as(
-      Effect.forkDaemon(work),
-      Ix.response({
-        type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      }),
-    );
+    const deferredEphemeral: DiscordTypes.CreateMessageInteractionCallbackRequest = {
+      type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { flags: DiscordTypes.MessageFlags.Ephemeral },
+    };
+    return Effect.as(Effect.forkDaemon(work), deferredEphemeral);
   }),
   Effect.withSpan('command/event/list'),
 );

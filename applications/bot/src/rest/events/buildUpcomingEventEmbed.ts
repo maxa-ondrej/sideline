@@ -160,8 +160,48 @@ export const buildUpcomingEventEmbed = (params: {
     ],
   };
 
+  // Row 2 (only when user has responded): add/edit/clear message buttons
+  const messageRow: Discord.ActionRowComponentForMessageRequest | undefined = Option.match(
+    myResponse,
+    {
+      onNone: () => undefined,
+      onSome: (response) => {
+        const hasMessage = Option.isSome(entry.my_message);
+        return {
+          type: 1 as const,
+          components: hasMessage
+            ? [
+                {
+                  type: 2 as const,
+                  style: Discord.ButtonStyleTypes.SECONDARY,
+                  label: m.bot_rsvp_edit_message({}, { locale }),
+                  custom_id: `u-add-msg:${entry.team_id}:${entry.event_id}:${response}`,
+                },
+                {
+                  type: 2 as const,
+                  style: Discord.ButtonStyleTypes.DANGER,
+                  label: m.bot_rsvp_clear_message({}, { locale }),
+                  custom_id: `u-clear-msg:${entry.team_id}:${entry.event_id}:${response}`,
+                },
+              ]
+            : [
+                {
+                  type: 2 as const,
+                  style: Discord.ButtonStyleTypes.SECONDARY,
+                  label: m.bot_rsvp_add_message({}, { locale }),
+                  custom_id: `u-add-msg:${entry.team_id}:${entry.event_id}:${response}`,
+                },
+              ],
+        };
+      },
+    },
+  );
+
+  const components: ReadonlyArray<Discord.ActionRowComponentForMessageRequest> =
+    messageRow !== undefined ? [rsvpRow, messageRow] : [rsvpRow];
+
   return {
     embeds,
-    components: [rsvpRow],
+    components,
   };
 };
