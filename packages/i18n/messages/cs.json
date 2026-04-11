@@ -465,7 +465,6 @@
   "bot_event_started": "Tato událost začala.",
   "bot_event_divider_past": "⬆️ Události výše jsou již uzavřeny",
   "bot_attendees_load_error": "Nepodařilo se načíst účastníky.",
-  "bot_thinking": "Přemýšlím...",
   "teamSettings_minPlayersThreshold": "Minimální počet hráčů",
   "teamSettings_minPlayersThresholdHelp": "Varovat, když potvrdí méně hráčů. Nastavte 0 pro vypnutí.",
   "teamSettings_profileSaved": "Profil tymu ulozen.",

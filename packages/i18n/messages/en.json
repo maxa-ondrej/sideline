@@ -465,7 +465,6 @@
   "bot_event_started": "This event has started.",
   "bot_event_divider_past": "⬆️ Events above are already over",
   "bot_attendees_load_error": "Failed to load attendees.",
-  "bot_thinking": "Thinking...",
   "teamSettings_minPlayersThreshold": "Minimum players threshold",
   "teamSettings_minPlayersThresholdHelp": "Warn when fewer than this many players have confirmed. Set to 0 to disable.",
   "teamSettings_profileSaved": "Team profile saved.",
