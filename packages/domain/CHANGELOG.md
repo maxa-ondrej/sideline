@@ -1,5 +1,11 @@
 # @sideline/domain
 
+## 0.15.4
+
+### Patch Changes
+
+- [#206](https://github.com/maxa-ondrej/sideline/pull/206) [`d99385d`](https://github.com/maxa-ondrej/sideline/commit/d99385d26b7a112f8c632cb020b37de48f4cc9ad) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Store Discord server nickname and use name display priority: DB name → server nickname → username
+
 ## 0.15.3
 
 ### Patch Changes
