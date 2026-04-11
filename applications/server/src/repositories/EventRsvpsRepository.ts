@@ -37,6 +37,7 @@ class UpsertClearInput extends Schema.Class<UpsertClearInput>('UpsertClearInput'
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
   discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
   member_name: Schema.OptionFromNullOr(Schema.String),
+  nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
   response: EventRsvp.RsvpResponse,
   message: Schema.OptionFromNullOr(Schema.String),
@@ -45,6 +46,7 @@ class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDis
 class NonResponderRow extends Schema.Class<NonResponderRow>('NonResponderRow')({
   team_member_id: TeamMember.TeamMemberId,
   member_name: Schema.OptionFromNullOr(Schema.String),
+  nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
   discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
@@ -135,7 +137,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     }),
     Result: RsvpWithDiscordInfo,
     execute: (input) => this.sql`
-      SELECT u.discord_id, u.name AS member_name, u.username, r.response, r.message
+      SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, r.response, r.message
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
       LEFT JOIN users u ON u.id = tm.user_id
@@ -162,7 +164,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     }),
     Result: RsvpWithDiscordInfo,
     execute: (input) => this.sql`
-      SELECT u.discord_id, u.name AS member_name, u.username, r.response, r.message
+      SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, r.response, r.message
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
       LEFT JOIN users u ON u.id = tm.user_id
@@ -211,7 +213,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
             )
           )
       )
-      SELECT em.team_member_id, u.name AS member_name, u.username, u.discord_id
+      SELECT em.team_member_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, u.discord_id
       FROM eligible_members em
       LEFT JOIN users u ON u.id = em.user_id
       LEFT JOIN event_rsvps er ON er.team_member_id = em.team_member_id AND er.event_id = ${input.event_id}

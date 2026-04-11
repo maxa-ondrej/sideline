@@ -112,6 +112,7 @@ export class GuildNotFound extends Schema.TaggedError<GuildNotFound>()('GuildNot
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
+  nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
   response: Schema.Literal('yes', 'no', 'maybe'),
   message: Schema.OptionFromNullOr(Schema.String),
@@ -127,6 +128,7 @@ export class NonResponderRpcEntry extends Schema.Class<NonResponderRpcEntry>(
 )({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
+  nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
