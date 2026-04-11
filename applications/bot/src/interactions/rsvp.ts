@@ -299,8 +299,8 @@ export const RsvpButton = Ix.messageComponent(
       return Effect.as(
         Effect.forkDaemon(submitAndFollowUp),
         Ix.response({
-          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { flags: Discord.MessageFlags.Ephemeral },
         }),
       );
     }),
@@ -463,8 +463,8 @@ export const RsvpClearMessageButton = Ix.messageComponent(
       return Effect.as(
         Effect.forkDaemon(clearAndFollowUp),
         Ix.response({
-          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { flags: Discord.MessageFlags.Ephemeral },
         }),
       );
     }),
@@ -595,8 +595,8 @@ export const RsvpModal = Ix.modalSubmit(
       return Effect.as(
         Effect.forkDaemon(submitAndFollowUp),
         Ix.response({
-          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
+          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { flags: Discord.MessageFlags.Ephemeral },
         }),
       );
     }),
