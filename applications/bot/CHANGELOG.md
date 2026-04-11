@@ -1,5 +1,11 @@
 # @sideline/bot
 
+## 0.10.6
+
+### Patch Changes
+
+- [`8833ee2`](https://github.com/maxa-ondrej/sideline/commit/8833ee2c58481b1801da0bb5fcd213d4d8c38eff) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Restore Discord mentions alongside names in attendees list
+
 ## 0.10.5
 
 ### Patch Changes
