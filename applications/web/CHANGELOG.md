@@ -1,5 +1,17 @@
 # @sideline/web
 
+## 0.10.2
+
+### Patch Changes
+
+- [#197](https://github.com/maxa-ondrej/sideline/pull/197) [`19d94f2`](https://github.com/maxa-ondrej/sideline/commit/19d94f2bb999bd6465b2a41955d7cae1a2dc7135) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Remove RSVP confirmation step on web — clicking Yes/No/Maybe now immediately submits the response, matching the Discord bot behavior
+
+- [#202](https://github.com/maxa-ondrej/sideline/pull/202) [`b669fed`](https://github.com/maxa-ondrej/sideline/commit/b669fedf293e95575e8488f91687ae94a24ce5a0) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Show attendees list on web even after event has started — the RSVP panel now remains visible for started events (with RSVP buttons hidden)
+
+- Updated dependencies [[`b64c794`](https://github.com/maxa-ondrej/sideline/commit/b64c794005a3249889ea374f4ef13e9419fea6a9), [`19d94f2`](https://github.com/maxa-ondrej/sideline/commit/19d94f2bb999bd6465b2a41955d7cae1a2dc7135), [`d2d3eb6`](https://github.com/maxa-ondrej/sideline/commit/d2d3eb666c115009d1d24d1d4c80071633ba2e38), [`0704c17`](https://github.com/maxa-ondrej/sideline/commit/0704c17897ced04f67ee10a7ed65cd0ec51f74d7)]:
+  - @sideline/domain@0.15.3
+  - @sideline/i18n@0.3.10
+
 ## 0.10.1
 
 ### Patch Changes
