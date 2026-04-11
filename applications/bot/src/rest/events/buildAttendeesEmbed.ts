@@ -15,7 +15,15 @@ const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string => {
         () => Option.map(entry.username, (u) => `**${u}**`),
       ),
   );
-  const name = Option.getOrElse(boldName, () => 'Unknown');
+  const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
+  const name = Option.match(boldName, {
+    onNone: () => Option.getOrElse(mention, () => 'Unknown'),
+    onSome: (bold) =>
+      Option.match(mention, {
+        onNone: () => bold,
+        onSome: (m) => `${bold} (${m})`,
+      }),
+  });
   return entry.message.pipe(
     Option.map((msg) => `${name} — "${msg}"`),
     Option.getOrElse(() => name),

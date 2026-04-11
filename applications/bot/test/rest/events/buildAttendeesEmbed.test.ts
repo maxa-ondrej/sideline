@@ -40,34 +40,32 @@ const collectFieldValues = (attendees: EventRpcModels.RsvpAttendeeEntry[]): stri
 };
 
 describe('buildAttendeesEmbed - formatEntry', () => {
-  it('formats with name as "**Alice**"', () => {
+  it('formats with name and mention as "**Alice** (<@123>)"', () => {
     const attendee = makeAttendee({
       discord_id: Option.some('123'),
       name: Option.some('Alice'),
     });
     const text = collectFieldValues([attendee]);
-    expect(text).toContain('**Alice**');
-    expect(text).not.toContain('<@');
+    expect(text).toContain('**Alice** (<@123>)');
   });
 
-  it('formats with name and message', () => {
+  it('formats with name, mention, and message', () => {
     const attendee = makeAttendee({
       discord_id: Option.some('123'),
       name: Option.some('Alice'),
       message: Option.some('Hello'),
     });
     const text = collectFieldValues([attendee]);
-    expect(text).toContain('**Alice** — "Hello"');
+    expect(text).toContain('**Alice** (<@123>) — "Hello"');
   });
 
-  it('formats with only discord_id (no name/nickname/username) as "Unknown"', () => {
+  it('formats with only discord_id as mention fallback', () => {
     const attendee = makeAttendee({
       discord_id: Option.some('123'),
       name: Option.none(),
     });
     const text = collectFieldValues([attendee]);
-    expect(text).toContain('Unknown');
-    expect(text).not.toContain('<@');
+    expect(text).toContain('<@123>');
   });
 
   it('formats with only name as "**Bob**"', () => {
@@ -99,7 +97,7 @@ describe('buildAttendeesEmbed - formatEntry', () => {
     expect(text).toContain('**Bob** — "msg"');
   });
 
-  it('falls back to bold nickname when name is None but nickname is set', () => {
+  it('falls back to bold nickname with mention when name is None but nickname is set', () => {
     const attendee = makeAttendee({
       discord_id: Option.some('123'),
       name: Option.none(),
@@ -107,20 +105,18 @@ describe('buildAttendeesEmbed - formatEntry', () => {
       username: Option.some('bob_discord'),
     });
     const text = collectFieldValues([attendee]);
-    expect(text).toContain('**Server Nick**');
-    expect(text).not.toContain('<@');
+    expect(text).toContain('**Server Nick** (<@123>)');
     expect(text).not.toContain('bob_discord');
   });
 
-  it('falls back to bold username when name and nickname are None but username is set', () => {
+  it('falls back to bold username with mention when name and nickname are None', () => {
     const attendee = makeAttendee({
       discord_id: Option.some('123'),
       name: Option.none(),
       username: Option.some('bob_discord'),
     });
     const text = collectFieldValues([attendee]);
-    expect(text).toContain('**bob_discord**');
-    expect(text).not.toContain('<@');
+    expect(text).toContain('**bob_discord** (<@123>)');
   });
 
   it('falls back to bold username when name is None but username is set (no discord_id)', () => {
