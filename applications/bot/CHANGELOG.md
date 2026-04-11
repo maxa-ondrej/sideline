@@ -1,5 +1,11 @@
 # @sideline/bot
 
+## 0.10.4
+
+### Patch Changes
+
+- [#204](https://github.com/maxa-ondrej/sideline/pull/204) [`2c66246`](https://github.com/maxa-ondrej/sideline/commit/2c66246b2ee985a7fea2a40a2762367a7d928336) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Send ephemeral event messages sequentially to preserve chronological order
+
 ## 0.10.3
 
 ### Patch Changes
