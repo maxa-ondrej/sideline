@@ -88,40 +88,33 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 
 ---
 
-### /event pending
+### /event overview
 
-**Description:** List events awaiting the invoking user's RSVP.
+**Description:** Post the events overview message in this channel.
 
-**Czech sub-command name:** `cekajici`
+**Czech sub-command name:** `prehled`
 
 **Options:** None.
 
+**Permission required:** `Manage Server` (checked at the top of the handler; members lacking this permission receive an ephemeral error).
+
 **Flow:**
 
-1. User invokes `/event pending`.
-2. The handler (`applications/bot/src/commands/event/pending.ts`) immediately returns an ephemeral "thinking" response and forks a background fiber.
-3. The background fiber calls `Event/GetPendingRsvps` RPC with `discord_user_id` (resolved from `interaction.member.user.id` or `interaction.user.id`), `offset=0`, and `limit=PAGE_SIZE` (5).
-4. The response is rendered into a yellow embed. Each entry shows: event-type emoji, bold title, Discord dynamic timestamp (full), and optional location.
-5. If the total number of pending events exceeds `PAGE_SIZE`, Previous/Next pagination buttons are added with custom IDs `pending-rsvp-page:{guildId}:{discordUserId}:{offset}`.
-6. The ephemeral message is updated with the embed and buttons. If the user is not a member of the guild's team, an ephemeral error is shown instead.
-
-**Errors from `Event/GetPendingRsvps`:**
-
-| Error tag | Behavior |
-|-----------|----------|
-| `GuildNotFound` | Shows "not a member" message |
-| `RsvpMemberNotFound` | Shows "not a member" message |
+1. User with Manage Server permission invokes `/event overview`.
+2. The handler (`applications/bot/src/commands/event/overview.ts`) immediately returns an ephemeral acknowledgement.
+3. A background fiber posts a persistent public message containing a "Show My Events" button in the current channel.
+4. When a member clicks the button, the `OverviewShowButton` handler (`applications/bot/src/interactions/overview-channel.ts`) delegates to `sendUpcomingEventFollowups`, which calls `Event/GetUpcomingEventsForUser` RPC and sends one ephemeral message per upcoming event (up to 10), each with RSVP buttons.
 
 **Source files:**
-- `applications/bot/src/commands/event/pending.ts`
-- `applications/bot/src/interactions/pending-rsvp.ts`
-- `applications/bot/src/rest/events/buildPendingRsvpEmbed.ts`
+- `applications/bot/src/commands/event/overview.ts`
+- `applications/bot/src/interactions/overview-channel.ts` (`OverviewShowButton`)
+- `applications/bot/src/rest/events/sendUpcomingEventFollowups.ts`
 
 ---
 
 ### /event list
 
-**Description:** List upcoming events for the guild.
+**Description:** Show the invoking user's upcoming events with per-user RSVP visibility (one ephemeral message per event).
 
 **Czech sub-command name:** `seznam`
 
@@ -130,21 +123,23 @@ Two top-level commands are registered globally: `/event` and `/makanicko`. Each 
 **Flow:**
 
 1. User invokes `/event list`.
-2. The handler (`applications/bot/src/commands/event/list.ts`) immediately returns a deferred ephemeral "thinking" response and forks a background fiber.
-3. The background fiber calls `Event/GetUpcomingGuildEvents` RPC with `offset=0` and `limit=5` (`PAGE_SIZE` constant defined in `applications/bot/src/rest/events/buildEventListEmbed.ts`).
-4. The response is rendered into an embed. Each event entry shows: type emoji, bold title, Discord dynamic timestamp, optional location, and RSVP summary counts.
-5. If the total number of events exceeds `PAGE_SIZE`, Previous/Next pagination buttons are added with custom IDs `event-list-page:{guildId}:{offset}`.
-6. The ephemeral message is updated with the embed and buttons.
+2. The handler (`applications/bot/src/commands/event/list.ts`) immediately returns an ephemeral acknowledgement and forks a background fiber.
+3. The background fiber delegates to `sendUpcomingEventFollowups`, which calls `Event/GetUpcomingEventsForUser` RPC with `discord_user_id` (resolved via `interactionUserId` helper) and `limit=10`.
+4. For each event in the response (up to 10), a separate ephemeral follow-up message is sent. Each message shows: event title, description, Discord dynamic timestamps, optional location, RSVP counts, and the invoking user's own RSVP status, with inline RSVP buttons.
+5. If there are no upcoming events, a single ephemeral "no events" message is sent instead.
 
-**Errors from `Event/GetUpcomingGuildEvents`:**
+**Errors from `Event/GetUpcomingEventsForUser`:**
 
 | Error tag | Behavior |
 |-----------|----------|
 | `GuildNotFound` | Shows "not a member" message |
+| `RsvpMemberNotFound` | Shows "not a member" message |
 
 **Source files:**
 - `applications/bot/src/commands/event/list.ts`
-- `applications/bot/src/interactions/event-list.ts`
+- `applications/bot/src/interactions/upcoming-rsvp.ts`
+- `applications/bot/src/rest/events/buildUpcomingEventEmbed.ts`
+- `applications/bot/src/rest/events/sendUpcomingEventFollowups.ts`
 
 ---
 
@@ -363,37 +358,22 @@ Updates an existing attendees embed when the user pages through the list.
 
 ---
 
-### Pending RSVP Page Button — `pending-rsvp-page:{guildId}:{discordUserId}:{offset}`
+### Upcoming RSVP Button — `upcoming-rsvp:{eventId}:{teamId}:{response}`
 
-Paginates the pending-events embed created by `/event pending`.
+Appears on each per-user upcoming event message (produced by `/event list` and the overview show button). Clicking saves the RSVP immediately and refreshes that message to show the updated response and counts.
 
-**Custom ID pattern:** `pending-rsvp-page:{guildId}:{discordUserId}:{offset}`
-
-**Behavior:**
-
-1. Parses `guildId`, `discordUserId`, and `offset` from the custom ID.
-2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
-3. The background fiber calls `Event/GetPendingRsvps` RPC with the new offset and `limit=PAGE_SIZE` (5).
-4. Rebuilds the embed and updates the existing message.
-
-**Source file:** `applications/bot/src/interactions/pending-rsvp.ts` (`PendingRsvpPageButton`)
-
----
-
-### Event List Page Button — `event-list-page:{guildId}:{offset}`
-
-Paginates the event list embed created by `/event list`.
-
-**Custom ID pattern:** `event-list-page:{guildId}:{offset}`
+**Custom ID pattern:** `upcoming-rsvp:{eventId}:{teamId}:{response}` where `response` is one of `yes`, `no`, `maybe`.
 
 **Behavior:**
 
-1. Parses `guildId` and `offset` from the custom ID.
+1. Parses `eventId`, `teamId`, and `response` from the custom ID.
 2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
-3. The background fiber calls `Event/GetUpcomingGuildEvents` RPC with the new offset and `limit=PAGE_SIZE` (5).
-4. Rebuilds the embed and updates the existing message.
+3. The background fiber calls `Event/SubmitRsvp` RPC (same as the standard RSVP button), then runs `postRsvpDiscordUpdates` to rebuild the public event embed.
+4. After the RSVP is recorded, re-fetches the event's embed info and rebuilds the per-user upcoming embed, updating the current ephemeral message in place.
 
-**Source file:** `applications/bot/src/interactions/event-list.ts` (`EventListPageButton`)
+**Errors:** same as RSVP Button, plus `GuildNotFound` (shows "not a member" message).
+
+**Source file:** `applications/bot/src/interactions/upcoming-rsvp.ts` (`UpcomingRsvpButton`)
 
 ---
 
@@ -616,8 +596,8 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/MarkEventProcessed` | Acknowledge successful processing |
 | `Event/MarkEventFailed` | Record a processing failure |
 | `Event/CreateEvent` | Create a new event (from `/event create`) |
-| `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events for `/event list` |
-| `Event/GetPendingRsvps` | Fetch paginated events awaiting the user's RSVP for `/event pending` |
+| `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events (guild-scoped, no per-user RSVP data; used by the event sync worker embed builder) |
+| `Event/GetUpcomingEventsForUser` | Fetch paginated upcoming events with the invoking user's RSVP status; used by `/event list`, the overview show button, and pagination/RSVP buttons on the per-user embed |
 | `Event/GetTrainingTypesByGuild` | Fetch training type choices for autocomplete |
 | `Event/SubmitRsvp` | Record a member's RSVP response; payload includes `clearMessage: boolean`; returns `SubmitRsvpResult` with late-RSVP flag, optional notification channel, and `message: Option<string>` |
 | `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |

@@ -14,7 +14,7 @@ Mermaid `flowchart` diagrams are used throughout this document because Mermaid d
 | **Player** | An authenticated Discord user who is a member of at least one team. Holds the built-in `Player` role granting `roster:view` and `member:view` permissions. Can view events, submit RSVPs, log personal activities, and subscribe to the iCal feed. |
 | **Captain** | A team member holding the built-in `Captain` role. Inherits all Player capabilities and additionally holds `roster:manage`, `member:edit`, `role:view`, `event:create`, `event:edit`, and `event:cancel` permissions. |
 | **Admin** | A team member holding the built-in `Admin` role. Holds the full permission set including `team:manage`, `team:invite`, `member:remove`, `role:manage`, `training-type:create`, and `training-type:delete`, in addition to all Captain permissions. |
-| **Discord Bot** | The Sideline Discord bot application. Responds to slash commands (`/event list`, `/event create`, `/event pending`, `/makanicko log`, `/makanicko leaderboard`, `/makanicko stats`) and reacts to button interactions on posted embeds (RSVP buttons, event list pagination, pending-events pagination). Receives RPC calls from the server to synchronise Discord roles and channels. |
+| **Discord Bot** | The Sideline Discord bot application. Responds to slash commands (`/event list`, `/event create`, `/event overview`, `/makanicko log`, `/makanicko leaderboard`, `/makanicko stats`) and reacts to button interactions on posted embeds (RSVP buttons, upcoming events pagination). Receives RPC calls from the server to synchronise Discord roles and channels. |
 | **System (Cron/Background)** | Automated background processes running inside the API server. Responsible for generating recurring events from event series definitions, transitioning events to `started` status when their start time passes, sending RSVP reminder notifications before events, auto-logging attendance from RSVP data, and evaluating age-threshold rules to move members between groups. |
 
 ---
@@ -85,7 +85,7 @@ flowchart LR
 
     subgraph DISCORD["Discord Bot"]
         UC_BOT_LIST["List Upcoming Events"]
-        UC_BOT_PENDING["List Pending RSVPs"]
+        UC_BOT_OVERVIEW["Post Events Overview Message"]
         UC_BOT_CREATE["Create Event via Bot"]
         UC_BOT_LOG["Log Activity via Bot"]
         UC_BOT_LEADERBOARD["View Leaderboard via Bot"]
@@ -133,7 +133,7 @@ flowchart LR
     AD --> UC_MANAGE_TRAINING_TYPES
 
     BOT --> UC_BOT_LIST
-    BOT --> UC_BOT_PENDING
+    BOT --> UC_BOT_OVERVIEW
     BOT --> UC_BOT_CREATE
     BOT --> UC_BOT_LOG
     BOT --> UC_BOT_LEADERBOARD
@@ -455,8 +455,8 @@ flowchart LR
     SYS(["System (Event/Role Sync Worker)"])
 
     subgraph SLASH["Slash Commands"]
-        UC_EVT_LIST["\/event list\nLists upcoming events as a paginated embed"]
-        UC_EVT_PENDING["\/event pending\nLists events awaiting the invoking user's RSVP\npaginated · ephemeral · scoped to invoking Discord user"]
+        UC_EVT_LIST["\/event list\nShows per-user upcoming events\none event per page · ephemeral · own RSVP visible\n(Event/GetUpcomingEventsForUser)"]
+        UC_EVT_OVERVIEW["\/event overview\nPosts a persistent overview button in the channel\nrequires Manage Server permission"]
         UC_EVT_CREATE["\/event create\nCreates a new event for the team\nrequires event:create permission"]
         UC_MAK_LOG["\/makanicko log\nLogs an activity for the invoking user\nactivity type · optional duration · optional note"]
         UC_MAK_STATS["\/makanicko stats\nDisplays personal activity stats and streak"]
@@ -465,8 +465,8 @@ flowchart LR
 
     subgraph BUTTONS["Button Interactions on Embeds"]
         UC_BTN_RSVP["RSVP Button (Yes / No / Maybe)\nSaves RSVP immediately on click (no modal)\nEphemeral confirm with Add/Edit/Clear message buttons\nupdates embed counts in real time"]
-        UC_BTN_PAGE["Pagination Buttons\nNavigates event list forward / backward"]
-        UC_BTN_PENDING_PAGE["Pending RSVP Pagination Buttons\nNavigates pending-events list forward / backward"]
+        UC_BTN_PAGE["Upcoming Events Navigation Buttons\nNavigates upcoming events one event at a time"]
+        UC_BTN_OVERVIEW_SHOW["Overview Show Button\nOpens ephemeral upcoming events embed for the clicking user\n(Event/GetUpcomingEventsForUser)"]
     end
 
     subgraph SYNC["Background Sync (RPC)"]
@@ -476,24 +476,24 @@ flowchart LR
     end
 
     DU --> UC_EVT_LIST
-    DU --> UC_EVT_PENDING
+    DU --> UC_EVT_OVERVIEW
     DU --> UC_EVT_CREATE
     DU --> UC_MAK_LOG
     DU --> UC_MAK_STATS
     DU --> UC_MAK_LB
     DU --> UC_BTN_RSVP
     DU --> UC_BTN_PAGE
-    DU --> UC_BTN_PENDING_PAGE
+    DU --> UC_BTN_OVERVIEW_SHOW
 
     BOT --> UC_EVT_LIST
-    BOT --> UC_EVT_PENDING
+    BOT --> UC_EVT_OVERVIEW
     BOT --> UC_EVT_CREATE
     BOT --> UC_MAK_LOG
     BOT --> UC_MAK_STATS
     BOT --> UC_MAK_LB
     BOT --> UC_BTN_RSVP
     BOT --> UC_BTN_PAGE
-    BOT --> UC_BTN_PENDING_PAGE
+    BOT --> UC_BTN_OVERVIEW_SHOW
     BOT --> UC_SYNC_ROLES
     BOT --> UC_SYNC_CHANNELS
     BOT --> UC_POST_EMBED

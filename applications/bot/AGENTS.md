@@ -12,7 +12,7 @@ src/
 ├── env.ts           — Environment config (token, intents, health port)
 ├── run.ts           — Runtime entrypoint (config, logging, NodeRuntime)
 ├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser)
-├── commands/        — Slash command registry (event/create, event/list, event/pending, makanicko/*)
+├── commands/        — Slash command registry (event/create, event/list, event/overview, makanicko/*)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member, channel lifecycle)
 ├── services/        — Sync services (RoleSyncService, ChannelSyncService)
@@ -34,10 +34,10 @@ src/
     ├── handleStarted.ts       — event_started handler (updates embed, removes RSVP buttons)
     └── handleRsvpReminder.ts  — rsvp_reminder handler
 └── rest/events/     — Embed builder functions
-    ├── buildEventEmbed.ts         — Main event embed (RSVP counts, "Going" field)
-    ├── buildAttendeesEmbed.ts     — Paginated attendee list embed
-    ├── buildEventListEmbed.ts     — Paginated event list embed (/event list)
-    └── buildPendingRsvpEmbed.ts   — Paginated pending RSVP embed (/event pending)
+    ├── buildEventEmbed.ts              — Main event embed (RSVP counts, "Going" field)
+    ├── buildAttendeesEmbed.ts          — Paginated attendee list embed
+    ├── buildUpcomingEventEmbed.ts      — Per-user upcoming events embed (/event list, overview button)
+    └── sendUpcomingEventFollowups.ts   — Shared helper: sends one ephemeral follow-up message per event (max 10)
 ```
 
 Follows the **AppLive + run.ts** pattern.
@@ -236,11 +236,23 @@ When building new embed functions that display user names, always follow this pr
 
 ### Paginated Embed Pattern
 
-Commands that display paginated lists (`/event list`, `/event pending`, attendees) follow this structure:
+Two pagination models are used:
 
-1. Embed builder function in `src/rest/events/` exports a `PAGE_SIZE` constant and a `build*Embed` function
+#### Multi-item pages (attendees)
+
+1. Embed builder in `src/rest/events/` exports a `PAGE_SIZE` constant and a `build*Embed` function
 2. The builder returns `{ embeds, components }` where `components` contains Previous/Next buttons when `total > PAGE_SIZE`
 3. Button `custom_id` format: `{prefix}:{guildId}:{userId?}:{offset}` — offset-based pagination
 4. Previous button is disabled when `offset === 0`; Next button is disabled when `offset + PAGE_SIZE >= total`
 5. The slash command handler sends an initial ephemeral "thinking" response, forks a background fiber, then updates the message
 6. The page button interaction handler responds with `DEFERRED_UPDATE_MESSAGE` and edits in place
+
+#### Single-event ephemeral messages (upcoming events)
+
+Used by `/event list` and the overview show button (`overview-show`). Instead of pagination, the bot sends one ephemeral follow-up message per upcoming event (max 10). Each message shows one event with the invoking user's RSVP status.
+
+1. `buildUpcomingEventPage` in `src/rest/events/buildUpcomingEventEmbed.ts` accepts `{ entry, locale }` and returns `{ embeds, components }` with a single action row:
+   - **Row 1 — RSVP buttons** (Yes / No / Maybe): `custom_id` = `upcoming-rsvp:{event_id}:{team_id}:{response}`. The button matching the user's current response uses a highlighted style (Success/Danger/Primary); others use Secondary
+2. `sendUpcomingEventFollowups` in `src/rest/events/sendUpcomingEventFollowups.ts` is the shared helper used by both `/event list` and `OverviewShowButton`. It calls `Event/GetUpcomingEventsForUser` (fetching up to 10 events), then sends one ephemeral follow-up message per event via `rest.createFollowupMessage`
+3. `UpcomingRsvpButton` (`src/interactions/upcoming-rsvp.ts`) handles inline RSVP — submits the RSVP via `Event/SubmitRsvp`, triggers embed updates via `postRsvpDiscordUpdates`, then edits the current ephemeral message to reflect the new RSVP state
+4. `OverviewShowButton` (`src/interactions/overview-channel.ts`) handles the `overview-show` button — delegates to `sendUpcomingEventFollowups`

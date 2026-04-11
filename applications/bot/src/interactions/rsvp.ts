@@ -10,7 +10,7 @@ import { DiscordREST, type DiscordRestService } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Metric, Option, pipe, Schema } from 'effect';
+import { DateTime, Effect, Metric, Option, pipe, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
@@ -83,7 +83,7 @@ const modalValueOption = (
   return Option.none();
 };
 
-const postRsvpDiscordUpdates = (params: {
+export const postRsvpDiscordUpdates = (params: {
   interaction: Discord.APIInteraction;
   rpc: SyncRpc;
   rest: DiscordRestService;
@@ -111,6 +111,7 @@ const postRsvpDiscordUpdates = (params: {
           Option.match(embedInfo, {
             onNone: () => Effect.void,
             onSome: (info) => {
+              const isStarted = DateTime.greaterThanOrEqualTo(DateTime.unsafeNow(), info.start_at);
               const payload = buildEventEmbed({
                 teamId,
                 eventId,
@@ -123,6 +124,7 @@ const postRsvpDiscordUpdates = (params: {
                 counts,
                 yesAttendees,
                 locale: embedLocale,
+                isStarted,
               });
               return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
                 embeds: payload.embeds,
@@ -294,13 +296,11 @@ export const RsvpButton = Ix.messageComponent(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(submitAndFollowUp),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(submitAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-button'),
   ),
@@ -458,13 +458,11 @@ export const RsvpClearMessageButton = Ix.messageComponent(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(clearAndFollowUp),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(clearAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-clear-message-button'),
   ),
@@ -590,13 +588,11 @@ export const RsvpModal = Ix.modalSubmit(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(submitAndFollowUp),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: m.bot_thinking({}, { locale }), flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(submitAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-modal'),
   ),
