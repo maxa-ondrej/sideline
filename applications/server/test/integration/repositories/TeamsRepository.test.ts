@@ -29,6 +29,7 @@ const createTestUser = UsersRepository.pipe(
       discord_id: '100000000000000000',
       username: 'teamtestuser',
       avatar: Option.none(),
+      discord_nickname: Option.none(),
     }),
   ),
   Effect.map((user) => user.id),

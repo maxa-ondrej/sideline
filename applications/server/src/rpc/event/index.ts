@@ -512,6 +512,7 @@ const rpcHandlers = Effect.Do.pipe(
                     new EventRpcModels.RsvpAttendeeEntry({
                       discord_id: row.discord_id,
                       name: row.member_name,
+                      nickname: row.nickname,
                       username: row.username,
                       response: row.response,
                       message: row.message,
@@ -554,6 +555,7 @@ const rpcHandlers = Effect.Do.pipe(
                   new EventRpcModels.NonResponderRpcEntry({
                     discord_id: nr.discord_id,
                     name: nr.member_name,
+                    nickname: nr.nickname,
                     username: nr.username,
                   }),
               ),
@@ -563,6 +565,7 @@ const rpcHandlers = Effect.Do.pipe(
                   new EventRpcModels.NonResponderRpcEntry({
                     discord_id: a.discord_id,
                     name: a.member_name,
+                    nickname: a.nickname,
                     username: a.username,
                   }),
               ),
@@ -868,6 +871,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
                 new EventRpcModels.RsvpAttendeeEntry({
                   discord_id: row.discord_id,
                   name: row.member_name,
+                  nickname: row.nickname,
                   username: row.username,
                   response: row.response,
                   message: row.message,

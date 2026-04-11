@@ -29,6 +29,7 @@ const createUser = (discordId: string, username: string) =>
         discord_id: discordId,
         username,
         avatar: Option.none(),
+        discord_nickname: Option.none(),
       }),
     ),
     Effect.map((u) => u.id),

@@ -38,21 +38,18 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       const formatReminderEntry = (entry: {
         discord_id: Option.Option<string>;
         name: Option.Option<string>;
+        nickname: Option.Option<string>;
         username: Option.Option<string>;
       }): string => {
         const boldName = Option.orElse(
           Option.map(entry.name, (n) => `**${n}**`),
-          () => Option.map(entry.username, (u) => `**${u}**`),
+          () =>
+            Option.orElse(
+              Option.map(entry.nickname, (n) => `**${n}**`),
+              () => Option.map(entry.username, (u) => `**${u}**`),
+            ),
         );
-        const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
-        return Option.match(boldName, {
-          onNone: () => Option.getOrElse(mention, () => '?'),
-          onSome: (bold) =>
-            Option.match(mention, {
-              onNone: () => bold,
-              onSome: (m) => `${bold} (${m})`,
-            }),
-        });
+        return Option.getOrElse(boldName, () => '?');
       };
 
       const nonResponderText = pipe(

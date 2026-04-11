@@ -7,10 +7,12 @@ const makeAttendee = (
   discord_id: Option.Option<string>,
   name: Option.Option<string>,
   username: Option.Option<string> = Option.none(),
+  nickname: Option.Option<string> = Option.none(),
 ): EventRpcModels.RsvpAttendeeEntry =>
   new EventRpcModels.RsvpAttendeeEntry({
     discord_id: Option.map(discord_id, DomainDiscord.Snowflake.make),
     name,
+    nickname,
     username,
     response: 'yes',
     message: Option.none(),
@@ -49,7 +51,7 @@ describe('buildEventEmbed', () => {
       expect(goingField?.value).toContain('**Alice**');
     });
 
-    it('falls back to <@id> when name is None', () => {
+    it('renders "?" when name is None and no username or nickname', () => {
       const attendee = makeAttendee(Option.some('456'), Option.none());
       const { embeds } = buildEventEmbed({
         ...baseOpts,
@@ -60,7 +62,7 @@ describe('buildEventEmbed', () => {
       const fields = embeds[0].fields ?? [];
       const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
       expect(goingField).toBeDefined();
-      expect(goingField?.value).toContain('<@456>');
+      expect(goingField?.value).toBe('?');
     });
 
     it('uses comma-space separator between names', () => {

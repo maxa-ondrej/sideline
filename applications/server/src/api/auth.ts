@@ -113,6 +113,7 @@ const handleDiscordLogin = ({
         discord_id: discordUser.id,
         username: discordUser.username,
         avatar: Option.fromNullable(discordUser.avatar),
+        discord_nickname: Option.none(),
       }),
     ),
     Effect.tap(({ dbUser }) =>

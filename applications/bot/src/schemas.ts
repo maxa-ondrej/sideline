@@ -32,6 +32,7 @@ export const DfxUser = Schema.Struct({
 export const DfxGuildMember = Schema.Struct({
   user: DfxUser,
   roles: Schema.Array(Discord.Snowflake),
+  nick: Nullish(Schema.String),
 });
 
 /** Subset of dfx GuildWithCountsResponse from getGuild. */
