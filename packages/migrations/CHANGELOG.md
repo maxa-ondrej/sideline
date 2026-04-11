@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.12.6
+
+### Patch Changes
+
+- [#195](https://github.com/maxa-ondrej/sideline/pull/195) [`0704c17`](https://github.com/maxa-ondrej/sideline/commit/0704c17897ced04f67ee10a7ed65cd0ec51f74d7) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Reorder attendance channel messages so the nearest upcoming event is the last (most visible) message, and add a divider between past and future events
+
 ## 0.12.5
 
 ### Patch Changes
