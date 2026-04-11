@@ -525,6 +525,7 @@
   "bot_your_rsvp_with_message": "{status}\n💬 {message}",
   "bot_upcoming_no_events": "No upcoming events.",
   "bot_upcoming_more_events": "...and {count} more upcoming events",
+  "bot_upcoming_stale": "⚠️ This overview may be outdated. Dismiss it and click the button again to refresh.",
   "bot_overview_message": "📅 **Upcoming Events**\n\nClick the button below to see your upcoming events and RSVP status. Only you will see the message.",
   "bot_overview_button": "📋 Show My Events",
   "bot_overview_posted": "Overview message posted in this channel.",

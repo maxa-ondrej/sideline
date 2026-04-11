@@ -132,13 +132,11 @@ export const logHandler = Interaction.pipe(
       ),
     );
 
-    return Effect.as(
-      Effect.forkDaemon(work),
-      Ix.response({
-        type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { flags: DiscordTypes.MessageFlags.Ephemeral },
-      }),
-    );
+    const deferred: DiscordTypes.CreateMessageInteractionCallbackRequest = {
+      type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { flags: DiscordTypes.MessageFlags.Ephemeral },
+    };
+    return Effect.as(Effect.forkDaemon(work), deferred);
   }),
   Effect.withSpan('command/makanicko/log'),
 );

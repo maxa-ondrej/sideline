@@ -67,13 +67,11 @@ export const AttendeesButton = Ix.messageComponent(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(work),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(work), deferred);
     }),
     Effect.withSpan('interaction/attendees'),
   ),

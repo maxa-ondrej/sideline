@@ -296,13 +296,11 @@ export const RsvpButton = Ix.messageComponent(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(submitAndFollowUp),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(submitAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-button'),
   ),
@@ -460,13 +458,11 @@ export const RsvpClearMessageButton = Ix.messageComponent(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(clearAndFollowUp),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(clearAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-clear-message-button'),
   ),
@@ -592,13 +588,11 @@ export const RsvpModal = Ix.modalSubmit(
         ),
       );
 
-      return Effect.as(
-        Effect.forkDaemon(submitAndFollowUp),
-        Ix.response({
-          type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { flags: Discord.MessageFlags.Ephemeral },
-        }),
-      );
+      const deferred: Discord.CreateMessageInteractionCallbackRequest = {
+        type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: Discord.MessageFlags.Ephemeral },
+      };
+      return Effect.as(Effect.forkDaemon(submitAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-modal'),
   ),
