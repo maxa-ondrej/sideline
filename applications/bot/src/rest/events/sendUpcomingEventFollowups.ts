@@ -37,7 +37,7 @@ export const sendUpcomingEventFollowups = (params: {
         })
         .pipe(Effect.map((response) => response.id));
     },
-    { concurrency: 'inherit' },
+    { concurrency: 1 },
   );
 
   const sendExtra = (extraCount: number) =>
