@@ -40,6 +40,4 @@ export const Api = HttpApi.make('api')
   .add(TeamApi.TeamApiGroup)
   .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup)
-  .pipe((api) =>
-    env.API_PREFIX.startsWith('/') ? api.prefix(env.API_PREFIX as '/${string}') : api,
-  );
+  .prefix(env.API_PREFIX as '/${string}');
