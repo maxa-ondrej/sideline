@@ -134,7 +134,7 @@ const registerMemberLogic =
             ),
         }),
       ),
-      Effect.catchTag('MemberAlreadyExistsError', 'NoSuchElementException', (error) =>
+      Effect.catchTag('MemberAlreadyExistsError', 'NoSuchElementError', (error) =>
         Effect.logError(`RegisterMember failed for ${username}`, error),
       ),
     );

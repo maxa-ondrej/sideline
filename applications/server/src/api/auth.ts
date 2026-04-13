@@ -157,7 +157,7 @@ const handleDiscordLogin = ({
       ),
     ),
     Effect.catchTag(
-      'NoSuchElementException',
+      'NoSuchElementError',
       LogicError.withMessage(() => 'OAuth token exchange — failed to create user session'),
     ),
   );
@@ -230,7 +230,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
             Effect.bind('code', () => code),
             Effect.bind('stateRaw', () => state),
-            Effect.catchTag('NoSuchElementException', () =>
+            Effect.catchTag('NoSuchElementError', () =>
               AuthError.withReason(Option.getOrElse(error, () => 'missing_params')),
             ),
             Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
@@ -281,7 +281,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating locale — no row returned'),
             ),
           ),
@@ -313,7 +313,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating admin profile — no row returned'),
             ),
           ),
@@ -345,7 +345,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed completing user profile — no row returned'),
             ),
           ),
@@ -482,7 +482,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               LogicError.withMessage(() => 'Unexpected duplicate member during team creation'),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating team — no row returned'),
             ),
           ),
@@ -584,7 +584,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
             // NoSuchElementException can be produced by Auth.CurrentUserContext when no session exists
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(
                 () => 'Auto-join teams — unexpected missing session or current user',
               ),

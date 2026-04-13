@@ -74,7 +74,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating training type — no row returned'),
             ),
           ),
@@ -171,7 +171,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating training type — no row returned'),
             ),
           ),

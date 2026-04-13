@@ -157,7 +157,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating event — no row returned'),
             ),
           ),
@@ -383,7 +383,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating event — no row returned'),
             ),
           ),

@@ -76,7 +76,7 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                     Effect.tapDefect((defect) =>
                       Effect.logWarning('EventHorizonCron: failed to emit sync event', defect),
                     ),
-                    Effect.catchAllDefect(() => Effect.void),
+                    Effect.catchDefect(() => Effect.void),
                   ),
                 ),
               );

@@ -92,7 +92,7 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating iCal token — no row returned'),
             ),
           ),
@@ -109,7 +109,7 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed regenerating iCal token — no row returned'),
             ),
           ),

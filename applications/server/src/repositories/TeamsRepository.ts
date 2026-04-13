@@ -65,7 +65,7 @@ const make = Effect.gen(function* () {
     updateTeamQuery(input).pipe(
       catchSqlErrors,
       Effect.catchTag(
-        'NoSuchElementException',
+        'NoSuchElementError',
         LogicError.withMessage(() => 'Team update returned no row'),
       ),
     );

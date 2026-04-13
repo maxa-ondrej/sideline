@@ -188,7 +188,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating event series — no row returned'),
             ),
           ),
@@ -486,7 +486,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating event series — no row returned'),
             ),
           ),

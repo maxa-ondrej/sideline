@@ -70,7 +70,7 @@ export const ensureMapping = (
               discord_channel_id: mapping.discord_channel_id,
               discord_role_id: roleId,
             })),
-            Effect.catchTag('NoSuchElementException', () =>
+            Effect.catchTag('NoSuchElementError', () =>
               createRoleForExistingChannel(
                 teamId,
                 groupId,
@@ -82,7 +82,7 @@ export const ensureMapping = (
             ),
           ),
         ),
-        Effect.catchTag('NoSuchElementException', () =>
+        Effect.catchTag('NoSuchElementError', () =>
           createChannelWithRole(teamId, groupId, guildId, channelName, roleName, roleColor),
         ),
       ),

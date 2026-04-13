@@ -61,7 +61,7 @@ const make = Effect.gen(function* () {
       Effect.map((r) => r.exists),
       catchSqlErrors,
       Effect.catchTag(
-        'NoSuchElementException',
+        'NoSuchElementError',
         LogicError.withMessage((e) => `Guild existence check returned no row: ${e}`),
       ),
     );

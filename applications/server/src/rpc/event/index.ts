@@ -176,7 +176,7 @@ const createEvent = (
         : Effect.fail(new EventRpcModels.CreateEventForbidden()),
     ),
     Effect.bind('parsedStartAt', () => parseDateTime(input.start_at)),
-    Effect.catchTag('NoSuchElementException', () => new EventRpcModels.CreateEventInvalidDate()),
+    Effect.catchTag('NoSuchElementError', () => new EventRpcModels.CreateEventInvalidDate()),
     Effect.bind('parsedEndAt', () =>
       input.end_at.pipe(
         Option.map(parseDateTime),
@@ -221,7 +221,7 @@ const createEvent = (
           })
           .pipe(
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(
                 () => `Failed inserting event "${input.title}" — no row returned`,
               ),
@@ -276,7 +276,7 @@ const rpcHandlers = Effect.Do.pipe(
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} event sync events from database.`),
           ),
-          Effect.flatMap(Effect.allSuccesses),
+          Effect.flatMap(Effect.all),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} event sync events from database.`),
           ),
@@ -404,7 +404,7 @@ const rpcHandlers = Effect.Do.pipe(
           Effect.bind('savedRsvp', ({ member }) =>
             rsvps.upsertRsvp(event_id, member.id, response, message, clearMessage).pipe(
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(
                   () => `Failed upserting RSVP for event ${event_id} — no row returned`,
                 ),
@@ -856,7 +856,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
                 ),
             }),
           ),
-          Effect.catchAllDefect((defect) =>
+          Effect.catchDefect((defect) =>
             Effect.logError(defect).pipe(
               Effect.as(Array.empty<EventRpcModels.TrainingTypeChoice>()),
             ),

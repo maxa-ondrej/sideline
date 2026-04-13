@@ -123,7 +123,7 @@ const commitChanges = (
       ),
     ),
     Array.map(Effect.tapError(Effect.logError)),
-    Effect.allSuccesses,
+    Effect.all,
     Effect.tap((commits) =>
       Effect.logInfo(`Successfully made ${commits.length} changes to age-based groups!`),
     ),
@@ -174,7 +174,7 @@ const notifyAdmins = (
     Effect.flatMap((n) => notifications.insertBulk(n)),
     Effect.catchTag('NoChanges', () => Effect.void),
     Effect.tapError((e) => Effect.logWarning('Failed to notify admins about age-based changes', e)),
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementError', () => Effect.void),
   );
 
 const evaluateTeam =
@@ -236,7 +236,7 @@ const evaluateTeam =
                   change.discordId,
                 ),
           ),
-          Effect.allSuccesses,
+          Effect.all,
           Effect.asVoid,
         ),
       ),

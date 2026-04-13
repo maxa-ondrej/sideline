@@ -37,7 +37,7 @@ const nullable = <
 ) =>
   event[key].pipe(
     Effect.catchTag(
-      'NoSuchElementException',
+      'NoSuchElementError',
       () => new EventPropertyMissing({ event_type: event.event_type, id: event.id, property: key }),
     ),
   ) as Effect.Effect<E[K] extends Option.Option<infer T> ? T : never, EventPropertyMissing>;

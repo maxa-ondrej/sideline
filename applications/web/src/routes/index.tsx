@@ -28,7 +28,7 @@ export const Route = createFileRoute('/')({
       Effect.flatMap(() => Option.fromNullishOr(search.token)),
       Effect.flatMap(finishLogin),
       Effect.flatMap(() => Redirect.make({ to: '.' })),
-      Effect.catchTag('NoSuchElementException', () => Effect.void),
+      Effect.catchTag('NoSuchElementError', () => Effect.void),
       Effect.tap(
         Option.match(context.userOption, {
           onSome: () => Effect.void,
@@ -71,7 +71,7 @@ export const Route = createFileRoute('/')({
       Effect.flatMap((team) =>
         Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
       ),
-      Effect.catchTag('NoSuchElementException', () => Redirect.make({ to: '/create-team' })),
+      Effect.catchTag('NoSuchElementError', () => Redirect.make({ to: '/create-team' })),
       Effect.catchTag('SkipError', () => Effect.void),
       context.run,
     ),

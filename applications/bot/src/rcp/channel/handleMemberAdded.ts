@@ -56,7 +56,7 @@ export const handleRosterMemberAdded = (event: ChannelRpcEvents.RosterMemberAdde
       ),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () =>
+    Effect.catchTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping or role found for roster ${event.roster_id} in guild ${event.guild_id}, skipping member_added`,
       ),

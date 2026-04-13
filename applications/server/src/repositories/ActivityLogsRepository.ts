@@ -168,7 +168,7 @@ const make = Effect.gen(function* () {
     insertQuery(input).pipe(
       catchSqlErrors,
       Effect.catchTag(
-        'NoSuchElementException',
+        'NoSuchElementError',
         LogicError.withMessage(() => 'Activity log insert returned no row'),
       ),
     );
@@ -217,7 +217,7 @@ const make = Effect.gen(function* () {
         }).pipe(
           catchSqlErrors,
           Effect.catchTag(
-            'NoSuchElementException',
+            'NoSuchElementError',
             LogicError.withMessage(() => 'Activity log update returned no row'),
           ),
         ),

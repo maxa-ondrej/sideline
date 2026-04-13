@@ -18,7 +18,5 @@ export const ensureMapping = (
     ),
     Effect.flatMap(({ cached }) => cached),
     Effect.map(({ discord_role_id }) => discord_role_id),
-    Effect.catchTag('NoSuchElementException', () =>
-      createGuildRole(teamId, roleId, guildId, roleName),
-    ),
+    Effect.catchTag('NoSuchElementError', () => createGuildRole(teamId, roleId, guildId, roleName)),
   );

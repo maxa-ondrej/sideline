@@ -169,7 +169,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   }),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(
                   () => 'Failed updating roster member profile — no row returned',
                 ),
@@ -198,7 +198,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
               Effect.asVoid,
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => 'Failed deactivating roster member — no row returned'),
               ),
             ),
@@ -219,9 +219,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
-                    Effect.fail(new Roster.Forbidden()),
-                  ),
+                  Effect.catchTag('NoSuchElementError', () => Effect.fail(new Roster.Forbidden())),
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
@@ -319,7 +317,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               }),
               Effect.map(({ roster }) => toRosterInfo(roster, 0, [], false)),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => 'Failed creating roster — no row returned'),
               ),
             ),
@@ -352,9 +350,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
-                    Effect.fail(new Roster.Forbidden()),
-                  ),
+                  Effect.catchTag('NoSuchElementError', () => Effect.fail(new Roster.Forbidden())),
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
@@ -647,9 +643,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
-                    Effect.fail(new Roster.Forbidden()),
-                  ),
+                  Effect.catchTag('NoSuchElementError', () => Effect.fail(new Roster.Forbidden())),
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
@@ -662,7 +656,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 toRosterInfo(updated, memberCount, allChannels, provisioningIds.length > 0),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => 'Failed updating roster — no row returned'),
               ),
             ),

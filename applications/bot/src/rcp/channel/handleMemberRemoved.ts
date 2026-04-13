@@ -18,7 +18,7 @@ const removeRole = (
     Effect.tap(({ roleId }) =>
       Effect.logInfo(`Removed role ${roleId} from user ${userId} in guild ${guildId}`),
     ),
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementError', () => Effect.void),
   );
 
 const removeRoleFromMapping = (
@@ -38,7 +38,7 @@ export const handleMemberRemoved = (event: ChannelRpcEvents.GroupMemberRemovedEv
       removeRoleFromMapping(event.guild_id, event.discord_user_id, mapping),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () =>
+    Effect.catchTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping found for group ${event.group_id} in guild ${event.guild_id}, skipping member_removed`,
       ),
@@ -56,7 +56,7 @@ export const handleRosterMemberRemoved = (event: ChannelRpcEvents.RosterMemberRe
       removeRoleFromMapping(event.guild_id, event.discord_user_id, mapping),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () =>
+    Effect.catchTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping found for roster ${event.roster_id} in guild ${event.guild_id}, skipping member_removed`,
       ),

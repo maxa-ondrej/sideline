@@ -87,7 +87,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
               Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating age threshold — no row returned'),
             ),
           ),
@@ -131,7 +131,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating age threshold — no row returned'),
             ),
           ),

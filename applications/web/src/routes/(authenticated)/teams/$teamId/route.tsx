@@ -15,7 +15,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
         Array.findFirst(teams, flow(Struct.get('teamId'), Equal.equals(params.teamId))),
       ),
       Effect.tap(() => setLastTeamId(params.teamId)),
-      Effect.catchTag('NoSuchElementException', () => NotFound.make()),
+      Effect.catchTag('NoSuchElementError', () => NotFound.make()),
       context.run,
     ),
 });

@@ -19,7 +19,7 @@ export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complet
               ? Redirect.make({ to: '/teams/$teamId', params: { teamId } })
               : Redirect.make({ to: '/' }),
           ),
-          Effect.catchTag('NoSuchElementException', () => Effect.void),
+          Effect.catchTag('NoSuchElementError', () => Effect.void),
           context.run,
         )
       : {},

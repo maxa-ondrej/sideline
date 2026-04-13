@@ -106,7 +106,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               Effect.fail(new Invite.AlreadyMember()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed joining via invite — no row returned'),
             ),
           ),
@@ -141,7 +141,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed regenerating invite — no row returned'),
             ),
           ),

@@ -15,7 +15,7 @@ export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
       }),
     ),
     Effect.bind('mapping', ({ cached }) => cached),
-    Effect.tapErrorTag('NoSuchElementException', () =>
+    Effect.tapErrorTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping found for role ${event.role_id} in guild ${event.guild_id}, skipping delete`,
       ),
@@ -33,7 +33,7 @@ export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
       }),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () =>
+    Effect.catchTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping found for role ${event.role_id} in guild ${event.guild_id}, skipping role delete`,
       ),

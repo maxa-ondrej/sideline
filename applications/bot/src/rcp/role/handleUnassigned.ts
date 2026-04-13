@@ -26,7 +26,7 @@ export const handleMemberRemoved = (event: RoleRpcEvents.RoleUnassignedEvent) =>
       ),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () =>
+    Effect.catchTag('NoSuchElementError', () =>
       Effect.logWarning(`No mapping found for role ${event.role_id}, skipping role_unassigned`),
     ),
   );

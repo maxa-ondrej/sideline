@@ -58,7 +58,7 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
           ),
           Effect.tap(() => eventsRepo.markTrainingAutoLogged(event.id)),
           Effect.tap(() => Effect.logInfo(`TrainingAutoLogCron: processed event ${event.id}`)),
-          Effect.catchAllDefect((defect) =>
+          Effect.catchDefect((defect) =>
             Effect.logWarning(`TrainingAutoLogCron: defect processing event ${event.id}`, defect),
           ),
         ),

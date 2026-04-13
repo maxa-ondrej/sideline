@@ -61,7 +61,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} channel events from database.`),
           ),
-          Effect.flatMap(Effect.allSuccesses),
+          Effect.flatMap(Effect.all),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} channel events from database.`),
           ),
@@ -195,7 +195,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
             }),
           ),
           Effect.catchTag(
-            'NoSuchElementException',
+            'NoSuchElementError',
             LogicError.withMessage(() => `Roster ${roster_id} not found when updating channel`),
           ),
           Effect.asVoid,

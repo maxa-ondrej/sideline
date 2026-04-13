@@ -68,7 +68,7 @@ const handleAutocomplete = (
             .slice(0, 25)
             .map((tt) => ({ name: tt.name, value: tt.id })),
         ),
-        Effect.catchAllDefect(() => Effect.succeed([] as Array<{ name: string; value: string }>)),
+        Effect.catchDefect(() => Effect.succeed([] as Array<{ name: string; value: string }>)),
       );
     }),
   );

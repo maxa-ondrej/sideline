@@ -13,7 +13,7 @@ export const deleteRole = (guildId: Discord.Snowflake, roleId: Option.Option<Dis
     Effect.tap(({ roleId }) =>
       Effect.logInfo(`Deleted Discord role ${roleId} in guild ${guildId}`),
     ),
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementError', () => Effect.void),
   );
 
 export const deleteChannelAndRole = (

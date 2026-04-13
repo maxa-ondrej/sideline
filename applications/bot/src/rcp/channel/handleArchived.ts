@@ -22,7 +22,7 @@ const deletePermissionOverwrite = (
         `Deleted permission overwrite for role ${roleId} on channel ${discordChannelId}`,
       ),
     ),
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementError', () => Effect.void),
   );
 
 const moveToArchive = (discordChannelId: Discord.Snowflake, archiveCategoryId: Discord.Snowflake) =>

@@ -160,7 +160,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(
                   () => `Failed creating group "${payload.name}" — no row returned`,
                 ),
@@ -314,7 +314,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => `Failed updating group ${groupId} — no row returned`),
               ),
             ),
@@ -331,7 +331,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('existing', () =>
                 groups.findGroupById(groupId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
+                  Effect.catchTag('NoSuchElementError', () =>
                     Effect.fail(new GroupApi.GroupNotFound()),
                   ),
                 ),
@@ -635,7 +635,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   }),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => `Failed moving group ${groupId} — no row returned`),
               ),
             ),
@@ -666,7 +666,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
+                  Effect.catchTag('NoSuchElementError', () => Effect.fail(forbidden)),
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
@@ -758,7 +758,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
+                  Effect.catchTag('NoSuchElementError', () => Effect.fail(forbidden)),
                 ),
               ),
               Effect.bind('allChannels', ({ team }) =>
@@ -924,7 +924,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('team', () =>
                 teams.findById(teamId).pipe(
                   Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () => Effect.fail(forbidden)),
+                  Effect.catchTag('NoSuchElementError', () => Effect.fail(forbidden)),
                 ),
               ),
               Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
