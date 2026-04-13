@@ -1,7 +1,8 @@
 import { type Discord, Team } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, type Option, Schema } from 'effect';
-import { SqlModel as Model, SqlClient, SqlSchema } from 'effect/unstable/sql';
+import { Model } from 'effect/unstable/schema';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class TeamUpdateInput extends Schema.Class<TeamUpdateInput>('TeamUpdateInput')({

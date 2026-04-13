@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { SqlModel as Model } from 'effect/unstable/sql';
+import { Model } from 'effect/unstable/schema';
 import { ChannelSyncEntityType } from '~/models/ChannelSyncEvent.js';
 import { GroupId } from '~/models/GroupModel.js';
 import { RosterId } from '~/models/RosterModel.js';

@@ -1,6 +1,7 @@
 import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
-import { SqlModel as Model, SqlClient, SqlSchema } from 'effect/unstable/sql';
+import { Model } from 'effect/unstable/schema';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 
