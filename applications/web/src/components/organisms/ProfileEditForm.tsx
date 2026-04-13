@@ -43,10 +43,10 @@ const ProfileEditSchema = Schema.Struct({
       return true;
     }),
   ),
-  gender: Schema.Union(
+  gender: Schema.Union([
     Schema.Literals(['male', 'female', 'other']),
     Schema.Literal(NONE_VALUE),
-  ).annotations({ message: () => m.validation_invalidOption() }),
+  ]).annotations({ message: () => m.validation_invalidOption() }),
 });
 
 type ProfileEditValues = Schema.Schema.Type<typeof ProfileEditSchema>;

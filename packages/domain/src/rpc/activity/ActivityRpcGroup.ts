@@ -21,7 +21,7 @@ export const ActivityRpcGroup = RpcGroup.make(
       note: Schema.OptionFromNullOr(Schema.String),
     },
     success: LogActivityResult,
-    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+    error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),
   }),
   Rpc.make('GetStats', {
     payload: {
@@ -29,7 +29,7 @@ export const ActivityRpcGroup = RpcGroup.make(
       discord_user_id: Discord.Snowflake,
     },
     success: GetStatsResult,
-    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+    error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),
   }),
   Rpc.make('GetLeaderboard', {
     payload: {
@@ -38,6 +38,6 @@ export const ActivityRpcGroup = RpcGroup.make(
       limit: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.positive())),
     },
     success: GetLeaderboardResult,
-    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+    error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),
   }),
 ).prefix('Activity/');

@@ -33,10 +33,10 @@ export class RosterChannelCreatedEvent extends Schema.TaggedClass<RosterChannelC
   },
 ) {}
 
-export const ChannelCreatedEvent = Schema.Union(
+export const ChannelCreatedEvent = Schema.Union([
   GroupChannelCreatedEvent,
   RosterChannelCreatedEvent,
-);
+]);
 export type ChannelCreatedEvent = Schema.Schema.Type<typeof ChannelCreatedEvent>;
 
 // --- channel_updated ---
@@ -71,10 +71,10 @@ export class RosterChannelUpdatedEvent extends Schema.TaggedClass<RosterChannelU
   },
 ) {}
 
-export const ChannelUpdatedEvent = Schema.Union(
+export const ChannelUpdatedEvent = Schema.Union([
   GroupChannelUpdatedEvent,
   RosterChannelUpdatedEvent,
-);
+]);
 export type ChannelUpdatedEvent = Schema.Schema.Type<typeof ChannelUpdatedEvent>;
 
 // --- channel_deleted ---
@@ -103,10 +103,10 @@ export class RosterChannelDeletedEvent extends Schema.TaggedClass<RosterChannelD
   },
 ) {}
 
-export const ChannelDeletedEvent = Schema.Union(
+export const ChannelDeletedEvent = Schema.Union([
   GroupChannelDeletedEvent,
   RosterChannelDeletedEvent,
-);
+]);
 export type ChannelDeletedEvent = Schema.Schema.Type<typeof ChannelDeletedEvent>;
 
 // --- channel_archived ---
@@ -137,10 +137,10 @@ export class RosterChannelArchivedEvent extends Schema.TaggedClass<RosterChannel
   },
 ) {}
 
-export const ChannelArchivedEvent = Schema.Union(
+export const ChannelArchivedEvent = Schema.Union([
   GroupChannelArchivedEvent,
   RosterChannelArchivedEvent,
-);
+]);
 export type ChannelArchivedEvent = Schema.Schema.Type<typeof ChannelArchivedEvent>;
 
 // --- channel_detached ---
@@ -169,10 +169,10 @@ export class RosterChannelDetachedEvent extends Schema.TaggedClass<RosterChannel
   },
 ) {}
 
-export const ChannelDetachedEvent = Schema.Union(
+export const ChannelDetachedEvent = Schema.Union([
   GroupChannelDetachedEvent,
   RosterChannelDetachedEvent,
-);
+]);
 export type ChannelDetachedEvent = Schema.Schema.Type<typeof ChannelDetachedEvent>;
 
 // --- member_added ---
@@ -203,7 +203,10 @@ export class RosterMemberAddedEvent extends Schema.TaggedClass<RosterMemberAdded
   },
 ) {}
 
-export const ChannelMemberAddedEvent = Schema.Union(GroupMemberAddedEvent, RosterMemberAddedEvent);
+export const ChannelMemberAddedEvent = Schema.Union([
+  GroupMemberAddedEvent,
+  RosterMemberAddedEvent,
+]);
 export type ChannelMemberAddedEvent = Schema.Schema.Type<typeof ChannelMemberAddedEvent>;
 
 // --- member_removed ---
@@ -232,15 +235,15 @@ export class RosterMemberRemovedEvent extends Schema.TaggedClass<RosterMemberRem
   },
 ) {}
 
-export const ChannelMemberRemovedEvent = Schema.Union(
+export const ChannelMemberRemovedEvent = Schema.Union([
   GroupMemberRemovedEvent,
   RosterMemberRemovedEvent,
-);
+]);
 export type ChannelMemberRemovedEvent = Schema.Schema.Type<typeof ChannelMemberRemovedEvent>;
 
 // --- union of all ---
 
-export const UnprocessedChannelEvent = Schema.Union(
+export const UnprocessedChannelEvent = Schema.Union([
   ChannelCreatedEvent,
   ChannelUpdatedEvent,
   ChannelDeletedEvent,
@@ -250,6 +253,6 @@ export const UnprocessedChannelEvent = Schema.Union(
   RosterChannelDetachedEvent,
   ChannelMemberAddedEvent,
   ChannelMemberRemovedEvent,
-);
+]);
 
 export type UnprocessedChannelEvent = Schema.Schema.Type<typeof UnprocessedChannelEvent>;
