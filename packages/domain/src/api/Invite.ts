@@ -23,20 +23,11 @@ export class InviteCode extends Schema.Class<InviteCode>('InviteCode')({
 export class InviteNotFound extends Schema.TaggedErrorClass<InviteNotFound>()(
   'InviteNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class AlreadyMember extends Schema.TaggedErrorClass<AlreadyMember>()(
-  'AlreadyMember',
-  {},
-  HttpApiSchema.annotations({ status: 409 }),
-) {}
+export class AlreadyMember extends Schema.TaggedErrorClass<AlreadyMember>()('AlreadyMember', {}) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'Forbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('Forbidden', {}) {}
 
 export class InviteApiGroup extends HttpApiGroup.make('invite')
   .add(

@@ -96,19 +96,16 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
 export class EventSeriesNotFound extends Schema.TaggedErrorClass<EventSeriesNotFound>()(
   'EventSeriesNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class EventSeriesCancelled extends Schema.TaggedErrorClass<EventSeriesCancelled>()(
   'EventSeriesCancelled',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
 export class EventSeriesNotActive extends Schema.TaggedErrorClass<EventSeriesNotActive>()(
   'EventSeriesNotActive',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
 export class EventSeriesApiGroup extends HttpApiGroup.make('eventSeries')

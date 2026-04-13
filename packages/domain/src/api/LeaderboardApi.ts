@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { ActivityTypeId } from '~/models/ActivityType.js';
 import { LeaderboardTimeframe } from '~/models/Leaderboard.js';
@@ -24,11 +24,7 @@ export class LeaderboardResponse extends Schema.Class<LeaderboardResponse>('Lead
   entries: Schema.Array(LeaderboardEntry),
 }) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'LeaderboardForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('LeaderboardForbidden', {}) {}
 
 export class LeaderboardApiGroup extends HttpApiGroup.make('leaderboard').add(
   HttpApiEndpoint.get('getLeaderboard', '/teams/:teamId/leaderboard', {

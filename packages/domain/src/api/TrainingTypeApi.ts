@@ -54,19 +54,13 @@ export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRe
 export class TrainingTypeNotFound extends Schema.TaggedErrorClass<TrainingTypeNotFound>()(
   'TrainingTypeNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'TrainingTypeForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('TrainingTypeForbidden', {}) {}
 
 export class TrainingTypeNameAlreadyTaken extends Schema.TaggedErrorClass<TrainingTypeNameAlreadyTaken>()(
   'TrainingTypeNameAlreadyTaken',
   {},
-  HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
 export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')

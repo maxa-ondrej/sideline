@@ -1,6 +1,6 @@
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { EventId, EventType } from '~/models/Event.js';
 import { RsvpResponse } from '~/models/EventRsvp.js';
@@ -38,11 +38,7 @@ export class DashboardResponse extends Schema.Class<DashboardResponse>('Dashboar
   myMemberId: TeamMemberId,
 }) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'DashboardForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('DashboardForbidden', {}) {}
 
 export class DashboardApiGroup extends HttpApiGroup.make('dashboard').add(
   HttpApiEndpoint.get('getDashboard', '/teams/:teamId/dashboard', {

@@ -38,28 +38,21 @@ export class UpdateAgeThresholdRequest extends Schema.Class<UpdateAgeThresholdRe
   maxAge: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'AgeThresholdForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('AgeThresholdForbidden', {}) {}
 
 export class RuleNotFound extends Schema.TaggedErrorClass<RuleNotFound>()(
   'AgeThresholdRuleNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class GroupNotFound extends Schema.TaggedErrorClass<GroupNotFound>()(
   'AgeThresholdGroupNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class AgeThresholdAlreadyExists extends Schema.TaggedErrorClass<AgeThresholdAlreadyExists>()(
   'AgeThresholdAlreadyExists',
   {},
-  HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
 export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')

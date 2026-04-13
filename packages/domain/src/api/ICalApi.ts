@@ -10,7 +10,6 @@ export class ICalTokenResponse extends Schema.Class<ICalTokenResponse>('ICalToke
 export class ICalTokenNotFound extends Schema.TaggedErrorClass<ICalTokenNotFound>()(
   'ICalTokenNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class ICalApiGroup extends HttpApiGroup.make('ical')

@@ -14,16 +14,11 @@ export class NotificationInfo extends Schema.Class<NotificationInfo>('Notificati
   createdAt: Schema.String,
 }) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'NotificationForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('NotificationForbidden', {}) {}
 
 export class NotificationNotFound extends Schema.TaggedErrorClass<NotificationNotFound>()(
   'NotificationNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class NotificationApiGroup extends HttpApiGroup.make('notification')

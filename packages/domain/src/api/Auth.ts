@@ -91,11 +91,7 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
   gender: Schema.OptionFromNullOr(Gender),
 }) {}
 
-export class Unauthorized extends Schema.TaggedErrorClass<Unauthorized>()(
-  'Unauthorized',
-  {},
-  HttpApiSchema.annotations({ status: 401 }),
-) {}
+export class Unauthorized extends Schema.TaggedErrorClass<Unauthorized>()('Unauthorized', {}) {}
 
 export class CurrentUserContext extends Context.Tag('CurrentUserContext')<
   CurrentUserContext,

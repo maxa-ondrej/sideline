@@ -37,22 +37,13 @@ export class UpdateRoleRequest extends Schema.Class<UpdateRoleRequest>('UpdateRo
   permissions: Schema.OptionFromNullOr(Schema.Array(Permission)),
 }) {}
 
-export class RoleNotFound extends Schema.TaggedErrorClass<RoleNotFound>()(
-  'RoleNotFound',
-  {},
-  HttpApiSchema.annotations({ status: 404 }),
-) {}
+export class RoleNotFound extends Schema.TaggedErrorClass<RoleNotFound>()('RoleNotFound', {}) {}
 
-export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
-  'RoleForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('RoleForbidden', {}) {}
 
 export class CannotModifyBuiltIn extends Schema.TaggedErrorClass<CannotModifyBuiltIn>()(
   'CannotModifyBuiltIn',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
 export class AssignRoleRequest extends Schema.Class<AssignRoleRequest>('AssignRoleRequest')({
@@ -62,19 +53,13 @@ export class AssignRoleRequest extends Schema.Class<AssignRoleRequest>('AssignRo
 export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'MemberNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class RoleInUse extends Schema.TaggedErrorClass<RoleInUse>()(
-  'RoleInUse',
-  {},
-  HttpApiSchema.annotations({ status: 409 }),
-) {}
+export class RoleInUse extends Schema.TaggedErrorClass<RoleInUse>()('RoleInUse', {}) {}
 
 export class RoleNameAlreadyTaken extends Schema.TaggedErrorClass<RoleNameAlreadyTaken>()(
   'RoleNameAlreadyTaken',
   {},
-  HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
 export class RoleApiGroup extends HttpApiGroup.make('role')
