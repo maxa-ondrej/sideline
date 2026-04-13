@@ -1,11 +1,11 @@
 import type { GroupModel, Team, TeamMember, TrainingType } from '@sideline/domain';
-import { Array, Effect, Option, pipe } from 'effect';
+import { Array, Effect, Option, pipe, type ServiceMap } from 'effect';
 import type { EventsRepository } from '~/repositories/EventsRepository.js';
 import type { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import type { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 
 export const checkCoachScoping = <E>(
-  events: EventsRepository,
+  events: ServiceMap.Service.Shape<typeof EventsRepository>,
   memberId: TeamMember.TeamMemberId,
   trainingTypeId: Option.Option<TrainingType.TrainingTypeId>,
   isAdmin: boolean,
@@ -28,7 +28,7 @@ export const checkCoachScoping = <E>(
 };
 
 export const checkGroupAccess = (
-  groups: GroupsRepository,
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
   memberId: TeamMember.TeamMemberId,
   groupId: Option.Option<GroupModel.GroupId>,
 ): Effect.Effect<boolean, never, never> => {
@@ -39,8 +39,8 @@ export const checkGroupAccess = (
 };
 
 export const checkTrainingTypeOwnerGroup = <E>(
-  trainingTypes: TrainingTypesRepository,
-  groups: GroupsRepository,
+  trainingTypes: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
   memberId: TeamMember.TeamMemberId,
   trainingTypeId: Option.Option<TrainingType.TrainingTypeId>,
   isAdmin: boolean,

@@ -10,18 +10,29 @@ import {
   User,
 } from '@sideline/domain';
 import { Bind, LogicError, Options, Schemas } from '@sideline/effect-lib';
-import { Array, Data, DateTime, Effect, flow, Metric, Option, pipe, Schema } from 'effect';
+import {
+  Array,
+  Data,
+  DateTime,
+  Effect,
+  flow,
+  Metric,
+  Option,
+  pipe,
+  Schema,
+  type ServiceMap,
+} from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
-import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
+import type { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
-import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
+import type { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
-import { GroupsRepository } from '~/repositories/GroupsRepository.js';
-import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
-import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
-import { TeamsRepository } from '~/repositories/TeamsRepository.js';
-import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
+import type { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import type { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import type { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import type { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import type { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { constructEvent } from './events.js';
 
@@ -36,9 +47,9 @@ class TeamMemberLookup extends Schema.Class<TeamMemberLookup>('TeamMemberLookup'
 }) {}
 
 const getRsvpCounts = (
-  rsvps: EventRsvpsRepository,
+  rsvps: ServiceMap.Service.Shape<typeof EventRsvpsRepository>,
   eventId: Event.EventId,
-  events: EventsRepository,
+  events: ServiceMap.Service.Shape<typeof EventsRepository>,
 ) =>
   Effect.Do.pipe(
     Effect.bind('counts', () => rsvps.countRsvpsByEventId(eventId)),
@@ -94,10 +105,10 @@ const parseDateTime = (input: string): Option.Option<DateTime.Utc> => {
 
 const createEvent = (
   sql: SqlClient.SqlClient,
-  events: EventsRepository,
-  syncEvents: EventSyncEventsRepository,
-  members: TeamMembersRepository,
-  trainingTypes: TrainingTypesRepository,
+  events: ServiceMap.Service.Shape<typeof EventsRepository>,
+  syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
+  members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
+  trainingTypes: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
   input: {
     readonly guild_id: Discord.Snowflake;
     readonly discord_user_id: Discord.Snowflake;
@@ -245,14 +256,14 @@ const rpcHandlers = Effect.Do.pipe(
   Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
   Effect.bind('deps', () =>
     Effect.all({
-      syncEvents: EventSyncEventsRepository,
-      members: TeamMembersRepository,
-      groups: GroupsRepository,
+      syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
+      members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
+      groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
       sql: SqlClient.SqlClient,
-      trainingTypesRepo: TrainingTypesRepository,
-      teamsRepo: TeamsRepository,
-      teamSettings: TeamSettingsRepository,
-      channelDividers: ChannelEventDividersRepository,
+      trainingTypesRepo: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
+      teamsRepo: ServiceMap.Service.Shape<typeof TeamsRepository>,
+      teamSettings: ServiceMap.Service.Shape<typeof TeamSettingsRepository>,
+      channelDividers: ServiceMap.Service.Shape<typeof ChannelEventDividersRepository>,
     }),
   ),
   Effect.let(

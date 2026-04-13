@@ -11,6 +11,7 @@ import {
   pipe,
   Redacted,
   Schema,
+  type ServiceMap,
   Struct,
 } from 'effect';
 import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
@@ -68,10 +69,10 @@ const handleDiscordLogin = ({
 }: {
   code: string;
   state: Schema.Schema.Type<typeof LoginSchema>;
-  discord: DiscordOAuth;
-  users: UsersRepository;
-  sessions: SessionsRepository;
-  oauthConnections: OAuthConnectionsRepository;
+  discord: ServiceMap.Service.Shape<typeof DiscordOAuth>;
+  users: ServiceMap.Service.Shape<typeof UsersRepository>;
+  sessions: ServiceMap.Service.Shape<typeof SessionsRepository>;
+  oauthConnections: ServiceMap.Service.Shape<typeof OAuthConnectionsRepository>;
 }) =>
   Effect.Do.pipe(
     Effect.bind('oauth', () => discord.validateAuthorizationCode(code)),

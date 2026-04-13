@@ -1,6 +1,6 @@
 import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, DateTime, Effect, Metric, Option, pipe } from 'effect';
+import { Array, DateTime, Effect, Metric, Option, pipe, type ServiceMap } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -17,7 +17,7 @@ const notFound = new EventRsvpApi.EventNotFound();
 const deadlinePassed = new EventRsvpApi.RsvpDeadlinePassed();
 
 const checkGroupAccess = (
-  groups: GroupsRepository,
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
   memberId: TeamMember.TeamMemberId,
   groupId: Option.Option<GroupModel.GroupId>,
 ): Effect.Effect<boolean, never, never> => {
@@ -31,7 +31,7 @@ const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
   !DateTime.lessThan(DateTime.nowUnsafe(), startAt);
 
 const buildRsvpDetail = (
-  rsvps: EventRsvpsRepository,
+  rsvps: ServiceMap.Service.Shape<typeof EventRsvpsRepository>,
   eventId: Parameters<EventRsvpsRepository['findRsvpsByEventId']>[0],
   myMemberId: Parameters<EventRsvpsRepository['findRsvpByEventAndMember']>[1],
   canRsvp: boolean,

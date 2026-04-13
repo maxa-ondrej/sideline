@@ -1,5 +1,5 @@
 import { Auth, EventApi, type Team, TeamApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Effect, Option, type ServiceMap } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -18,7 +18,10 @@ const teamToInfo = (team: Team.Team) =>
     guildId: team.guild_id,
   });
 
-const getTeamOrForbidden = (teams: TeamsRepository, teamId: Team.TeamId) =>
+const getTeamOrForbidden = (
+  teams: ServiceMap.Service.Shape<typeof TeamsRepository>,
+  teamId: Team.TeamId,
+) =>
   teams
     .findById(teamId)
     .pipe(

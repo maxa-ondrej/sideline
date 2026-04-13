@@ -1,5 +1,5 @@
 import { type Discord, GuildRpcGroup, type Team, type TeamMember } from '@sideline/domain';
-import { Array, type Cause, Effect, Option, pipe } from 'effect';
+import { Array, type Cause, Effect, Option, pipe, type ServiceMap } from 'effect';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -22,12 +22,12 @@ type RegisterMemberPayload = {
 };
 
 type Deps = {
-  teams: TeamsRepository;
-  users: UsersRepository;
-  members: TeamMembersRepository;
-  roleMappings: DiscordRoleMappingRepository;
-  channelMappings: DiscordChannelMappingRepository;
-  groups: GroupsRepository;
+  teams: ServiceMap.Service.Shape<typeof TeamsRepository>;
+  users: ServiceMap.Service.Shape<typeof UsersRepository>;
+  members: ServiceMap.Service.Shape<typeof TeamMembersRepository>;
+  roleMappings: ServiceMap.Service.Shape<typeof DiscordRoleMappingRepository>;
+  channelMappings: ServiceMap.Service.Shape<typeof DiscordChannelMappingRepository>;
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>;
 };
 
 const setupNewMember = (
@@ -140,8 +140,8 @@ const registerMemberLogic =
     );
 
 const buildHandlers = (
-  botGuilds: BotGuildsRepository,
-  discordChannels: DiscordChannelsRepository,
+  botGuilds: ServiceMap.Service.Shape<typeof BotGuildsRepository>,
+  discordChannels: ServiceMap.Service.Shape<typeof DiscordChannelsRepository>,
   deps: Deps,
 ) => {
   const register = registerMemberLogic(deps);

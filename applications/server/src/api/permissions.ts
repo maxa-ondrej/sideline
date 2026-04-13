@@ -1,12 +1,12 @@
 import type { Auth, Role, Team } from '@sideline/domain';
-import { Array, Effect, Option, pipe } from 'effect';
+import { Array, Effect, Option, pipe, type ServiceMap } from 'effect';
 import type {
   MembershipWithRole,
   TeamMembersRepository,
 } from '~/repositories/TeamMembersRepository.js';
 
 export const requireMembership = <E>(
-  members: TeamMembersRepository,
+  members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
   teamId: Team.TeamId,
   userId: Auth.UserId,
   forbidden: E,

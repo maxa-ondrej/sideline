@@ -17,10 +17,10 @@ import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 
 interface Dependencies {
-  thresholds: AgeThresholdRepository;
-  groups: GroupsRepository;
-  notifications: NotificationsRepository;
-  channelSync: ChannelSyncEventsRepository;
+  thresholds: ServiceMap.Service.Shape<typeof AgeThresholdRepository>;
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>;
+  notifications: ServiceMap.Service.Shape<typeof NotificationsRepository>;
+  channelSync: ServiceMap.Service.Shape<typeof ChannelSyncEventsRepository>;
 }
 
 interface Change {
@@ -98,17 +98,21 @@ const detectChanges = (
     ),
   );
 
-const commitChange = (groups: GroupsRepository) => (change: Change) =>
-  Effect.succeed(change).pipe(
-    Effect.tap(
-      Effect.if(change.action === 'added', {
-        onTrue: () => groups.addMemberById(change.groupId, change.memberId),
-        onFalse: () => groups.removeMemberById(change.groupId, change.memberId),
-      }),
-    ),
-  );
+const commitChange =
+  (groups: ServiceMap.Service.Shape<typeof GroupsRepository>) => (change: Change) =>
+    Effect.succeed(change).pipe(
+      Effect.tap(
+        Effect.if(change.action === 'added', {
+          onTrue: () => groups.addMemberById(change.groupId, change.memberId),
+          onFalse: () => groups.removeMemberById(change.groupId, change.memberId),
+        }),
+      ),
+    );
 
-const commitChanges = (groups: GroupsRepository, changes: readonly Change[]) =>
+const commitChanges = (
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
+  changes: readonly Change[],
+) =>
   pipe(
     changes,
     Array.map(commitChange(groups)),
@@ -131,7 +135,7 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
 }> {}
 
 const notifyAdmins = (
-  notifications: NotificationsRepository,
+  notifications: ServiceMap.Service.Shape<typeof NotificationsRepository>,
   teamId: Team.TeamId,
   changes: readonly Change[],
   teamMembers: readonly MemberWithBirthDate[],
