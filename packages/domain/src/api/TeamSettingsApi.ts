@@ -1,5 +1,5 @@
 import { Schema } from 'effect';
-import { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
 import { ChannelCleanupMode } from '~/models/ChannelSyncEvent.js';
@@ -7,9 +7,9 @@ import { Snowflake } from '~/models/Discord.js';
 import { TeamId } from '~/models/Team.js';
 
 const DiscordFormatString = Schema.String.pipe(
-  Schema.check((s) => s.includes('{name}'), {
-    message: () => 'Format must include {name}',
-  }),
+  Schema.check(
+    Schema.makeFilter<string>((s) => (s.includes('{name}') ? true : 'Format must include {name}')),
+  ),
 );
 
 export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettingsInfo')({

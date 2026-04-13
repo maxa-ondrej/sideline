@@ -1,4 +1,4 @@
-import { Context, Schema } from 'effect';
+import { Schema, ServiceMap } from 'effect';
 import {
   HttpApiEndpoint,
   HttpApiGroup,
@@ -61,26 +61,8 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
 )({
   name: Schema.String,
   birthDate: Schema.String.pipe(
-    Schema.check((s) => {
-      const d = new Date(s);
-      if (Number.isNaN(d.getTime())) return 'Invalid date';
-      if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - MIN_AGE);
-      if (d > minDate) return `Must be at least ${MIN_AGE} years old`;
-      return true;
-    }),
-  ),
-  gender: Gender,
-}) {}
-
-export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
-  'UpdateProfileRequest',
-)({
-  name: Schema.OptionFromNullOr(Schema.String),
-  birthDate: Schema.OptionFromNullOr(
-    Schema.String.pipe(
-      Schema.check((s) => {
+    Schema.check(
+      Schema.makeFilter<string>((s) => {
         const d = new Date(s);
         if (Number.isNaN(d.getTime())) return 'Invalid date';
         if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
@@ -91,19 +73,42 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
       }),
     ),
   ),
+  gender: Gender,
+}) {}
+
+export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
+  'UpdateProfileRequest',
+)({
+  name: Schema.OptionFromNullOr(Schema.String),
+  birthDate: Schema.OptionFromNullOr(
+    Schema.String.pipe(
+      Schema.check(
+        Schema.makeFilter<string>((s) => {
+          const d = new Date(s);
+          if (Number.isNaN(d.getTime())) return 'Invalid date';
+          if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
+          const minDate = new Date();
+          minDate.setFullYear(minDate.getFullYear() - MIN_AGE);
+          if (d > minDate) return `Must be at least ${MIN_AGE} years old`;
+          return true;
+        }),
+      ),
+    ),
+  ),
   gender: Schema.OptionFromNullOr(Gender),
 }) {}
 
 export class Unauthorized extends Schema.TaggedErrorClass<Unauthorized>()('Unauthorized', {}) {}
 
-export class CurrentUserContext extends Context.Tag('CurrentUserContext')<
-  CurrentUserContext,
-  CurrentUser
->() {}
+export class CurrentUserContext extends ServiceMap.Service<CurrentUserContext, CurrentUser>()(
+  'CurrentUserContext',
+) {}
 
-export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()('AuthMiddleware', {
-  failure: Unauthorized,
-  provides: CurrentUserContext,
+export class AuthMiddleware extends HttpApiMiddleware.Service<
+  AuthMiddleware,
+  { provides: CurrentUserContext }
+>()('AuthMiddleware', {
+  error: Unauthorized,
   security: { token: HttpApiSecurity.bearer },
 }) {}
 

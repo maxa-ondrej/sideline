@@ -35,7 +35,7 @@ export const ActivityRpcGroup = RpcGroup.make(
     payload: {
       guild_id: Discord.Snowflake,
       discord_user_id: Discord.Snowflake,
-      limit: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.positive())),
+      limit: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0)))),
     },
     success: GetLeaderboardResult,
     error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),

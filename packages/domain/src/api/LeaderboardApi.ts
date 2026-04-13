@@ -8,7 +8,7 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 import { UserId } from '~/models/User.js';
 
 export class LeaderboardEntry extends Schema.Class<LeaderboardEntry>('LeaderboardEntry')({
-  rank: Schema.Int.pipe(Schema.positive()),
+  rank: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
   teamMemberId: TeamMemberId,
   userId: UserId,
   username: Schema.String,
