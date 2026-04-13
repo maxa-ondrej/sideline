@@ -12,14 +12,14 @@ export const RecurrenceFrequency = Schema.Literals(['weekly', 'biweekly']);
 export type RecurrenceFrequency = typeof RecurrenceFrequency.Type;
 
 export const DayOfWeek = Schema.Int.pipe(
-  Schema.isBetween({ minimum: 0, maximum: 6 }),
+  Schema.check(Schema.isBetween({ minimum: 0, maximum: 6 })),
   Schema.brand('DayOfWeek'),
 );
 export type DayOfWeek = typeof DayOfWeek.Type;
 
 export const DaysOfWeek = Schema.Array(DayOfWeek).pipe(
-  Schema.isMinLength(1),
-  Schema.isMaxLength(7),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(7)),
 );
 export type DaysOfWeek = typeof DaysOfWeek.Type;
 

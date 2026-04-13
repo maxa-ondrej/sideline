@@ -41,7 +41,7 @@ const PlayerEditSchema = Schema.Struct({
   jerseyNumber: Schema.NullOr(
     Schema.NumberFromString.pipe(
       Schema.int(),
-      Schema.isBetween({ minimum: 0, maximum: 99 }),
+      Schema.check(Schema.isBetween({ minimum: 0, maximum: 99 })),
     ).annotations({
       message: () => m.validation_jerseyNumber(),
     }),

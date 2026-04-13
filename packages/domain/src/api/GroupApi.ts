@@ -7,7 +7,7 @@ import { RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
-export const HexColor = Schema.String.pipe(Schema.isPattern(/^#[0-9a-fA-F]{6}$/));
+export const HexColor = Schema.String.pipe(Schema.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/)));
 
 export class GroupInfo extends Schema.Class<GroupInfo>('GroupInfo')({
   groupId: GroupId,

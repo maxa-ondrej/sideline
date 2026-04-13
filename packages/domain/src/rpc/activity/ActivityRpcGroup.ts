@@ -16,7 +16,7 @@ export const ActivityRpcGroup = RpcGroup.make(
       discord_user_id: Discord.Snowflake,
       activity_type: Schema.String,
       duration_minutes: Schema.OptionFromNullOr(
-        Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 })),
+        Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
       ),
       note: Schema.OptionFromNullOr(Schema.String),
     },

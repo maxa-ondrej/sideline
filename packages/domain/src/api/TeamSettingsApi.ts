@@ -36,12 +36,12 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
 export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
   'UpdateTeamSettingsRequest',
 )({
-  eventHorizonDays: Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 365 })),
+  eventHorizonDays: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 365 }))),
   minPlayersThreshold: Schema.OptionFromOptional(
-    Schema.Int.pipe(Schema.isBetween({ minimum: 0, maximum: 100 })),
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 100 }))),
   ),
   rsvpReminderHours: Schema.OptionFromOptional(
-    Schema.Int.pipe(Schema.isBetween({ minimum: 0, maximum: 168 })),
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 168 }))),
   ),
   discordChannelTraining: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   discordChannelMatch: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),

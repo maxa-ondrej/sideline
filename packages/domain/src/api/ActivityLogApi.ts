@@ -27,7 +27,7 @@ export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequ
 )({
   activityTypeId: ActivityTypeId,
   durationMinutes: Schema.OptionFromNullOr(
-    Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 })),
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   ),
   note: Schema.OptionFromNullOr(Schema.String),
 }) {}
@@ -37,7 +37,9 @@ export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequ
 )({
   activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
   durationMinutes: Schema.OptionFromOptional(
-    Schema.OptionFromNullOr(Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
+    Schema.OptionFromNullOr(
+      Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
+    ),
   ),
   note: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
 }) {}

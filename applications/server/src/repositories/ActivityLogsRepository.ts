@@ -16,7 +16,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   activity_type_id: ActivityType.ActivityTypeId,
   logged_at: Schema.Date,
   duration_minutes: Schema.OptionFromNullOr(
-    Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 })),
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   ),
   note: Schema.OptionFromNullOr(Schema.String),
   source: ActivityLog.ActivitySource,

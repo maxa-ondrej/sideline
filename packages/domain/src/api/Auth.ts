@@ -41,7 +41,10 @@ export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('Upda
 }) {}
 
 export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTeamRequest')({
-  name: Schema.String.pipe(Schema.isMinLength(1), Schema.isMaxLength(100)),
+  name: Schema.String.pipe(
+    Schema.check(Schema.isMinLength(1)),
+    Schema.check(Schema.isMaxLength(100)),
+  ),
   guildId: Snowflake,
 }) {}
 

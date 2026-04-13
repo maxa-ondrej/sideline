@@ -15,7 +15,7 @@ export class ActivityLog extends Model.Class<ActivityLog>('ActivityLog')({
   activity_type_id: ActivityTypeId,
   logged_at: Model.DateTimeInsertFromDate,
   duration_minutes: Schema.OptionFromNullOr(
-    Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 })),
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   ),
   note: Schema.OptionFromNullOr(Schema.String),
   source: ActivitySource,
