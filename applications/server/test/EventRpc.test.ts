@@ -69,8 +69,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: TEST_GUILD_ID,
           created_by: 'user-1',
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
@@ -83,8 +83,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: TEST_GUILD_ID,
           created_by: 'user-1',
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
@@ -155,7 +155,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: 'training' as Event.EventType,
       title: 'Test Training',
       description: Option.none(),
-      start_at: DateTime.unsafeNow(),
+      start_at: DateTime.nowUnsafe(),
       end_at: Option.none(),
       location: Option.none(),
       status: 'active' as Event.EventStatus,
@@ -329,7 +329,7 @@ describe('CreateEvent RPC with training_type_id', () => {
           eventType: 'training',
           title: 'Test Training',
           description: Option.none(),
-          startAt: DateTime.unsafeNow(),
+          startAt: DateTime.nowUnsafe(),
           endAt: Option.none(),
           location: Option.none(),
           createdBy: TEST_ADMIN_MEMBER_ID,
@@ -356,7 +356,7 @@ describe('CreateEvent RPC with training_type_id', () => {
           eventType: 'match',
           title: 'Test Match',
           description: Option.none(),
-          startAt: DateTime.unsafeNow(),
+          startAt: DateTime.nowUnsafe(),
           endAt: Option.none(),
           location: Option.none(),
           createdBy: TEST_ADMIN_MEMBER_ID,

@@ -66,8 +66,8 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testAdmin = {
@@ -77,11 +77,11 @@ const testAdmin = {
   avatar: Option.none<string>(),
   is_profile_complete: true,
   name: Option.some('Admin User'),
-  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testTeam = {
@@ -89,8 +89,8 @@ const testTeam = {
   name: 'Test Team',
   guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const sessionsStore = new Map<string, Auth.UserId>();
@@ -182,7 +182,7 @@ rostersStore.set(TEST_ROSTER_ID, {
   color: Option.none(),
   emoji: Option.none(),
   discord_channel_id: Option.none(),
-  created_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
 });
 
 const rosterMembersStore = new Map<string, RosterMemberRecord>();
@@ -234,8 +234,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -246,8 +246,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },
@@ -283,7 +283,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       user_id: input.user_id,
       active: input.active,
       jersey_number: Option.none(),
-      joined_at: DateTime.unsafeNow(),
+      joined_at: DateTime.nowUnsafe(),
     });
   },
   findMembershipByIds: (teamId: Team.TeamId, userId: Auth.UserId) => {
@@ -302,7 +302,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
           user_id: m.user_id,
           active: m.active,
           jersey_number: Option.none(),
-          joined_at: DateTime.unsafeNow(),
+          joined_at: DateTime.nowUnsafe(),
         })),
     ),
   findByUser: (userId: Auth.UserId) =>
@@ -335,7 +335,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       user_id: updated.user_id,
       active: updated.active,
       jersey_number: Option.none(),
-      joined_at: DateTime.unsafeNow(),
+      joined_at: DateTime.nowUnsafe(),
     });
   },
   getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_PLAYER_ROLE_ID })),
@@ -383,7 +383,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
       color: input.color,
       emoji: input.emoji,
       discord_channel_id: Option.none(),
-      created_at: DateTime.unsafeNow(),
+      created_at: DateTime.nowUnsafe(),
     };
     rostersStore.set(id, roster);
     return Effect.succeed(roster);
@@ -1123,7 +1123,7 @@ describe('Rosters API', () => {
         color: Option.none(),
         emoji: Option.none(),
         discord_channel_id: Option.none(),
-        created_at: DateTime.unsafeNow(),
+        created_at: DateTime.nowUnsafe(),
       });
       const response = await handler(
         new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {
@@ -1156,7 +1156,7 @@ describe('Rosters API', () => {
         color: Option.none(),
         emoji: Option.none(),
         discord_channel_id: Option.some('987654321' as Discord.Snowflake),
-        created_at: DateTime.unsafeNow(),
+        created_at: DateTime.nowUnsafe(),
       });
       const response = await handler(
         new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {
@@ -1190,7 +1190,7 @@ describe('Rosters API', () => {
         color: Option.none(),
         emoji: Option.none(),
         discord_channel_id: Option.some(existingChannelId),
-        created_at: DateTime.unsafeNow(),
+        created_at: DateTime.nowUnsafe(),
       });
       const response = await handler(
         new Request(`http://localhost/teams/${TEST_TEAM_ID}/rosters/${TEST_ROSTER_ID}`, {

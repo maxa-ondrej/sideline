@@ -140,7 +140,7 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
         });
       }
 
-      const now = DateTime.unsafeNow();
+      const now = DateTime.nowUnsafe();
       const sortedEntries = sortEntriesForChannel(entries, now);
       const hasPast = Arr.some(sortedEntries, (e) => DateTime.lessThan(e.start_at, now));
       const hasFuture = Arr.some(sortedEntries, (e) => !DateTime.lessThan(e.start_at, now));

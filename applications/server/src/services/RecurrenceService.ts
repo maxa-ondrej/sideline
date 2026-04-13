@@ -4,7 +4,7 @@ export const computeHorizonEnd = (params: {
   seriesEndDate: DateTime.Utc | null;
   horizonDays: number;
 }): DateTime.Utc => {
-  const horizonEnd = DateTime.add(DateTime.unsafeNow(), { days: params.horizonDays });
+  const horizonEnd = DateTime.add(DateTime.nowUnsafe(), { days: params.horizonDays });
   if (params.seriesEndDate === null) return horizonEnd;
   return DateTime.lessThanOrEqualTo(params.seriesEndDate, horizonEnd)
     ? params.seriesEndDate

@@ -7,8 +7,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',
       daysOfWeek: [2], // Tuesday
-      startDate: DateTime.unsafeMake('2026-03-03'), // Tuesday
-      endDate: DateTime.unsafeMake('2026-03-31'),
+      startDate: DateTime.makeUnsafe('2026-03-03'), // Tuesday
+      endDate: DateTime.makeUnsafe('2026-03-31'),
     });
     expect(dates).toHaveLength(5);
     expect(dates.map(DateTime.formatIsoDateUtc)).toEqual([
@@ -24,8 +24,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'biweekly',
       daysOfWeek: [2], // Tuesday
-      startDate: DateTime.unsafeMake('2026-03-03'), // Tuesday
-      endDate: DateTime.unsafeMake('2026-03-31'),
+      startDate: DateTime.makeUnsafe('2026-03-03'), // Tuesday
+      endDate: DateTime.makeUnsafe('2026-03-31'),
     });
     expect(dates).toHaveLength(3);
     expect(dates.map(DateTime.formatIsoDateUtc)).toEqual([
@@ -39,8 +39,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',
       daysOfWeek: [4], // Thursday
-      startDate: DateTime.unsafeMake('2026-03-02'), // Monday
-      endDate: DateTime.unsafeMake('2026-03-15'),
+      startDate: DateTime.makeUnsafe('2026-03-02'), // Monday
+      endDate: DateTime.makeUnsafe('2026-03-15'),
     });
     expect(dates).toHaveLength(2);
     expect(dates.map(DateTime.formatIsoDateUtc)).toEqual(['2026-03-05', '2026-03-12']);
@@ -50,8 +50,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',
       daysOfWeek: [2],
-      startDate: DateTime.unsafeMake('2026-04-01'),
-      endDate: DateTime.unsafeMake('2026-03-01'),
+      startDate: DateTime.makeUnsafe('2026-04-01'),
+      endDate: DateTime.makeUnsafe('2026-03-01'),
     });
     expect(dates).toHaveLength(0);
   });
@@ -60,8 +60,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',
       daysOfWeek: [1], // Monday
-      startDate: DateTime.unsafeMake('2026-03-02'), // Monday
-      endDate: DateTime.unsafeMake('2026-03-08'),
+      startDate: DateTime.makeUnsafe('2026-03-02'), // Monday
+      endDate: DateTime.makeUnsafe('2026-03-08'),
     });
     expect(dates).toHaveLength(1);
     expect(DateTime.formatIsoDateUtc(dates[0])).toBe('2026-03-02');
@@ -71,8 +71,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',
       daysOfWeek: [0], // Sunday
-      startDate: DateTime.unsafeMake('2026-03-02'), // Monday
-      endDate: DateTime.unsafeMake('2026-03-22'),
+      startDate: DateTime.makeUnsafe('2026-03-02'), // Monday
+      endDate: DateTime.makeUnsafe('2026-03-22'),
     });
     expect(dates).toHaveLength(3);
     expect(dates.map(DateTime.formatIsoDateUtc)).toEqual([
@@ -86,8 +86,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',
       daysOfWeek: [1, 3, 5], // Monday, Wednesday, Friday
-      startDate: DateTime.unsafeMake('2026-03-02'), // Monday
-      endDate: DateTime.unsafeMake('2026-03-13'), // Friday
+      startDate: DateTime.makeUnsafe('2026-03-02'), // Monday
+      endDate: DateTime.makeUnsafe('2026-03-13'), // Friday
     });
     expect(dates.map(DateTime.formatIsoDateUtc)).toEqual([
       '2026-03-02', // Mon
@@ -103,8 +103,8 @@ describe('generateOccurrenceDates', () => {
     const dates = generateOccurrenceDates({
       frequency: 'biweekly',
       daysOfWeek: [1, 3], // Monday, Wednesday
-      startDate: DateTime.unsafeMake('2026-03-02'), // Monday
-      endDate: DateTime.unsafeMake('2026-03-25'),
+      startDate: DateTime.makeUnsafe('2026-03-02'), // Monday
+      endDate: DateTime.makeUnsafe('2026-03-25'),
     });
     // Week 0 (Mar 2-8): Mon 2, Wed 4
     // Week 1 (Mar 9-15): skipped

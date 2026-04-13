@@ -79,7 +79,7 @@ export class NotificationsRepository extends Effect.Service<NotificationsReposit
         .sql`UPDATE notifications SET is_read = true WHERE user_id = ${input.user_id} AND team_id = ${input.team_id} AND is_read = false`,
   });
 
-  private insertOne = SqlSchema.single({
+  private insertOne = SqlSchema.findOne({
     Request: InsertInput,
     Result: NotificationRow,
     execute: (input) => this.sql`

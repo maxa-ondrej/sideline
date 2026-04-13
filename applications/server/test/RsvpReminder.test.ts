@@ -84,11 +84,11 @@ const testUser: UserLike = {
   avatar: Option.none<string>(),
   is_profile_complete: true,
   name: Option.some('Test User'),
-  birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('2000-01-01')),
   gender: Option.some('male' as const),
   locale: 'en',
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testAdmin: UserLike = {
@@ -98,11 +98,11 @@ const testAdmin: UserLike = {
   avatar: Option.none<string>(),
   is_profile_complete: true,
   name: Option.some('Admin User'),
-  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en',
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const usersMap = new Map<Auth.UserId, UserLike>();
@@ -212,8 +212,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -224,8 +224,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },
@@ -242,8 +242,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: '999' as Discord.Snowflake,
           created_by: TEST_ADMIN_ID,
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
@@ -301,8 +301,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
           event_type: 'training' as const,
           title: 'Future Training',
           description: Option.none(),
-          start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
-          end_at: Option.some(DateTime.unsafeMake('2099-12-31T20:00:00Z')),
+          start_at: DateTime.makeUnsafe('2099-12-31T18:00:00Z'),
+          end_at: Option.some(DateTime.makeUnsafe('2099-12-31T20:00:00Z')),
           location: Option.none(),
           status: 'active' as const,
           created_by: TEST_ADMIN_MEMBER_ID,
@@ -329,8 +329,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
           event_type: 'training' as const,
           title: 'Future Training',
           description: Option.none(),
-          start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
-          end_at: Option.some(DateTime.unsafeMake('2099-12-31T20:00:00Z')),
+          start_at: DateTime.makeUnsafe('2099-12-31T18:00:00Z'),
+          end_at: Option.some(DateTime.makeUnsafe('2099-12-31T20:00:00Z')),
           location: Option.none(),
           status: 'active' as const,
           created_by: TEST_ADMIN_MEMBER_ID,

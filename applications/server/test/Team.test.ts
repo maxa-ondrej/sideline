@@ -51,8 +51,8 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none(),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testTeam = {
@@ -63,8 +63,8 @@ const testTeam = {
   sport: Option.none<string>(),
   logo_url: Option.none<string>(),
   created_by: TEST_USER_ID,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const memberMembership: MembershipWithRole = {
@@ -121,8 +121,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -133,8 +133,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },
@@ -173,7 +173,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       user_id: input.user_id,
       active: true,
       jersey_number: Option.none(),
-      joined_at: DateTime.unsafeNow(),
+      joined_at: DateTime.nowUnsafe(),
     }),
   findMembershipByIds: (teamId: Team.TeamId, _userId: Auth.UserId) => {
     if (teamId !== TEST_TEAM_ID) return Effect.succeed(Option.none());
@@ -220,7 +220,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
       code: 'test-code',
       active: true,
       created_by: TEST_USER_ID,
-      created_at: DateTime.unsafeNow(),
+      created_at: DateTime.nowUnsafe(),
       expires_at: Option.none(),
     }),
   deactivateByTeam: () => Effect.void,

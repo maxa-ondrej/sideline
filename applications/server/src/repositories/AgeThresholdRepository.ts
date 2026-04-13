@@ -91,7 +91,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  private insertQuery = SqlSchema.single({
+  private insertQuery = SqlSchema.findOne({
     Request: InsertInput,
     Result: AgeThresholdWithGroupName,
     execute: (input) => this.sql`
@@ -106,7 +106,7 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  private updateRule = SqlSchema.single({
+  private updateRule = SqlSchema.findOne({
     Request: UpdateInput,
     Result: AgeThresholdWithGroupName,
     execute: (input) => this.sql`

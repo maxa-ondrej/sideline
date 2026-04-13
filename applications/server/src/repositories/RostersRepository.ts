@@ -69,7 +69,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     execute: (id) => this.sql`SELECT * FROM rosters WHERE id = ${id}`,
   });
 
-  private insertOne = SqlSchema.single({
+  private insertOne = SqlSchema.findOne({
     Request: RosterInsertInput,
     Result: RosterModel.Roster,
     execute: (input) => this.sql`
@@ -79,7 +79,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     `,
   });
 
-  private updateOne = SqlSchema.single({
+  private updateOne = SqlSchema.findOne({
     Request: Schema.Struct({
       id: RosterModel.RosterId,
       name: Schema.OptionFromNullOr(Schema.String),

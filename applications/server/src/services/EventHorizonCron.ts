@@ -39,8 +39,8 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
         return Effect.all(
           Array.map(dates, (date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
-            const startAt = DateTime.unsafeMake(`${dateStr}T${s.start_time}Z`);
-            const endAt = Option.map(s.end_time, (t) => DateTime.unsafeMake(`${dateStr}T${t}Z`));
+            const startAt = DateTime.makeUnsafe(`${dateStr}T${s.start_time}Z`);
+            const endAt = Option.map(s.end_time, (t) => DateTime.makeUnsafe(`${dateStr}T${t}Z`));
             return eventsRepo
               .insertEvent({
                 teamId: s.team_id,

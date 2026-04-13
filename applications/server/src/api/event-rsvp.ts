@@ -28,7 +28,7 @@ const checkGroupAccess = (
 };
 
 const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
-  !DateTime.lessThan(DateTime.unsafeNow(), startAt);
+  !DateTime.lessThan(DateTime.nowUnsafe(), startAt);
 
 const buildRsvpDetail = (
   rsvps: EventRsvpsRepository,

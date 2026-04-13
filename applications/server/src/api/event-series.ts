@@ -117,9 +117,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               Effect.all(
                 Array.map(dates, (date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
-                  const startAt = DateTime.unsafeMake(`${dateStr}T${inserted.start_time}Z`);
+                  const startAt = DateTime.makeUnsafe(`${dateStr}T${inserted.start_time}Z`);
                   const endAt = Option.map(inserted.end_time, (t) =>
-                    DateTime.unsafeMake(`${dateStr}T${t}Z`),
+                    DateTime.makeUnsafe(`${dateStr}T${t}Z`),
                   );
                   return events
                     .insertEvent({
@@ -420,9 +420,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       return Effect.all(
                         Array.map(newDates, (date) => {
                           const dateStr = DateTime.formatIsoDateUtc(date);
-                          const startAt = DateTime.unsafeMake(`${dateStr}T${existing.start_time}Z`);
+                          const startAt = DateTime.makeUnsafe(`${dateStr}T${existing.start_time}Z`);
                           const endAt = Option.map(existing.end_time, (t) =>
-                            DateTime.unsafeMake(`${dateStr}T${t}Z`),
+                            DateTime.makeUnsafe(`${dateStr}T${t}Z`),
                           );
                           return events.insertEvent({
                             teamId,

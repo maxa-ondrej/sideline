@@ -98,8 +98,8 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testAdmin = {
@@ -110,11 +110,11 @@ const testAdmin = {
 
   is_profile_complete: true,
   name: Option.some('Admin User'),
-  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testCaptain = {
@@ -125,11 +125,11 @@ const testCaptain = {
 
   is_profile_complete: true,
   name: Option.some('Captain User'),
-  birth_date: Option.some(DateTime.unsafeMake('1992-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1992-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testTeam = {
@@ -137,8 +137,8 @@ const testTeam = {
   name: 'Test Team',
   guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 type UserLike = {
@@ -256,11 +256,11 @@ const resetStores = () => {
     location: Option.some('Main Field'),
     frequency: 'weekly',
     days_of_week: [2],
-    start_date: DateTime.unsafeMake('2026-03-03T00:00:00Z'),
-    end_date: Option.some(DateTime.unsafeMake('2026-06-30T00:00:00Z')),
+    start_date: DateTime.makeUnsafe('2026-03-03T00:00:00Z'),
+    end_date: Option.some(DateTime.makeUnsafe('2026-06-30T00:00:00Z')),
     status: 'active',
     training_type_name: Option.none(),
-    last_generated_date: Option.some(DateTime.unsafeMake('2026-06-30T00:00:00Z')),
+    last_generated_date: Option.some(DateTime.makeUnsafe('2026-06-30T00:00:00Z')),
     discord_target_channel_id: Option.none(),
     owner_group_id: Option.none(),
     owner_group_name: Option.none(),
@@ -326,8 +326,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -338,8 +338,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },

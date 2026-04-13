@@ -21,7 +21,7 @@ const TEST_USER_ID = '00000000-0000-0000-0000-000000000030' as User.UserId;
 const TEST_GUILD_ID = '999999999999999999' as Discord.Snowflake;
 const TEST_EVENT_ID = '00000000-0000-0000-0000-000000000060' as Event.EventId;
 
-const FUTURE_DATE = DateTime.unsafeMake('2099-06-01T18:00:00Z');
+const FUTURE_DATE = DateTime.makeUnsafe('2099-06-01T18:00:00Z');
 
 // --- Minimal team record helper ---
 const makeTeam = () => ({
@@ -29,8 +29,8 @@ const makeTeam = () => ({
   name: 'Test Team',
   guild_id: TEST_GUILD_ID,
   created_by: 'user-1',
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 });
 
 // --- Mock layers ---

@@ -145,7 +145,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 users.updateAdminProfile({
                   id: entry.user_id,
                   name: payload.name,
-                  birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
+                  birth_date: Option.map(payload.birthDate, DateTime.makeUnsafe),
                   gender: payload.gender,
                 }),
               ),

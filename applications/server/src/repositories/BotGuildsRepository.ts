@@ -40,7 +40,7 @@ export class BotGuildsRepository extends Effect.Service<BotGuildsRepository>()(
     `,
   });
 
-  private _existsGuild = SqlSchema.single({
+  private _existsGuild = SqlSchema.findOne({
     Request: Discord.Snowflake,
     Result: ExistsResult,
     execute: (guildId) => this.sql`

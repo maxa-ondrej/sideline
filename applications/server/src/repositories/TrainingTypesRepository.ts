@@ -97,7 +97,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     `,
   });
 
-  private insertOne = SqlSchema.single({
+  private insertOne = SqlSchema.findOne({
     Request: TrainingTypeInsertInput,
     Result: TrainingTypeRow,
     execute: (input) => this.sql`
@@ -107,7 +107,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     `,
   });
 
-  private updateOne = SqlSchema.single({
+  private updateOne = SqlSchema.findOne({
     Request: TrainingTypeUpdateInput,
     Result: TrainingTypeRow,
     execute: (input) => this.sql`

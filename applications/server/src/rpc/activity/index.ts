@@ -84,7 +84,7 @@ export const ActivityRpcLive = Effect.Do.pipe(
             activityLogs.insert({
               team_member_id: member.id,
               activity_type_id: activityType.id,
-              logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+              logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
               duration_minutes,
               note,
               source: 'manual',

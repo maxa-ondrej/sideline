@@ -50,7 +50,7 @@ export class TeamsRepository extends Effect.Service<TeamsRepository>()('api/Team
     );
   };
 
-  private updateTeamQuery = SqlSchema.single({
+  private updateTeamQuery = SqlSchema.findOne({
     Request: TeamUpdateInput,
     Result: Team.Team,
     execute: (input) => this.sql`

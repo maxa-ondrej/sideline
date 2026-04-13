@@ -83,11 +83,11 @@ const testUser = {
 
   is_profile_complete: true,
   name: Option.some('Test User'),
-  birth_date: Option.some(DateTime.unsafeMake('2000-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('2000-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testAdmin = {
@@ -98,11 +98,11 @@ const testAdmin = {
 
   is_profile_complete: true,
   name: Option.some('Admin User'),
-  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testTeam = {
@@ -110,8 +110,8 @@ const testTeam = {
   name: 'Test Team',
   guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 type UserLike = {
@@ -204,8 +204,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Future Training',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
-    end_at: Option.some(DateTime.unsafeMake('2099-12-31T20:00:00Z')),
+    start_at: DateTime.makeUnsafe('2099-12-31T18:00:00Z'),
+    end_at: Option.some(DateTime.makeUnsafe('2099-12-31T20:00:00Z')),
     location: Option.some('Main Field'),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -226,8 +226,8 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2099-12-15T14:00:00Z'),
-    end_at: Option.some(DateTime.unsafeMake('2099-12-15T16:00:00Z')),
+    start_at: DateTime.makeUnsafe('2099-12-15T14:00:00Z'),
+    end_at: Option.some(DateTime.makeUnsafe('2099-12-15T16:00:00Z')),
     location: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -248,8 +248,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Past Training',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2020-01-01T10:00:00Z'),
-    end_at: Option.some(DateTime.unsafeMake('2020-01-01T12:00:00Z')),
+    start_at: DateTime.makeUnsafe('2020-01-01T10:00:00Z'),
+    end_at: Option.some(DateTime.makeUnsafe('2020-01-01T12:00:00Z')),
     location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -270,7 +270,7 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Other Team Event',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
+    start_at: DateTime.makeUnsafe('2099-12-31T18:00:00Z'),
     end_at: Option.none(),
     location: Option.none(),
     status: 'active',
@@ -343,8 +343,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -355,8 +355,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },
@@ -1218,7 +1218,7 @@ const resetRpcStores = () => {
     event_type: 'training' as Event.EventType,
     title: 'Future Training',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2099-12-31T18:00:00Z'),
+    start_at: DateTime.makeUnsafe('2099-12-31T18:00:00Z'),
     end_at: Option.none(),
     location: Option.none(),
     status: 'active' as Event.EventStatus,
@@ -1569,7 +1569,7 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
     if (event) {
       rpcEventsStore.set(RPC_TEST_EVENT_ID, {
         ...event,
-        reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+        reminder_sent_at: Option.some(DateTime.makeUnsafe('2099-12-30T10:00:00Z')),
       });
     }
 
@@ -1600,7 +1600,7 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
     if (event) {
       rpcEventsStore.set(RPC_TEST_EVENT_ID, {
         ...event,
-        reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+        reminder_sent_at: Option.some(DateTime.makeUnsafe('2099-12-30T10:00:00Z')),
       });
     }
 
@@ -1632,7 +1632,7 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
     if (event) {
       rpcEventsStore.set(RPC_TEST_EVENT_ID, {
         ...event,
-        reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+        reminder_sent_at: Option.some(DateTime.makeUnsafe('2099-12-30T10:00:00Z')),
       });
     }
 
@@ -1657,7 +1657,7 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
       if (event) {
         rpcEventsStore.set(RPC_TEST_EVENT_ID, {
           ...event,
-          reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+          reminder_sent_at: Option.some(DateTime.makeUnsafe('2099-12-30T10:00:00Z')),
         });
       }
 
@@ -1683,7 +1683,7 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
       if (event) {
         rpcEventsStore.set(RPC_TEST_EVENT_ID, {
           ...event,
-          reminder_sent_at: Option.some(DateTime.unsafeMake('2099-12-30T10:00:00Z')),
+          reminder_sent_at: Option.some(DateTime.makeUnsafe('2099-12-30T10:00:00Z')),
         });
       }
 

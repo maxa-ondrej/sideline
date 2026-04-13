@@ -91,8 +91,8 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testAdmin = {
@@ -103,11 +103,11 @@ const testAdmin = {
 
   is_profile_complete: true,
   name: Option.some('Admin User'),
-  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testCaptain = {
@@ -118,11 +118,11 @@ const testCaptain = {
 
   is_profile_complete: true,
   name: Option.some('Captain User'),
-  birth_date: Option.some(DateTime.unsafeMake('1992-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1992-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testTeam = {
@@ -130,8 +130,8 @@ const testTeam = {
   name: 'Test Team',
   guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 type UserLike = {
@@ -220,8 +220,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Tuesday Training',
     description: Option.some('Weekly training session'),
-    start_at: DateTime.unsafeMake('2026-03-10T18:00:00Z'),
-    end_at: Option.some(DateTime.unsafeMake('2026-03-10T20:00:00Z')),
+    start_at: DateTime.makeUnsafe('2026-03-10T18:00:00Z'),
+    end_at: Option.some(DateTime.makeUnsafe('2026-03-10T20:00:00Z')),
     location: Option.some('Main Field'),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -242,8 +242,8 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2026-03-15T14:00:00Z'),
-    end_at: Option.some(DateTime.unsafeMake('2026-03-15T16:00:00Z')),
+    start_at: DateTime.makeUnsafe('2026-03-15T14:00:00Z'),
+    end_at: Option.some(DateTime.makeUnsafe('2026-03-15T16:00:00Z')),
     location: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -264,8 +264,8 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Scoped Training',
     description: Option.none(),
-    start_at: DateTime.unsafeMake('2026-03-12T17:00:00Z'),
-    end_at: Option.some(DateTime.unsafeMake('2026-03-12T19:00:00Z')),
+    start_at: DateTime.makeUnsafe('2026-03-12T17:00:00Z'),
+    end_at: Option.some(DateTime.makeUnsafe('2026-03-12T19:00:00Z')),
     location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
@@ -336,8 +336,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -348,8 +348,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },

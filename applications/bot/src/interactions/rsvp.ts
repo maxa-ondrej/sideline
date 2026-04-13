@@ -111,7 +111,7 @@ export const postRsvpDiscordUpdates = (params: {
           Option.match(embedInfo, {
             onNone: () => Effect.void,
             onSome: (info) => {
-              const isStarted = DateTime.greaterThanOrEqualTo(DateTime.unsafeNow(), info.start_at);
+              const isStarted = DateTime.greaterThanOrEqualTo(DateTime.nowUnsafe(), info.start_at);
               const payload = buildEventEmbed({
                 teamId,
                 eventId,

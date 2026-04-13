@@ -46,8 +46,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: TEST_GUILD_ID,
           created_by: 'user-1',
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
@@ -229,7 +229,7 @@ const logActivity = (payload: {
       activityLogs.insert({
         team_member_id: member.id,
         activity_type_id: activityType.id,
-        logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+        logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
         duration_minutes: payload.duration_minutes,
         note: payload.note,
         source: 'manual',

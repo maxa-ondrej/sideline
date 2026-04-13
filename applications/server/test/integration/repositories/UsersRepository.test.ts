@@ -165,7 +165,7 @@ describe('UsersRepository', () => {
             repo.completeProfile({
               id: created.id,
               name: Option.some('John Doe'),
-              birth_date: Option.some(DateTime.unsafeMake(new Date('1990-01-15'))),
+              birth_date: Option.some(DateTime.makeUnsafe(new Date('1990-01-15'))),
               gender: Option.some('male' as User.Gender),
             }),
           ),

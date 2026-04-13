@@ -9,7 +9,7 @@ export class SessionsRepository extends Effect.Service<SessionsRepository>()(
     effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  private _create = SqlSchema.single({
+  private _create = SqlSchema.findOne({
     Request: Session.Session.insert,
     Result: Session.Session,
     execute: (input) => this.sql`

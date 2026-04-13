@@ -114,7 +114,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  private insertSeries = SqlSchema.single({
+  private insertSeries = SqlSchema.findOne({
     Request: EventSeriesInsertInput,
     Result: EventSeriesRow,
     execute: (input) => this.sql`
@@ -201,7 +201,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
         .sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
   });
 
-  private updateSeries = SqlSchema.single({
+  private updateSeries = SqlSchema.findOne({
     Request: EventSeriesUpdateInput,
     Result: EventSeriesRow,
     execute: (input) => this.sql`

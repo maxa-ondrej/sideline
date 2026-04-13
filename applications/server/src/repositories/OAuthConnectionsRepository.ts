@@ -25,7 +25,7 @@ export class OAuthConnectionsRepository extends Effect.Service<OAuthConnectionsR
     effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  private _upsertConnection = SqlSchema.single({
+  private _upsertConnection = SqlSchema.findOne({
     Request: UpsertInput,
     Result: OAuthConnection.OAuthConnection,
     execute: (input) => this.sql`

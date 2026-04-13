@@ -14,8 +14,8 @@ const MEMBER_ID_1 = '00000000-0000-0000-0000-000000000010' as TeamMember.TeamMem
 const MEMBER_ID_2 = '00000000-0000-0000-0000-000000000011' as TeamMember.TeamMemberId;
 const TRAINING_TYPE_ID = 'type-uuid-training' as ActivityType.ActivityTypeId;
 
-const START_AT = DateTime.unsafeMake('2026-03-25T09:00:00Z');
-const END_AT = DateTime.unsafeMake('2026-03-25T10:30:00Z');
+const START_AT = DateTime.makeUnsafe('2026-03-25T09:00:00Z');
+const END_AT = DateTime.makeUnsafe('2026-03-25T10:30:00Z');
 
 // --- In-memory stores ---
 type InsertedLog = {

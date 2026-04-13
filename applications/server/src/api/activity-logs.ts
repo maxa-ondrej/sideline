@@ -63,7 +63,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
               activityLogs.insert({
                 team_member_id: memberId,
                 activity_type_id: payload.activityTypeId,
-                logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+                logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
                 duration_minutes: payload.durationMinutes,
                 note: payload.note,
                 source: 'manual',

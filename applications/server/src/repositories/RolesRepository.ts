@@ -97,7 +97,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
       this.sql`SELECT permission FROM role_permissions WHERE role_id = ${roleId}`,
   });
 
-  private insertQuery = SqlSchema.single({
+  private insertQuery = SqlSchema.findOne({
     Request: RoleInsertInput,
     Result: RoleRow,
     execute: (input) => this.sql`
@@ -107,7 +107,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     `,
   });
 
-  private updateQuery = SqlSchema.single({
+  private updateQuery = SqlSchema.findOne({
     Request: RoleUpdateInput,
     Result: RoleRow,
     execute: (input) => this.sql`
@@ -145,7 +145,7 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
         .sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name} AND is_archived = false`,
   });
 
-  private countMembersForRole = SqlSchema.single({
+  private countMembersForRole = SqlSchema.findOne({
     Request: Role.RoleId,
     Result: Schema.Struct({ count: Schema.Number }),
     execute: (roleId) =>

@@ -94,7 +94,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private upsert = SqlSchema.single({
+  private upsert = SqlSchema.findOne({
     Request: UpsertInput,
     Result: RsvpRow,
     execute: (input) => this.sql`
@@ -106,7 +106,7 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private upsertClearing = SqlSchema.single({
+  private upsertClearing = SqlSchema.findOne({
     Request: UpsertClearInput,
     Result: RsvpRow,
     execute: (input) => this.sql`

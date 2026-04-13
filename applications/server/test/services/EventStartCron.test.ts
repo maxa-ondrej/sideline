@@ -10,8 +10,8 @@ const EVENT_ID_1 = '00000000-0000-0000-0000-000000000001' as Event.EventId;
 const EVENT_ID_2 = '00000000-0000-0000-0000-000000000002' as Event.EventId;
 const TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 
-const START_AT = DateTime.unsafeMake('2026-04-09T10:00:00Z');
-const END_AT = DateTime.unsafeMake('2026-04-09T12:00:00Z');
+const START_AT = DateTime.makeUnsafe('2026-04-09T10:00:00Z');
+const END_AT = DateTime.makeUnsafe('2026-04-09T12:00:00Z');
 
 // --- In-memory stores ---
 type StartableEvent = {

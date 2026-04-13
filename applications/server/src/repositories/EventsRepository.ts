@@ -141,7 +141,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private insert = SqlSchema.single({
+  private insert = SqlSchema.findOne({
     Request: EventInsertInput,
     Result: EventRow,
     execute: (input) => this.sql`
@@ -160,7 +160,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private update = SqlSchema.single({
+  private update = SqlSchema.findOne({
     Request: EventUpdateInput,
     Result: EventRow,
     execute: (input) => this.sql`

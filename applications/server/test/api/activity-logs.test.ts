@@ -300,7 +300,7 @@ const createLog = (payload: {
       activityLogs.insert({
         team_member_id: payload.memberId,
         activity_type_id: payload.activityTypeId,
-        logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+        logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
         duration_minutes: payload.durationMinutes,
         note: payload.note,
         source: 'manual',

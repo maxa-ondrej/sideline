@@ -111,7 +111,7 @@ const registerMemberLogic =
                 }
                 const resolveMemberId: Effect.Effect<
                   { id: TeamMember.TeamMemberId },
-                  MemberAlreadyExistsError | Cause.NoSuchElementException,
+                  MemberAlreadyExistsError | Cause.NoSuchElementError,
                   never
                 > = Option.isNone(existingMembership)
                   ? Effect.map(

@@ -292,7 +292,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               users.updateAdminProfile({
                 id: currentUser.id,
                 name: payload.name,
-                birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
+                birth_date: Option.map(payload.birthDate, DateTime.makeUnsafe),
                 gender: payload.gender,
               }),
             ),
@@ -324,7 +324,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               users.completeProfile({
                 id: currentUser.id,
                 name: Option.some(payload.name),
-                birth_date: Option.some(DateTime.unsafeMake(payload.birthDate)),
+                birth_date: Option.some(DateTime.makeUnsafe(payload.birthDate)),
                 gender: Option.some(payload.gender),
               }),
             ),

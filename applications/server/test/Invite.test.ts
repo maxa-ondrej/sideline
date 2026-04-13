@@ -51,8 +51,8 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none(),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testAdmin = {
@@ -62,11 +62,11 @@ const testAdmin = {
   avatar: Option.none(),
   is_profile_complete: true,
   name: Option.some('Admin User'),
-  birth_date: Option.some(DateTime.unsafeMake('1990-01-01')),
+  birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const testTeam = {
@@ -74,8 +74,8 @@ const testTeam = {
   name: 'Test Team',
   guild_id: '999999999999999999' as Discord.Snowflake,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
-  updated_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
+  updated_at: DateTime.nowUnsafe(),
 };
 
 const sessionsStore = new Map<string, Auth.UserId>();
@@ -120,7 +120,7 @@ invitesStore.set('valid-invite', {
   code: 'valid-invite',
   active: true,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
   expires_at: Option.none(),
 });
 invitesStore.set('inactive-invite', {
@@ -129,7 +129,7 @@ invitesStore.set('inactive-invite', {
   code: 'inactive-invite',
   active: false,
   created_by: TEST_ADMIN_ID,
-  created_at: DateTime.unsafeNow(),
+  created_at: DateTime.nowUnsafe(),
   expires_at: Option.none(),
 });
 
@@ -165,8 +165,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
       id: 'session-1',
       user_id: input.user_id,
       token: input.token,
-      expires_at: DateTime.unsafeNow(),
-      created_at: DateTime.unsafeNow(),
+      expires_at: DateTime.nowUnsafe(),
+      created_at: DateTime.nowUnsafe(),
     });
   },
   findByToken: (token: string) => {
@@ -177,8 +177,8 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
         id: 'session-1',
         user_id: userId,
         token,
-        expires_at: DateTime.unsafeNow(),
-        created_at: DateTime.unsafeNow(),
+        expires_at: DateTime.nowUnsafe(),
+        created_at: DateTime.nowUnsafe(),
       }),
     );
   },
@@ -214,7 +214,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
       user_id: input.user_id,
       active: input.active,
       jersey_number: Option.none(),
-      joined_at: DateTime.unsafeNow(),
+      joined_at: DateTime.nowUnsafe(),
     });
   },
   findMembershipByIds: (teamId: Team.TeamId, userId: Auth.UserId) => {
@@ -255,7 +255,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
       code: input.code,
       active: input.active,
       created_by: input.created_by,
-      created_at: DateTime.unsafeNow(),
+      created_at: DateTime.nowUnsafe(),
       expires_at: input.expires_at,
     };
     invitesStore.set(invite.code, invite);

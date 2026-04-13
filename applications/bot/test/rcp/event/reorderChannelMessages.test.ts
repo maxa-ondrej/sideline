@@ -19,7 +19,7 @@ const makeEntry = (
     team_id: 'team-1',
     title: 'Test Event',
     description: Option.none(),
-    start_at: DateTime.unsafeMake(isoDate),
+    start_at: DateTime.makeUnsafe(isoDate),
     end_at: Option.none(),
     location: Option.none(),
     event_type: 'match',
@@ -33,7 +33,7 @@ const makeEntry = (
 // ---------------------------------------------------------------------------
 
 describe('sortEntriesForChannel', () => {
-  const NOW = DateTime.unsafeMake('2026-01-22T00:00:00Z');
+  const NOW = DateTime.makeUnsafe('2026-01-22T00:00:00Z');
 
   it('sorts all-future entries with nearest upcoming last', () => {
     const jan25 = makeEntry('2026-01-25T00:00:00Z');
@@ -43,9 +43,9 @@ describe('sortEntriesForChannel', () => {
     const result = sortEntriesForChannel([jan25, jan23, jan30], NOW);
 
     expect(result.map((e) => e.start_at)).toEqual([
-      DateTime.unsafeMake('2026-01-30T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-25T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-23T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-30T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-25T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-23T00:00:00Z'),
     ]);
   });
 
@@ -57,9 +57,9 @@ describe('sortEntriesForChannel', () => {
     const result = sortEntriesForChannel([jan15, jan10, jan18], NOW);
 
     expect(result.map((e) => e.start_at)).toEqual([
-      DateTime.unsafeMake('2026-01-10T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-15T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-18T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-10T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-15T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-18T00:00:00Z'),
     ]);
   });
 
@@ -73,11 +73,11 @@ describe('sortEntriesForChannel', () => {
     const result = sortEntriesForChannel([jan20, jan25, jan23, jan21, jan30], NOW);
 
     expect(result.map((e) => e.start_at)).toEqual([
-      DateTime.unsafeMake('2026-01-20T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-21T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-30T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-25T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-23T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-20T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-21T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-30T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-25T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-23T00:00:00Z'),
     ]);
   });
 
@@ -87,7 +87,7 @@ describe('sortEntriesForChannel', () => {
     const result = sortEntriesForChannel([jan25], NOW);
 
     expect(result).toHaveLength(1);
-    expect(result[0].start_at).toEqual(DateTime.unsafeMake('2026-01-25T00:00:00Z'));
+    expect(result[0].start_at).toEqual(DateTime.makeUnsafe('2026-01-25T00:00:00Z'));
   });
 
   it('handles empty array', () => {
@@ -123,8 +123,8 @@ describe('sortEntriesForChannel', () => {
     // Both are future (start_at >= now), sorted descending → nearest last
     // jan25 comes first (further away), jan22 comes last (nearest upcoming)
     expect(result.map((e) => e.start_at)).toEqual([
-      DateTime.unsafeMake('2026-01-25T00:00:00Z'),
-      DateTime.unsafeMake('2026-01-22T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-25T00:00:00Z'),
+      DateTime.makeUnsafe('2026-01-22T00:00:00Z'),
     ]);
   });
 });

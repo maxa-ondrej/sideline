@@ -108,7 +108,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
         .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE id = ${id} AND is_archived = false`,
   });
 
-  private insert = SqlSchema.single({
+  private insert = SqlSchema.findOne({
     Request: GroupInsertInput,
     Result: GroupRow,
     execute: (input) => this.sql`
@@ -118,7 +118,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private update = SqlSchema.single({
+  private update = SqlSchema.findOne({
     Request: GroupUpdateInput,
     Result: GroupRow,
     execute: (input) => this.sql`
@@ -133,7 +133,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
     execute: (id) => this.sql`UPDATE groups SET is_archived = true WHERE id = ${id}`,
   });
 
-  private moveGroupParent = SqlSchema.single({
+  private moveGroupParent = SqlSchema.findOne({
     Request: MoveGroupInput,
     Result: GroupRow,
     execute: (input) => this.sql`
@@ -185,7 +185,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private countMembersForGroup = SqlSchema.single({
+  private countMembersForGroup = SqlSchema.findOne({
     Request: GroupModel.GroupId,
     Result: Schema.Struct({ count: Schema.Number }),
     execute: (groupId) => this.sql`

@@ -23,7 +23,7 @@ export class TeamInvitesRepository extends Effect.Service<TeamInvitesRepository>
     execute: (teamId) => this.sql`SELECT * FROM team_invites WHERE team_id = ${teamId}`,
   });
 
-  private _create = SqlSchema.single({
+  private _create = SqlSchema.findOne({
     Request: TeamInvite.TeamInvite.insert,
     Result: TeamInvite.TeamInvite,
     execute: (input) => this.sql`

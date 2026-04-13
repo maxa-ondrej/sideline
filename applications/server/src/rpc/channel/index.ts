@@ -190,7 +190,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         rosters.findRosterById(roster_id).pipe(
           Effect.flatMap(
             Option.match({
-              onNone: () => Effect.fail(new Cause.NoSuchElementException()),
+              onNone: () => Effect.fail(new Cause.NoSuchElementError()),
               onSome: (existing) =>
                 rosters.update({
                   id: roster_id,

@@ -38,7 +38,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
 
   findById = (id: User.UserId) => this.repo.findById(id);
 
-  private upsertFromDiscordQuery = SqlSchema.single({
+  private upsertFromDiscordQuery = SqlSchema.findOne({
     Request: UpsertDiscordInput,
     Result: User.User,
     execute: (input) => this.sql`
@@ -56,7 +56,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   upsertFromDiscord = (input: UpsertDiscordInput) =>
     this.upsertFromDiscordQuery(input).pipe(catchSqlErrors);
 
-  private completeProfileQuery = SqlSchema.single({
+  private completeProfileQuery = SqlSchema.findOne({
     Request: CompleteProfileInput,
     Result: User.User,
     execute: (input) => this.sql`
@@ -74,7 +74,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   completeProfile = (input: Schema.Schema.Type<typeof CompleteProfileInput>) =>
     this.completeProfileQuery(input).pipe(catchSqlErrors);
 
-  private updateLocaleQuery = SqlSchema.single({
+  private updateLocaleQuery = SqlSchema.findOne({
     Request: Schema.Struct({ id: User.UserId, locale: User.Locale }),
     Result: User.User,
     execute: (input) => this.sql`
@@ -89,7 +89,7 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
   updateLocale = (input: { readonly id: User.UserId; readonly locale: User.Locale }) =>
     this.updateLocaleQuery(input).pipe(catchSqlErrors);
 
-  private updateAdminProfileQuery = SqlSchema.single({
+  private updateAdminProfileQuery = SqlSchema.findOne({
     Request: AdminUpdateProfileInput,
     Result: User.User,
     execute: (input) => this.sql`

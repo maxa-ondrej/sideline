@@ -21,7 +21,7 @@ export class ICalTokensRepository extends Effect.Service<ICalTokensRepository>()
     execute: (userId) => this.sql`SELECT * FROM ical_tokens WHERE user_id = ${userId}`,
   });
 
-  private _create = SqlSchema.single({
+  private _create = SqlSchema.findOne({
     Request: Schema.Struct({ user_id: Schema.String, token: Schema.String }),
     Result: ICalToken.ICalToken,
     execute: (input) => this.sql`

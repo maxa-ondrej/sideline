@@ -86,7 +86,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     `,
   });
 
-  private _upsertSettings = SqlSchema.single({
+  private _upsertSettings = SqlSchema.findOne({
     Request: TeamSettingsUpsertInput,
     Result: TeamSettingsRow,
     execute: (input) => this.sql`
@@ -148,7 +148,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     `,
   });
 
-  private _getHorizon = SqlSchema.single({
+  private _getHorizon = SqlSchema.findOne({
     Request: Schema.String,
     Result: Schema.Struct({ event_horizon_days: Schema.Number }),
     execute: (teamId) => this.sql`

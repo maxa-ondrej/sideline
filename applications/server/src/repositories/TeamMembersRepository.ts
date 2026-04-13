@@ -53,7 +53,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
     effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  private addMemberQuery = SqlSchema.single({
+  private addMemberQuery = SqlSchema.findOne({
     Request: TeamMember.TeamMember.insert,
     Result: TeamMember.TeamMember,
     execute: (input) => this.sql`
@@ -241,7 +241,7 @@ export class TeamMembersRepository extends Effect.Service<TeamMembersRepository>
     `,
   });
 
-  private deactivateMemberQuery = SqlSchema.single({
+  private deactivateMemberQuery = SqlSchema.findOne({
     Request: RosterMemberQuery,
     Result: TeamMember.TeamMember,
     execute: (input) => this.sql`

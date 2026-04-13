@@ -65,7 +65,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
   },
 ) {
-  private insertQuery = SqlSchema.single({
+  private insertQuery = SqlSchema.findOne({
     Request: InsertInput,
     Result: InsertResult,
     execute: (input) => this.sql`
@@ -127,7 +127,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private updateQuery = SqlSchema.single({
+  private updateQuery = SqlSchema.findOne({
     Request: UpdateInput,
     Result: LogRow,
     execute: (input) => this.sql`

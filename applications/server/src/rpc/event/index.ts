@@ -89,7 +89,7 @@ const parseDateTime = (input: string): Option.Option<DateTime.Utc> => {
     date.getUTCMinutes() !== minute
   )
     return Option.none();
-  return Option.some(DateTime.unsafeFromDate(date));
+  return Option.some(DateTime.fromDateUnsafe(date));
 };
 
 const createEvent = (
