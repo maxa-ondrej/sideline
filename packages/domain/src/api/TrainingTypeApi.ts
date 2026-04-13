@@ -71,44 +71,52 @@ export class TrainingTypeNameAlreadyTaken extends Schema.TaggedErrorClass<Traini
 
 export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
   .add(
-    HttpApiEndpoint.get('listTrainingTypes', '/teams/:teamId/training-types')
-      .addSuccess(TrainingTypeListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listTrainingTypes', '/teams/:teamId/training-types', {
+      success: TrainingTypeListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createTrainingType', '/teams/:teamId/training-types')
-      .addSuccess(TrainingTypeInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .addError(TrainingTypeNameAlreadyTaken, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateTrainingTypeRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createTrainingType', '/teams/:teamId/training-types', {
+      success: TrainingTypeInfo.pipe(HttpApiSchema.status(201)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        TrainingTypeNameAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: CreateTrainingTypeRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getTrainingType', '/teams/:teamId/training-types/:trainingTypeId')
-      .addSuccess(TrainingTypeDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(TrainingTypeNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, trainingTypeId: TrainingTypeId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getTrainingType', '/teams/:teamId/training-types/:trainingTypeId', {
+      success: TrainingTypeDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        TrainingTypeNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, trainingTypeId: TrainingTypeId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateTrainingType', '/teams/:teamId/training-types/:trainingTypeId')
-      .addSuccess(TrainingTypeInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(TrainingTypeNotFound, { status: 404 })
-      .addError(TrainingTypeNameAlreadyTaken, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId, trainingTypeId: TrainingTypeId }))
-      .setPayload(UpdateTrainingTypeRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateTrainingType', '/teams/:teamId/training-types/:trainingTypeId', {
+      success: TrainingTypeInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        TrainingTypeNotFound.pipe(HttpApiSchema.status(404)),
+        TrainingTypeNameAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: UpdateTrainingTypeRequest,
+      params: { teamId: TeamId, trainingTypeId: TrainingTypeId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('deleteTrainingType', '/teams/:teamId/training-types/:trainingTypeId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(TrainingTypeNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, trainingTypeId: TrainingTypeId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deleteTrainingType', '/teams/:teamId/training-types/:trainingTypeId', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        TrainingTypeNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, trainingTypeId: TrainingTypeId },
+    }).middleware(AuthMiddleware),
   ) {}

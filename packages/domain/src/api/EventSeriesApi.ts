@@ -113,44 +113,50 @@ export class EventSeriesNotActive extends Schema.TaggedErrorClass<EventSeriesNot
 
 export class EventSeriesApiGroup extends HttpApiGroup.make('eventSeries')
   .add(
-    HttpApiEndpoint.post('createEventSeries', '/teams/:teamId/event-series')
-      .addSuccess(EventSeriesInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateEventSeriesRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createEventSeries', '/teams/:teamId/event-series', {
+      success: EventSeriesInfo.pipe(HttpApiSchema.status(201)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: CreateEventSeriesRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('listEventSeries', '/teams/:teamId/event-series')
-      .addSuccess(Schema.Array(EventSeriesInfo))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listEventSeries', '/teams/:teamId/event-series', {
+      success: Schema.Array(EventSeriesInfo),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getEventSeries', '/teams/:teamId/event-series/:seriesId')
-      .addSuccess(EventSeriesDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventSeriesNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, seriesId: EventSeriesId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getEventSeries', '/teams/:teamId/event-series/:seriesId', {
+      success: EventSeriesDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventSeriesNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, seriesId: EventSeriesId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateEventSeries', '/teams/:teamId/event-series/:seriesId')
-      .addSuccess(EventSeriesDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventSeriesNotFound, { status: 404 })
-      .addError(EventSeriesNotActive, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, seriesId: EventSeriesId }))
-      .setPayload(UpdateEventSeriesRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateEventSeries', '/teams/:teamId/event-series/:seriesId', {
+      success: EventSeriesDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventSeriesNotFound.pipe(HttpApiSchema.status(404)),
+        EventSeriesNotActive.pipe(HttpApiSchema.status(400)),
+      ],
+      payload: UpdateEventSeriesRequest,
+      params: { teamId: TeamId, seriesId: EventSeriesId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('cancelEventSeries', '/teams/:teamId/event-series/:seriesId/cancel')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(EventSeriesNotFound, { status: 404 })
-      .addError(EventSeriesNotActive, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, seriesId: EventSeriesId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('cancelEventSeries', '/teams/:teamId/event-series/:seriesId/cancel', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventSeriesNotFound.pipe(HttpApiSchema.status(404)),
+        EventSeriesNotActive.pipe(HttpApiSchema.status(400)),
+      ],
+      params: { teamId: TeamId, seriesId: EventSeriesId },
+    }).middleware(AuthMiddleware),
   ) {}

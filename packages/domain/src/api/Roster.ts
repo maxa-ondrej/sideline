@@ -112,105 +112,124 @@ export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>
 
 export class RosterApiGroup extends HttpApiGroup.make('roster')
   .add(
-    HttpApiEndpoint.get('listMembers', '/teams/:teamId/members')
-      .addSuccess(Schema.Array(RosterPlayer))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listMembers', '/teams/:teamId/members', {
+      success: Schema.Array(RosterPlayer),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getMember', '/teams/:teamId/members/:memberId')
-      .addSuccess(RosterPlayer)
-      .addError(Forbidden, { status: 403 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getMember', '/teams/:teamId/members/:memberId', {
+      success: RosterPlayer,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateMember', '/teams/:teamId/members/:memberId')
-      .addSuccess(RosterPlayer)
-      .addError(Forbidden, { status: 403 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .setPayload(UpdatePlayerRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateMember', '/teams/:teamId/members/:memberId', {
+      success: RosterPlayer,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: UpdatePlayerRequest,
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('deactivateMember', '/teams/:teamId/members/:memberId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deactivateMember', '/teams/:teamId/members/:memberId', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('listRosters', '/teams/:teamId/rosters')
-      .addSuccess(RosterListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listRosters', '/teams/:teamId/rosters', {
+      success: RosterListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createRoster', '/teams/:teamId/rosters')
-      .addSuccess(RosterInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateRosterRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createRoster', '/teams/:teamId/rosters', {
+      success: RosterInfo.pipe(HttpApiSchema.status(201)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: CreateRosterRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getRoster', '/teams/:teamId/rosters/:rosterId')
-      .addSuccess(RosterDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getRoster', '/teams/:teamId/rosters/:rosterId', {
+      success: RosterDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateRoster', '/teams/:teamId/rosters/:rosterId')
-      .addSuccess(RosterInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .addError(ChannelAlreadyLinked, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .setPayload(UpdateRosterRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateRoster', '/teams/:teamId/rosters/:rosterId', {
+      success: RosterInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+        ChannelAlreadyLinked.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: UpdateRosterRequest,
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('deleteRoster', '/teams/:teamId/rosters/:rosterId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deleteRoster', '/teams/:teamId/rosters/:rosterId', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('addRosterMember', '/teams/:teamId/rosters/:rosterId/members')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .setPayload(AddRosterMemberRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('addRosterMember', '/teams/:teamId/rosters/:rosterId/members', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: AddRosterMemberRequest,
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
     HttpApiEndpoint.delete(
       'removeRosterMember',
       '/teams/:teamId/rosters/:rosterId/members/:memberId',
-    )
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+      {
+        success: Schema.Void,
+        error: [
+          Forbidden.pipe(HttpApiSchema.status(403)),
+          RosterNotFound.pipe(HttpApiSchema.status(404)),
+          PlayerNotFound.pipe(HttpApiSchema.status(404)),
+        ],
+        params: { teamId: TeamId, rosterId: RosterId, memberId: TeamMemberId },
+      },
+    ).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   ) {}

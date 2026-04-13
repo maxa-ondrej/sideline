@@ -6,9 +6,9 @@ import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from 'effect/u
 import { env } from '~/env.js';
 
 class HealthApiGroup extends HttpApiGroup.make('health').add(
-  HttpApiEndpoint.get('healthCheck', '/health').addSuccess(
-    Schema.Struct({ status: Schema.Literal('ok') }),
-  ),
+  HttpApiEndpoint.get('healthCheck', '/health', {
+    success: Schema.Struct({ status: Schema.Literal('ok') }),
+  }),
 ) {}
 
 class HealthApi extends HttpApi.make('health').add(HealthApiGroup) {}

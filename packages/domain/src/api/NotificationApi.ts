@@ -28,32 +28,30 @@ export class NotificationNotFound extends Schema.TaggedErrorClass<NotificationNo
 
 export class NotificationApiGroup extends HttpApiGroup.make('notification')
   .add(
-    HttpApiEndpoint.get('listNotifications', '/notifications')
-      .addSuccess(Schema.Array(NotificationInfo))
-      .addError(Forbidden, { status: 403 })
-      .setUrlParams(
-        Schema.Struct({
-          teamId: TeamId,
-        }),
-      )
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listNotifications', '/notifications', {
+      success: Schema.Array(NotificationInfo),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      query: {
+        teamId: TeamId,
+      },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('markAsRead', '/notifications/:notificationId/read')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(NotificationNotFound, { status: 404 })
-      .setPath(Schema.Struct({ notificationId: NotificationId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('markAsRead', '/notifications/:notificationId/read', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        NotificationNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { notificationId: NotificationId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('markAllAsRead', '/notifications/read-all')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .setPayload(
-        Schema.Struct({
-          teamId: TeamId,
-        }),
-      )
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('markAllAsRead', '/notifications/read-all', {
+      success: Schema.Void,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: Schema.Struct({
+        teamId: TeamId,
+      }),
+    }).middleware(AuthMiddleware),
   ) {}

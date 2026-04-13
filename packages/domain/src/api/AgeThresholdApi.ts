@@ -64,43 +64,49 @@ export class AgeThresholdAlreadyExists extends Schema.TaggedErrorClass<AgeThresh
 
 export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
   .add(
-    HttpApiEndpoint.get('listAgeThresholds', '/teams/:teamId/age-thresholds')
-      .addSuccess(Schema.Array(AgeThresholdInfo))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listAgeThresholds', '/teams/:teamId/age-thresholds', {
+      success: Schema.Array(AgeThresholdInfo),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createAgeThreshold', '/teams/:teamId/age-thresholds')
-      .addSuccess(AgeThresholdInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .addError(AgeThresholdAlreadyExists, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateAgeThresholdRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createAgeThreshold', '/teams/:teamId/age-thresholds', {
+      success: AgeThresholdInfo.pipe(HttpApiSchema.status(201)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+        AgeThresholdAlreadyExists.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: CreateAgeThresholdRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId')
-      .addSuccess(AgeThresholdInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(RuleNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, ruleId: AgeThresholdRuleId }))
-      .setPayload(UpdateAgeThresholdRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId', {
+      success: AgeThresholdInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RuleNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: UpdateAgeThresholdRequest,
+      params: { teamId: TeamId, ruleId: AgeThresholdRuleId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('deleteAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RuleNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, ruleId: AgeThresholdRuleId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deleteAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RuleNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, ruleId: AgeThresholdRuleId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('evaluateAgeThresholds', '/teams/:teamId/age-thresholds/evaluate')
-      .addSuccess(Schema.Array(AgeGroupChange))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('evaluateAgeThresholds', '/teams/:teamId/age-thresholds/evaluate', {
+      success: Schema.Array(AgeGroupChange),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

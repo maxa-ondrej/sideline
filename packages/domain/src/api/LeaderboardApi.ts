@@ -31,15 +31,13 @@ export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
 ) {}
 
 export class LeaderboardApiGroup extends HttpApiGroup.make('leaderboard').add(
-  HttpApiEndpoint.get('getLeaderboard', '/teams/:teamId/leaderboard')
-    .addSuccess(LeaderboardResponse)
-    .addError(Forbidden)
-    .setPath(Schema.Struct({ teamId: TeamId }))
-    .setUrlParams(
-      Schema.Struct({
-        timeframe: Schema.OptionFromOptional(LeaderboardTimeframe),
-        activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
-      }),
-    )
-    .middleware(AuthMiddleware),
+  HttpApiEndpoint.get('getLeaderboard', '/teams/:teamId/leaderboard', {
+    success: LeaderboardResponse,
+    error: Forbidden,
+    params: { teamId: TeamId },
+    query: {
+      timeframe: Schema.OptionFromOptional(LeaderboardTimeframe),
+      activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
+    },
+  }).middleware(AuthMiddleware),
 ) {}

@@ -45,9 +45,9 @@ export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
 ) {}
 
 export class DashboardApiGroup extends HttpApiGroup.make('dashboard').add(
-  HttpApiEndpoint.get('getDashboard', '/teams/:teamId/dashboard')
-    .addSuccess(DashboardResponse)
-    .addError(Forbidden)
-    .setPath(Schema.Struct({ teamId: TeamId }))
-    .middleware(AuthMiddleware),
+  HttpApiEndpoint.get('getDashboard', '/teams/:teamId/dashboard', {
+    success: DashboardResponse,
+    error: Forbidden,
+    params: { teamId: TeamId },
+  }).middleware(AuthMiddleware),
 ) {}

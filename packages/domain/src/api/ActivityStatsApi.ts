@@ -33,10 +33,9 @@ export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
 ) {}
 
 export class ActivityStatsApiGroup extends HttpApiGroup.make('activityStats').add(
-  HttpApiEndpoint.get('getMemberStats', '/teams/:teamId/members/:memberId/activity-stats')
-    .addSuccess(ActivityStatsResponse)
-    .addError(MemberNotFound)
-    .addError(Forbidden)
-    .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-    .middleware(AuthMiddleware),
+  HttpApiEndpoint.get('getMemberStats', '/teams/:teamId/members/:memberId/activity-stats', {
+    success: ActivityStatsResponse,
+    error: [MemberNotFound, Forbidden],
+    params: { teamId: TeamId, memberId: TeamMemberId },
+  }).middleware(AuthMiddleware),
 ) {}

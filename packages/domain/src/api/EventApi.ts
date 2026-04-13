@@ -103,44 +103,50 @@ export class EventNotActive extends Schema.TaggedErrorClass<EventNotActive>()(
 
 export class EventApiGroup extends HttpApiGroup.make('event')
   .add(
-    HttpApiEndpoint.get('listEvents', '/teams/:teamId/events')
-      .addSuccess(EventListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listEvents', '/teams/:teamId/events', {
+      success: EventListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createEvent', '/teams/:teamId/events')
-      .addSuccess(EventInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateEventRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createEvent', '/teams/:teamId/events', {
+      success: EventInfo.pipe(HttpApiSchema.status(201)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: CreateEventRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getEvent', '/teams/:teamId/events/:eventId')
-      .addSuccess(EventDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getEvent', '/teams/:teamId/events/:eventId', {
+      success: EventDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateEvent', '/teams/:teamId/events/:eventId')
-      .addSuccess(EventDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .addError(EventNotActive, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .setPayload(UpdateEventRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateEvent', '/teams/:teamId/events/:eventId', {
+      success: EventDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+        EventNotActive.pipe(HttpApiSchema.status(400)),
+      ],
+      payload: UpdateEventRequest,
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('cancelEvent', '/teams/:teamId/events/:eventId/cancel')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .addError(EventNotActive, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('cancelEvent', '/teams/:teamId/events/:eventId/cancel', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+        EventNotActive.pipe(HttpApiSchema.status(400)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   ) {}

@@ -109,69 +109,76 @@ export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()('Aut
 }) {}
 
 export class AuthApiGroup extends HttpApiGroup.make('auth')
-  .add(HttpApiEndpoint.get('getLogin', '/login/url').addSuccess(Schema.URL))
-  .add(HttpApiEndpoint.get('doLogin', '/login').addSuccess(Schema.Void, { status: 302 }))
   .add(
-    HttpApiEndpoint.get('callback', '/callback')
-      .addSuccess(Schema.Void, { status: 302 })
-      .setUrlParams(
-        Schema.Struct({
-          code: Schema.OptionFromOptional(Schema.String),
-          state: Schema.OptionFromOptional(Schema.String),
-          error: Schema.OptionFromOptional(Schema.String),
-        }),
-      ),
+    HttpApiEndpoint.get('getLogin', '/login/url', {
+      success: Schema.URL,
+    }),
   )
   .add(
-    HttpApiEndpoint.get('me', '/me')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('doLogin', '/login', {
+      success: Schema.Void.pipe(HttpApiSchema.status(302)),
+    }),
   )
   .add(
-    HttpApiEndpoint.post('completeProfile', '/profile')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(CompleteProfileRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('callback', '/callback', {
+      success: Schema.Void.pipe(HttpApiSchema.status(302)),
+      query: {
+        code: Schema.OptionFromOptional(Schema.String),
+        state: Schema.OptionFromOptional(Schema.String),
+        error: Schema.OptionFromOptional(Schema.String),
+      },
+    }),
   )
   .add(
-    HttpApiEndpoint.patch('updateLocale', '/me/locale')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(UpdateLocaleRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('me', '/me', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateProfile', '/me')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(UpdateProfileRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('completeProfile', '/profile', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: CompleteProfileRequest,
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('myTeams', '/me/teams')
-      .addSuccess(Schema.Array(UserTeam))
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateLocale', '/me/locale', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: UpdateLocaleRequest,
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('myGuilds', '/me/guilds')
-      .addSuccess(Schema.Array(DiscordGuild))
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateProfile', '/me', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: UpdateProfileRequest,
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createTeam', '/me/teams')
-      .addSuccess(UserTeam)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(CreateTeamRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('myTeams', '/me/teams', {
+      success: Schema.Array(UserTeam),
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('autoJoinTeams', '/me/teams/auto-join')
-      .addSuccess(Schema.Array(UserTeam))
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('myGuilds', '/me/guilds', {
+      success: Schema.Array(DiscordGuild),
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('createTeam', '/me/teams', {
+      success: UserTeam,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: CreateTeamRequest,
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('autoJoinTeams', '/me/teams/auto-join', {
+      success: Schema.Array(UserTeam),
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

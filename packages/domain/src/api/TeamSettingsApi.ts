@@ -61,17 +61,17 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
 
 export class TeamSettingsApiGroup extends HttpApiGroup.make('teamSettings')
   .add(
-    HttpApiEndpoint.get('getTeamSettings', '/teams/:teamId/settings')
-      .addSuccess(TeamSettingsInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getTeamSettings', '/teams/:teamId/settings', {
+      success: TeamSettingsInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateTeamSettings', '/teams/:teamId/settings')
-      .addSuccess(TeamSettingsInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(UpdateTeamSettingsRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateTeamSettings', '/teams/:teamId/settings', {
+      success: TeamSettingsInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: UpdateTeamSettingsRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

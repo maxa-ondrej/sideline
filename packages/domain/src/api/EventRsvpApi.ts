@@ -62,28 +62,34 @@ export class NonRespondersResponse extends Schema.Class<NonRespondersResponse>(
 
 export class EventRsvpApiGroup extends HttpApiGroup.make('eventRsvp')
   .add(
-    HttpApiEndpoint.get('getRsvps', '/teams/:teamId/events/:eventId/rsvps')
-      .addSuccess(EventRsvpDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getRsvps', '/teams/:teamId/events/:eventId/rsvps', {
+      success: EventRsvpDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.put('submitRsvp', '/teams/:teamId/events/:eventId/rsvp')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .addError(RsvpDeadlinePassed, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .setPayload(SubmitRsvpRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.put('submitRsvp', '/teams/:teamId/events/:eventId/rsvp', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+        RsvpDeadlinePassed.pipe(HttpApiSchema.status(400)),
+      ],
+      payload: SubmitRsvpRequest,
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getNonResponders', '/teams/:teamId/events/:eventId/rsvps/non-responders')
-      .addSuccess(NonRespondersResponse)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getNonResponders', '/teams/:teamId/events/:eventId/rsvps/non-responders', {
+      success: NonRespondersResponse,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   ) {}

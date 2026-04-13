@@ -12,7 +12,9 @@ const HealthResponse = Schema.Struct({
 });
 
 class HealthApiGroup extends HttpApiGroup.make('health').add(
-  HttpApiEndpoint.get('healthCheck', '/health').addSuccess(HealthResponse),
+  HttpApiEndpoint.get('healthCheck', '/health', {
+    success: HealthResponse,
+  }),
 ) {}
 
 export class BotHealthApi extends HttpApi.make('bot-health').add(HealthApiGroup) {}

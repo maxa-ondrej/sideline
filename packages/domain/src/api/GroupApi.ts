@@ -117,129 +117,163 @@ export class GroupNameAlreadyTaken extends Schema.TaggedErrorClass<GroupNameAlre
 
 export class GroupApiGroup extends HttpApiGroup.make('group')
   .add(
-    HttpApiEndpoint.get('listGroups', '/teams/:teamId/groups')
-      .addSuccess(Schema.Array(GroupInfo))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listGroups', '/teams/:teamId/groups', {
+      success: Schema.Array(GroupInfo),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createGroup', '/teams/:teamId/groups')
-      .addSuccess(GroupInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNameAlreadyTaken, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateGroupRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createGroup', '/teams/:teamId/groups', {
+      success: GroupInfo.pipe(HttpApiSchema.status(201)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNameAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: CreateGroupRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getGroup', '/teams/:teamId/groups/:groupId')
-      .addSuccess(GroupDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getGroup', '/teams/:teamId/groups/:groupId', {
+      success: GroupDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateGroup', '/teams/:teamId/groups/:groupId')
-      .addSuccess(GroupInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .addError(GroupNameAlreadyTaken, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .setPayload(UpdateGroupRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateGroup', '/teams/:teamId/groups/:groupId', {
+      success: GroupInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+        GroupNameAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: UpdateGroupRequest,
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('deleteGroup', '/teams/:teamId/groups/:groupId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deleteGroup', '/teams/:teamId/groups/:groupId', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('addGroupMember', '/teams/:teamId/groups/:groupId/members')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .addError(MemberNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .setPayload(AddGroupMemberRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('addGroupMember', '/teams/:teamId/groups/:groupId/members', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+        MemberNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: AddGroupMemberRequest,
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('removeGroupMember', '/teams/:teamId/groups/:groupId/members/:memberId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .addError(MemberNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete(
+      'removeGroupMember',
+      '/teams/:teamId/groups/:groupId/members/:memberId',
+      {
+        success: Schema.Void,
+        error: [
+          Forbidden.pipe(HttpApiSchema.status(403)),
+          GroupNotFound.pipe(HttpApiSchema.status(404)),
+          MemberNotFound.pipe(HttpApiSchema.status(404)),
+        ],
+        params: { teamId: TeamId, groupId: GroupId, memberId: TeamMemberId },
+      },
+    ).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('assignGroupRole', '/teams/:teamId/groups/:groupId/roles')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .setPayload(AssignGroupRoleRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('assignGroupRole', '/teams/:teamId/groups/:groupId/roles', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: AssignGroupRoleRequest,
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('unassignGroupRole', '/teams/:teamId/groups/:groupId/roles/:roleId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId, roleId: RoleId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('unassignGroupRole', '/teams/:teamId/groups/:groupId/roles/:roleId', {
+      success: Schema.Void,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, groupId: GroupId, roleId: RoleId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('moveGroup', '/teams/:teamId/groups/:groupId/parent')
-      .addSuccess(GroupInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .setPayload(MoveGroupRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('moveGroup', '/teams/:teamId/groups/:groupId/parent', {
+      success: GroupInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: MoveGroupRequest,
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
-      .addSuccess(Schema.OptionFromNullOr(ChannelMappingInfo))
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping', {
+      success: Schema.OptionFromNullOr(ChannelMappingInfo),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.put('setChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
-      .addSuccess(ChannelMappingInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .setPayload(SetChannelMappingRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.put('setChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping', {
+      success: ChannelMappingInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: SetChannelMappingRequest,
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.delete('deleteChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete(
+      'deleteChannelMapping',
+      '/teams/:teamId/groups/:groupId/channel-mapping',
+      {
+        success: Schema.Void,
+        error: [
+          Forbidden.pipe(HttpApiSchema.status(403)),
+          GroupNotFound.pipe(HttpApiSchema.status(404)),
+        ],
+        params: { teamId: TeamId, groupId: GroupId },
+      },
+    ).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createChannel', '/teams/:teamId/groups/:groupId/create-channel')
-      .addSuccess(Schema.Void, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .addError(GroupNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, groupId: GroupId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createChannel', '/teams/:teamId/groups/:groupId/create-channel', {
+      success: Schema.Void.pipe(HttpApiSchema.status(201)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('listDiscordChannels', '/teams/:teamId/discord-channels')
-      .addSuccess(Schema.Array(DiscordChannelInfo))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listDiscordChannels', '/teams/:teamId/discord-channels', {
+      success: Schema.Array(DiscordChannelInfo),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

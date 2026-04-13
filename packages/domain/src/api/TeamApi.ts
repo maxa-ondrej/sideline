@@ -31,17 +31,17 @@ export class UpdateTeamRequest extends Schema.Class<UpdateTeamRequest>('UpdateTe
 
 export class TeamApiGroup extends HttpApiGroup.make('team')
   .add(
-    HttpApiEndpoint.get('getTeamInfo', '/teams/:teamId')
-      .addSuccess(TeamInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getTeamInfo', '/teams/:teamId', {
+      success: TeamInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateTeamInfo', '/teams/:teamId')
-      .addSuccess(TeamInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(UpdateTeamRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateTeamInfo', '/teams/:teamId', {
+      success: TeamInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: UpdateTeamRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}
