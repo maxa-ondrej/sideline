@@ -40,7 +40,7 @@ export const EventCreateModal = Ix.modalSubmit(
     Effect.bind('data', () => ModalSubmitData),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const isValidUuid = (s: string) =>
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);

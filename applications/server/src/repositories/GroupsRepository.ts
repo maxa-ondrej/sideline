@@ -1,6 +1,6 @@
 import { GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Effect, type Option, Schema } from 'effect';
+import { Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -69,13 +69,13 @@ class DescendantMemberRow extends Schema.Class<DescendantMemberRow>('DescendantM
   team_member_id: TeamMember.TeamMemberId,
 }) {}
 
-export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/GroupsRepository', {
-  effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-}) {
-  private findByTeamId = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: GroupWithCount,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
             WITH RECURSIVE group_tree AS (
               SELECT g.id AS root_id, g.id AS descendant_id
               FROM groups g
@@ -100,7 +100,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOne({
     Request: GroupModel.GroupId,
     Result: GroupRow,
     execute: (id) =>
@@ -108,45 +108,45 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
         .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE id = ${id} AND is_archived = false`,
   });
 
-  private insert = SqlSchema.findOne({
+  const insert = SqlSchema.findOne({
     Request: GroupInsertInput,
     Result: GroupRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             INSERT INTO groups (team_id, parent_id, name, emoji, color)
             VALUES (${input.team_id}, ${input.parent_id}, ${input.name}, ${input.emoji}, ${input.color})
             RETURNING id, team_id, parent_id, name, emoji, color
           `,
   });
 
-  private update = SqlSchema.findOne({
+  const update = SqlSchema.findOne({
     Request: GroupUpdateInput,
     Result: GroupRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             UPDATE groups SET name = ${input.name}, emoji = ${input.emoji}, color = ${input.color}
             WHERE id = ${input.id}
             RETURNING id, team_id, parent_id, name, emoji, color
           `,
   });
 
-  private archiveGroup = SqlSchema.void({
+  const archiveGroup = SqlSchema.void({
     Request: GroupModel.GroupId,
-    execute: (id) => this.sql`UPDATE groups SET is_archived = true WHERE id = ${id}`,
+    execute: (id) => sql`UPDATE groups SET is_archived = true WHERE id = ${id}`,
   });
 
-  private moveGroupParent = SqlSchema.findOne({
+  const moveGroupParent = SqlSchema.findOne({
     Request: MoveGroupInput,
     Result: GroupRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             UPDATE groups SET parent_id = ${input.parent_id}
             WHERE id = ${input.id}
             RETURNING id, team_id, parent_id, name, emoji, color
           `,
   });
 
-  private findMembers = SqlSchema.findAll({
+  const findMembers = SqlSchema.findAll({
     Request: GroupModel.GroupId,
     Result: GroupMemberRow,
-    execute: (groupId) => this.sql`
+    execute: (groupId) => sql`
             SELECT tm.id AS member_id, u.name, u.username
             FROM group_members gm
             JOIN team_members tm ON tm.id = gm.team_member_id
@@ -156,27 +156,27 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private addMember = SqlSchema.void({
+  const addMember = SqlSchema.void({
     Request: GroupMemberInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             INSERT INTO group_members (group_id, team_member_id)
             VALUES (${input.group_id}, ${input.team_member_id})
             ON CONFLICT DO NOTHING
           `,
   });
 
-  private removeMember = SqlSchema.void({
+  const removeMember = SqlSchema.void({
     Request: GroupMemberInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             DELETE FROM group_members
             WHERE group_id = ${input.group_id} AND team_member_id = ${input.team_member_id}
           `,
   });
 
-  private findRolesForGroup = SqlSchema.findAll({
+  const findRolesForGroup = SqlSchema.findAll({
     Request: GroupModel.GroupId,
     Result: GroupRoleRow,
-    execute: (groupId) => this.sql`
+    execute: (groupId) => sql`
             SELECT r.id AS role_id, r.name AS role_name
             FROM role_groups rg
             JOIN roles r ON r.id = rg.role_id
@@ -185,10 +185,10 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private countMembersForGroup = SqlSchema.findOne({
+  const countMembersForGroup = SqlSchema.findOne({
     Request: GroupModel.GroupId,
     Result: Schema.Struct({ count: Schema.Number }),
-    execute: (groupId) => this.sql`
+    execute: (groupId) => sql`
             WITH RECURSIVE descendants AS (
               SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId} AND g.is_archived = false
               UNION ALL
@@ -200,7 +200,7 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private findChildren = SqlSchema.findAll({
+  const findChildren = SqlSchema.findAll({
     Request: GroupModel.GroupId,
     Result: GroupRow,
     execute: (groupId) =>
@@ -208,10 +208,10 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
         .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE parent_id = ${groupId} AND is_archived = false`,
   });
 
-  private findAncestors = SqlSchema.findAll({
+  const findAncestors = SqlSchema.findAll({
     Request: GroupModel.GroupId,
     Result: GroupRow,
-    execute: (groupId) => this.sql`
+    execute: (groupId) => sql`
             WITH RECURSIVE ancestors AS (
               SELECT parent_id AS id FROM groups WHERE id = ${groupId} AND parent_id IS NOT NULL
               UNION ALL
@@ -221,10 +221,10 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  private findDescendantMembers = SqlSchema.findAll({
+  const findDescendantMembers = SqlSchema.findAll({
     Request: GroupModel.GroupId,
     Result: DescendantMemberRow,
-    execute: (groupId) => this.sql`
+    execute: (groupId) => sql`
             WITH RECURSIVE descendants AS (
               SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId}
               UNION ALL
@@ -236,70 +236,95 @@ export class GroupsRepository extends Effect.Service<GroupsRepository>()('api/Gr
           `,
   });
 
-  findGroupsByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
+  const findGroupsByTeamId = (teamId: Team.TeamId) => findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findGroupById = (groupId: GroupModel.GroupId) => this.findById(groupId).pipe(catchSqlErrors);
+  const findGroupById = (groupId: GroupModel.GroupId) => findById(groupId).pipe(catchSqlErrors);
 
-  insertGroup = (
+  const insertGroup = (
     teamId: Team.TeamId,
     name: string,
     parentId: Option.Option<string>,
     emoji: Option.Option<string>,
     color: Option.Option<string>,
   ) =>
-    this.insert({ team_id: teamId, parent_id: parentId, name, emoji, color }).pipe(
+    insert({ team_id: teamId, parent_id: parentId, name, emoji, color }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
       catchSqlErrors,
     );
 
-  updateGroupById = (
+  const updateGroupById = (
     groupId: GroupModel.GroupId,
     name: string,
     emoji: Option.Option<string>,
     color: Option.Option<string>,
   ) =>
-    this.update({ id: groupId, name, emoji, color }).pipe(
+    update({ id: groupId, name, emoji, color }).pipe(
       SqlErrors.catchUniqueViolation(() => new GroupNameAlreadyTakenError()),
       catchSqlErrors,
     );
 
-  archiveGroupById = (groupId: GroupModel.GroupId) =>
-    this.archiveGroup(groupId).pipe(catchSqlErrors);
+  const archiveGroupById = (groupId: GroupModel.GroupId) =>
+    archiveGroup(groupId).pipe(catchSqlErrors);
 
-  moveGroup = (groupId: GroupModel.GroupId, parentId: Option.Option<GroupModel.GroupId>) =>
-    this.moveGroupParent({ id: groupId, parent_id: parentId }).pipe(catchSqlErrors);
+  const moveGroup = (groupId: GroupModel.GroupId, parentId: Option.Option<GroupModel.GroupId>) =>
+    moveGroupParent({ id: groupId, parent_id: parentId }).pipe(catchSqlErrors);
 
-  findMembersByGroupId = (groupId: GroupModel.GroupId) =>
-    this.findMembers(groupId).pipe(catchSqlErrors);
+  const findMembersByGroupId = (groupId: GroupModel.GroupId) =>
+    findMembers(groupId).pipe(catchSqlErrors);
 
-  addMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
-    this.addMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
+  const addMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
+    addMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
 
-  removeMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
-    this.removeMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
+  const removeMemberById = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
+    removeMember({ group_id: groupId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
 
-  getRolesForGroup = (groupId: GroupModel.GroupId) =>
-    this.findRolesForGroup(groupId).pipe(catchSqlErrors);
+  const getRolesForGroup = (groupId: GroupModel.GroupId) =>
+    findRolesForGroup(groupId).pipe(catchSqlErrors);
 
-  getMemberCount = (groupId: GroupModel.GroupId) =>
-    this.countMembersForGroup(groupId).pipe(
+  const getMemberCount = (groupId: GroupModel.GroupId) =>
+    countMembersForGroup(groupId).pipe(
       Effect.map((r) => r.count),
       catchSqlErrors,
     );
 
-  getChildren = (groupId: GroupModel.GroupId) => this.findChildren(groupId).pipe(catchSqlErrors);
+  const getChildren = (groupId: GroupModel.GroupId) => findChildren(groupId).pipe(catchSqlErrors);
 
-  getAncestorIds = (groupId: GroupModel.GroupId) =>
-    this.findAncestors(groupId).pipe(
+  const getAncestorIds = (groupId: GroupModel.GroupId) =>
+    findAncestors(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.id)),
       catchSqlErrors,
     );
 
-  getAncestors = (groupId: GroupModel.GroupId) => this.findAncestors(groupId).pipe(catchSqlErrors);
+  const getAncestors = (groupId: GroupModel.GroupId) => findAncestors(groupId).pipe(catchSqlErrors);
 
-  getDescendantMemberIds = (groupId: GroupModel.GroupId) =>
-    this.findDescendantMembers(groupId).pipe(
+  const getDescendantMemberIds = (groupId: GroupModel.GroupId) =>
+    findDescendantMembers(groupId).pipe(
       Effect.map((rows) => rows.map((r) => r.team_member_id)),
       catchSqlErrors,
     );
+
+  return {
+    findGroupsByTeamId,
+    findGroupById,
+    insertGroup,
+    updateGroupById,
+    archiveGroupById,
+    moveGroup,
+    findMembersByGroupId,
+    addMemberById,
+    removeMemberById,
+    getRolesForGroup,
+    getMemberCount,
+    getChildren,
+    getAncestorIds,
+    getAncestors,
+    getDescendantMemberIds,
+  };
+});
+
+export class GroupsRepository extends ServiceMap.Service<
+  GroupsRepository,
+  Effect.Success<typeof make>
+>()('api/GroupsRepository') {
+  static readonly Default = Layer.effect(GroupsRepository, make);
 }

@@ -8,7 +8,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('stored', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
     ),

@@ -75,7 +75,7 @@ export function GroupDetailPage({
 
   const handleSaveName = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.updateGroup({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -98,7 +98,7 @@ export function GroupDetailPage({
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(selectedMemberId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.addGroupMember({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -117,7 +117,7 @@ export function GroupDetailPage({
   const handleRemoveMember = React.useCallback(
     async (memberIdRaw: string) => {
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.removeGroupMember({
             path: { teamId: teamIdBranded, groupId: groupIdBranded, memberId },
@@ -136,7 +136,7 @@ export function GroupDetailPage({
   const handleAssignRole = React.useCallback(async () => {
     if (!selectedRoleId) return;
     const roleId = Schema.decodeSync(Role.RoleId)(selectedRoleId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.assignGroupRole({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -155,7 +155,7 @@ export function GroupDetailPage({
   const handleUnassignRole = React.useCallback(
     async (roleIdRaw: string) => {
       const roleId = Schema.decodeSync(Role.RoleId)(roleIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.unassignGroupRole({
             path: { teamId: teamIdBranded, groupId: groupIdBranded, roleId },
@@ -173,7 +173,7 @@ export function GroupDetailPage({
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.group_deleteGroupConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.deleteGroup({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -190,7 +190,7 @@ export function GroupDetailPage({
   const handleLinkChannel = React.useCallback(async () => {
     if (!selectedChannelId) return;
     const discordChannelId = Schema.decodeSync(Discord.Snowflake)(selectedChannelId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.setChannelMapping({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -207,7 +207,7 @@ export function GroupDetailPage({
   }, [selectedChannelId, teamIdBranded, groupIdBranded, run, router]);
 
   const handleUnlinkChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.deleteChannelMapping({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -227,7 +227,7 @@ export function GroupDetailPage({
         newParentId === '__root__'
           ? Option.none()
           : Option.some(Schema.decodeSync(GroupModel.GroupId)(newParentId));
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.moveGroup({
             path: { teamId: teamIdBranded, groupId: groupIdBranded },
@@ -245,7 +245,7 @@ export function GroupDetailPage({
   );
 
   const handleCreateChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.createChannel({
           path: { teamId: teamIdBranded, groupId: groupIdBranded },

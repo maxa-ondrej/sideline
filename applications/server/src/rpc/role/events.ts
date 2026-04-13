@@ -16,7 +16,7 @@ export class EventPropertyMissing extends Data.TaggedError('EventPropertyMissing
   log = () => Effect.logError(this.errorMessage());
 
   markFailed = () =>
-    RoleSyncEventsRepository.pipe(
+    RoleSyncEventsRepository.asEffect().pipe(
       Effect.flatMap((repository) => repository.markFailed(this.id, this.errorMessage())),
     );
 

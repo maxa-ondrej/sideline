@@ -70,13 +70,13 @@ const buildICalFeed = (
 
 export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('icalTokens', () => ICalTokensRepository),
-    Effect.bind('events', () => EventsRepository),
+    Effect.bind('icalTokens', () => ICalTokensRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
     Effect.map(({ icalTokens, events }) =>
       handlers
         .handle('getICalToken', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('existing', ({ currentUser }) => icalTokens.findByUserId(currentUser.id)),
             Effect.bind('token', ({ existing, currentUser }) =>
               Option.match(existing, {
@@ -99,7 +99,7 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
         )
         .handle('regenerateICalToken', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('token', ({ currentUser }) => icalTokens.regenerate(currentUser.id)),
             Effect.map(
               ({ token }) =>

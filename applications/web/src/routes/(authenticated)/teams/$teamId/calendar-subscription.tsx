@@ -7,7 +7,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/calendar-su
   component: CalendarSubscriptionRoute,
   ssr: false,
   loader: async ({ context }) => {
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.ical.getICalToken()),
       warnAndCatchAll,
       context.run,

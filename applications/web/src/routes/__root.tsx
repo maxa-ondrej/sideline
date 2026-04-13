@@ -12,7 +12,7 @@ import { ApiClient, runPromiseClient, runPromiseServer } from '~/lib/runtime';
 import { ThemeProvider } from '~/lib/theme.js';
 import appCss from '../styles.css?url';
 
-const getCurrentUser = ApiClient.pipe(
+const getCurrentUser = ApiClient.asEffect().pipe(
   Effect.flatMap((api) => api.auth.me()),
   Effect.map(Option.some),
   Effect.catchTag('Unauthorized', () => Effect.succeed(Option.none())),

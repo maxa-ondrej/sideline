@@ -23,7 +23,7 @@ const makeInsert = (overrides?: {
 });
 
 /** Creates a test user and returns their ID for use as `created_by` in team inserts. */
-const createTestUser = UsersRepository.pipe(
+const createTestUser = UsersRepository.asEffect().pipe(
   Effect.andThen((repo) =>
     repo.upsertFromDiscord({
       discord_id: '100000000000000000',
@@ -46,7 +46,7 @@ describe('TeamsRepository', () => {
     Effect.Do.pipe(
       Effect.bind('userId', () => createTestUser),
       Effect.bind('inserted', ({ userId }) =>
-        TeamsRepository.pipe(
+        TeamsRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.insert(
               makeInsert({
@@ -59,7 +59,7 @@ describe('TeamsRepository', () => {
         ),
       ),
       Effect.bind('found', ({ inserted }) =>
-        TeamsRepository.pipe(Effect.andThen((repo) => repo.findById(inserted.id))),
+        TeamsRepository.asEffect().pipe(Effect.andThen((repo) => repo.findById(inserted.id))),
       ),
       Effect.tap(({ inserted, found }) => {
         expect(Option.isSome(found)).toBe(true);
@@ -73,7 +73,7 @@ describe('TeamsRepository', () => {
   );
 
   it.effect('findById returns None for a non-existent id', () =>
-    TeamsRepository.pipe(
+    TeamsRepository.asEffect().pipe(
       Effect.andThen((repo) =>
         repo.findById('00000000-0000-0000-0000-000000000099' as Team.TeamId),
       ),
@@ -88,7 +88,7 @@ describe('TeamsRepository', () => {
     Effect.Do.pipe(
       Effect.bind('userId', () => createTestUser),
       Effect.tap(({ userId }) =>
-        TeamsRepository.pipe(
+        TeamsRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.insert(
               makeInsert({
@@ -101,7 +101,7 @@ describe('TeamsRepository', () => {
         ),
       ),
       Effect.bind('found', () =>
-        TeamsRepository.pipe(
+        TeamsRepository.asEffect().pipe(
           Effect.andThen((repo) => repo.findByGuildId('987654321098765432' as Discord.Snowflake)),
         ),
       ),
@@ -116,7 +116,7 @@ describe('TeamsRepository', () => {
   );
 
   it.effect('findByGuildId returns None for a non-existent guild id', () =>
-    TeamsRepository.pipe(
+    TeamsRepository.asEffect().pipe(
       Effect.andThen((repo) => repo.findByGuildId('000000000000000000' as Discord.Snowflake)),
       Effect.tap((found) => {
         expect(Option.isNone(found)).toBe(true);
@@ -129,7 +129,7 @@ describe('TeamsRepository', () => {
     Effect.Do.pipe(
       Effect.bind('userId', () => createTestUser),
       Effect.bind('inserted', ({ userId }) =>
-        TeamsRepository.pipe(
+        TeamsRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.insert(
               makeInsert({
@@ -142,7 +142,7 @@ describe('TeamsRepository', () => {
         ),
       ),
       Effect.bind('updated', ({ inserted }) =>
-        TeamsRepository.pipe(
+        TeamsRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.update({
               id: inserted.id,

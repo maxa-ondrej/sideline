@@ -32,7 +32,7 @@ const editMessage = (
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('counts', ({ rpc }) =>
       rpc['Event/GetRsvpCounts']({ event_id: Event.EventId.make(entry.event_id) }),
     ),
@@ -115,7 +115,7 @@ const buildDividerEmbed = (
 export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Locale) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('entries', ({ rpc }) =>
       rpc['Event/GetChannelEvents']({ discord_channel_id: channelId }),
     ),

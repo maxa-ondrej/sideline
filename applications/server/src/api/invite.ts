@@ -20,9 +20,9 @@ const forbidden = new Invite.Forbidden();
 
 export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('invites', () => TeamInvitesRepository),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('invites', () => TeamInvitesRepository.asEffect()),
     Effect.map(({ teams, members, invites }) =>
       handlers
         .handle('getInvite', ({ path: { code } }) =>
@@ -56,7 +56,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
         )
         .handle('joinViaInvite', ({ path: { code } }) =>
           Effect.Do.pipe(
-            Effect.bind('user', () => Auth.CurrentUserContext),
+            Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('invite', () =>
               invites.findByCode(code).pipe(
                 Effect.flatMap(
@@ -113,7 +113,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
         )
         .handle('regenerateInvite', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('user', () => Auth.CurrentUserContext),
+            Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ user }) =>
               requireMembership(members, teamId, user.id, forbidden),
             ),
@@ -148,7 +148,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
         )
         .handle('disableInvite', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('user', () => Auth.CurrentUserContext),
+            Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ user }) =>
               requireMembership(members, teamId, user.id, forbidden),
             ),

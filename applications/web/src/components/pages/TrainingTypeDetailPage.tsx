@@ -114,7 +114,7 @@ export function TrainingTypeDetailPage({
 
   const handleSaveName = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.updateTrainingType({
           path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
@@ -158,7 +158,7 @@ export function TrainingTypeDetailPage({
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.trainingType_deleteConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.deleteTrainingType({
           path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
@@ -173,7 +173,7 @@ export function TrainingTypeDetailPage({
   }, [teamId, teamIdBranded, trainingTypeIdBranded, run, navigate]);
 
   const onSubmitSchedule = async (values: CreateScheduleValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.createEventSeries({
           path: { teamId: teamIdBranded },
@@ -209,7 +209,7 @@ export function TrainingTypeDetailPage({
   const handleCancelSchedule = React.useCallback(
     async (seriesId: string) => {
       if (!window.confirm(m.trainingType_cancelScheduleConfirm())) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.eventSeries.cancelEventSeries({
             path: {
@@ -253,7 +253,7 @@ export function TrainingTypeDetailPage({
   const handleUpdateSchedule = async (values: CreateScheduleValues) => {
     if (!editingSeriesId) return;
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(editingSeriesId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
           path: { teamId: teamIdBranded, seriesId: seriesIdBranded },

@@ -19,7 +19,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
   const handleMarkAsRead = React.useCallback(
     async (notificationIdRaw: string) => {
       const notificationId = Schema.decodeSync(Notification.NotificationId)(notificationIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.notification.markAsRead({ path: { notificationId } })),
         Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
         run(),
@@ -33,7 +33,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
 
   const handleMarkAllAsRead = React.useCallback(async () => {
     const decodedTeamId = Schema.decodeSync(Team.TeamId)(teamId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.notification.markAllAsRead({ payload: { teamId: decodedTeamId } }),
       ),

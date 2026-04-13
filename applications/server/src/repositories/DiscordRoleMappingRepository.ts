@@ -1,5 +1,5 @@
 import { Discord, DiscordRoleMapping, Role, Team } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Effect, Layer, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -26,61 +26,72 @@ class DeleteByRoleInput extends Schema.Class<DeleteByRoleInput>('DeleteByRoleInp
   role_id: Role.RoleId,
 }) {}
 
-export class DiscordRoleMappingRepository extends Effect.Service<DiscordRoleMappingRepository>()(
-  'api/DiscordRoleMappingRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private findByRole = SqlSchema.findOne({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByRole = SqlSchema.findOne({
     Request: FindByRoleInput,
     Result: MappingRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT id, team_id, role_id, discord_role_id
       FROM discord_role_mappings
       WHERE team_id = ${input.team_id} AND role_id = ${input.role_id}
     `,
   });
 
-  private insertMapping = SqlSchema.void({
+  const insertMapping = SqlSchema.void({
     Request: InsertInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO discord_role_mappings (team_id, role_id, discord_role_id)
       VALUES (${input.team_id}, ${input.role_id}, ${input.discord_role_id})
       ON CONFLICT (team_id, role_id) DO UPDATE SET discord_role_id = ${input.discord_role_id}
     `,
   });
 
-  private deleteByRole = SqlSchema.void({
+  const deleteByRole = SqlSchema.void({
     Request: DeleteByRoleInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       DELETE FROM discord_role_mappings
       WHERE team_id = ${input.team_id} AND role_id = ${input.role_id}
     `,
   });
 
-  private _findAllByTeamId = SqlSchema.findAll({
+  const _findAllByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: MappingRow,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT id, team_id, role_id, discord_role_id
       FROM discord_role_mappings
       WHERE team_id = ${teamId}
     `,
   });
 
-  findByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
-    this.findByRole({ team_id: teamId, role_id: roleId }).pipe(catchSqlErrors);
+  const findByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
+    findByRole({ team_id: teamId, role_id: roleId }).pipe(catchSqlErrors);
 
-  insert = (teamId: Team.TeamId, roleId: Role.RoleId, discordRoleId: Discord.Snowflake) =>
-    this.insertMapping({
+  const insert = (teamId: Team.TeamId, roleId: Role.RoleId, discordRoleId: Discord.Snowflake) =>
+    insertMapping({
       team_id: teamId,
       role_id: roleId,
       discord_role_id: discordRoleId,
     }).pipe(catchSqlErrors);
 
-  deleteByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
-    this.deleteByRole({ team_id: teamId, role_id: roleId }).pipe(catchSqlErrors);
+  const deleteByRoleId = (teamId: Team.TeamId, roleId: Role.RoleId) =>
+    deleteByRole({ team_id: teamId, role_id: roleId }).pipe(catchSqlErrors);
 
-  findAllByTeam = (teamId: Team.TeamId) => this._findAllByTeamId(teamId).pipe(catchSqlErrors);
+  const findAllByTeam = (teamId: Team.TeamId) => _findAllByTeamId(teamId).pipe(catchSqlErrors);
+
+  return {
+    findByRoleId,
+    insert,
+    deleteByRoleId,
+    findAllByTeam,
+  };
+});
+
+export class DiscordRoleMappingRepository extends ServiceMap.Service<
+  DiscordRoleMappingRepository,
+  Effect.Success<typeof make>
+>()('api/DiscordRoleMappingRepository') {
+  static readonly Default = Layer.effect(DiscordRoleMappingRepository, make);
 }

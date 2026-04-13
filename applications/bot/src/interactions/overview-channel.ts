@@ -20,7 +20,7 @@ export const OverviewShowButton = Ix.messageComponent(
     ),
     Effect.bind('interaction', () => Interaction),
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ interaction, rpc, rest }) => {
       const locale = userLocale(interaction);
       const discordUserIdOption = interactionUserId(interaction);

@@ -162,7 +162,7 @@ export function EventsListPage({
     const endAt = values.endTime
       ? localToUtc(values.endDate || values.startDate, values.endTime)
       : null;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.createEvent({
           path: { teamId: teamIdBranded },
@@ -202,7 +202,7 @@ export function EventsListPage({
   };
 
   const onSubmitSeries = async (values: CreateSeriesValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.createEventSeries({
           path: { teamId: teamIdBranded },

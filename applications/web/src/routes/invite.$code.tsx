@@ -8,7 +8,7 @@ import { ApiClient, useRun, warnAndCatchAll } from '~/lib/runtime';
 export const Route = createFileRoute('/invite/$code')({
   component: InviteRoute,
   loader: async ({ params, context }) =>
-    ApiClient.pipe(
+    ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.invite.getInvite({ path: { code: params.code } })),
       warnAndCatchAll,
       context.run,

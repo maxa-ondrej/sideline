@@ -13,15 +13,15 @@ const forbidden = new AgeThresholdApi.Forbidden();
 
 export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('thresholds', () => AgeThresholdRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('ageCheck', () => AgeCheckService),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('thresholds', () => AgeThresholdRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
+    Effect.bind('ageCheck', () => AgeCheckService.asEffect()),
     Effect.map(({ members, thresholds, groups, ageCheck }) =>
       handlers
         .handle('listAgeThresholds', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -47,7 +47,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
         )
         .handle('createAgeThreshold', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -94,7 +94,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
         )
         .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -138,7 +138,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
         )
         .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -166,7 +166,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
         )
         .handle('evaluateAgeThresholds', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

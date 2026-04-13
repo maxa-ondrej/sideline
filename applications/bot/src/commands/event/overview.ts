@@ -46,7 +46,7 @@ export const overviewHandler = Interaction.pipe(
       );
     }
 
-    const work = DiscordREST.pipe(
+    const work = DiscordREST.asEffect().pipe(
       Effect.flatMap((rest) =>
         rest
           .createMessage(channelId, {

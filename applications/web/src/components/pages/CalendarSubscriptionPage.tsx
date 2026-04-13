@@ -31,7 +31,7 @@ export function CalendarSubscriptionPage({ teamId, icalToken }: CalendarSubscrip
     if (!window.confirm(m.ical_regenerateConfirm())) return;
     setRegenerating(true);
     const result = await run({ success: m.ical_regenerated() })(
-      ApiClient.pipe(
+      ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.ical.regenerateICalToken()),
         Effect.mapError(() => ClientError.make(m.ical_regenerateFailed())),
       ),

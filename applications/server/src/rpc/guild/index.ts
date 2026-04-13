@@ -245,14 +245,14 @@ const buildHandlers = (
 };
 
 export const GuildsRpcLive = Effect.Do.pipe(
-  Effect.bind('botGuilds', () => BotGuildsRepository),
-  Effect.bind('discordChannels', () => DiscordChannelsRepository),
-  Effect.bind('teams', () => TeamsRepository),
-  Effect.bind('users', () => UsersRepository),
-  Effect.bind('members', () => TeamMembersRepository),
-  Effect.bind('roleMappings', () => DiscordRoleMappingRepository),
-  Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
-  Effect.bind('groups', () => GroupsRepository),
+  Effect.bind('botGuilds', () => BotGuildsRepository.asEffect()),
+  Effect.bind('discordChannels', () => DiscordChannelsRepository.asEffect()),
+  Effect.bind('teams', () => TeamsRepository.asEffect()),
+  Effect.bind('users', () => UsersRepository.asEffect()),
+  Effect.bind('members', () => TeamMembersRepository.asEffect()),
+  Effect.bind('roleMappings', () => DiscordRoleMappingRepository.asEffect()),
+  Effect.bind('channelMappings', () => DiscordChannelMappingRepository.asEffect()),
+  Effect.bind('groups', () => GroupsRepository.asEffect()),
   Effect.map(
     ({
       botGuilds,

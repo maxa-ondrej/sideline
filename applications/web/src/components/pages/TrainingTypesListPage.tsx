@@ -56,7 +56,7 @@ export function TrainingTypesListPage({
   });
 
   const onSubmit = async (values: CreateTrainingTypeValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.createTrainingType({
           path: { teamId: teamIdBranded },

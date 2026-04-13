@@ -19,8 +19,8 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
 }
 
 export const RolesRpcLive = Effect.Do.pipe(
-  Effect.bind('syncEvents', () => RoleSyncEventsRepository),
-  Effect.bind('mappings', () => DiscordRoleMappingRepository),
+  Effect.bind('syncEvents', () => RoleSyncEventsRepository.asEffect()),
+  Effect.bind('mappings', () => DiscordRoleMappingRepository.asEffect()),
   Effect.let(
     'Role/GetUnprocessedEvents',
     ({ syncEvents }) =>

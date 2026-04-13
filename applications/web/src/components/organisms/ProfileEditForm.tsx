@@ -78,7 +78,7 @@ export function ProfileEditForm({ user, onSuccess }: ProfileEditFormProps) {
   });
 
   const onSubmit = async (values: ProfileEditValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.auth.updateProfile({
           payload: {

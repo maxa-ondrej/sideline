@@ -1,6 +1,6 @@
 import { Discord, Event, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
-import { type DateTime, Effect, Option, Schema } from 'effect';
+import { type DateTime, Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -55,30 +55,27 @@ class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
   error: Schema.String,
 }) {}
 
-export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRepository>()(
-  'api/EventSyncEventsRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private insertEvent = SqlSchema.void({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const insertEvent = SqlSchema.void({
     Request: InsertInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id)
       VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id})
     `,
   });
 
-  private lookupGuildId = SqlSchema.findOne({
+  const lookupGuildId = SqlSchema.findOne({
     Request: Schema.String,
     Result: GuildLookupResult,
-    execute: (teamId) => this.sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
+    execute: (teamId) => sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
   });
 
-  private findUnprocessedEvents = SqlSchema.findAll({
+  const findUnprocessedEvents = SqlSchema.findAll({
     Request: Schema.Number,
     Result: EventSyncEventRow,
-    execute: (limit) => this.sql`
+    execute: (limit) => sql`
       SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id
       FROM event_sync_events
       WHERE processed_at IS NULL
@@ -87,21 +84,21 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     `,
   });
 
-  private markEventProcessed = SqlSchema.void({
+  const markEventProcessed = SqlSchema.void({
     Request: MarkProcessedInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE event_sync_events SET processed_at = now() WHERE id = ${input.id}
     `,
   });
 
-  private markEventFailed = SqlSchema.void({
+  const markEventFailed = SqlSchema.void({
     Request: MarkFailedInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE event_sync_events SET processed_at = now(), error = ${input.error} WHERE id = ${input.id}
     `,
   });
 
-  private _emitIfGuildLinked = (
+  const _emitIfGuildLinked = (
     teamId: Team.TeamId,
     eventType: EventSyncEventType,
     eventId: Event.EventId,
@@ -113,12 +110,12 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this.lookupGuildId(teamId).pipe(
+    lookupGuildId(teamId).pipe(
       Effect.flatMap(
         Option.match({
           onNone: () => Effect.void,
           onSome: ({ guild_id }) =>
-            this.insertEvent({
+            insertEvent({
               team_id: teamId,
               guild_id,
               event_type: eventType,
@@ -136,7 +133,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       catchSqlErrors,
     );
 
-  emitEventCreated = (
+  const emitEventCreated = (
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
@@ -147,7 +144,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'event_created',
       eventId,
@@ -160,7 +157,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       discordTargetChannelId,
     );
 
-  emitEventUpdated = (
+  const emitEventUpdated = (
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
@@ -171,7 +168,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'event_updated',
       eventId,
@@ -184,7 +181,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       discordTargetChannelId,
     );
 
-  emitEventCancelled = (
+  const emitEventCancelled = (
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
@@ -195,7 +192,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'event_cancelled',
       eventId,
@@ -208,7 +205,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       discordTargetChannelId,
     );
 
-  emitRsvpReminder = (
+  const emitRsvpReminder = (
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
@@ -219,7 +216,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'rsvp_reminder',
       eventId,
@@ -232,7 +229,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       discordTargetChannelId,
     );
 
-  emitEventStarted = (
+  const emitEventStarted = (
     teamId: Team.TeamId,
     eventId: Event.EventId,
     title: string,
@@ -242,7 +239,7 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
     location: Option.Option<string>,
     eventEventType: string,
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'event_started',
       eventId,
@@ -254,10 +251,28 @@ export class EventSyncEventsRepository extends Effect.Service<EventSyncEventsRep
       eventEventType,
     );
 
-  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
+  const findUnprocessed = (limit: number) => findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
-  markProcessed = (id: string) => this.markEventProcessed({ id }).pipe(catchSqlErrors);
+  const markProcessed = (id: string) => markEventProcessed({ id }).pipe(catchSqlErrors);
 
-  markFailed = (id: string, error: string) =>
-    this.markEventFailed({ id, error }).pipe(catchSqlErrors);
+  const markFailed = (id: string, error: string) =>
+    markEventFailed({ id, error }).pipe(catchSqlErrors);
+
+  return {
+    emitEventCreated,
+    emitEventUpdated,
+    emitEventCancelled,
+    emitRsvpReminder,
+    emitEventStarted,
+    findUnprocessed,
+    markProcessed,
+    markFailed,
+  };
+});
+
+export class EventSyncEventsRepository extends ServiceMap.Service<
+  EventSyncEventsRepository,
+  Effect.Success<typeof make>
+>()('api/EventSyncEventsRepository') {
+  static readonly Default = Layer.effect(EventSyncEventsRepository, make);
 }

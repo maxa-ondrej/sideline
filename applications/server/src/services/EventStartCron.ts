@@ -4,8 +4,8 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 
 export const eventStartCronEffect = Effect.Do.pipe(
-  Effect.bind('eventsRepo', () => EventsRepository),
-  Effect.bind('syncRepo', () => EventSyncEventsRepository),
+  Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
+  Effect.bind('syncRepo', () => EventSyncEventsRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('EventStartCron: starting cycle')),
   Effect.bind('events', ({ eventsRepo }) => eventsRepo.findEventsToStart()),
   Effect.tap(({ events, syncRepo, eventsRepo }) =>

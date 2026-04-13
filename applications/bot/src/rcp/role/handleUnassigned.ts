@@ -7,7 +7,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 export const handleMemberRemoved = (event: RoleRpcEvents.RoleUnassignedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Role/GetMapping']({
         team_id: event.team_id,

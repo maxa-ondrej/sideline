@@ -6,7 +6,7 @@ import {
   type TeamMember,
   type User,
 } from '@sideline/domain';
-import { Array, Data, Effect, Option, pipe } from 'effect';
+import { Array, Data, Effect, Layer, Option, pipe, ServiceMap } from 'effect';
 import {
   AgeThresholdRepository,
   type AgeThresholdWithGroupName,
@@ -253,17 +253,20 @@ const evaluateTeam =
       Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
     );
 
-export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeCheckService', {
-  effect: Effect.Do.pipe(
-    Effect.bind('thresholds', () => AgeThresholdRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('notifications', () => NotificationsRepository),
-    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
-    Effect.let('evaluateTeam', evaluateTeam),
-    Effect.map(({ evaluateTeam }) => ({ evaluateTeam })),
-  ),
-}) {
-  evaluate(teamId: Team.TeamId, today: Date) {
-    return this.evaluateTeam(teamId, today);
-  }
+const make = Effect.Do.pipe(
+  Effect.bind('thresholds', () => AgeThresholdRepository.asEffect()),
+  Effect.bind('groups', () => GroupsRepository.asEffect()),
+  Effect.bind('notifications', () => NotificationsRepository.asEffect()),
+  Effect.bind('channelSync', () => ChannelSyncEventsRepository.asEffect()),
+  Effect.let('evaluateTeam', evaluateTeam),
+  Effect.map(({ evaluateTeam }) => ({
+    evaluate: (teamId: Team.TeamId, today: Date) => evaluateTeam(teamId, today),
+  })),
+);
+
+export class AgeCheckService extends ServiceMap.Service<
+  AgeCheckService,
+  Effect.Success<typeof make>
+>()('api/AgeCheckService') {
+  static readonly Default = Layer.effect(AgeCheckService, make);
 }

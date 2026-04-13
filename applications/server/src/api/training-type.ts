@@ -11,13 +11,13 @@ const forbidden = new TrainingTypeApi.Forbidden();
 
 export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('trainingTypes', () => TrainingTypesRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
     Effect.map(({ members, trainingTypes }) =>
       handlers
         .handle('listTrainingTypes', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -44,7 +44,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
         )
         .handle('createTrainingType', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -81,7 +81,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
         )
         .handle('getTrainingType', ({ path: { teamId, trainingTypeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -119,7 +119,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
         )
         .handle('updateTrainingType', ({ path: { teamId, trainingTypeId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -178,7 +178,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
         )
         .handle('deleteTrainingType', ({ path: { teamId, trainingTypeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

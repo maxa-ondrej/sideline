@@ -70,7 +70,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
   });
 
   const onSubmit = async (values: ProfileFormValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.auth.completeProfile({
           payload: values,

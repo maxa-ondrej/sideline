@@ -16,7 +16,7 @@ const toDiscordTimestamp = (dt: DateTime.Utc, style: 'R' | 'f' = 'f'): string =>
 export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('summary', ({ rpc }) =>
       rpc['Event/GetRsvpReminderSummary']({ event_id: event.event_id }),
     ),

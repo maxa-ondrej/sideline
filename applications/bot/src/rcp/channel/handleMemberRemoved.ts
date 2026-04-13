@@ -10,7 +10,7 @@ const removeRole = (
   roleId: Option.Option<Discord.Snowflake>,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('roleId', () => roleId),
     Effect.tap(({ rest, roleId }) =>
       rest.deleteGuildMemberRole(guildId, userId, roleId).pipe(Effect.retry(retryPolicy)),

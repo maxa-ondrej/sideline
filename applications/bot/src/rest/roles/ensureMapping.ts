@@ -12,7 +12,7 @@ export const ensureMapping = (
 ) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Role/GetMapping']({ team_id: teamId, role_id: roleId }),
     ),

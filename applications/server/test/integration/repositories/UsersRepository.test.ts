@@ -13,7 +13,7 @@ describe('UsersRepository', () => {
   it.effect('upsertFromDiscord creates a new user', () =>
     Effect.Do.pipe(
       Effect.bind('user', () =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '123456789012345678',
@@ -37,7 +37,7 @@ describe('UsersRepository', () => {
   it.effect('upsertFromDiscord updates existing user on conflict', () =>
     Effect.Do.pipe(
       Effect.tap(() =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '999999999999999999',
@@ -49,7 +49,7 @@ describe('UsersRepository', () => {
         ),
       ),
       Effect.bind('updated', () =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '999999999999999999',
@@ -72,7 +72,7 @@ describe('UsersRepository', () => {
   it.effect('findById returns Some for existing user', () =>
     Effect.Do.pipe(
       Effect.bind('created', () =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '111111111111111111',
@@ -84,7 +84,7 @@ describe('UsersRepository', () => {
         ),
       ),
       Effect.bind('found', ({ created }) =>
-        UsersRepository.pipe(Effect.andThen((repo) => repo.findById(created.id))),
+        UsersRepository.asEffect().pipe(Effect.andThen((repo) => repo.findById(created.id))),
       ),
       Effect.tap(({ created, found }) => {
         expect(Option.isSome(found)).toBe(true);
@@ -97,7 +97,7 @@ describe('UsersRepository', () => {
   );
 
   it.effect('findById returns None for non-existent user', () =>
-    UsersRepository.pipe(
+    UsersRepository.asEffect().pipe(
       Effect.andThen((repo) =>
         repo.findById('00000000-0000-0000-0000-000000000099' as User.UserId),
       ),
@@ -111,7 +111,7 @@ describe('UsersRepository', () => {
   it.effect('findByDiscordId returns Some for existing user', () =>
     Effect.Do.pipe(
       Effect.tap(() =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '222222222222222222',
@@ -123,7 +123,9 @@ describe('UsersRepository', () => {
         ),
       ),
       Effect.bind('found', () =>
-        UsersRepository.pipe(Effect.andThen((repo) => repo.findByDiscordId('222222222222222222'))),
+        UsersRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findByDiscordId('222222222222222222')),
+        ),
       ),
       Effect.tap(({ found }) => {
         expect(Option.isSome(found)).toBe(true);
@@ -136,7 +138,7 @@ describe('UsersRepository', () => {
   );
 
   it.effect('findByDiscordId returns None for non-existent discord id', () =>
-    UsersRepository.pipe(
+    UsersRepository.asEffect().pipe(
       Effect.andThen((repo) => repo.findByDiscordId('000000000000000000')),
       Effect.tap((found) => {
         expect(Option.isNone(found)).toBe(true);
@@ -148,7 +150,7 @@ describe('UsersRepository', () => {
   it.effect('completeProfile updates profile fields and sets is_profile_complete to true', () =>
     Effect.Do.pipe(
       Effect.bind('created', () =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '333333333333333333',
@@ -160,7 +162,7 @@ describe('UsersRepository', () => {
         ),
       ),
       Effect.bind('completed', ({ created }) =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.completeProfile({
               id: created.id,
@@ -183,7 +185,7 @@ describe('UsersRepository', () => {
   it.effect('updateLocale changes user locale', () =>
     Effect.Do.pipe(
       Effect.bind('created', () =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.upsertFromDiscord({
               discord_id: '444444444444444444',
@@ -195,7 +197,7 @@ describe('UsersRepository', () => {
         ),
       ),
       Effect.bind('updated', ({ created }) =>
-        UsersRepository.pipe(
+        UsersRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             repo.updateLocale({
               id: created.id,

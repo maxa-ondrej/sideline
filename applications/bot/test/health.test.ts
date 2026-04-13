@@ -26,7 +26,7 @@ const HealthApiGroupLive = HttpApiBuilder.group(BotHealthApi, 'health', (handler
   Effect.succeed(
     handlers.handle('healthCheck', () =>
       Effect.Do.pipe(
-        Effect.bind('gateway', () => DiscordGateway),
+        Effect.bind('gateway', () => DiscordGateway.asEffect()),
         Effect.bind('shards', ({ gateway }) => gateway.shards),
         Effect.map(({ shards }) => ({
           status: shards.size > 0 ? ('ok' as const) : ('degraded' as const),

@@ -136,7 +136,7 @@ export function EventDetailPage({
     setSaving(true);
     setShowEditScope(false);
     const { trainingTypeIdOption, startAt, endAt } = buildPayload(values);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.updateEvent({
           path: { teamId: teamIdBranded, eventId: eventIdBranded },
@@ -186,7 +186,7 @@ export function EventDetailPage({
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
       eventDetail.seriesId.value,
     );
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
           path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
@@ -242,7 +242,7 @@ export function EventDetailPage({
 
   const doCancelThisOnly = React.useCallback(async () => {
     setShowCancelScope(false);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.cancelEvent({ path: { teamId: teamIdBranded, eventId: eventIdBranded } }),
       ),
@@ -260,7 +260,7 @@ export function EventDetailPage({
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
       eventDetail.seriesId.value,
     );
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.cancelEventSeries({
           path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
@@ -285,7 +285,7 @@ export function EventDetailPage({
 
   const handleRsvpSubmit = React.useCallback(
     (response: 'yes' | 'no' | 'maybe', message: string) =>
-      ApiClient.pipe(
+      ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.eventRsvp.submitRsvp({
             path: { teamId: teamIdBranded, eventId: eventIdBranded },

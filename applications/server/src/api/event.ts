@@ -18,16 +18,16 @@ const notActive = new EventApi.EventNotActive();
 
 export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('trainingTypes', () => TrainingTypesRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
+    Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
     Effect.map(({ members, events, syncEvents, groups, trainingTypes }) =>
       handlers
         .handle('listEvents', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -64,7 +64,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
         )
         .handle('createEvent', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -164,7 +164,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
         )
         .handle('getEvent', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -232,7 +232,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
         )
         .handle('updateEvent', ({ path: { teamId, eventId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -390,7 +390,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
         )
         .handle('cancelEvent', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

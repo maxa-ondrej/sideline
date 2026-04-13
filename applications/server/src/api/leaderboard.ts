@@ -8,14 +8,14 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export const LeaderboardApiLive = HttpApiBuilder.group(Api, 'leaderboard', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('leaderboard', () => LeaderboardRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('leaderboard', () => LeaderboardRepository.asEffect()),
     Effect.map(({ members, leaderboard }) =>
       handlers.handle(
         'getLeaderboard',
         ({ path: { teamId }, urlParams: { timeframe, activityTypeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, new LeaderboardApi.Forbidden()),
             ),

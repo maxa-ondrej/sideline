@@ -19,7 +19,7 @@ export class EventPropertyMissing {
   log = () => Effect.logError(this.errorMessage());
 
   markFailed = () =>
-    EventSyncEventsRepository.pipe(
+    EventSyncEventsRepository.asEffect().pipe(
       Effect.flatMap((repository) => repository.markFailed(this.id, this.errorMessage())),
     );
 

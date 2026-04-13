@@ -41,9 +41,9 @@ const toChannelMapping = (m: {
   });
 
 export const ChannelsRpcLive = Effect.Do.pipe(
-  Effect.bind('syncEvents', () => ChannelSyncEventsRepository),
-  Effect.bind('mappings', () => DiscordChannelMappingRepository),
-  Effect.bind('rosters', () => RostersRepository),
+  Effect.bind('syncEvents', () => ChannelSyncEventsRepository.asEffect()),
+  Effect.bind('mappings', () => DiscordChannelMappingRepository.asEffect()),
+  Effect.bind('rosters', () => RostersRepository.asEffect()),
   Effect.let(
     'Channel/GetUnprocessedEvents',
     ({ syncEvents }) =>

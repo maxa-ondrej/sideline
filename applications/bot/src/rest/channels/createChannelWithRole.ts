@@ -14,7 +14,7 @@ export const createDiscordChannelAndRole = (
   roleColor?: number,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('rpc', () => SyncRpc),
     Effect.bind('channel', ({ rest }) =>
       rest

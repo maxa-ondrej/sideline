@@ -226,8 +226,8 @@ const listLogs = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -276,8 +276,8 @@ const createLog = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -337,8 +337,8 @@ const updateLog = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -392,8 +392,8 @@ const deleteLog = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(

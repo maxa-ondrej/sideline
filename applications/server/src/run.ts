@@ -35,7 +35,7 @@ const BasePg: Config.Wrap<PgClient.PgClientConfig> = {
   password: Config.succeed(env.DATABASE_PASS),
 };
 
-const CreateDb = SqlClient.SqlClient.pipe(
+const CreateDb = SqlClient.SqlClient.asEffect().pipe(
   Effect.andThen((sql) => sql.unsafe(`CREATE DATABASE "${env.DATABASE_NAME}"`)),
   Effect.tap(Effect.logInfo),
   Effect.tapError(Effect.logWarning),
@@ -70,7 +70,7 @@ const RepositoriesLive = Layer.mergeAll(
   ChannelSyncEventsRepository.Default,
 );
 
-const Cron = AgeCheckCron.pipe(
+const Cron = AgeCheckCron.asEffect().pipe(
   Effect.provide(
     AgeCheckService.Default.pipe(
       Layer.provideMerge(RepositoriesLive),
@@ -88,7 +88,7 @@ const EventHorizonRepositoriesLive = Layer.mergeAll(
   DiscordChannelMappingRepository.Default,
 );
 
-const HorizonCron = EventHorizonCron.pipe(
+const HorizonCron = EventHorizonCron.asEffect().pipe(
   Effect.provide(
     EventHorizonRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
   ),
@@ -101,7 +101,7 @@ const RsvpReminderRepositoriesLive = Layer.mergeAll(
   DiscordChannelMappingRepository.Default,
 );
 
-const ReminderCron = RsvpReminderCron.pipe(
+const ReminderCron = RsvpReminderCron.asEffect().pipe(
   Effect.provide(
     RsvpReminderRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
   ),
@@ -114,7 +114,7 @@ const TrainingAutoLogRepositoriesLive = Layer.mergeAll(
   ActivityTypesRepository.Default,
 );
 
-const AutoLogCron = TrainingAutoLogCron.pipe(
+const AutoLogCron = TrainingAutoLogCron.asEffect().pipe(
   Effect.provide(
     TrainingAutoLogRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg))),
   ),
@@ -125,7 +125,7 @@ const EventStartRepositoriesLive = Layer.mergeAll(
   EventSyncEventsRepository.Default,
 );
 
-const StartCron = EventStartCron.pipe(
+const StartCron = EventStartCron.asEffect().pipe(
   Effect.provide(EventStartRepositoriesLive.pipe(Layer.provideMerge(PgClient.layerConfig(BasePg)))),
 );
 

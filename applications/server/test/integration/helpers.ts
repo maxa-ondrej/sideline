@@ -12,7 +12,7 @@ const TestPgClientConfig = {
 
 export const TestPgClient = PgClient.layerConfig(TestPgClientConfig);
 
-export const cleanDatabase = SqlClient.SqlClient.pipe(
+export const cleanDatabase = SqlClient.SqlClient.asEffect().pipe(
   Effect.andThen((sql) =>
     sql.unsafe(`
       DO $$ DECLARE r RECORD;

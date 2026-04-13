@@ -6,7 +6,7 @@ import { retryPolicy } from '~/rest/utils.js';
 
 export const handleMemberAdded = (event: RoleRpcEvents.RoleAssignedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('roleId', () =>
       ensureMapping(event.team_id, event.role_id, event.guild_id, event.role_name),
     ),

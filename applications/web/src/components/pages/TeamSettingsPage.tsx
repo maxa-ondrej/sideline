@@ -147,7 +147,7 @@ export function TeamSettingsPage({
   const handleSaveProfile = React.useCallback(async () => {
     if (!teamName.trim()) return;
     setSavingProfile(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.team.updateTeamInfo({
           path: { teamId: teamInfo.teamId },
@@ -180,7 +180,7 @@ export function TeamSettingsPage({
       return;
     if (!isFormatValid(roleFormat) || !isFormatValid(channelFormat)) return;
     setSavingSettings(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.teamSettings.updateTeamSettings({
           path: { teamId: settings.teamId },

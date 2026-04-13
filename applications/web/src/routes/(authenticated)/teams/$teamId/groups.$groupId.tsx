@@ -12,37 +12,37 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
     const groupId = Schema.decodeSync(GroupModel.GroupId)(params.groupId);
     const [groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels, guildId] =
       await Promise.all([
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.group.getGroup({ path: { teamId, groupId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.role.listRoles({ path: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.group.getChannelMapping({ path: { teamId, groupId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.group.listGroups({ path: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.group.listDiscordChannels({ path: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.team.getTeamInfo({ path: { teamId } })),
           Effect.map((info) => Option.some(info.guildId)),
           Effect.tapError((e) => Effect.logWarning('Failed to load team info', e)),

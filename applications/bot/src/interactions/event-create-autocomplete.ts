@@ -18,7 +18,7 @@ export const EventCreateAutocomplete = Ix.autocomplete(
       ),
     ),
     Effect.bind('interaction', () => Interaction),
-    Effect.bind('focused', () => FocusedOptionContext),
+    Effect.bind('focused', () => FocusedOptionContext.asEffect()),
     Effect.bind('rpc', () => SyncRpc),
     Effect.tap(() => Effect.logInfo('[autocomplete] handler invoked')),
     Effect.flatMap(({ interaction, focused, rpc }) => {

@@ -53,7 +53,7 @@ class ClientApi extends HttpApi.make('api')
   .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 
-export const client = ClientConfig.pipe(
+export const client = ClientConfig.asEffect().pipe(
   Effect.flatMap(({ baseUrl }) =>
     HttpApiClient.make(ClientApi, {
       baseUrl: baseUrl,

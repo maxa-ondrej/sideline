@@ -21,7 +21,7 @@ export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }
 
   const handleJoin = React.useCallback(async () => {
     setJoining(true);
-    await ApiClient.pipe(
+    await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.invite.joinViaInvite({ path: { code } })),
       Effect.tap((result) => Effect.sync(() => onJoined(result.teamId, result.isProfileComplete))),
       Effect.catchTag('AlreadyMember', () => ClientError.make(m.invite_errors_alreadyMember())),

@@ -241,8 +241,8 @@ const createEvent = (
   );
 
 const rpcHandlers = Effect.Do.pipe(
-  Effect.bind('events', () => EventsRepository),
-  Effect.bind('rsvps', () => EventRsvpsRepository),
+  Effect.bind('events', () => EventsRepository.asEffect()),
+  Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
   Effect.bind('deps', () =>
     Effect.all({
       syncEvents: EventSyncEventsRepository,

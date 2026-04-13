@@ -47,7 +47,7 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
   });
 
   const onSubmit = async (values: CreateRosterValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.createRoster({
           path: { teamId: teamIdBranded },

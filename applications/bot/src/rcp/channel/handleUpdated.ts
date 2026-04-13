@@ -19,7 +19,7 @@ const handleChannelUpdated = (event: ChannelUpdatedFields) => {
     onSome: (c) => c,
   });
   return Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('rpc', () => SyncRpc),
     Effect.tap(({ rest }) =>
       rest

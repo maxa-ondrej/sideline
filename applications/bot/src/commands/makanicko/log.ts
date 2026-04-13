@@ -95,7 +95,7 @@ export const logHandler = Interaction.pipe(
 
     const work = Effect.Do.pipe(
       Effect.bind('rpc', () => SyncRpc),
-      Effect.bind('rest', () => DiscordREST),
+      Effect.bind('rest', () => DiscordREST.asEffect()),
       Effect.flatMap(({ rpc, rest }) =>
         rpc['Activity/LogActivity']({
           guild_id: snowflakeGuildId,

@@ -8,7 +8,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/')(
   component: RostersRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.roster.listRosters({ path: { teamId } })),
       warnAndCatchAll,
       context.run,

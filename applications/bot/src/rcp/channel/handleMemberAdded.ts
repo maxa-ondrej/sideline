@@ -7,7 +7,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 
 export const handleMemberAdded = (event: ChannelRpcEvents.GroupMemberAddedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('mapping', () =>
       // Note: Using raw group_name as fallback channel/role name. In the normal flow, the channel
       // is already created by channel_created with the correct format applied.
@@ -39,7 +39,7 @@ export const handleMemberAdded = (event: ChannelRpcEvents.GroupMemberAddedEvent)
 export const handleRosterMemberAdded = (event: ChannelRpcEvents.RosterMemberAddedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetRosterMapping']({ team_id: event.team_id, roster_id: event.roster_id }),
     ),

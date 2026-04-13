@@ -13,9 +13,9 @@ const decodeGuildMember = Schema.decodeUnknownOption(DfxGuildMember);
 const decodeUser = Schema.decodeUnknownSync(DfxUser);
 
 export const eventHandlers = Effect.Do.pipe(
-  Effect.bind('gateway', () => DiscordGateway),
+  Effect.bind('gateway', () => DiscordGateway.asEffect()),
   Effect.bind('rpc', () => SyncRpc),
-  Effect.bind('rest', () => DiscordREST),
+  Effect.bind('rest', () => DiscordREST.asEffect()),
   Effect.let('guildCreate', ({ gateway, rpc, rest }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
       Effect.Do.pipe(

@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eve
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const eventId = Schema.decodeSync(Event.EventId)(params.eventId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
           event: api.event.getEvent({ path: { teamId, eventId } }),

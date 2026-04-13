@@ -168,11 +168,11 @@ const logActivity = (payload: {
   | ActivityTypesRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('users', () => UsersRepository),
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
-    Effect.bind('activityTypes', () => ActivityTypesRepository),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('users', () => UsersRepository.asEffect()),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+    Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
     Effect.bind('team', ({ teams }) =>
       teams.findByGuildId(payload.guild_id).pipe(
         Effect.flatMap(

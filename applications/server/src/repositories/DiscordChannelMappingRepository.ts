@@ -6,7 +6,7 @@ import {
   RosterModel,
   Team,
 } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Effect, Layer, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -62,35 +62,32 @@ class DeleteByRosterInput extends Schema.Class<DeleteByRosterInput>('DeleteByRos
   roster_id: RosterModel.RosterId,
 }) {}
 
-export class DiscordChannelMappingRepository extends Effect.Service<DiscordChannelMappingRepository>()(
-  'api/DiscordChannelMappingRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private findByGroup = SqlSchema.findOne({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByGroup = SqlSchema.findOne({
     Request: FindByGroupInput,
     Result: MappingRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id
       FROM discord_channel_mappings
       WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
     `,
   });
 
-  private findByRoster = SqlSchema.findOne({
+  const findByRoster = SqlSchema.findOne({
     Request: FindByRosterInput,
     Result: MappingRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id
       FROM discord_channel_mappings
       WHERE team_id = ${input.team_id} AND roster_id = ${input.roster_id}
     `,
   });
 
-  private insertGroupMapping = SqlSchema.void({
+  const insertGroupMapping = SqlSchema.void({
     Request: InsertGroupInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO discord_channel_mappings (team_id, entity_type, group_id, discord_channel_id, discord_role_id)
       VALUES (${input.team_id}, 'group', ${input.group_id}, ${input.discord_channel_id}, ${input.discord_role_id})
       ON CONFLICT (team_id, group_id) WHERE group_id IS NOT NULL
@@ -98,9 +95,9 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
     `,
   });
 
-  private _upsertGroupWithoutRole = SqlSchema.void({
+  const _upsertGroupWithoutRole = SqlSchema.void({
     Request: InsertGroupWithoutRoleInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO discord_channel_mappings (team_id, entity_type, group_id, discord_channel_id)
       VALUES (${input.team_id}, 'group', ${input.group_id}, ${input.discord_channel_id})
       ON CONFLICT (team_id, group_id) WHERE group_id IS NOT NULL
@@ -108,9 +105,9 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
     `,
   });
 
-  private insertRosterMapping = SqlSchema.void({
+  const insertRosterMapping = SqlSchema.void({
     Request: InsertRosterInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO discord_channel_mappings (team_id, entity_type, roster_id, discord_channel_id, discord_role_id)
       VALUES (${input.team_id}, 'roster', ${input.roster_id}, ${input.discord_channel_id}, ${input.discord_role_id})
       ON CONFLICT (team_id, roster_id) WHERE roster_id IS NOT NULL
@@ -118,82 +115,98 @@ export class DiscordChannelMappingRepository extends Effect.Service<DiscordChann
     `,
   });
 
-  private deleteByGroup = SqlSchema.void({
+  const deleteByGroup = SqlSchema.void({
     Request: DeleteByGroupInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       DELETE FROM discord_channel_mappings
       WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
     `,
   });
 
-  private deleteByRoster = SqlSchema.void({
+  const deleteByRoster = SqlSchema.void({
     Request: DeleteByRosterInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       DELETE FROM discord_channel_mappings
       WHERE team_id = ${input.team_id} AND roster_id = ${input.roster_id}
     `,
   });
 
-  private _findAllByTeamId = SqlSchema.findAll({
+  const _findAllByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: MappingRow,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id
       FROM discord_channel_mappings
       WHERE team_id = ${teamId}
     `,
   });
 
-  // Group methods
-  findByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
-    this.findByGroup({ team_id: teamId, group_id: groupId }).pipe(catchSqlErrors);
+  const findByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
+    findByGroup({ team_id: teamId, group_id: groupId }).pipe(catchSqlErrors);
 
-  insert = (
+  const insert = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
     discordChannelId: Discord.Snowflake,
     discordRoleId: Discord.Snowflake,
   ) =>
-    this.insertGroupMapping({
+    insertGroupMapping({
       team_id: teamId,
       group_id: groupId,
       discord_channel_id: discordChannelId,
       discord_role_id: discordRoleId,
     }).pipe(catchSqlErrors);
 
-  insertWithoutRole = (
+  const insertWithoutRole = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
     discordChannelId: Discord.Snowflake,
   ) =>
-    this._upsertGroupWithoutRole({
+    _upsertGroupWithoutRole({
       team_id: teamId,
       group_id: groupId,
       discord_channel_id: discordChannelId,
     }).pipe(catchSqlErrors);
 
-  deleteByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
-    this.deleteByGroup({ team_id: teamId, group_id: groupId }).pipe(catchSqlErrors);
+  const deleteByGroupId = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
+    deleteByGroup({ team_id: teamId, group_id: groupId }).pipe(catchSqlErrors);
 
-  // Roster methods
-  findByRosterId = (teamId: Team.TeamId, rosterId: RosterModel.RosterId) =>
-    this.findByRoster({ team_id: teamId, roster_id: rosterId }).pipe(catchSqlErrors);
+  const findByRosterId = (teamId: Team.TeamId, rosterId: RosterModel.RosterId) =>
+    findByRoster({ team_id: teamId, roster_id: rosterId }).pipe(catchSqlErrors);
 
-  insertRoster = (
+  const insertRoster = (
     teamId: Team.TeamId,
     rosterId: RosterModel.RosterId,
     discordChannelId: Discord.Snowflake,
     discordRoleId: Discord.Snowflake,
   ) =>
-    this.insertRosterMapping({
+    insertRosterMapping({
       team_id: teamId,
       roster_id: rosterId,
       discord_channel_id: discordChannelId,
       discord_role_id: discordRoleId,
     }).pipe(catchSqlErrors);
 
-  deleteByRosterId = (teamId: Team.TeamId, rosterId: RosterModel.RosterId) =>
-    this.deleteByRoster({ team_id: teamId, roster_id: rosterId }).pipe(catchSqlErrors);
+  const deleteByRosterId = (teamId: Team.TeamId, rosterId: RosterModel.RosterId) =>
+    deleteByRoster({ team_id: teamId, roster_id: rosterId }).pipe(catchSqlErrors);
 
-  findAllByTeam = (teamId: Team.TeamId) => this._findAllByTeamId(teamId).pipe(catchSqlErrors);
+  const findAllByTeam = (teamId: Team.TeamId) => _findAllByTeamId(teamId).pipe(catchSqlErrors);
+
+  return {
+    findByGroupId,
+    insert,
+    insertWithoutRole,
+    deleteByGroupId,
+    findByRosterId,
+    insertRoster,
+    deleteByRosterId,
+    findAllByTeam,
+  };
+});
+
+export class DiscordChannelMappingRepository extends ServiceMap.Service<
+  DiscordChannelMappingRepository,
+  Effect.Success<typeof make>
+>()('api/DiscordChannelMappingRepository') {
+  static readonly Default = Layer.effect(DiscordChannelMappingRepository, make);
 }

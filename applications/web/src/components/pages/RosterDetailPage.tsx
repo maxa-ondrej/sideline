@@ -64,7 +64,7 @@ export function RosterDetailPage({
 
   const handleSaveNameEmojiColor = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
@@ -87,7 +87,7 @@ export function RosterDetailPage({
   }, [teamIdBranded, rosterIdBranded, editName, editEmoji, editColor, run, router]);
 
   const handleToggleActive = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
@@ -119,7 +119,7 @@ export function RosterDetailPage({
   const handleLinkChannel = React.useCallback(async () => {
     if (!selectedChannelId) return;
     const snowflake = Schema.decodeSync(Discord.Snowflake)(selectedChannelId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
@@ -153,7 +153,7 @@ export function RosterDetailPage({
   ]);
 
   const handleUnlinkChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
@@ -175,7 +175,7 @@ export function RosterDetailPage({
   }, [teamIdBranded, rosterIdBranded, rosterDetail.color, rosterDetail.emoji, run, router]);
 
   const handleCreateChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.createChannel({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
@@ -192,7 +192,7 @@ export function RosterDetailPage({
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(selectedMemberId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.addRosterMember({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
@@ -211,7 +211,7 @@ export function RosterDetailPage({
   const handleRemoveMember = React.useCallback(
     async (memberIdRaw: string) => {
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.roster.removeRosterMember({
             path: { teamId: teamIdBranded, rosterId: rosterIdBranded, memberId },
@@ -229,7 +229,7 @@ export function RosterDetailPage({
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.roster_deleteRosterConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.deleteRoster({
           path: { teamId: teamIdBranded, rosterId: rosterIdBranded },

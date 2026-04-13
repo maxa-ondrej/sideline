@@ -10,7 +10,7 @@ const deletePermissionOverwrite = (
   discordRoleId: Option.Option<Discord.Snowflake>,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('roleId', () => discordRoleId),
     Effect.tap(({ rest, roleId }) =>
       rest
@@ -27,7 +27,7 @@ const deletePermissionOverwrite = (
 
 const moveToArchive = (discordChannelId: Discord.Snowflake, archiveCategoryId: Discord.Snowflake) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.tap(({ rest }) =>
       rest
         .updateChannel(discordChannelId, { parent_id: archiveCategoryId })

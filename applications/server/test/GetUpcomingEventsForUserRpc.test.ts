@@ -118,7 +118,7 @@ const MockProvideLayer = Layer.mergeAll(
 describe('GetUpcomingEventsForUser handler — guild lookup', () => {
   it.effect('resolves team_id from a known guild_id', () =>
     Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
       Effect.flatMap(({ teams }) => teams.findByGuildId(TEST_GUILD_ID)),
       Effect.flatMap(
         Option.match({
@@ -138,7 +138,7 @@ describe('GetUpcomingEventsForUser handler — guild lookup', () => {
     const unknownGuildId = '000000000000000001' as Discord.Snowflake;
 
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
       Effect.flatMap(({ teams }) => teams.findByGuildId(unknownGuildId)),
       Effect.flatMap(
         Option.match({
@@ -166,7 +166,7 @@ describe('GetUpcomingEventsForUser handler — guild lookup', () => {
 describe('GetUpcomingEventsForUser handler — member lookup', () => {
   it.effect('resolves member when discord user is in team', () =>
     Effect.Do.pipe(
-      Effect.bind('members', () => TeamMembersRepository),
+      Effect.bind('members', () => TeamMembersRepository.asEffect()),
       Effect.flatMap(({ members }) => members.findMembershipByIds(TEST_TEAM_ID, TEST_USER_ID)),
       Effect.flatMap(
         Option.match({
@@ -188,7 +188,7 @@ describe('GetUpcomingEventsForUser handler — member lookup', () => {
     } as unknown as TeamMembersRepository);
 
     return Effect.Do.pipe(
-      Effect.bind('members', () => TeamMembersRepository),
+      Effect.bind('members', () => TeamMembersRepository.asEffect()),
       Effect.flatMap(({ members }) =>
         members.findMembershipByIds(TEST_TEAM_ID, 'unknown-user-id' as User.UserId),
       ),

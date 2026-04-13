@@ -54,7 +54,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
 
   const handleSave = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.role.updateRole({
           path: { teamId: teamIdBranded, roleId: roleIdBranded },
@@ -75,7 +75,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.role_deleteRoleConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.role.deleteRole({ path: { teamId: teamIdBranded, roleId: roleIdBranded } }),
       ),

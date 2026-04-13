@@ -14,15 +14,15 @@ const allTimeframe: Leaderboard.LeaderboardTimeframe = 'all';
 
 export const DashboardApiLive = HttpApiBuilder.group(Api, 'dashboard', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('leaderboardRepo', () => LeaderboardRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
+    Effect.bind('leaderboardRepo', () => LeaderboardRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.map(({ members, events, groups, leaderboardRepo, activityLogs }) =>
       handlers.handle('getDashboard', ({ path: { teamId } }) =>
         Effect.Do.pipe(
-          Effect.bind('currentUser', () => Auth.CurrentUserContext),
+          Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
           Effect.bind('membership', ({ currentUser }) =>
             requireMembership(members, teamId, currentUser.id, forbidden),
           ),

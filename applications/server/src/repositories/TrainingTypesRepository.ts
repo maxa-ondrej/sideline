@@ -1,6 +1,6 @@
 import { Discord, GroupModel, Team, TrainingType } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -50,16 +50,13 @@ class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-export class TrainingTypesRepository extends Effect.Service<TrainingTypesRepository>()(
-  'api/TrainingTypesRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private findByTeamId = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: TrainingTypeWithGroup,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT t.id, t.team_id, t.name, t.owner_group_id,
              g.name AS owner_group_name,
              t.member_group_id,
@@ -73,7 +70,7 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     `,
   });
 
-  private findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOne({
     Request: TrainingType.TrainingTypeId,
     Result: TrainingTypeRow,
     execute: (id) =>
@@ -81,10 +78,10 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
         .sql`SELECT id, team_id, name, owner_group_id, member_group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
   });
 
-  private findByIdWithGroup = SqlSchema.findOne({
+  const findByIdWithGroup = SqlSchema.findOne({
     Request: TrainingType.TrainingTypeId,
     Result: TrainingTypeWithGroup,
-    execute: (id) => this.sql`
+    execute: (id) => sql`
       SELECT t.id, t.team_id, t.name, t.owner_group_id,
              g.name AS owner_group_name,
              t.member_group_id,
@@ -97,20 +94,20 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     `,
   });
 
-  private insertOne = SqlSchema.findOne({
+  const insertOne = SqlSchema.findOne({
     Request: TrainingTypeInsertInput,
     Result: TrainingTypeRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO training_types (team_id, name, owner_group_id, member_group_id, discord_channel_id)
       VALUES (${input.team_id}, ${input.name}, ${input.owner_group_id}, ${input.member_group_id}, ${input.discord_channel_id})
       RETURNING id, team_id, name, owner_group_id, member_group_id, discord_channel_id
     `,
   });
 
-  private updateOne = SqlSchema.findOne({
+  const updateOne = SqlSchema.findOne({
     Request: TrainingTypeUpdateInput,
     Result: TrainingTypeRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE training_types SET name = ${input.name},
         owner_group_id = ${input.owner_group_id},
         member_group_id = ${input.member_group_id},
@@ -120,28 +117,28 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
     `,
   });
 
-  private deleteOne = SqlSchema.void({
+  const deleteOne = SqlSchema.void({
     Request: TrainingType.TrainingTypeId,
-    execute: (id) => this.sql`DELETE FROM training_types WHERE id = ${id}`,
+    execute: (id) => sql`DELETE FROM training_types WHERE id = ${id}`,
   });
 
-  findTrainingTypesByTeamId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(catchSqlErrors);
+  const findTrainingTypesByTeamId = (teamId: Team.TeamId) =>
+    findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
-    this.findById(trainingTypeId).pipe(catchSqlErrors);
+  const findTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
+    findById(trainingTypeId).pipe(catchSqlErrors);
 
-  findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) =>
-    this.findByIdWithGroup(trainingTypeId).pipe(catchSqlErrors);
+  const findTrainingTypeByIdWithGroup = (trainingTypeId: TrainingType.TrainingTypeId) =>
+    findByIdWithGroup(trainingTypeId).pipe(catchSqlErrors);
 
-  insertTrainingType = (
+  const insertTrainingType = (
     teamId: Team.TeamId,
     name: string,
     ownerGroupId: Option.Option<string>,
     memberGroupId: Option.Option<string> = Option.none(),
     discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this.insertOne({
+    insertOne({
       team_id: teamId,
       name,
       owner_group_id: ownerGroupId,
@@ -152,14 +149,14 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       catchSqlErrors,
     );
 
-  updateTrainingType = (
+  const updateTrainingType = (
     trainingTypeId: TrainingType.TrainingTypeId,
     name: string,
     ownerGroupId: Option.Option<string> = Option.none(),
     memberGroupId: Option.Option<string> = Option.none(),
     discordChannelId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this.updateOne({
+    updateOne({
       id: trainingTypeId,
       name,
       owner_group_id: ownerGroupId,
@@ -170,6 +167,22 @@ export class TrainingTypesRepository extends Effect.Service<TrainingTypesReposit
       catchSqlErrors,
     );
 
-  deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
-    this.deleteOne(trainingTypeId).pipe(catchSqlErrors);
+  const deleteTrainingTypeById = (trainingTypeId: TrainingType.TrainingTypeId) =>
+    deleteOne(trainingTypeId).pipe(catchSqlErrors);
+
+  return {
+    findTrainingTypesByTeamId,
+    findTrainingTypeById,
+    findTrainingTypeByIdWithGroup,
+    insertTrainingType,
+    updateTrainingType,
+    deleteTrainingTypeById,
+  };
+});
+
+export class TrainingTypesRepository extends ServiceMap.Service<
+  TrainingTypesRepository,
+  Effect.Success<typeof make>
+>()('api/TrainingTypesRepository') {
+  static readonly Default = Layer.effect(TrainingTypesRepository, make);
 }

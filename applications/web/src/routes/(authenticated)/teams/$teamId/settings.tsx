@@ -14,7 +14,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/settings')(
       Effect.mapError(NotFound.make),
       context.run,
     );
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
           settings: api.teamSettings.getTeamSettings({ path: { teamId } }),

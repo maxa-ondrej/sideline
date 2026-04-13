@@ -29,13 +29,13 @@ const getTeamOrForbidden = (teams: TeamsRepository, teamId: Team.TeamId) =>
 
 export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('teams', () => TeamsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
     Effect.map(({ members, teams }) =>
       handlers
         .handle('getTeamInfo', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -45,7 +45,7 @@ export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
         )
         .handle('updateTeamInfo', ({ path: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

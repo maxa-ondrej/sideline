@@ -9,14 +9,14 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
-    Effect.bind('activityTypes', () => ActivityTypesRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+    Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
     Effect.map(({ members, activityLogs, activityTypes }) =>
       handlers
         .handle('listLogs', ({ path: { teamId, memberId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
             ),
@@ -47,7 +47,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
         )
         .handle('createLog', ({ path: { teamId, memberId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
             ),
@@ -85,7 +85,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
         )
         .handle('updateLog', ({ path: { teamId, memberId, logId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
             ),
@@ -120,7 +120,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
         )
         .handle('deleteLog', ({ path: { teamId, memberId, logId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
             ),
@@ -138,7 +138,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
         )
         .handle('listActivityTypes', ({ path: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, new ActivityLogApi.Forbidden()),
             ),

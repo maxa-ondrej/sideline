@@ -7,7 +7,7 @@ import {
   User,
 } from '@sideline/domain';
 import { Schemas, SqlErrors } from '@sideline/effect-lib';
-import { Effect, type Option, Schema } from 'effect';
+import { Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -63,16 +63,13 @@ export class MemberWithBirthDate extends Schema.Class<MemberWithBirthDate>('Memb
   group_ids: Schemas.ArrayFromSplitString(),
 }) {}
 
-export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepository>()(
-  'api/AgeThresholdRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private findByTeamId = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: AgeThresholdWithGroupName,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
             SELECT atr.id, atr.team_id, atr.group_id, g.name AS group_name,
                    atr.min_age, atr.max_age
             FROM age_threshold_rules atr
@@ -82,19 +79,19 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  private findByIdQuery = SqlSchema.findOne({
+  const findByIdQuery = SqlSchema.findOne({
     Request: AgeThreshold.AgeThresholdRuleId,
     Result: AgeThresholdRow,
-    execute: (id) => this.sql`
+    execute: (id) => sql`
             SELECT id, team_id, group_id, min_age, max_age
             FROM age_threshold_rules WHERE id = ${id}
           `,
   });
 
-  private insertQuery = SqlSchema.findOne({
+  const insertQuery = SqlSchema.findOne({
     Request: InsertInput,
     Result: AgeThresholdWithGroupName,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             WITH inserted AS (
               INSERT INTO age_threshold_rules (team_id, group_id, min_age, max_age)
               VALUES (${input.team_id}, ${input.group_id}, ${input.min_age}, ${input.max_age})
@@ -106,10 +103,10 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  private updateRule = SqlSchema.findOne({
+  const updateRule = SqlSchema.findOne({
     Request: UpdateInput,
     Result: AgeThresholdWithGroupName,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             WITH updated AS (
               UPDATE age_threshold_rules
               SET min_age = ${input.min_age}, max_age = ${input.max_age}
@@ -122,21 +119,21 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  private deleteRule = SqlSchema.void({
+  const deleteRule = SqlSchema.void({
     Request: AgeThreshold.AgeThresholdRuleId,
-    execute: (id) => this.sql`DELETE FROM age_threshold_rules WHERE id = ${id}`,
+    execute: (id) => sql`DELETE FROM age_threshold_rules WHERE id = ${id}`,
   });
 
-  private findAllTeamsWithRulesQuery = SqlSchema.findAll({
+  const findAllTeamsWithRulesQuery = SqlSchema.findAll({
     Request: Schema.Void,
     Result: TeamIdResult,
-    execute: () => this.sql`SELECT DISTINCT team_id FROM age_threshold_rules`,
+    execute: () => sql`SELECT DISTINCT team_id FROM age_threshold_rules`,
   });
 
-  private findMembersWithBirthDatesQuery = SqlSchema.findAll({
+  const findMembersWithBirthDatesQuery = SqlSchema.findAll({
     Request: Schema.String,
     Result: MemberWithBirthDate,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
             SELECT tm.id AS member_id, tm.user_id,
                    u.name AS member_name, u.username, u.discord_id,
                    u.birth_date::text AS birth_date,
@@ -155,18 +152,18 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
           `,
   });
 
-  findRulesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
+  const findRulesByTeamId = (teamId: Team.TeamId) => findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
-    this.findByIdQuery(ruleId).pipe(catchSqlErrors);
+  const findRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
+    findByIdQuery(ruleId).pipe(catchSqlErrors);
 
-  insertRule = (
+  const insertRule = (
     teamId: Team.TeamId,
     groupId: GroupModel.GroupId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
   ) =>
-    this.insertQuery({
+    insertQuery({
       team_id: teamId,
       group_id: groupId,
       min_age: minAge,
@@ -176,21 +173,38 @@ export class AgeThresholdRepository extends Effect.Service<AgeThresholdRepositor
       catchSqlErrors,
     );
 
-  updateRuleById = (
+  const updateRuleById = (
     ruleId: AgeThreshold.AgeThresholdRuleId,
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
-  ) => this.updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(catchSqlErrors);
+  ) => updateRule({ id: ruleId, min_age: minAge, max_age: maxAge }).pipe(catchSqlErrors);
 
-  deleteRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
-    this.deleteRule(ruleId).pipe(catchSqlErrors);
+  const deleteRuleById = (ruleId: AgeThreshold.AgeThresholdRuleId) =>
+    deleteRule(ruleId).pipe(catchSqlErrors);
 
-  getAllTeamsWithRules = () =>
-    this.findAllTeamsWithRulesQuery(void 0).pipe(
+  const getAllTeamsWithRules = () =>
+    findAllTeamsWithRulesQuery(void 0).pipe(
       Effect.map((rows) => rows.map((r) => r.team_id)),
       catchSqlErrors,
     );
 
-  getMembersWithBirthDates = (teamId: Team.TeamId) =>
-    this.findMembersWithBirthDatesQuery(teamId).pipe(catchSqlErrors);
+  const getMembersWithBirthDates = (teamId: Team.TeamId) =>
+    findMembersWithBirthDatesQuery(teamId).pipe(catchSqlErrors);
+
+  return {
+    findRulesByTeamId,
+    findRuleById,
+    insertRule,
+    updateRuleById,
+    deleteRuleById,
+    getAllTeamsWithRules,
+    getMembersWithBirthDates,
+  };
+});
+
+export class AgeThresholdRepository extends ServiceMap.Service<
+  AgeThresholdRepository,
+  Effect.Success<typeof make>
+>()('api/AgeThresholdRepository') {
+  static readonly Default = Layer.effect(AgeThresholdRepository, make);
 }

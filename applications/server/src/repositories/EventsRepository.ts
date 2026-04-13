@@ -8,7 +8,7 @@ import {
   TrainingType,
 } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
-import { type DateTime, Effect, Option, Schema } from 'effect';
+import { type DateTime, Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -89,13 +89,13 @@ class ScopedTrainingTypeId extends Schema.Class<ScopedTrainingTypeId>('ScopedTra
   training_type_id: TrainingType.TrainingTypeId,
 }) {}
 
-export class EventsRepository extends Effect.Service<EventsRepository>()('api/EventsRepository', {
-  effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-}) {
-  private findByTeamId = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: EventWithDetails,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
                    e.description, e.start_at, e.end_at,
                    e.location, e.status, e.created_by,
@@ -117,10 +117,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private findByIdWithDetails = SqlSchema.findOne({
+  const findByIdWithDetails = SqlSchema.findOne({
     Request: Event.EventId,
     Result: EventWithDetails,
-    execute: (id) => this.sql`
+    execute: (id) => sql`
             SELECT e.id, e.team_id, e.training_type_id, e.event_type, e.title,
                    e.description, e.start_at, e.end_at,
                    e.location, e.status, e.created_by,
@@ -141,10 +141,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private insert = SqlSchema.findOne({
+  const insert = SqlSchema.findOne({
     Request: EventInsertInput,
     Result: EventRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             INSERT INTO events (team_id, training_type_id, event_type, title, description,
                                 start_at, end_at, location, created_by, series_id,
                                 discord_target_channel_id, owner_group_id, member_group_id)
@@ -160,10 +160,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private update = SqlSchema.findOne({
+  const update = SqlSchema.findOne({
     Request: EventUpdateInput,
     Result: EventRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             UPDATE events SET
               title = ${input.title},
               event_type = ${input.event_type},
@@ -184,13 +184,13 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private cancel = SqlSchema.void({
+  const cancel = SqlSchema.void({
     Request: Event.EventId,
     execute: (id) =>
-      this.sql`UPDATE events SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
+      sql`UPDATE events SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
   });
 
-  private start = SqlSchema.findOne({
+  const start = SqlSchema.findOne({
     Request: Event.EventId,
     Result: Schema.Struct({ id: Event.EventId }),
     execute: (id) =>
@@ -198,7 +198,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         .sql`UPDATE events SET status = 'started', updated_at = now() WHERE id = ${id} AND status = 'active' RETURNING id`,
   });
 
-  private findStartable = SqlSchema.findAll({
+  const findStartable = SqlSchema.findAll({
     Request: Schema.Void,
     Result: Schema.Struct({
       id: Event.EventId,
@@ -210,7 +210,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       location: Schema.OptionFromNullOr(Schema.String),
       event_type: Schema.String,
     }),
-    execute: () => this.sql`
+    execute: () => sql`
       SELECT id, team_id, title, description, start_at, end_at, location, event_type
       FROM events
       WHERE status = 'active'
@@ -218,10 +218,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     `,
   });
 
-  private findScopedTrainingTypeIds = SqlSchema.findAll({
+  const findScopedTrainingTypeIds = SqlSchema.findAll({
     Request: TeamMember.TeamMemberId,
     Result: ScopedTrainingTypeId,
-    execute: (teamMemberId) => this.sql`
+    execute: (teamMemberId) => sql`
             SELECT DISTINCT rtt.training_type_id FROM (
               SELECT rtt.training_type_id
               FROM member_roles mr
@@ -245,7 +245,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private saveDiscordMessage = SqlSchema.void({
+  const saveDiscordMessage = SqlSchema.void({
     Request: Schema.Struct({
       event_id: Event.EventId,
       discord_channel_id: Discord.Snowflake,
@@ -256,17 +256,17 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
         .sql`UPDATE events SET discord_channel_id = ${input.discord_channel_id}, discord_message_id = ${input.discord_message_id} WHERE id = ${input.event_id}`,
   });
 
-  private getDiscordMessage = SqlSchema.findOne({
+  const getDiscordMessage = SqlSchema.findOne({
     Request: Event.EventId,
     Result: Schema.Struct({
       discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
       discord_message_id: Schema.OptionFromNullOr(Discord.Snowflake),
     }),
     execute: (id) =>
-      this.sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
+      sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
   });
 
-  private findByChannelId = SqlSchema.findAll({
+  const findByChannelId = SqlSchema.findAll({
     Request: Discord.Snowflake,
     Result: Schema.Struct({
       event_id: Schema.String,
@@ -280,7 +280,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       status: Schema.String,
       discord_message_id: Discord.Snowflake,
     }),
-    execute: (channelId) => this.sql`
+    execute: (channelId) => sql`
             SELECT id AS event_id, team_id, title, description,
                    start_at, end_at, location, event_type,
                    status, discord_message_id
@@ -291,24 +291,24 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private markReminder = SqlSchema.void({
+  const markReminder = SqlSchema.void({
     Request: Event.EventId,
-    execute: (id) => this.sql`UPDATE events SET reminder_sent_at = now() WHERE id = ${id}`,
+    execute: (id) => sql`UPDATE events SET reminder_sent_at = now() WHERE id = ${id}`,
   });
 
-  private markAutoLogged = SqlSchema.void({
+  const markAutoLogged = SqlSchema.void({
     Request: Event.EventId,
-    execute: (id) => this.sql`UPDATE events SET auto_logged_at = now() WHERE id = ${id}`,
+    execute: (id) => sql`UPDATE events SET auto_logged_at = now() WHERE id = ${id}`,
   });
 
-  private findEndedTrainings = SqlSchema.findAll({
+  const findEndedTrainings = SqlSchema.findAll({
     Request: Schema.Void,
     Result: Schema.Struct({
       id: Event.EventId,
       start_at: Schemas.DateTimeFromDate,
       end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
     }),
-    execute: () => this.sql`
+    execute: () => sql`
       SELECT id, start_at, end_at
       FROM events
       WHERE event_type = 'training'
@@ -319,7 +319,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     `,
   });
 
-  private findUpcomingForDashboard = SqlSchema.findAll({
+  const findUpcomingForDashboard = SqlSchema.findAll({
     Request: Schema.Struct({
       team_id: Schema.String,
       team_member_id: Schema.String,
@@ -334,7 +334,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
       my_rsvp: Schema.OptionFromNullOr(Schema.String),
     }),
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT e.id, e.title, e.event_type, e.start_at, e.end_at,
              e.location, e.member_group_id,
              er.response AS my_rsvp
@@ -347,25 +347,25 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     `,
   });
 
-  private markModified = SqlSchema.void({
+  const markModified = SqlSchema.void({
     Request: Event.EventId,
     execute: (id) =>
-      this.sql`UPDATE events SET series_modified = true, updated_at = now() WHERE id = ${id}`,
+      sql`UPDATE events SET series_modified = true, updated_at = now() WHERE id = ${id}`,
   });
 
-  private cancelFuture = SqlSchema.void({
+  const cancelFuture = SqlSchema.void({
     Request: Schema.Struct({
       series_id: Schema.String,
       from_date: Schema.DateFromSelf,
     }),
     execute: (input) =>
-      this.sql`UPDATE events SET status = 'cancelled', updated_at = now()
+      sql`UPDATE events SET status = 'cancelled', updated_at = now()
               WHERE series_id = ${input.series_id}
                 AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date
                 AND status = 'active'`,
   });
 
-  private updateFutureUnmodified = SqlSchema.void({
+  const updateFutureUnmodified = SqlSchema.void({
     Request: Schema.Struct({
       series_id: Schema.String,
       from_date: Schema.DateFromSelf,
@@ -377,7 +377,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       location: Schema.OptionFromNullOr(Schema.String),
     }),
     execute: (input) =>
-      this.sql`UPDATE events SET
+      sql`UPDATE events SET
                 title = ${input.title},
                 training_type_id = ${input.training_type_id},
                 description = ${input.description},
@@ -391,7 +391,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
                 AND status = 'active'`,
   });
 
-  private findUpcomingByGuild = SqlSchema.findAll({
+  const findUpcomingByGuild = SqlSchema.findAll({
     Request: Schema.Struct({
       guild_id: Schema.String,
       offset: Schema.Number,
@@ -408,7 +408,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       no_count: Schema.Number,
       maybe_count: Schema.Number,
     }),
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             SELECT e.id AS event_id, e.title, e.start_at, e.end_at,
                    e.location, e.event_type,
                    COALESCE(SUM(CASE WHEN er.response = 'yes' THEN 1 ELSE 0 END), 0)::int AS yes_count,
@@ -425,7 +425,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private findByUserId = SqlSchema.findAll({
+  const findByUserId = SqlSchema.findAll({
     Request: Schema.String,
     Result: Schema.Struct({
       id: Schema.String,
@@ -439,7 +439,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       team_name: Schema.String,
       rsvp_response: Schema.String,
     }),
-    execute: (userId) => this.sql`
+    execute: (userId) => sql`
             SELECT e.id, e.title, e.description, e.start_at, e.end_at,
                    e.location, e.status, e.event_type, t.name AS team_name,
                    er.response AS rsvp_response
@@ -454,10 +454,10 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  private countUpcomingByGuild = SqlSchema.findOne({
+  const countUpcomingByGuild = SqlSchema.findOne({
     Request: Schema.String,
     Result: Schema.Struct({ count: Schema.Number }),
-    execute: (guildId) => this.sql`
+    execute: (guildId) => sql`
             SELECT COUNT(*)::int AS count
             FROM events
             WHERE team_id = (SELECT id FROM teams WHERE guild_id = ${guildId})
@@ -466,24 +466,24 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
           `,
   });
 
-  findUpcomingByGuildId = (guildId: Discord.Snowflake, offset: number, limit: number) =>
-    this.findUpcomingByGuild({ guild_id: guildId, offset, limit }).pipe(catchSqlErrors);
+  const findUpcomingByGuildId = (guildId: Discord.Snowflake, offset: number, limit: number) =>
+    findUpcomingByGuild({ guild_id: guildId, offset, limit }).pipe(catchSqlErrors);
 
-  countUpcomingByGuildId = (guildId: Discord.Snowflake) =>
-    this.countUpcomingByGuild(guildId).pipe(
+  const countUpcomingByGuildId = (guildId: Discord.Snowflake) =>
+    countUpcomingByGuild(guildId).pipe(
       Effect.map(Option.map((r) => r.count)),
       Effect.map(Option.getOrElse(() => 0)),
       catchSqlErrors,
     );
 
-  findEventsByUserId = (userId: string) => this.findByUserId(userId).pipe(catchSqlErrors);
+  const findEventsByUserId = (userId: string) => findByUserId(userId).pipe(catchSqlErrors);
 
-  findEventsByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
+  const findEventsByTeamId = (teamId: Team.TeamId) => findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findEventByIdWithDetails = (eventId: Event.EventId) =>
-    this.findByIdWithDetails(eventId).pipe(catchSqlErrors);
+  const findEventByIdWithDetails = (eventId: Event.EventId) =>
+    findByIdWithDetails(eventId).pipe(catchSqlErrors);
 
-  insertEvent = ({
+  const insertEvent = ({
     teamId,
     trainingTypeId,
     eventType,
@@ -512,7 +512,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     ownerGroupId?: Option.Option<string>;
     memberGroupId?: Option.Option<string>;
   }) =>
-    this.insert({
+    insert({
       team_id: teamId,
       training_type_id: trainingTypeId,
       event_type: eventType,
@@ -528,7 +528,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       member_group_id: memberGroupId,
     }).pipe(catchSqlErrors);
 
-  updateEvent = ({
+  const updateEvent = ({
     id,
     title,
     eventType,
@@ -553,7 +553,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
     ownerGroupId?: Option.Option<string>;
     memberGroupId?: Option.Option<string>;
   }) =>
-    this.update({
+    update({
       id,
       title,
       event_type: eventType,
@@ -567,51 +567,51 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       member_group_id: memberGroupId,
     }).pipe(catchSqlErrors);
 
-  cancelEvent = (eventId: Event.EventId) => this.cancel(eventId).pipe(catchSqlErrors);
+  const cancelEvent = (eventId: Event.EventId) => cancel(eventId).pipe(catchSqlErrors);
 
-  startEvent = (eventId: Event.EventId) => this.start(eventId).pipe(catchSqlErrors);
+  const startEvent = (eventId: Event.EventId) => start(eventId).pipe(catchSqlErrors);
 
-  findEventsToStart = () => this.findStartable(undefined).pipe(catchSqlErrors);
+  const findEventsToStart = () => findStartable(undefined).pipe(catchSqlErrors);
 
-  getScopedTrainingTypeIds = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findScopedTrainingTypeIds(teamMemberId).pipe(catchSqlErrors);
+  const getScopedTrainingTypeIds = (teamMemberId: TeamMember.TeamMemberId) =>
+    findScopedTrainingTypeIds(teamMemberId).pipe(catchSqlErrors);
 
-  saveDiscordMessageId = (
+  const saveDiscordMessageId = (
     eventId: Event.EventId,
     channelId: Discord.Snowflake,
     messageId: Discord.Snowflake,
   ) =>
-    this.saveDiscordMessage({
+    saveDiscordMessage({
       event_id: eventId,
       discord_channel_id: channelId,
       discord_message_id: messageId,
     }).pipe(catchSqlErrors);
 
-  getDiscordMessageId = (eventId: Event.EventId) =>
-    this.getDiscordMessage(eventId).pipe(catchSqlErrors);
+  const getDiscordMessageId = (eventId: Event.EventId) =>
+    getDiscordMessage(eventId).pipe(catchSqlErrors);
 
-  findEventsByChannelId = (channelId: Discord.Snowflake) =>
-    this.findByChannelId(channelId).pipe(catchSqlErrors);
+  const findEventsByChannelId = (channelId: Discord.Snowflake) =>
+    findByChannelId(channelId).pipe(catchSqlErrors);
 
-  markReminderSent = (eventId: Event.EventId) => this.markReminder(eventId).pipe(catchSqlErrors);
+  const markReminderSent = (eventId: Event.EventId) => markReminder(eventId).pipe(catchSqlErrors);
 
-  markTrainingAutoLogged = (eventId: Event.EventId) =>
-    this.markAutoLogged(eventId).pipe(catchSqlErrors);
+  const markTrainingAutoLogged = (eventId: Event.EventId) =>
+    markAutoLogged(eventId).pipe(catchSqlErrors);
 
-  findEndedTrainingsForAutoLog = () => this.findEndedTrainings(undefined).pipe(catchSqlErrors);
+  const findEndedTrainingsForAutoLog = () => findEndedTrainings(undefined).pipe(catchSqlErrors);
 
-  markEventSeriesModified = (eventId: Event.EventId) =>
-    this.markModified(eventId).pipe(catchSqlErrors);
+  const markEventSeriesModified = (eventId: Event.EventId) =>
+    markModified(eventId).pipe(catchSqlErrors);
 
-  cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: Date) =>
-    this.cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(catchSqlErrors);
+  const cancelFutureInSeries = (seriesId: EventSeries.EventSeriesId, fromDate: Date) =>
+    cancelFuture({ series_id: seriesId, from_date: fromDate }).pipe(catchSqlErrors);
 
-  findUpcomingWithRsvp = (teamId: Team.TeamId, teamMemberId: TeamMember.TeamMemberId) =>
-    this.findUpcomingForDashboard({ team_id: teamId, team_member_id: teamMemberId }).pipe(
+  const findUpcomingWithRsvp = (teamId: Team.TeamId, teamMemberId: TeamMember.TeamMemberId) =>
+    findUpcomingForDashboard({ team_id: teamId, team_member_id: teamMemberId }).pipe(
       catchSqlErrors,
     );
 
-  updateFutureUnmodifiedInSeries = (
+  const updateFutureUnmodifiedInSeries = (
     seriesId: EventSeries.EventSeriesId,
     fromDate: Date,
     fields: {
@@ -623,7 +623,7 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       location: Option.Option<string>;
     },
   ) =>
-    this.updateFutureUnmodified({
+    updateFutureUnmodified({
       series_id: seriesId,
       from_date: fromDate,
       title: fields.title,
@@ -633,4 +633,35 @@ export class EventsRepository extends Effect.Service<EventsRepository>()('api/Ev
       end_time: fields.endTime,
       location: fields.location,
     }).pipe(catchSqlErrors);
+
+  return {
+    findUpcomingByGuildId,
+    countUpcomingByGuildId,
+    findEventsByUserId,
+    findEventsByTeamId,
+    findEventByIdWithDetails,
+    insertEvent,
+    updateEvent,
+    cancelEvent,
+    startEvent,
+    findEventsToStart,
+    getScopedTrainingTypeIds,
+    saveDiscordMessageId,
+    getDiscordMessageId,
+    findEventsByChannelId,
+    markReminderSent,
+    markTrainingAutoLogged,
+    findEndedTrainingsForAutoLog,
+    markEventSeriesModified,
+    cancelFutureInSeries,
+    findUpcomingWithRsvp,
+    updateFutureUnmodifiedInSeries,
+  };
+});
+
+export class EventsRepository extends ServiceMap.Service<
+  EventsRepository,
+  Effect.Success<typeof make>
+>()('api/EventsRepository') {
+  static readonly Default = Layer.effect(EventsRepository, make);
 }

@@ -83,17 +83,17 @@ const buildRsvpDetail = (
 
 export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('rsvps', () => EventRsvpsRepository),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository),
-    Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.bind('groups', () => GroupsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
+    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
+    Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.map(({ members, events, rsvps, syncEvents, teamSettings, groups }) =>
       handlers
         .handle('getRsvps', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -130,7 +130,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
         )
         .handle('submitRsvp', ({ path: { teamId, eventId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -188,7 +188,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
         )
         .handle('getNonResponders', ({ path: { teamId, eventId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

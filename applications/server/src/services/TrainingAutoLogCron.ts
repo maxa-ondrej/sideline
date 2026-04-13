@@ -10,10 +10,10 @@ const isUniqueViolation = (defect: unknown): boolean =>
   defect instanceof Error && /duplicate key|unique constraint/i.test(defect.message);
 
 export const trainingAutoLogCronEffect = Effect.Do.pipe(
-  Effect.bind('eventsRepo', () => EventsRepository),
-  Effect.bind('rsvpsRepo', () => EventRsvpsRepository),
-  Effect.bind('activityLogs', () => ActivityLogsRepository),
-  Effect.bind('activityTypes', () => ActivityTypesRepository),
+  Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
+  Effect.bind('rsvpsRepo', () => EventRsvpsRepository.asEffect()),
+  Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+  Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('TrainingAutoLogCron: starting cycle')),
   Effect.bind('trainingTypeId', ({ activityTypes }) =>
     activityTypes.findBySlug('training').pipe(

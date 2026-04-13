@@ -50,7 +50,7 @@ export const listHandler = Interaction.pipe(
 
     const work = Effect.Do.pipe(
       Effect.bind('rpc', () => SyncRpc),
-      Effect.bind('rest', () => DiscordREST),
+      Effect.bind('rest', () => DiscordREST.asEffect()),
       Effect.flatMap(({ rpc, rest }) =>
         rpc['Event/GetUpcomingEventsForUser']({
           guild_id: snowflakeGuildId,

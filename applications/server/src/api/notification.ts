@@ -8,12 +8,12 @@ const forbidden = new NotificationApi.Forbidden();
 
 export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('notifications', () => NotificationsRepository),
+    Effect.bind('notifications', () => NotificationsRepository.asEffect()),
     Effect.map(({ notifications }) =>
       handlers
         .handle('listNotifications', ({ urlParams }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('list', ({ currentUser }) =>
               notifications.findByUserAndTeam(currentUser.id, urlParams.teamId),
             ),
@@ -36,7 +36,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
         )
         .handle('markAsRead', ({ path: { notificationId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('notification', () =>
               notifications.findById(notificationId).pipe(
                 Effect.flatMap(
@@ -56,7 +56,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
         )
         .handle('markAllAsRead', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>
               notifications.markAllAsReadForTeam(currentUser.id, payload.teamId),
             ),

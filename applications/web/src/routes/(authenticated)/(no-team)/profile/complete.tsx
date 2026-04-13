@@ -40,7 +40,7 @@ function ProfileCompleteRoute() {
       }
       return;
     }
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.auth.autoJoinTeams()),
       Effect.catchAll(() => new SilentClientError({ message: '' })),
       run(),

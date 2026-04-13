@@ -13,7 +13,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/')(
   component: MembersRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
       warnAndCatchAll,
       context.run,
@@ -38,7 +38,7 @@ function MembersRoute() {
     async (memberIdRaw: string) => {
       if (!window.confirm(m.members_deactivateConfirm())) return;
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.roster.deactivateMember({ path: { teamId, memberId } })),
         Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
         run({ success: m.members_deactivated() }),

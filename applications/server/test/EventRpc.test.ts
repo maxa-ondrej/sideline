@@ -228,8 +228,8 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
     // This test verifies the server logic: guild_id -> team_id -> training types
     // The handler queries TeamsRepository.findByGuildId then TrainingTypesRepository.findTrainingTypesByTeamId
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ teams, trainingTypes }) =>
         Effect.Do.pipe(
           Effect.bind('team', () => teams.findByGuildId(TEST_GUILD_ID)),
@@ -258,8 +258,8 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
     const unknownGuildId = '000000000000000001' as Discord.Snowflake;
 
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ teams, trainingTypes }) =>
         Effect.Do.pipe(
           Effect.bind('team', () => teams.findByGuildId(unknownGuildId)),
@@ -287,8 +287,8 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
     trainingTypesStore.clear();
 
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ teams, trainingTypes }) =>
         Effect.Do.pipe(
           Effect.bind('team', () => teams.findByGuildId(TEST_GUILD_ID)),
@@ -321,7 +321,7 @@ describe('CreateEvent RPC with training_type_id', () => {
 
     // Simulate the updated createEvent handler behavior
     return Effect.Do.pipe(
-      Effect.bind('events', () => EventsRepository),
+      Effect.bind('events', () => EventsRepository.asEffect()),
       Effect.flatMap(({ events }) =>
         events.insertEvent({
           teamId: TEST_TEAM_ID,
@@ -348,7 +348,7 @@ describe('CreateEvent RPC with training_type_id', () => {
   it.effect('passes Option.none() for training_type_id when not provided (backward compat)', () => {
     // The updated CreateEvent should be backward-compatible when training_type_id is absent.
     return Effect.Do.pipe(
-      Effect.bind('events', () => EventsRepository),
+      Effect.bind('events', () => EventsRepository.asEffect()),
       Effect.flatMap(({ events }) =>
         events.insertEvent({
           teamId: TEST_TEAM_ID,
@@ -393,7 +393,7 @@ describe('CreateEvent RPC with training_type_id', () => {
 
     // The validation logic: fetch training type and check team_id matches
     return Effect.Do.pipe(
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ trainingTypes }) =>
         trainingTypes.findTrainingTypeById(foreignTrainingTypeId).pipe(
           Effect.flatMap(

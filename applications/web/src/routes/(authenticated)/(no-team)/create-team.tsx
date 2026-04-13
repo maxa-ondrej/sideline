@@ -26,7 +26,7 @@ function CreateTeamRoute() {
 
   const fetchGuilds = React.useCallback(async () => {
     setLoadingGuilds(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.auth.myGuilds()),
       Effect.catchAll(() => Effect.succeed([] as readonly Auth.DiscordGuild[])),
       run(),
@@ -43,7 +43,7 @@ function CreateTeamRoute() {
 
   const handleCreateTeam = React.useCallback(
     async (name: string, guildId: string) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.auth.createTeam({
             payload: { name, guildId: guildId as Auth.CreateTeamRequest['guildId'] },

@@ -14,7 +14,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/')({
   },
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.dashboard.getDashboard({ path: { teamId } })),
       warnAndCatchAll,
       context.run,

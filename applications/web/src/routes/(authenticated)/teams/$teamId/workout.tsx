@@ -13,7 +13,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const userId = context.user?.id;
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
           leaderboard: api.leaderboard.getLeaderboard({
@@ -90,7 +90,7 @@ function MakanickoRoute() {
       note: Option.Option<string>;
     }) => {
       if (!memberId) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.createLog({
             path: { teamId, memberId },
@@ -121,7 +121,7 @@ function MakanickoRoute() {
       },
     ) => {
       if (!memberId) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.updateLog({
             path: { teamId, memberId, logId },
@@ -145,7 +145,7 @@ function MakanickoRoute() {
   const handleDeleteLog = React.useCallback(
     async (logId: ActivityLog.ActivityLogId) => {
       if (!memberId) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.deleteLog({
             path: { teamId, memberId, logId },

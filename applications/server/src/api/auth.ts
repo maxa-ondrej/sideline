@@ -39,9 +39,9 @@ class AuthError extends Schema.TaggedErrorClass<AuthError>()('AuthError', {
     );
 }
 
-const CustomClient = HttpClient.HttpClient.pipe(
+const CustomClient = HttpClient.HttpClient.asEffect().pipe(
   Effect.bindTo('client'),
-  Effect.bind('config', () => DiscordConfig.DiscordConfig),
+  Effect.bind('config', () => DiscordConfig.DiscordConfig.asEffect()),
   Effect.map(({ client, config }) =>
     client.pipe(
       HttpClient.mapRequest(HttpClientRequest.bearerToken(config.token)),
@@ -86,7 +86,7 @@ const handleDiscordLogin = ({
       }),
     ),
     Effect.bind('client', ({ DiscordConfigLive }) =>
-      DiscordREST.pipe(
+      DiscordREST.asEffect().pipe(
         Effect.provide(
           DiscordRESTLive.pipe(
             Layer.provideMerge(CustomClient),
@@ -167,7 +167,7 @@ const MANAGE_GUILD = 0x20n;
 const ADMINISTRATOR = 0x8n;
 
 const makeUserDiscordClient = (accessToken: string) =>
-  DiscordREST.pipe(
+  DiscordREST.asEffect().pipe(
     Effect.provide(
       DiscordRESTLive.pipe(
         Layer.provideMerge(CustomClient),
@@ -183,14 +183,14 @@ const makeUserDiscordClient = (accessToken: string) =>
 
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('discord', () => DiscordOAuth),
-    Effect.bind('users', () => UsersRepository),
-    Effect.bind('sessions', () => SessionsRepository),
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('roles', () => RolesRepository),
-    Effect.bind('botGuilds', () => BotGuildsRepository),
-    Effect.bind('oauthConnections', () => OAuthConnectionsRepository),
+    Effect.bind('discord', () => DiscordOAuth.asEffect()),
+    Effect.bind('users', () => UsersRepository.asEffect()),
+    Effect.bind('sessions', () => SessionsRepository.asEffect()),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('roles', () => RolesRepository.asEffect()),
+    Effect.bind('botGuilds', () => BotGuildsRepository.asEffect()),
+    Effect.bind('oauthConnections', () => OAuthConnectionsRepository.asEffect()),
     Effect.map(({ discord, users, sessions, members, teams, roles, botGuilds, oauthConnections }) =>
       handlers
         .handle('getLogin', () =>
@@ -257,7 +257,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         .handle('me', () => Auth.CurrentUserContext)
         .handle('updateLocale', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('updated', ({ currentUser }) =>
               users.updateLocale({
                 id: currentUser.id,
@@ -287,7 +287,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('updateProfile', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('updated', ({ currentUser }) =>
               users.updateAdminProfile({
                 id: currentUser.id,
@@ -319,7 +319,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('completeProfile', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('updated', ({ currentUser }) =>
               users.completeProfile({
                 id: currentUser.id,
@@ -351,7 +351,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('myTeams', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('memberships', ({ currentUser }) => members.findByUser(currentUser.id)),
             Effect.flatMap(
               flow(
@@ -383,7 +383,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('myGuilds', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('accessToken', ({ currentUser }) =>
               oauthConnections.getAccessToken(currentUser.id, 'discord').pipe(
                 Effect.flatMap(
@@ -431,7 +431,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('createTeam', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('team', ({ currentUser }) =>
               teams.insert({
                 name: payload.name,
@@ -539,7 +539,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             );
 
           return Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.flatMap(({ currentUser }) =>
               !currentUser.isProfileComplete
                 ? Effect.succeed(emptyTeams)

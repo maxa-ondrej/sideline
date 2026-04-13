@@ -13,7 +13,7 @@ export const Route = createFileRoute(
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const trainingTypeId = Schema.decodeSync(TrainingType.TrainingTypeId)(params.trainingTypeId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
           trainingType: api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),

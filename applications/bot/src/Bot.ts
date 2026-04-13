@@ -17,9 +17,9 @@ const ixProgram = Effect.succeed(commandBuilder).pipe(
 
 export const program = Effect.Do.pipe(
   Effect.bind('events', () => eventHandlers),
-  Effect.bind('roles', () => RoleSyncService),
-  Effect.bind('channels', () => ChannelSyncService),
-  Effect.bind('eventSync', () => EventSyncService),
+  Effect.bind('roles', () => RoleSyncService.asEffect()),
+  Effect.bind('channels', () => ChannelSyncService.asEffect()),
+  Effect.bind('eventSync', () => EventSyncService.asEffect()),
   Effect.tap(() => Effect.logInfo('Bot connected to Discord')),
   Effect.andThen(({ events, roles, channels, eventSync }) =>
     Effect.all(

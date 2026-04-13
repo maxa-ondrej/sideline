@@ -159,7 +159,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
       selectedParentId === '__root__'
         ? Option.none()
         : Option.some(Schema.decodeSync(GroupModel.GroupId)(selectedParentId));
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.createGroup({
           path: { teamId: teamIdBranded },

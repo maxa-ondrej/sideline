@@ -20,7 +20,7 @@ const action = Match.type<RoleRpcEvents.UnprocessedRoleEvent>().pipe(
 
 const processEvent = Effect.Do.pipe(
   Effect.bind('rpc', () => SyncRpc),
-  Effect.bind('discord', () => DiscordREST),
+  Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.map(
     ({ rpc, discord }) =>
       (event: RoleRpcEvents.UnprocessedRoleEvent) =>
@@ -63,7 +63,7 @@ const processEvent = Effect.Do.pipe(
 
 export const ProcessorService = Effect.Do.pipe(
   Effect.bind('rpc', () => SyncRpc),
-  Effect.bind('discord', () => DiscordREST),
+  Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.bind('processEvent', ({ rpc, discord }) =>
     processEvent.pipe(
       Effect.provideService(SyncRpc, rpc),

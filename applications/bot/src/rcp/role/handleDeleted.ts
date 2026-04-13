@@ -7,7 +7,7 @@ import { retryPolicy } from '~/rest/utils.js';
 export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Role/GetMapping']({
         team_id: event.team_id,

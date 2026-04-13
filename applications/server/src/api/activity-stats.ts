@@ -8,12 +8,12 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export const ActivityStatsApiLive = HttpApiBuilder.group(Api, 'activityStats', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.map(({ members, activityLogs }) =>
       handlers.handle('getMemberStats', ({ path: { teamId, memberId } }) =>
         Effect.Do.pipe(
-          Effect.bind('currentUser', () => Auth.CurrentUserContext),
+          Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
           Effect.bind('membership', ({ currentUser }) =>
             requireMembership(members, teamId, currentUser.id, new ActivityStatsApi.Forbidden()),
           ),

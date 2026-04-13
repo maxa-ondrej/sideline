@@ -42,7 +42,7 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
   });
 
   const onSubmit = async (values: CreateRoleValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.role.createRole({
           path: { teamId: teamIdBranded },

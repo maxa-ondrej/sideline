@@ -7,9 +7,9 @@ import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
 export const eventHorizonCronEffect = Effect.Do.pipe(
-  Effect.bind('seriesRepo', () => EventSeriesRepository),
-  Effect.bind('eventsRepo', () => EventsRepository),
-  Effect.bind('syncEvents', () => EventSyncEventsRepository),
+  Effect.bind('seriesRepo', () => EventSeriesRepository.asEffect()),
+  Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
+  Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('EventHorizonCron: starting generation cycle')),
   Effect.bind('allSeries', ({ seriesRepo }) => seriesRepo.getActiveForGeneration()),
   Effect.tap(({ allSeries, seriesRepo, eventsRepo, syncEvents }) =>

@@ -34,9 +34,9 @@ export const resolveChannel = (
   | DiscordChannelMappingRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('trainingTypes', () => TrainingTypesRepository),
-    Effect.bind('settings', () => TeamSettingsRepository),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
+    Effect.bind('settings', () => TeamSettingsRepository.asEffect()),
     Effect.bind('event', ({ events }) => events.findEventByIdWithDetails(eventId)),
     Effect.flatMap(({ event, trainingTypes, settings }) =>
       Option.match(event, {
@@ -85,7 +85,7 @@ export const resolveOwnerGroupChannel = (
   Option.match(ownerGroupId, {
     onNone: () => Effect.succeed(Option.none()),
     onSome: (groupId) =>
-      DiscordChannelMappingRepository.pipe(
+      DiscordChannelMappingRepository.asEffect().pipe(
         Effect.flatMap((mappings) => mappings.findByGroupId(teamId, groupId)),
         Effect.map((opt) => Option.map(opt, (m) => m.discord_channel_id)),
       ),

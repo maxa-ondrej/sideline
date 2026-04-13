@@ -14,7 +14,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(params.memberId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
           player: api.roster.getMember({ path: { teamId, memberId } }),
@@ -70,7 +70,7 @@ function MemberDetailRoute() {
 
   const handleSave = React.useCallback(
     async (values: PlayerEditValues) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.roster.updateMember({
             path: { teamId, memberId },
@@ -94,7 +94,7 @@ function MemberDetailRoute() {
 
   const handleAssignRole = React.useCallback(
     async (roleId: string) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.role.assignRole({
             path: { teamId, memberId },
@@ -113,7 +113,7 @@ function MemberDetailRoute() {
 
   const handleUnassignRole = React.useCallback(
     async (roleId: string) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.role.unassignRole({
             path: { teamId, memberId, roleId: roleId as Role.RoleId },
@@ -135,7 +135,7 @@ function MemberDetailRoute() {
       durationMinutes: Option.Option<number>;
       note: Option.Option<string>;
     }) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.createLog({
             path: { teamId, memberId },
@@ -165,7 +165,7 @@ function MemberDetailRoute() {
         note: Option.Option<Option.Option<string>>;
       },
     ) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.updateLog({
             path: { teamId, memberId, logId },
@@ -188,7 +188,7 @@ function MemberDetailRoute() {
 
   const handleDeleteLog = React.useCallback(
     async (logId: ActivityLog.ActivityLogId) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.deleteLog({
             path: { teamId, memberId, logId },

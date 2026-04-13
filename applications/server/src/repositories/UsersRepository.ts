@@ -1,6 +1,5 @@
 import { User } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
-import { Model } from 'effect/unstable/schema';
+import { Effect, Layer, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -15,33 +14,24 @@ const CompleteProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_dat
 
 const AdminUpdateProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
 
-export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
-  effect: SqlClient.SqlClient.pipe(
-    Effect.bindTo('sql'),
-    Effect.bind('repo', () =>
-      Model.makeRepository(User.User, {
-        tableName: 'users',
-        spanPrefix: 'UsersRepository',
-        idColumn: 'id',
-      }),
-    ),
-  ),
-}) {
-  private findByDiscordIdQuery = SqlSchema.findOne({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByDiscordIdQuery = SqlSchema.findOne({
     Request: Schema.String,
     Result: User.User,
-    execute: (discordId) => this.sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
+    execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
   });
 
-  findByDiscordId = (discordId: string) =>
-    this.findByDiscordIdQuery(discordId).pipe(catchSqlErrors);
+  const findByDiscordId = (discordId: string) =>
+    findByDiscordIdQuery(discordId).pipe(catchSqlErrors);
 
-  findById = (id: User.UserId) => this.repo.findById(id);
+  const findById = (id: User.UserId) => repo.findById(id);
 
-  private upsertFromDiscordQuery = SqlSchema.findOne({
+  const upsertFromDiscordQuery = SqlSchema.findOne({
     Request: UpsertDiscordInput,
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO users (discord_id, username, avatar, discord_nickname)
       VALUES (${input.discord_id}, ${input.username}, ${input.avatar}, ${input.discord_nickname})
       ON CONFLICT (discord_id) DO UPDATE SET
@@ -53,13 +43,13 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  upsertFromDiscord = (input: UpsertDiscordInput) =>
-    this.upsertFromDiscordQuery(input).pipe(catchSqlErrors);
+  const upsertFromDiscord = (input: UpsertDiscordInput) =>
+    upsertFromDiscordQuery(input).pipe(catchSqlErrors);
 
-  private completeProfileQuery = SqlSchema.findOne({
+  const completeProfileQuery = SqlSchema.findOne({
     Request: CompleteProfileInput,
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE users SET
         name = ${input.name},
         birth_date = ${input.birth_date},
@@ -71,13 +61,13 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  completeProfile = (input: Schema.Schema.Type<typeof CompleteProfileInput>) =>
-    this.completeProfileQuery(input).pipe(catchSqlErrors);
+  const completeProfile = (input: Schema.Schema.Type<typeof CompleteProfileInput>) =>
+    completeProfileQuery(input).pipe(catchSqlErrors);
 
-  private updateLocaleQuery = SqlSchema.findOne({
+  const updateLocaleQuery = SqlSchema.findOne({
     Request: Schema.Struct({ id: User.UserId, locale: User.Locale }),
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE users SET
         locale = ${input.locale},
         updated_at = now()
@@ -86,13 +76,13 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  updateLocale = (input: { readonly id: User.UserId; readonly locale: User.Locale }) =>
-    this.updateLocaleQuery(input).pipe(catchSqlErrors);
+  const updateLocale = (input: { readonly id: User.UserId; readonly locale: User.Locale }) =>
+    updateLocaleQuery(input).pipe(catchSqlErrors);
 
-  private updateAdminProfileQuery = SqlSchema.findOne({
+  const updateAdminProfileQuery = SqlSchema.findOne({
     Request: AdminUpdateProfileInput,
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE users SET
         name = ${input.name},
         birth_date = ${input.birth_date},
@@ -103,6 +93,22 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  updateAdminProfile = (input: Schema.Schema.Type<typeof AdminUpdateProfileInput>) =>
-    this.updateAdminProfileQuery(input).pipe(catchSqlErrors);
+  const updateAdminProfile = (input: Schema.Schema.Type<typeof AdminUpdateProfileInput>) =>
+    updateAdminProfileQuery(input).pipe(catchSqlErrors);
+
+  return {
+    findByDiscordId,
+    findById,
+    upsertFromDiscord,
+    completeProfile,
+    updateLocale,
+    updateAdminProfile,
+  };
+});
+
+export class UsersRepository extends ServiceMap.Service<
+  UsersRepository,
+  Effect.Success<typeof make>
+>()('api/UsersRepository') {
+  static readonly Default = Layer.effect(UsersRepository, make);
 }

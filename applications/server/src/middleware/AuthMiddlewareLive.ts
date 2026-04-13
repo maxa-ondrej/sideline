@@ -7,8 +7,8 @@ import { UsersRepository } from '~/repositories/UsersRepository.js';
 export const AuthMiddlewareLive = Layer.effect(
   Auth.AuthMiddleware,
   Effect.Do.pipe(
-    Effect.bind('sessions', () => SessionsRepository),
-    Effect.bind('users', () => UsersRepository),
+    Effect.bind('sessions', () => SessionsRepository.asEffect()),
+    Effect.bind('users', () => UsersRepository.asEffect()),
     Effect.map(({ sessions, users }) => ({
       token: (token: RedactedType.Redacted<string>) =>
         sessions.findByToken(Redacted.value(token)).pipe(

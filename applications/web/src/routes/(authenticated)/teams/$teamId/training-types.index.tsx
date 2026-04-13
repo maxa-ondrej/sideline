@@ -9,7 +9,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/training-ty
   component: TrainingTypesRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.listTrainingTypes({ path: { teamId } }).pipe(
           Effect.flatMap((trainingTypesData) =>

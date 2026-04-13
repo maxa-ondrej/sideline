@@ -59,7 +59,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
   });
 
   const onSubmit = async (values: CreateThresholdValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.createAgeThreshold({
           path: { teamId: teamIdBranded },
@@ -79,7 +79,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
     async (ruleIdRaw: string) => {
       if (!window.confirm(m.ageThreshold_deleteConfirm())) return;
       const ruleId = Schema.decodeSync(AgeThresholdRule.AgeThresholdRuleId)(ruleIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.ageThreshold.deleteAgeThreshold({
             path: { teamId: teamIdBranded, ruleId },
@@ -97,7 +97,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
 
   const handleEvaluate = React.useCallback(async () => {
     setEvaluating(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.evaluateAgeThresholds({
           path: { teamId: teamIdBranded },
