@@ -21,7 +21,7 @@ import {
 import { HttpApi } from 'effect/unstable/httpapi';
 import { env } from '~/env.js';
 
-export class Api extends HttpApi.make('api')
+export const Api = HttpApi.make('api')
   .add(ActivityLogApi.ActivityLogApiGroup)
   .add(ActivityStatsApi.ActivityStatsApiGroup)
   .add(LeaderboardApi.LeaderboardApiGroup)
@@ -42,4 +42,4 @@ export class Api extends HttpApi.make('api')
   .add(TrainingTypeApi.TrainingTypeApiGroup)
   .pipe((api) =>
     env.API_PREFIX.startsWith('/') ? api.prefix(env.API_PREFIX as '/${string}') : api,
-  ) {}
+  );
