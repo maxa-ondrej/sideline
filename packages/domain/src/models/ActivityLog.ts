@@ -6,7 +6,7 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 export const ActivityLogId = Schema.String.pipe(Schema.brand('ActivityLogId'));
 export type ActivityLogId = typeof ActivityLogId.Type;
 
-export const ActivitySource = Schema.Literal('manual', 'auto');
+export const ActivitySource = Schema.Literals(['manual', 'auto']);
 export type ActivitySource = typeof ActivitySource.Type;
 
 export class ActivityLog extends Model.Class<ActivityLog>('ActivityLog')({

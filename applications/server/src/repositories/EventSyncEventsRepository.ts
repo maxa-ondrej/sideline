@@ -4,13 +4,13 @@ import { type DateTime, Effect, Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-const EventSyncEventType = Schema.Literal(
+const EventSyncEventType = Schema.Literals([
   'event_created',
   'event_updated',
   'event_cancelled',
   'rsvp_reminder',
   'event_started',
-);
+]);
 type EventSyncEventType = typeof EventSyncEventType.Type;
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({

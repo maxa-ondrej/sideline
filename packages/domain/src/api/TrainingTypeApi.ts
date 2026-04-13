@@ -51,19 +51,19 @@ export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRe
   discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
 }) {}
 
-export class TrainingTypeNotFound extends Schema.TaggedError<TrainingTypeNotFound>()(
+export class TrainingTypeNotFound extends Schema.TaggedErrorClass<TrainingTypeNotFound>()(
   'TrainingTypeNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'TrainingTypeForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class TrainingTypeNameAlreadyTaken extends Schema.TaggedError<TrainingTypeNameAlreadyTaken>()(
+export class TrainingTypeNameAlreadyTaken extends Schema.TaggedErrorClass<TrainingTypeNameAlreadyTaken>()(
   'TrainingTypeNameAlreadyTaken',
   {},
   HttpApiSchema.annotations({ status: 409 }),

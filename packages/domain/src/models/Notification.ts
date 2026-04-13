@@ -6,12 +6,12 @@ import { UserId } from '~/models/User.js';
 export const NotificationId = Schema.String.pipe(Schema.brand('NotificationId'));
 export type NotificationId = typeof NotificationId.Type;
 
-export const NotificationType = Schema.Literal(
+export const NotificationType = Schema.Literals([
   'age_group_added',
   'age_group_removed',
   'role_assigned',
   'role_removed',
-);
+]);
 export type NotificationType = typeof NotificationType.Type;
 
 export class Notification extends Model.Class<Notification>('Notification')({

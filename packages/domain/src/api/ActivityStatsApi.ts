@@ -20,13 +20,13 @@ export class ActivityStatsResponse extends Schema.Class<ActivityStatsResponse>(
   ),
 }) {}
 
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'ActivityStatsMemberNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'ActivityStatsForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),

@@ -11,7 +11,7 @@ import { Effect, type Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class AgeThresholdAlreadyExistsError extends Schema.TaggedError<AgeThresholdAlreadyExistsError>()(
+export class AgeThresholdAlreadyExistsError extends Schema.TaggedErrorClass<AgeThresholdAlreadyExistsError>()(
   'AgeThresholdAlreadyExistsError',
   {},
 ) {}

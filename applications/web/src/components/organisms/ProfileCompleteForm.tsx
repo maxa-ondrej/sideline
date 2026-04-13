@@ -39,7 +39,7 @@ const ProfileFormSchema = Schema.Struct({
       return true;
     }),
   ),
-  gender: Schema.Literal('male', 'female', 'other').annotations({
+  gender: Schema.Literals(['male', 'female', 'other']).annotations({
     message: () => m.validation_invalidOption(),
   }),
 });

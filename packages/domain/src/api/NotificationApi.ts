@@ -14,13 +14,13 @@ export class NotificationInfo extends Schema.Class<NotificationInfo>('Notificati
   createdAt: Schema.String,
 }) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'NotificationForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class NotificationNotFound extends Schema.TaggedError<NotificationNotFound>()(
+export class NotificationNotFound extends Schema.TaggedErrorClass<NotificationNotFound>()(
   'NotificationNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),

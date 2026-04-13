@@ -1,7 +1,7 @@
 import { Array, DateTime, flow, LogLevel, Option, Schema, String } from 'effect';
 
 export const NodeEnv = Schema.OptionFromNullishOr(Schema.String, null).pipe(
-  Schema.transform(Schema.Literal('production', 'development'), {
+  Schema.transform(Schema.Literals(['production', 'development']), {
     strict: true,
     decode: (raw) => (Option.contains(raw, 'production') ? 'production' : 'development'),
     encode: Option.some,
@@ -36,7 +36,7 @@ export const ArrayFromSplitString = (separator: string = ',') =>
     }),
   );
 
-const LogLevelLiteral = Schema.Literal(
+const LogLevelLiteral = Schema.Literals([
   'All',
   'Fatal',
   'Error',
@@ -45,7 +45,7 @@ const LogLevelLiteral = Schema.Literal(
   'Debug',
   'Trace',
   'None',
-);
+]);
 
 export const LogLevelFromString = Schema.transform(
   LogLevelLiteral,

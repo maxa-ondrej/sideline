@@ -10,17 +10,17 @@ import { TrainingTypeId } from '~/models/TrainingType.js';
 export const EventId = Schema.String.pipe(Schema.brand('EventId'));
 export type EventId = typeof EventId.Type;
 
-export const EventType = Schema.Literal(
+export const EventType = Schema.Literals([
   'training',
   'match',
   'tournament',
   'meeting',
   'social',
   'other',
-);
+]);
 export type EventType = typeof EventType.Type;
 
-export const EventStatus = Schema.Literal('active', 'cancelled', 'started');
+export const EventStatus = Schema.Literals(['active', 'cancelled', 'started']);
 export type EventStatus = typeof EventStatus.Type;
 
 export class Event extends Model.Class<Event>('Event')({

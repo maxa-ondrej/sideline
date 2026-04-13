@@ -44,7 +44,7 @@ const ProfileEditSchema = Schema.Struct({
     }),
   ),
   gender: Schema.Union(
-    Schema.Literal('male', 'female', 'other'),
+    Schema.Literals(['male', 'female', 'other']),
     Schema.Literal(NONE_VALUE),
   ).annotations({ message: () => m.validation_invalidOption() }),
 });

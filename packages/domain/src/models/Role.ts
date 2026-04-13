@@ -5,7 +5,7 @@ import { TeamId } from '~/models/Team.js';
 export const RoleId = Schema.String.pipe(Schema.brand('RoleId'));
 export type RoleId = typeof RoleId.Type;
 
-export const Permission = Schema.Literal(
+export const Permission = Schema.Literals([
   'team:manage',
   'team:invite',
   'roster:view',
@@ -21,7 +21,7 @@ export const Permission = Schema.Literal(
   'event:edit',
   'event:cancel',
   'group:manage',
-);
+]);
 export type Permission = typeof Permission.Type;
 
 export const allPermissions: ReadonlyArray<Permission> =

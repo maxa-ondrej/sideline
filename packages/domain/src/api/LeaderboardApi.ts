@@ -24,7 +24,7 @@ export class LeaderboardResponse extends Schema.Class<LeaderboardResponse>('Lead
   entries: Schema.Array(LeaderboardEntry),
 }) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'LeaderboardForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),

@@ -7,7 +7,7 @@ import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from 'effect/u
 import { env } from '~/env.js';
 
 const HealthResponse = Schema.Struct({
-  status: Schema.Literal('ok', 'degraded'),
+  status: Schema.Literals(['ok', 'degraded']),
   shards: Schema.Number,
 });
 

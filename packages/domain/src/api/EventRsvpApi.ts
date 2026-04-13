@@ -30,19 +30,19 @@ export class SubmitRsvpRequest extends Schema.Class<SubmitRsvpRequest>('SubmitRs
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
-export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
+export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()(
   'EventRsvpEventNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'EventRsvpForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class RsvpDeadlinePassed extends Schema.TaggedError<RsvpDeadlinePassed>()(
+export class RsvpDeadlinePassed extends Schema.TaggedErrorClass<RsvpDeadlinePassed>()(
   'RsvpDeadlinePassed',
   {},
   HttpApiSchema.annotations({ status: 400 }),

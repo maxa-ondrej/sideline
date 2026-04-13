@@ -6,10 +6,10 @@ import { Snowflake } from '~/models/Discord.js';
 export const UserId = Schema.String.pipe(Schema.brand('UserId'));
 export type UserId = typeof UserId.Type;
 
-export const Gender = Schema.Literal('male', 'female', 'other');
+export const Gender = Schema.Literals(['male', 'female', 'other']);
 export type Gender = typeof Gender.Type;
 
-export const Locale = Schema.Literal('en', 'cs');
+export const Locale = Schema.Literals(['en', 'cs']);
 export type Locale = typeof Locale.Type;
 
 export class User extends Model.Class<User>('User')({

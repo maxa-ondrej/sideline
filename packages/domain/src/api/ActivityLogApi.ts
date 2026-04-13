@@ -53,31 +53,31 @@ export class ActivityTypeListResponse extends Schema.Class<ActivityTypeListRespo
   activityTypes: Schema.Array(ActivityTypeEntry),
 }) {}
 
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'ActivityLogMemberNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'ActivityLogForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class LogNotFound extends Schema.TaggedError<LogNotFound>()(
+export class LogNotFound extends Schema.TaggedErrorClass<LogNotFound>()(
   'ActivityLogNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class MemberInactive extends Schema.TaggedError<MemberInactive>()(
+export class MemberInactive extends Schema.TaggedErrorClass<MemberInactive>()(
   'ActivityLogMemberInactive',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class AutoSourceForbidden extends Schema.TaggedError<AutoSourceForbidden>()(
+export class AutoSourceForbidden extends Schema.TaggedErrorClass<AutoSourceForbidden>()(
   'ActivityLogAutoSourceForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),

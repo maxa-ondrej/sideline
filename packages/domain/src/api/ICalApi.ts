@@ -7,7 +7,7 @@ export class ICalTokenResponse extends Schema.Class<ICalTokenResponse>('ICalToke
   url: Schema.String,
 }) {}
 
-export class ICalTokenNotFound extends Schema.TaggedError<ICalTokenNotFound>()(
+export class ICalTokenNotFound extends Schema.TaggedErrorClass<ICalTokenNotFound>()(
   'ICalTokenNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),

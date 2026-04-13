@@ -27,7 +27,7 @@ import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
-class AuthError extends Schema.TaggedError<AuthError>()('AuthError', {
+class AuthError extends Schema.TaggedErrorClass<AuthError>()('AuthError', {
   error: Schema.Literal('auth_failed'),
   reason: Schema.String,
 }) {

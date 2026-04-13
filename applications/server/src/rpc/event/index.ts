@@ -701,7 +701,7 @@ const rpcHandlers = Effect.Do.pipe(
                 yes_count: Schema.Number,
                 no_count: Schema.Number,
                 maybe_count: Schema.Number,
-                my_response: Schema.OptionFromNullOr(Schema.Literal('yes', 'no', 'maybe')),
+                my_response: Schema.OptionFromNullOr(Schema.Literals(['yes', 'no', 'maybe'])),
                 my_message: Schema.OptionFromNullOr(Schema.String),
               }),
               execute: (input) => sql`

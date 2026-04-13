@@ -95,19 +95,19 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
 }) {}
 
-export class EventSeriesNotFound extends Schema.TaggedError<EventSeriesNotFound>()(
+export class EventSeriesNotFound extends Schema.TaggedErrorClass<EventSeriesNotFound>()(
   'EventSeriesNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class EventSeriesCancelled extends Schema.TaggedError<EventSeriesCancelled>()(
+export class EventSeriesCancelled extends Schema.TaggedErrorClass<EventSeriesCancelled>()(
   'EventSeriesCancelled',
   {},
   HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
-export class EventSeriesNotActive extends Schema.TaggedError<EventSeriesNotActive>()(
+export class EventSeriesNotActive extends Schema.TaggedErrorClass<EventSeriesNotActive>()(
   'EventSeriesNotActive',
   {},
   HttpApiSchema.annotations({ status: 400 }),

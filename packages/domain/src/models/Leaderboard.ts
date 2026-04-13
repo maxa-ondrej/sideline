@@ -2,7 +2,7 @@ import { Schema } from 'effect';
 import type { TeamMemberId } from '~/models/TeamMember.js';
 import type { UserId } from '~/models/User.js';
 
-export const LeaderboardTimeframe = Schema.Literal('all', 'week');
+export const LeaderboardTimeframe = Schema.Literals(['all', 'week']);
 export type LeaderboardTimeframe = typeof LeaderboardTimeframe.Type;
 
 export interface LeaderboardEntryInput {

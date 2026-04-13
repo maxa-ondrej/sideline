@@ -4,7 +4,7 @@ import { Effect, type Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class GroupNameAlreadyTakenError extends Schema.TaggedError<GroupNameAlreadyTakenError>()(
+export class GroupNameAlreadyTakenError extends Schema.TaggedErrorClass<GroupNameAlreadyTakenError>()(
   'GroupNameAlreadyTakenError',
   {},
 ) {}

@@ -38,7 +38,7 @@ export class DashboardResponse extends Schema.Class<DashboardResponse>('Dashboar
   myMemberId: TeamMemberId,
 }) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'DashboardForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),

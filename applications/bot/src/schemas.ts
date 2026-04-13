@@ -16,7 +16,7 @@ export const DfxTextChannel = Schema.Struct({
 export const DfxSyncableChannel = Schema.Struct({
   id: Discord.Snowflake,
   name: Schema.String,
-  type: Schema.Literal(0, 4),
+  type: Schema.Literals([0, 4]),
   parent_id: Nullish(Discord.Snowflake),
 });
 

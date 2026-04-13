@@ -4,7 +4,7 @@ import { Effect, type Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class MemberAlreadyExistsError extends Schema.TaggedError<MemberAlreadyExistsError>()(
+export class MemberAlreadyExistsError extends Schema.TaggedErrorClass<MemberAlreadyExistsError>()(
   'MemberAlreadyExistsError',
   {},
 ) {}

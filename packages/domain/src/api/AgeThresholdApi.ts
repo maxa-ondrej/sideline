@@ -20,7 +20,7 @@ export class AgeGroupChange extends Schema.Class<AgeGroupChange>('AgeGroupChange
   memberName: Schema.String,
   groupId: GroupId,
   groupName: Schema.String,
-  action: Schema.Literal('added', 'removed'),
+  action: Schema.Literals(['added', 'removed']),
 }) {}
 
 export class CreateAgeThresholdRequest extends Schema.Class<CreateAgeThresholdRequest>(
@@ -38,25 +38,25 @@ export class UpdateAgeThresholdRequest extends Schema.Class<UpdateAgeThresholdRe
   maxAge: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'AgeThresholdForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class RuleNotFound extends Schema.TaggedError<RuleNotFound>()(
+export class RuleNotFound extends Schema.TaggedErrorClass<RuleNotFound>()(
   'AgeThresholdRuleNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class GroupNotFound extends Schema.TaggedError<GroupNotFound>()(
+export class GroupNotFound extends Schema.TaggedErrorClass<GroupNotFound>()(
   'AgeThresholdGroupNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class AgeThresholdAlreadyExists extends Schema.TaggedError<AgeThresholdAlreadyExists>()(
+export class AgeThresholdAlreadyExists extends Schema.TaggedErrorClass<AgeThresholdAlreadyExists>()(
   'AgeThresholdAlreadyExists',
   {},
   HttpApiSchema.annotations({ status: 409 }),

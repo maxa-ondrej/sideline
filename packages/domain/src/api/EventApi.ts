@@ -79,25 +79,25 @@ export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('Update
   memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
 }) {}
 
-export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
+export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()(
   'EventNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'EventForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class EventCancelled extends Schema.TaggedError<EventCancelled>()(
+export class EventCancelled extends Schema.TaggedErrorClass<EventCancelled>()(
   'EventCancelled',
   {},
   HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
-export class EventNotActive extends Schema.TaggedError<EventNotActive>()(
+export class EventNotActive extends Schema.TaggedErrorClass<EventNotActive>()(
   'EventNotActive',
   {},
   HttpApiSchema.annotations({ status: 400 }),

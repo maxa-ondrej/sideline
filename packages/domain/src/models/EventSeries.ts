@@ -8,7 +8,7 @@ import { TrainingTypeId } from '~/models/TrainingType.js';
 export const EventSeriesId = Schema.String.pipe(Schema.brand('EventSeriesId'));
 export type EventSeriesId = typeof EventSeriesId.Type;
 
-export const RecurrenceFrequency = Schema.Literal('weekly', 'biweekly');
+export const RecurrenceFrequency = Schema.Literals(['weekly', 'biweekly']);
 export type RecurrenceFrequency = typeof RecurrenceFrequency.Type;
 
 export const DayOfWeek = Schema.Int.pipe(Schema.between(0, 6), Schema.brand('DayOfWeek'));
@@ -17,7 +17,7 @@ export type DayOfWeek = typeof DayOfWeek.Type;
 export const DaysOfWeek = Schema.Array(DayOfWeek).pipe(Schema.minItems(1), Schema.maxItems(7));
 export type DaysOfWeek = typeof DaysOfWeek.Type;
 
-export const EventSeriesStatus = Schema.Literal('active', 'cancelled');
+export const EventSeriesStatus = Schema.Literals(['active', 'cancelled']);
 export type EventSeriesStatus = typeof EventSeriesStatus.Type;
 
 export class EventSeries extends Model.Class<EventSeries>('EventSeries')({

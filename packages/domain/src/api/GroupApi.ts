@@ -91,25 +91,25 @@ export class DiscordChannelInfo extends Schema.Class<DiscordChannelInfo>('Discor
   parentId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
-export class GroupNotFound extends Schema.TaggedError<GroupNotFound>()(
+export class GroupNotFound extends Schema.TaggedErrorClass<GroupNotFound>()(
   'GroupNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'GroupForbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'GroupMemberNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class GroupNameAlreadyTaken extends Schema.TaggedError<GroupNameAlreadyTaken>()(
+export class GroupNameAlreadyTaken extends Schema.TaggedErrorClass<GroupNameAlreadyTaken>()(
   'GroupNameAlreadyTaken',
   {},
   HttpApiSchema.annotations({ status: 409 }),

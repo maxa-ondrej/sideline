@@ -4,7 +4,7 @@ import { Array, Effect, type Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class RoleNameAlreadyTakenError extends Schema.TaggedError<RoleNameAlreadyTakenError>()(
+export class RoleNameAlreadyTakenError extends Schema.TaggedErrorClass<RoleNameAlreadyTakenError>()(
   'RoleNameAlreadyTakenError',
   {},
 ) {}

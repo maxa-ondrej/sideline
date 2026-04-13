@@ -37,7 +37,7 @@ import {
 const PlayerEditSchema = Schema.Struct({
   name: Schema.NullOr(Schema.String),
   birthDate: Schema.NullOr(Schema.String),
-  gender: Schema.NullOr(Schema.Literal('male', 'female', 'other')),
+  gender: Schema.NullOr(Schema.Literals(['male', 'female', 'other'])),
   jerseyNumber: Schema.NullOr(
     Schema.NumberFromString.pipe(Schema.int(), Schema.between(0, 99)).annotations({
       message: () => m.validation_jerseyNumber(),

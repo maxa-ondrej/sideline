@@ -32,25 +32,25 @@ export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('Upda
   jerseyNumber: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-export class PlayerNotFound extends Schema.TaggedError<PlayerNotFound>()(
+export class PlayerNotFound extends Schema.TaggedErrorClass<PlayerNotFound>()(
   'PlayerNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()(
   'Forbidden',
   {},
   HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class ChannelAlreadyLinked extends Schema.TaggedError<ChannelAlreadyLinked>()(
+export class ChannelAlreadyLinked extends Schema.TaggedErrorClass<ChannelAlreadyLinked>()(
   'ChannelAlreadyLinked',
   {},
   HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
-export class RosterNotFound extends Schema.TaggedError<RosterNotFound>()(
+export class RosterNotFound extends Schema.TaggedErrorClass<RosterNotFound>()(
   'RosterNotFound',
   {},
   HttpApiSchema.annotations({ status: 404 }),

@@ -4,7 +4,7 @@ import { Effect, Option, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class TrainingTypeNameAlreadyTakenError extends Schema.TaggedError<TrainingTypeNameAlreadyTakenError>()(
+export class TrainingTypeNameAlreadyTakenError extends Schema.TaggedErrorClass<TrainingTypeNameAlreadyTakenError>()(
   'TrainingTypeNameAlreadyTakenError',
   {},
 ) {}
