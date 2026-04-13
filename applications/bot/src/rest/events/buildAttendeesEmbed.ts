@@ -1,28 +1,25 @@
 import type { EventRpcModels } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
-import { Option, pipe, String } from 'effect';
+import { Option } from 'effect';
 import type { Locale } from '~/locale.js';
 import { formatName } from '../utils.js';
 
 const EVENT_COLOR = 0x5865f2;
 
-const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string =>
-  pipe(
-    formatName(entry),
-    String.concat(
-      Option.match(entry.discord_id, {
-        onNone: () => '',
-        onSome: (id) => ` (<@${id}>)`,
-      }),
-    ),
-    String.concat(
-      entry.message.pipe(
-        Option.map((msg) => ` — "${msg}"`),
-        Option.getOrElse(() => ''),
-      ),
-    ),
-  );
+const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string => {
+  const hasName =
+    Option.isSome(entry.name) || Option.isSome(entry.nickname) || Option.isSome(entry.username);
+  const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
+  const display = hasName
+    ? `${formatName(entry)}${Option.match(mention, { onNone: () => '', onSome: (m) => ` (${m})` })}`
+    : Option.getOrElse(mention, () => 'Unknown');
+  const suffix = Option.match(entry.message, {
+    onNone: () => '',
+    onSome: (msg) => ` — "${msg}"`,
+  });
+  return `${display}${suffix}`;
+};
 
 export const buildAttendeesEmbed = (opts: {
   attendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>;
@@ -46,19 +43,19 @@ export const buildAttendeesEmbed = (opts: {
 
   if (grouped.yes.length > 0) {
     fields.push({
-      name: m.bot_attendees_yes({ count: globalThis.String(grouped.yes.length) }, { locale }),
+      name: m.bot_attendees_yes({ count: `${grouped.yes.length}` }, { locale }),
       value: grouped.yes.join('\n'),
     });
   }
   if (grouped.no.length > 0) {
     fields.push({
-      name: m.bot_attendees_no({ count: globalThis.String(grouped.no.length) }, { locale }),
+      name: m.bot_attendees_no({ count: `${grouped.no.length}` }, { locale }),
       value: grouped.no.join('\n'),
     });
   }
   if (grouped.maybe.length > 0) {
     fields.push({
-      name: m.bot_attendees_maybe({ count: globalThis.String(grouped.maybe.length) }, { locale }),
+      name: m.bot_attendees_maybe({ count: `${grouped.maybe.length}` }, { locale }),
       value: grouped.maybe.join('\n'),
     });
   }
@@ -77,9 +74,9 @@ export const buildAttendeesEmbed = (opts: {
       footer: {
         text: m.bot_attendees_footer(
           {
-            page: globalThis.String(page),
-            totalPages: globalThis.String(totalPages),
-            total: globalThis.String(opts.total),
+            page: `${page}`,
+            totalPages: `${totalPages}`,
+            total: `${opts.total}`,
           },
           { locale },
         ),
