@@ -1,4 +1,4 @@
-import { Effect, Layer, Metric, MetricBoundaries, pipe } from 'effect';
+import { Effect, Layer, Metric, pipe } from 'effect';
 import { RpcMiddleware } from 'effect/unstable/rpc';
 
 const rpcRequestsTotal = Metric.counter('rpc_requests_total', {
@@ -6,14 +6,16 @@ const rpcRequestsTotal = Metric.counter('rpc_requests_total', {
   incremental: true,
 });
 
-const rpcRequestDuration = Metric.histogram(
-  'rpc_request_duration_ms',
-  MetricBoundaries.exponential({ start: 1, factor: 2, count: 12 }),
-);
+const rpcRequestDuration = Metric.histogram('rpc_request_duration_ms', {
+  boundaries: Metric.exponentialBoundaries({ start: 1, factor: 2, count: 12 }),
+});
 
-export class RpcObservability extends RpcMiddleware.Tag<RpcObservability>()('RpcObservability', {
-  wrap: true,
-}) {}
+export class RpcObservability extends RpcMiddleware.Service<RpcObservability>()(
+  'RpcObservability',
+  {
+    wrap: true,
+  },
+) {}
 
 export const RpcObservabilityLive = Layer.succeed(
   RpcObservability,

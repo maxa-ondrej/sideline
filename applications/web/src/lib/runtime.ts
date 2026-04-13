@@ -5,7 +5,7 @@ import {
   type RegisteredRouter,
   redirect,
 } from '@tanstack/react-router';
-import { Context, Data, Effect, Either, Layer, Logger, LogLevel, Match, type Option } from 'effect';
+import { Context, Data, Effect, Layer, Logger, Match, type Option, References } from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
 import { ClientConfig, client } from '~/lib/client';
@@ -59,8 +59,8 @@ const ApiClientLive = Layer.effect(ApiClient, client);
 
 const AppLayer = Layer.mergeAll(
   ApiClientLive,
-  Logger.pretty,
-  Logger.minimumLogLevel(LogLevel.Info),
+  Logger.layer([Logger.consolePretty()]),
+  Layer.succeed(References.MinimumLogLevel, 'Info' as const),
 );
 
 export type RunOptions = { readonly success?: string; readonly loading?: string };

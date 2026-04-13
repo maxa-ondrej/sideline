@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import type { ActivityLog, ActivityType, Auth, Role, Team, TeamMember } from '@sideline/domain';
 import { ActivityLogApi } from '@sideline/domain';
-import { DateTime, Effect, Either, Layer, Option } from 'effect';
+import { DateTime, Effect, Layer, Option, Result } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -458,9 +458,9 @@ describe('listLogs handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
         }),
       ),
@@ -505,9 +505,9 @@ describe('createLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -529,9 +529,9 @@ describe('createLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogMemberInactive');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogMemberInactive');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -577,9 +577,9 @@ describe('updateLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogNotFound');
           }
         }),
       ),
@@ -601,9 +601,9 @@ describe('updateLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
         }),
       ),
@@ -625,9 +625,9 @@ describe('updateLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogMemberInactive');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogMemberInactive');
           }
         }),
       ),
@@ -666,9 +666,9 @@ describe('deleteLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogNotFound');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -688,9 +688,9 @@ describe('deleteLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -710,9 +710,9 @@ describe('deleteLog handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogMemberInactive');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogMemberInactive');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -751,9 +751,9 @@ describe('auto-source guard on updateLog', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogAutoSourceForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogAutoSourceForbidden');
           }
         }),
       ),
@@ -784,9 +784,9 @@ describe('auto-source guard on deleteLog', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogAutoSourceForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogAutoSourceForbidden');
           }
           expect(activityLogsStore.has(TEST_AUTO_LOG_ID)).toBe(true);
         }),

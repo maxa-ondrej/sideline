@@ -27,7 +27,7 @@ import { EventStartCron } from '~/services/EventStartCron.js';
 import { RsvpReminderCron } from '~/services/RsvpReminderCron.js';
 import { TrainingAutoLogCron } from '~/services/TrainingAutoLogCron.js';
 
-const BasePg: Config.Config.Wrap<PgClient.PgClientConfig> = {
+const BasePg: Config.Wrap<PgClient.PgClientConfig> = {
   host: Config.succeed(env.DATABASE_HOST),
   port: Config.succeed(env.DATABASE_PORT),
   database: Config.succeed(env.DATABASE_NAME),

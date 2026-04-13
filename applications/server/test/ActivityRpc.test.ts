@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import type { ActivityType, Discord, Team, TeamMember } from '@sideline/domain';
 import { ActivityRpcModels } from '@sideline/domain';
-import { DateTime, Effect, Either, Layer, Option } from 'effect';
+import { DateTime, Effect, Layer, Option, Result } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -302,9 +302,9 @@ describe('LogActivity RPC handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityGuildNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityGuildNotFound');
           }
           expect(activityLogsInserted).toHaveLength(0);
         }),
@@ -325,9 +325,9 @@ describe('LogActivity RPC handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityMemberNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityMemberNotFound');
           }
           expect(activityLogsInserted).toHaveLength(0);
         }),
@@ -383,9 +383,9 @@ describe('LogActivity RPC handler', () => {
       Effect.either,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityMemberNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityMemberNotFound');
           }
           expect(activityLogsInserted).toHaveLength(0);
         }),
