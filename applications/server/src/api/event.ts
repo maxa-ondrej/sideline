@@ -25,7 +25,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
     Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
     Effect.map(({ members, events, syncEvents, groups, trainingTypes }) =>
       handlers
-        .handle('listEvents', ({ path: { teamId } }) =>
+        .handle('listEvents', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -62,7 +62,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
           ),
         )
-        .handle('createEvent', ({ path: { teamId }, payload }) =>
+        .handle('createEvent', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -162,7 +162,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
           ),
         )
-        .handle('getEvent', ({ path: { teamId, eventId } }) =>
+        .handle('getEvent', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -230,7 +230,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
           ),
         )
-        .handle('updateEvent', ({ path: { teamId, eventId }, payload }) =>
+        .handle('updateEvent', ({ params: { teamId, eventId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -388,7 +388,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
             ),
           ),
         )
-        .handle('cancelEvent', ({ path: { teamId, eventId } }) =>
+        .handle('cancelEvent', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

@@ -57,7 +57,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.role.updateRole({
-          path: { teamId: teamIdBranded, roleId: roleIdBranded },
+          params: { teamId: teamIdBranded, roleId: roleIdBranded },
           payload: {
             name: role.isBuiltIn ? Option.none() : Option.some(name),
             permissions: Option.some([...permissions]),
@@ -77,7 +77,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
     if (!window.confirm(m.role_deleteRoleConfirm())) return;
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
-        api.role.deleteRole({ path: { teamId: teamIdBranded, roleId: roleIdBranded } }),
+        api.role.deleteRole({ params: { teamId: teamIdBranded, roleId: roleIdBranded } }),
       ),
       Effect.catchAll(() => ClientError.make(m.role_deleteFailed())),
       run({ success: m.role_roleDeleted() }),

@@ -59,7 +59,7 @@ export function TrainingTypesListPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.createTrainingType({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             name: values.name,
             ownerGroupId:

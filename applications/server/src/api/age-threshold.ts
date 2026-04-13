@@ -19,7 +19,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
     Effect.bind('ageCheck', () => AgeCheckService.asEffect()),
     Effect.map(({ members, thresholds, groups, ageCheck }) =>
       handlers
-        .handle('listAgeThresholds', ({ path: { teamId } }) =>
+        .handle('listAgeThresholds', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -45,7 +45,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
           ),
         )
-        .handle('createAgeThreshold', ({ path: { teamId }, payload }) =>
+        .handle('createAgeThreshold', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -92,7 +92,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
           ),
         )
-        .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
+        .handle('updateAgeThreshold', ({ params: { teamId, ruleId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -136,7 +136,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
           ),
         )
-        .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>
+        .handle('deleteAgeThreshold', ({ params: { teamId, ruleId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -164,7 +164,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.asVoid,
           ),
         )
-        .handle('evaluateAgeThresholds', ({ path: { teamId } }) =>
+        .handle('evaluateAgeThresholds', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

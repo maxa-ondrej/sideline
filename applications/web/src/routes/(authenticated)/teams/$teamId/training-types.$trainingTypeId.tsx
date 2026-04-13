@@ -16,13 +16,13 @@ export const Route = createFileRoute(
     return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          trainingType: api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
-          series: api.eventSeries.listEventSeries({ path: { teamId } }),
+          trainingType: api.trainingType.getTrainingType({ params: { teamId, trainingTypeId } }),
+          series: api.eventSeries.listEventSeries({ params: { teamId } }),
           discordChannels: api.group
-            .listDiscordChannels({ path: { teamId } })
+            .listDiscordChannels({ params: { teamId } })
             .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
           groups: api.group
-            .listGroups({ path: { teamId } })
+            .listGroups({ params: { teamId } })
             .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
         }),
       ),

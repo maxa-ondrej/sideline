@@ -17,11 +17,11 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
       Effect.flatMap((api) =>
         Effect.all({
           leaderboard: api.leaderboard.getLeaderboard({
-            path: { teamId },
+            params: { teamId },
             urlParams: { timeframe: Option.none(), activityTypeId: Option.none() },
           }),
-          members: api.roster.listMembers({ path: { teamId } }),
-          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
+          members: api.roster.listMembers({ params: { teamId } }),
+          activityTypes: api.activityLog.listActivityTypes({ params: { teamId } }),
         }).pipe(
           Effect.flatMap(({ leaderboard, members, activityTypes }) => {
             const currentMember = members.find((member) => member.userId === userId);
@@ -36,8 +36,8 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
             }
             const memberId = currentMember.memberId;
             return Effect.all({
-              activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
-              activityLogs: api.activityLog.listLogs({ path: { teamId, memberId } }).pipe(
+              activityStats: api.activityStats.getMemberStats({ params: { teamId, memberId } }),
+              activityLogs: api.activityLog.listLogs({ params: { teamId, memberId } }).pipe(
                 Effect.map((r) => r.logs as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
                 Effect.catchAll(() =>
                   Effect.succeed([] as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
@@ -93,7 +93,7 @@ function MakanickoRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.createLog({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -124,7 +124,7 @@ function MakanickoRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.updateLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -148,7 +148,7 @@ function MakanickoRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.deleteLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),

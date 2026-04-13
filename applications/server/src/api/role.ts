@@ -17,7 +17,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
     Effect.bind('notifications', () => NotificationsRepository.asEffect()),
     Effect.map(({ members, roles, notifications }) =>
       handlers
-        .handle('listRoles', ({ path: { teamId } }) =>
+        .handle('listRoles', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -45,7 +45,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('createRole', ({ path: { teamId }, payload }) =>
+        .handle('createRole', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -76,7 +76,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('getRole', ({ path: { teamId, roleId } }) =>
+        .handle('getRole', ({ params: { teamId, roleId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -108,7 +108,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('updateRole', ({ path: { teamId, roleId }, payload }) =>
+        .handle('updateRole', ({ params: { teamId, roleId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -163,7 +163,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('deleteRole', ({ path: { teamId, roleId } }) =>
+        .handle('deleteRole', ({ params: { teamId, roleId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -195,7 +195,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('assignRole', ({ path: { teamId, memberId }, payload }) =>
+        .handle('assignRole', ({ params: { teamId, memberId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -245,7 +245,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.asVoid,
           ),
         )
-        .handle('unassignRole', ({ path: { teamId, memberId, roleId } }) =>
+        .handle('unassignRole', ({ params: { teamId, memberId, roleId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

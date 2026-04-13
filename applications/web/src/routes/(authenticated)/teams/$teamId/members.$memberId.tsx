@@ -17,17 +17,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
     return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          player: api.roster.getMember({ path: { teamId, memberId } }),
+          player: api.roster.getMember({ params: { teamId, memberId } }),
           myTeams: api.auth.myTeams(),
-          roles: api.role.listRoles({ path: { teamId } }),
-          activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
-          activityLogs: api.activityLog.listLogs({ path: { teamId, memberId } }).pipe(
+          roles: api.role.listRoles({ params: { teamId } }),
+          activityStats: api.activityStats.getMemberStats({ params: { teamId, memberId } }),
+          activityLogs: api.activityLog.listLogs({ params: { teamId, memberId } }).pipe(
             Effect.map((r) => ({ isOwnProfile: true as boolean, logs: r.logs })),
             Effect.catchAll(() =>
               Effect.succeed({ isOwnProfile: false as boolean, logs: [] as const }),
             ),
           ),
-          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
+          activityTypes: api.activityLog.listActivityTypes({ params: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -73,7 +73,7 @@ function MemberDetailRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.roster.updateMember({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: {
               name: Option.fromNullishOr(values.name),
               birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
@@ -97,7 +97,7 @@ function MemberDetailRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.role.assignRole({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: { roleId: roleId as Role.RoleId },
           }),
         ),
@@ -116,7 +116,7 @@ function MemberDetailRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.role.unassignRole({
-            path: { teamId, memberId, roleId: roleId as Role.RoleId },
+            params: { teamId, memberId, roleId: roleId as Role.RoleId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roles_unassignFailed())),
@@ -138,7 +138,7 @@ function MemberDetailRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.createLog({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -168,7 +168,7 @@ function MemberDetailRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.updateLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -191,7 +191,7 @@ function MemberDetailRoute() {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.deleteLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),

@@ -91,7 +91,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
     Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.map(({ members, events, rsvps, syncEvents, teamSettings, groups }) =>
       handlers
-        .handle('getRsvps', ({ path: { teamId, eventId } }) =>
+        .handle('getRsvps', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -128,7 +128,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
           ),
         )
-        .handle('submitRsvp', ({ path: { teamId, eventId }, payload }) =>
+        .handle('submitRsvp', ({ params: { teamId, eventId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -186,7 +186,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
           ),
         )
-        .handle('getNonResponders', ({ path: { teamId, eventId } }) =>
+        .handle('getNonResponders', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

@@ -11,10 +11,10 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/training-ty
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
-        api.trainingType.listTrainingTypes({ path: { teamId } }).pipe(
+        api.trainingType.listTrainingTypes({ params: { teamId } }).pipe(
           Effect.flatMap((trainingTypesData) =>
             trainingTypesData.canAdmin
-              ? api.group.listGroups({ path: { teamId } }).pipe(
+              ? api.group.listGroups({ params: { teamId } }).pipe(
                   Effect.tapError((e) => Effect.logWarning('Failed to load groups', e)),
                   Effect.catchAll(() => Effect.succeed([] as const)),
                   Effect.map((groups) => ({ ...trainingTypesData, groups })),

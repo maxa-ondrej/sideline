@@ -14,7 +14,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
     Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
     Effect.map(({ members, activityLogs, activityTypes }) =>
       handlers
-        .handle('listLogs', ({ path: { teamId, memberId } }) =>
+        .handle('listLogs', ({ params: { teamId, memberId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -45,7 +45,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
           ),
         )
-        .handle('createLog', ({ path: { teamId, memberId }, payload }) =>
+        .handle('createLog', ({ params: { teamId, memberId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -83,7 +83,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
           ),
         )
-        .handle('updateLog', ({ path: { teamId, memberId, logId }, payload }) =>
+        .handle('updateLog', ({ params: { teamId, memberId, logId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -118,7 +118,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             ),
           ),
         )
-        .handle('deleteLog', ({ path: { teamId, memberId, logId } }) =>
+        .handle('deleteLog', ({ params: { teamId, memberId, logId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -136,7 +136,7 @@ export const ActivityLogApiLive = HttpApiBuilder.group(Api, 'activityLog', (hand
             Effect.asVoid,
           ),
         )
-        .handle('listActivityTypes', ({ path: { teamId } }) =>
+        .handle('listActivityTypes', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>

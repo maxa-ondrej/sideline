@@ -16,9 +16,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresho
     );
     const [rules, groups] = await Effect.all([
       Effect.flatMap(ApiClient.asEffect(), (api) =>
-        api.ageThreshold.listAgeThresholds({ path: { teamId } }),
+        api.ageThreshold.listAgeThresholds({ params: { teamId } }),
       ),
-      Effect.flatMap(ApiClient.asEffect(), (api) => api.group.listGroups({ path: { teamId } })),
+      Effect.flatMap(ApiClient.asEffect(), (api) => api.group.listGroups({ params: { teamId } })),
     ]).pipe(warnAndCatchAll, context.run);
     return { rules, groups };
   },

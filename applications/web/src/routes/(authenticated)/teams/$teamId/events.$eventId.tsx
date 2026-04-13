@@ -13,17 +13,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eve
     return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          event: api.event.getEvent({ path: { teamId, eventId } }),
-          trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
-          rsvpDetail: api.eventRsvp.getRsvps({ path: { teamId, eventId } }),
+          event: api.event.getEvent({ params: { teamId, eventId } }),
+          trainingTypes: api.trainingType.listTrainingTypes({ params: { teamId } }),
+          rsvpDetail: api.eventRsvp.getRsvps({ params: { teamId, eventId } }),
           discordChannels: api.group
-            .listDiscordChannels({ path: { teamId } })
+            .listDiscordChannels({ params: { teamId } })
             .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
           nonResponders: api.eventRsvp
-            .getNonResponders({ path: { teamId, eventId } })
+            .getNonResponders({ params: { teamId, eventId } })
             .pipe(Effect.catchAll(() => Effect.succeed({ nonResponders: [] }))),
           groups: api.group
-            .listGroups({ path: { teamId } })
+            .listGroups({ params: { teamId } })
             .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
         }),
       ),

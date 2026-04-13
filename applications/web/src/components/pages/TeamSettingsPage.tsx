@@ -150,7 +150,7 @@ export function TeamSettingsPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.team.updateTeamInfo({
-          path: { teamId: teamInfo.teamId },
+          params: { teamId: teamInfo.teamId },
           payload: {
             name: Option.some(teamName.trim()),
             description: Option.some(
@@ -183,7 +183,7 @@ export function TeamSettingsPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.teamSettings.updateTeamSettings({
-          path: { teamId: settings.teamId },
+          params: { teamId: settings.teamId },
           payload: {
             eventHorizonDays: parsed,
             minPlayersThreshold: Option.some(parsedThreshold),

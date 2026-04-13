@@ -36,7 +36,7 @@ export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
     Effect.bind('teams', () => TeamsRepository.asEffect()),
     Effect.map(({ members, teams }) =>
       handlers
-        .handle('getTeamInfo', ({ path: { teamId } }) =>
+        .handle('getTeamInfo', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -46,7 +46,7 @@ export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
             Effect.map(({ team }) => teamToInfo(team)),
           ),
         )
-        .handle('updateTeamInfo', ({ path: { teamId }, payload }) =>
+        .handle('updateTeamInfo', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

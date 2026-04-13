@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/roles/$role
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const roleId = Schema.decodeSync(Role.RoleId)(params.roleId);
     return ApiClient.asEffect().pipe(
-      Effect.flatMap((api) => api.role.getRole({ path: { teamId, roleId } })),
+      Effect.flatMap((api) => api.role.getRole({ params: { teamId, roleId } })),
       warnAndCatchAll,
       context.run,
     );

@@ -78,7 +78,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.updateGroup({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: {
             name,
             emoji: emoji ? Option.some(emoji) : Option.none(),
@@ -101,7 +101,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.addGroupMember({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: { memberId },
         }),
       ),
@@ -120,7 +120,7 @@ export function GroupDetailPage({
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.removeGroupMember({
-            path: { teamId: teamIdBranded, groupId: groupIdBranded, memberId },
+            params: { teamId: teamIdBranded, groupId: groupIdBranded, memberId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
@@ -139,7 +139,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.assignGroupRole({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: { roleId },
         }),
       ),
@@ -158,7 +158,7 @@ export function GroupDetailPage({
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.unassignGroupRole({
-            path: { teamId: teamIdBranded, groupId: groupIdBranded, roleId },
+            params: { teamId: teamIdBranded, groupId: groupIdBranded, roleId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
@@ -176,7 +176,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.deleteGroup({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_deleteFailed())),
@@ -193,7 +193,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.setChannelMapping({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: { discordChannelId },
         }),
       ),
@@ -210,7 +210,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.deleteChannelMapping({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
@@ -230,7 +230,7 @@ export function GroupDetailPage({
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.moveGroup({
-            path: { teamId: teamIdBranded, groupId: groupIdBranded },
+            params: { teamId: teamIdBranded, groupId: groupIdBranded },
             payload: { parentId },
           }),
         ),
@@ -248,7 +248,7 @@ export function GroupDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.createChannel({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.group_channelCreateFailed())),

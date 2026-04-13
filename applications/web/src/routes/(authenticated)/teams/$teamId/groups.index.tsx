@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/')({
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     return ApiClient.asEffect().pipe(
-      Effect.flatMap((api) => api.group.listGroups({ path: { teamId } })),
+      Effect.flatMap((api) => api.group.listGroups({ params: { teamId } })),
       warnAndCatchAll,
       context.run,
     );

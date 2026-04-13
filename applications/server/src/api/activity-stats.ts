@@ -11,7 +11,7 @@ export const ActivityStatsApiLive = HttpApiBuilder.group(Api, 'activityStats', (
     Effect.bind('members', () => TeamMembersRepository.asEffect()),
     Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.map(({ members, activityLogs }) =>
-      handlers.handle('getMemberStats', ({ path: { teamId, memberId } }) =>
+      handlers.handle('getMemberStats', ({ params: { teamId, memberId } }) =>
         Effect.Do.pipe(
           Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
           Effect.bind('membership', ({ currentUser }) =>

@@ -62,7 +62,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.createAgeThreshold({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: values,
         }),
       ),
@@ -82,7 +82,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.ageThreshold.deleteAgeThreshold({
-            path: { teamId: teamIdBranded, ruleId },
+            params: { teamId: teamIdBranded, ruleId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.ageThreshold_deleteFailed())),
@@ -100,7 +100,7 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.evaluateAgeThresholds({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.ageThreshold_evaluateFailed())),

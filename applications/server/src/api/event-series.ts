@@ -30,7 +30,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
     Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.map(({ members, events, series, teamSettings, syncEvents, trainingTypes, groups }) =>
       handlers
-        .handle('createEventSeries', ({ path: { teamId }, payload }) =>
+        .handle('createEventSeries', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -193,7 +193,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
           ),
         )
-        .handle('listEventSeries', ({ path: { teamId } }) =>
+        .handle('listEventSeries', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>
@@ -228,7 +228,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
           ),
         )
-        .handle('getEventSeries', ({ path: { teamId, seriesId } }) =>
+        .handle('getEventSeries', ({ params: { teamId, seriesId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -277,7 +277,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
           ),
         )
-        .handle('updateEventSeries', ({ path: { teamId, seriesId }, payload }) =>
+        .handle('updateEventSeries', ({ params: { teamId, seriesId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -491,7 +491,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
           ),
         )
-        .handle('cancelEventSeries', ({ path: { teamId, seriesId } }) =>
+        .handle('cancelEventSeries', ({ params: { teamId, seriesId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

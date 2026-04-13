@@ -162,7 +162,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.createGroup({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             name: values.name,
             parentId,

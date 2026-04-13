@@ -67,7 +67,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.some(editName),
             active: Option.none(),
@@ -90,7 +90,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.none(),
             active: Option.some(!rosterDetail.active),
@@ -122,7 +122,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.none(),
             active: Option.none(),
@@ -156,7 +156,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.none(),
             active: Option.none(),
@@ -178,7 +178,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.createChannel({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_channelCreateFailed())),
@@ -195,7 +195,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.addRosterMember({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: { memberId },
         }),
       ),
@@ -214,7 +214,7 @@ export function RosterDetailPage({
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.roster.removeRosterMember({
-            path: { teamId: teamIdBranded, rosterId: rosterIdBranded, memberId },
+            params: { teamId: teamIdBranded, rosterId: rosterIdBranded, memberId },
           }),
         ),
         Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
@@ -232,7 +232,7 @@ export function RosterDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.deleteRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),

@@ -114,7 +114,7 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
             ),
           ),
         )
-        .handle('getICalFeed', ({ path: { token } }) =>
+        .handle('getICalFeed', ({ params: { token } }) =>
           Effect.Do.pipe(
             Effect.bind('icalToken', () => icalTokens.findByToken(token)),
             Effect.bind('tokenRow', ({ icalToken }) =>

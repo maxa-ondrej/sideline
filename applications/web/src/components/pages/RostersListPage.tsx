@@ -50,7 +50,7 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.createRoster({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             name: values.name,
             emoji: createEmoji ? Option.some(createEmoji) : Option.none(),

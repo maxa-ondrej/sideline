@@ -165,7 +165,7 @@ export function EventsListPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.createEvent({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             title: values.title,
             eventType: values.eventType,
@@ -205,7 +205,7 @@ export function EventsListPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.createEventSeries({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             title: values.title,
             trainingTypeId:

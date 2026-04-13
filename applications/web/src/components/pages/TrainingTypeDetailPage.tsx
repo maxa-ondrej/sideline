@@ -117,7 +117,7 @@ export function TrainingTypeDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.updateTrainingType({
-          path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
+          params: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
           payload: {
             name,
             discordChannelId: Option.some(
@@ -161,7 +161,7 @@ export function TrainingTypeDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.deleteTrainingType({
-          path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
+          params: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.trainingType_deleteFailed())),
@@ -176,7 +176,7 @@ export function TrainingTypeDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.createEventSeries({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             title: values.title,
             trainingTypeId: Option.some(trainingTypeIdBranded),
@@ -212,7 +212,7 @@ export function TrainingTypeDetailPage({
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.eventSeries.cancelEventSeries({
-            path: {
+            params: {
               teamId: teamIdBranded,
               seriesId: Schema.decodeSync(EventSeries.EventSeriesId)(seriesId),
             },
@@ -256,7 +256,7 @@ export function TrainingTypeDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
-          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          params: { teamId: teamIdBranded, seriesId: seriesIdBranded },
           payload: {
             title: Option.some(values.title),
             trainingTypeId: Option.none(),

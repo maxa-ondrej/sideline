@@ -25,7 +25,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
     Effect.bind('invites', () => TeamInvitesRepository.asEffect()),
     Effect.map(({ teams, members, invites }) =>
       handlers
-        .handle('getInvite', ({ path: { code } }) =>
+        .handle('getInvite', ({ params: { code } }) =>
           invites.findByCode(code).pipe(
             Effect.flatMap(
               Option.match({
@@ -54,7 +54,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             ),
           ),
         )
-        .handle('joinViaInvite', ({ path: { code } }) =>
+        .handle('joinViaInvite', ({ params: { code } }) =>
           Effect.Do.pipe(
             Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('invite', () =>
@@ -111,7 +111,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             ),
           ),
         )
-        .handle('regenerateInvite', ({ path: { teamId } }) =>
+        .handle('regenerateInvite', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ user }) =>
@@ -146,7 +146,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             ),
           ),
         )
-        .handle('disableInvite', ({ path: { teamId } }) =>
+        .handle('disableInvite', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ user }) =>

@@ -17,9 +17,9 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/settings')(
     return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          settings: api.teamSettings.getTeamSettings({ path: { teamId } }),
-          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
-          teamInfo: api.team.getTeamInfo({ path: { teamId } }),
+          settings: api.teamSettings.getTeamSettings({ params: { teamId } }),
+          discordChannels: api.group.listDiscordChannels({ params: { teamId } }),
+          teamInfo: api.team.getTeamInfo({ params: { teamId } }),
         }),
       ),
       warnAndCatchAll,

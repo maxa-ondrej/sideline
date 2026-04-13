@@ -16,7 +16,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
     Effect.bind('settings', () => TeamSettingsRepository.asEffect()),
     Effect.map(({ members, settings }) =>
       handlers
-        .handle('getTeamSettings', ({ path: { teamId } }) =>
+        .handle('getTeamSettings', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -73,7 +73,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
             ),
           ),
         )
-        .handle('updateTeamSettings', ({ path: { teamId }, payload }) =>
+        .handle('updateTeamSettings', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

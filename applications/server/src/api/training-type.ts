@@ -15,7 +15,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
     Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
     Effect.map(({ members, trainingTypes }) =>
       handlers
-        .handle('listTrainingTypes', ({ path: { teamId } }) =>
+        .handle('listTrainingTypes', ({ params: { teamId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -42,7 +42,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
           ),
         )
-        .handle('createTrainingType', ({ path: { teamId }, payload }) =>
+        .handle('createTrainingType', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -79,7 +79,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
           ),
         )
-        .handle('getTrainingType', ({ path: { teamId, trainingTypeId } }) =>
+        .handle('getTrainingType', ({ params: { teamId, trainingTypeId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -117,7 +117,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
           ),
         )
-        .handle('updateTrainingType', ({ path: { teamId, trainingTypeId }, payload }) =>
+        .handle('updateTrainingType', ({ params: { teamId, trainingTypeId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -176,7 +176,7 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
           ),
         )
-        .handle('deleteTrainingType', ({ path: { teamId, trainingTypeId } }) =>
+        .handle('deleteTrainingType', ({ params: { teamId, trainingTypeId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>

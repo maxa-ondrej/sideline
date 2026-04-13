@@ -34,7 +34,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
             ),
           ),
         )
-        .handle('markAsRead', ({ path: { notificationId } }) =>
+        .handle('markAsRead', ({ params: { notificationId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('notification', () =>

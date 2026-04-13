@@ -45,7 +45,7 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.role.createRole({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: { name: values.name, permissions: [] },
         }),
       ),

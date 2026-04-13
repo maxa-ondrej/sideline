@@ -139,7 +139,7 @@ export function EventDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.updateEvent({
-          path: { teamId: teamIdBranded, eventId: eventIdBranded },
+          params: { teamId: teamIdBranded, eventId: eventIdBranded },
           payload: {
             title: Option.some(values.title),
             eventType: Option.some(values.eventType),
@@ -189,7 +189,7 @@ export function EventDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
-          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          params: { teamId: teamIdBranded, seriesId: seriesIdBranded },
           payload: {
             title: Option.some(values.title),
             trainingTypeId: Option.some(trainingTypeIdOption),
@@ -244,7 +244,7 @@ export function EventDetailPage({
     setShowCancelScope(false);
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
-        api.event.cancelEvent({ path: { teamId: teamIdBranded, eventId: eventIdBranded } }),
+        api.event.cancelEvent({ params: { teamId: teamIdBranded, eventId: eventIdBranded } }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
       run({ success: m.event_cancelled() }),
@@ -263,7 +263,7 @@ export function EventDetailPage({
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.cancelEventSeries({
-          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          params: { teamId: teamIdBranded, seriesId: seriesIdBranded },
         }),
       ),
       Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
@@ -288,7 +288,7 @@ export function EventDetailPage({
       ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.eventRsvp.submitRsvp({
-            path: { teamId: teamIdBranded, eventId: eventIdBranded },
+            params: { teamId: teamIdBranded, eventId: eventIdBranded },
             payload: {
               response,
               message: message ? Option.some(message) : Option.none(),

@@ -20,7 +20,7 @@ export const DashboardApiLive = HttpApiBuilder.group(Api, 'dashboard', (handlers
     Effect.bind('leaderboardRepo', () => LeaderboardRepository.asEffect()),
     Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.map(({ members, events, groups, leaderboardRepo, activityLogs }) =>
-      handlers.handle('getDashboard', ({ path: { teamId } }) =>
+      handlers.handle('getDashboard', ({ params: { teamId } }) =>
         Effect.Do.pipe(
           Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
           Effect.bind('membership', ({ currentUser }) =>
