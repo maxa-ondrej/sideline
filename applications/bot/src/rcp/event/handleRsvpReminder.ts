@@ -161,7 +161,7 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
         ),
       );
 
-      const sendDms = Array.isEmptyArray(dmNonResponders)
+      const sendDms = Array.isArrayEmpty(dmNonResponders)
         ? Effect.void
         : Effect.all(dmNonResponders, { concurrency: 5 }).pipe(Effect.asVoid);
 

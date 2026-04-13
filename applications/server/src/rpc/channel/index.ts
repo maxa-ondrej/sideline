@@ -57,15 +57,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
               ),
             ),
           ),
-          Effect.tap(
-            flow(
-              Array.isEmptyArray,
-              Effect.if({
-                onTrue: NoChanges.make,
-                onFalse: () => Effect.void,
-              }),
-            ),
-          ),
+          Effect.tap((arr) => (Array.isArrayEmpty(arr) ? NoChanges.make() : Effect.void)),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} channel events from database.`),
           ),

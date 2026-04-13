@@ -24,15 +24,15 @@ import {
 } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
-import type { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
+import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
-import type { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
+import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
-import type { GroupsRepository } from '~/repositories/GroupsRepository.js';
-import type { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
-import type { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
-import type { TeamsRepository } from '~/repositories/TeamsRepository.js';
-import type { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { constructEvent } from './events.js';
 
@@ -256,14 +256,14 @@ const rpcHandlers = Effect.Do.pipe(
   Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
   Effect.bind('deps', () =>
     Effect.all({
-      syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
-      members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
-      groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
-      sql: SqlClient.SqlClient,
-      trainingTypesRepo: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
-      teamsRepo: ServiceMap.Service.Shape<typeof TeamsRepository>,
-      teamSettings: ServiceMap.Service.Shape<typeof TeamSettingsRepository>,
-      channelDividers: ServiceMap.Service.Shape<typeof ChannelEventDividersRepository>,
+      syncEvents: EventSyncEventsRepository.asEffect(),
+      members: TeamMembersRepository.asEffect(),
+      groups: GroupsRepository.asEffect(),
+      sql: SqlClient.SqlClient.asEffect(),
+      trainingTypesRepo: TrainingTypesRepository.asEffect(),
+      teamsRepo: TeamsRepository.asEffect(),
+      teamSettings: TeamSettingsRepository.asEffect(),
+      channelDividers: ChannelEventDividersRepository.asEffect(),
     }),
   ),
   Effect.let(
@@ -272,15 +272,7 @@ const rpcHandlers = Effect.Do.pipe(
       ({ limit }: { readonly limit: number }) =>
         syncEvents.findUnprocessed(limit).pipe(
           Effect.map(Array.map(flow(constructEvent))),
-          Effect.tap(
-            flow(
-              Array.isEmptyArray,
-              Effect.if({
-                onTrue: NoChanges.make,
-                onFalse: () => Effect.void,
-              }),
-            ),
-          ),
+          Effect.tap((arr) => (Array.isArrayEmpty(arr) ? NoChanges.make() : Effect.void)),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} event sync events from database.`),
           ),

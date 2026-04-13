@@ -556,7 +556,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                               Array.map(guilds, (g) => Schema.decodeSync(Discord.Snowflake)(g.id)),
                             ),
                             Effect.flatMap(({ guildIds }) =>
-                              Array.isEmptyArray(guildIds)
+                              Array.isArrayEmpty(guildIds)
                                 ? Effect.succeed(emptyTeams)
                                 : teams.findByGuildIds(guildIds).pipe(
                                     Effect.flatMap((matchingTeams) =>

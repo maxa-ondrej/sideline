@@ -31,7 +31,7 @@ const make = Effect.gen(function* () {
   const findByGuildIds = (
     guildIds: ReadonlyArray<typeof Discord.Snowflake.Type>,
   ): Effect.Effect<ReadonlyArray<Team.Team>> => {
-    if (Array.isEmptyArray(guildIds)) {
+    if (Array.isArrayEmpty(guildIds)) {
       return Effect.succeed([]);
     }
     return sql`SELECT * FROM teams WHERE guild_id IN ${sql.in(guildIds)}`.pipe(

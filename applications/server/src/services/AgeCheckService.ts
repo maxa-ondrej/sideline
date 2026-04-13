@@ -102,10 +102,9 @@ const commitChange =
   (groups: ServiceMap.Service.Shape<typeof GroupsRepository>) => (change: Change) =>
     Effect.succeed(change).pipe(
       Effect.tap(
-        Effect.if(change.action === 'added', {
-          onTrue: () => groups.addMemberById(change.groupId, change.memberId),
-          onFalse: () => groups.removeMemberById(change.groupId, change.memberId),
-        }),
+        change.action === 'added'
+          ? groups.addMemberById(change.groupId, change.memberId)
+          : groups.removeMemberById(change.groupId, change.memberId),
       ),
     );
 
@@ -170,7 +169,7 @@ const notifyAdmins = (
       ),
     ),
     Effect.tap((notifications) =>
-      Array.isEmptyArray(notifications) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
+      Array.isArrayEmpty(notifications) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
     ),
     Effect.flatMap((n) => notifications.insertBulk(n)),
     Effect.catchTag('NoChanges', () => Effect.void),
@@ -186,7 +185,7 @@ const evaluateTeam =
       Effect.bind('teamMembers', () => thresholds.getMembersWithBirthDates(teamId)),
       Effect.let('changes', ({ rules, teamMembers }) => detectChanges(today, rules, teamMembers)),
       Effect.tap(({ changes }) =>
-        Array.isEmptyArray(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
+        Array.isArrayEmpty(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
       ),
       Effect.tap(({ changes }) =>
         Effect.logInfo(`Detected ${changes.length} changes to be made with age-based groups!`),

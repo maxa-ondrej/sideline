@@ -19,7 +19,7 @@ export const checkCoachScoping = <E>(
         scopedIds,
         Array.map((s) => s.training_type_id),
       );
-      if (Array.isEmptyArray(allowed)) return Effect.void;
+      if (Array.isArrayEmpty(allowed)) return Effect.void;
       return pipe(allowed, Array.contains(trainingTypeId.value))
         ? Effect.void
         : Effect.fail(forbidden);
