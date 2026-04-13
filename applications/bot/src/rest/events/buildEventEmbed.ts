@@ -3,6 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
 import { Array, DateTime, Option, pipe } from 'effect';
 import type { Locale } from '~/locale.js';
+import { formatName } from '../utils.js';
 
 export const YES_EMBED_LIMIT = 20;
 
@@ -95,21 +96,7 @@ export const buildEventEmbed = (opts: {
   });
 
   if (!opts.isStarted && opts.yesAttendees.length > 0) {
-    const names = pipe(
-      opts.yesAttendees,
-      Array.map((a) => {
-        const displayName = Option.orElse(
-          Option.map(a.name, (n) => `**${n}**`),
-          () =>
-            Option.orElse(
-              Option.map(a.nickname, (n) => `**${n}**`),
-              () => Option.map(a.username, (u) => `**${u}**`),
-            ),
-        );
-        return Option.getOrElse(displayName, () => '?');
-      }),
-      Array.join(', '),
-    );
+    const names = pipe(opts.yesAttendees, Array.map(formatName), Array.join(', '));
     const extra =
       opts.counts.yesCount > opts.yesAttendees.length
         ? ` +${opts.counts.yesCount - opts.yesAttendees.length} more`
