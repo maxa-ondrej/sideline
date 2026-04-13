@@ -1,6 +1,6 @@
-import { Otlp } from '@effect/opentelemetry';
 import { NodeHttpClient } from '@effect/platform-node';
 import { Layer } from 'effect';
+import { Otlp } from 'effect/unstable/observability';
 
 export const makeTelemetryLayer = (options: {
   readonly endpoint: string;

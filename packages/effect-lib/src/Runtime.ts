@@ -1,11 +1,14 @@
 import { NodeRuntime } from '@effect/platform-node';
-import { Effect, Layer, Logger, LogLevel, Option } from 'effect';
+import { Effect, Layer, Logger, type LogLevel, Option, References } from 'effect';
 import { DevTools } from 'effect/unstable/devtools';
 
 const LogLayer = (logLevel: Option.Option<LogLevel.LogLevel>) =>
   Layer.mergeAll(
-    Logger.pretty,
-    Logger.minimumLogLevel(Option.getOrElse(logLevel, () => LogLevel.Info)),
+    Logger.layer([Logger.consolePretty()]),
+    Layer.succeed(
+      References.MinimumLogLevel,
+      Option.getOrElse(logLevel, () => 'Info' as const),
+    ),
   );
 
 const DevToolsLayer = (env: 'development' | 'production') =>

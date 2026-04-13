@@ -1,7 +1,7 @@
 import { Effect } from 'effect';
 import { SqlClient } from 'effect/unstable/sql';
 
-export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
+export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
   Effect.Do.pipe(
     // Rename existing group_id on training_types to owner_group_id
     Effect.tap(() => sql`ALTER TABLE training_types RENAME COLUMN group_id TO owner_group_id`),
