@@ -26,19 +26,20 @@ export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequ
   'CreateActivityLogRequest',
 )({
   activityTypeId: ActivityTypeId,
-  durationMinutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
+  durationMinutes: Schema.OptionFromNullOr(
+    Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 })),
+  ),
   note: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequest>(
   'UpdateActivityLogRequest',
 )({
-  activityTypeId: Schema.optionalWith(ActivityTypeId, { as: 'Option' }),
-  durationMinutes: Schema.optionalWith(
-    Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
-    { as: 'Option' },
+  activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
+  durationMinutes: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   ),
-  note: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
+  note: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
 }) {}
 
 export class ActivityTypeEntry extends Schema.Class<ActivityTypeEntry>('ActivityTypeEntry')({

@@ -7,7 +7,7 @@ import { RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
-export const HexColor = Schema.String.pipe(Schema.pattern(/^#[0-9a-fA-F]{6}$/));
+export const HexColor = Schema.String.pipe(Schema.isPattern(/^#[0-9a-fA-F]{6}$/));
 
 export class GroupInfo extends Schema.Class<GroupInfo>('GroupInfo')({
   groupId: GroupId,
@@ -151,7 +151,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteGroup', '/teams/:teamId/groups/:groupId')
+    HttpApiEndpoint.delete('deleteGroup', '/teams/:teamId/groups/:groupId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
@@ -169,7 +169,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('removeGroupMember', '/teams/:teamId/groups/:groupId/members/:memberId')
+    HttpApiEndpoint.delete('removeGroupMember', '/teams/:teamId/groups/:groupId/members/:memberId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
@@ -187,7 +187,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('unassignGroupRole', '/teams/:teamId/groups/:groupId/roles/:roleId')
+    HttpApiEndpoint.delete('unassignGroupRole', '/teams/:teamId/groups/:groupId/roles/:roleId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })
@@ -221,7 +221,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
+    HttpApiEndpoint.delete('deleteChannelMapping', '/teams/:teamId/groups/:groupId/channel-mapping')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(GroupNotFound, { status: 404 })

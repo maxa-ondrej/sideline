@@ -114,7 +114,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteRole', '/teams/:teamId/roles/:roleId')
+    HttpApiEndpoint.delete('deleteRole', '/teams/:teamId/roles/:roleId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(RoleNotFound, { status: 404 })
@@ -134,7 +134,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('unassignRole', '/teams/:teamId/members/:memberId/roles/:roleId')
+    HttpApiEndpoint.delete('unassignRole', '/teams/:teamId/members/:memberId/roles/:roleId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(MemberNotFound, { status: 404 })

@@ -33,7 +33,7 @@ const NONE_VALUE = '__none__';
 const ProfileEditSchema = Schema.Struct({
   name: Schema.String,
   birthDate: Schema.String.pipe(
-    Schema.filter((s) => {
+    Schema.check((s) => {
       if (s === '') return true;
       const d = new Date(s);
       if (Number.isNaN(d.getTime())) return m.validation_required();

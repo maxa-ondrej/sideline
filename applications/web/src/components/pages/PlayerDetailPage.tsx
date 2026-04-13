@@ -39,7 +39,10 @@ const PlayerEditSchema = Schema.Struct({
   birthDate: Schema.NullOr(Schema.String),
   gender: Schema.NullOr(Schema.Literals(['male', 'female', 'other'])),
   jerseyNumber: Schema.NullOr(
-    Schema.NumberFromString.pipe(Schema.int(), Schema.between(0, 99)).annotations({
+    Schema.NumberFromString.pipe(
+      Schema.int(),
+      Schema.isBetween({ minimum: 0, maximum: 99 }),
+    ).annotations({
       message: () => m.validation_jerseyNumber(),
     }),
   ),

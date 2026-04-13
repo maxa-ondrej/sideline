@@ -12,8 +12,8 @@ export class LeaderboardEntry extends Schema.Class<LeaderboardEntry>('Leaderboar
   teamMemberId: TeamMemberId,
   userId: UserId,
   username: Schema.String,
-  name: Schema.optionalWith(Schema.String, { as: 'Option' }),
-  avatar: Schema.optionalWith(Schema.String, { as: 'Option' }),
+  name: Schema.OptionFromOptional(Schema.String),
+  avatar: Schema.OptionFromOptional(Schema.String),
   totalActivities: Schema.Int,
   totalDurationMinutes: Schema.Int,
   currentStreak: Schema.Int,
@@ -37,8 +37,8 @@ export class LeaderboardApiGroup extends HttpApiGroup.make('leaderboard').add(
     .setPath(Schema.Struct({ teamId: TeamId }))
     .setUrlParams(
       Schema.Struct({
-        timeframe: Schema.optionalWith(LeaderboardTimeframe, { as: 'Option' }),
-        activityTypeId: Schema.optionalWith(ActivityTypeId, { as: 'Option' }),
+        timeframe: Schema.OptionFromOptional(LeaderboardTimeframe),
+        activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
       }),
     )
     .middleware(AuthMiddleware),

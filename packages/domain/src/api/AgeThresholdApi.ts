@@ -90,7 +90,7 @@ export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId')
+    HttpApiEndpoint.delete('deleteAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(RuleNotFound, { status: 404 })

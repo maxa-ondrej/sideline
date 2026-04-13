@@ -31,9 +31,7 @@ class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInp
   active: Schema.OptionFromNullOr(Schema.Boolean),
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_id: Schema.optionalWith(Schema.OptionFromNullOr(Discord.Snowflake), {
-    as: 'Option',
-  }),
+  discord_channel_id: Schema.OptionFromOptional(Schema.OptionFromNullOr(Discord.Snowflake)),
 }) {}
 
 class RosterMemberInput extends Schema.Class<RosterMemberInput>('RosterMemberInput')({

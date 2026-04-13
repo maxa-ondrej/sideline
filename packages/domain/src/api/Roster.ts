@@ -101,7 +101,7 @@ export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('Upda
   active: Schema.OptionFromNullOr(Schema.Boolean),
   color: Schema.OptionFromNullOr(HexColor),
   emoji: Schema.OptionFromNullOr(Schema.String),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
+  discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
 }) {}
 
 export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>(
@@ -136,7 +136,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deactivateMember', '/teams/:teamId/members/:memberId')
+    HttpApiEndpoint.delete('deactivateMember', '/teams/:teamId/members/:memberId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(PlayerNotFound, { status: 404 })
@@ -177,7 +177,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteRoster', '/teams/:teamId/rosters/:rosterId')
+    HttpApiEndpoint.delete('deleteRoster', '/teams/:teamId/rosters/:rosterId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(RosterNotFound, { status: 404 })
@@ -195,7 +195,10 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('removeRosterMember', '/teams/:teamId/rosters/:rosterId/members/:memberId')
+    HttpApiEndpoint.delete(
+      'removeRosterMember',
+      '/teams/:teamId/rosters/:rosterId/members/:memberId',
+    )
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(RosterNotFound, { status: 404 })

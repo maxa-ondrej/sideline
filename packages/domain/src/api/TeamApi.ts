@@ -15,23 +15,17 @@ export class TeamInfo extends Schema.Class<TeamInfo>('TeamInfo')({
 }) {}
 
 export class UpdateTeamRequest extends Schema.Class<UpdateTeamRequest>('UpdateTeamRequest')({
-  name: Schema.optionalWith(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)), {
-    as: 'Option',
-  }),
-  description: Schema.optionalWith(
-    Schema.OptionFromNullOr(Schema.String.pipe(Schema.maxLength(500))),
-    {
-      as: 'Option',
-    },
+  name: Schema.OptionFromOptional(
+    Schema.String.pipe(Schema.isMinLength(1), Schema.isMaxLength(100)),
   ),
-  sport: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String.pipe(Schema.maxLength(50))), {
-    as: 'Option',
-  }),
-  logoUrl: Schema.optionalWith(
-    Schema.OptionFromNullOr(Schema.String.pipe(Schema.maxLength(2048))),
-    {
-      as: 'Option',
-    },
+  description: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.String.pipe(Schema.isMaxLength(500))),
+  ),
+  sport: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.String.pipe(Schema.isMaxLength(50))),
+  ),
+  logoUrl: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.String.pipe(Schema.isMaxLength(2048))),
   ),
 }) {}
 

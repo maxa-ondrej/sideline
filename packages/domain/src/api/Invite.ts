@@ -61,7 +61,7 @@ export class InviteApiGroup extends HttpApiGroup.make('invite')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('disableInvite', '/teams/:teamId/invite')
+    HttpApiEndpoint.delete('disableInvite', '/teams/:teamId/invite')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .setPath(Schema.Struct({ teamId: TeamId }))

@@ -30,7 +30,7 @@ const defaultBirthMonth = new Date(currentYear - Auth.DEFAULT_BIRTH_YEAR_OFFSET,
 const ProfileFormSchema = Schema.Struct({
   name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
   birthDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }).pipe(
-    Schema.filter((s) => {
+    Schema.check((s) => {
       const d = new Date(s);
       if (Number.isNaN(d.getTime())) return m.validation_required();
       const minDate = new Date();

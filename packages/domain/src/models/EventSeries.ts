@@ -11,10 +11,16 @@ export type EventSeriesId = typeof EventSeriesId.Type;
 export const RecurrenceFrequency = Schema.Literals(['weekly', 'biweekly']);
 export type RecurrenceFrequency = typeof RecurrenceFrequency.Type;
 
-export const DayOfWeek = Schema.Int.pipe(Schema.between(0, 6), Schema.brand('DayOfWeek'));
+export const DayOfWeek = Schema.Int.pipe(
+  Schema.isBetween({ minimum: 0, maximum: 6 }),
+  Schema.brand('DayOfWeek'),
+);
 export type DayOfWeek = typeof DayOfWeek.Type;
 
-export const DaysOfWeek = Schema.Array(DayOfWeek).pipe(Schema.minItems(1), Schema.maxItems(7));
+export const DaysOfWeek = Schema.Array(DayOfWeek).pipe(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(7),
+);
 export type DaysOfWeek = typeof DaysOfWeek.Type;
 
 export const EventSeriesStatus = Schema.Literals(['active', 'cancelled']);

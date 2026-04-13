@@ -65,18 +65,16 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
 }) {}
 
 export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
-  title: Schema.optionalWith(Schema.NonEmptyString, { as: 'Option' }),
-  eventType: Schema.optionalWith(EventType, { as: 'Option' }),
-  trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
-  description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  startAt: Schema.optionalWith(Schemas.DateTimeFromIsoString, { as: 'Option' }),
-  endAt: Schema.optionalWith(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString), {
-    as: 'Option',
-  }),
-  location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
-  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
-  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
+  title: Schema.OptionFromOptional(Schema.NonEmptyString),
+  eventType: Schema.OptionFromOptional(EventType),
+  trainingTypeId: Schema.OptionFromOptional(Schema.OptionFromNullOr(TrainingTypeId)),
+  description: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  startAt: Schema.OptionFromOptional(Schemas.DateTimeFromIsoString),
+  endAt: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString)),
+  location: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+  memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
 }) {}
 
 export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()(

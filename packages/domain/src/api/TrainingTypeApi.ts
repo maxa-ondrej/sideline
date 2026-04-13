@@ -46,9 +46,9 @@ export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRe
   'UpdateTrainingTypeRequest',
 )({
   name: Schema.NonEmptyString,
-  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
-  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
+  ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+  memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+  discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
 }) {}
 
 export class TrainingTypeNotFound extends Schema.TaggedErrorClass<TrainingTypeNotFound>()(
@@ -105,7 +105,7 @@ export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
       .middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteTrainingType', '/teams/:teamId/training-types/:trainingTypeId')
+    HttpApiEndpoint.delete('deleteTrainingType', '/teams/:teamId/training-types/:trainingTypeId')
       .addSuccess(Schema.Void)
       .addError(Forbidden, { status: 403 })
       .addError(TrainingTypeNotFound, { status: 404 })

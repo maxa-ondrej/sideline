@@ -14,9 +14,9 @@ export class DashboardUpcomingEvent extends Schema.Class<DashboardUpcomingEvent>
   title: Schema.String,
   eventType: EventType,
   startAt: Schemas.DateTimeFromIsoString,
-  endAt: Schema.optionalWith(Schemas.DateTimeFromIsoString, { as: 'Option' }),
-  location: Schema.optionalWith(Schema.String, { as: 'Option' }),
-  myRsvp: Schema.optionalWith(RsvpResponse, { as: 'Option' }),
+  endAt: Schema.OptionFromOptional(Schemas.DateTimeFromIsoString),
+  location: Schema.OptionFromOptional(Schema.String),
+  myRsvp: Schema.OptionFromOptional(RsvpResponse),
 }) {}
 
 export class DashboardActivitySummary extends Schema.Class<DashboardActivitySummary>(
@@ -26,7 +26,7 @@ export class DashboardActivitySummary extends Schema.Class<DashboardActivitySumm
   longestStreak: Schema.Int,
   totalActivities: Schema.Int,
   totalDurationMinutes: Schema.Int,
-  leaderboardRank: Schema.optionalWith(Schema.Int, { as: 'Option' }),
+  leaderboardRank: Schema.OptionFromOptional(Schema.Int),
   leaderboardTotal: Schema.Int,
   recentActivityCount: Schema.Int,
 }) {}

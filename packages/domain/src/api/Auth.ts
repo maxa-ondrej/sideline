@@ -41,7 +41,7 @@ export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('Upda
 }) {}
 
 export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTeamRequest')({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
+  name: Schema.String.pipe(Schema.isMinLength(1), Schema.isMaxLength(100)),
   guildId: Snowflake,
 }) {}
 
@@ -58,7 +58,7 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
 )({
   name: Schema.String,
   birthDate: Schema.String.pipe(
-    Schema.filter((s) => {
+    Schema.check((s) => {
       const d = new Date(s);
       if (Number.isNaN(d.getTime())) return 'Invalid date';
       if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
@@ -77,7 +77,7 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
   name: Schema.OptionFromNullOr(Schema.String),
   birthDate: Schema.OptionFromNullOr(
     Schema.String.pipe(
-      Schema.filter((s) => {
+      Schema.check((s) => {
         const d = new Date(s);
         if (Number.isNaN(d.getTime())) return 'Invalid date';
         if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
@@ -116,9 +116,9 @@ export class AuthApiGroup extends HttpApiGroup.make('auth')
       .addSuccess(Schema.Void, { status: 302 })
       .setUrlParams(
         Schema.Struct({
-          code: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-          state: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-          error: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
+          code: Schema.OptionFromOptional(Schema.String),
+          state: Schema.OptionFromOptional(Schema.String),
+          error: Schema.OptionFromOptional(Schema.String),
         }),
       ),
   )

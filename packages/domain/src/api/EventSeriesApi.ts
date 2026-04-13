@@ -80,19 +80,17 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
 export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
   'UpdateEventSeriesRequest',
 )({
-  title: Schema.optionalWith(Schema.NonEmptyString, { as: 'Option' }),
-  trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
-  description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  daysOfWeek: Schema.optionalWith(DaysOfWeek, { as: 'Option' }),
-  startTime: Schema.optionalWith(Schema.String, { as: 'Option' }),
-  endTime: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  endDate: Schema.optionalWith(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString), {
-    as: 'Option',
-  }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
-  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
-  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
+  title: Schema.OptionFromOptional(Schema.NonEmptyString),
+  trainingTypeId: Schema.OptionFromOptional(Schema.OptionFromNullOr(TrainingTypeId)),
+  description: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  daysOfWeek: Schema.OptionFromOptional(DaysOfWeek),
+  startTime: Schema.OptionFromOptional(Schema.String),
+  endTime: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  location: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  endDate: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString)),
+  discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+  memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
 }) {}
 
 export class EventSeriesNotFound extends Schema.TaggedErrorClass<EventSeriesNotFound>()(

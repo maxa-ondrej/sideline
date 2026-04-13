@@ -15,7 +15,9 @@ export const ActivityRpcGroup = RpcGroup.make(
       guild_id: Discord.Snowflake,
       discord_user_id: Discord.Snowflake,
       activity_type: Schema.String,
-      duration_minutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
+      duration_minutes: Schema.OptionFromNullOr(
+        Schema.Int.pipe(Schema.isBetween({ minimum: 1, maximum: 1440 })),
+      ),
       note: Schema.OptionFromNullOr(Schema.String),
     },
     success: LogActivityResult,
