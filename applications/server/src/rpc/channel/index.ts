@@ -59,7 +59,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
           ),
           Effect.tap(
             flow(
-              Array.isEmptyReadonlyArray,
+              Array.isEmptyArray,
               Effect.if({
                 onTrue: NoChanges.make,
                 onFalse: () => Effect.void,

@@ -146,7 +146,7 @@ describe('GetUpcomingEventsForUser handler — guild lookup', () => {
           onSome: (team) => Effect.succeed(team.id),
         }),
       ),
-      Effect.either,
+      Effect.result,
       Effect.tap((result) => {
         expect(result._tag).toBe('Left');
         if (result._tag === 'Left') {
@@ -198,7 +198,7 @@ describe('GetUpcomingEventsForUser handler — member lookup', () => {
           onSome: (m) => Effect.succeed(m.id),
         }),
       ),
-      Effect.either,
+      Effect.result,
       Effect.tap((result) => {
         expect(result._tag).toBe('Left');
         if (result._tag === 'Left') {

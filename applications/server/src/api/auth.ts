@@ -113,7 +113,7 @@ const handleDiscordLogin = ({
       users.upsertFromDiscord({
         discord_id: discordUser.id,
         username: discordUser.username,
-        avatar: Option.fromNullable(discordUser.avatar),
+        avatar: Option.fromNullishOr(discordUser.avatar),
         discord_nickname: Option.none(),
       }),
     ),
@@ -125,7 +125,7 @@ const handleDiscordLogin = ({
         dbUser.id,
         'discord',
         oauth.accessToken(),
-        Option.fromNullable(oauth.refreshToken()),
+        Option.fromNullishOr(oauth.refreshToken()),
       ),
     ),
     Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
@@ -411,7 +411,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                           new Auth.DiscordGuild({
                             id: Schema.decodeSync(Discord.Snowflake)(g.id),
                             name: g.name,
-                            icon: Option.fromNullable(g.icon),
+                            icon: Option.fromNullishOr(g.icon),
                             owner: g.owner,
                             botPresent: present,
                           }),
@@ -555,7 +555,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                               Array.map(guilds, (g) => Schema.decodeSync(Discord.Snowflake)(g.id)),
                             ),
                             Effect.flatMap(({ guildIds }) =>
-                              Array.isEmptyReadonlyArray(guildIds)
+                              Array.isEmptyArray(guildIds)
                                 ? Effect.succeed(emptyTeams)
                                 : teams.findByGuildIds(guildIds).pipe(
                                     Effect.flatMap((matchingTeams) =>

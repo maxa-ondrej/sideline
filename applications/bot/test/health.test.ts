@@ -40,7 +40,7 @@ const HealthApiGroupLive = HttpApiBuilder.group(BotHealthApi, 'health', (handler
 const makeTestLayer = (shardCount: number) =>
   HttpApiBuilder.api(BotHealthApi).pipe(
     Layer.provide(HealthApiGroupLive),
-    Layer.provideMerge(HttpServer.layerContext),
+    Layer.provideMerge(HttpServer.layerServices),
     Layer.provide(makeMockGatewayLayer(shardCount)),
   );
 

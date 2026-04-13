@@ -299,7 +299,7 @@ describe('LogActivity RPC handler', () => {
       duration_minutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -322,7 +322,7 @@ describe('LogActivity RPC handler', () => {
       duration_minutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -380,7 +380,7 @@ describe('LogActivity RPC handler', () => {
       duration_minutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);

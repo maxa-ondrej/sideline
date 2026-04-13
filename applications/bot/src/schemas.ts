@@ -47,6 +47,6 @@ export const interactionUserId = (interaction: {
   user?: { id: string } | null;
 }): Option.Option<Discord.Snowflake> =>
   Option.map(
-    Option.fromNullable(interaction.member?.user?.id ?? interaction.user?.id),
+    Option.fromNullishOr(interaction.member?.user?.id ?? interaction.user?.id),
     Discord.Snowflake.make,
   );

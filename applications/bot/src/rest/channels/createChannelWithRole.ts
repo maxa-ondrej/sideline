@@ -58,7 +58,7 @@ export const createDiscordChannelAndRole = (
         name: channelName,
         type: Discord.ChannelTypes.GUILD_TEXT,
         parent_id: Option.map(
-          Option.fromNullable(channel.parent_id),
+          Option.fromNullishOr(channel.parent_id),
           DiscordSchemas.Snowflake.make,
         ),
       }).pipe(

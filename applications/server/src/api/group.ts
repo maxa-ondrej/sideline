@@ -679,7 +679,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     Option.some(
                       new GroupApi.ChannelMappingInfo({
                         discordChannelId: row.discord_channel_id,
-                        discordChannelName: Option.fromNullable(
+                        discordChannelName: Option.fromNullishOr(
                           allChannels.find((ch) => ch.channel_id === row.discord_channel_id)
                             ?.name ?? null,
                         ),
@@ -768,7 +768,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 ({ allChannels }) =>
                   new GroupApi.ChannelMappingInfo({
                     discordChannelId: payload.discordChannelId,
-                    discordChannelName: Option.fromNullable(
+                    discordChannelName: Option.fromNullishOr(
                       allChannels.find((ch) => ch.channel_id === payload.discordChannelId)?.name ??
                         null,
                     ),

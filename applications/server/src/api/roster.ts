@@ -42,7 +42,7 @@ const resolveChannelName = (
   allChannels: readonly ChannelLike[],
 ): Option.Option<string> =>
   Option.flatMap(channelId, (id) =>
-    Option.fromNullable(allChannels.find((ch) => ch.channel_id === id)?.name),
+    Option.fromNullishOr(allChannels.find((ch) => ch.channel_id === id)?.name),
   );
 
 const toRosterInfo = (

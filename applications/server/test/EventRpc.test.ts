@@ -407,7 +407,7 @@ describe('CreateEvent RPC with training_type_id', () => {
           ),
         ),
       ),
-      Effect.either,
+      Effect.result,
       Effect.tap((result) => {
         expect(result._tag).toBe('Left');
         if (result._tag === 'Left') {

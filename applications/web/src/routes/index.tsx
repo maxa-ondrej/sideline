@@ -25,7 +25,7 @@ export const Route = createFileRoute('/')({
   ),
   beforeLoad: ({ search, context }) =>
     Effect.Do.pipe(
-      Effect.flatMap(() => Option.fromNullable(search.token)),
+      Effect.flatMap(() => Option.fromNullishOr(search.token)),
       Effect.flatMap(finishLogin),
       Effect.flatMap(() => Redirect.make({ to: '.' })),
       Effect.catchTag('NoSuchElementException', () => Effect.void),
@@ -94,8 +94,8 @@ function HomeRoute() {
   return (
     <HomePage
       loginUrl={loginUrl}
-      error={Option.fromNullable(error)}
-      reason={Option.fromNullable(reason)}
+      error={Option.fromNullishOr(error)}
+      reason={Option.fromNullishOr(reason)}
     />
   );
 }

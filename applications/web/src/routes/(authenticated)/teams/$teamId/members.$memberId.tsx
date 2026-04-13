@@ -75,10 +75,10 @@ function MemberDetailRoute() {
           api.roster.updateMember({
             path: { teamId, memberId },
             payload: {
-              name: Option.fromNullable(values.name),
+              name: Option.fromNullishOr(values.name),
               birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
-              gender: Option.fromNullable(values.gender),
-              jerseyNumber: Option.fromNullable(values.jerseyNumber),
+              gender: Option.fromNullishOr(values.gender),
+              jerseyNumber: Option.fromNullishOr(values.jerseyNumber),
             },
           }),
         ),

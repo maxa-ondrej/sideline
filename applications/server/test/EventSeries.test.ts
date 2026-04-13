@@ -1040,7 +1040,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
 
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
-  Layer.provideMerge(HttpServer.layerContext),
+  Layer.provideMerge(HttpServer.layerServices),
   Layer.provide(MockDiscordOAuthLayer),
   Layer.provide(MockUsersRepositoryLayer),
   Layer.provide(MockSessionsRepositoryLayer),

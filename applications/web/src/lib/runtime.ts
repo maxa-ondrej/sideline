@@ -92,7 +92,7 @@ export class ServerRunner {
     effect: Effect.Effect<A, Redirect | NotFound, ApiClient | ClientConfig>,
   ): Promise<A> {
     const effectResponse = effect.pipe(
-      Effect.either,
+      Effect.result,
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
         baseUrl: this.serverUrl,
@@ -119,7 +119,7 @@ export const runPromiseServer =
     effect: Effect.Effect<A, Redirect | NotFound, ApiClient | ClientConfig>,
   ): Promise<A> => {
     const effectResponse = effect.pipe(
-      Effect.either,
+      Effect.result,
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
         baseUrl: serverUrl,

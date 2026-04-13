@@ -263,7 +263,7 @@ const rpcHandlers = Effect.Do.pipe(
           Effect.map(Array.map(flow(constructEvent))),
           Effect.tap(
             flow(
-              Array.isEmptyReadonlyArray,
+              Array.isEmptyArray,
               Effect.if({
                 onTrue: NoChanges.make,
                 onFalse: () => Effect.void,

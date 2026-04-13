@@ -6,7 +6,7 @@ import { Schema } from 'effect';
 export const env = createEnv({
   server: {
     NODE_ENV: Schema.standardSchemaV1(Schemas.NodeEnv),
-    DISCORD_BOT_TOKEN: Schema.NonEmptyTrimmedString.pipe(Schema.Redacted, Schema.standardSchemaV1),
+    DISCORD_BOT_TOKEN: Schema.NonEmptyString.pipe(Schema.Redacted, Schema.standardSchemaV1),
     HEALTH_PORT: Schema.NumberFromString.pipe(
       Schemas.Optional(() => 9000),
       Schema.standardSchemaV1,
@@ -21,14 +21,14 @@ export const env = createEnv({
       Schemas.Optional(() => ''),
       Schema.standardSchemaV1,
     ),
-    SERVER_URL: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    SERVER_URL: Schema.NonEmptyString.pipe(Schema.standardSchemaV1),
     LOG_LEVEL: Schema.OptionFromNullishOr(Schemas.LogLevelFromString, null).pipe(
       Schema.standardSchemaV1,
     ),
-    APP_ENV: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
-    APP_ORIGIN: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
-    OTEL_EXPORTER_OTLP_ENDPOINT: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
-    OTEL_SERVICE_NAME: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
+    APP_ENV: Schema.NonEmptyString.pipe(Schema.standardSchemaV1),
+    APP_ORIGIN: Schema.NonEmptyString.pipe(Schema.standardSchemaV1),
+    OTEL_EXPORTER_OTLP_ENDPOINT: Schema.NonEmptyString.pipe(Schema.standardSchemaV1),
+    OTEL_SERVICE_NAME: Schema.NonEmptyString.pipe(Schema.standardSchemaV1),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

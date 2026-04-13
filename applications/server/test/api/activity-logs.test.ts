@@ -455,7 +455,7 @@ describe('listLogs handler', () => {
       memberId: TEST_OTHER_MEMBER_ID,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -502,7 +502,7 @@ describe('createLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -526,7 +526,7 @@ describe('createLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -574,7 +574,7 @@ describe('updateLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -598,7 +598,7 @@ describe('updateLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -622,7 +622,7 @@ describe('updateLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -663,7 +663,7 @@ describe('deleteLog handler', () => {
       logId: TEST_NONEXISTENT_LOG_ID,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -685,7 +685,7 @@ describe('deleteLog handler', () => {
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -707,7 +707,7 @@ describe('deleteLog handler', () => {
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -748,7 +748,7 @@ describe('auto-source guard on updateLog', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
@@ -781,7 +781,7 @@ describe('auto-source guard on deleteLog', () => {
       logId: TEST_AUTO_LOG_ID,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
           expect(Result.isFailure(result)).toBe(true);
