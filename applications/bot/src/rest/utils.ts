@@ -1,4 +1,5 @@
-import { Schedule } from 'effect';
+import type { EventRpcModels } from '@sideline/domain';
+import { Array, Option, pipe, Schedule } from 'effect';
 import type { Permission } from './permissions.js';
 
 export const POLL_BATCH_SIZE = 50;
@@ -10,3 +11,11 @@ export const retryPolicy = Schedule.exponential('1 second').pipe(
 export const allow = (permission: Permission) => Number(permission.allow ?? 0);
 
 export const deny = (permission: Permission) => Number(permission.deny ?? 0);
+
+export const formatName = (entry: EventRpcModels.RsvpAttendeeEntry) =>
+  pipe(
+    Array.make(entry.name, entry.nickname, entry.username),
+    Array.filterMap(Option.map((u) => `**${u}**`)),
+    Array.head,
+    Option.getOrElse(() => 'Unknown'),
+  );

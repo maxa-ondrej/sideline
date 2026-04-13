@@ -51,7 +51,7 @@ describe('buildEventEmbed', () => {
       expect(goingField?.value).toContain('**Alice**');
     });
 
-    it('renders "?" when name is None and no username or nickname', () => {
+    it('renders "Unknown" when name is None and no username or nickname', () => {
       const attendee = makeAttendee(Option.some('456'), Option.none());
       const { embeds } = buildEventEmbed({
         ...baseOpts,
@@ -62,7 +62,7 @@ describe('buildEventEmbed', () => {
       const fields = embeds[0].fields ?? [];
       const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
       expect(goingField).toBeDefined();
-      expect(goingField?.value).toBe('?');
+      expect(goingField?.value).toBe('Unknown');
     });
 
     it('uses comma-space separator between names', () => {
@@ -108,7 +108,7 @@ describe('buildEventEmbed', () => {
       expect(goingField?.value).toContain('**alice123**');
     });
 
-    it('renders "?" when name, username, and discord_id are all None', () => {
+    it('renders "Unknown" when name, username, and discord_id are all None', () => {
       const attendee = makeAttendee(Option.none(), Option.none());
       const { embeds } = buildEventEmbed({
         ...baseOpts,
@@ -119,7 +119,7 @@ describe('buildEventEmbed', () => {
       const fields = embeds[0].fields ?? [];
       const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
       expect(goingField).toBeDefined();
-      expect(goingField?.value).toBe('?');
+      expect(goingField?.value).toBe('Unknown');
     });
 
     it('is omitted when isStarted is true', () => {

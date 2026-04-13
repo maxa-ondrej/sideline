@@ -1,34 +1,28 @@
 import type { EventRpcModels } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
-import { Option } from 'effect';
+import { Option, pipe, String } from 'effect';
 import type { Locale } from '~/locale.js';
+import { formatName } from '../utils.js';
 
 const EVENT_COLOR = 0x5865f2;
 
-const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string => {
-  const boldName = Option.orElse(
-    Option.map(entry.name, (n) => `**${n}**`),
-    () =>
-      Option.orElse(
-        Option.map(entry.nickname, (n) => `**${n}**`),
-        () => Option.map(entry.username, (u) => `**${u}**`),
-      ),
-  );
-  const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
-  const name = Option.match(boldName, {
-    onNone: () => Option.getOrElse(mention, () => 'Unknown'),
-    onSome: (bold) =>
-      Option.match(mention, {
-        onNone: () => bold,
-        onSome: (m) => `${bold} (${m})`,
+const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string =>
+  pipe(
+    formatName(entry),
+    String.concat(
+      Option.match(entry.discord_id, {
+        onNone: () => '',
+        onSome: (id) => ` (<@${id}>)`,
       }),
-  });
-  return entry.message.pipe(
-    Option.map((msg) => `${name} — "${msg}"`),
-    Option.getOrElse(() => name),
+    ),
+    String.concat(
+      entry.message.pipe(
+        Option.map((msg) => ` — "${msg}"`),
+        Option.getOrElse(() => ''),
+      ),
+    ),
   );
-};
 
 export const buildAttendeesEmbed = (opts: {
   attendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>;
@@ -52,19 +46,19 @@ export const buildAttendeesEmbed = (opts: {
 
   if (grouped.yes.length > 0) {
     fields.push({
-      name: m.bot_attendees_yes({ count: String(grouped.yes.length) }, { locale }),
+      name: m.bot_attendees_yes({ count: globalThis.String(grouped.yes.length) }, { locale }),
       value: grouped.yes.join('\n'),
     });
   }
   if (grouped.no.length > 0) {
     fields.push({
-      name: m.bot_attendees_no({ count: String(grouped.no.length) }, { locale }),
+      name: m.bot_attendees_no({ count: globalThis.String(grouped.no.length) }, { locale }),
       value: grouped.no.join('\n'),
     });
   }
   if (grouped.maybe.length > 0) {
     fields.push({
-      name: m.bot_attendees_maybe({ count: String(grouped.maybe.length) }, { locale }),
+      name: m.bot_attendees_maybe({ count: globalThis.String(grouped.maybe.length) }, { locale }),
       value: grouped.maybe.join('\n'),
     });
   }
@@ -83,9 +77,9 @@ export const buildAttendeesEmbed = (opts: {
       footer: {
         text: m.bot_attendees_footer(
           {
-            page: String(page),
-            totalPages: String(totalPages),
-            total: String(opts.total),
+            page: globalThis.String(page),
+            totalPages: globalThis.String(totalPages),
+            total: globalThis.String(opts.total),
           },
           { locale },
         ),
