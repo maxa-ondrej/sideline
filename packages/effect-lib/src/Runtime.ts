@@ -1,6 +1,6 @@
-import { DevTools } from '@effect/experimental';
 import { NodeRuntime } from '@effect/platform-node';
 import { Effect, Layer, Logger, LogLevel, Option } from 'effect';
+import { DevTools } from 'effect/unstable/devtools';
 
 const LogLayer = (logLevel: Option.Option<LogLevel.LogLevel>) =>
   Layer.mergeAll(

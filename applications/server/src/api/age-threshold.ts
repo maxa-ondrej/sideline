@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { AgeThresholdApi, Auth } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';

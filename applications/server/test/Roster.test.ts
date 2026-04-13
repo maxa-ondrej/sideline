@@ -1,7 +1,8 @@
-import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
 import type { Auth, Discord, Role, RosterModel, Team, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
+import { HttpClient, HttpClientResponse, HttpServer } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';

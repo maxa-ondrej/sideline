@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team, TeamMember } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class GroupNameAlreadyTakenError extends Schema.TaggedError<GroupNameAlreadyTakenError>()(

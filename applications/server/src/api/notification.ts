@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, NotificationApi } from '@sideline/domain';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 

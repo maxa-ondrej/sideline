@@ -1,6 +1,6 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { EventId, EventType } from '~/models/Event.js';
 import { RsvpResponse } from '~/models/EventRsvp.js';

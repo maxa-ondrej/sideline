@@ -1,11 +1,12 @@
-import { HttpApiBuilder, HttpClient, HttpClientResponse, HttpServer } from '@effect/platform';
-import { RpcTest } from '@effect/rpc';
-import { SqlClient } from '@effect/sql';
 import { it as itEffect } from '@effect/vitest';
 import type { Auth, Discord, Event, EventRsvp, Role, Team, TeamMember } from '@sideline/domain';
 import { EventRpcGroup, type EventRpcModels } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
+import { HttpClient, HttpClientResponse, HttpServer } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
+import { RpcTest } from 'effect/unstable/rpc';
+import { SqlClient } from 'effect/unstable/sql';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';

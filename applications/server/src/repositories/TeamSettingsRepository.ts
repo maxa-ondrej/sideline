@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { ChannelSyncEvent, Discord, Event, GroupModel, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { DEFAULT_CHANNEL_FORMAT, DEFAULT_ROLE_FORMAT } from '~/utils/applyDiscordFormat.js';
 

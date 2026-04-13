@@ -1,5 +1,5 @@
-import { SqlError } from '@effect/sql/SqlError';
 import { Effect, Option, Schema } from 'effect';
+import { SqlError } from 'effect/unstable/sql/SqlError';
 
 const PG_UNIQUE_VIOLATION = '23505';
 

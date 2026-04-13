@@ -1,14 +1,9 @@
 import { createServer } from 'node:http';
-import {
-  HttpApi,
-  HttpApiBuilder,
-  HttpApiEndpoint,
-  HttpApiGroup,
-  HttpServer,
-} from '@effect/platform';
 import { NodeHttpServer } from '@effect/platform-node';
 import { DiscordGateway } from 'dfx/gateway';
 import { Effect, Layer, Schema } from 'effect';
+import { HttpServer } from 'effect/unstable/http';
+import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { env } from '~/env.js';
 
 const HealthResponse = Schema.Struct({

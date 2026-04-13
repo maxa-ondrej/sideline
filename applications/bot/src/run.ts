@@ -1,8 +1,8 @@
 import { NodeHttpClient, NodeSocket } from '@effect/platform-node';
-import { RpcClient, RpcSerialization } from '@effect/rpc';
 import { Runtime, Telemetry } from '@sideline/effect-lib';
 import * as DiscordConfig from 'dfx/DiscordConfig';
 import { Config, Effect, Layer } from 'effect';
+import { RpcClient, RpcSerialization } from 'effect/unstable/rpc';
 import { env } from '~/env.js';
 import { AppLive, Bot } from '~/index.js';
 

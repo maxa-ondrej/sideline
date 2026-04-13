@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class DividerRow extends Schema.Class<DividerRow>('DividerRow')({

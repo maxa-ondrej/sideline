@@ -1,4 +1,4 @@
-import type { HttpApiEndpoint, HttpApiError, HttpApiGroup } from '@effect/platform';
+import type { HttpApiEndpoint, HttpApiError, HttpApiGroup } from 'effect/unstable/httpapi';
 
 export const getEndpoint =
   <

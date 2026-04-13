@@ -1,4 +1,3 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import {
   ChannelSyncEvent,
   Discord,
@@ -8,6 +7,7 @@ import {
   Team,
 } from '@sideline/domain';
 import { Effect, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class MappingRow extends Schema.Class<MappingRow>('MappingRow')({

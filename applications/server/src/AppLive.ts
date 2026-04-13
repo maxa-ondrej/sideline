@@ -1,13 +1,8 @@
-import {
-  FetchHttpClient,
-  HttpApiBuilder,
-  HttpApiSwagger,
-  type HttpRouter,
-  HttpServer,
-} from '@effect/platform';
-import { RpcSerialization, RpcServer } from '@effect/rpc';
 import { SyncRpcs } from '@sideline/domain';
 import { Layer } from 'effect';
+import { FetchHttpClient, type HttpRouter, HttpServer } from 'effect/unstable/http';
+import { HttpApiBuilder, HttpApiSwagger } from 'effect/unstable/httpapi';
+import { RpcSerialization, RpcServer } from 'effect/unstable/rpc';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { RpcObservability, RpcObservabilityLive } from '~/middleware/RpcObservability.js';

@@ -1,4 +1,4 @@
-import { RpcGroup } from '@effect/rpc';
+import { RpcGroup } from 'effect/unstable/rpc';
 import { ActivityRpcGroup } from './activity/ActivityRpcGroup.js';
 import { ChannelRpcGroup } from './channel/ChannelRpcGroup.js';
 import { EventRpcGroup } from './event/EventRpcGroup.js';

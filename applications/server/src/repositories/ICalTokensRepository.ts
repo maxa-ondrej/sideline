@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { ICalToken } from '@sideline/domain';
 import { Effect, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class ICalTokensRepository extends Effect.Service<ICalTokensRepository>()(

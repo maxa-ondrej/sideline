@@ -1,6 +1,6 @@
-import { KeyValueStore } from '@effect/platform';
 import { BrowserKeyValueStore } from '@effect/platform-browser';
 import { Effect, Option } from 'effect';
+import { KeyValueStore } from 'effect/unstable/persistence';
 import { client } from '~/lib/client';
 
 export const getLogin = () => client.pipe(Effect.flatMap((c) => c.auth.getLogin()));

@@ -1,7 +1,8 @@
-import { HttpApiBuilder, HttpServerResponse } from '@effect/platform';
 import { Auth, ICalApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { DateTime, Effect, Option } from 'effect';
+import { HttpServerResponse } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { env } from '~/env.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';

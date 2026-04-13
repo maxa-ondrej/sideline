@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Effect, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({

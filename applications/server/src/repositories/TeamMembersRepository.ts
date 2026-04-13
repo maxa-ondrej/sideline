@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Role, Team, TeamMember, User } from '@sideline/domain';
 import { Schemas, SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class MemberAlreadyExistsError extends Schema.TaggedError<MemberAlreadyExistsError>()(

@@ -1,5 +1,5 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
+import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import { Discord, Event, EventRsvp, Team, TrainingType } from '~/index.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {

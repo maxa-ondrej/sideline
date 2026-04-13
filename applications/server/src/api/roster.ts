@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, type Discord, Roster, type RosterModel } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Match, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';

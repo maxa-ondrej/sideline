@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityLog, ActivityLogApi, ActivityType, TeamMember } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class StatsRow extends Schema.Class<StatsRow>('StatsRow')({

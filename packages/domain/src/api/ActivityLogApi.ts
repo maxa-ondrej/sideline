@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { ActivityLogId, ActivitySource } from '~/models/ActivityLog.js';
 import { ActivityTypeId } from '~/models/ActivityType.js';

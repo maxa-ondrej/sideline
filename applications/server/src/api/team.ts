@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventApi, type Team, TeamApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';

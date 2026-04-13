@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Session } from '@sideline/domain';
 import { Effect, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class SessionsRepository extends Effect.Service<SessionsRepository>()(

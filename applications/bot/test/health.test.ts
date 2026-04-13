@@ -1,6 +1,7 @@
-import { HttpApiBuilder, HttpServer } from '@effect/platform';
 import { DiscordGateway } from 'dfx/gateway';
 import { Effect, Layer } from 'effect';
+import { HttpServer } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BotHealthApi } from '~/HealthServerLive.js';
 

@@ -1,5 +1,5 @@
-import { RpcMiddleware } from '@effect/rpc';
 import { Effect, Layer, Metric, MetricBoundaries, pipe } from 'effect';
+import { RpcMiddleware } from 'effect/unstable/rpc';
 
 const rpcRequestsTotal = Metric.counter('rpc_requests_total', {
   description: 'Total RPC requests handled',

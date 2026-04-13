@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { ActivityStats, Auth, Leaderboard, LeaderboardApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
 import { LeaderboardRepository } from '~/repositories/LeaderboardRepository.js';

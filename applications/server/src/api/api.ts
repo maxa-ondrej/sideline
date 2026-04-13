@@ -1,4 +1,3 @@
-import { HttpApi } from '@effect/platform';
 import {
   ActivityLogApi,
   ActivityStatsApi,
@@ -19,6 +18,7 @@ import {
   TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
+import { HttpApi } from 'effect/unstable/httpapi';
 import { env } from '~/env.js';
 
 export class Api extends HttpApi.make('api')

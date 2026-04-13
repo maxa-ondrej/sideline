@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Role, RoleSyncEvent, Team, TeamMember } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class InsertInput extends Schema.Class<InsertInput>('InsertInput')({

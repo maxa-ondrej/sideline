@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { SqlModel as Model } from 'effect/unstable/sql';
 import { ActivityTypeId } from '~/models/ActivityType.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 

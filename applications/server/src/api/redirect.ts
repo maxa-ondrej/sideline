@@ -1,5 +1,5 @@
-import { HttpServerResponse } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpServerResponse } from 'effect/unstable/http';
 
 export class Redirect extends Schema.Class<Redirect>('Redirect')({
   url: Schema.URL,

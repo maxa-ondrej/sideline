@@ -1,4 +1,3 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import {
   AgeThresholdRule as AgeThreshold,
   Discord,
@@ -9,6 +8,7 @@ import {
 } from '@sideline/domain';
 import { Schemas, SqlErrors } from '@sideline/effect-lib';
 import { Effect, type Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 export class AgeThresholdAlreadyExistsError extends Schema.TaggedError<AgeThresholdAlreadyExistsError>()(

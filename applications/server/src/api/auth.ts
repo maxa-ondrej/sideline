@@ -1,4 +1,3 @@
-import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth, Discord, Role, type Team, type User } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
@@ -14,6 +13,8 @@ import {
   Schema,
   Struct,
 } from 'effect';
+import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
 import { env } from '~/env.js';

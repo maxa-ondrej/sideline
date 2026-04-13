@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { SqlModel as Model } from 'effect/unstable/sql';
 import { UserId } from '~/models/User.js';
 
 export const OAuthConnectionId = Schema.String.pipe(Schema.brand('OAuthConnectionId'));

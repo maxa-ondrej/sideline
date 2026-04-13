@@ -1,6 +1,6 @@
-import { Model } from '@effect/sql';
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
+import { SqlModel as Model } from 'effect/unstable/sql';
 import { Snowflake } from '~/models/Discord.js';
 
 export const UserId = Schema.String.pipe(Schema.brand('UserId'));

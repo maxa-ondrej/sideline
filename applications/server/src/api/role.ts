@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, RoleApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';

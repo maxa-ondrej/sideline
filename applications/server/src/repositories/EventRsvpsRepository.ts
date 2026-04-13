@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, EventRsvp, TeamMember } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMemberName')({

@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
 import { NodeFileSystem, NodeHttpServer } from '@effect/platform-node';
-import { SqlClient } from '@effect/sql';
 import { PgClient } from '@effect/sql-pg';
 import { Runtime, Telemetry } from '@sideline/effect-lib';
 import { AfterMigrator, BeforeMigrator } from '@sideline/migrations';
 import { Config, Effect, Layer } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 import { env } from '~/env.js';
 import { AppLive, HealthServerLive } from '~/index.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';

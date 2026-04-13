@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { ActivityStats, ActivityStatsApi, Auth } from '@sideline/domain';
 import { Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';

@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Metric, Option, pipe } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { rsvpSubmissionsTotal } from '~/metrics.js';

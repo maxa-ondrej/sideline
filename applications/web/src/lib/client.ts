@@ -1,11 +1,4 @@
 import {
-  FetchHttpClient,
-  HttpApi,
-  HttpApiClient,
-  HttpClient,
-  HttpClientRequest,
-} from '@effect/platform';
-import {
   ActivityLogApi,
   ActivityStatsApi,
   AgeThresholdApi,
@@ -26,6 +19,8 @@ import {
   TrainingTypeApi,
 } from '@sideline/domain';
 import { Context, Effect, Option } from 'effect';
+import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/unstable/http';
+import { HttpApi, HttpApiClient } from 'effect/unstable/httpapi';
 import { getToken } from '~/lib/auth';
 
 export type ClientConfigService = {

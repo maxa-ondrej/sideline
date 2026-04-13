@@ -1,4 +1,3 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import {
   type Discord,
   type Event,
@@ -12,6 +11,7 @@ import {
 } from '@sideline/domain';
 import { Bind, LogicError, Options, Schemas } from '@sideline/effect-lib';
 import { Array, Data, DateTime, Effect, flow, Metric, Option, pipe, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';

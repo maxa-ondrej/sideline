@@ -1,5 +1,5 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
+import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import { ChannelSyncEvent, Discord, GroupModel, RosterModel, Team } from '~/index.js';
 import { UnprocessedChannelEvent } from './ChannelRpcEvents.js';
 import { ChannelMapping } from './ChannelRpcModels.js';

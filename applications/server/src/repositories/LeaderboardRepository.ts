@@ -1,7 +1,7 @@
-import { SqlClient } from '@effect/sql';
 import type { ActivityType, Leaderboard, Team } from '@sideline/domain';
 import { TeamMember, User } from '@sideline/domain';
 import { Effect, Option, Schema } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({

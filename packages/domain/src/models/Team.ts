@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { SqlModel as Model } from 'effect/unstable/sql';
 import { Snowflake } from '~/models/Discord.js';
 import { UserId } from '~/models/User.js';
 

@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
 import { Snowflake } from '~/models/Discord.js';

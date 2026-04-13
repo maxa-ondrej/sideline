@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Invite } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Effect, Option, Schedule } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';

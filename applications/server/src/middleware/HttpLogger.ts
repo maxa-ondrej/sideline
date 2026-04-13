@@ -1,6 +1,6 @@
-import { HttpMiddleware, HttpServerError, HttpServerRequest } from '@effect/platform';
 import { Metrics } from '@sideline/effect-lib';
 import { Clock, Effect, Metric, pipe } from 'effect';
+import { HttpMiddleware, HttpServerError, HttpServerRequest } from 'effect/unstable/http';
 
 const statusClass = (status: number): string => `${Math.floor(status / 100)}xx`;
 

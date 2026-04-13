@@ -1,5 +1,5 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Layer } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { ActivityLogApiLive } from '~/api/activity-logs.js';
 import { ActivityStatsApiLive } from '~/api/activity-stats.js';
 import { AgeThresholdApiLive } from '~/api/age-threshold.js';

@@ -1,6 +1,6 @@
-import { Model } from '@effect/sql';
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
+import { SqlModel as Model } from 'effect/unstable/sql';
 import { TeamId } from '~/models/Team.js';
 import { UserId } from '~/models/User.js';
 

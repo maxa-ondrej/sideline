@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord } from '@sideline/domain';
 import { Array, Effect, type Option, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({

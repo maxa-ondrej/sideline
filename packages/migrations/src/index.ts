@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
-import { Migrator as SqlMigrator } from '@effect/sql';
-import { fromFileSystem } from '@effect/sql/Migrator/FileSystem';
+import { Migrator as SqlMigrator } from 'effect/unstable/sql';
+import { fromFileSystem } from 'effect/unstable/sql/Migrator';
 
 const createMigrator = SqlMigrator.make({});
 
