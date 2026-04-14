@@ -18,9 +18,9 @@ export const Route = createFileRoute('/')({
   component: HomeRoute,
   validateSearch: Schema.toStandardSchemaV1(
     Schema.Struct({
-      token: Schema.OptionFromNullishOr(Schema.String),
-      error: Schema.OptionFromNullishOr(Schema.String),
-      reason: Schema.OptionFromNullishOr(Schema.String),
+      token: Schema.OptionFromOptionalNullOr(Schema.String),
+      error: Schema.OptionFromOptionalNullOr(Schema.String),
+      reason: Schema.OptionFromOptionalNullOr(Schema.String),
     }),
   ),
   beforeLoad: ({ search, context }) =>
