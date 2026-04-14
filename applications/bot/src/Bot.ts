@@ -17,14 +17,11 @@ const ixProgram = Effect.succeed(commandBuilder).pipe(
   ),
 );
 
-const pollLoop = (processTick: Effect.Effect<void, unknown, unknown>) =>
+const pollLoop = <E, R>(processTick: Effect.Effect<void, E, R>) =>
   processTick.pipe(Effect.repeat(Schedule.spaced('5 seconds')));
 
-export const program: Effect.Effect<
-  void,
-  unknown,
-  DiscordGateway | DiscordREST | SyncRpc | RoleSyncService | ChannelSyncService | EventSyncService
-> = Effect.Do.pipe(
+// biome-ignore lint/suspicious/noExplicitAny: dfx's handleDispatch returns Effect<..., any>, cast to specific requirements
+export const program = Effect.Do.pipe(
   Effect.bind('events', () => eventHandlers),
   Effect.bind('roles', () => RoleSyncService.asEffect()),
   Effect.bind('channels', () => ChannelSyncService.asEffect()),
@@ -45,4 +42,8 @@ export const program: Effect.Effect<
     ),
   ),
   Effect.asVoid,
-);
+) as Effect.Effect<
+  void,
+  unknown,
+  DiscordGateway | DiscordREST | SyncRpc | RoleSyncService | ChannelSyncService | EventSyncService
+>;
