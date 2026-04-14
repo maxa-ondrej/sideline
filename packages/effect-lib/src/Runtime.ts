@@ -26,5 +26,12 @@ export const runMain =
     logLevel: Option.Option<LogLevel.LogLevel> = Option.none(),
     additionalLayers: Layer.Layer<never> = Layer.empty,
   ) =>
-  <A, E>(effect: Effect.Effect<A, E>): void =>
-    NodeRuntime.runMain(Effect.provide(effect, RuntimeLayer(env, logLevel, additionalLayers)));
+  // biome-ignore lint/suspicious/noExplicitAny: entry-point — requirements are fully provided by the caller
+  <A, E, R = never>(effect: Effect.Effect<A, E, R>): void =>
+    NodeRuntime.runMain(
+      Effect.provide(effect, RuntimeLayer(env, logLevel, additionalLayers)) as Effect.Effect<
+        A,
+        E,
+        never
+      >,
+    );
