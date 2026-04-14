@@ -48,8 +48,8 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
                   })
                   .pipe(
                     Effect.asVoid,
-                    Effect.catchSomeDefect((defect) =>
-                      isUniqueViolation(defect) ? Option.some(Effect.void) : Option.none(),
+                    Effect.catchDefect((defect) =>
+                      isUniqueViolation(defect) ? Effect.void : Effect.die(defect),
                     ),
                   ),
               ),

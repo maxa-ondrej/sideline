@@ -1,5 +1,5 @@
 import { Metrics } from '@sideline/effect-lib';
-import { Clock, Effect, Metric, pipe } from 'effect';
+import { Clock, Effect, Metric } from 'effect';
 import { HttpMiddleware, HttpServerError, HttpServerRequest } from 'effect/unstable/http';
 
 const statusClass = (status: number): string => `${Math.floor(status / 100)}xx`;
@@ -11,14 +11,13 @@ const recordHttpMetrics = (method: string, status: number, durationMs: number) =
   Effect.all(
     [
       Metric.update(
-        pipe(
-          Metrics.httpRequestsTotal,
-          Metric.tagged('method', method),
-          Metric.tagged('status_class', statusClass(status)),
-        ),
+        Metric.withAttributes(Metrics.httpRequestsTotal, {
+          method,
+          status_class: statusClass(status),
+        }),
         1,
       ),
-      Metric.update(pipe(Metrics.httpRequestDuration, Metric.tagged('method', method)), durationMs),
+      Metric.update(Metric.withAttributes(Metrics.httpRequestDuration, { method }), durationMs),
     ],
     { discard: true },
   );
@@ -28,7 +27,7 @@ const recordHttpMetrics = (method: string, status: number, durationMs: number) =
  * and wraps each request in an OpenTelemetry span.
  */
 export const HttpLogger = HttpMiddleware.make((httpApp) =>
-  Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) =>
+  Effect.flatMap(HttpServerRequest.HttpServerRequest.asEffect(), (request) =>
     Effect.Do.pipe(
       Effect.bind('startMs', () => Clock.currentTimeMillis),
       Effect.bind('exit', () => Effect.exit(httpApp)),

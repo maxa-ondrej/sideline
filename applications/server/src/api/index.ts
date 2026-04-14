@@ -20,7 +20,7 @@ import { TeamApiLive } from '~/api/team.js';
 import { TeamSettingsApiLive } from '~/api/team-settings.js';
 import { TrainingTypeApiLive } from '~/api/training-type.js';
 
-export const ApiLive = HttpApiBuilder.api(Api).pipe(
+export const ApiLive = HttpApiBuilder.layer(Api, { openapiPath: '/docs/openapi.json' }).pipe(
   Layer.provide(ActivityLogApiLive),
   Layer.provide(ActivityStatsApiLive),
   Layer.provide(DashboardApiLive),

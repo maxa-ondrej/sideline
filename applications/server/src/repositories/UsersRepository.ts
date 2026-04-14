@@ -1,4 +1,5 @@
 import { User } from '@sideline/domain';
+import { Schemas } from '@sideline/effect-lib';
 import { Effect, Layer, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
@@ -10,14 +11,24 @@ class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscord
   discord_nickname: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
-const CompleteProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
+const CompleteProfileInput = Schema.Struct({
+  id: User.UserId,
+  name: Schema.OptionFromNullOr(Schema.String),
+  birth_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  gender: Schema.OptionFromNullOr(User.Gender),
+});
 
-const AdminUpdateProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
+const AdminUpdateProfileInput = Schema.Struct({
+  id: User.UserId,
+  name: Schema.OptionFromNullOr(Schema.String),
+  birth_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  gender: Schema.OptionFromNullOr(User.Gender),
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const findByDiscordIdQuery = SqlSchema.findOne({
+  const findByDiscordIdQuery = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: User.User,
     execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
@@ -26,7 +37,13 @@ const make = Effect.gen(function* () {
   const findByDiscordId = (discordId: string) =>
     findByDiscordIdQuery(discordId).pipe(catchSqlErrors);
 
-  const findById = (id: User.UserId) => repo.findById(id);
+  const findByIdQuery = SqlSchema.findOneOption({
+    Request: User.UserId,
+    Result: User.User,
+    execute: (id) => sql`SELECT * FROM users WHERE id = ${id}`,
+  });
+
+  const findById = (id: User.UserId) => findByIdQuery(id).pipe(catchSqlErrors);
 
   const upsertFromDiscordQuery = SqlSchema.findOne({
     Request: UpsertDiscordInput,

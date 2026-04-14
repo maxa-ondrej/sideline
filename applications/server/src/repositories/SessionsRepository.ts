@@ -16,7 +16,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const _findByToken = SqlSchema.findOne({
+  const _findByToken = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: Session.Session,
     execute: (token) => sql`SELECT * FROM sessions WHERE token = ${token} AND expires_at > now()`,

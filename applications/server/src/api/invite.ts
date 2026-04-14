@@ -1,6 +1,6 @@
 import { Auth, Invite } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Effect, Option, Schedule } from 'effect';
+import { Duration, Effect, Option, Schedule } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -128,7 +128,11 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   expires_at: Option.none(),
                   created_at: undefined,
                 }),
-              ).pipe(Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis'))),
+              ).pipe(
+                Effect.retry(
+                  Schedule.addDelay(Schedule.recurs(5), () => Effect.succeed(Duration.millis(100))),
+                ),
+              ),
             ),
             Effect.tap(({ newInvite }) =>
               invites.deactivateByTeamExcept({ teamId, excludeId: newInvite.id }),

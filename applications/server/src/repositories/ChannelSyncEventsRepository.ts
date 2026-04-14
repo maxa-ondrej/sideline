@@ -81,7 +81,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const lookupGuildId = SqlSchema.findOne({
+  const lookupGuildId = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: GuildLookupResult,
     execute: (teamId) => sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
@@ -410,20 +410,16 @@ const make = Effect.gen(function* () {
   const markFailed = (id: ChannelSyncEvent.ChannelSyncEventId, error: string) =>
     markEventFailed({ id, error }).pipe(catchSqlErrors);
 
-  const hasUnprocessedForGroups = (
-    groupIds: ReadonlyArray<GroupModel.GroupId>,
-  ): Effect.Effect<ReadonlyArray<GroupModel.GroupId>, never, never> => {
-    if (groupIds.length === 0) return Effect.succeed([]);
+  const hasUnprocessedForGroups = (groupIds: ReadonlyArray<GroupModel.GroupId>) => {
+    if (groupIds.length === 0) return Effect.succeed([] as GroupModel.GroupId[]);
     return findUnprocessedForGroups([...groupIds]).pipe(
       Effect.map((rows) => rows.map((r) => r.group_id)),
       catchSqlErrors,
     );
   };
 
-  const hasUnprocessedForRosters = (
-    rosterIds: ReadonlyArray<RosterModel.RosterId>,
-  ): Effect.Effect<ReadonlyArray<RosterModel.RosterId>, never, never> => {
-    if (rosterIds.length === 0) return Effect.succeed([]);
+  const hasUnprocessedForRosters = (rosterIds: ReadonlyArray<RosterModel.RosterId>) => {
+    if (rosterIds.length === 0) return Effect.succeed([] as RosterModel.RosterId[]);
     return findUnprocessedForRosters([...rosterIds]).pipe(
       Effect.map((rows) => rows.map((r) => r.roster_id)),
       catchSqlErrors,

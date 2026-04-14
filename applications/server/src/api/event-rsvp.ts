@@ -28,12 +28,16 @@ const checkGroupAccess = (
 };
 
 const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
-  !DateTime.lessThan(DateTime.nowUnsafe(), startAt);
+  !DateTime.isLessThan(DateTime.nowUnsafe(), startAt);
 
 const buildRsvpDetail = (
   rsvps: ServiceMap.Service.Shape<typeof EventRsvpsRepository>,
-  eventId: Parameters<EventRsvpsRepository['findRsvpsByEventId']>[0],
-  myMemberId: Parameters<EventRsvpsRepository['findRsvpByEventAndMember']>[1],
+  eventId: Parameters<
+    ServiceMap.Service.Shape<typeof EventRsvpsRepository>['findRsvpsByEventId']
+  >[0],
+  myMemberId: Parameters<
+    ServiceMap.Service.Shape<typeof EventRsvpsRepository>['findRsvpByEventAndMember']
+  >[1],
   canRsvp: boolean,
   minPlayersThreshold: number,
 ) =>
@@ -166,7 +170,7 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 ),
                 Effect.tap(() =>
                   Metric.update(
-                    Metric.tagged(rsvpSubmissionsTotal, 'response', payload.response),
+                    Metric.withAttributes(rsvpSubmissionsTotal, { response: payload.response }),
                     1,
                   ),
                 ),

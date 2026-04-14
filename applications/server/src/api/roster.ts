@@ -1,5 +1,5 @@
 import { Auth, type Discord, Roster, type RosterModel } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
+import { LogicError, Options } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Match, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
@@ -217,10 +217,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
               Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () => Effect.fail(new Roster.Forbidden())),
-                ),
+                teams
+                  .findById(teamId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new Roster.Forbidden()))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -348,10 +347,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 rosters.findMemberEntriesById(roster.id),
               ),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () => Effect.fail(new Roster.Forbidden())),
-                ),
+                teams
+                  .findById(teamId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new Roster.Forbidden()))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -641,10 +639,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
               ),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () => Effect.fail(new Roster.Forbidden())),
-                ),
+                teams
+                  .findById(teamId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new Roster.Forbidden()))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -721,6 +718,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                           onNone: () => Effect.void,
                         }),
                       ),
+                      Match.exhaustive,
                     ),
                   ),
                   Option.getOrElse(() => Effect.void),

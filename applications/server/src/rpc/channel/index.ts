@@ -9,7 +9,7 @@ import {
   type Team,
 } from '@sideline/domain';
 import { Bind, LogicError } from '@sideline/effect-lib';
-import { Array, Cause, Data, Effect, flow, Option } from 'effect';
+import { Array, Cause, Data, Effect, flow, Option, Result } from 'effect';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
@@ -54,14 +54,19 @@ export const ChannelsRpcLive = Effect.Do.pipe(
               flow(
                 constructEvent,
                 Effect.tapErrorTag('EventPropertyMissing', EventPropertyMissing.handle),
+                Effect.result,
               ),
             ),
           ),
-          Effect.tap((arr) => (Array.isArrayEmpty(arr) ? NoChanges.make() : Effect.void)),
+          Effect.tap((arr) =>
+            Array.isArrayEmpty(arr) ? Effect.fail(NoChanges.make()) : Effect.void,
+          ),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} channel events from database.`),
           ),
           Effect.flatMap(Effect.all),
+          Effect.tap(flow(Array.filterMap(Result.flip), Array.map(Effect.logError), Effect.all)),
+          Effect.map(Array.filterMap((r) => r)),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} channel events from database.`),
           ),

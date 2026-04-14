@@ -25,7 +25,7 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
           onSome: (d) => DateTime.add(d, { days: 1 }),
         });
 
-        if (DateTime.greaterThan(startFrom, effectiveEnd)) return Effect.void;
+        if (DateTime.isGreaterThan(startFrom, effectiveEnd)) return Effect.void;
 
         const dates = generateOccurrenceDates({
           frequency: s.frequency,

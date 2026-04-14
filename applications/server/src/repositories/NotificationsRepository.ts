@@ -72,8 +72,7 @@ const make = Effect.gen(function* () {
   const markAllReadForTeam = SqlSchema.void({
     Request: MarkAllReadForTeamInput,
     execute: (input) =>
-      this
-        .sql`UPDATE notifications SET is_read = true WHERE user_id = ${input.user_id} AND team_id = ${input.team_id} AND is_read = false`,
+      sql`UPDATE notifications SET is_read = true WHERE user_id = ${input.user_id} AND team_id = ${input.team_id} AND is_read = false`,
   });
 
   const insertOne = SqlSchema.findOne({
@@ -95,11 +94,10 @@ const make = Effect.gen(function* () {
   const markAllRead = SqlSchema.void({
     Request: Schema.String,
     execute: (userId) =>
-      this
-        .sql`UPDATE notifications SET is_read = true WHERE user_id = ${userId} AND is_read = false`,
+      sql`UPDATE notifications SET is_read = true WHERE user_id = ${userId} AND is_read = false`,
   });
 
-  const findOneById = SqlSchema.findOne({
+  const findOneById = SqlSchema.findOneOption({
     Request: Notification.NotificationId,
     Result: NotificationRow,
     execute: (id) => sql`

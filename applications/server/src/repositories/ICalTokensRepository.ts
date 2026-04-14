@@ -6,13 +6,13 @@ import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const _findByToken = SqlSchema.findOne({
+  const _findByToken = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: ICalToken.ICalToken,
     execute: (token) => sql`SELECT * FROM ical_tokens WHERE token = ${token}`,
   });
 
-  const _findByUserId = SqlSchema.findOne({
+  const _findByUserId = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: ICalToken.ICalToken,
     execute: (userId) => sql`SELECT * FROM ical_tokens WHERE user_id = ${userId}`,

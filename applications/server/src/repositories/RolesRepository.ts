@@ -82,12 +82,11 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: Role.RoleId,
     Result: RoleRow,
     execute: (id) =>
-      this
-        .sql`SELECT id, team_id, name, is_built_in FROM roles WHERE id = ${id} AND is_archived = false`,
+      sql`SELECT id, team_id, name, is_built_in FROM roles WHERE id = ${id} AND is_archived = false`,
   });
 
   const findPermissions = SqlSchema.findAll({
@@ -136,12 +135,11 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findByTeamAndName = SqlSchema.findOne({
+  const findByTeamAndName = SqlSchema.findOneOption({
     Request: FindByTeamAndNameInput,
     Result: RoleRow,
     execute: (input) =>
-      this
-        .sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name} AND is_archived = false`,
+      sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name} AND is_archived = false`,
   });
 
   const countMembersForRole = SqlSchema.findOne({

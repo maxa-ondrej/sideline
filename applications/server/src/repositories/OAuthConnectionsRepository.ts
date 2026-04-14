@@ -36,7 +36,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const _findByUserAndProvider = SqlSchema.findOne({
+  const _findByUserAndProvider = SqlSchema.findOneOption({
     Request: FindInput,
     Result: OAuthConnection.OAuthConnection,
     execute: (input) => sql`
@@ -45,7 +45,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const _findAccessToken = SqlSchema.findOne({
+  const _findAccessToken = SqlSchema.findOneOption({
     Request: FindInput,
     Result: AccessTokenRow,
     execute: (input) => sql`

@@ -408,7 +408,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   return Option.match(existing.last_generated_date, {
                     onNone: () => Effect.void,
                     onSome: (lastGen) => {
-                      if (!DateTime.greaterThan(effectiveEnd, lastGen)) return Effect.void;
+                      if (!DateTime.isGreaterThan(effectiveEnd, lastGen)) return Effect.void;
                       const nextDay = DateTime.add(lastGen, { days: 1 });
                       const newDates = generateOccurrenceDates({
                         frequency: existing.frequency,

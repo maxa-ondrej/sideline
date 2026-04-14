@@ -11,11 +11,11 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
     Effect.bind('notifications', () => NotificationsRepository.asEffect()),
     Effect.map(({ notifications }) =>
       handlers
-        .handle('listNotifications', ({ urlParams }) =>
+        .handle('listNotifications', ({ query }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('list', ({ currentUser }) =>
-              notifications.findByUserAndTeam(currentUser.id, urlParams.teamId),
+              notifications.findByUserAndTeam(currentUser.id, query.teamId),
             ),
             Effect.map(({ list }) =>
               Array.map(

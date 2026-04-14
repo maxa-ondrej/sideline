@@ -1,6 +1,5 @@
 import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
 import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
-import { Model } from 'effect/unstable/schema';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { RosterEntry } from '~/repositories/TeamMembersRepository.js';
@@ -13,7 +12,7 @@ class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-  created_at: Model.DateTimeFromDate,
+  created_at: Schema.DateTimeUtcFromDate,
   member_count: Schema.Number,
 }) {}
 
@@ -60,7 +59,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: RosterModel.RosterId,
     Result: RosterModel.Roster,
     execute: (id) => sql`SELECT * FROM rosters WHERE id = ${id}`,

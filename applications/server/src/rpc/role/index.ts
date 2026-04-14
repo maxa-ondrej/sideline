@@ -36,15 +36,15 @@ export const RolesRpcLive = Effect.Do.pipe(
               ),
             ),
           ),
-          Effect.tap((arr) => (Array.isArrayEmpty(arr) ? NoChanges.make() : Effect.void)),
+          Effect.tap((arr) =>
+            Array.isArrayEmpty(arr) ? Effect.fail(NoChanges.make()) : Effect.void,
+          ),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} role events from database.`),
           ),
           Effect.flatMap(Effect.all),
-          Effect.tap(
-            flow(Array.filterMap(Result.getFailure), Array.map(Effect.logError), Effect.all),
-          ),
-          Effect.map(Array.filterMap(Result.getSuccess)),
+          Effect.tap(flow(Array.filterMap(Result.flip), Array.map(Effect.logError), Effect.all)),
+          Effect.map(Array.filterMap((r) => r)),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} role events from database.`),
           ),

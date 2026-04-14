@@ -65,7 +65,7 @@ class DeleteByRosterInput extends Schema.Class<DeleteByRosterInput>('DeleteByRos
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const findByGroup = SqlSchema.findOne({
+  const findByGroup = SqlSchema.findOneOption({
     Request: FindByGroupInput,
     Result: MappingRow,
     execute: (input) => sql`
@@ -75,7 +75,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findByRoster = SqlSchema.findOne({
+  const findByRoster = SqlSchema.findOneOption({
     Request: FindByRosterInput,
     Result: MappingRow,
     execute: (input) => sql`

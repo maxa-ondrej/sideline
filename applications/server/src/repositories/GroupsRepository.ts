@@ -16,7 +16,7 @@ class GroupWithCount extends Schema.Class<GroupWithCount>('GroupWithCount')({
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
   color: Schema.OptionFromNullOr(Schema.String),
-  created_at: Schema.DateFromSelf,
+  created_at: Schema.Date,
   member_count: Schema.Number,
 }) {}
 
@@ -100,12 +100,11 @@ const make = Effect.gen(function* () {
           `,
   });
 
-  const findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: GroupModel.GroupId,
     Result: GroupRow,
     execute: (id) =>
-      this
-        .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE id = ${id} AND is_archived = false`,
+      sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE id = ${id} AND is_archived = false`,
   });
 
   const insert = SqlSchema.findOne({
@@ -204,8 +203,7 @@ const make = Effect.gen(function* () {
     Request: GroupModel.GroupId,
     Result: GroupRow,
     execute: (groupId) =>
-      this
-        .sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE parent_id = ${groupId} AND is_archived = false`,
+      sql`SELECT id, team_id, parent_id, name, emoji, color FROM groups WHERE parent_id = ${groupId} AND is_archived = false`,
   });
 
   const findAncestors = SqlSchema.findAll({

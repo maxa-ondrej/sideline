@@ -35,7 +35,7 @@ class LogRow extends Schema.Class<LogRow>('LogRow')({
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
   activity_type_name: Schema.String,
-  logged_at: Schema.DateFromString,
+  logged_at: Schema.String,
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
   source: ActivityLog.ActivitySource,
@@ -111,7 +111,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findByIdQuery = SqlSchema.findOne({
+  const findByIdQuery = SqlSchema.findOneOption({
     Request: FindByIdInput,
     Result: LogRow,
     execute: (input) => sql`

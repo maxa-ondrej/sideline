@@ -13,7 +13,7 @@ export const LeaderboardApiLive = HttpApiBuilder.group(Api, 'leaderboard', (hand
     Effect.map(({ members, leaderboard }) =>
       handlers.handle(
         'getLeaderboard',
-        ({ params: { teamId }, urlParams: { timeframe, activityTypeId } }) =>
+        ({ params: { teamId }, query: { timeframe, activityTypeId } }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>

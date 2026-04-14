@@ -18,7 +18,7 @@ class TrainingTypeWithGroup extends Schema.Class<TrainingTypeWithGroup>('Trainin
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   member_group_name: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-  created_at: Schema.DateFromSelf,
+  created_at: Schema.Date,
 }) {}
 
 class TrainingTypeRow extends Schema.Class<TrainingTypeRow>('TrainingTypeRow')({
@@ -70,15 +70,14 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: TrainingType.TrainingTypeId,
     Result: TrainingTypeRow,
     execute: (id) =>
-      this
-        .sql`SELECT id, team_id, name, owner_group_id, member_group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
+      sql`SELECT id, team_id, name, owner_group_id, member_group_id, discord_channel_id FROM training_types WHERE id = ${id}`,
   });
 
-  const findByIdWithGroup = SqlSchema.findOne({
+  const findByIdWithGroup = SqlSchema.findOneOption({
     Request: TrainingType.TrainingTypeId,
     Result: TrainingTypeWithGroup,
     execute: (id) => sql`

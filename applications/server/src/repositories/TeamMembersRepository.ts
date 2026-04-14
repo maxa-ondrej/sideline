@@ -1,6 +1,6 @@
 import { Role, Team, TeamMember, User } from '@sideline/domain';
 import { Schemas, SqlErrors } from '@sideline/effect-lib';
-import { Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
+import { Effect, Layer, type Option, pipe, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -30,7 +30,7 @@ export class MembershipWithRole extends Schema.Class<MembershipWithRole>('Member
   user_id: User.UserId,
   active: Schema.Boolean,
   role_names: Schemas.ArrayFromSplitString(),
-  permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
+  permissions: pipe(Schemas.ArrayFromSplitString(), Schema.decodeTo(Schema.Array(Role.Permission))),
 }) {}
 
 export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
@@ -38,7 +38,7 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   user_id: User.UserId,
   discord_id: Schema.String,
   role_names: Schemas.ArrayFromSplitString(),
-  permissions: Schema.compose(Schemas.ArrayFromSplitString(), Schema.Array(Role.Permission)),
+  permissions: pipe(Schemas.ArrayFromSplitString(), Schema.decodeTo(Schema.Array(Role.Permission))),
   name: Schema.OptionFromNullOr(Schema.String),
   birth_date: Schema.OptionFromNullOr(Schema.String),
   gender: Schema.OptionFromNullOr(User.Gender),
@@ -83,7 +83,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findMembershipQuery = SqlSchema.findOne({
+  const findMembershipQuery = SqlSchema.findOneOption({
     Request: MembershipQuery,
     Result: MembershipWithRole,
     execute: (input) =>
@@ -215,7 +215,7 @@ const make = Effect.gen(function* () {
 
   const findRosterByTeam = (teamId: string) => findRosterByTeamQuery(teamId).pipe(catchSqlErrors);
 
-  const findRosterMemberQuery = SqlSchema.findOne({
+  const findRosterMemberQuery = SqlSchema.findOneOption({
     Request: RosterMemberQuery,
     Result: RosterEntry,
     execute: (input) => sql`
@@ -259,12 +259,11 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findPlayerRoleIdQuery = SqlSchema.findOne({
+  const findPlayerRoleIdQuery = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: Schema.Struct({ id: Role.RoleId }),
     execute: (teamId) =>
-      this
-        .sql`SELECT id FROM roles WHERE team_id = ${teamId} AND name = 'Player' AND is_built_in = true`,
+      sql`SELECT id FROM roles WHERE team_id = ${teamId} AND name = 'Player' AND is_built_in = true`,
   });
 
   const findMembershipByIds = (teamId: Team.TeamId, userId: User.UserId) =>

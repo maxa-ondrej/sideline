@@ -6,12 +6,11 @@ import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const _findByCode = SqlSchema.findOne({
+  const _findByCode = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: TeamInvite.TeamInvite,
     execute: (code) =>
-      this
-        .sql`SELECT * FROM team_invites WHERE code = ${code} AND active = true AND (expires_at IS NULL OR expires_at > now())`,
+      sql`SELECT * FROM team_invites WHERE code = ${code} AND active = true AND (expires_at IS NULL OR expires_at > now())`,
   });
 
   const _findByTeam = SqlSchema.findAll({
@@ -39,8 +38,7 @@ const make = Effect.gen(function* () {
   const _deactivateByTeamExcept = SqlSchema.void({
     Request: Schema.Struct({ teamId: Schema.String, excludeId: Schema.String }),
     execute: ({ teamId, excludeId }) =>
-      this
-        .sql`UPDATE team_invites SET active = false WHERE team_id = ${teamId} AND active = true AND id != ${excludeId}`,
+      sql`UPDATE team_invites SET active = false WHERE team_id = ${teamId} AND active = true AND id != ${excludeId}`,
   });
 
   const findByCode = (code: string) => _findByCode(code).pipe(catchSqlErrors);

@@ -29,7 +29,7 @@ class DeleteByRoleInput extends Schema.Class<DeleteByRoleInput>('DeleteByRoleInp
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const findByRole = SqlSchema.findOne({
+  const findByRole = SqlSchema.findOneOption({
     Request: FindByRoleInput,
     Result: MappingRow,
     execute: (input) => sql`

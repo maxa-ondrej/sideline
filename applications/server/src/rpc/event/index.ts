@@ -18,7 +18,6 @@ import {
   flow,
   Metric,
   Option,
-  pipe,
   Schema,
   type ServiceMap,
 } from 'effect';
@@ -129,13 +128,14 @@ const createEvent = (
         execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
       })(input.guild_id).pipe(
         Effect.catchTag(
-          'SqlError',
-          'ParseError',
+          ['SqlError', 'SchemaError'],
           LogicError.withMessage(
             (e) => `Failed looking up team for guild ${input.guild_id}: ${e.message}`,
           ),
         ),
-        Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
+        Effect.catchTag('NoSuchElementError', () =>
+          Effect.fail(new EventRpcModels.CreateEventNotMember()),
+        ),
         Effect.map((result) => result.id),
       ),
     ),
@@ -156,13 +156,14 @@ const createEvent = (
         team_id: teamId,
       }).pipe(
         Effect.catchTag(
-          'SqlError',
-          'ParseError',
+          ['SqlError', 'SchemaError'],
           LogicError.withMessage(
             (e) => `Failed looking up user ${input.discord_user_id} in team: ${e.message}`,
           ),
         ),
-        Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
+        Effect.catchTag('NoSuchElementError', () =>
+          Effect.fail(new EventRpcModels.CreateEventNotMember()),
+        ),
       ),
     ),
     Effect.bind('membership', ({ teamId, userLookup }) =>
@@ -175,8 +176,10 @@ const createEvent = (
         ? Effect.void
         : Effect.fail(new EventRpcModels.CreateEventForbidden()),
     ),
-    Effect.bind('parsedStartAt', () => parseDateTime(input.start_at)),
-    Effect.catchTag('NoSuchElementError', () => new EventRpcModels.CreateEventInvalidDate()),
+    Effect.bind('parsedStartAt', () => Effect.fromOption(parseDateTime(input.start_at))),
+    Effect.catchTag('NoSuchElementError', () =>
+      Effect.fail(new EventRpcModels.CreateEventInvalidDate()),
+    ),
     Effect.bind('parsedEndAt', () =>
       input.end_at.pipe(
         Option.map(parseDateTime),
@@ -272,7 +275,9 @@ const rpcHandlers = Effect.Do.pipe(
       ({ limit }: { readonly limit: number }) =>
         syncEvents.findUnprocessed(limit).pipe(
           Effect.map(Array.map(flow(constructEvent))),
-          Effect.tap((arr) => (Array.isArrayEmpty(arr) ? NoChanges.make() : Effect.void)),
+          Effect.tap((arr) =>
+            Array.isArrayEmpty(arr) ? Effect.fail(NoChanges.make()) : Effect.void,
+          ),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} event sync events from database.`),
           ),
@@ -379,8 +384,10 @@ const rpcHandlers = Effect.Do.pipe(
               discord_user_id,
               team_id,
             }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
+              ),
               Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
-              Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpMemberNotFound())),
             ),
           ),
           Effect.tap(({ event, member }) =>
@@ -410,7 +417,7 @@ const rpcHandlers = Effect.Do.pipe(
                 ),
               ),
               Effect.tap(() =>
-                Metric.update(pipe(rsvpSubmissionsTotal, Metric.tagged('response', response)), 1),
+                Metric.update(Metric.withAttributes(rsvpSubmissionsTotal, { response }), 1),
               ),
             ),
           ),
@@ -595,13 +602,11 @@ const rpcHandlers = Effect.Do.pipe(
               Result: TeamLookupResult,
               execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
             })(guild_id).pipe(
-              Effect.mapError(() => new EventRpcModels.GuildNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
-                  onSome: (r) => Effect.succeed(r.id),
-                }),
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.GuildNotFound()),
               ),
+              Effect.mapError(() => new EventRpcModels.GuildNotFound()),
+              Effect.map((r) => r.id),
             ),
           ),
           Effect.bind('rows', () => events.findUpcomingByGuildId(guild_id, offset, limit)),
@@ -651,14 +656,12 @@ const rpcHandlers = Effect.Do.pipe(
               Result: TeamLookupResult,
               execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
             })(guild_id).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.GuildNotFound()),
+              ),
               Effect.tapError((err) => Effect.logWarning('Guild lookup failed', err)),
               Effect.mapError(() => new EventRpcModels.GuildNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
-                  onSome: (r) => Effect.succeed(r.id),
-                }),
-              ),
+              Effect.map((r) => r.id),
             ),
           ),
           Effect.bind('member', ({ teamId }) =>
@@ -674,14 +677,11 @@ const rpcHandlers = Effect.Do.pipe(
                   AND tm.active = true
               `,
             })({ discord_user_id, team_id: teamId }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
+              ),
               Effect.tapError((err) => Effect.logWarning('Member lookup failed', err)),
               Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
-                  onSome: (r) => Effect.succeed(r),
-                }),
-              ),
             ),
           ),
           Effect.bind('rows', ({ teamId, member }) =>
@@ -753,8 +753,7 @@ const rpcHandlers = Effect.Do.pipe(
               limit,
             }).pipe(
               Effect.catchTag(
-                'SqlError',
-                'ParseError',
+                ['SqlError', 'SchemaError'],
                 LogicError.withMessage(
                   (e) => `Failed querying upcoming events for user: ${e.message}`,
                 ),
@@ -793,14 +792,16 @@ const rpcHandlers = Effect.Do.pipe(
               team_member_id: member.id,
             }).pipe(
               Effect.catchTag(
-                'SqlError',
-                'ParseError',
+                ['SqlError', 'SchemaError'],
                 LogicError.withMessage(
                   (e) => `Failed counting upcoming events for user: ${e.message}`,
                 ),
               ),
-              Effect.map(Option.map((r) => r.count)),
-              Effect.map(Option.getOrElse(() => 0)),
+              Effect.catchTag(
+                'NoSuchElementError',
+                LogicError.withMessage(() => 'Count query returned no row'),
+              ),
+              Effect.map((r) => r.count),
             ),
           ),
           Effect.map(

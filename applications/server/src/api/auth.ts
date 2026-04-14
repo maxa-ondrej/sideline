@@ -52,9 +52,9 @@ const CustomClient = HttpClient.HttpClient.asEffect().pipe(
   Layer.effect(HttpClient.HttpClient),
 );
 
-const LoginSchema = Schema.parseJson(
+const LoginSchema = Schema.fromJsonString(
   Schema.Struct({
-    id: Schema.UUID,
+    id: Schema.String.pipe(Schema.check(Schema.isUUID())),
     redirectUrl: Schema.URL,
   }),
 );
@@ -110,6 +110,7 @@ const handleDiscordLogin = ({
     Effect.let('sessionToken', () => crypto.randomUUID()),
     Effect.bind('now', () => DateTime.now),
     Effect.let('expiresAt', ({ now }) => DateTime.add(now, { days: 30 })),
+  ).pipe(
     Effect.bind('dbUser', ({ discordUser }) =>
       users.upsertFromDiscord({
         discord_id: discordUser.id,
@@ -130,15 +131,16 @@ const handleDiscordLogin = ({
       ),
     ),
     Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
+      // biome-ignore lint/suspicious/noExplicitAny: TypeScript can't resolve Session.insert.Type in this chain depth
       sessions.create({
         user_id: dbUser.id,
         token: sessionToken,
-        expires_at: expiresAt,
+        expires_at: expiresAt as any,
         created_at: undefined,
       }),
     ),
     Effect.tap(() => Effect.logInfo('[auth/callback] session created, redirecting')),
-    Effect.catchTag('RequestError', 'ResponseError', 'DiscordOAuthError', AuthError.failCause),
+    Effect.catchTag(['HttpClientError', 'DiscordOAuthError'], AuthError.failCause),
     Effect.map(({ sessionToken }) =>
       pipe(
         Redirect.fromUrl(state.redirectUrl),
@@ -203,11 +205,11 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           Effect.sync(() => crypto.randomUUID()).pipe(
             Effect.bindTo('id'),
             Effect.let('redirectUrl', () => env.FRONTEND_URL),
-            Effect.flatMap(Schema.encode(LoginSchema)),
+            Effect.flatMap(Schema.encodeEffect(LoginSchema)),
             Effect.flatMap(discord.createAuthorizationURL),
             Effect.map(Redirect.fromUrl),
             Effect.map(Redirect.toResponse),
-            Effect.catchTag('ParseError', AuthError.failCause),
+            Effect.catchTag('SchemaError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>
               pipe(
                 Redirect.fromUrl(env.FRONTEND_URL),
@@ -219,7 +221,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
           ),
         )
-        .handle('callback', ({ urlParams: { code, state, error } }) =>
+        .handle('callback', ({ query: { code, state, error } }) =>
           Effect.Do.pipe(
             Effect.tap(() =>
               Effect.logInfo('[auth/callback] received callback', {
@@ -228,12 +230,12 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 hasError: Option.isSome(error),
               }),
             ),
-            Effect.bind('code', () => code),
-            Effect.bind('stateRaw', () => state),
+            Effect.bind('code', () => Effect.fromOption(code)),
+            Effect.bind('stateRaw', () => Effect.fromOption(state)),
             Effect.catchTag('NoSuchElementError', () =>
-              AuthError.withReason(Option.getOrElse(error, () => 'missing_params')),
+              Effect.fail(AuthError.withReason(Option.getOrElse(error, () => 'missing_params'))),
             ),
-            Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
+            Effect.bind('state', ({ stateRaw }) => Schema.decodeEffect(LoginSchema)(stateRaw)),
             Effect.tap(({ state }) =>
               Effect.logInfo('[auth/callback] state decoded', {
                 redirectUrl: state.redirectUrl.toString(),
@@ -243,7 +245,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.andThen(({ state, code }) =>
               handleDiscordLogin({ code, state, discord, users, sessions, oauthConnections }),
             ),
-            Effect.catchTag('ParseError', AuthError.failCause),
+            Effect.catchTag('SchemaError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>
               pipe(
                 Redirect.fromUrl(env.FRONTEND_URL),
@@ -255,7 +257,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
           ),
         )
-        .handle('me', () => Auth.CurrentUserContext)
+        .handle('me', () => Auth.CurrentUserContext.asEffect())
         .handle('updateLocale', ({ payload }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
@@ -423,9 +425,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 { concurrency: 'unbounded' },
               ),
             ),
-            Effect.catchTag('RequestError', 'ResponseError', () =>
-              Effect.fail(new Auth.Unauthorized()),
-            ),
+            Effect.catchTag('HttpClientError', () => Effect.fail(new Auth.Unauthorized())),
             Effect.catchTag('ErrorResponse', () => Effect.fail(new Auth.Unauthorized())),
             Effect.catchTag('RatelimitedResponse', () => Effect.fail(new Auth.Unauthorized())),
           ),
@@ -571,10 +571,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                                   ),
                             ),
                             Effect.catchTag(
-                              'RequestError',
-                              'ResponseError',
-                              'ErrorResponse',
-                              'RatelimitedResponse',
+                              ['HttpClientError', 'ErrorResponse', 'RatelimitedResponse'],
                               () => Effect.succeed(emptyTeams),
                             ),
                           ),

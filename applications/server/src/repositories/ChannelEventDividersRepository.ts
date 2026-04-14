@@ -10,12 +10,11 @@ class DividerRow extends Schema.Class<DividerRow>('DividerRow')({
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const findByChannelQuery = SqlSchema.findOne({
+  const findByChannelQuery = SqlSchema.findOneOption({
     Request: Discord.Snowflake,
     Result: DividerRow,
     execute: (channelId) =>
-      this
-        .sql`SELECT discord_message_id FROM channel_event_dividers WHERE discord_channel_id = ${channelId}`,
+      sql`SELECT discord_message_id FROM channel_event_dividers WHERE discord_channel_id = ${channelId}`,
   });
 
   const upsertQuery = SqlSchema.void({
@@ -24,8 +23,7 @@ const make = Effect.gen(function* () {
       discord_message_id: Discord.Snowflake,
     }),
     execute: (input) =>
-      this
-        .sql`INSERT INTO channel_event_dividers (discord_channel_id, discord_message_id) VALUES (${input.discord_channel_id}, ${input.discord_message_id}) ON CONFLICT (discord_channel_id) DO UPDATE SET discord_message_id = EXCLUDED.discord_message_id`,
+      sql`INSERT INTO channel_event_dividers (discord_channel_id, discord_message_id) VALUES (${input.discord_channel_id}, ${input.discord_message_id}) ON CONFLICT (discord_channel_id) DO UPDATE SET discord_message_id = EXCLUDED.discord_message_id`,
   });
 
   const deleteByChannelQuery = SqlSchema.void({

@@ -13,23 +13,21 @@ class ActivityTypeRow extends Schema.Class<ActivityTypeRow>('ActivityTypeRow')({
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const findBySlugQuery = SqlSchema.findOne({
+  const findBySlugQuery = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: ActivityTypeRow,
     execute: (slug) =>
-      this
-        .sql`SELECT id, team_id, name, slug FROM activity_types WHERE slug = ${slug} AND team_id IS NULL`,
+      sql`SELECT id, team_id, name, slug FROM activity_types WHERE slug = ${slug} AND team_id IS NULL`,
   });
 
   const findByTeamIdQuery = SqlSchema.findAll({
     Request: Team.TeamId,
     Result: ActivityTypeRow,
     execute: (teamId) =>
-      this
-        .sql`SELECT id, team_id, name, slug FROM activity_types WHERE team_id IS NULL OR team_id = ${teamId} ORDER BY team_id NULLS FIRST, name`,
+      sql`SELECT id, team_id, name, slug FROM activity_types WHERE team_id IS NULL OR team_id = ${teamId} ORDER BY team_id NULLS FIRST, name`,
   });
 
-  const findByIdQuery = SqlSchema.findOne({
+  const findByIdQuery = SqlSchema.findOneOption({
     Request: ActivityType.ActivityTypeId,
     Result: ActivityTypeRow,
     execute: (id) => sql`SELECT id, team_id, name, slug FROM activity_types WHERE id = ${id}`,

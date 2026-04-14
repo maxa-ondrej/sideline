@@ -6,7 +6,7 @@ export const computeHorizonEnd = (params: {
 }): DateTime.Utc => {
   const horizonEnd = DateTime.add(DateTime.nowUnsafe(), { days: params.horizonDays });
   if (params.seriesEndDate === null) return horizonEnd;
-  return DateTime.lessThanOrEqualTo(params.seriesEndDate, horizonEnd)
+  return DateTime.isLessThanOrEqualTo(params.seriesEndDate, horizonEnd)
     ? params.seriesEndDate
     : horizonEnd;
 };
@@ -19,7 +19,7 @@ export const generateOccurrenceDates = (params: {
 }): ReadonlyArray<DateTime.Utc> => {
   const { frequency, daysOfWeek, startDate, endDate } = params;
 
-  if (DateTime.greaterThan(startDate, endDate)) return [];
+  if (DateTime.isGreaterThan(startDate, endDate)) return [];
   if (daysOfWeek.length === 0) return [];
 
   const daySet = new Set(daysOfWeek);
@@ -30,7 +30,7 @@ export const generateOccurrenceDates = (params: {
   // For biweekly, track which week number we're in relative to start
   const startDayNumber = Math.floor(DateTime.toEpochMillis(startDate) / (1000 * 60 * 60 * 24));
 
-  while (DateTime.lessThanOrEqualTo(current, endDate)) {
+  while (DateTime.isLessThanOrEqualTo(current, endDate)) {
     const currentDay = DateTime.getPartUtc(current, 'weekDay');
 
     if (daySet.has(currentDay)) {

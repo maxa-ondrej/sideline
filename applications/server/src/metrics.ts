@@ -1,4 +1,4 @@
-import { Effect, Metric, pipe } from 'effect';
+import { Effect, Metric } from 'effect';
 
 /** Total cron job executions, tagged with { cron, result } */
 export const cronExecutionsTotal = Metric.counter('cron_executions_total', {
@@ -23,21 +23,13 @@ export const withCronMetrics =
     effect.pipe(
       Effect.tap(() =>
         Metric.update(
-          pipe(
-            cronExecutionsTotal,
-            Metric.tagged('cron', name),
-            Metric.tagged('result', 'success'),
-          ),
+          Metric.withAttributes(cronExecutionsTotal, { cron: name, result: 'success' }),
           1,
         ),
       ),
       Effect.tapError(() =>
         Metric.update(
-          pipe(
-            cronExecutionsTotal,
-            Metric.tagged('cron', name),
-            Metric.tagged('result', 'failure'),
-          ),
+          Metric.withAttributes(cronExecutionsTotal, { cron: name, result: 'failure' }),
           1,
         ),
       ),

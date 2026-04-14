@@ -15,7 +15,7 @@ class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({
   activity_dates: Schema.Array(Schema.String),
 }) {}
 
-const decodeRows = Schema.decodeUnknown(Schema.Array(LeaderboardRow));
+const decodeRows = Schema.decodeUnknownEffect(Schema.Array(LeaderboardRow));
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

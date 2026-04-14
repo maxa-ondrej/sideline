@@ -1,6 +1,6 @@
 import { Auth, GroupApi } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
-import { Array, Effect, Match, Option, pipe } from 'effect';
+import { LogicError, Options } from '@sideline/effect-lib';
+import { Array, Effect, Match, Option, pipe, Result } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -329,12 +329,9 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('existing', () =>
-                groups.findGroupById(groupId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () =>
-                    Effect.fail(new GroupApi.GroupNotFound()),
-                  ),
-                ),
+                groups
+                  .findGroupById(groupId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new GroupApi.GroupNotFound()))),
               ),
               Effect.tap(({ existing }) =>
                 existing.team_id !== teamId
@@ -664,10 +661,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               ),
               Effect.bind('mapping', () => channelMappings.findByGroupId(teamId, groupId)),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () => Effect.fail(forbidden)),
-                ),
+                teams.findById(teamId).pipe(Effect.flatMap(Options.toEffect(() => forbidden))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -756,10 +750,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 );
               }),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () => Effect.fail(forbidden)),
-                ),
+                teams.findById(teamId).pipe(Effect.flatMap(Options.toEffect(() => forbidden))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -922,10 +913,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 requirePermission(membership, 'group:manage', forbidden),
               ),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementError', () => Effect.fail(forbidden)),
-                ),
+                teams.findById(teamId).pipe(Effect.flatMap(Options.toEffect(() => forbidden))),
               ),
               Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
               Effect.bind('mappings', () => channelMappings.findAllByTeam(teamId)),
@@ -933,8 +921,8 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 const mappedChannelIds = new Set(mappings.map((m) => m.discord_channel_id));
                 return Array.filterMap(channels, (ch) =>
                   mappedChannelIds.has(ch.channel_id)
-                    ? Option.none()
-                    : Option.some(
+                    ? Result.failVoid
+                    : Result.succeed(
                         new GroupApi.DiscordChannelInfo({
                           id: ch.channel_id,
                           name: ch.name,

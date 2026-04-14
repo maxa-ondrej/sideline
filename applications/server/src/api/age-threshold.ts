@@ -175,6 +175,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
             Effect.bind('changes', () => ageCheck.evaluate(teamId, new Date())),
             Effect.map(({ changes }) => changes),
+            Effect.catchTag(
+              'NoSuchElementError',
+              LogicError.withMessage(() => 'Age threshold evaluation — unexpected missing element'),
+            ),
           ),
         ),
     ),

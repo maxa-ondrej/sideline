@@ -1,5 +1,5 @@
 import { type Discord, GuildRpcGroup, type Team, type TeamMember } from '@sideline/domain';
-import { Array, type Cause, Effect, Option, pipe, type ServiceMap } from 'effect';
+import { Array, type Cause, Effect, Option, pipe, Result, type ServiceMap } from 'effect';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -68,10 +68,13 @@ const setupNewMember = (
             pipe(
               mappings,
               Array.filterMap((m) =>
-                Option.flatMap(m.group_id, (groupId) =>
-                  Option.flatMap(m.discord_role_id, (roleId) =>
-                    roles.includes(roleId) ? Option.some(groupId) : Option.none(),
+                Result.fromOption(
+                  Option.flatMap(m.group_id, (groupId) =>
+                    Option.flatMap(m.discord_role_id, (roleId) =>
+                      roles.includes(roleId) ? Option.some(groupId) : Option.none(),
+                    ),
                   ),
+                  () => undefined,
                 ),
               ),
               Array.map((groupId) => deps.groups.addMemberById(groupId, newMember.id)),
@@ -134,7 +137,7 @@ const registerMemberLogic =
             ),
         }),
       ),
-      Effect.catchTag('MemberAlreadyExistsError', 'NoSuchElementError', (error) =>
+      Effect.catchTag(['MemberAlreadyExistsError', 'NoSuchElementError'], (error) =>
         Effect.logError(`RegisterMember failed for ${username}`, error),
       ),
     );

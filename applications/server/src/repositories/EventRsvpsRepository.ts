@@ -77,7 +77,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const findByEventAndMember = SqlSchema.findOne({
+  const findByEventAndMember = SqlSchema.findOneOption({
     Request: Schema.Struct({
       event_id: Schema.String,
       team_member_id: Schema.String,
@@ -144,7 +144,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const countTotalByEventId = SqlSchema.findOne({
+  const countTotalByEventId = SqlSchema.findOneOption({
     Request: Event.EventId,
     Result: TotalCount,
     execute: (eventId) => sql`

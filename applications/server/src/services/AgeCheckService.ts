@@ -211,6 +211,8 @@ const evaluateTeam =
                   `You have been removed from the "${change.groupName}" group.`,
                 ),
           ),
+          Effect.all,
+          Effect.asVoid,
         ),
       ),
       Effect.tap(({ changes, teamMembers }) =>

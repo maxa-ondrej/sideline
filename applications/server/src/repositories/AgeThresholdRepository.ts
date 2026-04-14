@@ -79,7 +79,7 @@ const make = Effect.gen(function* () {
           `,
   });
 
-  const findByIdQuery = SqlSchema.findOne({
+  const findByIdQuery = SqlSchema.findOneOption({
     Request: AgeThreshold.AgeThresholdRuleId,
     Result: AgeThresholdRow,
     execute: (id) => sql`

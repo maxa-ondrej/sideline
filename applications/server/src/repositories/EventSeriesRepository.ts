@@ -151,7 +151,7 @@ const make = Effect.gen(function* () {
           `,
   });
 
-  const findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: EventSeries.EventSeriesId,
     Result: EventSeriesWithDetails,
     execute: (id) => sql`
@@ -194,8 +194,7 @@ const make = Effect.gen(function* () {
       last_generated_date: Schemas.DateTimeFromDate,
     }),
     execute: (input) =>
-      this
-        .sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
+      sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
   });
 
   const updateSeries = SqlSchema.findOne({

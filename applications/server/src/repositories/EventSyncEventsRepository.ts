@@ -66,7 +66,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const lookupGuildId = SqlSchema.findOne({
+  const lookupGuildId = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: GuildLookupResult,
     execute: (teamId) => sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,

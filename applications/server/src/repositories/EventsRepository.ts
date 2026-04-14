@@ -117,7 +117,7 @@ const make = Effect.gen(function* () {
           `,
   });
 
-  const findByIdWithDetails = SqlSchema.findOne({
+  const findByIdWithDetails = SqlSchema.findOneOption({
     Request: Event.EventId,
     Result: EventWithDetails,
     execute: (id) => sql`
@@ -194,8 +194,7 @@ const make = Effect.gen(function* () {
     Request: Event.EventId,
     Result: Schema.Struct({ id: Event.EventId }),
     execute: (id) =>
-      this
-        .sql`UPDATE events SET status = 'started', updated_at = now() WHERE id = ${id} AND status = 'active' RETURNING id`,
+      sql`UPDATE events SET status = 'started', updated_at = now() WHERE id = ${id} AND status = 'active' RETURNING id`,
   });
 
   const findStartable = SqlSchema.findAll({
@@ -252,11 +251,10 @@ const make = Effect.gen(function* () {
       discord_message_id: Discord.Snowflake,
     }),
     execute: (input) =>
-      this
-        .sql`UPDATE events SET discord_channel_id = ${input.discord_channel_id}, discord_message_id = ${input.discord_message_id} WHERE id = ${input.event_id}`,
+      sql`UPDATE events SET discord_channel_id = ${input.discord_channel_id}, discord_message_id = ${input.discord_message_id} WHERE id = ${input.event_id}`,
   });
 
-  const getDiscordMessage = SqlSchema.findOne({
+  const getDiscordMessage = SqlSchema.findOneOption({
     Request: Event.EventId,
     Result: Schema.Struct({
       discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
@@ -356,7 +354,7 @@ const make = Effect.gen(function* () {
   const cancelFuture = SqlSchema.void({
     Request: Schema.Struct({
       series_id: Schema.String,
-      from_date: Schema.DateFromSelf,
+      from_date: Schema.Date,
     }),
     execute: (input) =>
       sql`UPDATE events SET status = 'cancelled', updated_at = now()
@@ -368,7 +366,7 @@ const make = Effect.gen(function* () {
   const updateFutureUnmodified = SqlSchema.void({
     Request: Schema.Struct({
       series_id: Schema.String,
-      from_date: Schema.DateFromSelf,
+      from_date: Schema.Date,
       title: Schema.String,
       training_type_id: Schema.OptionFromNullOr(Schema.String),
       description: Schema.OptionFromNullOr(Schema.String),
@@ -454,7 +452,7 @@ const make = Effect.gen(function* () {
           `,
   });
 
-  const countUpcomingByGuild = SqlSchema.findOne({
+  const countUpcomingByGuild = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: Schema.Struct({ count: Schema.Number }),
     execute: (guildId) => sql`

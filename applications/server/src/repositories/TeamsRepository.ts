@@ -1,6 +1,6 @@
 import { type Discord, Team } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
+import { Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -15,11 +15,34 @@ class TeamUpdateInput extends Schema.Class<TeamUpdateInput>('TeamUpdateInput')({
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const findById = (id: Team.TeamId) => repo.findById(id);
+  const findByIdQuery = SqlSchema.findOneOption({
+    Request: Team.TeamId,
+    Result: Team.Team,
+    execute: (id) => sql`SELECT * FROM teams WHERE id = ${id}`,
+  });
 
-  const insert = (input: typeof Team.Team.insert.Type) => repo.insert(input);
+  const insertQuery = SqlSchema.findOne({
+    Request: Team.Team.insert,
+    Result: Team.Team,
+    execute: (input) => sql`
+      INSERT INTO teams (name, guild_id, description, sport, logo_url, created_by)
+      VALUES (${input.name}, ${input.guild_id}, ${input.description}, ${input.sport}, ${input.logo_url}, ${input.created_by})
+      RETURNING *
+    `,
+  });
 
-  const findByGuildQuery = SqlSchema.findOne({
+  const findById = (id: Team.TeamId) => findByIdQuery(id).pipe(catchSqlErrors);
+
+  const insert = (input: typeof Team.Team.insert.Type) =>
+    insertQuery(input).pipe(
+      catchSqlErrors,
+      Effect.catchTag(
+        'NoSuchElementError',
+        LogicError.withMessage(() => 'Team insert returned no row'),
+      ),
+    );
+
+  const findByGuildQuery = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: Team.Team,
     execute: (guildId) => sql`SELECT * FROM teams WHERE guild_id = ${guildId}`,
@@ -28,14 +51,12 @@ const make = Effect.gen(function* () {
   const findByGuildId = (guildId: Discord.Snowflake) =>
     findByGuildQuery(guildId).pipe(catchSqlErrors);
 
-  const findByGuildIds = (
-    guildIds: ReadonlyArray<typeof Discord.Snowflake.Type>,
-  ): Effect.Effect<ReadonlyArray<Team.Team>> => {
-    if (Array.isArrayEmpty(guildIds)) {
-      return Effect.succeed([]);
+  const findByGuildIds = (guildIds: ReadonlyArray<typeof Discord.Snowflake.Type>) => {
+    if (guildIds.length === 0) {
+      return Effect.succeed([] as Team.Team[]);
     }
-    return sql`SELECT * FROM teams WHERE guild_id IN ${sql.in(guildIds)}`.pipe(
-      Effect.flatMap(Schema.decodeUnknown(Schema.Array(Team.Team))),
+    return sql`SELECT * FROM teams WHERE guild_id IN ${sql.in([...guildIds])}`.pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(Team.Team))),
       catchSqlErrors,
     );
   };

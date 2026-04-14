@@ -62,7 +62,7 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
-  const _findByTeam = SqlSchema.findOne({
+  const _findByTeam = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: TeamSettingsRow,
     execute: (teamId) => sql`
