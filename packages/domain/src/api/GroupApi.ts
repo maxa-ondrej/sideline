@@ -148,7 +148,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
   )
   .add(
     HttpApiEndpoint.delete('deleteGroup', '/teams/:teamId/groups/:groupId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         GroupNotFound.pipe(HttpApiSchema.status(404)),
@@ -173,7 +173,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       'removeGroupMember',
       '/teams/:teamId/groups/:groupId/members/:memberId',
       {
-        success: Schema.Void,
+        success: Schema.Void.pipe(HttpApiSchema.status(204)),
         error: [
           Forbidden.pipe(HttpApiSchema.status(403)),
           GroupNotFound.pipe(HttpApiSchema.status(404)),
@@ -196,7 +196,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
   )
   .add(
     HttpApiEndpoint.delete('unassignGroupRole', '/teams/:teamId/groups/:groupId/roles/:roleId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         GroupNotFound.pipe(HttpApiSchema.status(404)),
@@ -241,7 +241,7 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
       'deleteChannelMapping',
       '/teams/:teamId/groups/:groupId/channel-mapping',
       {
-        success: Schema.Void,
+        success: Schema.Void.pipe(HttpApiSchema.status(204)),
         error: [
           Forbidden.pipe(HttpApiSchema.status(403)),
           GroupNotFound.pipe(HttpApiSchema.status(404)),

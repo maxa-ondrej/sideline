@@ -55,7 +55,7 @@ const CustomClient = HttpClient.HttpClient.asEffect().pipe(
 const LoginSchema = Schema.fromJsonString(
   Schema.Struct({
     id: Schema.String.pipe(Schema.check(Schema.isUUID())),
-    redirectUrl: Schema.URL,
+    redirectUrl: Schema.URLFromString,
   }),
 );
 

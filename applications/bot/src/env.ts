@@ -6,7 +6,7 @@ import { Schema } from 'effect';
 export const env = createEnv({
   server: {
     NODE_ENV: Schema.toStandardSchemaV1(Schemas.NodeEnv),
-    DISCORD_BOT_TOKEN: Schema.NonEmptyString.pipe(Schema.Redacted, Schema.toStandardSchemaV1),
+    DISCORD_BOT_TOKEN: Schema.toStandardSchemaV1(Schema.RedactedFromValue(Schema.NonEmptyString)),
     HEALTH_PORT: Schema.NumberFromString.pipe(
       Schemas.Optional(() => 9000),
       Schema.toStandardSchemaV1,

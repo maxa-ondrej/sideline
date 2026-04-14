@@ -134,7 +134,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
   )
   .add(
     HttpApiEndpoint.delete('deactivateMember', '/teams/:teamId/members/:memberId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         PlayerNotFound.pipe(HttpApiSchema.status(404)),
@@ -181,7 +181,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
   )
   .add(
     HttpApiEndpoint.delete('deleteRoster', '/teams/:teamId/rosters/:rosterId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         RosterNotFound.pipe(HttpApiSchema.status(404)),
@@ -191,7 +191,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
   )
   .add(
     HttpApiEndpoint.post('addRosterMember', '/teams/:teamId/rosters/:rosterId/members', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         RosterNotFound.pipe(HttpApiSchema.status(404)),
@@ -206,7 +206,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
       'removeRosterMember',
       '/teams/:teamId/rosters/:rosterId/members/:memberId',
       {
-        success: Schema.Void,
+        success: Schema.Void.pipe(HttpApiSchema.status(204)),
         error: [
           Forbidden.pipe(HttpApiSchema.status(403)),
           RosterNotFound.pipe(HttpApiSchema.status(404)),
@@ -218,7 +218,7 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
   )
   .add(
     HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         RosterNotFound.pipe(HttpApiSchema.status(404)),

@@ -106,7 +106,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
   )
   .add(
     HttpApiEndpoint.delete('deleteRole', '/teams/:teamId/roles/:roleId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         RoleNotFound.pipe(HttpApiSchema.status(404)),
@@ -130,7 +130,7 @@ export class RoleApiGroup extends HttpApiGroup.make('role')
   )
   .add(
     HttpApiEndpoint.delete('unassignRole', '/teams/:teamId/members/:memberId/roles/:roleId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         MemberNotFound.pipe(HttpApiSchema.status(404)),

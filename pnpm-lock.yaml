@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@effect/platform-node-shared': 4.0.0-beta.40
+
 patchedDependencies:
   '@changesets/assemble-release-plan@6.0.9':
     hash: 29cf7a343aefd3c59ad238a4cb067f0a1a0adbeed07b6d57d6f31d6c80a5e25e
@@ -722,11 +725,11 @@ packages:
     peerDependencies:
       effect: ^4.0.0-beta.40
 
-  '@effect/platform-node-shared@4.0.0-beta.48':
-    resolution: {integrity: sha512-wlhcdDHyacydCgiWdM8JwtQkViQhZsC8uJZ9wMoZXYxlCTvqfdzLeWw4A1UVMoq7sS6/KR1aZVeFkUjrqonncQ==}
+  '@effect/platform-node-shared@4.0.0-beta.40':
+    resolution: {integrity: sha512-WMRVG7T8ZDALKCOacsx2ZZj3Ccaoq8YGeD9q7ZL4q8RwQv8Nmrl+4+KZl95/zHCqXzgK9oUJOlBfQ7CZr6PQOQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
-      effect: ^4.0.0-beta.48
+      effect: ^4.0.0-beta.40
 
   '@effect/platform-node@4.0.0-beta.40':
     resolution: {integrity: sha512-IRBlYErAdImh0Pv92PppgFK2wnNAv48Bib6FHjp+89tjzfZ0LHv5TQvEeCXo8ZgHJDyxiPJ5/ugV+jnzpZCG5Q==}
@@ -6233,7 +6236,7 @@ snapshots:
       effect: 4.0.0-beta.40
       multipasta: 0.2.7
 
-  '@effect/platform-node-shared@4.0.0-beta.48(effect@4.0.0-beta.40)':
+  '@effect/platform-node-shared@4.0.0-beta.40(effect@4.0.0-beta.40)':
     dependencies:
       '@types/ws': 8.18.1
       effect: 4.0.0-beta.40
@@ -6244,7 +6247,7 @@ snapshots:
 
   '@effect/platform-node@4.0.0-beta.40(effect@4.0.0-beta.40)(ioredis@5.9.3)':
     dependencies:
-      '@effect/platform-node-shared': 4.0.0-beta.48(effect@4.0.0-beta.40)
+      '@effect/platform-node-shared': 4.0.0-beta.40(effect@4.0.0-beta.40)
       effect: 4.0.0-beta.40
       ioredis: 5.9.3
       mime: 4.1.0
@@ -7817,7 +7820,7 @@ snapshots:
 
   '@tanstack/devtools-event-bus@0.3.2':
     dependencies:
-      ws: 8.19.0
+      ws: 8.20.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate

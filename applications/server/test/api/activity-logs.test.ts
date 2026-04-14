@@ -27,7 +27,7 @@ type ActivityLogRecord = {
   team_member_id: TeamMember.TeamMemberId;
   activity_type_id: ActivityType.ActivityTypeId;
   activity_type_name: string;
-  logged_at: Date;
+  logged_at: string;
   duration_minutes: Option.Option<number>;
   note: Option.Option<string>;
   source: ActivityLog.ActivitySource;
@@ -42,7 +42,7 @@ const resetStores = () => {
     team_member_id: TEST_MEMBER_ID,
     activity_type_id: GYM_TYPE_ID,
     activity_type_name: 'Gym',
-    logged_at: new Date('2026-03-25T10:00:00Z'),
+    logged_at: '2026-03-25T10:00:00.000Z',
     duration_minutes: Option.some(60),
     note: Option.some('Leg day'),
     source: 'manual',
@@ -52,7 +52,7 @@ const resetStores = () => {
     team_member_id: TEST_MEMBER_ID,
     activity_type_id: RUNNING_TYPE_ID,
     activity_type_name: 'Run',
-    logged_at: new Date('2026-03-26T08:00:00Z'),
+    logged_at: '2026-03-26T08:00:00.000Z',
     duration_minutes: Option.none(),
     note: Option.none(),
     source: 'manual',
@@ -132,7 +132,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       .map((l) => ({
         activity_type_id: l.activity_type_id,
         activity_type_name: l.activity_type_name,
-        logged_at_date: l.logged_at.toISOString().slice(0, 10),
+        logged_at_date: l.logged_at.slice(0, 10),
         duration_minutes: l.duration_minutes,
       }));
     return Effect.succeed(logs);
@@ -162,13 +162,14 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       source: 'manual',
       activity_type_name: 'Gym',
       ...input,
+      logged_at: input.logged_at.toISOString(),
     };
     activityLogsStore.set(id, record);
     return Effect.succeed({
       id,
       activity_type_id: input.activity_type_id,
       activity_type_name: record.activity_type_name,
-      logged_at: input.logged_at.toISOString(),
+      logged_at: record.logged_at,
       source: record.source,
     });
   },
@@ -734,7 +735,7 @@ describe('auto-source guard on updateLog', () => {
       team_member_id: TEST_MEMBER_ID,
       activity_type_id: TRAINING_TYPE_ID,
       activity_type_name: 'Training',
-      logged_at: new Date('2026-03-27T09:00:00Z'),
+      logged_at: '2026-03-27T09:00:00.000Z',
       duration_minutes: Option.none(),
       note: Option.none(),
       source: 'auto',
@@ -770,7 +771,7 @@ describe('auto-source guard on deleteLog', () => {
       team_member_id: TEST_MEMBER_ID,
       activity_type_id: TRAINING_TYPE_ID,
       activity_type_name: 'Training',
-      logged_at: new Date('2026-03-27T09:00:00Z'),
+      logged_at: '2026-03-27T09:00:00.000Z',
       duration_minutes: Option.none(),
       note: Option.none(),
       source: 'auto',
@@ -804,7 +805,7 @@ describe('listLogs includes source field', () => {
       team_member_id: TEST_MEMBER_ID,
       activity_type_id: TRAINING_TYPE_ID,
       activity_type_name: 'Training',
-      logged_at: new Date('2026-03-27T09:00:00Z'),
+      logged_at: '2026-03-27T09:00:00.000Z',
       duration_minutes: Option.none(),
       note: Option.none(),
       source: 'auto',

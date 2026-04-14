@@ -19,10 +19,12 @@ export const Optional =
       Schema.decodeTo(schema as Schema.Codec<T, string | null | undefined, R>, {
         decode: SchemaGetter.transform(
           (opt: Option.Option<T>) =>
-            Option.match(opt, {
-              onNone: lazyDefault,
-              onSome: (v) => v,
-            }) as unknown as string,
+            Schema.encodeSync(schema as Schema.Codec<T, string | null | undefined, R>)(
+              Option.match(opt, {
+                onNone: lazyDefault,
+                onSome: (v) => v,
+              }),
+            ) as unknown as string,
         ),
         encode: SchemaGetter.transform((_s: string | null | undefined) => Option.none<T>()),
       }),

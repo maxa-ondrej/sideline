@@ -56,7 +56,7 @@ export class InviteApiGroup extends HttpApiGroup.make('invite')
   )
   .add(
     HttpApiEndpoint.delete('disableInvite', '/teams/:teamId/invite', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: Forbidden.pipe(HttpApiSchema.status(403)),
       params: { teamId: TeamId },
     }).middleware(AuthMiddleware),

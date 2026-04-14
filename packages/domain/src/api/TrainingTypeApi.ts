@@ -106,7 +106,7 @@ export class TrainingTypeApiGroup extends HttpApiGroup.make('trainingType')
   )
   .add(
     HttpApiEndpoint.delete('deleteTrainingType', '/teams/:teamId/training-types/:trainingTypeId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         TrainingTypeNotFound.pipe(HttpApiSchema.status(404)),

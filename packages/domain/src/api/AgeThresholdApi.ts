@@ -88,7 +88,7 @@ export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
   )
   .add(
     HttpApiEndpoint.delete('deleteAgeThreshold', '/teams/:teamId/age-thresholds/:ruleId', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         RuleNotFound.pipe(HttpApiSchema.status(404)),

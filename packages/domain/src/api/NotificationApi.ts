@@ -33,7 +33,7 @@ export class NotificationApiGroup extends HttpApiGroup.make('notification')
   )
   .add(
     HttpApiEndpoint.patch('markAsRead', '/notifications/:notificationId/read', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         NotificationNotFound.pipe(HttpApiSchema.status(404)),
@@ -43,7 +43,7 @@ export class NotificationApiGroup extends HttpApiGroup.make('notification')
   )
   .add(
     HttpApiEndpoint.post('markAllAsRead', '/notifications/read-all', {
-      success: Schema.Void,
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
       error: Forbidden.pipe(HttpApiSchema.status(403)),
       payload: Schema.Struct({
         teamId: TeamId,

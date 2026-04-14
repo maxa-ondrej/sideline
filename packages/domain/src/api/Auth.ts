@@ -108,7 +108,7 @@ export class AuthMiddleware extends HttpApiMiddleware.Service<
   AuthMiddleware,
   { provides: CurrentUserContext }
 >()('AuthMiddleware', {
-  error: Unauthorized,
+  error: Unauthorized.pipe(HttpApiSchema.status(401)),
   security: { token: HttpApiSecurity.bearer },
 }) {}
 
