@@ -86,7 +86,7 @@ export function GroupDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_updateFailed())),
       run({ success: m.group_groupSaved() }),
     );
     setSaving(false);
@@ -105,7 +105,7 @@ export function GroupDetailPage({
           payload: { memberId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_updateFailed())),
       run({ success: m.group_memberAdded() }),
     );
     if (Option.isSome(result)) {
@@ -123,7 +123,7 @@ export function GroupDetailPage({
             params: { teamId: teamIdBranded, groupId: groupIdBranded, memberId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.group_updateFailed())),
         run({ success: m.group_memberRemoved() }),
       );
       if (Option.isSome(result)) {
@@ -143,7 +143,7 @@ export function GroupDetailPage({
           payload: { roleId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_updateFailed())),
       run({ success: m.group_roleAssigned() }),
     );
     if (Option.isSome(result)) {
@@ -161,7 +161,7 @@ export function GroupDetailPage({
             params: { teamId: teamIdBranded, groupId: groupIdBranded, roleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.group_updateFailed())),
         run({ success: m.group_roleUnassigned() }),
       );
       if (Option.isSome(result)) {
@@ -179,7 +179,7 @@ export function GroupDetailPage({
           params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_deleteFailed())),
+      Effect.mapError(() => ClientError.make(m.group_deleteFailed())),
       run({ success: m.group_groupDeleted() }),
     );
     if (Option.isSome(result)) {
@@ -197,7 +197,7 @@ export function GroupDetailPage({
           payload: { discordChannelId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
+      Effect.mapError(() => ClientError.make(m.group_channelLinkFailed())),
       run({ success: m.group_channelLinked() }),
     );
     if (Option.isSome(result)) {
@@ -213,7 +213,7 @@ export function GroupDetailPage({
           params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
+      Effect.mapError(() => ClientError.make(m.group_channelLinkFailed())),
       run({ success: m.group_channelUnlinked() }),
     );
     if (Option.isSome(result)) {
@@ -234,7 +234,7 @@ export function GroupDetailPage({
             payload: { parentId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.group_moveGroupFailed())),
+        Effect.mapError(() => ClientError.make(m.group_moveGroupFailed())),
         run({ success: m.group_parentChanged() }),
       );
       if (Option.isSome(result)) {
@@ -251,7 +251,7 @@ export function GroupDetailPage({
           params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_channelCreateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_channelCreateFailed())),
       run({ success: m.group_channelCreateRequested() }),
     );
     if (Option.isSome(result)) {

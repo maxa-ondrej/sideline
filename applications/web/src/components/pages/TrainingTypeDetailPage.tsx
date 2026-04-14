@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Discord, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -39,15 +39,15 @@ import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateScheduleSchema = Schema.Struct({
-  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  title: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   description: Schema.String,
-  frequency: EventSeries.RecurrenceFrequency.annotations({
-    message: () => m.validation_invalidOption(),
+  frequency: EventSeries.RecurrenceFrequency.annotate({
+    message: m.validation_invalidOption(),
   }),
   daysOfWeek: EventSeries.DaysOfWeek,
-  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
-  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endTime: Schema.String,
   location: Schema.String,
 });
@@ -97,7 +97,7 @@ export function TrainingTypeDetailPage({
   const [editingSeriesId, setEditingSeriesId] = React.useState<string | null>(null);
 
   const scheduleForm = useForm({
-    resolver: effectTsResolver(CreateScheduleSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateScheduleSchema)),
     mode: 'onChange',
     defaultValues: {
       title: trainingTypeDetail.name,
@@ -122,7 +122,7 @@ export function TrainingTypeDetailPage({
             name,
             discordChannelId: Option.some(
               channelId !== NONE_VALUE
-                ? Option.some(Discord.Snowflake.make(channelId))
+                ? Option.some(Discord.Snowflake.makeUnsafe(channelId))
                 : Option.none(),
             ),
             ownerGroupId: Option.some(
@@ -138,7 +138,7 @@ export function TrainingTypeDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_updateFailed())),
       run({ success: m.trainingType_saved() }),
     );
     setSaving(false);
@@ -164,7 +164,7 @@ export function TrainingTypeDetailPage({
           params: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_deleteFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_deleteFailed())),
       run({ success: m.trainingType_deleted() }),
     );
     if (Option.isSome(result)) {
@@ -196,7 +196,7 @@ export function TrainingTypeDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_createScheduleFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_createScheduleFailed())),
       run({ success: m.trainingType_scheduleCreated() }),
     );
     if (Option.isSome(result)) {
@@ -218,7 +218,7 @@ export function TrainingTypeDetailPage({
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
+        Effect.mapError(() => ClientError.make(m.event_cancelFailed())),
         run({ success: m.trainingType_scheduleCancelled() }),
       );
       if (Option.isSome(result)) {
@@ -280,7 +280,7 @@ export function TrainingTypeDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_updateScheduleFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_updateScheduleFailed())),
       run({ success: m.trainingType_scheduleUpdated() }),
     );
     if (Option.isSome(result)) {

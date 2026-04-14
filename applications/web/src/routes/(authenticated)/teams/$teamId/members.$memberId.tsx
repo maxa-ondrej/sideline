@@ -23,7 +23,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
           activityStats: api.activityStats.getMemberStats({ params: { teamId, memberId } }),
           activityLogs: api.activityLog.listLogs({ params: { teamId, memberId } }).pipe(
             Effect.map((r) => ({ isOwnProfile: true as boolean, logs: r.logs })),
-            Effect.catchAll(() =>
+            Effect.catch(() =>
               Effect.succeed({ isOwnProfile: false as boolean, logs: [] as const }),
             ),
           ),
@@ -82,7 +82,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
+        Effect.mapError(() => ClientError.make(m.members_saveFailed())),
         run({ success: m.members_playerSaved() }),
       );
       if (Option.isSome(result)) {
@@ -101,7 +101,7 @@ function MemberDetailRoute() {
             payload: { roleId: roleId as Role.RoleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roles_assignFailed())),
+        Effect.mapError(() => ClientError.make(m.roles_assignFailed())),
         run({ success: m.role_roleAssigned() }),
       );
       if (Option.isSome(result)) {
@@ -119,7 +119,7 @@ function MemberDetailRoute() {
             params: { teamId, memberId, roleId: roleId as Role.RoleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roles_unassignFailed())),
+        Effect.mapError(() => ClientError.make(m.roles_unassignFailed())),
         run({ success: m.role_roleUnassigned() }),
       );
       if (Option.isSome(result)) {
@@ -146,7 +146,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_logFailed())),
         run({ success: m.activityLog_logged() }),
       );
       if (Option.isSome(result)) {
@@ -176,7 +176,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_updateFailed())),
         run({ success: m.activityLog_updated() }),
       );
       if (Option.isSome(result)) {
@@ -194,7 +194,7 @@ function MemberDetailRoute() {
             params: { teamId, memberId, logId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_deleteFailed())),
         run({ success: m.activityLog_deleted() }),
       );
       if (Option.isSome(result)) {

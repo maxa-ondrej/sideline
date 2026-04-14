@@ -10,7 +10,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresho
   loader: async ({ params, context }) => {
     const teamId = await pipe(
       params.teamId,
-      Schema.decode(Team.TeamId),
+      Schema.decodeEffect(Team.TeamId),
       Effect.mapError(NotFound.make),
       context.run,
     );

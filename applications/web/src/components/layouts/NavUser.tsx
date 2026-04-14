@@ -82,7 +82,7 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
       setLocale(locale);
       ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.auth.updateLocale({ payload: { locale } })),
-        Effect.catchAll(() => ClientError.make(m.auth_errors_profileFailed())),
+        Effect.mapError(() => ClientError.make(m.auth_errors_profileFailed())),
         run(),
       );
     },

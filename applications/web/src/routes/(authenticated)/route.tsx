@@ -17,7 +17,7 @@ export const Route = createFileRoute('/(authenticated)')({
         ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.auth.myTeams()),
           Effect.tapError((e) => Effect.logWarning('Could not fetch my teams', e)),
-          Effect.catchAll(() => Effect.succeed([] as readonly Auth.UserTeam[])),
+          Effect.catch(() => Effect.succeed([] as readonly Auth.UserTeam[])),
         ),
       ),
       warnAndCatchAll,

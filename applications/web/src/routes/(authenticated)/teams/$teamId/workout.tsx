@@ -18,7 +18,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
         Effect.all({
           leaderboard: api.leaderboard.getLeaderboard({
             params: { teamId },
-            urlParams: { timeframe: Option.none(), activityTypeId: Option.none() },
+            query: { timeframe: Option.none(), activityTypeId: Option.none() },
           }),
           members: api.roster.listMembers({ params: { teamId } }),
           activityTypes: api.activityLog.listActivityTypes({ params: { teamId } }),
@@ -39,7 +39,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
               activityStats: api.activityStats.getMemberStats({ params: { teamId, memberId } }),
               activityLogs: api.activityLog.listLogs({ params: { teamId, memberId } }).pipe(
                 Effect.map((r) => r.logs as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
-                Effect.catchAll(() =>
+                Effect.catch(() =>
                   Effect.succeed([] as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
                 ),
               ),
@@ -101,7 +101,7 @@ function MakanickoRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_logFailed())),
         run({ success: m.activityLog_logged() }),
       );
       if (Option.isSome(result)) {
@@ -132,7 +132,7 @@ function MakanickoRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_updateFailed())),
         run({ success: m.activityLog_updated() }),
       );
       if (Option.isSome(result)) {
@@ -151,7 +151,7 @@ function MakanickoRoute() {
             params: { teamId, memberId, logId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_deleteFailed())),
         run({ success: m.activityLog_deleted() }),
       );
       if (Option.isSome(result)) {

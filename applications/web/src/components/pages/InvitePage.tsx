@@ -24,16 +24,13 @@ export function InvitePage({ isAuthenticated, invite, code, onJoined, onSignIn }
     await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.invite.joinViaInvite({ params: { code } })),
       Effect.tap((result) => Effect.sync(() => onJoined(result.teamId, result.isProfileComplete))),
-      Effect.catchTag('AlreadyMember', () => ClientError.make(m.invite_errors_alreadyMember())),
-      Effect.catchTag('InviteNotFound', () => ClientError.make(m.invite_errors_inviteNotValid())),
-      Effect.catchTag(
-        'HttpApiDecodeError',
-        'ParseError',
-        'RequestError',
-        'ResponseError',
-        'Unauthorized',
-        () => ClientError.make(m.invite_errors_joinFailed()),
+      Effect.catchTag('AlreadyMember', () =>
+        Effect.fail(ClientError.make(m.invite_errors_alreadyMember())),
       ),
+      Effect.catchTag('InviteNotFound', () =>
+        Effect.fail(ClientError.make(m.invite_errors_inviteNotValid())),
+      ),
+      Effect.mapError(() => ClientError.make(m.invite_errors_joinFailed())),
       run({ success: m.invite_teamJoined() }),
     );
     setJoining(false);

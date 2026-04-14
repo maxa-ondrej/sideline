@@ -21,7 +21,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
       const notificationId = Schema.decodeSync(Notification.NotificationId)(notificationIdRaw);
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.notification.markAsRead({ params: { notificationId } })),
-        Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
+        Effect.mapError(() => ClientError.make(m.notification_markReadFailed())),
         run(),
       );
       if (Option.isSome(result)) {
@@ -37,7 +37,7 @@ export function NotificationsPage({ notifications, teamId }: NotificationsPagePr
       Effect.flatMap((api) =>
         api.notification.markAllAsRead({ payload: { teamId: decodedTeamId } }),
       ),
-      Effect.catchAll(() => ClientError.make(m.notification_markReadFailed())),
+      Effect.mapError(() => ClientError.make(m.notification_markReadFailed())),
       run(),
     );
     if (Option.isSome(result)) {

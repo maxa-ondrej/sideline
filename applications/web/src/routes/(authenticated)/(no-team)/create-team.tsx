@@ -28,7 +28,7 @@ function CreateTeamRoute() {
     setLoadingGuilds(true);
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.auth.myGuilds()),
-      Effect.catchAll(() => Effect.succeed([] as readonly Auth.DiscordGuild[])),
+      Effect.catch(() => Effect.succeed([] as readonly Auth.DiscordGuild[])),
       run(),
     );
     if (Option.isSome(result)) {
@@ -49,7 +49,7 @@ function CreateTeamRoute() {
             payload: { name, guildId: guildId as Auth.CreateTeamRequest['guildId'] },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.dashboard_createFailed())),
+        Effect.mapError(() => ClientError.make(m.dashboard_createFailed())),
         run({ success: m.team_teamCreated() }),
       );
       if (Option.isSome(result)) {

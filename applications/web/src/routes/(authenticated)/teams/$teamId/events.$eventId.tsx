@@ -18,13 +18,13 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eve
           rsvpDetail: api.eventRsvp.getRsvps({ params: { teamId, eventId } }),
           discordChannels: api.group
             .listDiscordChannels({ params: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
           nonResponders: api.eventRsvp
             .getNonResponders({ params: { teamId, eventId } })
-            .pipe(Effect.catchAll(() => Effect.succeed({ nonResponders: [] }))),
+            .pipe(Effect.catch(() => Effect.succeed({ nonResponders: [] }))),
           groups: api.group
             .listGroups({ params: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

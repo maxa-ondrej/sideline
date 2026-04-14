@@ -46,7 +46,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
           Effect.flatMap((api) => api.team.getTeamInfo({ params: { teamId } })),
           Effect.map((info) => Option.some(info.guildId)),
           Effect.tapError((e) => Effect.logWarning('Failed to load team info', e)),
-          Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+          Effect.catch(() => Effect.succeed(Option.none<string>())),
           context.run,
         ),
       ]);

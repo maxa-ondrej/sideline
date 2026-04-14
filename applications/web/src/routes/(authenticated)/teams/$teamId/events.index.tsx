@@ -16,10 +16,10 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/')({
           trainingTypes: api.trainingType.listTrainingTypes({ params: { teamId } }),
           discordChannels: api.group
             .listDiscordChannels({ params: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
           groups: api.group
             .listGroups({ params: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

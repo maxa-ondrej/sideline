@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type {
   ActivityLog,
   ActivityLogApi,
@@ -40,10 +40,10 @@ const PlayerEditSchema = Schema.Struct({
   gender: Schema.NullOr(Schema.Literals(['male', 'female', 'other'])),
   jerseyNumber: Schema.NullOr(
     Schema.NumberFromString.pipe(
-      Schema.int(),
+      Schema.check(Schema.isInt()),
       Schema.check(Schema.isBetween({ minimum: 0, maximum: 99 })),
-    ).annotations({
-      message: () => m.validation_jerseyNumber(),
+    ).annotate({
+      message: m.validation_jerseyNumber(),
     }),
   ),
 });
@@ -102,7 +102,7 @@ export function PlayerDetailPage({
   onDeleteLog,
 }: PlayerDetailPageProps) {
   const form = useForm({
-    resolver: effectTsResolver(PlayerEditSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(PlayerEditSchema)),
     mode: 'onChange',
     defaultValues: {
       name: Option.getOrNull(player.name),

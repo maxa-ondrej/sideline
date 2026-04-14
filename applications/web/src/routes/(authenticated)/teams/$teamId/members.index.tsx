@@ -40,7 +40,7 @@ function MembersRoute() {
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.roster.deactivateMember({ params: { teamId, memberId } })),
-        Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
+        Effect.mapError(() => ClientError.make(m.members_saveFailed())),
         run({ success: m.members_deactivated() }),
       );
       if (Option.isSome(result)) {

@@ -18,20 +18,18 @@ import {
   TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
-import { Context, Effect, Option } from 'effect';
+import { Effect, Option, ServiceMap } from 'effect';
 import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/unstable/http';
 import { HttpApi, HttpApiClient } from 'effect/unstable/httpapi';
-import { getToken } from '~/lib/auth';
+import { getToken } from '~/lib/token';
 
 export type ClientConfigService = {
   readonly baseUrl: string;
 };
 
-export type ClientConfig = { readonly _tag: 'api/ClientConfig' };
-
-export const ClientConfig = Context.GenericTag<ClientConfig, ClientConfigService>(
+export class ClientConfig extends ServiceMap.Service<ClientConfig, ClientConfigService>()(
   'api/ClientConfig',
-);
+) {}
 
 class ClientApi extends HttpApi.make('api')
   .add(ActivityLogApi.ActivityLogApiGroup)

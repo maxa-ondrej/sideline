@@ -64,7 +64,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.role_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.role_updateFailed())),
       run({ success: m.role_roleSaved() }),
     );
     setSaving(false);
@@ -79,7 +79,7 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
       Effect.flatMap((api) =>
         api.role.deleteRole({ params: { teamId: teamIdBranded, roleId: roleIdBranded } }),
       ),
-      Effect.catchAll(() => ClientError.make(m.role_deleteFailed())),
+      Effect.mapError(() => ClientError.make(m.role_deleteFailed())),
       run({ success: m.role_roleDeleted() }),
     );
     if (Option.isSome(result)) {

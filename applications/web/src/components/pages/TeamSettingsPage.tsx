@@ -138,7 +138,7 @@ export function TeamSettingsPage({
 
   const channelToOption = React.useCallback(
     (value: string) =>
-      value !== NONE_VALUE ? Option.some(Discord.Snowflake.make(value)) : Option.none(),
+      value !== NONE_VALUE ? Option.some(Discord.Snowflake.makeUnsafe(value)) : Option.none(),
     [],
   );
 
@@ -161,7 +161,7 @@ export function TeamSettingsPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.teamSettings_profileSaveFailed())),
+      Effect.mapError(() => ClientError.make(m.teamSettings_profileSaveFailed())),
       run({ success: m.teamSettings_profileSaved() }),
     );
     setSavingProfile(false);
@@ -205,7 +205,7 @@ export function TeamSettingsPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.teamSettings_saveFailed())),
+      Effect.mapError(() => ClientError.make(m.teamSettings_saveFailed())),
       run({ success: m.teamSettings_saved() }),
     );
     setSavingSettings(false);

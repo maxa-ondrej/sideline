@@ -16,7 +16,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/training-ty
             trainingTypesData.canAdmin
               ? api.group.listGroups({ params: { teamId } }).pipe(
                   Effect.tapError((e) => Effect.logWarning('Failed to load groups', e)),
-                  Effect.catchAll(() => Effect.succeed([] as const)),
+                  Effect.catch(() => Effect.succeed([] as const)),
                   Effect.map((groups) => ({ ...trainingTypesData, groups })),
                 )
               : Effect.succeed({ ...trainingTypesData, groups: [] as const }),

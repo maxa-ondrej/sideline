@@ -77,7 +77,7 @@ export function RosterDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_rosterSaved() }),
     );
     setSaving(false);
@@ -100,7 +100,7 @@ export function RosterDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_rosterUpdated() }),
     );
     if (Option.isSome(result)) {
@@ -133,9 +133,9 @@ export function RosterDetailPage({
         }),
       ),
       Effect.catchTag('ChannelAlreadyLinked', () =>
-        ClientError.make(m.roster_channelAlreadyLinked()),
+        Effect.fail(ClientError.make(m.roster_channelAlreadyLinked())),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_channelLinked() }),
     );
     if (Option.isSome(result)) {
@@ -166,7 +166,7 @@ export function RosterDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_channelUnlinked() }),
     );
     if (Option.isSome(result)) {
@@ -181,7 +181,7 @@ export function RosterDetailPage({
           params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_channelCreateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_channelCreateFailed())),
       run({ success: m.roster_channelCreateRequested() }),
     );
     if (Option.isSome(result)) {
@@ -199,7 +199,7 @@ export function RosterDetailPage({
           payload: { memberId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_memberAdded() }),
     );
     if (Option.isSome(result)) {
@@ -217,7 +217,7 @@ export function RosterDetailPage({
             params: { teamId: teamIdBranded, rosterId: rosterIdBranded, memberId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
         run({ success: m.roster_memberRemoved() }),
       );
       if (Option.isSome(result)) {
@@ -235,7 +235,7 @@ export function RosterDetailPage({
           params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_rosterDeleted() }),
     );
     if (Option.isSome(result)) {

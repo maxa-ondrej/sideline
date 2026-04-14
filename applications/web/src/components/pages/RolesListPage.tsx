@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { RoleApi } from '@sideline/domain';
 import { Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -19,7 +19,7 @@ import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateRoleSchema = Schema.Struct({
-  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  name: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
 });
 
 type CreateRoleValues = Schema.Schema.Type<typeof CreateRoleSchema>;
@@ -36,7 +36,7 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
 
   const form = useForm({
-    resolver: effectTsResolver(CreateRoleSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateRoleSchema)),
     mode: 'onChange',
     defaultValues: { name: '' },
   });
@@ -52,7 +52,7 @@ export function RolesListPage({ teamId, roles, canManage }: RolesListPageProps) 
       withFieldErrors(form, [
         { tag: 'RoleNameAlreadyTaken', field: 'name', message: m.role_nameAlreadyTaken() },
       ]),
-      Effect.catchAll(() => ClientError.make(m.role_createFailed())),
+      Effect.mapError(() => ClientError.make(m.role_createFailed())),
       run({ success: m.role_roleCreated() }),
     );
     if (Option.isSome(result)) {

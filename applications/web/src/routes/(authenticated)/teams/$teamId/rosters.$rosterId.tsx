@@ -24,14 +24,14 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$ro
       ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.group.listDiscordChannels({ params: { teamId } })),
         Effect.tapError((e) => Effect.logWarning('Failed to load Discord channels', e)),
-        Effect.catchAll(() => Effect.succeed([])),
+        Effect.catch(() => Effect.succeed([])),
         context.run,
       ),
       ApiClient.asEffect().pipe(
         Effect.flatMap((api) => api.team.getTeamInfo({ params: { teamId } })),
         Effect.map((info) => Option.some(info.guildId)),
         Effect.tapError((e) => Effect.logWarning('Failed to load team info', e)),
-        Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+        Effect.catch(() => Effect.succeed(Option.none<string>())),
         context.run,
       ),
     ]);

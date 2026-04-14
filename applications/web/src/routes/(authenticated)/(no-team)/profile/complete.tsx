@@ -13,11 +13,13 @@ export const Route = createFileRoute('/(authenticated)/(no-team)/profile/complet
     context.user?.isProfileComplete
       ? Effect.Do.pipe(
           Effect.flatMap(() => getLastTeamId),
-          Effect.flatten,
+          Effect.flatMap(Effect.fromOption),
           Effect.flatMap((teamId) =>
-            Option.isSome(Array.findFirst(context.teams, (t) => t.teamId === teamId))
-              ? Redirect.make({ to: '/teams/$teamId', params: { teamId } })
-              : Redirect.make({ to: '/' }),
+            Effect.fail(
+              Option.isSome(Array.findFirst(context.teams, (t) => t.teamId === teamId))
+                ? Redirect.make({ to: '/teams/$teamId', params: { teamId } })
+                : Redirect.make({ to: '/' }),
+            ),
           ),
           Effect.catchTag('NoSuchElementError', () => Effect.void),
           context.run,
@@ -42,7 +44,7 @@ function ProfileCompleteRoute() {
     }
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.auth.autoJoinTeams()),
-      Effect.catchAll(() => new SilentClientError({ message: '' })),
+      Effect.mapError(() => new SilentClientError({ message: '' })),
       run(),
     );
     const firstTeam = Option.isSome(result) ? Array.head(result.value) : Option.none();

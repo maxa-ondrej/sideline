@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { GroupModel, Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -22,7 +22,7 @@ import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateTrainingTypeSchema = Schema.Struct({
-  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  name: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
 });
 
 type CreateTrainingTypeValues = Schema.Schema.Type<typeof CreateTrainingTypeSchema>;
@@ -50,7 +50,7 @@ export function TrainingTypesListPage({
   const [memberGroupId, setMemberGroupId] = React.useState(NONE_VALUE);
 
   const form = useForm({
-    resolver: effectTsResolver(CreateTrainingTypeSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateTrainingTypeSchema)),
     mode: 'onChange',
     defaultValues: { name: '' },
   });
@@ -81,7 +81,7 @@ export function TrainingTypesListPage({
           message: m.trainingType_nameAlreadyTaken(),
         },
       ]),
-      Effect.catchAll(() => ClientError.make(m.trainingType_createFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_createFailed())),
       run({ success: m.trainingType_created() }),
     );
     if (Option.isSome(result)) {
