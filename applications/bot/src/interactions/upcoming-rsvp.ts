@@ -4,7 +4,7 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Metric, Option, pipe, Schema } from 'effect';
+import { Effect, Metric, Option, Schema } from 'effect';
 import { type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildUpcomingEventEmbed } from '~/rest/events/buildUpcomingEventEmbed.js';
@@ -50,11 +50,14 @@ export const UpcomingRsvpButton = Ix.messageComponent(
   Ix.idStartsWith('upcoming-rsvp:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
@@ -90,7 +93,7 @@ export const UpcomingRsvpButton = Ix.messageComponent(
       }
 
       const discordUserId = discordUserIdOption.value;
-      const snowflakeGuildId = DiscordSchemas.Snowflake.make(guildId);
+      const snowflakeGuildId = DiscordSchemas.Snowflake.makeUnsafe(guildId);
 
       const work = rpc['Event/SubmitRsvp']({
         event_id: eventId,
@@ -167,17 +170,13 @@ export const UpcomingRsvpButton = Ix.messageComponent(
             payload: { content: m.bot_event_list_error({}, { locale }) },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to handle upcoming RSVP button', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to handle upcoming RSVP button', error),
         ),
       );
 
       return Effect.as(
-        Effect.forkDaemon(work),
+        Effect.forkDetach(work),
         Ix.response({
           type: Discord.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
         }),
@@ -192,10 +191,13 @@ export const UpcomingAddMessageButton = Ix.messageComponent(
   Ix.idStartsWith('u-add-msg:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
     Effect.map(({ data, interaction }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
@@ -237,11 +239,14 @@ export const UpcomingClearMessageButton = Ix.messageComponent(
   Ix.idStartsWith('u-clear-msg:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
@@ -277,7 +282,7 @@ export const UpcomingClearMessageButton = Ix.messageComponent(
       }
 
       const discordUserId = decodeSnowflake(discordUserIdOption.value);
-      const snowflakeGuildId = DiscordSchemas.Snowflake.make(guildId);
+      const snowflakeGuildId = DiscordSchemas.Snowflake.makeUnsafe(guildId);
 
       const work = rpc['Event/SubmitRsvp']({
         event_id: eventId,
@@ -354,17 +359,13 @@ export const UpcomingClearMessageButton = Ix.messageComponent(
             payload: { content: m.bot_event_list_error({}, { locale }) },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to handle upcoming clear-message button', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to handle upcoming clear-message button', error),
         ),
       );
 
       return Effect.as(
-        Effect.forkDaemon(work),
+        Effect.forkDetach(work),
         Ix.response({
           type: Discord.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
         }),
@@ -379,11 +380,14 @@ export const UpcomingRsvpModal = Ix.modalSubmit(
   Ix.idStartsWith('u-modal:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'modal')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'modal' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => ModalSubmitData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('data', () => ModalSubmitData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
@@ -420,7 +424,7 @@ export const UpcomingRsvpModal = Ix.modalSubmit(
       }
 
       const discordUserId = decodeSnowflake(discordUserIdOption.value);
-      const snowflakeGuildId = DiscordSchemas.Snowflake.make(guildId);
+      const snowflakeGuildId = DiscordSchemas.Snowflake.makeUnsafe(guildId);
 
       const work = rpc['Event/SubmitRsvp']({
         event_id: eventId,
@@ -497,17 +501,13 @@ export const UpcomingRsvpModal = Ix.modalSubmit(
             payload: { content: m.bot_event_list_error({}, { locale }) },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to handle upcoming RSVP modal', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to handle upcoming RSVP modal', error),
         ),
       );
 
       return Effect.as(
-        Effect.forkDaemon(work),
+        Effect.forkDetach(work),
         Ix.response({
           type: Discord.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
         }),

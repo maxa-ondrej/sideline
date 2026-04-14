@@ -16,7 +16,7 @@ const createRoleForExistingChannel = (
   roleColor?: number,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('role', ({ rest }) =>
       rest
@@ -57,15 +57,15 @@ export const ensureMapping = (
   roleColor?: number,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetMapping']({ team_id: teamId, group_id: groupId }),
     ),
     Effect.flatMap(({ cached }) =>
-      cached.pipe(
+      Effect.fromOption(cached).pipe(
         Effect.flatMap((mapping) =>
-          mapping.discord_role_id.pipe(
+          Effect.fromOption(mapping.discord_role_id).pipe(
             Effect.map((roleId) => ({
               discord_channel_id: mapping.discord_channel_id,
               discord_role_id: roleId,

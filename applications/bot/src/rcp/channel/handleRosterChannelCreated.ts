@@ -7,7 +7,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 export const handleRosterChannelCreated = (event: ChannelRpcEvents.RosterChannelCreatedEvent) => {
   const roleColor = Option.getOrUndefined(event.discord_role_color);
   return Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('result', () =>
       Option.match(event.existing_channel_id, {
         onNone: () =>

@@ -15,7 +15,7 @@ const toDiscordTimestamp = (dt: DateTime.Utc, style: 'R' | 'f' = 'f'): string =>
 
 export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('summary', ({ rpc }) =>
       rpc['Event/GetRsvpReminderSummary']({ event_id: event.event_id }),
@@ -129,7 +129,8 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
 
       const dmNonResponders = pipe(
         summary.nonResponders,
-        Array.filterMap((nr) => nr.discord_id),
+        Array.map((nr) => nr.discord_id),
+        Array.getSomes,
         Array.map((discordId) =>
           rest.createDm({ recipient_id: discordId }).pipe(
             Effect.flatMap((dm) =>
@@ -147,21 +148,16 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
               }),
             ),
             Effect.tap(() => Effect.logInfo(`Sent RSVP reminder DM to Discord user ${discordId}`)),
-            Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'RatelimitedResponse',
-              'ErrorResponse',
-              (err) =>
-                Effect.logWarning(
-                  `Failed to send RSVP reminder DM to Discord user ${discordId}: ${err}`,
-                ),
+            Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (err) =>
+              Effect.logWarning(
+                `Failed to send RSVP reminder DM to Discord user ${discordId}: ${err}`,
+              ),
             ),
           ),
         ),
       );
 
-      const sendDms = Array.isArrayEmpty(dmNonResponders)
+      const sendDms = Array.isReadonlyArrayEmpty(dmNonResponders)
         ? Effect.void
         : Effect.all(dmNonResponders, { concurrency: 5 }).pipe(Effect.asVoid);
 

@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { NodeHttpServer } from '@effect/platform-node';
 import { DiscordGateway } from 'dfx/gateway';
 import { Effect, Layer, Schema } from 'effect';
-import { HttpServer } from 'effect/unstable/http';
+import { HttpRouter, HttpServer } from 'effect/unstable/http';
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { env } from '~/env.js';
 
@@ -34,9 +34,10 @@ const HealthApiLive = HttpApiBuilder.group(BotHealthApi, 'health', (handlers) =>
   ),
 );
 
-export const HealthServerLive = HttpApiBuilder.serve().pipe(
-  Layer.provide(HttpApiBuilder.api(BotHealthApi)),
-  Layer.provide(HealthApiLive),
+export const HealthServerLive = HttpRouter.serve(
+  Layer.mergeAll(HttpApiBuilder.layer(BotHealthApi), HealthApiLive),
+).pipe(
+  Layer.withSpan('Health'),
   HttpServer.withLogAddress,
   Layer.provide(NodeHttpServer.layer(createServer, { port: env.HEALTH_PORT })),
 );

@@ -11,9 +11,12 @@ import { sendUpcomingEventFollowups } from '~/rest/events/sendUpcomingEventFollo
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-export const listHandler = Interaction.pipe(
+export const listHandler = Interaction.asEffect().pipe(
   Effect.tap(() =>
-    Metric.update(Metric.tagged(discordInteractionsTotal, 'interaction_type', 'command'), 1),
+    Metric.update(
+      Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'command' }),
+      1,
+    ),
   ),
   Effect.flatMap((interaction) => {
     const locale = userLocale(interaction);
@@ -31,7 +34,7 @@ export const listHandler = Interaction.pipe(
       );
     }
 
-    const snowflakeGuildId = Discord.Snowflake.make(guildId);
+    const snowflakeGuildId = Discord.Snowflake.makeUnsafe(guildId);
     const discordUserIdOption = interactionUserId(interaction);
 
     if (Option.isNone(discordUserIdOption)) {
@@ -49,7 +52,7 @@ export const listHandler = Interaction.pipe(
     const snowflakeDiscordUserId = discordUserIdOption.value;
 
     const work = Effect.Do.pipe(
-      Effect.bind('rpc', () => SyncRpc),
+      Effect.bind('rpc', () => SyncRpc.asEffect()),
       Effect.bind('rest', () => DiscordREST.asEffect()),
       Effect.flatMap(({ rpc, rest }) =>
         rpc['Event/GetUpcomingEventsForUser']({
@@ -108,12 +111,8 @@ export const listHandler = Interaction.pipe(
               })
               .pipe(Effect.asVoid),
           ),
-          Effect.catchTag(
-            'RequestError',
-            'ResponseError',
-            'RatelimitedResponse',
-            'ErrorResponse',
-            (error) => Effect.logError('Failed to update event list response', error),
+          Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+            Effect.logError('Failed to update event list response', error),
           ),
         ),
       ),
@@ -123,7 +122,7 @@ export const listHandler = Interaction.pipe(
       type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
       data: { flags: DiscordTypes.MessageFlags.Ephemeral },
     };
-    return Effect.as(Effect.forkDaemon(work), deferredEphemeral);
+    return Effect.as(Effect.forkDetach(work), deferredEphemeral);
   }),
   Effect.withSpan('command/event/list'),
 );

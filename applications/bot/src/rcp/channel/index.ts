@@ -1,17 +1,11 @@
-import { Effect, Schedule } from 'effect';
+import { type Effect, Layer, ServiceMap } from 'effect';
 import { ProcessorService } from './ProcessorService.js';
 
-export class ChannelSyncService extends Effect.Service<ChannelSyncService>()(
-  'bot/ChannelSyncService',
-  {
-    effect: ProcessorService,
-  },
-) {
-  poll() {
-    return this.processTick;
-  }
+const make = ProcessorService;
 
-  pollLoop() {
-    return this.processTick.pipe(Effect.repeat(Schedule.spaced('5 seconds')));
-  }
+export class ChannelSyncService extends ServiceMap.Service<
+  ChannelSyncService,
+  Effect.Success<typeof make>
+>()('bot/ChannelSyncService') {
+  static readonly Default = Layer.effect(ChannelSyncService, make);
 }

@@ -6,7 +6,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 
 export const handleMemberRemoved = (event: RoleRpcEvents.RoleUnassignedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Role/GetMapping']({
@@ -14,7 +14,7 @@ export const handleMemberRemoved = (event: RoleRpcEvents.RoleUnassignedEvent) =>
         role_id: event.role_id,
       }),
     ),
-    Effect.bind('mapping', ({ cached }) => cached),
+    Effect.bind('mapping', ({ cached }) => Effect.fromOption(cached)),
     Effect.tap(({ rest, mapping }) =>
       rest
         .deleteGuildMemberRole(event.guild_id, event.discord_user_id, mapping.discord_role_id)

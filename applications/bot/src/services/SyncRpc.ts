@@ -1,7 +1,11 @@
 import { SyncRpcs } from '@sideline/domain';
-import { Effect } from 'effect';
+import { type Effect, Layer, ServiceMap } from 'effect';
 import { RpcClient } from 'effect/unstable/rpc';
 
-export class SyncRpc extends Effect.Service<SyncRpc>()('bot/SyncRpc', {
-  scoped: RpcClient.make(SyncRpcs.SyncRpcs),
-}) {}
+const make = RpcClient.make(SyncRpcs.SyncRpcs);
+
+export type SyncRpcClient = Effect.Success<typeof make>;
+
+export class SyncRpc extends ServiceMap.Service<SyncRpc, SyncRpcClient>()('bot/SyncRpc') {
+  static readonly Default = Layer.effect(SyncRpc, make);
+}

@@ -16,7 +16,7 @@ import {
 } from '~/rest/events/buildEventEmbed.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-const decodeSnowflake = Schema.decode(DiscordSchema.Snowflake);
+const decodeSnowflake = Schema.decodeEffect(DiscordSchema.Snowflake);
 
 const sortSnowflakes = (ids: ReadonlyArray<Discord.Snowflake>): Array<Discord.Snowflake> =>
   [...ids].sort((a, b) => {
@@ -31,14 +31,14 @@ const editMessage = (
   locale: Locale,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('counts', ({ rpc }) =>
-      rpc['Event/GetRsvpCounts']({ event_id: Event.EventId.make(entry.event_id) }),
+      rpc['Event/GetRsvpCounts']({ event_id: Event.EventId.makeUnsafe(entry.event_id) }),
     ),
     Effect.bind('yesAttendees', ({ rpc }) =>
       rpc['Event/GetYesAttendeesForEmbed']({
-        event_id: Event.EventId.make(entry.event_id),
+        event_id: Event.EventId.makeUnsafe(entry.event_id),
         limit: YES_EMBED_LIMIT,
       }),
     ),
@@ -67,7 +67,7 @@ const editMessage = (
         .pipe(
           Effect.tap(() =>
             rpc['Event/SaveDiscordMessageId']({
-              event_id: Event.EventId.make(entry.event_id),
+              event_id: Event.EventId.makeUnsafe(entry.event_id),
               discord_channel_id: channelId,
               discord_message_id: targetMessageId,
             }),
@@ -84,8 +84,8 @@ export const sortEntriesForChannel = (
   Arr.sort(
     entries,
     Order.make<EventRpcModels.ChannelEventEntry>((a, b) => {
-      const aIsPast = DateTime.lessThan(a.start_at, now);
-      const bIsPast = DateTime.lessThan(b.start_at, now);
+      const aIsPast = DateTime.isLessThan(a.start_at, now);
+      const bIsPast = DateTime.isLessThan(b.start_at, now);
       if (aIsPast && !bIsPast) return -1;
       if (!aIsPast && bIsPast) return 1;
       const timeOrder =
@@ -114,7 +114,7 @@ const buildDividerEmbed = (
 
 export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Locale) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('entries', ({ rpc }) =>
       rpc['Event/GetChannelEvents']({ discord_channel_id: channelId }),
@@ -123,7 +123,7 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
       rpc['Event/GetChannelDivider']({ discord_channel_id: channelId }),
     ),
     Effect.flatMap(({ rpc, rest, entries, existingDivider }) => {
-      if (Arr.isEmptyReadonlyArray(entries)) {
+      if (Arr.isReadonlyArrayEmpty(entries)) {
         return Option.match(existingDivider, {
           onNone: () => Effect.void,
           onSome: (dividerId) =>
@@ -142,8 +142,8 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
 
       const now = DateTime.nowUnsafe();
       const sortedEntries = sortEntriesForChannel(entries, now);
-      const hasPast = Arr.some(sortedEntries, (e) => DateTime.lessThan(e.start_at, now));
-      const hasFuture = Arr.some(sortedEntries, (e) => !DateTime.lessThan(e.start_at, now));
+      const hasPast = Arr.some(sortedEntries, (e) => DateTime.isLessThan(e.start_at, now));
+      const hasFuture = Arr.some(sortedEntries, (e) => !DateTime.isLessThan(e.start_at, now));
       const needsDivider = hasPast && hasFuture;
 
       const getDividerId = needsDivider
@@ -163,7 +163,7 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
                     Effect.map(() => Option.none<Discord.Snowflake>()),
                   ),
                 ),
-                Effect.catchTag('ParseError', (e) =>
+                Effect.catchTag('SchemaError', (e) =>
                   Effect.logWarning('Failed to decode divider message id', e).pipe(
                     Effect.map(() => Option.none<Discord.Snowflake>()),
                   ),
@@ -189,7 +189,7 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
       return getDividerId.pipe(
         Effect.flatMap((maybeDividerId) => {
           const pastIndex = Arr.findLastIndex(sortedEntries, (e) =>
-            DateTime.lessThan(e.start_at, now),
+            DateTime.isLessThan(e.start_at, now),
           );
           const dividerInsertIndex = Option.match(pastIndex, {
             onNone: () => 0,
@@ -223,9 +223,8 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
           ];
           const sortedMessageIds = sortSnowflakes(allMessageIds);
 
-          const edits = Arr.filterMap(
-            Arr.zip(items, sortedMessageIds),
-            ([item, targetMessageId]) => {
+          const edits = Arr.getSomes(
+            Arr.map(Arr.zip(items, sortedMessageIds), ([item, targetMessageId]) => {
               if (item._tag === 'divider') {
                 return Option.map(maybeDividerId, (currentId) =>
                   rest.updateMessage(channelId, targetMessageId, buildDividerEmbed(locale)).pipe(
@@ -261,10 +260,10 @@ export const reorderChannelMessages = (channelId: Discord.Snowflake, locale: Loc
                     ),
                   )
                 : Option.none();
-            },
+            }),
           );
 
-          if (Arr.isEmptyReadonlyArray(edits)) return Effect.void;
+          if (Arr.isReadonlyArrayEmpty(edits)) return Effect.void;
 
           return Effect.all(edits, { concurrency: 1 }).pipe(
             Effect.tap(() =>

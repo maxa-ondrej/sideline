@@ -12,7 +12,7 @@ const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
 
 export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('counts', ({ rpc }) => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
     Effect.bind('yesAttendees', ({ rpc }) =>

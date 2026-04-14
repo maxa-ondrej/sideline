@@ -6,7 +6,7 @@ import { retryPolicy } from '~/rest/utils.js';
 export const deleteRole = (guildId: Discord.Snowflake, roleId: Option.Option<Discord.Snowflake>) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST.asEffect()),
-    Effect.bind('roleId', () => roleId),
+    Effect.bind('roleId', () => Effect.fromOption(roleId)),
     Effect.tap(({ rest, roleId }) =>
       rest.deleteGuildRole(guildId, roleId).pipe(Effect.retry(retryPolicy)),
     ),

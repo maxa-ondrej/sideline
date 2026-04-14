@@ -1,7 +1,7 @@
 import type { ChannelRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Array, Effect, Match, Metric, pipe } from 'effect';
+import { Array, Effect, Match, Metric } from 'effect';
 import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -14,26 +14,29 @@ import { handleMemberRemoved, handleRosterMemberRemoved } from './handleMemberRe
 import { handleRosterChannelCreated } from './handleRosterChannelCreated.js';
 import { handleGroupChannelUpdated, handleRosterChannelUpdated } from './handleUpdated.js';
 
-const action = Match.type<ChannelRpcEvents.UnprocessedChannelEvent>().pipe(
-  Match.tag('group_channel_created', handleCreated),
-  Match.tag('roster_channel_created', handleRosterChannelCreated),
-  Match.tag('group_channel_updated', handleGroupChannelUpdated),
-  Match.tag('roster_channel_updated', handleRosterChannelUpdated),
-  Match.tag('group_channel_deleted', handleDeleted),
-  Match.tag('roster_channel_deleted', handleRosterDeleted),
-  Match.tag('group_channel_archived', handleGroupArchived),
-  Match.tag('roster_channel_archived', handleRosterArchived),
-  Match.tag('group_channel_detached', handleGroupDetached),
-  Match.tag('roster_channel_detached', handleRosterDetached),
-  Match.tag('group_member_added', handleMemberAdded),
-  Match.tag('roster_member_added', handleRosterMemberAdded),
-  Match.tag('group_member_removed', handleMemberRemoved),
-  Match.tag('roster_member_removed', handleRosterMemberRemoved),
-  Match.exhaustive,
-);
+const action: (
+  event: ChannelRpcEvents.UnprocessedChannelEvent,
+) => Effect.Effect<void, unknown, SyncRpc | DiscordREST> =
+  Match.type<ChannelRpcEvents.UnprocessedChannelEvent>().pipe(
+    Match.tag('group_channel_created', handleCreated),
+    Match.tag('roster_channel_created', handleRosterChannelCreated),
+    Match.tag('group_channel_updated', handleGroupChannelUpdated),
+    Match.tag('roster_channel_updated', handleRosterChannelUpdated),
+    Match.tag('group_channel_deleted', handleDeleted),
+    Match.tag('roster_channel_deleted', handleRosterDeleted),
+    Match.tag('group_channel_archived', handleGroupArchived),
+    Match.tag('roster_channel_archived', handleRosterArchived),
+    Match.tag('group_channel_detached', handleGroupDetached),
+    Match.tag('roster_channel_detached', handleRosterDetached),
+    Match.tag('group_member_added', handleMemberAdded),
+    Match.tag('roster_member_added', handleRosterMemberAdded),
+    Match.tag('group_member_removed', handleMemberRemoved),
+    Match.tag('roster_member_removed', handleRosterMemberRemoved),
+    Match.exhaustive,
+  );
 
 const processEvent = Effect.Do.pipe(
-  Effect.bind('rpc', () => SyncRpc),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
   Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.map(
     ({ rpc, discord }) =>
@@ -42,32 +45,25 @@ const processEvent = Effect.Do.pipe(
           Effect.flatMap(() => rpc['Channel/MarkEventProcessed']({ id: event.id })),
           Effect.tap(() =>
             Metric.update(
-              pipe(
-                syncEventsProcessedTotal,
-                Metric.tagged('sync_type', 'channel'),
-                Metric.tagged('action', event._tag),
+              Metric.withAttributes(
+                Metric.withAttributes(syncEventsProcessedTotal, { sync_type: 'channel' }),
+                { action: event._tag },
               ),
               1,
             ),
           ),
-          Effect.catchTag(
-            'RpcClientError',
-            'RequestError',
-            'ResponseError',
-            'RatelimitedResponse',
-            'ErrorResponse',
-            (error) =>
-              rpc['Channel/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-                Effect.tap(() =>
-                  Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
-                ),
-                Effect.tap(() =>
-                  Metric.update(
-                    pipe(syncEventsFailedTotal, Metric.tagged('sync_type', 'channel')),
-                    1,
-                  ),
+          Effect.catch((error) =>
+            rpc['Channel/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
+              Effect.tap(() =>
+                Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
+              ),
+              Effect.tap(() =>
+                Metric.update(
+                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'channel' }),
+                  1,
                 ),
               ),
+            ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
@@ -80,7 +76,7 @@ const processEvent = Effect.Do.pipe(
 
 export const ProcessorService = Effect.Do.pipe(
   Effect.tap(() => Effect.logInfo('ChannelSyncService initialized')),
-  Effect.bind('rpc', () => SyncRpc),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
   Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.bind('processEvent', ({ rpc, discord }) =>
     processEvent.pipe(

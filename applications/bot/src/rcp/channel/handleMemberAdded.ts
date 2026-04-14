@@ -38,13 +38,13 @@ export const handleMemberAdded = (event: ChannelRpcEvents.GroupMemberAddedEvent)
 
 export const handleRosterMemberAdded = (event: ChannelRpcEvents.RosterMemberAddedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetRosterMapping']({ team_id: event.team_id, roster_id: event.roster_id }),
     ),
-    Effect.bind('mapping', ({ cached }) => cached),
-    Effect.bind('roleId', ({ mapping }) => mapping.discord_role_id),
+    Effect.bind('mapping', ({ cached }) => Effect.fromOption(cached)),
+    Effect.bind('roleId', ({ mapping }) => Effect.fromOption(mapping.discord_role_id)),
     Effect.tap(({ rest, roleId }) =>
       rest
         .addGuildMemberRole(event.guild_id, event.discord_user_id, roleId)

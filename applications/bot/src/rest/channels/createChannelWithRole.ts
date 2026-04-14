@@ -15,7 +15,7 @@ export const createDiscordChannelAndRole = (
 ) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST.asEffect()),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('channel', ({ rest }) =>
       rest
         .createGuildChannel(guildId, {
@@ -59,7 +59,7 @@ export const createDiscordChannelAndRole = (
         type: Discord.ChannelTypes.GUILD_TEXT,
         parent_id: Option.map(
           Option.fromNullishOr(channel.parent_id),
-          DiscordSchemas.Snowflake.make,
+          DiscordSchemas.Snowflake.makeUnsafe,
         ),
       }).pipe(
         Effect.tapError((e) =>
@@ -83,7 +83,7 @@ export const createChannelWithRole = (
   roleColor?: number,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('result', () =>
       createDiscordChannelAndRole(guildId, channelName, roleName, roleColor),
     ),

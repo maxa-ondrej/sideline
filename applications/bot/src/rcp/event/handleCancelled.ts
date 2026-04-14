@@ -7,7 +7,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 
 export const handleCancelled = (event: EventRpcEvents.EventCancelledEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('stored', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),

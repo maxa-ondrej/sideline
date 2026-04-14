@@ -9,9 +9,12 @@ import { discordInteractionsTotal } from '~/metrics.js';
 
 const MANAGE_GUILD = 0x20n;
 
-export const overviewHandler = Interaction.pipe(
+export const overviewHandler = Interaction.asEffect().pipe(
   Effect.tap(() =>
-    Metric.update(Metric.tagged(discordInteractionsTotal, 'interaction_type', 'command'), 1),
+    Metric.update(
+      Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'command' }),
+      1,
+    ),
   ),
   Effect.flatMap((interaction) => {
     const locale = userLocale(interaction);
@@ -66,19 +69,15 @@ export const overviewHandler = Interaction.pipe(
             ],
           })
           .pipe(
-            Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'RatelimitedResponse',
-              'ErrorResponse',
-              (error) => Effect.logError('Failed to post overview message', error),
+            Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+              Effect.logError('Failed to post overview message', error),
             ),
           ),
       ),
     );
 
     return Effect.as(
-      Effect.forkDaemon(work),
+      Effect.forkDetach(work),
       Ix.response({
         type: DiscordTypes.InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {

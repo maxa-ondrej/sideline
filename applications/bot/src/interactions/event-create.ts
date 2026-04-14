@@ -4,7 +4,7 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Metric, Option, pipe, Schema } from 'effect';
+import { Effect, Metric, Option, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { interactionUserId } from '~/schemas.js';
@@ -35,11 +35,14 @@ export const EventCreateModal = Ix.modalSubmit(
   Ix.idStartsWith('event-create:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'modal')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'modal' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => ModalSubmitData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('data', () => ModalSubmitData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const isValidUuid = (s: string) =>
@@ -131,12 +134,8 @@ export const EventCreateModal = Ix.modalSubmit(
             payload: { content },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to update event create response', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to update event create response', error),
         ),
       );
 
@@ -144,7 +143,7 @@ export const EventCreateModal = Ix.modalSubmit(
         type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: Discord.MessageFlags.Ephemeral },
       };
-      return Effect.as(Effect.forkDaemon(work), deferred);
+      return Effect.as(Effect.forkDetach(work), deferred);
     }),
     Effect.withSpan('interaction/event-create-modal'),
   ),

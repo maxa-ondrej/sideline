@@ -8,7 +8,7 @@ import { reorderChannelMessages } from './reorderChannelMessages.js';
 
 export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('stored', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),

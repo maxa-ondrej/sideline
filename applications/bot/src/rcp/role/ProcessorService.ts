@@ -1,7 +1,7 @@
 import type { RoleRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Array, Effect, Match, Metric, pipe } from 'effect';
+import { Array, Effect, Match, Metric } from 'effect';
 import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
 import { POLL_BATCH_SIZE } from '../../rest/utils.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
@@ -10,16 +10,19 @@ import { handleCreated } from './handleCreated.js';
 import { handleDeleted } from './handleDeleted.js';
 import { handleMemberRemoved } from './handleUnassigned.js';
 
-const action = Match.type<RoleRpcEvents.UnprocessedRoleEvent>().pipe(
-  Match.tag('role_created', handleCreated),
-  Match.tag('role_deleted', handleDeleted),
-  Match.tag('role_assigned', handleMemberAdded),
-  Match.tag('role_unassigned', handleMemberRemoved),
-  Match.exhaustive,
-);
+const action: (
+  event: RoleRpcEvents.UnprocessedRoleEvent,
+) => Effect.Effect<void, unknown, SyncRpc | DiscordREST> =
+  Match.type<RoleRpcEvents.UnprocessedRoleEvent>().pipe(
+    Match.tag('role_created', handleCreated),
+    Match.tag('role_deleted', handleDeleted),
+    Match.tag('role_assigned', handleMemberAdded),
+    Match.tag('role_unassigned', handleMemberRemoved),
+    Match.exhaustive,
+  );
 
 const processEvent = Effect.Do.pipe(
-  Effect.bind('rpc', () => SyncRpc),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
   Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.map(
     ({ rpc, discord }) =>
@@ -28,29 +31,25 @@ const processEvent = Effect.Do.pipe(
           Effect.flatMap(() => rpc['Role/MarkEventProcessed']({ id: event.id })),
           Effect.tap(() =>
             Metric.update(
-              pipe(
-                syncEventsProcessedTotal,
-                Metric.tagged('sync_type', 'role'),
-                Metric.tagged('action', event._tag),
+              Metric.withAttributes(
+                Metric.withAttributes(syncEventsProcessedTotal, { sync_type: 'role' }),
+                { action: event._tag },
               ),
               1,
             ),
           ),
-          Effect.catchTag(
-            'RpcClientError',
-            'RequestError',
-            'ResponseError',
-            'RatelimitedResponse',
-            'ErrorResponse',
-            (error) =>
-              rpc['Role/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-                Effect.tap(() =>
-                  Effect.logWarning(`Failed to process role sync event ${event.id}`, error),
-                ),
-                Effect.tap(() =>
-                  Metric.update(pipe(syncEventsFailedTotal, Metric.tagged('sync_type', 'role')), 1),
+          Effect.catch((error) =>
+            rpc['Role/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
+              Effect.tap(() =>
+                Effect.logWarning(`Failed to process role sync event ${event.id}`, error),
+              ),
+              Effect.tap(() =>
+                Metric.update(
+                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'role' }),
+                  1,
                 ),
               ),
+            ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
@@ -62,7 +61,7 @@ const processEvent = Effect.Do.pipe(
 );
 
 export const ProcessorService = Effect.Do.pipe(
-  Effect.bind('rpc', () => SyncRpc),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
   Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.bind('processEvent', ({ rpc, discord }) =>
     processEvent.pipe(

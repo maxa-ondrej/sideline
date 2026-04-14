@@ -4,7 +4,7 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Metric, Option, pipe } from 'effect';
+import { Effect, Metric, Option } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { sendUpcomingEventFollowups } from '~/rest/events/sendUpcomingEventFollowups.js';
@@ -16,10 +16,13 @@ export const OverviewShowButton = Ix.messageComponent(
   Ix.id('overview-show'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ interaction, rpc, rest }) => {
       const locale = userLocale(interaction);
@@ -51,7 +54,7 @@ export const OverviewShowButton = Ix.messageComponent(
       }
 
       const discordUserId = discordUserIdOption.value;
-      const snowflakeGuildId = Discord.Snowflake.make(guildId);
+      const snowflakeGuildId = Discord.Snowflake.makeUnsafe(guildId);
 
       const work = rpc['Event/GetUpcomingEventsForUser']({
         guild_id: snowflakeGuildId,
@@ -109,12 +112,8 @@ export const OverviewShowButton = Ix.messageComponent(
             })
             .pipe(Effect.asVoid),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to handle overview-show button', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to handle overview-show button', error),
         ),
       );
 
@@ -122,7 +121,7 @@ export const OverviewShowButton = Ix.messageComponent(
         type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: DiscordTypes.MessageFlags.Ephemeral },
       };
-      return Effect.as(Effect.forkDaemon(work), deferredEphemeral);
+      return Effect.as(Effect.forkDetach(work), deferredEphemeral);
     }),
     Effect.withSpan('interaction/overview-show'),
   ),

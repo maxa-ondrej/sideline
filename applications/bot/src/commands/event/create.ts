@@ -5,7 +5,7 @@ import * as DiscordTypes from 'dfx/types';
 import { Array, Effect, Option, pipe } from 'effect';
 import { userLocale } from '~/locale.js';
 
-export const createHandler = Interaction.pipe(
+export const createHandler = Interaction.asEffect().pipe(
   Effect.map((interaction) => {
     const locale = userLocale(interaction);
     const guildId = interaction.guild_id;

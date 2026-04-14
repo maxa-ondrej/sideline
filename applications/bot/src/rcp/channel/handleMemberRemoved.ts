@@ -11,7 +11,7 @@ const removeRole = (
 ) =>
   Effect.Do.pipe(
     Effect.bind('rest', () => DiscordREST.asEffect()),
-    Effect.bind('roleId', () => roleId),
+    Effect.bind('roleId', () => Effect.fromOption(roleId)),
     Effect.tap(({ rest, roleId }) =>
       rest.deleteGuildMemberRole(guildId, userId, roleId).pipe(Effect.retry(retryPolicy)),
     ),
@@ -29,11 +29,11 @@ const removeRoleFromMapping = (
 
 export const handleMemberRemoved = (event: ChannelRpcEvents.GroupMemberRemovedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetMapping']({ team_id: event.team_id, group_id: event.group_id }),
     ),
-    Effect.bind('mapping', ({ cached }) => cached),
+    Effect.bind('mapping', ({ cached }) => Effect.fromOption(cached)),
     Effect.tap(({ mapping }) =>
       removeRoleFromMapping(event.guild_id, event.discord_user_id, mapping),
     ),
@@ -47,11 +47,11 @@ export const handleMemberRemoved = (event: ChannelRpcEvents.GroupMemberRemovedEv
 
 export const handleRosterMemberRemoved = (event: ChannelRpcEvents.RosterMemberRemovedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Channel/GetRosterMapping']({ team_id: event.team_id, roster_id: event.roster_id }),
     ),
-    Effect.bind('mapping', ({ cached }) => cached),
+    Effect.bind('mapping', ({ cached }) => Effect.fromOption(cached)),
     Effect.tap(({ mapping }) =>
       removeRoleFromMapping(event.guild_id, event.discord_user_id, mapping),
     ),

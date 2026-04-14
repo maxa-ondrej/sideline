@@ -2,7 +2,7 @@ import { Discord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
-import { Array as Arr, Effect, Metric, Option, pipe, Schema } from 'effect';
+import { Array as Arr, Effect, Metric, Option, Schema } from 'effect';
 import { discordEventsTotal } from '~/metrics.js';
 import { DfxGuildMember, DfxSyncableChannel, DfxUser } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -14,13 +14,16 @@ const decodeUser = Schema.decodeUnknownSync(DfxUser);
 
 export const eventHandlers = Effect.Do.pipe(
   Effect.bind('gateway', () => DiscordGateway.asEffect()),
-  Effect.bind('rpc', () => SyncRpc),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
   Effect.bind('rest', () => DiscordREST.asEffect()),
   Effect.let('guildCreate', ({ gateway, rpc, rest }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
       Effect.Do.pipe(
         Effect.tap(() =>
-          Metric.update(pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_create')), 1),
+          Metric.update(
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_create' }),
+            1,
+          ),
         ),
         Effect.tap(() => Effect.logInfo(`Guild available: ${guild.name} (${guild.id})`)),
         Effect.tap(() =>
@@ -32,9 +35,9 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.tap(() =>
           rest.listGuildChannels(guild.id).pipe(
             Effect.map((channels) =>
-              Arr.filterMap(channels, (ch) =>
-                decodeSyncableChannel(ch).pipe(
-                  Option.map((decoded) => ({
+              Arr.getSomes(
+                Arr.map(channels, (ch) =>
+                  Option.map(decodeSyncableChannel(ch), (decoded) => ({
                     channel_id: decoded.id,
                     name: decoded.name,
                     type: decoded.type,
@@ -50,11 +53,7 @@ export const eventHandlers = Effect.Do.pipe(
               }),
             ),
             Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'RatelimitedResponse',
-              'ErrorResponse',
-              'RpcClientError',
+              ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse', 'RpcClientError'],
               (error) => Effect.logError(`Failed to sync channels for guild ${guild.id}`, error),
             ),
           ),
@@ -62,16 +61,19 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.tap(() =>
           rest.listGuildMembers(guild.id, { limit: 1000 }).pipe(
             Effect.map((guildMembers) =>
-              Arr.filterMap(guildMembers, (m) =>
-                decodeGuildMember(m).pipe(
-                  Option.filter((decoded) => !decoded.user.bot),
-                  Option.map((decoded) => ({
-                    discord_id: decoded.user.id,
-                    username: decoded.user.username,
-                    avatar: decoded.user.avatar,
-                    roles: decoded.roles,
-                    nickname: decoded.nick,
-                  })),
+              Arr.getSomes(
+                Arr.map(guildMembers, (m) =>
+                  Option.flatMap(
+                    Option.filter(decodeGuildMember(m), (decoded) => !decoded.user.bot),
+                    (decoded) =>
+                      Option.some({
+                        discord_id: decoded.user.id,
+                        username: decoded.user.username,
+                        avatar: decoded.user.avatar,
+                        roles: decoded.roles,
+                        nickname: decoded.nick,
+                      }),
+                  ),
                 ),
               ),
             ),
@@ -82,11 +84,7 @@ export const eventHandlers = Effect.Do.pipe(
               }),
             ),
             Effect.catchTag(
-              'RequestError',
-              'ResponseError',
-              'RatelimitedResponse',
-              'ErrorResponse',
-              'RpcClientError',
+              ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse', 'RpcClientError'],
               (error) =>
                 Effect.logError(`Failed to reconcile members for guild ${guild.id}`, error),
             ),
@@ -106,7 +104,7 @@ export const eventHandlers = Effect.Do.pipe(
         : Effect.Do.pipe(
             Effect.tap(() =>
               Metric.update(
-                pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_delete')),
+                Metric.withAttributes(discordEventsTotal, { event_type: 'guild_delete' }),
                 1,
               ),
             ),
@@ -129,7 +127,7 @@ export const eventHandlers = Effect.Do.pipe(
       return Effect.Do.pipe(
         Effect.tap(() =>
           Metric.update(
-            pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_member_add')),
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_member_add' }),
             1,
           ),
         ),
@@ -162,7 +160,7 @@ export const eventHandlers = Effect.Do.pipe(
       Effect.Do.pipe(
         Effect.tap(() =>
           Metric.update(
-            pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_member_remove')),
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_member_remove' }),
             1,
           ),
         ),
@@ -180,7 +178,7 @@ export const eventHandlers = Effect.Do.pipe(
       Effect.Do.pipe(
         Effect.tap(() =>
           Metric.update(
-            pipe(discordEventsTotal, Metric.tagged('event_type', 'guild_member_update')),
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_member_update' }),
             1,
           ),
         ),
@@ -201,7 +199,7 @@ export const eventHandlers = Effect.Do.pipe(
           Effect.Do.pipe(
             Effect.tap(() =>
               Metric.update(
-                pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_create')),
+                Metric.withAttributes(discordEventsTotal, { event_type: 'channel_create' }),
                 1,
               ),
             ),
@@ -237,7 +235,7 @@ export const eventHandlers = Effect.Do.pipe(
           Effect.Do.pipe(
             Effect.tap(() =>
               Metric.update(
-                pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_delete')),
+                Metric.withAttributes(discordEventsTotal, { event_type: 'channel_delete' }),
                 1,
               ),
             ),
@@ -268,7 +266,7 @@ export const eventHandlers = Effect.Do.pipe(
           Effect.Do.pipe(
             Effect.tap(() =>
               Metric.update(
-                pipe(discordEventsTotal, Metric.tagged('event_type', 'channel_update')),
+                Metric.withAttributes(discordEventsTotal, { event_type: 'channel_update' }),
                 1,
               ),
             ),
