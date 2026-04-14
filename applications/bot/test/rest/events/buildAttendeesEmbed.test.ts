@@ -12,7 +12,7 @@ const makeAttendee = (opts: {
   response?: 'yes' | 'no' | 'maybe';
 }): EventRpcModels.RsvpAttendeeEntry =>
   new EventRpcModels.RsvpAttendeeEntry({
-    discord_id: Option.map(opts.discord_id ?? Option.none(), DomainDiscord.Snowflake.make),
+    discord_id: Option.map(opts.discord_id ?? Option.none(), DomainDiscord.Snowflake.makeUnsafe),
     name: opts.name ?? Option.none(),
     nickname: opts.nickname ?? Option.none(),
     username: opts.username ?? Option.none(),

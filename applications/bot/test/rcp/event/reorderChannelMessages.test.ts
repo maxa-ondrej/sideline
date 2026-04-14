@@ -24,7 +24,7 @@ const makeEntry = (
     location: Option.none(),
     event_type: 'match',
     status: 'scheduled',
-    discord_message_id: overrides?.discord_message_id ?? DomainDiscord.Snowflake.make(id),
+    discord_message_id: overrides?.discord_message_id ?? DomainDiscord.Snowflake.makeUnsafe(id),
   });
 };
 
@@ -99,11 +99,11 @@ describe('sortEntriesForChannel', () => {
   it('handles entries with same start_at', () => {
     const jan25a = makeEntry('2026-01-25T00:00:00Z', {
       event_id: 'event-same-a',
-      discord_message_id: DomainDiscord.Snowflake.make('100000000000000001'),
+      discord_message_id: DomainDiscord.Snowflake.makeUnsafe('100000000000000001'),
     });
     const jan25b = makeEntry('2026-01-25T00:00:00Z', {
       event_id: 'event-same-b',
-      discord_message_id: DomainDiscord.Snowflake.make('100000000000000002'),
+      discord_message_id: DomainDiscord.Snowflake.makeUnsafe('100000000000000002'),
     });
 
     const result = sortEntriesForChannel([jan25a, jan25b], NOW);

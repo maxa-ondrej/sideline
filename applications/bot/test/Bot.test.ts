@@ -1,6 +1,6 @@
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway, InteractionsRegistry } from 'dfx/gateway';
-import { Effect, Layer, Logger, LogLevel } from 'effect';
+import { Effect, Layer, References } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { Bot } from '~/index.js';
 import { ChannelSyncService, EventSyncService, RoleSyncService } from '~/rcp/index.js';
@@ -42,28 +42,20 @@ const MockDiscordRESTLayer = Layer.succeed(
 
 const MockRoleSyncServiceLayer = Layer.succeed(RoleSyncService, {
   processTick: Effect.void,
-  poll: () => Effect.void,
-  pollLoop: () => Effect.void,
-} as unknown as RoleSyncService);
+  discord: undefined as never,
+} as never);
 
 const MockChannelSyncServiceLayer = Layer.succeed(ChannelSyncService, {
   processTick: Effect.void,
-  poll: () => Effect.void,
-  pollLoop: () => Effect.void,
-} as unknown as ChannelSyncService);
+  discord: undefined as never,
+} as never);
 
 const MockEventSyncServiceLayer = Layer.succeed(EventSyncService, {
   processTick: Effect.void,
-  poll: () => Effect.void,
-  pollLoop: () => Effect.void,
-} as unknown as EventSyncService);
+  discord: undefined as never,
+} as never);
 
-const MockSyncRpcLayer = Layer.succeed(
-  SyncRpc,
-  new Proxy({} as SyncRpc, {
-    get: () => () => Effect.void,
-  }),
-);
+const MockSyncRpcLayer = Layer.succeed(SyncRpc, undefined as never);
 
 describe('Bot', () => {
   it('program composes and starts without error', async () => {
@@ -82,7 +74,7 @@ describe('Bot', () => {
         Effect.timeout('200 millis'),
         Effect.ignore,
         Effect.provide(TestLayer),
-        Logger.withMinimumLogLevel(LogLevel.None),
+        Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
       ),
     );
 
