@@ -1,8 +1,7 @@
 import type { Auth, Discord, Event, Role, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
-import { HttpClient, HttpClientResponse, HttpServer } from 'effect/unstable/http';
-import { HttpApiBuilder } from 'effect/unstable/httpapi';
+import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from 'effect/unstable/http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
@@ -313,7 +312,7 @@ const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
     Effect.succeed(
       new OAuth2Tokens({ access_token: 'mock-access-token', refresh_token: 'mock-refresh-token' }),
     ),
-} as unknown as DiscordOAuth);
+} as any);
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   _tag: 'api/UsersRepository',
@@ -326,7 +325,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: () => Effect.die(new Error('Not implemented')),
-} as unknown as UsersRepository);
+} as any);
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
   _tag: 'api/SessionsRepository',
@@ -354,7 +353,7 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
     );
   },
   deleteByToken: () => Effect.void,
-} as unknown as SessionsRepository);
+} as any);
 
 const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   _tag: 'api/TeamsRepository',
@@ -364,7 +363,7 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   },
   insert: () => Effect.succeed(testTeam),
   findByGuildId: () => Effect.succeed(Option.none()),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   _tag: 'api/TeamMembersRepository',
@@ -399,7 +398,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   _tag: 'api/RostersRepository',
@@ -411,7 +410,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   findMemberEntriesById: () => Effect.succeed([]),
   addMemberById: () => Effect.void,
   removeMemberById: () => Effect.void,
-} as unknown as RostersRepository);
+} as any);
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   _tag: 'api/TrainingTypesRepository',
@@ -427,7 +426,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   updateTrainingType: () => Effect.die(new Error('Not implemented')),
   deleteTrainingType: () => Effect.void,
   deleteTrainingTypeById: () => Effect.void,
-} as unknown as TrainingTypesRepository);
+} as any);
 
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   _tag: 'api/EventsRepository',
@@ -671,7 +670,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   cancelFutureInSeries: () => Effect.void,
   updateFutureUnmodified: () => Effect.void,
   updateFutureUnmodifiedInSeries: () => Effect.void,
-} as unknown as EventsRepository);
+} as any);
 
 const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   _tag: 'api/TeamInvitesRepository',
@@ -680,7 +679,7 @@ const MockTeamInvitesRepositoryLayer = Layer.succeed(TeamInvitesRepository, {
   create: () => Effect.die(new Error('Not implemented')),
   deactivateByTeam: () => Effect.void,
   deactivateByTeamExcept: () => Effect.void,
-} as unknown as TeamInvitesRepository);
+} as any);
 
 const MockHttpClientLayer = Layer.succeed(
   HttpClient.HttpClient,
@@ -713,7 +712,7 @@ const MockRolesRepositoryLayer = Layer.succeed(RolesRepository, {
   findGroupsForRole: () => Effect.succeed([]),
   assignRoleToGroup: () => Effect.void,
   unassignRoleFromGroup: () => Effect.void,
-} as unknown as RolesRepository);
+} as any);
 
 const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
   _tag: 'api/GroupsRepository',
@@ -731,7 +730,7 @@ const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
   getChildren: () => Effect.succeed([]),
   getAncestorIds: () => Effect.succeed([]),
   getDescendantMemberIds: () => Effect.succeed([]),
-} as unknown as GroupsRepository);
+} as any);
 
 const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
   findByTeamId: () => Effect.succeed([]),
@@ -748,7 +747,7 @@ const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
   deleteRuleById: () => Effect.void,
   getAllTeamsWithRules: () => Effect.succeed([]),
   getMembersWithBirthYears: () => Effect.succeed([]),
-} as unknown as AgeThresholdRepository);
+} as any);
 
 const MockNotificationsRepositoryLayer = Layer.succeed(NotificationsRepository, {
   findByUserId: () => Effect.succeed([]),
@@ -762,12 +761,12 @@ const MockNotificationsRepositoryLayer = Layer.succeed(NotificationsRepository, 
   markAsRead: () => Effect.void,
   markAllAsRead: () => Effect.void,
   findById: () => Effect.succeed(Option.none()),
-} as unknown as NotificationsRepository);
+} as any);
 
 const MockAgeCheckServiceLayer = Layer.succeed(AgeCheckService, {
   evaluateTeam: () => Effect.succeed([]),
   evaluate: () => Effect.succeed([]),
-} as unknown as AgeCheckService);
+} as any);
 
 const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository, {
   emitRoleCreated: () => Effect.void,
@@ -777,7 +776,7 @@ const MockRoleSyncEventsRepositoryLayer = Layer.succeed(RoleSyncEventsRepository
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-} as unknown as RoleSyncEventsRepository);
+} as any);
 
 const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepository, {
   emitChannelCreated: () => Effect.void,
@@ -789,7 +788,7 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
   markFailed: () => Effect.void,
   hasUnprocessedForGroups: () => Effect.succeed([]),
   hasUnprocessedForRosters: () => Effect.succeed([]),
-} as unknown as ChannelSyncEventsRepository);
+} as any);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
   emitEventCreated: () => Effect.void,
@@ -799,19 +798,19 @@ const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsReposito
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-} as unknown as EventSyncEventsRepository);
+} as any);
 
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: () => Effect.succeed(Option.none()),
   insert: () => Effect.void,
   insertWithoutRole: () => Effect.void,
   deleteByGroupId: () => Effect.void,
-} as unknown as DiscordChannelMappingRepository);
+} as any);
 
 const MockDiscordChannelsRepositoryLayer = Layer.succeed(DiscordChannelsRepository, {
   syncChannels: () => Effect.void,
   findByGuildId: () => Effect.succeed([]),
-} as unknown as DiscordChannelsRepository);
+} as any);
 
 const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   _tag: 'api/EventSeriesRepository',
@@ -825,7 +824,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
   updateEventSeries: () => Effect.die(new Error('Not implemented')),
   cancelSeries: () => Effect.void,
   cancelEventSeries: () => Effect.void,
-} as unknown as EventSeriesRepository);
+} as any);
 
 const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   _tag: 'api/EventRsvpsRepository',
@@ -837,7 +836,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   upsertRsvp: () => Effect.die(new Error('Not implemented')),
   countByEventId: () => Effect.succeed([]),
   countRsvpsByEventId: () => Effect.succeed([]),
-} as unknown as EventRsvpsRepository);
+} as any);
 
 const MockOAuthConnectionsRepositoryLayer = Layer.succeed(OAuthConnectionsRepository, {
   _tag: 'api/OAuthConnectionsRepository',
@@ -847,7 +846,7 @@ const MockOAuthConnectionsRepositoryLayer = Layer.succeed(OAuthConnectionsReposi
   findByUser: () => Effect.succeed(Option.none()),
   findAccessToken: () => Effect.succeed(Option.some({ access_token: 'mock-access-token' })),
   getAccessToken: () => Effect.succeed('mock-access-token'),
-} as unknown as OAuthConnectionsRepository);
+} as any);
 
 const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
   _tag: 'api/ICalTokensRepository',
@@ -867,16 +866,16 @@ const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
       token: 'ical-token-new',
       created_at: new Date(),
     }),
-} as unknown as ICalTokensRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: () => Effect.die(new Error('not implemented')),
   findByTeamMember: () => Effect.succeed([]),
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockLeaderboardRepositoryLayer = Layer.succeed(LeaderboardRepository, {
   getLeaderboard: () => Effect.succeed([]),
-} as unknown as LeaderboardRepository);
+} as any);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: () =>
@@ -885,7 +884,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
     ),
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-} as unknown as ActivityTypesRepository);
+} as any);
 
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
@@ -936,7 +935,7 @@ const TestLayer = ApiLive.pipe(
               remove: () => Effect.void,
               exists: () => Effect.succeed(false),
               findAll: () => Effect.succeed([]),
-            } as unknown as BotGuildsRepository),
+            } as any),
           ),
           MockDiscordChannelsRepositoryLayer,
         ),
@@ -948,18 +947,18 @@ const TestLayer = ApiLive.pipe(
           upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
           getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
           getHorizonDays: () => Effect.succeed(30),
-        } as unknown as TeamSettingsRepository),
+        } as any),
       ),
       MockOAuthConnectionsRepositoryLayer,
     ),
   ),
 );
 
-let handler: (request: Request) => Promise<Response>;
+let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
 
 beforeAll(() => {
-  const app = HttpApiBuilder.toWebHandler(TestLayer);
+  const app = HttpRouter.toWebHandler(TestLayer);
   handler = app.handler;
   dispose = app.dispose;
 });

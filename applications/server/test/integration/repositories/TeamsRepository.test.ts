@@ -61,13 +61,15 @@ describe('TeamsRepository', () => {
       Effect.bind('found', ({ inserted }) =>
         TeamsRepository.asEffect().pipe(Effect.andThen((repo) => repo.findById(inserted.id))),
       ),
-      Effect.tap(({ inserted, found }) => {
-        expect(Option.isSome(found)).toBe(true);
-        const team = Option.getOrThrow(found);
-        expect(team.id).toBe(inserted.id);
-        expect(team.name).toBe('Test Team');
-        expect(team.guild_id).toBe('123456789012345678');
-      }),
+      Effect.tap(({ inserted, found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const team = Option.getOrThrow(found);
+          expect(team.id).toBe(inserted.id);
+          expect(team.name).toBe('Test Team');
+          expect(team.guild_id).toBe('123456789012345678');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -77,9 +79,11 @@ describe('TeamsRepository', () => {
       Effect.andThen((repo) =>
         repo.findById('00000000-0000-0000-0000-000000000099' as Team.TeamId),
       ),
-      Effect.tap((found) => {
-        expect(Option.isNone(found)).toBe(true);
-      }),
+      Effect.tap((found) =>
+        Effect.sync(() => {
+          expect(Option.isNone(found)).toBe(true);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -105,12 +109,14 @@ describe('TeamsRepository', () => {
           Effect.andThen((repo) => repo.findByGuildId('987654321098765432' as Discord.Snowflake)),
         ),
       ),
-      Effect.tap(({ found }) => {
-        expect(Option.isSome(found)).toBe(true);
-        const team = Option.getOrThrow(found);
-        expect(team.name).toBe('Guild Team');
-        expect(team.guild_id).toBe('987654321098765432');
-      }),
+      Effect.tap(({ found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const team = Option.getOrThrow(found);
+          expect(team.name).toBe('Guild Team');
+          expect(team.guild_id).toBe('987654321098765432');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -118,9 +124,11 @@ describe('TeamsRepository', () => {
   it.effect('findByGuildId returns None for a non-existent guild id', () =>
     TeamsRepository.asEffect().pipe(
       Effect.andThen((repo) => repo.findByGuildId('000000000000000000' as Discord.Snowflake)),
-      Effect.tap((found) => {
-        expect(Option.isNone(found)).toBe(true);
-      }),
+      Effect.tap((found) =>
+        Effect.sync(() => {
+          expect(Option.isNone(found)).toBe(true);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -154,12 +162,14 @@ describe('TeamsRepository', () => {
           ),
         ),
       ),
-      Effect.tap(({ updated }) => {
-        expect(updated.name).toBe('Updated Name');
-        expect(Option.getOrNull(updated.description)).toBe('A great team');
-        expect(Option.getOrNull(updated.sport)).toBe('football');
-        expect(Option.isNone(updated.logo_url)).toBe(true);
-      }),
+      Effect.tap(({ updated }) =>
+        Effect.sync(() => {
+          expect(updated.name).toBe('Updated Name');
+          expect(Option.getOrNull(updated.description)).toBe('A great team');
+          expect(Option.getOrNull(updated.sport)).toBe('football');
+          expect(Option.isNone(updated.logo_url)).toBe(true);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );

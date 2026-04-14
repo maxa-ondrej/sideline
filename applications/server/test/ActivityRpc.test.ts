@@ -54,7 +54,7 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   },
   findById: () => Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   findByDiscordId: (discordId: string) => {
@@ -81,7 +81,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.die(new Error('Not implemented')),
   updateLocale: () => Effect.die(new Error('Not implemented')),
   updateAdminProfile: () => Effect.die(new Error('Not implemented')),
-} as unknown as UsersRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (teamId: string, userId: string) => {
@@ -108,7 +108,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: (slug: string) => {
@@ -122,7 +122,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
   },
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-} as unknown as ActivityTypesRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: (input: ActivityLogInserted) => {
@@ -133,7 +133,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       logged_at: input.logged_at.toISOString(),
     });
   },
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockTeamsRepositoryLayer,
@@ -363,7 +363,7 @@ describe('LogActivity RPC handler', () => {
       assignRole: () => Effect.void,
       unassignRole: () => Effect.void,
       setJerseyNumber: () => Effect.void,
-    } as unknown as TeamMembersRepository);
+    } as any);
 
     const LayerWithInactiveMember = Layer.mergeAll(
       MockTeamsRepositoryLayer,

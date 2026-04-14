@@ -90,7 +90,7 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
     return Effect.succeed(Option.none());
   },
   insert: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   findByTeamId: (teamId: string) => {
@@ -119,7 +119,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   updateTrainingType: () => Effect.die(new Error('Not implemented')),
   deleteTrainingType: () => Effect.void,
   deleteTrainingTypeById: () => Effect.void,
-} as unknown as TrainingTypesRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (_teamId: Team.TeamId, _userId: string) =>
@@ -143,7 +143,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   insertEvent: (input: { trainingTypeId: Option.Option<string> }) => {
@@ -190,7 +190,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   saveDiscordMessageId: () => Effect.void,
   getDiscordMessageId: () => Effect.succeed(Option.none()),
   findNonResponders: () => Effect.succeed([]),
-} as unknown as EventsRepository);
+} as any);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
   emitEventCreated: () => Effect.void,
@@ -200,7 +200,7 @@ const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsReposito
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-} as unknown as EventSyncEventsRepository);
+} as any);
 
 // --- Helper to import and call handler functions ---
 // Since GetTrainingTypesByGuild is a new RPC, we test the server handler logic directly
@@ -244,11 +244,13 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
           ),
         ),
       ),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(2);
-        expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_1)?.name).toBe('Fitness');
-        expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_2)?.name).toBe('Tactics');
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(2);
+          expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_1)?.name).toBe('Fitness');
+          expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_2)?.name).toBe('Tactics');
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -274,9 +276,11 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
           ),
         ),
       ),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(0);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(0);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -303,9 +307,11 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
           ),
         ),
       ),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(0);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(0);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -335,11 +341,13 @@ describe('CreateEvent RPC with training_type_id', () => {
           createdBy: TEST_ADMIN_MEMBER_ID,
         }),
       ),
-      Effect.tap(() => {
-        expect(eventsInserted).toHaveLength(1);
-        expect(Option.isSome(eventsInserted[0].trainingTypeId)).toBe(true);
-        expect(Option.getOrNull(eventsInserted[0].trainingTypeId)).toBe(TEST_TRAINING_TYPE_1);
-      }),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(eventsInserted).toHaveLength(1);
+          expect(Option.isSome(eventsInserted[0].trainingTypeId)).toBe(true);
+          expect(Option.getOrNull(eventsInserted[0].trainingTypeId)).toBe(TEST_TRAINING_TYPE_1);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -362,10 +370,12 @@ describe('CreateEvent RPC with training_type_id', () => {
           createdBy: TEST_ADMIN_MEMBER_ID,
         }),
       ),
-      Effect.tap(() => {
-        expect(eventsInserted).toHaveLength(1);
-        expect(Option.isNone(eventsInserted[0].trainingTypeId)).toBe(true);
-      }),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(eventsInserted).toHaveLength(1);
+          expect(Option.isNone(eventsInserted[0].trainingTypeId)).toBe(true);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -408,12 +418,14 @@ describe('CreateEvent RPC with training_type_id', () => {
         ),
       ),
       Effect.result,
-      Effect.tap((result) => {
-        expect(result._tag).toBe('Left');
-        if (result._tag === 'Left') {
-          expect(result.left._tag).toBe('CreateEventForbidden');
-        }
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result._tag).toBe('Failure');
+          if (result._tag === 'Failure') {
+            expect(result.failure._tag).toBe('CreateEventForbidden');
+          }
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );

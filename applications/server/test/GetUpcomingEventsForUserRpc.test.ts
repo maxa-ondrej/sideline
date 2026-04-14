@@ -42,7 +42,7 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
       ? Effect.succeed(Option.some(makeTeam()))
       : Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (_teamId: Team.TeamId, _userId: string) =>
@@ -66,7 +66,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 // In-memory events store for findUpcomingByGuildId / countUpcomingByGuildId
 type UpcomingEventRecord = {
@@ -103,7 +103,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   saveDiscordMessageId: () => Effect.void,
   getDiscordMessageId: () => Effect.succeed(Option.none()),
   findNonResponders: () => Effect.succeed([]),
-} as unknown as EventsRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockTeamsRepositoryLayer,
@@ -126,9 +126,11 @@ describe('GetUpcomingEventsForUser handler — guild lookup', () => {
           onSome: (team) => Effect.succeed(team.id),
         }),
       ),
-      Effect.tap((teamId) => {
-        expect(teamId).toBe(TEST_TEAM_ID);
-      }),
+      Effect.tap((teamId) =>
+        Effect.sync(() => {
+          expect(teamId).toBe(TEST_TEAM_ID);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     ),
@@ -147,12 +149,14 @@ describe('GetUpcomingEventsForUser handler — guild lookup', () => {
         }),
       ),
       Effect.result,
-      Effect.tap((result) => {
-        expect(result._tag).toBe('Left');
-        if (result._tag === 'Left') {
-          expect(result.left._tag).toBe('GuildNotFound');
-        }
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result._tag).toBe('Failure');
+          if (result._tag === 'Failure') {
+            expect(result.failure._tag).toBe('GuildNotFound');
+          }
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -174,9 +178,11 @@ describe('GetUpcomingEventsForUser handler — member lookup', () => {
           onSome: (m) => Effect.succeed(m.id),
         }),
       ),
-      Effect.tap((memberId) => {
-        expect(memberId).toBe(TEST_MEMBER_ID);
-      }),
+      Effect.tap((memberId) =>
+        Effect.sync(() => {
+          expect(memberId).toBe(TEST_MEMBER_ID);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     ),
@@ -185,7 +191,7 @@ describe('GetUpcomingEventsForUser handler — member lookup', () => {
   it.effect('fails with RsvpMemberNotFound when member is not found', () => {
     const NoMemberLayer = Layer.succeed(TeamMembersRepository, {
       findMembershipByIds: () => Effect.succeed(Option.none()),
-    } as unknown as TeamMembersRepository);
+    } as any);
 
     return Effect.Do.pipe(
       Effect.bind('members', () => TeamMembersRepository.asEffect()),
@@ -199,12 +205,14 @@ describe('GetUpcomingEventsForUser handler — member lookup', () => {
         }),
       ),
       Effect.result,
-      Effect.tap((result) => {
-        expect(result._tag).toBe('Left');
-        if (result._tag === 'Left') {
-          expect(result.left._tag).toBe('RsvpMemberNotFound');
-        }
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result._tag).toBe('Failure');
+          if (result._tag === 'Failure') {
+            expect(result.failure._tag).toBe('RsvpMemberNotFound');
+          }
+        }),
+      ),
       Effect.provide(
         Layer.mergeAll(MockTeamsRepositoryLayer, NoMemberLayer, MockEventsRepositoryLayer),
       ),
@@ -248,22 +256,24 @@ describe('GetUpcomingEventsForUser handler — result construction', () => {
             team_id: TEST_TEAM_ID,
           }),
       ),
-      Effect.tap(({ result }) => {
-        expect(result.total).toBe(1);
-        expect(result.team_id).toBe(TEST_TEAM_ID);
-        expect(result.events).toHaveLength(1);
+      Effect.tap(({ result }) =>
+        Effect.sync(() => {
+          expect(result.total).toBe(1);
+          expect(result.team_id).toBe(TEST_TEAM_ID);
+          expect(result.events).toHaveLength(1);
 
-        const ev = result.events[0];
-        expect(ev.event_id).toBe(TEST_EVENT_ID);
-        expect(ev.title).toBe('Test Event');
-        expect(ev.event_type).toBe('training');
-        expect(ev.yes_count).toBe(3);
-        expect(ev.no_count).toBe(1);
-        expect(ev.maybe_count).toBe(2);
-        expect(Option.isSome(ev.my_response) && ev.my_response.value).toBe('yes');
-        expect(Option.isSome(ev.my_message) && ev.my_message.value).toBe('See you there');
-        expect(Option.isSome(ev.location) && ev.location.value).toBe('Sports Hall');
-      }),
+          const ev = result.events[0];
+          expect(ev.event_id).toBe(TEST_EVENT_ID);
+          expect(ev.title).toBe('Test Event');
+          expect(ev.event_type).toBe('training');
+          expect(ev.yes_count).toBe(3);
+          expect(ev.no_count).toBe(1);
+          expect(ev.maybe_count).toBe(2);
+          expect(Option.isSome(ev.my_response) && ev.my_response.value).toBe('yes');
+          expect(Option.isSome(ev.my_message) && ev.my_message.value).toBe('See you there');
+          expect(Option.isSome(ev.location) && ev.location.value).toBe('Sports Hall');
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     ),
@@ -280,10 +290,12 @@ describe('GetUpcomingEventsForUser handler — result construction', () => {
             team_id: TEST_TEAM_ID,
           }),
       ),
-      Effect.tap(({ result }) => {
-        expect(result.total).toBe(0);
-        expect(result.events).toHaveLength(0);
-      }),
+      Effect.tap(({ result }) =>
+        Effect.sync(() => {
+          expect(result.total).toBe(0);
+          expect(result.events).toHaveLength(0);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     ),
@@ -310,13 +322,15 @@ describe('GetUpcomingEventsForUser handler — result construction', () => {
             my_message: Option.none(),
           }),
       ),
-      Effect.tap(({ entry }) => {
-        expect(Option.isNone(entry.description)).toBe(true);
-        expect(Option.isNone(entry.end_at)).toBe(true);
-        expect(Option.isNone(entry.location)).toBe(true);
-        expect(Option.isNone(entry.my_response)).toBe(true);
-        expect(Option.isNone(entry.my_message)).toBe(true);
-      }),
+      Effect.tap(({ entry }) =>
+        Effect.sync(() => {
+          expect(Option.isNone(entry.description)).toBe(true);
+          expect(Option.isNone(entry.end_at)).toBe(true);
+          expect(Option.isNone(entry.location)).toBe(true);
+          expect(Option.isNone(entry.my_response)).toBe(true);
+          expect(Option.isNone(entry.my_message)).toBe(true);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     ),

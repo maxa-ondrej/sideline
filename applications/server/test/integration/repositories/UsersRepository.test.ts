@@ -24,12 +24,14 @@ describe('UsersRepository', () => {
           ),
         ),
       ),
-      Effect.tap(({ user }) => {
-        expect(user.discord_id).toBe('123456789012345678');
-        expect(user.username).toBe('testuser');
-        expect(Option.isNone(user.avatar)).toBe(true);
-        expect(user.is_profile_complete).toBe(false);
-      }),
+      Effect.tap(({ user }) =>
+        Effect.sync(() => {
+          expect(user.discord_id).toBe('123456789012345678');
+          expect(user.username).toBe('testuser');
+          expect(Option.isNone(user.avatar)).toBe(true);
+          expect(user.is_profile_complete).toBe(false);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -60,11 +62,13 @@ describe('UsersRepository', () => {
           ),
         ),
       ),
-      Effect.tap(({ updated }) => {
-        expect(updated.discord_id).toBe('999999999999999999');
-        expect(updated.username).toBe('updated');
-        expect(Option.getOrNull(updated.avatar)).toBe('avatar-hash');
-      }),
+      Effect.tap(({ updated }) =>
+        Effect.sync(() => {
+          expect(updated.discord_id).toBe('999999999999999999');
+          expect(updated.username).toBe('updated');
+          expect(Option.getOrNull(updated.avatar)).toBe('avatar-hash');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -86,12 +90,14 @@ describe('UsersRepository', () => {
       Effect.bind('found', ({ created }) =>
         UsersRepository.asEffect().pipe(Effect.andThen((repo) => repo.findById(created.id))),
       ),
-      Effect.tap(({ created, found }) => {
-        expect(Option.isSome(found)).toBe(true);
-        const user = Option.getOrThrow(found);
-        expect(user.id).toBe(created.id);
-        expect(user.username).toBe('findme');
-      }),
+      Effect.tap(({ created, found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const user = Option.getOrThrow(found);
+          expect(user.id).toBe(created.id);
+          expect(user.username).toBe('findme');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -101,9 +107,11 @@ describe('UsersRepository', () => {
       Effect.andThen((repo) =>
         repo.findById('00000000-0000-0000-0000-000000000099' as User.UserId),
       ),
-      Effect.tap((found) => {
-        expect(Option.isNone(found)).toBe(true);
-      }),
+      Effect.tap((found) =>
+        Effect.sync(() => {
+          expect(Option.isNone(found)).toBe(true);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -127,12 +135,14 @@ describe('UsersRepository', () => {
           Effect.andThen((repo) => repo.findByDiscordId('222222222222222222')),
         ),
       ),
-      Effect.tap(({ found }) => {
-        expect(Option.isSome(found)).toBe(true);
-        const user = Option.getOrThrow(found);
-        expect(user.discord_id).toBe('222222222222222222');
-        expect(user.username).toBe('discorduser');
-      }),
+      Effect.tap(({ found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const user = Option.getOrThrow(found);
+          expect(user.discord_id).toBe('222222222222222222');
+          expect(user.username).toBe('discorduser');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -140,9 +150,11 @@ describe('UsersRepository', () => {
   it.effect('findByDiscordId returns None for non-existent discord id', () =>
     UsersRepository.asEffect().pipe(
       Effect.andThen((repo) => repo.findByDiscordId('000000000000000000')),
-      Effect.tap((found) => {
-        expect(Option.isNone(found)).toBe(true);
-      }),
+      Effect.tap((found) =>
+        Effect.sync(() => {
+          expect(Option.isNone(found)).toBe(true);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -173,11 +185,13 @@ describe('UsersRepository', () => {
           ),
         ),
       ),
-      Effect.tap(({ completed }) => {
-        expect(completed.is_profile_complete).toBe(true);
-        expect(Option.getOrNull(completed.name)).toBe('John Doe');
-        expect(Option.getOrNull(completed.gender)).toBe('male');
-      }),
+      Effect.tap(({ completed }) =>
+        Effect.sync(() => {
+          expect(completed.is_profile_complete).toBe(true);
+          expect(Option.getOrNull(completed.name)).toBe('John Doe');
+          expect(Option.getOrNull(completed.gender)).toBe('male');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -206,9 +220,11 @@ describe('UsersRepository', () => {
           ),
         ),
       ),
-      Effect.tap(({ updated }) => {
-        expect(updated.locale).toBe('cs');
-      }),
+      Effect.tap(({ updated }) =>
+        Effect.sync(() => {
+          expect(updated.locale).toBe('cs');
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );

@@ -76,7 +76,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   findUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
   countUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
   findEventsByUserId: () => Effect.die(new Error('Not implemented')),
-} as unknown as EventsRepository);
+} as any);
 
 const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   findYesRsvpMemberIdsByEventId: (eventId: Event.EventId) =>
@@ -89,7 +89,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   findRsvpAttendeesPage: () => Effect.die(new Error('Not implemented')),
   findNonRespondersByEventId: () => Effect.die(new Error('Not implemented')),
   countRsvpTotal: () => Effect.die(new Error('Not implemented')),
-} as unknown as EventRsvpsRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: (input: InsertedLog) => {
@@ -111,7 +111,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   findByMember: () => Effect.succeed([]),
   update: () => Effect.die(new Error('Not implemented')),
   delete: () => Effect.die(new Error('Not implemented')),
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: (slug: string) => {
@@ -124,7 +124,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
   },
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-} as unknown as ActivityTypesRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockEventsRepositoryLayer,
@@ -252,7 +252,7 @@ describe('trainingAutoLogCronEffect', () => {
         markedEvents.push({ eventId });
         return Effect.void;
       },
-    } as unknown as EventsRepository);
+    } as any);
 
     const FailingFirstEventLayer = Layer.mergeAll(
       MockEventsRepositoryWithFirstFailing,

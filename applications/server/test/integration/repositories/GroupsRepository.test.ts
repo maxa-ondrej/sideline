@@ -100,10 +100,12 @@ describe('GroupsRepository — member_count', () => {
           Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
         ),
       ),
-      Effect.tap(({ groups }) => {
-        expect(groups).toHaveLength(1);
-        expect(groups[0]?.member_count).toBe(0);
-      }),
+      Effect.tap(({ groups }) =>
+        Effect.sync(() => {
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.member_count).toBe(0);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -123,10 +125,12 @@ describe('GroupsRepository — member_count', () => {
           Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
         ),
       ),
-      Effect.tap(({ groups }) => {
-        expect(groups).toHaveLength(1);
-        expect(groups[0]?.member_count).toBe(1);
-      }),
+      Effect.tap(({ groups }) =>
+        Effect.sync(() => {
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.member_count).toBe(1);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -154,12 +158,14 @@ describe('GroupsRepository — member_count', () => {
             Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
           ),
         ),
-        Effect.tap(({ groups, groupA, groupB }) => {
-          const a = groups.find((g) => g.id === groupA.id);
-          const b = groups.find((g) => g.id === groupB.id);
-          expect(a?.member_count).toBe(2);
-          expect(b?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA, groupB }) =>
+          Effect.sync(() => {
+            const a = groups.find((g) => g.id === groupA.id);
+            const b = groups.find((g) => g.id === groupB.id);
+            expect(a?.member_count).toBe(2);
+            expect(b?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -193,14 +199,16 @@ describe('GroupsRepository — member_count', () => {
             Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
           ),
         ),
-        Effect.tap(({ groups, groupA, groupB, groupC }) => {
-          const a = groups.find((g) => g.id === groupA.id);
-          const b = groups.find((g) => g.id === groupB.id);
-          const c = groups.find((g) => g.id === groupC.id);
-          expect(a?.member_count).toBe(3);
-          expect(b?.member_count).toBe(2);
-          expect(c?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA, groupB, groupC }) =>
+          Effect.sync(() => {
+            const a = groups.find((g) => g.id === groupA.id);
+            const b = groups.find((g) => g.id === groupB.id);
+            const c = groups.find((g) => g.id === groupC.id);
+            expect(a?.member_count).toBe(3);
+            expect(b?.member_count).toBe(2);
+            expect(c?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -227,12 +235,14 @@ describe('GroupsRepository — member_count', () => {
             Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
           ),
         ),
-        Effect.tap(({ groups, groupA, groupB }) => {
-          const a = groups.find((g) => g.id === groupA.id);
-          const b = groups.find((g) => g.id === groupB.id);
-          expect(a?.member_count).toBe(1);
-          expect(b?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA, groupB }) =>
+          Effect.sync(() => {
+            const a = groups.find((g) => g.id === groupA.id);
+            const b = groups.find((g) => g.id === groupB.id);
+            expect(a?.member_count).toBe(1);
+            expect(b?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -266,13 +276,15 @@ describe('GroupsRepository — member_count', () => {
             Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
           ),
         ),
-        Effect.tap(({ groups, groupA }) => {
-          // Only group A should be returned (B is archived)
-          expect(groups).toHaveLength(1);
-          const a = groups.find((g) => g.id === groupA.id);
-          // A's count should only include its own direct member, not B's member
-          expect(a?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA }) =>
+          Effect.sync(() => {
+            // Only group A should be returned (B is archived)
+            expect(groups).toHaveLength(1);
+            const a = groups.find((g) => g.id === groupA.id);
+            // A's count should only include its own direct member, not B's member
+            expect(a?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -307,10 +319,12 @@ describe('GroupsRepository — getMemberCount', () => {
             Effect.andThen((repo) => repo.getMemberCount(groupB.id)),
           ),
         ),
-        Effect.tap(({ countA, countB }) => {
-          expect(countA).toBe(2);
-          expect(countB).toBe(1);
-        }),
+        Effect.tap(({ countA, countB }) =>
+          Effect.sync(() => {
+            expect(countA).toBe(2);
+            expect(countB).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -344,10 +358,12 @@ describe('GroupsRepository — getMemberCount', () => {
             Effect.andThen((repo) => repo.getMemberCount(groupA.id)),
           ),
         ),
-        Effect.tap(({ countA }) => {
-          // A's count should only include its own direct member, not archived B's member
-          expect(countA).toBe(1);
-        }),
+        Effect.tap(({ countA }) =>
+          Effect.sync(() => {
+            // A's count should only include its own direct member, not archived B's member
+            expect(countA).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -374,9 +390,11 @@ describe('GroupsRepository — getMemberCount', () => {
             Effect.andThen((repo) => repo.getMemberCount(groupA.id)),
           ),
         ),
-        Effect.tap(({ countA }) => {
-          expect(countA).toBe(1);
-        }),
+        Effect.tap(({ countA }) =>
+          Effect.sync(() => {
+            expect(countA).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );

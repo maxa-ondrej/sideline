@@ -131,7 +131,7 @@ const makeMockEventSeriesRepository = (activeSeries: ReturnType<typeof makeActiv
     findSeriesById: () => Effect.die(new Error('Not implemented')),
     updateEventSeries: () => Effect.die(new Error('Not implemented')),
     cancelEventSeries: () => Effect.die(new Error('Not implemented')),
-  } as unknown as EventSeriesRepository);
+  } as any);
 
 const makeMockEventsRepositoryLayer = (
   findEventByIdWithDetailsOverride?: (
@@ -213,7 +213,7 @@ const makeMockEventsRepositoryLayer = (
     findEndedTrainingsForAutoLog: () => Effect.die(new Error('Not implemented')),
     markTrainingAutoLogged: () => Effect.die(new Error('Not implemented')),
     findUpcomingWithRsvp: () => Effect.die(new Error('Not implemented')),
-  } as unknown as EventsRepository);
+  } as any);
 
 const MockEventsRepositoryLayer = makeMockEventsRepositoryLayer();
 
@@ -224,7 +224,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   insertTrainingType: () => Effect.die(new Error('Not implemented')),
   updateTrainingType: () => Effect.die(new Error('Not implemented')),
   deleteTrainingTypeById: () => Effect.die(new Error('Not implemented')),
-} as unknown as TrainingTypesRepository);
+} as any);
 
 const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
   findByTeamId: () => Effect.succeed(Option.none()),
@@ -232,7 +232,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
   getHorizonDays: () => Effect.die(new Error('Not implemented')),
   findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
   findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamSettingsRepository);
+} as any);
 
 const makeMockSyncEventsRepository = (
   overrides: Partial<{
@@ -287,7 +287,7 @@ const makeMockSyncEventsRepository = (
     findUnprocessed: () => Effect.succeed([]),
     markProcessed: () => Effect.void,
     markFailed: () => Effect.void,
-  } as unknown as EventSyncEventsRepository);
+  } as any);
 
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: (_teamId: Team.TeamId, _groupId: GroupModel.GroupId) =>
@@ -303,7 +303,7 @@ const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMap
   insertRoster: () => Effect.die(new Error('Not implemented')),
   deleteByRosterId: () => Effect.die(new Error('Not implemented')),
   findAllByTeam: () => Effect.die(new Error('Not implemented')),
-} as unknown as DiscordChannelMappingRepository);
+} as any);
 
 const makeTestLayer = (
   activeSeries: ReturnType<typeof makeActiveSeries>[],
@@ -470,7 +470,7 @@ describe('eventHorizonCronEffect', () => {
       getHorizonDays: () => Effect.die(new Error('Not implemented')),
       findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
       findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
-    } as unknown as TeamSettingsRepository);
+    } as any);
 
     const trackingEmittedLayer = Layer.succeed(EventSyncEventsRepository, {
       emitEventCreated: (
@@ -494,7 +494,7 @@ describe('eventHorizonCronEffect', () => {
       findUnprocessed: () => Effect.succeed([]),
       markProcessed: () => Effect.void,
       markFailed: () => Effect.void,
-    } as unknown as EventSyncEventsRepository);
+    } as any);
 
     return eventHorizonCronEffect.pipe(
       Effect.tap(() =>
@@ -648,7 +648,7 @@ describe('eventHorizonCronEffect', () => {
       getHorizonDays: () => Effect.die(new Error('Not implemented')),
       findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
       findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
-    } as unknown as TeamSettingsRepository);
+    } as any);
 
     // Arrange: the event returned by findEventByIdWithDetails has owner_group_id set
     const findEventWithOwnerGroup = (eventId: Event.EventId) =>

@@ -96,7 +96,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockInactiveMemberTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (teamId: Team.TeamId, userId: Auth.UserId) => {
@@ -123,7 +123,7 @@ const MockInactiveMemberTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRe
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   findByTeamMember: (memberId: TeamMember.TeamMemberId) => {
@@ -202,7 +202,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
     activityLogsStore.delete(id);
     return Effect.void;
   },
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockTeamMembersRepositoryLayer,
@@ -253,7 +253,7 @@ const listLogs = (payload: {
                 id: l.id,
                 activityTypeId: l.activity_type_id,
                 activityTypeName: l.activity_type_name,
-                loggedAt: l.logged_at.toISOString(),
+                loggedAt: l.logged_at,
                 durationMinutes: l.duration_minutes,
                 note: l.note,
                 source: l.source,
@@ -370,7 +370,7 @@ const updateLog = (payload: {
           id: updated.id,
           activityTypeId: updated.activity_type_id,
           activityTypeName: updated.activity_type_name,
-          loggedAt: updated.logged_at.toISOString(),
+          loggedAt: updated.logged_at,
           durationMinutes: updated.duration_minutes,
           note: updated.note,
           source: updated.source,

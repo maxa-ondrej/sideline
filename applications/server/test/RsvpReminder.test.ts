@@ -1,8 +1,7 @@
 import type { Auth, Discord, Event, EventRsvp, Role, Team, TeamMember } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
-import { HttpClient, HttpClientResponse, HttpServer } from 'effect/unstable/http';
-import { HttpApiBuilder } from 'effect/unstable/httpapi';
+import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from 'effect/unstable/http';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
@@ -189,7 +188,7 @@ const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
     Effect.succeed(
       new OAuth2Tokens({ access_token: 'mock-access-token', refresh_token: 'mock-refresh-token' }),
     ),
-} as unknown as DiscordOAuth);
+} as any);
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   _tag: 'api/UsersRepository',
@@ -202,7 +201,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.succeed(testUser),
   updateLocale: () => Effect.succeed(testUser),
   updateAdminProfile: () => Effect.die(new Error('Not implemented')),
-} as unknown as UsersRepository);
+} as any);
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
   _tag: 'api/SessionsRepository',
@@ -230,7 +229,7 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
     );
   },
   deleteByToken: () => Effect.void,
-} as unknown as SessionsRepository);
+} as any);
 
 const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   _tag: 'api/TeamsRepository',
@@ -250,7 +249,7 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
   },
   insert: () => Effect.die(new Error('Not implemented')),
   findByGuildId: () => Effect.succeed(Option.none()),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   _tag: 'api/TeamMembersRepository',
@@ -285,7 +284,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   _tag: 'api/EventsRepository',
@@ -363,7 +362,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   cancelFutureInSeries: () => Effect.void,
   updateFutureUnmodified: () => Effect.void,
   updateFutureUnmodifiedInSeries: () => Effect.void,
-} as unknown as EventsRepository);
+} as any);
 
 const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   _tag: 'api/EventRsvpsRepository',
@@ -463,7 +462,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       });
     return Effect.succeed(nonResponders);
   },
-} as unknown as EventRsvpsRepository);
+} as any);
 
 const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
   _tag: 'api/TeamSettingsRepository',
@@ -585,7 +584,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
   getHorizonDays: () => Effect.succeed(30),
   findEventsForReminder: () => Effect.succeed([]),
   findEventsNeedingReminder: () => Effect.succeed([]),
-} as unknown as TeamSettingsRepository);
+} as any);
 
 // Stubs for other repos
 const die = () => Effect.die(new Error('Not implemented'));
@@ -600,7 +599,7 @@ const MockRostersRepositoryLayer = Layer.succeed(RostersRepository, {
   findMemberEntriesById: () => Effect.succeed([]),
   addMemberById: () => Effect.void,
   removeMemberById: () => Effect.void,
-} as unknown as RostersRepository);
+} as any);
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   _tag: 'api/TrainingTypesRepository',
@@ -616,7 +615,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   updateTrainingType: die,
   deleteTrainingType: () => Effect.void,
   deleteTrainingTypeById: () => Effect.void,
-} as unknown as TrainingTypesRepository);
+} as any);
 
 const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
   _tag: 'api/ICalTokensRepository',
@@ -636,16 +635,16 @@ const MockICalTokensRepositoryLayer = Layer.succeed(ICalTokensRepository, {
       token: 'ical-token-new',
       created_at: new Date(),
     }),
-} as unknown as ICalTokensRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: () => Effect.die(new Error('not implemented')),
   findByTeamMember: () => Effect.succeed([]),
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockLeaderboardRepositoryLayer = Layer.succeed(LeaderboardRepository, {
   getLeaderboard: () => Effect.succeed([]),
-} as unknown as LeaderboardRepository);
+} as any);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: () =>
@@ -654,7 +653,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
     ),
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-} as unknown as ActivityTypesRepository);
+} as any);
 
 const TestLayer = ApiLive.pipe(
   Layer.provideMerge(AuthMiddlewareLive),
@@ -681,7 +680,7 @@ const TestLayer = ApiLive.pipe(
       create: die,
       deactivateByTeam: () => Effect.void,
       deactivateByTeamExcept: () => Effect.void,
-    } as unknown as TeamInvitesRepository),
+    } as any),
   ),
   Layer.provide(
     Layer.succeed(RolesRepository, {
@@ -700,7 +699,7 @@ const TestLayer = ApiLive.pipe(
       findGroupsForRole: () => Effect.succeed([]),
       assignRoleToGroup: () => Effect.void,
       unassignRoleFromGroup: () => Effect.void,
-    } as unknown as RolesRepository),
+    } as any),
   ),
   Layer.provide(
     Layer.succeed(GroupsRepository, {
@@ -719,7 +718,7 @@ const TestLayer = ApiLive.pipe(
       getChildren: () => Effect.succeed([]),
       getAncestorIds: () => Effect.succeed([]),
       getDescendantMemberIds: () => Effect.succeed([]),
-    } as unknown as GroupsRepository),
+    } as any),
   ),
   Layer.provide(MockTrainingTypesRepositoryLayer),
   Layer.provide(Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer)),
@@ -743,7 +742,7 @@ const TestLayer = ApiLive.pipe(
     Layer.succeed(AgeCheckService, {
       evaluateTeam: () => Effect.succeed([]),
       evaluate: () => Effect.succeed([]),
-    } as unknown as AgeCheckService),
+    } as any),
   ),
   Layer.provide(
     Layer.succeed(AgeThresholdRepository, {
@@ -761,7 +760,7 @@ const TestLayer = ApiLive.pipe(
       getAllTeamsWithRules: () => Effect.succeed([]),
       findMembersWithBirthYears: () => Effect.succeed([]),
       getMembersWithBirthYears: () => Effect.succeed([]),
-    } as unknown as AgeThresholdRepository),
+    } as any),
   ),
   Layer.provide(
     Layer.succeed(NotificationsRepository, {
@@ -776,7 +775,7 @@ const TestLayer = ApiLive.pipe(
       markAllAsRead: () => Effect.void,
       findOneById: () => Effect.succeed(Option.none()),
       findById: () => Effect.succeed(Option.none()),
-    } as unknown as NotificationsRepository),
+    } as any),
   ),
   Layer.provide(
     Layer.succeed(RoleSyncEventsRepository, {
@@ -787,7 +786,7 @@ const TestLayer = ApiLive.pipe(
       findUnprocessed: () => Effect.succeed([]),
       markProcessed: () => Effect.void,
       markFailed: () => Effect.void,
-    } as unknown as RoleSyncEventsRepository),
+    } as any),
   ),
   Layer.provide(
     Layer.merge(
@@ -801,7 +800,7 @@ const TestLayer = ApiLive.pipe(
         markFailed: () => Effect.void,
         hasUnprocessedForGroups: () => Effect.succeed([]),
         hasUnprocessedForRosters: () => Effect.succeed([]),
-      } as unknown as ChannelSyncEventsRepository),
+      } as any),
       Layer.succeed(EventSyncEventsRepository, {
         emitEventCreated: () => Effect.void,
         emitEventUpdated: () => Effect.void,
@@ -810,7 +809,7 @@ const TestLayer = ApiLive.pipe(
         findUnprocessed: () => Effect.succeed([]),
         markProcessed: () => Effect.void,
         markFailed: () => Effect.void,
-      } as unknown as EventSyncEventsRepository),
+      } as any),
     ),
   ),
   Layer.provide(
@@ -826,7 +825,7 @@ const TestLayer = ApiLive.pipe(
                 deleteByGroupId: () => Effect.void,
                 findAllByTeamId: () => Effect.succeed([]),
                 findAllByTeam: () => Effect.succeed([]),
-              } as unknown as DiscordChannelMappingRepository),
+              } as any),
               MockICalTokensRepositoryLayer,
             ),
             Layer.succeed(BotGuildsRepository, {
@@ -834,12 +833,12 @@ const TestLayer = ApiLive.pipe(
               remove: () => Effect.void,
               exists: () => Effect.succeed(false),
               findAll: () => Effect.succeed([]),
-            } as unknown as BotGuildsRepository),
+            } as any),
           ),
           Layer.succeed(DiscordChannelsRepository, {
             syncChannels: () => Effect.void,
             findByGuildId: () => Effect.succeed([]),
-          } as unknown as DiscordChannelsRepository),
+          } as any),
         ),
         MockTeamSettingsRepositoryLayer,
       ),
@@ -852,7 +851,7 @@ const TestLayer = ApiLive.pipe(
           findByUser: () => Effect.succeed(Option.none()),
           findAccessToken: () => Effect.succeed(Option.some({ access_token: 'mock-access-token' })),
           getAccessToken: () => Effect.succeed('mock-access-token'),
-        } as unknown as OAuthConnectionsRepository),
+        } as any),
         Layer.succeed(EventSeriesRepository, {
           _tag: 'api/EventSeriesRepository',
           insertSeries: die,
@@ -865,17 +864,17 @@ const TestLayer = ApiLive.pipe(
           updateEventSeries: die,
           cancelSeries: () => Effect.void,
           cancelEventSeries: () => Effect.void,
-        } as unknown as EventSeriesRepository),
+        } as any),
       ),
     ),
   ),
 );
 
-let handler: (request: Request) => Promise<Response>;
+let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
 
 beforeAll(() => {
-  const app = HttpApiBuilder.toWebHandler(TestLayer);
+  const app = HttpRouter.toWebHandler(TestLayer);
   handler = app.handler;
   dispose = app.dispose;
 });
