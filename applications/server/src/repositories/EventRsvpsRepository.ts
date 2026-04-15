@@ -21,18 +21,18 @@ class RsvpRow extends Schema.Class<RsvpRow>('RsvpRow')({
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
-class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
+const UpsertInput = Schema.Struct({
   event_id: Schema.String,
   team_member_id: Schema.String,
   response: Schema.String,
   message: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class UpsertClearInput extends Schema.Class<UpsertClearInput>('UpsertClearInput')({
+const UpsertClearInput = Schema.Struct({
   event_id: Schema.String,
   team_member_id: Schema.String,
   response: Schema.String,
-}) {}
+});
 
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
   discord_id: Schema.OptionFromNullOr(Discord.Snowflake),

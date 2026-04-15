@@ -26,9 +26,7 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   discord_channel_format: Schema.String,
 }) {}
 
-class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
-  'TeamSettingsUpsertInput',
-)({
+const TeamSettingsUpsertInput = Schema.Struct({
   team_id: Schema.String,
   event_horizon_days: Schema.Number,
   min_players_threshold: Schema.Number,
@@ -47,7 +45,7 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   discord_channel_cleanup_on_roster_deactivate: ChannelSyncEvent.ChannelCleanupMode,
   discord_role_format: Schema.String,
   discord_channel_format: Schema.String,
-}) {}
+});
 
 class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeedingReminder')({
   event_id: Event.EventId,

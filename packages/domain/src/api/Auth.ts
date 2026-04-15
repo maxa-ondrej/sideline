@@ -115,7 +115,7 @@ export class AuthMiddleware extends HttpApiMiddleware.Service<
 export class AuthApiGroup extends HttpApiGroup.make('auth')
   .add(
     HttpApiEndpoint.get('getLogin', '/login/url', {
-      success: Schema.URL,
+      success: Schema.URLFromString,
     }),
   )
   .add(

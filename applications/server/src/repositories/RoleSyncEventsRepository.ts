@@ -3,7 +3,7 @@ import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Team.TeamId,
   guild_id: Discord.Snowflake,
   event_type: RoleSyncEvent.RoleSyncEventType,
@@ -11,7 +11,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   role_name: Schema.OptionFromNullOr(Schema.String),
   team_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
   discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
-}) {}
+});
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
   guild_id: Discord.Snowflake,
@@ -28,14 +28,14 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
   discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
+const MarkProcessedInput = Schema.Struct({
   id: RoleSyncEvent.RoleSyncEventId,
-}) {}
+});
 
-class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
+const MarkFailedInput = Schema.Struct({
   id: RoleSyncEvent.RoleSyncEventId,
   error: Schema.String,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

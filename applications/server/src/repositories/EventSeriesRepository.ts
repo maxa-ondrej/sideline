@@ -71,42 +71,38 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   event_horizon_days: Schema.Number,
 }) {}
 
-class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('EventSeriesInsertInput')(
-  {
-    team_id: Schema.String,
-    training_type_id: Schema.OptionFromNullOr(Schema.String),
-    title: Schema.String,
-    description: Schema.OptionFromNullOr(Schema.String),
-    start_time: Schema.String,
-    end_time: Schema.OptionFromNullOr(Schema.String),
-    location: Schema.OptionFromNullOr(Schema.String),
-    frequency: Schema.String,
-    days_of_week: Schema.Array(Schema.Number),
-    start_date: Schemas.DateTimeFromDate,
-    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
-    created_by: Schema.String,
-    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-    owner_group_id: Schema.OptionFromNullOr(Schema.String),
-    member_group_id: Schema.OptionFromNullOr(Schema.String),
-  },
-) {}
+const EventSeriesInsertInput = Schema.Struct({
+  team_id: Schema.String,
+  training_type_id: Schema.OptionFromNullOr(Schema.String),
+  title: Schema.String,
+  description: Schema.OptionFromNullOr(Schema.String),
+  start_time: Schema.String,
+  end_time: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  frequency: Schema.String,
+  days_of_week: Schema.Array(Schema.Number),
+  start_date: Schemas.DateTimeFromDate,
+  end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  created_by: Schema.String,
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(Schema.String),
+});
 
-class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('EventSeriesUpdateInput')(
-  {
-    id: EventSeries.EventSeriesId,
-    title: Schema.String,
-    training_type_id: Schema.OptionFromNullOr(Schema.String),
-    description: Schema.OptionFromNullOr(Schema.String),
-    days_of_week: Schema.Array(Schema.Number),
-    start_time: Schema.String,
-    end_time: Schema.OptionFromNullOr(Schema.String),
-    location: Schema.OptionFromNullOr(Schema.String),
-    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
-    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-    owner_group_id: Schema.OptionFromNullOr(Schema.String),
-    member_group_id: Schema.OptionFromNullOr(Schema.String),
-  },
-) {}
+const EventSeriesUpdateInput = Schema.Struct({
+  id: EventSeries.EventSeriesId,
+  title: Schema.String,
+  training_type_id: Schema.OptionFromNullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
+  days_of_week: Schema.Array(Schema.Number),
+  start_time: Schema.String,
+  end_time: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(Schema.String),
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

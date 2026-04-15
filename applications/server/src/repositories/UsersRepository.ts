@@ -4,12 +4,12 @@ import { Effect, Layer, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
+const UpsertDiscordInput = Schema.Struct({
   discord_id: Schema.String,
   username: Schema.String,
   avatar: Schema.OptionFromNullOr(Schema.String),
   discord_nickname: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
 const CompleteProfileInput = Schema.Struct({
   id: User.UserId,
@@ -60,7 +60,7 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const upsertFromDiscord = (input: UpsertDiscordInput) =>
+  const upsertFromDiscord = (input: Schema.Schema.Type<typeof UpsertDiscordInput>) =>
     upsertFromDiscordQuery(input).pipe(catchSqlErrors);
 
   const completeProfileQuery = SqlSchema.findOne({
