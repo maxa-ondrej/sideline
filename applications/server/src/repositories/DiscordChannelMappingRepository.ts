@@ -20,47 +20,45 @@ class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
   discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class FindByGroupInput extends Schema.Class<FindByGroupInput>('FindByGroupInput')({
+const FindByGroupInput = Schema.Struct({
   team_id: Team.TeamId,
   group_id: GroupModel.GroupId,
-}) {}
+});
 
-class FindByRosterInput extends Schema.Class<FindByRosterInput>('FindByRosterInput')({
+const FindByRosterInput = Schema.Struct({
   team_id: Team.TeamId,
   roster_id: RosterModel.RosterId,
-}) {}
+});
 
-class InsertGroupInput extends Schema.Class<InsertGroupInput>('InsertGroupInput')({
+const InsertGroupInput = Schema.Struct({
   team_id: Team.TeamId,
   group_id: GroupModel.GroupId,
   discord_channel_id: Discord.Snowflake,
   discord_role_id: Discord.Snowflake,
-}) {}
+});
 
-class InsertGroupWithoutRoleInput extends Schema.Class<InsertGroupWithoutRoleInput>(
-  'InsertGroupWithoutRoleInput',
-)({
+const InsertGroupWithoutRoleInput = Schema.Struct({
   team_id: Team.TeamId,
   group_id: GroupModel.GroupId,
   discord_channel_id: Discord.Snowflake,
-}) {}
+});
 
-class InsertRosterInput extends Schema.Class<InsertRosterInput>('InsertRosterInput')({
+const InsertRosterInput = Schema.Struct({
   team_id: Team.TeamId,
   roster_id: RosterModel.RosterId,
   discord_channel_id: Discord.Snowflake,
   discord_role_id: Discord.Snowflake,
-}) {}
+});
 
-class DeleteByGroupInput extends Schema.Class<DeleteByGroupInput>('DeleteByGroupInput')({
+const DeleteByGroupInput = Schema.Struct({
   team_id: Team.TeamId,
   group_id: GroupModel.GroupId,
-}) {}
+});
 
-class DeleteByRosterInput extends Schema.Class<DeleteByRosterInput>('DeleteByRosterInput')({
+const DeleteByRosterInput = Schema.Struct({
   team_id: Team.TeamId,
   roster_id: RosterModel.RosterId,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

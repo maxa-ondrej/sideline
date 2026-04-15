@@ -16,33 +16,31 @@ class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
   member_count: Schema.Number,
 }) {}
 
-class RosterInsertInput extends Schema.Class<RosterInsertInput>('RosterInsertInput')({
+const RosterInsertInput = Schema.Struct({
   team_id: Schema.String,
   name: Schema.String,
   active: Schema.Boolean,
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInput')({
+const RosterUpdateInput = Schema.Struct({
   id: RosterModel.RosterId,
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromOptional(Schema.OptionFromNullOr(Discord.Snowflake)),
-}) {}
+});
 
-class RosterMemberInput extends Schema.Class<RosterMemberInput>('RosterMemberInput')({
+const RosterMemberInput = Schema.Struct({
   roster_id: RosterModel.RosterId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
-class RosterMemberEntriesInput extends Schema.Class<RosterMemberEntriesInput>(
-  'RosterMemberEntriesInput',
-)({
+const RosterMemberEntriesInput = Schema.Struct({
   roster_id: RosterModel.RosterId,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -165,21 +163,18 @@ const make = Effect.gen(function* () {
   const findRosterById = (rosterId: RosterModel.RosterId) =>
     findById(rosterId).pipe(catchSqlErrors);
 
-  const insert = (input: typeof RosterInsertInput.Type) =>
-    insertOne(new RosterInsertInput(input)).pipe(catchSqlErrors);
+  const insert = (input: typeof RosterInsertInput.Type) => insertOne(input).pipe(catchSqlErrors);
 
-  const update = (input: typeof RosterUpdateInput.Type) => {
-    const parsed = new RosterUpdateInput(input);
-    return updateOne({
-      id: parsed.id,
-      name: parsed.name,
-      active: parsed.active,
-      color: parsed.color,
-      emoji: parsed.emoji,
-      update_channel: Option.isSome(parsed.discord_channel_id),
-      discord_channel_id: Option.getOrElse(parsed.discord_channel_id, () => Option.none()),
+  const update = (input: typeof RosterUpdateInput.Type) =>
+    updateOne({
+      id: input.id,
+      name: input.name,
+      active: input.active,
+      color: input.color,
+      emoji: input.emoji,
+      update_channel: Option.isSome(input.discord_channel_id),
+      discord_channel_id: Option.getOrElse(input.discord_channel_id, () => Option.none()),
     }).pipe(catchSqlErrors);
-  };
 
   const _delete = (id: RosterModel.RosterId) => deleteOne(id).pipe(catchSqlErrors);
 

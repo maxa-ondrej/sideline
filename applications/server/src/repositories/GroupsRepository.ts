@@ -40,30 +40,30 @@ class GroupRoleRow extends Schema.Class<GroupRoleRow>('GroupRoleRow')({
   role_name: Schema.String,
 }) {}
 
-class GroupInsertInput extends Schema.Class<GroupInsertInput>('GroupInsertInput')({
+const GroupInsertInput = Schema.Struct({
   team_id: Schema.String,
   parent_id: Schema.OptionFromNullOr(Schema.String),
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
   color: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class GroupUpdateInput extends Schema.Class<GroupUpdateInput>('GroupUpdateInput')({
+const GroupUpdateInput = Schema.Struct({
   id: GroupModel.GroupId,
   name: Schema.String,
   emoji: Schema.OptionFromNullOr(Schema.String),
   color: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class GroupMemberInput extends Schema.Class<GroupMemberInput>('GroupMemberInput')({
+const GroupMemberInput = Schema.Struct({
   group_id: GroupModel.GroupId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
-class MoveGroupInput extends Schema.Class<MoveGroupInput>('MoveGroupInput')({
+const MoveGroupInput = Schema.Struct({
   id: GroupModel.GroupId,
   parent_id: Schema.OptionFromNullOr(GroupModel.GroupId),
-}) {}
+});
 
 class DescendantMemberRow extends Schema.Class<DescendantMemberRow>('DescendantMemberRow')({
   team_member_id: TeamMember.TeamMemberId,

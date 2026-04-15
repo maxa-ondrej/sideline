@@ -30,25 +30,21 @@ class TrainingTypeRow extends Schema.Class<TrainingTypeRow>('TrainingTypeRow')({
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class TrainingTypeInsertInput extends Schema.Class<TrainingTypeInsertInput>(
-  'TrainingTypeInsertInput',
-)({
+const TrainingTypeInsertInput = Schema.Struct({
   team_id: Schema.String,
   name: Schema.String,
   owner_group_id: Schema.OptionFromNullOr(Schema.String),
   member_group_id: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-}) {}
+});
 
-class TrainingTypeUpdateInput extends Schema.Class<TrainingTypeUpdateInput>(
-  'TrainingTypeUpdateInput',
-)({
+const TrainingTypeUpdateInput = Schema.Struct({
   id: TrainingType.TrainingTypeId,
   name: Schema.String,
   owner_group_id: Schema.OptionFromNullOr(Schema.String),
   member_group_id: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

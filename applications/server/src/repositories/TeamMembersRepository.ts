@@ -9,20 +9,20 @@ export class MemberAlreadyExistsError extends Schema.TaggedErrorClass<MemberAlre
   {},
 ) {}
 
-class MembershipQuery extends Schema.Class<MembershipQuery>('MembershipQuery')({
+const MembershipQuery = Schema.Struct({
   team_id: Schema.String,
   user_id: Schema.String,
-}) {}
+});
 
-class RosterMemberQuery extends Schema.Class<RosterMemberQuery>('RosterMemberQuery')({
+const RosterMemberQuery = Schema.Struct({
   team_id: Schema.String,
   member_id: Schema.String,
-}) {}
+});
 
-class MemberRoleInput extends Schema.Class<MemberRoleInput>('MemberRoleInput')({
+const MemberRoleInput = Schema.Struct({
   team_member_id: Schema.String,
   role_id: Schema.String,
-}) {}
+});
 
 export class MembershipWithRole extends Schema.Class<MembershipWithRole>('MembershipWithRole')({
   id: TeamMember.TeamMemberId,

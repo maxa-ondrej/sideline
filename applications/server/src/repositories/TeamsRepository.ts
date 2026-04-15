@@ -4,13 +4,13 @@ import { Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class TeamUpdateInput extends Schema.Class<TeamUpdateInput>('TeamUpdateInput')({
+const TeamUpdateInput = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
   sport: Schema.OptionFromNullOr(Schema.String),
   logo_url: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

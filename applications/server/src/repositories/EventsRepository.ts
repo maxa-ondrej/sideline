@@ -55,7 +55,7 @@ class EventRow extends Schema.Class<EventRow>('EventRow')({
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
-class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput')({
+const EventInsertInput = Schema.Struct({
   team_id: Schema.String,
   training_type_id: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
@@ -69,9 +69,9 @@ class EventInsertInput extends Schema.Class<EventInsertInput>('EventInsertInput'
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   owner_group_id: Schema.OptionFromNullOr(Schema.String),
   member_group_id: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput')({
+const EventUpdateInput = Schema.Struct({
   id: Event.EventId,
   title: Schema.String,
   event_type: Schema.String,
@@ -83,7 +83,7 @@ class EventUpdateInput extends Schema.Class<EventUpdateInput>('EventUpdateInput'
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   owner_group_id: Schema.OptionFromNullOr(Schema.String),
   member_group_id: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
 class ScopedTrainingTypeId extends Schema.Class<ScopedTrainingTypeId>('ScopedTrainingTypeId')({
   training_type_id: TrainingType.TrainingTypeId,

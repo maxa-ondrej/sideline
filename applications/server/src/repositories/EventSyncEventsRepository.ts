@@ -13,7 +13,7 @@ const EventSyncEventType = Schema.Literals([
 ]);
 type EventSyncEventType = typeof EventSyncEventType.Type;
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Team.TeamId,
   guild_id: Discord.Snowflake,
   event_type: EventSyncEventType,
@@ -25,7 +25,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-}) {}
+});
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
   guild_id: Discord.Snowflake,
@@ -46,14 +46,14 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
+const MarkProcessedInput = Schema.Struct({
   id: Schema.String,
-}) {}
+});
 
-class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
+const MarkFailedInput = Schema.Struct({
   id: Schema.String,
   error: Schema.String,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

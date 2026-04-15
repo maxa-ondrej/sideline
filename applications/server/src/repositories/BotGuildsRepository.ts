@@ -4,10 +4,10 @@ import { Effect, Layer, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
+const UpsertInput = Schema.Struct({
   guild_id: Discord.Snowflake,
   guild_name: Schema.String,
-}) {}
+});
 
 class BotGuildRow extends Schema.Class<BotGuildRow>('BotGuildRow')({
   guild_id: Discord.Snowflake,

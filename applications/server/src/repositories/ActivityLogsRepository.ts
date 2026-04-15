@@ -11,7 +11,7 @@ class StatsRow extends Schema.Class<StatsRow>('StatsRow')({
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
 }) {}
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
   logged_at: Schema.Date,
@@ -20,7 +20,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   ),
   note: Schema.OptionFromNullOr(Schema.String),
   source: ActivityLog.ActivitySource,
-}) {}
+});
 
 class InsertResult extends Schema.Class<InsertResult>('InsertResult')({
   id: ActivityLog.ActivityLogId,
@@ -41,23 +41,23 @@ class LogRow extends Schema.Class<LogRow>('LogRow')({
   source: ActivityLog.ActivitySource,
 }) {}
 
-class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
+const UpdateInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class FindByIdInput extends Schema.Class<FindByIdInput>('FindByIdInput')({
+const FindByIdInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
-class DeleteInput extends Schema.Class<DeleteInput>('DeleteInput')({
+const DeleteInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

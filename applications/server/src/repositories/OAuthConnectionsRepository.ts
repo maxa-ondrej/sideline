@@ -3,17 +3,17 @@ import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
+const UpsertInput = Schema.Struct({
   user_id: User.UserId,
   provider: Schema.String,
   access_token: Schema.String,
   refresh_token: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class FindInput extends Schema.Class<FindInput>('FindInput')({
+const FindInput = Schema.Struct({
   user_id: User.UserId,
   provider: Schema.String,
-}) {}
+});
 
 class AccessTokenRow extends Schema.Class<AccessTokenRow>('AccessTokenRow')({
   access_token: Schema.String,

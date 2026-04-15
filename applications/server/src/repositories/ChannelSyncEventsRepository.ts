@@ -10,7 +10,7 @@ import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Team.TeamId,
   guild_id: Discord.Snowflake,
   event_type: ChannelSyncEvent.ChannelSyncEventType,
@@ -27,7 +27,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   discord_channel_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_color: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
   guild_id: Discord.Snowflake,
@@ -53,14 +53,14 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
   discord_role_color: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
+const MarkProcessedInput = Schema.Struct({
   id: ChannelSyncEvent.ChannelSyncEventId,
-}) {}
+});
 
-class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
+const MarkFailedInput = Schema.Struct({
   id: ChannelSyncEvent.ChannelSyncEventId,
   error: Schema.String,
-}) {}
+});
 
 class ProvisioningGroupId extends Schema.Class<ProvisioningGroupId>('ProvisioningGroupId')({
   group_id: GroupModel.GroupId,

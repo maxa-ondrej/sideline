@@ -10,13 +10,13 @@ class ChannelRow extends Schema.Class<ChannelRow>('ChannelRow')({
   parent_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class SyncInput extends Schema.Class<SyncInput>('SyncInput')({
+const SyncInput = Schema.Struct({
   guild_id: Discord.Snowflake,
   channel_id: Discord.Snowflake,
   name: Schema.String,
   type: Schema.Number,
   parent_id: Schema.OptionFromNullOr(Discord.Snowflake),
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

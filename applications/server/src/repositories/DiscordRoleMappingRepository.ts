@@ -10,21 +10,21 @@ class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
   discord_role_id: Discord.Snowflake,
 }) {}
 
-class FindByRoleInput extends Schema.Class<FindByRoleInput>('FindByRoleInput')({
+const FindByRoleInput = Schema.Struct({
   team_id: Team.TeamId,
   role_id: Role.RoleId,
-}) {}
+});
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Team.TeamId,
   role_id: Role.RoleId,
   discord_role_id: Discord.Snowflake,
-}) {}
+});
 
-class DeleteByRoleInput extends Schema.Class<DeleteByRoleInput>('DeleteByRoleInput')({
+const DeleteByRoleInput = Schema.Struct({
   team_id: Team.TeamId,
   role_id: Role.RoleId,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

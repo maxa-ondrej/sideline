@@ -35,18 +35,18 @@ export class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThreshold
   max_age: Schema.OptionFromNullOr(Schema.Number),
 }) {}
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Schema.String,
   group_id: Schema.String,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
 
-class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
+const UpdateInput = Schema.Struct({
   id: AgeThreshold.AgeThresholdRuleId,
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
 
 class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
   team_id: Team.TeamId,

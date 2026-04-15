@@ -30,37 +30,35 @@ class PermissionRow extends Schema.Class<PermissionRow>('PermissionRow')({
   permission: Role.Permission,
 }) {}
 
-class RoleInsertInput extends Schema.Class<RoleInsertInput>('RoleInsertInput')({
+const RoleInsertInput = Schema.Struct({
   team_id: Schema.String,
   name: Schema.String,
   is_built_in: Schema.Boolean,
-}) {}
+});
 
-class RoleUpdateInput extends Schema.Class<RoleUpdateInput>('RoleUpdateInput')({
+const RoleUpdateInput = Schema.Struct({
   id: Role.RoleId,
   name: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class InsertPermissionInput extends Schema.Class<InsertPermissionInput>('InsertPermissionInput')({
+const InsertPermissionInput = Schema.Struct({
   role_id: Role.RoleId,
   permission: Role.Permission,
-}) {}
+});
 
-class FindByTeamAndNameInput extends Schema.Class<FindByTeamAndNameInput>('FindByTeamAndNameInput')(
-  {
-    team_id: Schema.String,
-    name: Schema.String,
-  },
-) {}
-
-class InitTeamRolesInput extends Schema.Class<InitTeamRolesInput>('InitTeamRolesInput')({
+const FindByTeamAndNameInput = Schema.Struct({
   team_id: Schema.String,
-}) {}
+  name: Schema.String,
+});
 
-class RoleGroupInput extends Schema.Class<RoleGroupInput>('RoleGroupInput')({
+const InitTeamRolesInput = Schema.Struct({
+  team_id: Schema.String,
+});
+
+const RoleGroupInput = Schema.Struct({
   role_id: Role.RoleId,
   group_id: GroupModel.GroupId,
-}) {}
+});
 
 class RoleGroupRow extends Schema.Class<RoleGroupRow>('RoleGroupRow')({
   group_id: GroupModel.GroupId,

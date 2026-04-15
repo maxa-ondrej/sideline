@@ -14,31 +14,27 @@ class NotificationRow extends Schema.Class<NotificationRow>('NotificationRow')({
   created_at: Schema.String,
 }) {}
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Schema.String,
   user_id: Schema.String,
   type: Schema.String,
   title: Schema.String,
   body: Schema.String,
-}) {}
+});
 
-class FindByUserAndTeamInput extends Schema.Class<FindByUserAndTeamInput>('FindByUserAndTeamInput')(
-  {
-    user_id: Schema.String,
-    team_id: Schema.String,
-  },
-) {}
-
-class MarkAllReadForTeamInput extends Schema.Class<MarkAllReadForTeamInput>(
-  'MarkAllReadForTeamInput',
-)({
+const FindByUserAndTeamInput = Schema.Struct({
   user_id: Schema.String,
   team_id: Schema.String,
-}) {}
+});
 
-class MarkReadInput extends Schema.Class<MarkReadInput>('MarkReadInput')({
+const MarkAllReadForTeamInput = Schema.Struct({
+  user_id: Schema.String,
+  team_id: Schema.String,
+});
+
+const MarkReadInput = Schema.Struct({
   id: Notification.NotificationId,
-}) {}
+});
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
