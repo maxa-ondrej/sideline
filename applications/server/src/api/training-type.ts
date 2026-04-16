@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, TrainingTypeApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -11,13 +11,13 @@ const forbidden = new TrainingTypeApi.Forbidden();
 
 export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('trainingTypes', () => TrainingTypesRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
     Effect.map(({ members, trainingTypes }) =>
       handlers
-        .handle('listTrainingTypes', ({ path: { teamId } }) =>
+        .handle('listTrainingTypes', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -42,9 +42,9 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
           ),
         )
-        .handle('createTrainingType', ({ path: { teamId }, payload }) =>
+        .handle('createTrainingType', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -74,14 +74,14 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating training type — no row returned'),
             ),
           ),
         )
-        .handle('getTrainingType', ({ path: { teamId, trainingTypeId } }) =>
+        .handle('getTrainingType', ({ params: { teamId, trainingTypeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -117,9 +117,9 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
             ),
           ),
         )
-        .handle('updateTrainingType', ({ path: { teamId, trainingTypeId }, payload }) =>
+        .handle('updateTrainingType', ({ params: { teamId, trainingTypeId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -171,14 +171,14 @@ export const TrainingTypeApiLive = HttpApiBuilder.group(Api, 'trainingType', (ha
               Effect.fail(new TrainingTypeApi.TrainingTypeNameAlreadyTaken()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating training type — no row returned'),
             ),
           ),
         )
-        .handle('deleteTrainingType', ({ path: { teamId, trainingTypeId } }) =>
+        .handle('deleteTrainingType', ({ params: { teamId, trainingTypeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

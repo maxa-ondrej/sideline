@@ -10,8 +10,8 @@ const EVENT_ID_1 = '00000000-0000-0000-0000-000000000001' as Event.EventId;
 const EVENT_ID_2 = '00000000-0000-0000-0000-000000000002' as Event.EventId;
 const TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 
-const START_AT = DateTime.unsafeMake('2026-04-09T10:00:00Z');
-const END_AT = DateTime.unsafeMake('2026-04-09T12:00:00Z');
+const START_AT = DateTime.makeUnsafe('2026-04-09T10:00:00Z');
+const END_AT = DateTime.makeUnsafe('2026-04-09T12:00:00Z');
 
 // --- In-memory stores ---
 type StartableEvent = {
@@ -66,7 +66,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   findEndedTrainingsForAutoLog: () => Effect.die(new Error('Not implemented')),
   markTrainingAutoLogged: () => Effect.die(new Error('Not implemented')),
   findUpcomingWithRsvp: () => Effect.die(new Error('Not implemented')),
-} as unknown as EventsRepository);
+} as any);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
   emitEventStarted: (
@@ -89,7 +89,7 @@ const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsReposito
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-} as unknown as EventSyncEventsRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockEventsRepositoryLayer,
@@ -215,7 +215,7 @@ describe('eventStartCronEffect', () => {
         callOrder.push('startEvent');
         return Effect.succeed(Option.some({ id: eventId }));
       },
-    } as unknown as EventsRepository);
+    } as any);
 
     const OrderTrackingSyncRepo = Layer.succeed(EventSyncEventsRepository, {
       emitEventStarted: (teamId: Team.TeamId, eventId: Event.EventId) => {
@@ -223,7 +223,7 @@ describe('eventStartCronEffect', () => {
         callOrder.push('emitEventStarted');
         return Effect.void;
       },
-    } as unknown as EventSyncEventsRepository);
+    } as any);
 
     const OrderTrackingLayer = Layer.mergeAll(OrderTrackingEventsRepo, OrderTrackingSyncRepo);
 

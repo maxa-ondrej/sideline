@@ -1,4 +1,3 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import {
   type Discord,
   type Event,
@@ -11,7 +10,18 @@ import {
   User,
 } from '@sideline/domain';
 import { Bind, LogicError, Options, Schemas } from '@sideline/effect-lib';
-import { Array, Data, DateTime, Effect, flow, Metric, Option, pipe, Schema } from 'effect';
+import {
+  Array,
+  Data,
+  DateTime,
+  Effect,
+  flow,
+  Metric,
+  Option,
+  Schema,
+  type ServiceMap,
+} from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
@@ -36,9 +46,9 @@ class TeamMemberLookup extends Schema.Class<TeamMemberLookup>('TeamMemberLookup'
 }) {}
 
 const getRsvpCounts = (
-  rsvps: EventRsvpsRepository,
+  rsvps: ServiceMap.Service.Shape<typeof EventRsvpsRepository>,
   eventId: Event.EventId,
-  events: EventsRepository,
+  events: ServiceMap.Service.Shape<typeof EventsRepository>,
 ) =>
   Effect.Do.pipe(
     Effect.bind('counts', () => rsvps.countRsvpsByEventId(eventId)),
@@ -89,15 +99,15 @@ const parseDateTime = (input: string): Option.Option<DateTime.Utc> => {
     date.getUTCMinutes() !== minute
   )
     return Option.none();
-  return Option.some(DateTime.unsafeFromDate(date));
+  return Option.some(DateTime.fromDateUnsafe(date));
 };
 
 const createEvent = (
   sql: SqlClient.SqlClient,
-  events: EventsRepository,
-  syncEvents: EventSyncEventsRepository,
-  members: TeamMembersRepository,
-  trainingTypes: TrainingTypesRepository,
+  events: ServiceMap.Service.Shape<typeof EventsRepository>,
+  syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
+  members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
+  trainingTypes: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
   input: {
     readonly guild_id: Discord.Snowflake;
     readonly discord_user_id: Discord.Snowflake;
@@ -118,13 +128,14 @@ const createEvent = (
         execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
       })(input.guild_id).pipe(
         Effect.catchTag(
-          'SqlError',
-          'ParseError',
+          ['SqlError', 'SchemaError'],
           LogicError.withMessage(
             (e) => `Failed looking up team for guild ${input.guild_id}: ${e.message}`,
           ),
         ),
-        Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
+        Effect.catchTag('NoSuchElementError', () =>
+          Effect.fail(new EventRpcModels.CreateEventNotMember()),
+        ),
         Effect.map((result) => result.id),
       ),
     ),
@@ -145,13 +156,14 @@ const createEvent = (
         team_id: teamId,
       }).pipe(
         Effect.catchTag(
-          'SqlError',
-          'ParseError',
+          ['SqlError', 'SchemaError'],
           LogicError.withMessage(
             (e) => `Failed looking up user ${input.discord_user_id} in team: ${e.message}`,
           ),
         ),
-        Effect.flatMap(Options.toEffect(() => new EventRpcModels.CreateEventNotMember())),
+        Effect.catchTag('NoSuchElementError', () =>
+          Effect.fail(new EventRpcModels.CreateEventNotMember()),
+        ),
       ),
     ),
     Effect.bind('membership', ({ teamId, userLookup }) =>
@@ -164,8 +176,10 @@ const createEvent = (
         ? Effect.void
         : Effect.fail(new EventRpcModels.CreateEventForbidden()),
     ),
-    Effect.bind('parsedStartAt', () => parseDateTime(input.start_at)),
-    Effect.catchTag('NoSuchElementException', () => new EventRpcModels.CreateEventInvalidDate()),
+    Effect.bind('parsedStartAt', () => Effect.fromOption(parseDateTime(input.start_at))),
+    Effect.catchTag('NoSuchElementError', () =>
+      Effect.fail(new EventRpcModels.CreateEventInvalidDate()),
+    ),
     Effect.bind('parsedEndAt', () =>
       input.end_at.pipe(
         Option.map(parseDateTime),
@@ -210,7 +224,7 @@ const createEvent = (
           })
           .pipe(
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(
                 () => `Failed inserting event "${input.title}" — no row returned`,
               ),
@@ -241,18 +255,18 @@ const createEvent = (
   );
 
 const rpcHandlers = Effect.Do.pipe(
-  Effect.bind('events', () => EventsRepository),
-  Effect.bind('rsvps', () => EventRsvpsRepository),
+  Effect.bind('events', () => EventsRepository.asEffect()),
+  Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
   Effect.bind('deps', () =>
     Effect.all({
-      syncEvents: EventSyncEventsRepository,
-      members: TeamMembersRepository,
-      groups: GroupsRepository,
-      sql: SqlClient.SqlClient,
-      trainingTypesRepo: TrainingTypesRepository,
-      teamsRepo: TeamsRepository,
-      teamSettings: TeamSettingsRepository,
-      channelDividers: ChannelEventDividersRepository,
+      syncEvents: EventSyncEventsRepository.asEffect(),
+      members: TeamMembersRepository.asEffect(),
+      groups: GroupsRepository.asEffect(),
+      sql: SqlClient.SqlClient.asEffect(),
+      trainingTypesRepo: TrainingTypesRepository.asEffect(),
+      teamsRepo: TeamsRepository.asEffect(),
+      teamSettings: TeamSettingsRepository.asEffect(),
+      channelDividers: ChannelEventDividersRepository.asEffect(),
     }),
   ),
   Effect.let(
@@ -261,19 +275,13 @@ const rpcHandlers = Effect.Do.pipe(
       ({ limit }: { readonly limit: number }) =>
         syncEvents.findUnprocessed(limit).pipe(
           Effect.map(Array.map(flow(constructEvent))),
-          Effect.tap(
-            flow(
-              Array.isEmptyReadonlyArray,
-              Effect.if({
-                onTrue: NoChanges.make,
-                onFalse: () => Effect.void,
-              }),
-            ),
+          Effect.tap((arr) =>
+            Array.isArrayEmpty(arr) ? Effect.fail(NoChanges.make()) : Effect.void,
           ),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} event sync events from database.`),
           ),
-          Effect.flatMap(Effect.allSuccesses),
+          Effect.flatMap(Effect.all),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} event sync events from database.`),
           ),
@@ -376,8 +384,10 @@ const rpcHandlers = Effect.Do.pipe(
               discord_user_id,
               team_id,
             }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
+              ),
               Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
-              Effect.flatMap(Options.toEffect(() => new EventRpcModels.RsvpMemberNotFound())),
             ),
           ),
           Effect.tap(({ event, member }) =>
@@ -401,13 +411,13 @@ const rpcHandlers = Effect.Do.pipe(
           Effect.bind('savedRsvp', ({ member }) =>
             rsvps.upsertRsvp(event_id, member.id, response, message, clearMessage).pipe(
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(
                   () => `Failed upserting RSVP for event ${event_id} — no row returned`,
                 ),
               ),
               Effect.tap(() =>
-                Metric.update(pipe(rsvpSubmissionsTotal, Metric.tagged('response', response)), 1),
+                Metric.update(Metric.withAttributes(rsvpSubmissionsTotal, { response }), 1),
               ),
             ),
           ),
@@ -592,13 +602,11 @@ const rpcHandlers = Effect.Do.pipe(
               Result: TeamLookupResult,
               execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
             })(guild_id).pipe(
-              Effect.mapError(() => new EventRpcModels.GuildNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
-                  onSome: (r) => Effect.succeed(r.id),
-                }),
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.GuildNotFound()),
               ),
+              Effect.mapError(() => new EventRpcModels.GuildNotFound()),
+              Effect.map((r) => r.id),
             ),
           ),
           Effect.bind('rows', () => events.findUpcomingByGuildId(guild_id, offset, limit)),
@@ -648,14 +656,12 @@ const rpcHandlers = Effect.Do.pipe(
               Result: TeamLookupResult,
               execute: (guildId) => sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
             })(guild_id).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.GuildNotFound()),
+              ),
               Effect.tapError((err) => Effect.logWarning('Guild lookup failed', err)),
               Effect.mapError(() => new EventRpcModels.GuildNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
-                  onSome: (r) => Effect.succeed(r.id),
-                }),
-              ),
+              Effect.map((r) => r.id),
             ),
           ),
           Effect.bind('member', ({ teamId }) =>
@@ -671,14 +677,11 @@ const rpcHandlers = Effect.Do.pipe(
                   AND tm.active = true
               `,
             })({ discord_user_id, team_id: teamId }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
+              ),
               Effect.tapError((err) => Effect.logWarning('Member lookup failed', err)),
               Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
-              Effect.flatMap(
-                Option.match({
-                  onNone: () => Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
-                  onSome: (r) => Effect.succeed(r),
-                }),
-              ),
             ),
           ),
           Effect.bind('rows', ({ teamId, member }) =>
@@ -701,7 +704,7 @@ const rpcHandlers = Effect.Do.pipe(
                 yes_count: Schema.Number,
                 no_count: Schema.Number,
                 maybe_count: Schema.Number,
-                my_response: Schema.OptionFromNullOr(Schema.Literal('yes', 'no', 'maybe')),
+                my_response: Schema.OptionFromNullOr(Schema.Literals(['yes', 'no', 'maybe'])),
                 my_message: Schema.OptionFromNullOr(Schema.String),
               }),
               execute: (input) => sql`
@@ -750,8 +753,7 @@ const rpcHandlers = Effect.Do.pipe(
               limit,
             }).pipe(
               Effect.catchTag(
-                'SqlError',
-                'ParseError',
+                ['SqlError', 'SchemaError'],
                 LogicError.withMessage(
                   (e) => `Failed querying upcoming events for user: ${e.message}`,
                 ),
@@ -790,14 +792,16 @@ const rpcHandlers = Effect.Do.pipe(
               team_member_id: member.id,
             }).pipe(
               Effect.catchTag(
-                'SqlError',
-                'ParseError',
+                ['SqlError', 'SchemaError'],
                 LogicError.withMessage(
                   (e) => `Failed counting upcoming events for user: ${e.message}`,
                 ),
               ),
-              Effect.map(Option.map((r) => r.count)),
-              Effect.map(Option.getOrElse(() => 0)),
+              Effect.catchTag(
+                'NoSuchElementError',
+                LogicError.withMessage(() => 'Count query returned no row'),
+              ),
+              Effect.map((r) => r.count),
             ),
           ),
           Effect.map(
@@ -853,7 +857,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
                 ),
             }),
           ),
-          Effect.catchAllDefect((defect) =>
+          Effect.catchDefect((defect) =>
             Effect.logError(defect).pipe(
               Effect.as(Array.empty<EventRpcModels.TrainingTypeChoice>()),
             ),

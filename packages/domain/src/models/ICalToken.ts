@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { Model } from 'effect/unstable/schema';
 import { UserId } from '~/models/User.js';
 
 export class ICalToken extends Model.Class<ICalToken>('ICalToken')({

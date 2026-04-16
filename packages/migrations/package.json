@@ -25,11 +25,9 @@
     "coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@effect/platform": "0.96.0",
-    "@effect/platform-node": "0.106.0",
-    "@effect/sql": "0.51.0",
-    "@effect/sql-pg": "0.52.1",
-    "effect": "3.21.0"
+    "@effect/platform-node": "4.0.0-beta.40",
+    "@effect/sql-pg": "4.0.0-beta.40",
+    "effect": "4.0.0-beta.40"
   },
   "effect": {
     "generateExports": {

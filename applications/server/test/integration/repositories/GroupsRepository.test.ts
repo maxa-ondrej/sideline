@@ -23,7 +23,7 @@ beforeEach(() => cleanDatabase.pipe(Effect.provide(TestPgClient), Effect.runProm
 
 /** Creates a user and returns their UserId. */
 const createUser = (discordId: string, username: string) =>
-  UsersRepository.pipe(
+  UsersRepository.asEffect().pipe(
     Effect.andThen((repo) =>
       repo.upsertFromDiscord({
         discord_id: discordId,
@@ -37,7 +37,7 @@ const createUser = (discordId: string, username: string) =>
 
 /** Creates a team with the given user as owner and returns the Team. */
 const createTeam = (guildId: Discord.Snowflake, createdBy: User.UserId) =>
-  TeamsRepository.pipe(
+  TeamsRepository.asEffect().pipe(
     Effect.andThen((repo) =>
       repo.insert({
         name: 'Test Team',
@@ -54,7 +54,7 @@ const createTeam = (guildId: Discord.Snowflake, createdBy: User.UserId) =>
 
 /** Adds a user as a team member and returns the TeamMember. */
 const addTeamMember = (teamId: Team.TeamId, userId: User.UserId) =>
-  TeamMembersRepository.pipe(
+  TeamMembersRepository.asEffect().pipe(
     Effect.andThen((repo) =>
       repo.addMember({
         team_id: teamId,
@@ -71,7 +71,7 @@ const createGroup = (
   name: string,
   parentId: Option.Option<GroupModel.GroupId> = Option.none(),
 ) =>
-  GroupsRepository.pipe(
+  GroupsRepository.asEffect().pipe(
     Effect.andThen((repo) =>
       repo.insertGroup(teamId, name, parentId, Option.none(), Option.none()),
     ),
@@ -79,7 +79,9 @@ const createGroup = (
 
 /** Adds a team member to a group. */
 const addGroupMember = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
-  GroupsRepository.pipe(Effect.andThen((repo) => repo.addMemberById(groupId, teamMemberId)));
+  GroupsRepository.asEffect().pipe(
+    Effect.andThen((repo) => repo.addMemberById(groupId, teamMemberId)),
+  );
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -94,12 +96,16 @@ describe('GroupsRepository — member_count', () => {
       ),
       Effect.tap(({ team }) => createGroup(team.id, 'Empty Group')),
       Effect.bind('groups', ({ team }) =>
-        GroupsRepository.pipe(Effect.andThen((repo) => repo.findGroupsByTeamId(team.id))),
+        GroupsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
+        ),
       ),
-      Effect.tap(({ groups }) => {
-        expect(groups).toHaveLength(1);
-        expect(groups[0]?.member_count).toBe(0);
-      }),
+      Effect.tap(({ groups }) =>
+        Effect.sync(() => {
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.member_count).toBe(0);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -115,12 +121,16 @@ describe('GroupsRepository — member_count', () => {
       Effect.bind('tm', ({ team, memberId }) => addTeamMember(team.id, memberId)),
       Effect.tap(({ group, tm }) => addGroupMember(group.id, tm.id)),
       Effect.bind('groups', ({ team }) =>
-        GroupsRepository.pipe(Effect.andThen((repo) => repo.findGroupsByTeamId(team.id))),
+        GroupsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
+        ),
       ),
-      Effect.tap(({ groups }) => {
-        expect(groups).toHaveLength(1);
-        expect(groups[0]?.member_count).toBe(1);
-      }),
+      Effect.tap(({ groups }) =>
+        Effect.sync(() => {
+          expect(groups).toHaveLength(1);
+          expect(groups[0]?.member_count).toBe(1);
+        }),
+      ),
       Effect.provide(TestLayer),
     ),
   );
@@ -144,14 +154,18 @@ describe('GroupsRepository — member_count', () => {
         Effect.tap(({ groupA, tm1 }) => addGroupMember(groupA.id, tm1.id)),
         Effect.tap(({ groupB, tm2 }) => addGroupMember(groupB.id, tm2.id)),
         Effect.bind('groups', ({ team }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.findGroupsByTeamId(team.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
+          ),
         ),
-        Effect.tap(({ groups, groupA, groupB }) => {
-          const a = groups.find((g) => g.id === groupA.id);
-          const b = groups.find((g) => g.id === groupB.id);
-          expect(a?.member_count).toBe(2);
-          expect(b?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA, groupB }) =>
+          Effect.sync(() => {
+            const a = groups.find((g) => g.id === groupA.id);
+            const b = groups.find((g) => g.id === groupB.id);
+            expect(a?.member_count).toBe(2);
+            expect(b?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -181,16 +195,20 @@ describe('GroupsRepository — member_count', () => {
         Effect.tap(({ groupB, tm2 }) => addGroupMember(groupB.id, tm2.id)),
         Effect.tap(({ groupC, tm3 }) => addGroupMember(groupC.id, tm3.id)),
         Effect.bind('groups', ({ team }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.findGroupsByTeamId(team.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
+          ),
         ),
-        Effect.tap(({ groups, groupA, groupB, groupC }) => {
-          const a = groups.find((g) => g.id === groupA.id);
-          const b = groups.find((g) => g.id === groupB.id);
-          const c = groups.find((g) => g.id === groupC.id);
-          expect(a?.member_count).toBe(3);
-          expect(b?.member_count).toBe(2);
-          expect(c?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA, groupB, groupC }) =>
+          Effect.sync(() => {
+            const a = groups.find((g) => g.id === groupA.id);
+            const b = groups.find((g) => g.id === groupB.id);
+            const c = groups.find((g) => g.id === groupC.id);
+            expect(a?.member_count).toBe(3);
+            expect(b?.member_count).toBe(2);
+            expect(c?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -213,14 +231,18 @@ describe('GroupsRepository — member_count', () => {
         Effect.tap(({ groupA, tm1 }) => addGroupMember(groupA.id, tm1.id)),
         Effect.tap(({ groupB, tm1 }) => addGroupMember(groupB.id, tm1.id)),
         Effect.bind('groups', ({ team }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.findGroupsByTeamId(team.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
+          ),
         ),
-        Effect.tap(({ groups, groupA, groupB }) => {
-          const a = groups.find((g) => g.id === groupA.id);
-          const b = groups.find((g) => g.id === groupB.id);
-          expect(a?.member_count).toBe(1);
-          expect(b?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA, groupB }) =>
+          Effect.sync(() => {
+            const a = groups.find((g) => g.id === groupA.id);
+            const b = groups.find((g) => g.id === groupB.id);
+            expect(a?.member_count).toBe(1);
+            expect(b?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -245,18 +267,24 @@ describe('GroupsRepository — member_count', () => {
         Effect.tap(({ groupB, tm2 }) => addGroupMember(groupB.id, tm2.id)),
         // Archive child group B
         Effect.tap(({ groupB }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.archiveGroupById(groupB.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.archiveGroupById(groupB.id)),
+          ),
         ),
         Effect.bind('groups', ({ team }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.findGroupsByTeamId(team.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.findGroupsByTeamId(team.id)),
+          ),
         ),
-        Effect.tap(({ groups, groupA }) => {
-          // Only group A should be returned (B is archived)
-          expect(groups).toHaveLength(1);
-          const a = groups.find((g) => g.id === groupA.id);
-          // A's count should only include its own direct member, not B's member
-          expect(a?.member_count).toBe(1);
-        }),
+        Effect.tap(({ groups, groupA }) =>
+          Effect.sync(() => {
+            // Only group A should be returned (B is archived)
+            expect(groups).toHaveLength(1);
+            const a = groups.find((g) => g.id === groupA.id);
+            // A's count should only include its own direct member, not B's member
+            expect(a?.member_count).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -282,15 +310,21 @@ describe('GroupsRepository — getMemberCount', () => {
         Effect.tap(({ groupA, tm1 }) => addGroupMember(groupA.id, tm1.id)),
         Effect.tap(({ groupB, tm2 }) => addGroupMember(groupB.id, tm2.id)),
         Effect.bind('countA', ({ groupA }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.getMemberCount(groupA.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.getMemberCount(groupA.id)),
+          ),
         ),
         Effect.bind('countB', ({ groupB }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.getMemberCount(groupB.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.getMemberCount(groupB.id)),
+          ),
         ),
-        Effect.tap(({ countA, countB }) => {
-          expect(countA).toBe(2);
-          expect(countB).toBe(1);
-        }),
+        Effect.tap(({ countA, countB }) =>
+          Effect.sync(() => {
+            expect(countA).toBe(2);
+            expect(countB).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -315,15 +349,21 @@ describe('GroupsRepository — getMemberCount', () => {
         Effect.tap(({ groupB, tm2 }) => addGroupMember(groupB.id, tm2.id)),
         // Archive child group B
         Effect.tap(({ groupB }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.archiveGroupById(groupB.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.archiveGroupById(groupB.id)),
+          ),
         ),
         Effect.bind('countA', ({ groupA }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.getMemberCount(groupA.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.getMemberCount(groupA.id)),
+          ),
         ),
-        Effect.tap(({ countA }) => {
-          // A's count should only include its own direct member, not archived B's member
-          expect(countA).toBe(1);
-        }),
+        Effect.tap(({ countA }) =>
+          Effect.sync(() => {
+            // A's count should only include its own direct member, not archived B's member
+            expect(countA).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );
@@ -346,11 +386,15 @@ describe('GroupsRepository — getMemberCount', () => {
         Effect.tap(({ groupA, tm1 }) => addGroupMember(groupA.id, tm1.id)),
         Effect.tap(({ groupB, tm1 }) => addGroupMember(groupB.id, tm1.id)),
         Effect.bind('countA', ({ groupA }) =>
-          GroupsRepository.pipe(Effect.andThen((repo) => repo.getMemberCount(groupA.id))),
+          GroupsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.getMemberCount(groupA.id)),
+          ),
         ),
-        Effect.tap(({ countA }) => {
-          expect(countA).toBe(1);
-        }),
+        Effect.tap(({ countA }) =>
+          Effect.sync(() => {
+            expect(countA).toBe(1);
+          }),
+        ),
         Effect.provide(TestLayer),
       ),
   );

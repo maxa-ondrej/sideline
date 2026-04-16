@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { EventApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -51,12 +51,12 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 const NONE_VALUE = '__none__';
 
 const CreateEventSchema = Schema.Struct({
-  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
-  eventType: Event.EventType.annotations({ message: () => m.validation_invalidOption() }),
+  title: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
+  eventType: Event.EventType.annotate({ message: m.validation_invalidOption() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
-  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
-  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
@@ -68,16 +68,16 @@ const CreateEventSchema = Schema.Struct({
 type CreateEventValues = Schema.Schema.Type<typeof CreateEventSchema>;
 
 const CreateSeriesSchema = Schema.Struct({
-  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  title: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
-  frequency: EventSeries.RecurrenceFrequency.annotations({
-    message: () => m.validation_invalidOption(),
+  frequency: EventSeries.RecurrenceFrequency.annotate({
+    message: m.validation_invalidOption(),
   }),
   daysOfWeek: EventSeries.DaysOfWeek,
-  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
-  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endTime: Schema.String,
   location: Schema.String,
   discordChannelId: Schema.String,
@@ -111,7 +111,7 @@ export function EventsListPage({
   const [mode, setMode] = React.useState<'one-time' | 'recurring'>('one-time');
 
   const form = useForm({
-    resolver: effectTsResolver(CreateEventSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateEventSchema)),
     mode: 'onChange',
     defaultValues: {
       title: '',
@@ -132,7 +132,7 @@ export function EventsListPage({
   const watchedEventType = form.watch('eventType');
 
   const seriesForm = useForm({
-    resolver: effectTsResolver(CreateSeriesSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateSeriesSchema)),
     mode: 'onChange',
     defaultValues: {
       title: '',
@@ -162,10 +162,10 @@ export function EventsListPage({
     const endAt = values.endTime
       ? localToUtc(values.endDate || values.startDate, values.endTime)
       : null;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.createEvent({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             title: values.title,
             eventType: values.eventType,
@@ -179,7 +179,7 @@ export function EventsListPage({
             location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                ? Option.some(Discord.Snowflake.makeUnsafe(values.discordChannelId))
                 : Option.none(),
             ownerGroupId:
               values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
@@ -192,7 +192,7 @@ export function EventsListPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.event_createFailed())),
+      Effect.mapError(() => ClientError.make(m.event_createFailed())),
       run({ success: m.event_eventCreated() }),
     );
     if (Option.isSome(result)) {
@@ -202,10 +202,10 @@ export function EventsListPage({
   };
 
   const onSubmitSeries = async (values: CreateSeriesValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.createEventSeries({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             title: values.title,
             trainingTypeId:
@@ -224,7 +224,7 @@ export function EventsListPage({
             location: values.location ? Option.some(values.location) : Option.none(),
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                ? Option.some(Discord.Snowflake.makeUnsafe(values.discordChannelId))
                 : Option.none(),
             ownerGroupId:
               values.ownerGroupId && values.ownerGroupId !== NONE_VALUE
@@ -237,7 +237,7 @@ export function EventsListPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.event_createSeriesFailed())),
+      Effect.mapError(() => ClientError.make(m.event_createSeriesFailed())),
       run({ success: m.event_seriesCreated() }),
     );
     if (Option.isSome(result)) {

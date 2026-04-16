@@ -1,51 +1,62 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { ICalToken } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Effect, Layer, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class ICalTokensRepository extends Effect.Service<ICalTokensRepository>()(
-  'api/ICalTokensRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private _findByToken = SqlSchema.findOne({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const _findByToken = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: ICalToken.ICalToken,
-    execute: (token) => this.sql`SELECT * FROM ical_tokens WHERE token = ${token}`,
+    execute: (token) => sql`SELECT * FROM ical_tokens WHERE token = ${token}`,
   });
 
-  private _findByUserId = SqlSchema.findOne({
+  const _findByUserId = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: ICalToken.ICalToken,
-    execute: (userId) => this.sql`SELECT * FROM ical_tokens WHERE user_id = ${userId}`,
+    execute: (userId) => sql`SELECT * FROM ical_tokens WHERE user_id = ${userId}`,
   });
 
-  private _create = SqlSchema.single({
+  const _create = SqlSchema.findOne({
     Request: Schema.Struct({ user_id: Schema.String, token: Schema.String }),
     Result: ICalToken.ICalToken,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO ical_tokens (user_id, token)
       VALUES (${input.user_id}, ${input.token})
       RETURNING *
     `,
   });
 
-  private _deleteByUserId = SqlSchema.void({
+  const _deleteByUserId = SqlSchema.void({
     Request: Schema.String,
-    execute: (userId) => this.sql`DELETE FROM ical_tokens WHERE user_id = ${userId}`,
+    execute: (userId) => sql`DELETE FROM ical_tokens WHERE user_id = ${userId}`,
   });
 
-  findByToken = (token: string) => this._findByToken(token).pipe(catchSqlErrors);
+  const findByToken = (token: string) => _findByToken(token).pipe(catchSqlErrors);
 
-  findByUserId = (userId: string) => this._findByUserId(userId).pipe(catchSqlErrors);
+  const findByUserId = (userId: string) => _findByUserId(userId).pipe(catchSqlErrors);
 
-  create = (userId: string) =>
-    this._create({ user_id: userId, token: crypto.randomUUID() }).pipe(catchSqlErrors);
+  const create = (userId: string) =>
+    _create({ user_id: userId, token: crypto.randomUUID() }).pipe(catchSqlErrors);
 
-  regenerate = (userId: string) =>
-    this._deleteByUserId(userId).pipe(
-      Effect.flatMap(() => this._create({ user_id: userId, token: crypto.randomUUID() })),
+  const regenerate = (userId: string) =>
+    _deleteByUserId(userId).pipe(
+      Effect.flatMap(() => _create({ user_id: userId, token: crypto.randomUUID() })),
       catchSqlErrors,
     );
+
+  return {
+    findByToken,
+    findByUserId,
+    create,
+    regenerate,
+  };
+});
+
+export class ICalTokensRepository extends ServiceMap.Service<
+  ICalTokensRepository,
+  Effect.Success<typeof make>
+>()('api/ICalTokensRepository') {
+  static readonly Default = Layer.effect(ICalTokensRepository, make);
 }

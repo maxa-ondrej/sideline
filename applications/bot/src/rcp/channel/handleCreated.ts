@@ -9,7 +9,7 @@ export const handleCreated = (event: ChannelRpcEvents.GroupChannelCreatedEvent) 
   return Option.match(event.existing_channel_id, {
     onSome: (channelId) =>
       Effect.Do.pipe(
-        Effect.bind('rpc', () => SyncRpc),
+        Effect.bind('rpc', () => SyncRpc.asEffect()),
         Effect.bind('result', () =>
           createRoleForChannel(event.guild_id, channelId, event.discord_role_name, roleColor),
         ),

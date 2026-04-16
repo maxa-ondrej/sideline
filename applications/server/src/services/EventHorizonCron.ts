@@ -7,9 +7,9 @@ import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 
 export const eventHorizonCronEffect = Effect.Do.pipe(
-  Effect.bind('seriesRepo', () => EventSeriesRepository),
-  Effect.bind('eventsRepo', () => EventsRepository),
-  Effect.bind('syncEvents', () => EventSyncEventsRepository),
+  Effect.bind('seriesRepo', () => EventSeriesRepository.asEffect()),
+  Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
+  Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('EventHorizonCron: starting generation cycle')),
   Effect.bind('allSeries', ({ seriesRepo }) => seriesRepo.getActiveForGeneration()),
   Effect.tap(({ allSeries, seriesRepo, eventsRepo, syncEvents }) =>
@@ -25,7 +25,7 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
           onSome: (d) => DateTime.add(d, { days: 1 }),
         });
 
-        if (DateTime.greaterThan(startFrom, effectiveEnd)) return Effect.void;
+        if (DateTime.isGreaterThan(startFrom, effectiveEnd)) return Effect.void;
 
         const dates = generateOccurrenceDates({
           frequency: s.frequency,
@@ -39,8 +39,8 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
         return Effect.all(
           Array.map(dates, (date) => {
             const dateStr = DateTime.formatIsoDateUtc(date);
-            const startAt = DateTime.unsafeMake(`${dateStr}T${s.start_time}Z`);
-            const endAt = Option.map(s.end_time, (t) => DateTime.unsafeMake(`${dateStr}T${t}Z`));
+            const startAt = DateTime.makeUnsafe(`${dateStr}T${s.start_time}Z`);
+            const endAt = Option.map(s.end_time, (t) => DateTime.makeUnsafe(`${dateStr}T${t}Z`));
             return eventsRepo
               .insertEvent({
                 teamId: s.team_id,
@@ -76,7 +76,7 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                     Effect.tapDefect((defect) =>
                       Effect.logWarning('EventHorizonCron: failed to emit sync event', defect),
                     ),
-                    Effect.catchAllDefect(() => Effect.void),
+                    Effect.catchDefect(() => Effect.void),
                   ),
                 ),
               );

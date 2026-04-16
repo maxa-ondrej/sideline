@@ -10,10 +10,10 @@ const isUniqueViolation = (defect: unknown): boolean =>
   defect instanceof Error && /duplicate key|unique constraint/i.test(defect.message);
 
 export const trainingAutoLogCronEffect = Effect.Do.pipe(
-  Effect.bind('eventsRepo', () => EventsRepository),
-  Effect.bind('rsvpsRepo', () => EventRsvpsRepository),
-  Effect.bind('activityLogs', () => ActivityLogsRepository),
-  Effect.bind('activityTypes', () => ActivityTypesRepository),
+  Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
+  Effect.bind('rsvpsRepo', () => EventRsvpsRepository.asEffect()),
+  Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+  Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('TrainingAutoLogCron: starting cycle')),
   Effect.bind('trainingTypeId', ({ activityTypes }) =>
     activityTypes.findBySlug('training').pipe(
@@ -48,8 +48,8 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
                   })
                   .pipe(
                     Effect.asVoid,
-                    Effect.catchSomeDefect((defect) =>
-                      isUniqueViolation(defect) ? Option.some(Effect.void) : Option.none(),
+                    Effect.catchDefect((defect) =>
+                      isUniqueViolation(defect) ? Effect.void : Effect.die(defect),
                     ),
                   ),
               ),
@@ -58,7 +58,7 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
           ),
           Effect.tap(() => eventsRepo.markTrainingAutoLogged(event.id)),
           Effect.tap(() => Effect.logInfo(`TrainingAutoLogCron: processed event ${event.id}`)),
-          Effect.catchAllDefect((defect) =>
+          Effect.catchDefect((defect) =>
             Effect.logWarning(`TrainingAutoLogCron: defect processing event ${event.id}`, defect),
           ),
         ),

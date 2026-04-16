@@ -1,9 +1,9 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { AgeThresholdApi, GroupApi } from '@sideline/domain';
 import { AgeThresholdRule, GroupModel, Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Option, Schema, SchemaGetter } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -20,11 +20,16 @@ import {
 import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
-const OptionalNumber = Schema.transform(Schema.String, Schema.Option(Schema.Number), {
-  strict: false,
-  decode: (from) => (from === '' ? { _tag: 'None' } : { _tag: 'Some', value: Number(from) }),
-  encode: (to) => (to._tag === 'Some' ? String(to.value) : ''),
-});
+const OptionalNumber = Schema.String.pipe(
+  Schema.decodeTo(Schema.Option(Schema.Number), {
+    decode: SchemaGetter.transform((s: string) =>
+      s === '' ? Option.none() : Option.some(Number(s)),
+    ),
+    encode: SchemaGetter.transform(
+      Option.match<string, number>({ onNone: () => '', onSome: (n) => String(n) }),
+    ),
+  }),
+);
 
 const CreateThresholdSchema = Schema.Struct({
   groupId: GroupModel.GroupId,
@@ -53,20 +58,20 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
   const availableGroups = groups.filter((g) => !usedGroupIds.has(g.groupId));
 
   const form = useForm({
-    resolver: effectTsResolver(CreateThresholdSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateThresholdSchema)),
     mode: 'onChange',
     defaultValues: { groupId: '', minAge: '', maxAge: '' },
   });
 
   const onSubmit = async (values: CreateThresholdValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.createAgeThreshold({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: values,
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.ageThreshold_createFailed())),
+      Effect.mapError(() => ClientError.make(m.ageThreshold_createFailed())),
       run({ success: m.ageThreshold_created() }),
     );
     if (Option.isSome(result)) {
@@ -79,13 +84,13 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
     async (ruleIdRaw: string) => {
       if (!window.confirm(m.ageThreshold_deleteConfirm())) return;
       const ruleId = Schema.decodeSync(AgeThresholdRule.AgeThresholdRuleId)(ruleIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.ageThreshold.deleteAgeThreshold({
-            path: { teamId: teamIdBranded, ruleId },
+            params: { teamId: teamIdBranded, ruleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.ageThreshold_deleteFailed())),
+        Effect.mapError(() => ClientError.make(m.ageThreshold_deleteFailed())),
         run({ success: m.ageThreshold_deleted() }),
       );
       if (Option.isSome(result)) {
@@ -97,13 +102,13 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
 
   const handleEvaluate = React.useCallback(async () => {
     setEvaluating(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.ageThreshold.evaluateAgeThresholds({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.ageThreshold_evaluateFailed())),
+      Effect.mapError(() => ClientError.make(m.ageThreshold_evaluateFailed())),
       run({ success: m.ageThreshold_evaluated() }),
     );
     setEvaluating(false);

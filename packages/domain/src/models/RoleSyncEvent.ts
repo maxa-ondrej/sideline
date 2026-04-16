@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { Model } from 'effect/unstable/schema';
 import { RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
@@ -7,12 +7,12 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 export const RoleSyncEventId = Schema.String.pipe(Schema.brand('RoleSyncEventId'));
 export type RoleSyncEventId = typeof RoleSyncEventId.Type;
 
-export const RoleSyncEventType = Schema.Literal(
+export const RoleSyncEventType = Schema.Literals([
   'role_assigned',
   'role_unassigned',
   'role_created',
   'role_deleted',
-);
+]);
 export type RoleSyncEventType = typeof RoleSyncEventType.Type;
 
 export class RoleSyncEvent extends Model.Class<RoleSyncEvent>('RoleSyncEvent')({

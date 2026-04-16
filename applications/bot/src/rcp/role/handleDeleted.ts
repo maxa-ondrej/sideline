@@ -6,16 +6,16 @@ import { retryPolicy } from '~/rest/utils.js';
 
 export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Role/GetMapping']({
         team_id: event.team_id,
         role_id: event.role_id,
       }),
     ),
-    Effect.bind('mapping', ({ cached }) => cached),
-    Effect.tapErrorTag('NoSuchElementException', () =>
+    Effect.bind('mapping', ({ cached }) => Effect.fromOption(cached)),
+    Effect.tapErrorTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping found for role ${event.role_id} in guild ${event.guild_id}, skipping delete`,
       ),
@@ -33,7 +33,7 @@ export const handleDeleted = (event: RoleRpcEvents.RoleDeletedEvent) =>
       }),
     ),
     Effect.asVoid,
-    Effect.catchTag('NoSuchElementException', () =>
+    Effect.catchTag('NoSuchElementError', () =>
       Effect.logWarning(
         `No mapping found for role ${event.role_id} in guild ${event.guild_id}, skipping role delete`,
       ),

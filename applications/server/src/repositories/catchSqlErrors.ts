@@ -16,7 +16,12 @@ export const catchSqlErrors = <A, E extends { readonly _tag: string }, R>(
   effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<
   A,
-  Exclude<E, { readonly _tag: 'SqlError' } | { readonly _tag: 'ParseError' }>,
+  Exclude<
+    E,
+    | { readonly _tag: 'SqlError' }
+    | { readonly _tag: 'ParseError' }
+    | { readonly _tag: 'SchemaError' }
+  >,
   R
 > =>
   effect.pipe(
@@ -25,6 +30,9 @@ export const catchSqlErrors = <A, E extends { readonly _tag: string }, R>(
         (e) => `SQL query failed: ${(e as { message?: string }).message ?? String(e)}`,
       ),
       ParseError: LogicError.withMessage(
+        (e) => `SQL result parsing failed: ${(e as { message?: string }).message ?? String(e)}`,
+      ),
+      SchemaError: LogicError.withMessage(
         (e) => `SQL result parsing failed: ${(e as { message?: string }).message ?? String(e)}`,
       ),
     } as never),

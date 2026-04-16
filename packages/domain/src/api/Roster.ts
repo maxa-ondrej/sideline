@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { HexColor } from '~/api/GroupApi.js';
 import { Snowflake } from '~/models/Discord.js';
@@ -25,35 +25,29 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   avatar: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
-export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('UpdatePlayerRequest')({
+export const UpdatePlayerRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.String),
   birthDate: Schema.OptionFromNullOr(Schema.String),
   gender: Schema.OptionFromNullOr(Gender),
   jerseyNumber: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
+export type UpdatePlayerRequest = Schema.Schema.Type<typeof UpdatePlayerRequest>;
 
-export class PlayerNotFound extends Schema.TaggedError<PlayerNotFound>()(
+export class PlayerNotFound extends Schema.TaggedErrorClass<PlayerNotFound>()(
   'PlayerNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'Forbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('Forbidden', {}) {}
 
-export class ChannelAlreadyLinked extends Schema.TaggedError<ChannelAlreadyLinked>()(
+export class ChannelAlreadyLinked extends Schema.TaggedErrorClass<ChannelAlreadyLinked>()(
   'ChannelAlreadyLinked',
   {},
-  HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
-export class RosterNotFound extends Schema.TaggedError<RosterNotFound>()(
+export class RosterNotFound extends Schema.TaggedErrorClass<RosterNotFound>()(
   'RosterNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class RosterInfo extends Schema.Class<RosterInfo>('RosterInfo')({
@@ -90,124 +84,147 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   discordChannelProvisioning: Schema.Boolean,
 }) {}
 
-export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({
+export const CreateRosterRequest = Schema.Struct({
   name: Schema.String,
   color: Schema.OptionFromNullOr(HexColor),
   emoji: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
+export type CreateRosterRequest = Schema.Schema.Type<typeof CreateRosterRequest>;
 
-export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('UpdateRosterRequest')({
+export const UpdateRosterRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
   color: Schema.OptionFromNullOr(HexColor),
   emoji: Schema.OptionFromNullOr(Schema.String),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
-}) {}
+  discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+});
+export type UpdateRosterRequest = Schema.Schema.Type<typeof UpdateRosterRequest>;
 
-export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>(
-  'AddRosterMemberRequest',
-)({
+export const AddRosterMemberRequest = Schema.Struct({
   memberId: TeamMemberId,
-}) {}
+});
+export type AddRosterMemberRequest = Schema.Schema.Type<typeof AddRosterMemberRequest>;
 
 export class RosterApiGroup extends HttpApiGroup.make('roster')
   .add(
-    HttpApiEndpoint.get('listMembers', '/teams/:teamId/members')
-      .addSuccess(Schema.Array(RosterPlayer))
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listMembers', '/teams/:teamId/members', {
+      success: Schema.Array(RosterPlayer),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getMember', '/teams/:teamId/members/:memberId')
-      .addSuccess(RosterPlayer)
-      .addError(Forbidden, { status: 403 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getMember', '/teams/:teamId/members/:memberId', {
+      success: RosterPlayer,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateMember', '/teams/:teamId/members/:memberId')
-      .addSuccess(RosterPlayer)
-      .addError(Forbidden, { status: 403 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .setPayload(UpdatePlayerRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateMember', '/teams/:teamId/members/:memberId', {
+      success: RosterPlayer,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: UpdatePlayerRequest,
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deactivateMember', '/teams/:teamId/members/:memberId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deactivateMember', '/teams/:teamId/members/:memberId', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('listRosters', '/teams/:teamId/rosters')
-      .addSuccess(RosterListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listRosters', '/teams/:teamId/rosters', {
+      success: RosterListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createRoster', '/teams/:teamId/rosters')
-      .addSuccess(RosterInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateRosterRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createRoster', '/teams/:teamId/rosters', {
+      success: RosterInfo.pipe(HttpApiSchema.status(201)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: CreateRosterRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getRoster', '/teams/:teamId/rosters/:rosterId')
-      .addSuccess(RosterDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getRoster', '/teams/:teamId/rosters/:rosterId', {
+      success: RosterDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateRoster', '/teams/:teamId/rosters/:rosterId')
-      .addSuccess(RosterInfo)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .addError(ChannelAlreadyLinked, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .setPayload(UpdateRosterRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateRoster', '/teams/:teamId/rosters/:rosterId', {
+      success: RosterInfo,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+        ChannelAlreadyLinked.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: UpdateRosterRequest,
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteRoster', '/teams/:teamId/rosters/:rosterId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deleteRoster', '/teams/:teamId/rosters/:rosterId', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('addRosterMember', '/teams/:teamId/rosters/:rosterId/members')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .setPayload(AddRosterMemberRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('addRosterMember', '/teams/:teamId/rosters/:rosterId/members', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+        PlayerNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: AddRosterMemberRequest,
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('removeRosterMember', '/teams/:teamId/rosters/:rosterId/members/:memberId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .addError(PlayerNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete(
+      'removeRosterMember',
+      '/teams/:teamId/rosters/:rosterId/members/:memberId',
+      {
+        success: Schema.Void.pipe(HttpApiSchema.status(204)),
+        error: [
+          Forbidden.pipe(HttpApiSchema.status(403)),
+          RosterNotFound.pipe(HttpApiSchema.status(404)),
+          PlayerNotFound.pipe(HttpApiSchema.status(404)),
+        ],
+        params: { teamId: TeamId, rosterId: RosterId, memberId: TeamMemberId },
+      },
+    ).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RosterNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, rosterId: RosterId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
   ) {}

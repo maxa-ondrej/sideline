@@ -1,7 +1,7 @@
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 
-export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
+export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
   Effect.all([
     sql`
       INSERT INTO role_permissions (role_id, permission)

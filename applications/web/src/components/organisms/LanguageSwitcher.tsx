@@ -14,9 +14,9 @@ export function LanguageSwitcher({ isAuthenticated }: { isAuthenticated: boolean
       setLocale(locale);
 
       if (isAuthenticated) {
-        ApiClient.pipe(
+        ApiClient.asEffect().pipe(
           Effect.flatMap((api) => api.auth.updateLocale({ payload: { locale } })),
-          Effect.catchAll(() => ClientError.make(m.auth_errors_profileFailed())),
+          Effect.mapError(() => ClientError.make(m.auth_errors_profileFailed())),
           run(),
         );
       }

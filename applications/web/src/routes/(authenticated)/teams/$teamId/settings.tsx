@@ -10,16 +10,16 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/settings')(
   loader: async ({ params, context }) => {
     const teamId = await pipe(
       params.teamId,
-      Schema.decode(Team.TeamId),
+      Schema.decodeEffect(Team.TeamId),
       Effect.mapError(NotFound.make),
       context.run,
     );
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          settings: api.teamSettings.getTeamSettings({ path: { teamId } }),
-          discordChannels: api.group.listDiscordChannels({ path: { teamId } }),
-          teamInfo: api.team.getTeamInfo({ path: { teamId } }),
+          settings: api.teamSettings.getTeamSettings({ params: { teamId } }),
+          discordChannels: api.group.listDiscordChannels({ params: { teamId } }),
+          teamInfo: api.team.getTeamInfo({ params: { teamId } }),
         }),
       ),
       warnAndCatchAll,

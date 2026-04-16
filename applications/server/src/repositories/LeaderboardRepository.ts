@@ -1,7 +1,7 @@
-import { SqlClient } from '@effect/sql';
 import type { ActivityType, Leaderboard, Team } from '@sideline/domain';
 import { TeamMember, User } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({
@@ -15,33 +15,30 @@ class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({
   activity_dates: Schema.Array(Schema.String),
 }) {}
 
-const decodeRows = Schema.decodeUnknown(Schema.Array(LeaderboardRow));
+const decodeRows = Schema.decodeUnknownEffect(Schema.Array(LeaderboardRow));
 
-export class LeaderboardRepository extends Effect.Service<LeaderboardRepository>()(
-  'api/LeaderboardRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  getLeaderboard = (
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const getLeaderboard = (
     teamId: Team.TeamId,
     activityTypeId: Option.Option<ActivityType.ActivityTypeId>,
     timeframe: Leaderboard.LeaderboardTimeframe,
   ) => {
     const activityTypeFilter = Option.match(activityTypeId, {
-      onNone: () => this.sql``,
-      onSome: (id) => this.sql`AND al.activity_type_id = ${id}`,
+      onNone: () => sql``,
+      onSome: (id) => sql`AND al.activity_type_id = ${id}`,
     });
 
     const activityTypeDatesFilter = Option.match(activityTypeId, {
-      onNone: () => this.sql``,
-      onSome: (id) => this.sql`AND al2.activity_type_id = ${id}`,
+      onNone: () => sql``,
+      onSome: (id) => sql`AND al2.activity_type_id = ${id}`,
     });
 
     const timeframeFilter =
-      timeframe === 'week' ? this.sql`AND al.logged_at >= NOW() - INTERVAL '7 days'` : this.sql``;
+      timeframe === 'week' ? sql`AND al.logged_at >= NOW() - INTERVAL '7 days'` : sql``;
 
-    const query = this.sql`
+    const query = sql`
       SELECT
         tm.id::text AS team_member_id,
         u.id::text AS user_id,
@@ -71,4 +68,15 @@ export class LeaderboardRepository extends Effect.Service<LeaderboardRepository>
 
     return query.pipe(Effect.flatMap(decodeRows), catchSqlErrors);
   };
+
+  return {
+    getLeaderboard,
+  };
+});
+
+export class LeaderboardRepository extends ServiceMap.Service<
+  LeaderboardRepository,
+  Effect.Success<typeof make>
+>()('api/LeaderboardRepository') {
+  static readonly Default = Layer.effect(LeaderboardRepository, make);
 }

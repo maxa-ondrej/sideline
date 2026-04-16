@@ -38,11 +38,11 @@ export class RoleUnassignedEvent extends Schema.TaggedClass<RoleUnassignedEvent>
   },
 ) {}
 
-export const UnprocessedRoleEvent = Schema.Union(
+export const UnprocessedRoleEvent = Schema.Union([
   RoleCreatedEvent,
   RoleDeletedEvent,
   RoleAssignedEvent,
   RoleUnassignedEvent,
-);
+]);
 
 export type UnprocessedRoleEvent = Schema.Schema.Type<typeof UnprocessedRoleEvent>;

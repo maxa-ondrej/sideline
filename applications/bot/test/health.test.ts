@@ -1,6 +1,7 @@
-import { HttpApiBuilder, HttpServer } from '@effect/platform';
 import { DiscordGateway } from 'dfx/gateway';
 import { Effect, Layer } from 'effect';
+import { HttpRouter, HttpServer } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BotHealthApi } from '~/HealthServerLive.js';
 
@@ -25,7 +26,7 @@ const HealthApiGroupLive = HttpApiBuilder.group(BotHealthApi, 'health', (handler
   Effect.succeed(
     handlers.handle('healthCheck', () =>
       Effect.Do.pipe(
-        Effect.bind('gateway', () => DiscordGateway),
+        Effect.bind('gateway', () => DiscordGateway.asEffect()),
         Effect.bind('shards', ({ gateway }) => gateway.shards),
         Effect.map(({ shards }) => ({
           status: shards.size > 0 ? ('ok' as const) : ('degraded' as const),
@@ -37,20 +38,19 @@ const HealthApiGroupLive = HttpApiBuilder.group(BotHealthApi, 'health', (handler
 );
 
 const makeTestLayer = (shardCount: number) =>
-  HttpApiBuilder.api(BotHealthApi).pipe(
+  HttpApiBuilder.layer(BotHealthApi).pipe(
     Layer.provide(HealthApiGroupLive),
-    Layer.provideMerge(HttpServer.layerContext),
+    Layer.provideMerge(HttpServer.layerServices),
     Layer.provide(makeMockGatewayLayer(shardCount)),
   );
 
 describe('health endpoint', () => {
   describe('with shards connected', () => {
-    let handler: (request: Request) => Promise<Response>;
+    let app: ReturnType<typeof HttpRouter.toWebHandler>;
     let dispose: () => Promise<void>;
 
     beforeAll(() => {
-      const app = HttpApiBuilder.toWebHandler(makeTestLayer(2));
-      handler = app.handler;
+      app = HttpRouter.toWebHandler(makeTestLayer(2));
       dispose = app.dispose;
     });
 
@@ -59,7 +59,9 @@ describe('health endpoint', () => {
     });
 
     it('returns ok status when shards are connected', async () => {
-      const response = await handler(new Request('http://localhost/health'));
+      const response = await (app.handler as (request: Request) => Promise<Response>)(
+        new Request('http://localhost/health'),
+      );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.status).toBe('ok');
@@ -68,12 +70,11 @@ describe('health endpoint', () => {
   });
 
   describe('with no shards', () => {
-    let handler: (request: Request) => Promise<Response>;
+    let app: ReturnType<typeof HttpRouter.toWebHandler>;
     let dispose: () => Promise<void>;
 
     beforeAll(() => {
-      const app = HttpApiBuilder.toWebHandler(makeTestLayer(0));
-      handler = app.handler;
+      app = HttpRouter.toWebHandler(makeTestLayer(0));
       dispose = app.dispose;
     });
 
@@ -82,7 +83,9 @@ describe('health endpoint', () => {
     });
 
     it('returns degraded status when no shards are connected', async () => {
-      const response = await handler(new Request('http://localhost/health'));
+      const response = await (app.handler as (request: Request) => Promise<Response>)(
+        new Request('http://localhost/health'),
+      );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.status).toBe('degraded');

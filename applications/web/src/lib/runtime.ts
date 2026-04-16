@@ -5,7 +5,17 @@ import {
   type RegisteredRouter,
   redirect,
 } from '@tanstack/react-router';
-import { Context, Data, Effect, Either, Layer, Logger, LogLevel, Match, type Option } from 'effect';
+import {
+  Data,
+  Effect,
+  Layer,
+  Logger,
+  Match,
+  type Option,
+  References,
+  Result,
+  ServiceMap,
+} from 'effect';
 import React from 'react';
 import { toast } from 'sonner';
 import { ClientConfig, client } from '~/lib/client';
@@ -20,9 +30,9 @@ export class SilentClientError extends Data.TaggedError('SilentClientError')<{
   readonly message: string;
 }> {}
 
-type Client = Effect.Effect.Success<typeof client>;
+type Client = Effect.Success<typeof client>;
 
-export class ApiClient extends Context.Tag('ApiClient')<ApiClient, Client>() {}
+export class ApiClient extends ServiceMap.Service<ApiClient, Client>()('ApiClient') {}
 
 export class Redirect extends Data.TaggedError('Redirect')<{
   readonly redirect: () => void;
@@ -52,15 +62,15 @@ export const warnAndCatchAll = <A, E, R>(
 ): Effect.Effect<A, NotFound, R> =>
   effect.pipe(
     Effect.tapError((e) => Effect.logWarning('Unexpected loader error', e)),
-    Effect.catchAll(NotFound.make),
+    Effect.catch(() => Effect.fail(new NotFound())),
   );
 
 const ApiClientLive = Layer.effect(ApiClient, client);
 
 const AppLayer = Layer.mergeAll(
   ApiClientLive,
-  Logger.pretty,
-  Logger.minimumLogLevel(LogLevel.Info),
+  Logger.layer([Logger.consolePretty()]),
+  Layer.succeed(References.MinimumLogLevel, 'Info' as const),
 );
 
 export type RunOptions = { readonly success?: string; readonly loading?: string };
@@ -92,16 +102,16 @@ export class ServerRunner {
     effect: Effect.Effect<A, Redirect | NotFound, ApiClient | ClientConfig>,
   ): Promise<A> {
     const effectResponse = effect.pipe(
-      Effect.either,
+      Effect.result,
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
         baseUrl: this.serverUrl,
       }),
     );
     const response = await Effect.runPromise(effectResponse, this.abortController);
-    return Either.match(response, {
-      onRight: (d) => d,
-      onLeft: (e) => {
+    return Result.match(response, {
+      onSuccess: (d) => d,
+      onFailure: (e) => {
         throw Match.value(e).pipe(
           Match.tag('Redirect', (e) => e.redirect()),
           Match.tag('NotFound', () => notFound()),
@@ -119,16 +129,16 @@ export const runPromiseServer =
     effect: Effect.Effect<A, Redirect | NotFound, ApiClient | ClientConfig>,
   ): Promise<A> => {
     const effectResponse = effect.pipe(
-      Effect.either,
+      Effect.result,
       Effect.provide(AppLayer),
       Effect.provideService(ClientConfig, {
         baseUrl: serverUrl,
       }),
     );
     const response = await Effect.runPromise(effectResponse, abortController);
-    return Either.match(response, {
-      onRight: (d) => d,
-      onLeft: (e) => {
+    return Result.match(response, {
+      onSuccess: (d) => d,
+      onFailure: (e) => {
         throw Match.value(e).pipe(
           Match.tag('Redirect', (e) => e.redirect()),
           Match.tag('NotFound', () => notFound()),

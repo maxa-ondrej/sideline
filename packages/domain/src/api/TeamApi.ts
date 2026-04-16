@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
 import { Snowflake } from '~/models/Discord.js';
@@ -14,40 +14,35 @@ export class TeamInfo extends Schema.Class<TeamInfo>('TeamInfo')({
   guildId: Snowflake,
 }) {}
 
-export class UpdateTeamRequest extends Schema.Class<UpdateTeamRequest>('UpdateTeamRequest')({
-  name: Schema.optionalWith(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)), {
-    as: 'Option',
-  }),
-  description: Schema.optionalWith(
-    Schema.OptionFromNullOr(Schema.String.pipe(Schema.maxLength(500))),
-    {
-      as: 'Option',
-    },
+export const UpdateTeamRequest = Schema.Struct({
+  name: Schema.OptionFromOptional(
+    Schema.String.pipe(Schema.check(Schema.isMinLength(1)), Schema.check(Schema.isMaxLength(100))),
   ),
-  sport: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String.pipe(Schema.maxLength(50))), {
-    as: 'Option',
-  }),
-  logoUrl: Schema.optionalWith(
-    Schema.OptionFromNullOr(Schema.String.pipe(Schema.maxLength(2048))),
-    {
-      as: 'Option',
-    },
+  description: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(500)))),
   ),
-}) {}
+  sport: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(50)))),
+  ),
+  logoUrl: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(2048)))),
+  ),
+});
+export type UpdateTeamRequest = Schema.Schema.Type<typeof UpdateTeamRequest>;
 
 export class TeamApiGroup extends HttpApiGroup.make('team')
   .add(
-    HttpApiEndpoint.get('getTeamInfo', '/teams/:teamId')
-      .addSuccess(TeamInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getTeamInfo', '/teams/:teamId', {
+      success: TeamInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateTeamInfo', '/teams/:teamId')
-      .addSuccess(TeamInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(UpdateTeamRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateTeamInfo', '/teams/:teamId', {
+      success: TeamInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: UpdateTeamRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

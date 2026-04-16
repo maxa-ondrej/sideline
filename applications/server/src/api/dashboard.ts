@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { ActivityStats, Auth, DashboardApi, type GroupModel, Leaderboard } from '@sideline/domain';
 import { Array, DateTime, Effect, Option, pipe } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
@@ -14,15 +14,15 @@ const allTimeframe: Leaderboard.LeaderboardTimeframe = 'all';
 
 export const DashboardApiLive = HttpApiBuilder.group(Api, 'dashboard', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('leaderboardRepo', () => LeaderboardRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
+    Effect.bind('leaderboardRepo', () => LeaderboardRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.map(({ members, events, groups, leaderboardRepo, activityLogs }) =>
-      handlers.handle('getDashboard', ({ path: { teamId } }) =>
+      handlers.handle('getDashboard', ({ params: { teamId } }) =>
         Effect.Do.pipe(
-          Effect.bind('currentUser', () => Auth.CurrentUserContext),
+          Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
           Effect.bind('membership', ({ currentUser }) =>
             requireMembership(members, teamId, currentUser.id, forbidden),
           ),

@@ -7,7 +7,7 @@ import {
   type Team,
 } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
-import { Array, Data, Effect, Either, flow, Option } from 'effect';
+import { Array, Data, Effect, flow, Option, Result } from 'effect';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepository.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
@@ -19,8 +19,8 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
 }
 
 export const RolesRpcLive = Effect.Do.pipe(
-  Effect.bind('syncEvents', () => RoleSyncEventsRepository),
-  Effect.bind('mappings', () => DiscordRoleMappingRepository),
+  Effect.bind('syncEvents', () => RoleSyncEventsRepository.asEffect()),
+  Effect.bind('mappings', () => DiscordRoleMappingRepository.asEffect()),
   Effect.let(
     'Role/GetUnprocessedEvents',
     ({ syncEvents }) =>
@@ -32,25 +32,19 @@ export const RolesRpcLive = Effect.Do.pipe(
                 constructEvent,
                 Effect.tapError(Effect.logError),
                 Effect.tapErrorTag('EventPropertyMissing', EventPropertyMissing.handle),
-                Effect.either,
+                Effect.result,
               ),
             ),
           ),
-          Effect.tap(
-            flow(
-              Array.isEmptyReadonlyArray,
-              Effect.if({
-                onTrue: NoChanges.make,
-                onFalse: () => Effect.void,
-              }),
-            ),
+          Effect.tap((arr) =>
+            Array.isArrayEmpty(arr) ? Effect.fail(NoChanges.make()) : Effect.void,
           ),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} role events from database.`),
           ),
           Effect.flatMap(Effect.all),
-          Effect.tap(flow(Array.filterMap(Either.getLeft), Array.map(Effect.logError), Effect.all)),
-          Effect.map(Array.filterMap(Either.getRight)),
+          Effect.tap(flow(Array.filterMap(Result.flip), Array.map(Effect.logError), Effect.all)),
+          Effect.map(Array.filterMap((r) => r)),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} role events from database.`),
           ),

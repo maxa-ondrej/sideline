@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { ActivityLog, ActivityLogApi, ActivityType, TeamMember } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class StatsRow extends Schema.Class<StatsRow>('StatsRow')({
@@ -11,14 +11,16 @@ class StatsRow extends Schema.Class<StatsRow>('StatsRow')({
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
 }) {}
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
   logged_at: Schema.Date,
-  duration_minutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
+  duration_minutes: Schema.OptionFromNullOr(
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
+  ),
   note: Schema.OptionFromNullOr(Schema.String),
   source: ActivityLog.ActivitySource,
-}) {}
+});
 
 class InsertResult extends Schema.Class<InsertResult>('InsertResult')({
   id: ActivityLog.ActivityLogId,
@@ -33,40 +35,37 @@ class LogRow extends Schema.Class<LogRow>('LogRow')({
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
   activity_type_name: Schema.String,
-  logged_at: Schema.DateFromString,
+  logged_at: Schema.String,
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
   source: ActivityLog.ActivitySource,
 }) {}
 
-class UpdateInput extends Schema.Class<UpdateInput>('UpdateInput')({
+const UpdateInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class FindByIdInput extends Schema.Class<FindByIdInput>('FindByIdInput')({
+const FindByIdInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
-class DeleteInput extends Schema.Class<DeleteInput>('DeleteInput')({
+const DeleteInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
-export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepository>()(
-  'api/ActivityLogsRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private insertQuery = SqlSchema.single({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const insertQuery = SqlSchema.findOne({
     Request: InsertInput,
     Result: InsertResult,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO activity_logs (team_member_id, activity_type_id, logged_at, duration_minutes, note, source)
       VALUES (
         ${input.team_member_id},
@@ -82,10 +81,10 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private findAllQuery = SqlSchema.findAll({
+  const findAllQuery = SqlSchema.findAll({
     Request: TeamMember.TeamMemberId,
     Result: StatsRow,
-    execute: (teamMemberId) => this.sql`
+    execute: (teamMemberId) => sql`
       SELECT
         al.activity_type_id,
         at.name AS activity_type_name,
@@ -98,10 +97,10 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private findByMemberQuery = SqlSchema.findAll({
+  const findByMemberQuery = SqlSchema.findAll({
     Request: TeamMember.TeamMemberId,
     Result: LogRow,
-    execute: (teamMemberId) => this.sql`
+    execute: (teamMemberId) => sql`
       SELECT al.id, al.team_member_id, al.activity_type_id, at.name AS activity_type_name,
              al.logged_at::text AS logged_at, al.duration_minutes, al.note, al.source
       FROM activity_logs al
@@ -112,10 +111,10 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private findByIdQuery = SqlSchema.findOne({
+  const findByIdQuery = SqlSchema.findOneOption({
     Request: FindByIdInput,
     Result: LogRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT al.id, al.team_member_id, al.activity_type_id, at.name AS activity_type_name,
              al.logged_at::text AS logged_at, al.duration_minutes, al.note, al.source
       FROM activity_logs al
@@ -125,10 +124,10 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private updateQuery = SqlSchema.single({
+  const updateQuery = SqlSchema.findOne({
     Request: UpdateInput,
     Result: LogRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE activity_logs
       SET
         activity_type_id = ${input.activity_type_id},
@@ -142,23 +141,23 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     `,
   });
 
-  private deleteQuery = SqlSchema.void({
+  const deleteQuery = SqlSchema.void({
     Request: DeleteInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       DELETE FROM activity_logs WHERE id = ${input.id} AND team_member_id = ${input.team_member_id}
     `,
   });
 
-  findByTeamMember = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findAllQuery(teamMemberId).pipe(catchSqlErrors);
+  const findByTeamMember = (teamMemberId: TeamMember.TeamMemberId) =>
+    findAllQuery(teamMemberId).pipe(catchSqlErrors);
 
-  findByMember = (teamMemberId: TeamMember.TeamMemberId) =>
-    this.findByMemberQuery(teamMemberId).pipe(catchSqlErrors);
+  const findByMember = (teamMemberId: TeamMember.TeamMemberId) =>
+    findByMemberQuery(teamMemberId).pipe(catchSqlErrors);
 
-  findById = (id: ActivityLog.ActivityLogId, memberId: TeamMember.TeamMemberId) =>
-    this.findByIdQuery({ id, team_member_id: memberId }).pipe(catchSqlErrors);
+  const findById = (id: ActivityLog.ActivityLogId, memberId: TeamMember.TeamMemberId) =>
+    findByIdQuery({ id, team_member_id: memberId }).pipe(catchSqlErrors);
 
-  insert = (input: {
+  const insert = (input: {
     team_member_id: TeamMember.TeamMemberId;
     activity_type_id: ActivityType.ActivityTypeId;
     logged_at: Date;
@@ -166,15 +165,15 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
     note: Option.Option<string>;
     source: ActivityLog.ActivitySource;
   }) =>
-    this.insertQuery(input).pipe(
+    insertQuery(input).pipe(
       catchSqlErrors,
       Effect.catchTag(
-        'NoSuchElementException',
+        'NoSuchElementError',
         LogicError.withMessage(() => 'Activity log insert returned no row'),
       ),
     );
 
-  update = (
+  const update = (
     id: ActivityLog.ActivityLogId,
     memberId: TeamMember.TeamMemberId,
     input: {
@@ -185,7 +184,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
   ): Effect.Effect<LogRow, ActivityLogApi.LogNotFound | ActivityLogApi.AutoSourceForbidden> =>
     Effect.Do.pipe(
       Effect.bind('existing', () =>
-        this.findById(id, memberId).pipe(
+        findById(id, memberId).pipe(
           Effect.flatMap(
             Option.match({
               onNone: () => Effect.fail(new ActivityLogApi.LogNotFound()),
@@ -200,7 +199,7 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
           : Effect.void,
       ),
       Effect.flatMap(({ existing }) =>
-        this.updateQuery({
+        updateQuery({
           id,
           team_member_id: memberId,
           activity_type_id: Option.getOrElse(
@@ -218,20 +217,20 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
         }).pipe(
           catchSqlErrors,
           Effect.catchTag(
-            'NoSuchElementException',
+            'NoSuchElementError',
             LogicError.withMessage(() => 'Activity log update returned no row'),
           ),
         ),
       ),
     );
 
-  delete = (
+  const _delete = (
     id: ActivityLog.ActivityLogId,
     memberId: TeamMember.TeamMemberId,
   ): Effect.Effect<void, ActivityLogApi.LogNotFound | ActivityLogApi.AutoSourceForbidden> =>
     Effect.Do.pipe(
       Effect.bind('existing', () =>
-        this.findById(id, memberId).pipe(
+        findById(id, memberId).pipe(
           Effect.flatMap(
             Option.match({
               onNone: () => Effect.fail(new ActivityLogApi.LogNotFound()),
@@ -245,7 +244,23 @@ export class ActivityLogsRepository extends Effect.Service<ActivityLogsRepositor
           ? Effect.fail(new ActivityLogApi.AutoSourceForbidden())
           : Effect.void,
       ),
-      Effect.flatMap(() => this.deleteQuery({ id, team_member_id: memberId }).pipe(catchSqlErrors)),
+      Effect.flatMap(() => deleteQuery({ id, team_member_id: memberId }).pipe(catchSqlErrors)),
       Effect.asVoid,
     );
+
+  return {
+    findByTeamMember,
+    findByMember,
+    findById,
+    insert,
+    update,
+    delete: _delete,
+  };
+});
+
+export class ActivityLogsRepository extends ServiceMap.Service<
+  ActivityLogsRepository,
+  Effect.Success<typeof make>
+>()('api/ActivityLogsRepository') {
+  static readonly Default = Layer.effect(ActivityLogsRepository, make);
 }

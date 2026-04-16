@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { NotificationId, NotificationType } from '~/models/Notification.js';
 import { TeamId } from '~/models/Team.js';
@@ -14,46 +14,39 @@ export class NotificationInfo extends Schema.Class<NotificationInfo>('Notificati
   createdAt: Schema.String,
 }) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'NotificationForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('NotificationForbidden', {}) {}
 
-export class NotificationNotFound extends Schema.TaggedError<NotificationNotFound>()(
+export class NotificationNotFound extends Schema.TaggedErrorClass<NotificationNotFound>()(
   'NotificationNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
 export class NotificationApiGroup extends HttpApiGroup.make('notification')
   .add(
-    HttpApiEndpoint.get('listNotifications', '/notifications')
-      .addSuccess(Schema.Array(NotificationInfo))
-      .addError(Forbidden, { status: 403 })
-      .setUrlParams(
-        Schema.Struct({
-          teamId: TeamId,
-        }),
-      )
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listNotifications', '/notifications', {
+      success: Schema.Array(NotificationInfo),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      query: {
+        teamId: TeamId,
+      },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('markAsRead', '/notifications/:notificationId/read')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(NotificationNotFound, { status: 404 })
-      .setPath(Schema.Struct({ notificationId: NotificationId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('markAsRead', '/notifications/:notificationId/read', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        NotificationNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { notificationId: NotificationId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('markAllAsRead', '/notifications/read-all')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .setPayload(
-        Schema.Struct({
-          teamId: TeamId,
-        }),
-      )
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('markAllAsRead', '/notifications/read-all', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: Schema.Struct({
+        teamId: TeamId,
+      }),
+    }).middleware(AuthMiddleware),
   ) {}

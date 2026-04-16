@@ -3,7 +3,7 @@ import { DateTime, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { buildUpcomingEventEmbed } from '~/rest/events/buildUpcomingEventEmbed.js';
 
-const FUTURE_START = DateTime.unsafeMake('2099-06-01T18:00:00Z');
+const FUTURE_START = DateTime.makeUnsafe('2099-06-01T18:00:00Z');
 
 const makeEntry = (
   overrides: Partial<
@@ -134,7 +134,7 @@ describe('buildUpcomingEventEmbed', () => {
     });
 
     it('shows start and end timestamp separated by dash when end_at is set', () => {
-      const endAt = DateTime.unsafeMake('2099-06-01T20:00:00Z');
+      const endAt = DateTime.makeUnsafe('2099-06-01T20:00:00Z');
       const entry = makeEntry({ end_at: Option.some(endAt) });
       const { embeds } = buildUpcomingEventEmbed({ ...baseParams, entry });
       const fields = embeds[0].fields ?? [];

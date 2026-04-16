@@ -11,8 +11,8 @@ export const createGuildRole = (
   roleName: string,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('role', ({ rest }) => rest.createGuildRole(guildId, { name: roleName })),
     Effect.retry(retryPolicy),
     Effect.tap(({ role }) =>

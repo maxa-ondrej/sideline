@@ -2,7 +2,7 @@ import { Discord as DomainDiscord } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DiscordGateway } from 'dfx/gateway';
 import * as Discord from 'dfx/types';
-import { Effect, Layer, Logger, LogLevel, Option } from 'effect';
+import { Effect, Layer, Option, References } from 'effect';
 import { describe, expect, it } from 'vitest';
 import { eventHandlers } from '~/events/index.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -55,7 +55,7 @@ const makeCapturingGateway = () => {
 
 const MockSyncRpcLayer = Layer.succeed(
   SyncRpc,
-  new Proxy({} as SyncRpc, {
+  new Proxy({} as any, {
     get: () => () => Effect.void,
   }),
 );
@@ -78,7 +78,7 @@ describe('events', () => {
         Effect.timeout('100 millis'),
         Effect.ignore,
         Effect.provide(Layer.merge(layer, MockLayers)),
-        Logger.withMinimumLogLevel(LogLevel.None),
+        Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
       ),
     );
 
@@ -100,7 +100,7 @@ describe('events', () => {
       eventHandlers.pipe(
         Effect.timeout('100 millis'),
         Effect.provide(Layer.merge(layer, MockLayers)),
-        Logger.withMinimumLogLevel(LogLevel.None),
+        Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
       ),
     );
 
@@ -114,8 +114,8 @@ describe('events', () => {
 
       const RecordingSyncRpcLayer = Layer.succeed(
         SyncRpc,
-        new Proxy({} as SyncRpc, {
-          get: (_target, method: string) => (args: unknown) => {
+        new Proxy({} as any, {
+          get: (_target: unknown, method: string) => (args: unknown) => {
             calls.push({ method, args });
             return Effect.void;
           },
@@ -127,7 +127,7 @@ describe('events', () => {
       await Effect.runPromise(
         eventHandlers.pipe(
           Effect.provide(Layer.mergeAll(gatewayLayer, RecordingSyncRpcLayer, MockDiscordRESTLayer)),
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
@@ -163,15 +163,15 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelCreate, syncableTextChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
       const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
       expect(upsertCalls).toHaveLength(1);
       expect(upsertCalls[0].args).toMatchObject({
-        channel_id: DomainDiscord.Snowflake.make('111111111'),
-        guild_id: DomainDiscord.Snowflake.make('222222222'),
+        channel_id: DomainDiscord.Snowflake.makeUnsafe('111111111'),
+        guild_id: DomainDiscord.Snowflake.makeUnsafe('222222222'),
         name: 'general',
         type: 0,
         parent_id: Option.none(),
@@ -183,14 +183,14 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelCreate, syncableCategoryChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
       const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
       expect(upsertCalls).toHaveLength(1);
       expect(upsertCalls[0].args).toMatchObject({
-        channel_id: DomainDiscord.Snowflake.make('444444444'),
+        channel_id: DomainDiscord.Snowflake.makeUnsafe('444444444'),
         name: 'Category',
         type: 4,
       });
@@ -201,7 +201,7 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelCreate, nonSyncableVoiceChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
@@ -214,15 +214,15 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelDelete, syncableTextChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
       const deleteCalls = calls.filter((c) => c.method === 'Guild/DeleteChannel');
       expect(deleteCalls).toHaveLength(1);
       expect(deleteCalls[0].args).toMatchObject({
-        channel_id: DomainDiscord.Snowflake.make('111111111'),
-        guild_id: DomainDiscord.Snowflake.make('222222222'),
+        channel_id: DomainDiscord.Snowflake.makeUnsafe('111111111'),
+        guild_id: DomainDiscord.Snowflake.makeUnsafe('222222222'),
       });
     });
 
@@ -231,7 +231,7 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelDelete, nonSyncableVoiceChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
@@ -244,15 +244,15 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelUpdate, syncableTextChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 
       const upsertCalls = calls.filter((c) => c.method === 'Guild/UpsertChannel');
       expect(upsertCalls).toHaveLength(1);
       expect(upsertCalls[0].args).toMatchObject({
-        channel_id: DomainDiscord.Snowflake.make('111111111'),
-        guild_id: DomainDiscord.Snowflake.make('222222222'),
+        channel_id: DomainDiscord.Snowflake.makeUnsafe('111111111'),
+        guild_id: DomainDiscord.Snowflake.makeUnsafe('222222222'),
         name: 'general',
         type: 0,
       });
@@ -263,7 +263,7 @@ describe('events', () => {
 
       await Effect.runPromise(
         dispatch(Discord.GatewayDispatchEvents.ChannelUpdate, nonSyncableVoiceChannel).pipe(
-          Logger.withMinimumLogLevel(LogLevel.None),
+          Effect.provide(Layer.succeed(References.MinimumLogLevel, 'None')),
         ),
       );
 

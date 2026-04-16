@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, EventSeries, GroupModel, Team, TeamMember, TrainingType } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
-import { type DateTime, Effect, Option, Schema } from 'effect';
+import { type DateTime, Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
@@ -71,53 +71,46 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   event_horizon_days: Schema.Number,
 }) {}
 
-class EventSeriesInsertInput extends Schema.Class<EventSeriesInsertInput>('EventSeriesInsertInput')(
-  {
-    team_id: Schema.String,
-    training_type_id: Schema.OptionFromNullOr(Schema.String),
-    title: Schema.String,
-    description: Schema.OptionFromNullOr(Schema.String),
-    start_time: Schema.String,
-    end_time: Schema.OptionFromNullOr(Schema.String),
-    location: Schema.OptionFromNullOr(Schema.String),
-    frequency: Schema.String,
-    days_of_week: Schema.Array(Schema.Number),
-    start_date: Schemas.DateTimeFromDate,
-    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
-    created_by: Schema.String,
-    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-    owner_group_id: Schema.OptionFromNullOr(Schema.String),
-    member_group_id: Schema.OptionFromNullOr(Schema.String),
-  },
-) {}
+const EventSeriesInsertInput = Schema.Struct({
+  team_id: Schema.String,
+  training_type_id: Schema.OptionFromNullOr(Schema.String),
+  title: Schema.String,
+  description: Schema.OptionFromNullOr(Schema.String),
+  start_time: Schema.String,
+  end_time: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  frequency: Schema.String,
+  days_of_week: Schema.Array(Schema.Number),
+  start_date: Schemas.DateTimeFromDate,
+  end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  created_by: Schema.String,
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(Schema.String),
+});
 
-class EventSeriesUpdateInput extends Schema.Class<EventSeriesUpdateInput>('EventSeriesUpdateInput')(
-  {
-    id: EventSeries.EventSeriesId,
-    title: Schema.String,
-    training_type_id: Schema.OptionFromNullOr(Schema.String),
-    description: Schema.OptionFromNullOr(Schema.String),
-    days_of_week: Schema.Array(Schema.Number),
-    start_time: Schema.String,
-    end_time: Schema.OptionFromNullOr(Schema.String),
-    location: Schema.OptionFromNullOr(Schema.String),
-    end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
-    discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-    owner_group_id: Schema.OptionFromNullOr(Schema.String),
-    member_group_id: Schema.OptionFromNullOr(Schema.String),
-  },
-) {}
+const EventSeriesUpdateInput = Schema.Struct({
+  id: EventSeries.EventSeriesId,
+  title: Schema.String,
+  training_type_id: Schema.OptionFromNullOr(Schema.String),
+  description: Schema.OptionFromNullOr(Schema.String),
+  days_of_week: Schema.Array(Schema.Number),
+  start_time: Schema.String,
+  end_time: Schema.OptionFromNullOr(Schema.String),
+  location: Schema.OptionFromNullOr(Schema.String),
+  end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  owner_group_id: Schema.OptionFromNullOr(Schema.String),
+  member_group_id: Schema.OptionFromNullOr(Schema.String),
+});
 
-export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>()(
-  'api/EventSeriesRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private insertSeries = SqlSchema.single({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const insertSeries = SqlSchema.findOne({
     Request: EventSeriesInsertInput,
     Result: EventSeriesRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             INSERT INTO event_series (team_id, training_type_id, title, description,
                                       start_time, end_time, location, frequency,
                                       days_of_week, start_date, end_date, created_by,
@@ -134,10 +127,10 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           `,
   });
 
-  private findByTeamId = SqlSchema.findAll({
+  const findByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: EventSeriesWithDetails,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time, es.end_time, es.location, es.frequency,
                    es.days_of_week, es.start_date, es.end_date, es.status,
@@ -154,10 +147,10 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           `,
   });
 
-  private findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: EventSeries.EventSeriesId,
     Result: EventSeriesWithDetails,
-    execute: (id) => this.sql`
+    execute: (id) => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time, es.end_time, es.location, es.frequency,
                    es.days_of_week, es.start_date, es.end_date, es.status,
@@ -173,10 +166,10 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           `,
   });
 
-  private findActiveForGeneration = SqlSchema.findAll({
+  const findActiveForGeneration = SqlSchema.findAll({
     Request: Schema.Void,
     Result: EventSeriesForGeneration,
-    execute: () => this.sql`
+    execute: () => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
                    es.start_time, es.end_time, es.location, es.frequency,
                    es.days_of_week, es.start_date, es.end_date,
@@ -191,20 +184,19 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           `,
   });
 
-  private setLastGeneratedDate = SqlSchema.void({
+  const setLastGeneratedDate = SqlSchema.void({
     Request: Schema.Struct({
       id: EventSeries.EventSeriesId,
       last_generated_date: Schemas.DateTimeFromDate,
     }),
     execute: (input) =>
-      this
-        .sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
+      sql`UPDATE event_series SET last_generated_date = ${input.last_generated_date}::date, updated_at = now() WHERE id = ${input.id}`,
   });
 
-  private updateSeries = SqlSchema.single({
+  const updateSeries = SqlSchema.findOne({
     Request: EventSeriesUpdateInput,
     Result: EventSeriesRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
             UPDATE event_series SET
               title = ${input.title},
               training_type_id = ${input.training_type_id},
@@ -226,13 +218,13 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
           `,
   });
 
-  private cancelSeries = SqlSchema.void({
+  const cancelSeries = SqlSchema.void({
     Request: EventSeries.EventSeriesId,
     execute: (id) =>
-      this.sql`UPDATE event_series SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
+      sql`UPDATE event_series SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
   });
 
-  insertEventSeries = ({
+  const insertEventSeries = ({
     teamId,
     trainingTypeId,
     title,
@@ -265,7 +257,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     ownerGroupId?: Option.Option<string>;
     memberGroupId?: Option.Option<string>;
   }) =>
-    this.insertSeries({
+    insertSeries({
       team_id: teamId,
       training_type_id: trainingTypeId,
       title,
@@ -283,12 +275,12 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       member_group_id: memberGroupId,
     }).pipe(catchSqlErrors);
 
-  findSeriesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
+  const findSeriesByTeamId = (teamId: Team.TeamId) => findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findSeriesById = (seriesId: EventSeries.EventSeriesId) =>
-    this.findById(seriesId).pipe(catchSqlErrors);
+  const findSeriesById = (seriesId: EventSeries.EventSeriesId) =>
+    findById(seriesId).pipe(catchSqlErrors);
 
-  updateEventSeries = ({
+  const updateEventSeries = ({
     id,
     title,
     trainingTypeId,
@@ -315,7 +307,7 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
     ownerGroupId?: Option.Option<string>;
     memberGroupId?: Option.Option<string>;
   }) =>
-    this.updateSeries({
+    updateSeries({
       id,
       title,
       training_type_id: trainingTypeId,
@@ -330,12 +322,29 @@ export class EventSeriesRepository extends Effect.Service<EventSeriesRepository>
       member_group_id: memberGroupId,
     }).pipe(catchSqlErrors);
 
-  cancelEventSeries = (seriesId: EventSeries.EventSeriesId) =>
-    this.cancelSeries(seriesId).pipe(catchSqlErrors);
+  const cancelEventSeries = (seriesId: EventSeries.EventSeriesId) =>
+    cancelSeries(seriesId).pipe(catchSqlErrors);
 
-  getActiveForGeneration = () =>
-    this.findActiveForGeneration(undefined as undefined).pipe(catchSqlErrors);
+  const getActiveForGeneration = () =>
+    findActiveForGeneration(undefined as undefined).pipe(catchSqlErrors);
 
-  updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: DateTime.Utc) =>
-    this.setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(catchSqlErrors);
+  const updateLastGeneratedDate = (seriesId: EventSeries.EventSeriesId, date: DateTime.Utc) =>
+    setLastGeneratedDate({ id: seriesId, last_generated_date: date }).pipe(catchSqlErrors);
+
+  return {
+    insertEventSeries,
+    findSeriesByTeamId,
+    findSeriesById,
+    updateEventSeries,
+    cancelEventSeries,
+    getActiveForGeneration,
+    updateLastGeneratedDate,
+  };
+});
+
+export class EventSeriesRepository extends ServiceMap.Service<
+  EventSeriesRepository,
+  Effect.Success<typeof make>
+>()('api/EventSeriesRepository') {
+  static readonly Default = Layer.effect(EventSeriesRepository, make);
 }

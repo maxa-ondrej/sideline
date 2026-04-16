@@ -25,7 +25,7 @@ export const withFieldErrors =
           if (match) {
             form.setError(match.field, { message: match.message });
           }
-          return new SilentClientError({ message: e._tag });
+          return Effect.fail(new SilentClientError({ message: e._tag }));
         },
       ),
     ) as Effect.Effect<A, Exclude<E, { readonly _tag: string }> | SilentClientError, R>;

@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { AgeThresholdApi, Auth } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js';
@@ -13,15 +13,15 @@ const forbidden = new AgeThresholdApi.Forbidden();
 
 export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('thresholds', () => AgeThresholdRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('ageCheck', () => AgeCheckService),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('thresholds', () => AgeThresholdRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
+    Effect.bind('ageCheck', () => AgeCheckService.asEffect()),
     Effect.map(({ members, thresholds, groups, ageCheck }) =>
       handlers
-        .handle('listAgeThresholds', ({ path: { teamId } }) =>
+        .handle('listAgeThresholds', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -45,9 +45,9 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
           ),
         )
-        .handle('createAgeThreshold', ({ path: { teamId }, payload }) =>
+        .handle('createAgeThreshold', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -87,14 +87,14 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
               Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating age threshold — no row returned'),
             ),
           ),
         )
-        .handle('updateAgeThreshold', ({ path: { teamId, ruleId }, payload }) =>
+        .handle('updateAgeThreshold', ({ params: { teamId, ruleId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -131,14 +131,14 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating age threshold — no row returned'),
             ),
           ),
         )
-        .handle('deleteAgeThreshold', ({ path: { teamId, ruleId } }) =>
+        .handle('deleteAgeThreshold', ({ params: { teamId, ruleId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -164,9 +164,9 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.asVoid,
           ),
         )
-        .handle('evaluateAgeThresholds', ({ path: { teamId } }) =>
+        .handle('evaluateAgeThresholds', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -175,6 +175,10 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
             Effect.bind('changes', () => ageCheck.evaluate(teamId, new Date())),
             Effect.map(({ changes }) => changes),
+            Effect.catchTag(
+              'NoSuchElementError',
+              LogicError.withMessage(() => 'Age threshold evaluation — unexpected missing element'),
+            ),
           ),
         ),
     ),

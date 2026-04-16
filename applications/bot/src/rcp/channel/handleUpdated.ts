@@ -19,8 +19,8 @@ const handleChannelUpdated = (event: ChannelUpdatedFields) => {
     onSome: (c) => c,
   });
   return Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.tap(({ rest }) =>
       rest
         .updateGuildRole(event.guild_id, event.discord_role_id, {

@@ -1,8 +1,8 @@
 import { Discord } from '@sideline/domain';
 import { Option, Schema } from 'effect';
 
-const Nullish = <S extends Schema.Schema.Any>(schema: S) =>
-  Schema.OptionFromNullishOr(schema, null);
+const Nullish = <S extends Schema.Top>(schema: S) =>
+  Schema.OptionFromNullishOr(schema, { onNoneEncoding: null });
 
 /** Subset of dfx GuildChannelResponse for text channel sync. type: 0 acts as a filter. */
 export const DfxTextChannel = Schema.Struct({
@@ -16,7 +16,7 @@ export const DfxTextChannel = Schema.Struct({
 export const DfxSyncableChannel = Schema.Struct({
   id: Discord.Snowflake,
   name: Schema.String,
-  type: Schema.Literal(0, 4),
+  type: Schema.Literals([0, 4]),
   parent_id: Nullish(Discord.Snowflake),
 });
 
@@ -25,7 +25,7 @@ export const DfxUser = Schema.Struct({
   id: Discord.Snowflake,
   username: Schema.String,
   avatar: Nullish(Schema.String),
-  bot: Schema.optionalWith(Schema.Boolean, { default: () => false }),
+  bot: Schema.optional(Schema.Boolean),
 });
 
 /** Subset of dfx GuildMemberResponse for member sync. */
@@ -47,6 +47,6 @@ export const interactionUserId = (interaction: {
   user?: { id: string } | null;
 }): Option.Option<Discord.Snowflake> =>
   Option.map(
-    Option.fromNullable(interaction.member?.user?.id ?? interaction.user?.id),
-    Discord.Snowflake.make,
+    Option.fromNullishOr(interaction.member?.user?.id ?? interaction.user?.id),
+    Discord.Snowflake.makeUnsafe,
   );

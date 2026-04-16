@@ -10,12 +10,12 @@ import { DiscordREST, type DiscordRestService } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { DateTime, Effect, Metric, Option, pipe, Schema } from 'effect';
+import { DateTime, Effect, Metric, Option, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { interactionUserId } from '~/schemas.js';
-import { SyncRpc } from '~/services/SyncRpc.js';
+import { SyncRpc, type SyncRpcClient } from '~/services/SyncRpc.js';
 
 const localizeRsvpResponse = (response: EventRsvp.RsvpResponse, locale: Locale): string => {
   switch (response) {
@@ -85,7 +85,7 @@ const modalValueOption = (
 
 export const postRsvpDiscordUpdates = (params: {
   interaction: Discord.APIInteraction;
-  rpc: SyncRpc;
+  rpc: SyncRpcClient;
   rest: DiscordRestService;
   eventId: Event.EventId;
   teamId: Team.TeamId;
@@ -111,7 +111,10 @@ export const postRsvpDiscordUpdates = (params: {
           Option.match(embedInfo, {
             onNone: () => Effect.void,
             onSome: (info) => {
-              const isStarted = DateTime.greaterThanOrEqualTo(DateTime.unsafeNow(), info.start_at);
+              const isStarted = DateTime.isGreaterThanOrEqualTo(
+                DateTime.nowUnsafe(),
+                info.start_at,
+              );
               const payload = buildEventEmbed({
                 teamId,
                 eventId,
@@ -165,12 +168,8 @@ export const postRsvpDiscordUpdates = (params: {
         concurrency: 'unbounded',
       }).pipe(Effect.asVoid);
     }),
-    Effect.catchTag(
-      'RequestError',
-      'ResponseError',
-      'RatelimitedResponse',
-      'ErrorResponse',
-      (error) => Effect.logError('Failed to handle post-RSVP Discord updates', error),
+    Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+      Effect.logError('Failed to handle post-RSVP Discord updates', error),
     ),
   );
 };
@@ -179,12 +178,15 @@ export const RsvpButton = Ix.messageComponent(
   Ix.idStartsWith('rsvp:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = decodeTeamId(parts[1]);
@@ -287,12 +289,8 @@ export const RsvpButton = Ix.messageComponent(
                 : { content: result.content },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to update RSVP response', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to update RSVP response', error),
         ),
       );
 
@@ -300,7 +298,7 @@ export const RsvpButton = Ix.messageComponent(
         type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: Discord.MessageFlags.Ephemeral },
       };
-      return Effect.as(Effect.forkDaemon(submitAndFollowUp), deferred);
+      return Effect.as(Effect.forkDetach(submitAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-button'),
   ),
@@ -310,10 +308,13 @@ export const RsvpAddMessageButton = Ix.messageComponent(
   Ix.idStartsWith('rsvp-add-msg:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
     Effect.map(({ data, interaction }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
@@ -354,12 +355,15 @@ export const RsvpClearMessageButton = Ix.messageComponent(
   Ix.idStartsWith('rsvp-clear-msg:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = decodeTeamId(parts[1]);
@@ -449,12 +453,8 @@ export const RsvpClearMessageButton = Ix.messageComponent(
                 : { content: result.content },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to update RSVP response', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to update RSVP response', error),
         ),
       );
 
@@ -462,7 +462,7 @@ export const RsvpClearMessageButton = Ix.messageComponent(
         type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: Discord.MessageFlags.Ephemeral },
       };
-      return Effect.as(Effect.forkDaemon(clearAndFollowUp), deferred);
+      return Effect.as(Effect.forkDetach(clearAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-clear-message-button'),
   ),
@@ -472,12 +472,15 @@ export const RsvpModal = Ix.modalSubmit(
   Ix.idStartsWith('rsvp-modal:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'modal')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'modal' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => ModalSubmitData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('data', () => ModalSubmitData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = decodeTeamId(parts[1]);
@@ -579,12 +582,8 @@ export const RsvpModal = Ix.modalSubmit(
                 : { content: result.content },
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to update RSVP response', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to update RSVP response', error),
         ),
       );
 
@@ -592,7 +591,7 @@ export const RsvpModal = Ix.modalSubmit(
         type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: Discord.MessageFlags.Ephemeral },
       };
-      return Effect.as(Effect.forkDaemon(submitAndFollowUp), deferred);
+      return Effect.as(Effect.forkDetach(submitAndFollowUp), deferred);
     }),
     Effect.withSpan('interaction/rsvp-modal'),
   ),

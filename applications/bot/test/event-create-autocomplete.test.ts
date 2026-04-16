@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@effect/vitest';
 import type { TrainingType } from '@sideline/domain';
 import { Effect, Layer, Option } from 'effect';
-import { SyncRpc } from '~/services/SyncRpc.js';
+import { SyncRpc, type SyncRpcClient } from '~/services/SyncRpc.js';
 
 // --- Test IDs ---
 const TEST_GUILD_ID = '999999999999999999';
@@ -19,8 +19,8 @@ const mockTrainingTypes = [
 const makeMockSyncRpc = (
   trainingTypes: Array<{ id: string; name: string }> = mockTrainingTypes,
   shouldFail = false,
-): SyncRpc => {
-  return new Proxy({} as SyncRpc, {
+): SyncRpcClient => {
+  return new Proxy({} as SyncRpcClient, {
     get: (_target, prop) => {
       if (prop === 'Event/GetTrainingTypesByGuild') {
         return (_payload: { guild_id: string }) => {
@@ -39,7 +39,7 @@ const makeMockSyncRpc = (
 // These tests verify the BEHAVIOR of the handler that will be implemented.
 
 const handleAutocomplete = (
-  rpc: SyncRpc,
+  rpc: SyncRpcClient,
   guildId: Option.Option<string>,
   eventType: string,
   query: string,
@@ -68,12 +68,12 @@ const handleAutocomplete = (
             .slice(0, 25)
             .map((tt) => ({ name: tt.name, value: tt.id })),
         ),
-        Effect.catchAllDefect(() => Effect.succeed([] as Array<{ name: string; value: string }>)),
+        Effect.catchDefect(() => Effect.succeed([] as Array<{ name: string; value: string }>)),
       );
     }),
   );
 
-const makeMockLayer = (rpc: SyncRpc) => Layer.succeed(SyncRpc, rpc);
+const makeMockLayer = (rpc: SyncRpcClient) => Layer.succeed(SyncRpc, rpc);
 
 describe('event-create-autocomplete handler', () => {
   it.effect('returns filtered training type choices matching query', () => {
@@ -82,11 +82,13 @@ describe('event-create-autocomplete handler', () => {
 
     return handleAutocomplete(rpc, Option.some(TEST_GUILD_ID), 'training', 'fit').pipe(
       Effect.provide(layer),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(1);
-        expect(result[0].name).toBe('Fitness');
-        expect(result[0].value).toBe(TEST_TT_1);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(1);
+          expect(result[0].name).toBe('Fitness');
+          expect(result[0].value).toBe(TEST_TT_1);
+        }),
+      ),
       Effect.asVoid,
     );
   });
@@ -97,9 +99,11 @@ describe('event-create-autocomplete handler', () => {
 
     return handleAutocomplete(rpc, Option.some(TEST_GUILD_ID), 'training', '').pipe(
       Effect.provide(layer),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(3);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(3);
+        }),
+      ),
       Effect.asVoid,
     );
   });
@@ -113,9 +117,11 @@ describe('event-create-autocomplete handler', () => {
 
         return handleAutocomplete(rpc, Option.some(TEST_GUILD_ID), eventType, '').pipe(
           Effect.provide(layer),
-          Effect.tap((result) => {
-            expect(result).toHaveLength(0);
-          }),
+          Effect.tap((result) =>
+            Effect.sync(() => {
+              expect(result).toHaveLength(0);
+            }),
+          ),
           Effect.asVoid,
         );
       },
@@ -129,9 +135,11 @@ describe('event-create-autocomplete handler', () => {
 
     return handleAutocomplete(rpc, Option.some(TEST_GUILD_ID), 'training', '').pipe(
       Effect.provide(layer),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(0);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(0);
+        }),
+      ),
       Effect.asVoid,
     );
   });
@@ -146,9 +154,11 @@ describe('event-create-autocomplete handler', () => {
 
     return handleAutocomplete(rpc, Option.some(TEST_GUILD_ID), 'training', '').pipe(
       Effect.provide(layer),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(25);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(25);
+        }),
+      ),
       Effect.asVoid,
     );
   });
@@ -159,9 +169,11 @@ describe('event-create-autocomplete handler', () => {
 
     return handleAutocomplete(rpc, Option.none(), 'training', 'fit').pipe(
       Effect.provide(layer),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(0);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(0);
+        }),
+      ),
       Effect.asVoid,
     );
   });
@@ -210,7 +222,7 @@ describe('event-create modal custom_id parsing', () => {
   it.effect('passes trainingTypeId to CreateEvent RPC when present in custom_id', () => {
     let capturedTrainingTypeId: Option.Option<string> = Option.none();
 
-    const rpc = new Proxy({} as SyncRpc, {
+    const rpc = new Proxy({} as SyncRpcClient, {
       get: (_target, prop) => {
         if (prop === 'Event/CreateEvent') {
           return (payload: { training_type_id: Option.Option<string> }) => {
@@ -229,17 +241,19 @@ describe('event-create modal custom_id parsing', () => {
     return Effect.Do.pipe(
       Effect.flatMap(() =>
         (
-          rpc['Event/CreateEvent'] as (p: {
+          rpc['Event/CreateEvent'] as unknown as (p: {
             training_type_id: Option.Option<string>;
           }) => Effect.Effect<unknown>
         )({
           training_type_id: trainingTypeId,
         }),
       ),
-      Effect.tap(() => {
-        expect(Option.isSome(capturedTrainingTypeId)).toBe(true);
-        expect(Option.getOrNull(capturedTrainingTypeId)).toBe(TEST_TT_1);
-      }),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(Option.isSome(capturedTrainingTypeId)).toBe(true);
+          expect(Option.getOrNull(capturedTrainingTypeId)).toBe(TEST_TT_1);
+        }),
+      ),
       Effect.asVoid,
     );
   });
@@ -249,7 +263,7 @@ describe('event-create modal custom_id parsing', () => {
     () => {
       let capturedTrainingTypeId: Option.Option<string> = Option.some('should-be-cleared');
 
-      const rpc = new Proxy({} as SyncRpc, {
+      const rpc = new Proxy({} as SyncRpcClient, {
         get: (_target, prop) => {
           if (prop === 'Event/CreateEvent') {
             return (payload: { training_type_id: Option.Option<string> }) => {
@@ -268,16 +282,18 @@ describe('event-create modal custom_id parsing', () => {
       return Effect.Do.pipe(
         Effect.flatMap(() =>
           (
-            rpc['Event/CreateEvent'] as (p: {
+            rpc['Event/CreateEvent'] as unknown as (p: {
               training_type_id: Option.Option<string>;
             }) => Effect.Effect<unknown>
           )({
             training_type_id: trainingTypeId,
           }),
         ),
-        Effect.tap(() => {
-          expect(Option.isNone(capturedTrainingTypeId)).toBe(true);
-        }),
+        Effect.tap(() =>
+          Effect.sync(() => {
+            expect(Option.isNone(capturedTrainingTypeId)).toBe(true);
+          }),
+        ),
         Effect.asVoid,
       );
     },

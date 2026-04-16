@@ -5,9 +5,9 @@ import { Schema } from 'effect';
 export const fetchEnv = createServerFn().handler(() =>
   createEnv({
     server: {
-      SERVER_URL: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
-      DISCORD_CLIENT_ID: Schema.NonEmptyTrimmedString.pipe(Schema.standardSchemaV1),
-      WEB_URL: Schema.UndefinedOr(Schema.NonEmptyTrimmedString).pipe(Schema.standardSchemaV1),
+      SERVER_URL: Schema.NonEmptyString.pipe(Schema.toStandardSchemaV1),
+      DISCORD_CLIENT_ID: Schema.NonEmptyString.pipe(Schema.toStandardSchemaV1),
+      WEB_URL: Schema.UndefinedOr(Schema.NonEmptyString).pipe(Schema.toStandardSchemaV1),
     },
     runtimeEnv: process.env,
     emptyStringAsUndefined: true,

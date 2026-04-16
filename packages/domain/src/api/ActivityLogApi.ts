@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { ActivityLogId, ActivitySource } from '~/models/ActivityLog.js';
 import { ActivityTypeId } from '~/models/ActivityType.js';
@@ -22,24 +22,25 @@ export class ActivityLogListResponse extends Schema.Class<ActivityLogListRespons
   logs: Schema.Array(ActivityLogEntry),
 }) {}
 
-export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequest>(
-  'CreateActivityLogRequest',
-)({
+export const CreateActivityLogRequest = Schema.Struct({
   activityTypeId: ActivityTypeId,
-  durationMinutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
-  note: Schema.OptionFromNullOr(Schema.String),
-}) {}
-
-export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequest>(
-  'UpdateActivityLogRequest',
-)({
-  activityTypeId: Schema.optionalWith(ActivityTypeId, { as: 'Option' }),
-  durationMinutes: Schema.optionalWith(
-    Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
-    { as: 'Option' },
+  durationMinutes: Schema.OptionFromNullOr(
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   ),
-  note: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-}) {}
+  note: Schema.OptionFromNullOr(Schema.String),
+});
+export type CreateActivityLogRequest = Schema.Schema.Type<typeof CreateActivityLogRequest>;
+
+export const UpdateActivityLogRequest = Schema.Struct({
+  activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
+  durationMinutes: Schema.OptionFromOptional(
+    Schema.OptionFromNullOr(
+      Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
+    ),
+  ),
+  note: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+});
+export type UpdateActivityLogRequest = Schema.Schema.Type<typeof UpdateActivityLogRequest>;
 
 export class ActivityTypeEntry extends Schema.Class<ActivityTypeEntry>('ActivityTypeEntry')({
   id: ActivityTypeId,
@@ -53,83 +54,84 @@ export class ActivityTypeListResponse extends Schema.Class<ActivityTypeListRespo
   activityTypes: Schema.Array(ActivityTypeEntry),
 }) {}
 
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'ActivityLogMemberNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'ActivityLogForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('ActivityLogForbidden', {}) {}
 
-export class LogNotFound extends Schema.TaggedError<LogNotFound>()(
+export class LogNotFound extends Schema.TaggedErrorClass<LogNotFound>()(
   'ActivityLogNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class MemberInactive extends Schema.TaggedError<MemberInactive>()(
+export class MemberInactive extends Schema.TaggedErrorClass<MemberInactive>()(
   'ActivityLogMemberInactive',
   {},
-  HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
-export class AutoSourceForbidden extends Schema.TaggedError<AutoSourceForbidden>()(
+export class AutoSourceForbidden extends Schema.TaggedErrorClass<AutoSourceForbidden>()(
   'ActivityLogAutoSourceForbidden',
   {},
-  HttpApiSchema.annotations({ status: 403 }),
 ) {}
 
 export class ActivityLogApiGroup extends HttpApiGroup.make('activityLog')
   .add(
-    HttpApiEndpoint.get('listLogs', '/teams/:teamId/members/:memberId/activity-logs')
-      .addSuccess(ActivityLogListResponse)
-      .addError(MemberNotFound, { status: 404 })
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listLogs', '/teams/:teamId/members/:memberId/activity-logs', {
+      success: ActivityLogListResponse,
+      error: [
+        MemberNotFound.pipe(HttpApiSchema.status(404)),
+        Forbidden.pipe(HttpApiSchema.status(403)),
+      ],
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createLog', '/teams/:teamId/members/:memberId/activity-logs')
-      .addSuccess(ActivityLogEntry, { status: 201 })
-      .addError(MemberNotFound, { status: 404 })
-      .addError(Forbidden, { status: 403 })
-      .addError(MemberInactive, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .setPayload(CreateActivityLogRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createLog', '/teams/:teamId/members/:memberId/activity-logs', {
+      success: ActivityLogEntry.pipe(HttpApiSchema.status(201)),
+      error: [
+        MemberNotFound.pipe(HttpApiSchema.status(404)),
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        MemberInactive.pipe(HttpApiSchema.status(403)),
+      ],
+      payload: CreateActivityLogRequest,
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateLog', '/teams/:teamId/members/:memberId/activity-logs/:logId')
-      .addSuccess(ActivityLogEntry)
-      .addError(LogNotFound, { status: 404 })
-      .addError(Forbidden, { status: 403 })
-      .addError(MemberInactive, { status: 403 })
-      .addError(AutoSourceForbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
-      .setPayload(UpdateActivityLogRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateLog', '/teams/:teamId/members/:memberId/activity-logs/:logId', {
+      success: ActivityLogEntry,
+      error: [
+        LogNotFound.pipe(HttpApiSchema.status(404)),
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        MemberInactive.pipe(HttpApiSchema.status(403)),
+        AutoSourceForbidden.pipe(HttpApiSchema.status(403)),
+      ],
+      payload: UpdateActivityLogRequest,
+      params: { teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId },
+    }).middleware(AuthMiddleware),
   )
   .add(
     HttpApiEndpoint.post(
       'deleteLog',
       '/teams/:teamId/members/:memberId/activity-logs/:logId/delete',
-    )
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(LogNotFound, { status: 404 })
-      .addError(Forbidden, { status: 403 })
-      .addError(MemberInactive, { status: 403 })
-      .addError(AutoSourceForbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId }))
-      .middleware(AuthMiddleware),
+      {
+        success: Schema.Void.pipe(HttpApiSchema.status(204)),
+        error: [
+          LogNotFound.pipe(HttpApiSchema.status(404)),
+          Forbidden.pipe(HttpApiSchema.status(403)),
+          MemberInactive.pipe(HttpApiSchema.status(403)),
+          AutoSourceForbidden.pipe(HttpApiSchema.status(403)),
+        ],
+        params: { teamId: TeamId, memberId: TeamMemberId, logId: ActivityLogId },
+      },
+    ).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('listActivityTypes', '/teams/:teamId/activity-types')
-      .addSuccess(ActivityTypeListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listActivityTypes', '/teams/:teamId/activity-types', {
+      success: ActivityTypeListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

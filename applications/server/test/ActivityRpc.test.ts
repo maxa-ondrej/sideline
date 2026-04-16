@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import type { ActivityType, Discord, Team, TeamMember } from '@sideline/domain';
 import { ActivityRpcModels } from '@sideline/domain';
-import { DateTime, Effect, Either, Layer, Option } from 'effect';
+import { DateTime, Effect, Layer, Option, Result } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -46,15 +46,15 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: TEST_GUILD_ID,
           created_by: 'user-1',
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
   },
   findById: () => Effect.succeed(Option.none()),
   insert: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   findByDiscordId: (discordId: string) => {
@@ -81,7 +81,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
   completeProfile: () => Effect.die(new Error('Not implemented')),
   updateLocale: () => Effect.die(new Error('Not implemented')),
   updateAdminProfile: () => Effect.die(new Error('Not implemented')),
-} as unknown as UsersRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (teamId: string, userId: string) => {
@@ -108,7 +108,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: (slug: string) => {
@@ -122,7 +122,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
   },
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-} as unknown as ActivityTypesRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: (input: ActivityLogInserted) => {
@@ -133,7 +133,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       logged_at: input.logged_at.toISOString(),
     });
   },
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockTeamsRepositoryLayer,
@@ -168,11 +168,11 @@ const logActivity = (payload: {
   | ActivityTypesRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('users', () => UsersRepository),
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
-    Effect.bind('activityTypes', () => ActivityTypesRepository),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('users', () => UsersRepository.asEffect()),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+    Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
     Effect.bind('team', ({ teams }) =>
       teams.findByGuildId(payload.guild_id).pipe(
         Effect.flatMap(
@@ -229,7 +229,7 @@ const logActivity = (payload: {
       activityLogs.insert({
         team_member_id: member.id,
         activity_type_id: activityType.id,
-        logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+        logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
         duration_minutes: payload.duration_minutes,
         note: payload.note,
         source: 'manual',
@@ -299,12 +299,12 @@ describe('LogActivity RPC handler', () => {
       duration_minutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityGuildNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityGuildNotFound');
           }
           expect(activityLogsInserted).toHaveLength(0);
         }),
@@ -322,12 +322,12 @@ describe('LogActivity RPC handler', () => {
       duration_minutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityMemberNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityMemberNotFound');
           }
           expect(activityLogsInserted).toHaveLength(0);
         }),
@@ -363,7 +363,7 @@ describe('LogActivity RPC handler', () => {
       assignRole: () => Effect.void,
       unassignRole: () => Effect.void,
       setJerseyNumber: () => Effect.void,
-    } as unknown as TeamMembersRepository);
+    } as any);
 
     const LayerWithInactiveMember = Layer.mergeAll(
       MockTeamsRepositoryLayer,
@@ -380,12 +380,12 @@ describe('LogActivity RPC handler', () => {
       duration_minutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityMemberNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityMemberNotFound');
           }
           expect(activityLogsInserted).toHaveLength(0);
         }),

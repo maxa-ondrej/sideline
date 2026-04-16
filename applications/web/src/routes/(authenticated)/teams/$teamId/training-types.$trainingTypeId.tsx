@@ -13,17 +13,17 @@ export const Route = createFileRoute(
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const trainingTypeId = Schema.decodeSync(TrainingType.TrainingTypeId)(params.trainingTypeId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          trainingType: api.trainingType.getTrainingType({ path: { teamId, trainingTypeId } }),
-          series: api.eventSeries.listEventSeries({ path: { teamId } }),
+          trainingType: api.trainingType.getTrainingType({ params: { teamId, trainingTypeId } }),
+          series: api.eventSeries.listEventSeries({ params: { teamId } }),
           discordChannels: api.group
-            .listDiscordChannels({ path: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .listDiscordChannels({ params: { teamId } })
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
           groups: api.group
-            .listGroups({ path: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .listGroups({ params: { teamId } })
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

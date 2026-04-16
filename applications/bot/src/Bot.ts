@@ -1,8 +1,10 @@
-import { runIx } from 'dfx/gateway';
-import { Effect } from 'effect';
+import type { DiscordREST } from 'dfx/DiscordREST';
+import { type DiscordGateway, runIx } from 'dfx/gateway';
+import { Effect, Schedule } from 'effect';
 import { commandBuilder } from '~/commands/index.js';
 import { eventHandlers } from '~/events/index.js';
 import { interactionBuilder } from '~/interactions/index.js';
+import type { SyncRpc } from '~/services/SyncRpc.js';
 import { ChannelSyncService, EventSyncService, RoleSyncService } from './index.js';
 
 const ixProgram = Effect.succeed(commandBuilder).pipe(
@@ -10,24 +12,38 @@ const ixProgram = Effect.succeed(commandBuilder).pipe(
   Effect.andThen(
     runIx((effect) =>
       // Top-level interaction error boundary — catches all causes including defects
-      Effect.catchAllCause(effect, (cause) => Effect.logError('Interaction error', cause)),
+      Effect.catchCause(effect, (cause) => Effect.logError('Interaction error', cause)),
     ),
   ),
 );
 
+const pollLoop = <E, R>(processTick: Effect.Effect<void, E, R>) =>
+  processTick.pipe(Effect.repeat(Schedule.spaced('5 seconds')));
+
+// biome-ignore lint/suspicious/noExplicitAny: dfx's handleDispatch returns Effect<..., any>, cast to specific requirements
 export const program = Effect.Do.pipe(
   Effect.bind('events', () => eventHandlers),
-  Effect.bind('roles', () => RoleSyncService),
-  Effect.bind('channels', () => ChannelSyncService),
-  Effect.bind('eventSync', () => EventSyncService),
+  Effect.bind('roles', () => RoleSyncService.asEffect()),
+  Effect.bind('channels', () => ChannelSyncService.asEffect()),
+  Effect.bind('eventSync', () => EventSyncService.asEffect()),
   Effect.tap(() => Effect.logInfo('Bot connected to Discord')),
   Effect.andThen(({ events, roles, channels, eventSync }) =>
     Effect.all(
-      [ixProgram, ...events, roles.pollLoop(), channels.pollLoop(), eventSync.pollLoop()],
+      [
+        ixProgram,
+        ...events,
+        pollLoop(roles.processTick),
+        pollLoop(channels.processTick),
+        pollLoop(eventSync.processTick),
+      ],
       {
         concurrency: 'unbounded',
       },
     ),
   ),
   Effect.asVoid,
-);
+) as Effect.Effect<
+  void,
+  unknown,
+  DiscordGateway | DiscordREST | SyncRpc | RoleSyncService | ChannelSyncService | EventSyncService
+>;

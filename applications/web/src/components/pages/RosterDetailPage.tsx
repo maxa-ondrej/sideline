@@ -64,10 +64,10 @@ export function RosterDetailPage({
 
   const handleSaveNameEmojiColor = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.some(editName),
             active: Option.none(),
@@ -77,7 +77,7 @@ export function RosterDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_rosterSaved() }),
     );
     setSaving(false);
@@ -87,10 +87,10 @@ export function RosterDetailPage({
   }, [teamIdBranded, rosterIdBranded, editName, editEmoji, editColor, run, router]);
 
   const handleToggleActive = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.none(),
             active: Option.some(!rosterDetail.active),
@@ -100,7 +100,7 @@ export function RosterDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_rosterUpdated() }),
     );
     if (Option.isSome(result)) {
@@ -119,10 +119,10 @@ export function RosterDetailPage({
   const handleLinkChannel = React.useCallback(async () => {
     if (!selectedChannelId) return;
     const snowflake = Schema.decodeSync(Discord.Snowflake)(selectedChannelId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.none(),
             active: Option.none(),
@@ -133,9 +133,9 @@ export function RosterDetailPage({
         }),
       ),
       Effect.catchTag('ChannelAlreadyLinked', () =>
-        ClientError.make(m.roster_channelAlreadyLinked()),
+        Effect.fail(ClientError.make(m.roster_channelAlreadyLinked())),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_channelLinked() }),
     );
     if (Option.isSome(result)) {
@@ -153,10 +153,10 @@ export function RosterDetailPage({
   ]);
 
   const handleUnlinkChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.updateRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: {
             name: Option.none(),
             active: Option.none(),
@@ -166,7 +166,7 @@ export function RosterDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_channelUnlinked() }),
     );
     if (Option.isSome(result)) {
@@ -175,13 +175,13 @@ export function RosterDetailPage({
   }, [teamIdBranded, rosterIdBranded, rosterDetail.color, rosterDetail.emoji, run, router]);
 
   const handleCreateChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.createChannel({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_channelCreateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_channelCreateFailed())),
       run({ success: m.roster_channelCreateRequested() }),
     );
     if (Option.isSome(result)) {
@@ -192,14 +192,14 @@ export function RosterDetailPage({
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(selectedMemberId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.addRosterMember({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
           payload: { memberId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_memberAdded() }),
     );
     if (Option.isSome(result)) {
@@ -211,13 +211,13 @@ export function RosterDetailPage({
   const handleRemoveMember = React.useCallback(
     async (memberIdRaw: string) => {
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.roster.removeRosterMember({
-            path: { teamId: teamIdBranded, rosterId: rosterIdBranded, memberId },
+            params: { teamId: teamIdBranded, rosterId: rosterIdBranded, memberId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
         run({ success: m.roster_memberRemoved() }),
       );
       if (Option.isSome(result)) {
@@ -229,13 +229,13 @@ export function RosterDetailPage({
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.roster_deleteRosterConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.deleteRoster({
-          path: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_updateFailed())),
       run({ success: m.roster_rosterDeleted() }),
     );
     if (Option.isSome(result)) {

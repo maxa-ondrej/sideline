@@ -1,7 +1,8 @@
-import { HttpApiBuilder, HttpServerResponse } from '@effect/platform';
 import { Auth, ICalApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { DateTime, Effect, Option } from 'effect';
+import { HttpServerResponse } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { env } from '~/env.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -69,13 +70,13 @@ const buildICalFeed = (
 
 export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('icalTokens', () => ICalTokensRepository),
-    Effect.bind('events', () => EventsRepository),
+    Effect.bind('icalTokens', () => ICalTokensRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
     Effect.map(({ icalTokens, events }) =>
       handlers
         .handle('getICalToken', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('existing', ({ currentUser }) => icalTokens.findByUserId(currentUser.id)),
             Effect.bind('token', ({ existing, currentUser }) =>
               Option.match(existing, {
@@ -91,14 +92,14 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating iCal token — no row returned'),
             ),
           ),
         )
         .handle('regenerateICalToken', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('token', ({ currentUser }) => icalTokens.regenerate(currentUser.id)),
             Effect.map(
               ({ token }) =>
@@ -108,12 +109,12 @@ export const ICalApiLive = HttpApiBuilder.group(Api, 'ical', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed regenerating iCal token — no row returned'),
             ),
           ),
         )
-        .handle('getICalFeed', ({ path: { token } }) =>
+        .handle('getICalFeed', ({ params: { token } }) =>
           Effect.Do.pipe(
             Effect.bind('icalToken', () => icalTokens.findByToken(token)),
             Effect.bind('tokenRow', ({ icalToken }) =>

@@ -1,7 +1,7 @@
 import type { EventRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Array, Effect, Match, Metric, pipe } from 'effect';
+import { Array, Effect, Match, Metric } from 'effect';
 import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -11,18 +11,21 @@ import { handleRsvpReminder } from './handleRsvpReminder.js';
 import { handleStarted } from './handleStarted.js';
 import { handleUpdated } from './handleUpdated.js';
 
-const action = Match.type<EventRpcEvents.UnprocessedEventSyncEvent>().pipe(
-  Match.tag('event_created', handleCreated),
-  Match.tag('event_updated', handleUpdated),
-  Match.tag('event_cancelled', handleCancelled),
-  Match.tag('event_started', handleStarted),
-  Match.tag('rsvp_reminder', handleRsvpReminder),
-  Match.exhaustive,
-);
+const action: (
+  event: EventRpcEvents.UnprocessedEventSyncEvent,
+) => Effect.Effect<void, unknown, SyncRpc | DiscordREST> =
+  Match.type<EventRpcEvents.UnprocessedEventSyncEvent>().pipe(
+    Match.tag('event_created', handleCreated),
+    Match.tag('event_updated', handleUpdated),
+    Match.tag('event_cancelled', handleCancelled),
+    Match.tag('event_started', handleStarted),
+    Match.tag('rsvp_reminder', handleRsvpReminder),
+    Match.exhaustive,
+  );
 
 const processEvent = Effect.Do.pipe(
-  Effect.bind('rpc', () => SyncRpc),
-  Effect.bind('discord', () => DiscordREST),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
+  Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.map(
     ({ rpc, discord }) =>
       (event: EventRpcEvents.UnprocessedEventSyncEvent) =>
@@ -30,32 +33,25 @@ const processEvent = Effect.Do.pipe(
           Effect.flatMap(() => rpc['Event/MarkEventProcessed']({ id: event.id })),
           Effect.tap(() =>
             Metric.update(
-              pipe(
-                syncEventsProcessedTotal,
-                Metric.tagged('sync_type', 'event'),
-                Metric.tagged('action', event._tag),
+              Metric.withAttributes(
+                Metric.withAttributes(syncEventsProcessedTotal, { sync_type: 'event' }),
+                { action: event._tag },
               ),
               1,
             ),
           ),
-          Effect.catchTag(
-            'RpcClientError',
-            'RequestError',
-            'ResponseError',
-            'RatelimitedResponse',
-            'ErrorResponse',
-            (error) =>
-              rpc['Event/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-                Effect.tap(() =>
-                  Effect.logWarning(`Failed to process event sync event ${event.id}`, error),
-                ),
-                Effect.tap(() =>
-                  Metric.update(
-                    pipe(syncEventsFailedTotal, Metric.tagged('sync_type', 'event')),
-                    1,
-                  ),
+          Effect.catch((error) =>
+            rpc['Event/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
+              Effect.tap(() =>
+                Effect.logWarning(`Failed to process event sync event ${event.id}`, error),
+              ),
+              Effect.tap(() =>
+                Metric.update(
+                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'event' }),
+                  1,
                 ),
               ),
+            ),
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
@@ -68,8 +64,8 @@ const processEvent = Effect.Do.pipe(
 
 export const ProcessorService = Effect.Do.pipe(
   Effect.tap(() => Effect.logInfo('EventSyncService initialized')),
-  Effect.bind('rpc', () => SyncRpc),
-  Effect.bind('discord', () => DiscordREST),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
+  Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.bind('processEvent', ({ rpc, discord }) =>
     processEvent.pipe(
       Effect.provideService(SyncRpc, rpc),

@@ -57,12 +57,12 @@ export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-export const UnprocessedEventSyncEvent = Schema.Union(
+export const UnprocessedEventSyncEvent = Schema.Union([
   EventCreatedEvent,
   EventUpdatedEvent,
   EventCancelledEvent,
   EventStartedEvent,
   RsvpReminderEvent,
-);
+]);
 
 export type UnprocessedEventSyncEvent = Schema.Schema.Type<typeof UnprocessedEventSyncEvent>;

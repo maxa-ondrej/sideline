@@ -54,17 +54,17 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
 
   const handleSave = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.role.updateRole({
-          path: { teamId: teamIdBranded, roleId: roleIdBranded },
+          params: { teamId: teamIdBranded, roleId: roleIdBranded },
           payload: {
             name: role.isBuiltIn ? Option.none() : Option.some(name),
             permissions: Option.some([...permissions]),
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.role_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.role_updateFailed())),
       run({ success: m.role_roleSaved() }),
     );
     setSaving(false);
@@ -75,11 +75,11 @@ export function RoleDetailPage({ teamId, role, canManage }: RoleDetailPageProps)
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.role_deleteRoleConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
-        api.role.deleteRole({ path: { teamId: teamIdBranded, roleId: roleIdBranded } }),
+        api.role.deleteRole({ params: { teamId: teamIdBranded, roleId: roleIdBranded } }),
       ),
-      Effect.catchAll(() => ClientError.make(m.role_deleteFailed())),
+      Effect.mapError(() => ClientError.make(m.role_deleteFailed())),
       run({ success: m.role_roleDeleted() }),
     );
     if (Option.isSome(result)) {

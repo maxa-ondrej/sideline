@@ -14,8 +14,8 @@ const MEMBER_ID_1 = '00000000-0000-0000-0000-000000000010' as TeamMember.TeamMem
 const MEMBER_ID_2 = '00000000-0000-0000-0000-000000000011' as TeamMember.TeamMemberId;
 const TRAINING_TYPE_ID = 'type-uuid-training' as ActivityType.ActivityTypeId;
 
-const START_AT = DateTime.unsafeMake('2026-03-25T09:00:00Z');
-const END_AT = DateTime.unsafeMake('2026-03-25T10:30:00Z');
+const START_AT = DateTime.makeUnsafe('2026-03-25T09:00:00Z');
+const END_AT = DateTime.makeUnsafe('2026-03-25T10:30:00Z');
 
 // --- In-memory stores ---
 type InsertedLog = {
@@ -76,7 +76,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   findUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
   countUpcomingByGuildId: () => Effect.die(new Error('Not implemented')),
   findEventsByUserId: () => Effect.die(new Error('Not implemented')),
-} as unknown as EventsRepository);
+} as any);
 
 const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   findYesRsvpMemberIdsByEventId: (eventId: Event.EventId) =>
@@ -89,7 +89,7 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
   findRsvpAttendeesPage: () => Effect.die(new Error('Not implemented')),
   findNonRespondersByEventId: () => Effect.die(new Error('Not implemented')),
   countRsvpTotal: () => Effect.die(new Error('Not implemented')),
-} as unknown as EventRsvpsRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   insert: (input: InsertedLog) => {
@@ -111,7 +111,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   findByMember: () => Effect.succeed([]),
   update: () => Effect.die(new Error('Not implemented')),
   delete: () => Effect.die(new Error('Not implemented')),
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, {
   findBySlug: (slug: string) => {
@@ -124,7 +124,7 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
   },
   findByTeamId: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
-} as unknown as ActivityTypesRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockEventsRepositoryLayer,
@@ -252,7 +252,7 @@ describe('trainingAutoLogCronEffect', () => {
         markedEvents.push({ eventId });
         return Effect.void;
       },
-    } as unknown as EventsRepository);
+    } as any);
 
     const FailingFirstEventLayer = Layer.mergeAll(
       MockEventsRepositoryWithFirstFailing,

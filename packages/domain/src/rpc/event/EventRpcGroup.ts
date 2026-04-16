@@ -1,5 +1,5 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
+import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import { Discord, Event, EventRsvp, Team, TrainingType } from '~/index.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
@@ -57,12 +57,12 @@ export const EventRpcGroup = RpcGroup.make(
       clearMessage: Schema.Boolean,
     },
     success: SubmitRsvpResult,
-    error: Schema.Union(
+    error: Schema.Union([
       RsvpMemberNotFound,
       RsvpDeadlinePassed,
       RsvpEventNotFound,
       RsvpNotGroupMember,
-    ),
+    ]),
   }),
   Rpc.make('GetRsvpCounts', {
     payload: { event_id: Event.EventId },
@@ -105,7 +105,7 @@ export const EventRpcGroup = RpcGroup.make(
       limit: Schema.Number,
     },
     success: UpcomingEventsForUserResult,
-    error: Schema.Union(GuildNotFound, RsvpMemberNotFound),
+    error: Schema.Union([GuildNotFound, RsvpMemberNotFound]),
   }),
   Rpc.make('GetTrainingTypesByGuild', {
     payload: { guild_id: Discord.Snowflake },
@@ -124,7 +124,7 @@ export const EventRpcGroup = RpcGroup.make(
       training_type_id: Schema.OptionFromNullOr(TrainingType.TrainingTypeId),
     },
     success: CreateEventResult,
-    error: Schema.Union(CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate),
+    error: Schema.Union([CreateEventNotMember, CreateEventForbidden, CreateEventInvalidDate]),
   }),
   Rpc.make('GetChannelDivider', {
     payload: { discord_channel_id: Discord.Snowflake },

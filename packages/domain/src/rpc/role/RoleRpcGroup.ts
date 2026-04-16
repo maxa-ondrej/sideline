@@ -1,5 +1,5 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
+import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import { Discord, Role, RoleSyncEvent, Team } from '~/index.js';
 import { UnprocessedRoleEvent } from './RoleRpcEvents.js';
 import { RoleMapping } from './RoleRpcModels.js';

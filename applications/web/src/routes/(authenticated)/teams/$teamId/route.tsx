@@ -12,10 +12,12 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
     Effect.Do.pipe(
       Effect.let('teams', () => context.teams),
       Effect.bind('team', ({ teams }) =>
-        Array.findFirst(teams, flow(Struct.get('teamId'), Equal.equals(params.teamId))),
+        Array.findFirst(teams, flow(Struct.get('teamId'), Equal.equals(params.teamId))).pipe(
+          Effect.fromOption,
+        ),
       ),
       Effect.tap(() => setLastTeamId(params.teamId)),
-      Effect.catchTag('NoSuchElementException', () => NotFound.make()),
+      Effect.catchTag('NoSuchElementError', () => Effect.fail(NotFound.make())),
       context.run,
     ),
 });

@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { GroupApi } from '@sideline/domain';
 import { GroupModel, Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -24,7 +24,7 @@ import { withFieldErrors } from '~/lib/form';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateGroupSchema = Schema.Struct({
-  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  name: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
 });
 
 type CreateGroupValues = Schema.Schema.Type<typeof CreateGroupSchema>;
@@ -149,7 +149,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
   const tree = React.useMemo(() => buildTree(groups), [groups]);
 
   const form = useForm({
-    resolver: effectTsResolver(CreateGroupSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateGroupSchema)),
     mode: 'onChange',
     defaultValues: { name: '' },
   });
@@ -159,10 +159,10 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
       selectedParentId === '__root__'
         ? Option.none()
         : Option.some(Schema.decodeSync(GroupModel.GroupId)(selectedParentId));
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.createGroup({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             name: values.name,
             parentId,
@@ -174,7 +174,7 @@ export function GroupsListPage({ teamId, groups }: GroupsListPageProps) {
       withFieldErrors(form, [
         { tag: 'GroupNameAlreadyTaken', field: 'name', message: m.group_nameAlreadyTaken() },
       ]),
-      Effect.catchAll(() => ClientError.make(m.group_createFailed())),
+      Effect.mapError(() => ClientError.make(m.group_createFailed())),
       run({ success: m.group_groupCreated() }),
     );
     if (Option.isSome(result)) {

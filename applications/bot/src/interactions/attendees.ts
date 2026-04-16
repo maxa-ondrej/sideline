@@ -4,7 +4,7 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { Effect, Metric, pipe, Schema } from 'effect';
+import { Effect, Metric, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildAttendeesEmbed } from '~/rest/events/buildAttendeesEmbed.js';
@@ -17,12 +17,15 @@ export const AttendeesButton = Ix.messageComponent(
   Ix.idStartsWith('attendees:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
@@ -58,12 +61,8 @@ export const AttendeesButton = Ix.messageComponent(
             payload,
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to update attendees response', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to update attendees response', error),
         ),
       );
 
@@ -71,7 +70,7 @@ export const AttendeesButton = Ix.messageComponent(
         type: Discord.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: Discord.MessageFlags.Ephemeral },
       };
-      return Effect.as(Effect.forkDaemon(work), deferred);
+      return Effect.as(Effect.forkDetach(work), deferred);
     }),
     Effect.withSpan('interaction/attendees'),
   ),
@@ -81,12 +80,15 @@ export const AttendeesPageButton = Ix.messageComponent(
   Ix.idStartsWith('attendees-page:'),
   Effect.Do.pipe(
     Effect.tap(() =>
-      Metric.update(pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'button')), 1),
+      Metric.update(
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+        1,
+      ),
     ),
-    Effect.bind('data', () => MessageComponentData),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('data', () => MessageComponentData.asEffect()),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.flatMap(({ data, interaction, rpc, rest }) => {
       const parts = data.custom_id.split(':');
       const teamId = parts[1];
@@ -122,17 +124,13 @@ export const AttendeesPageButton = Ix.messageComponent(
             payload,
           }),
         ),
-        Effect.catchTag(
-          'RequestError',
-          'ResponseError',
-          'RatelimitedResponse',
-          'ErrorResponse',
-          (error) => Effect.logError('Failed to update attendees page response', error),
+        Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+          Effect.logError('Failed to update attendees page response', error),
         ),
       );
 
       return Effect.as(
-        Effect.forkDaemon(work),
+        Effect.forkDetach(work),
         Ix.response({
           type: Discord.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
         }),

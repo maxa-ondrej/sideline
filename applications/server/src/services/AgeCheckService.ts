@@ -6,7 +6,7 @@ import {
   type TeamMember,
   type User,
 } from '@sideline/domain';
-import { Array, Data, Effect, Option, pipe } from 'effect';
+import { Array, Data, Effect, Layer, Option, pipe, ServiceMap } from 'effect';
 import {
   AgeThresholdRepository,
   type AgeThresholdWithGroupName,
@@ -17,10 +17,10 @@ import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 
 interface Dependencies {
-  thresholds: AgeThresholdRepository;
-  groups: GroupsRepository;
-  notifications: NotificationsRepository;
-  channelSync: ChannelSyncEventsRepository;
+  thresholds: ServiceMap.Service.Shape<typeof AgeThresholdRepository>;
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>;
+  notifications: ServiceMap.Service.Shape<typeof NotificationsRepository>;
+  channelSync: ServiceMap.Service.Shape<typeof ChannelSyncEventsRepository>;
 }
 
 interface Change {
@@ -98,17 +98,20 @@ const detectChanges = (
     ),
   );
 
-const commitChange = (groups: GroupsRepository) => (change: Change) =>
-  Effect.succeed(change).pipe(
-    Effect.tap(
-      Effect.if(change.action === 'added', {
-        onTrue: () => groups.addMemberById(change.groupId, change.memberId),
-        onFalse: () => groups.removeMemberById(change.groupId, change.memberId),
-      }),
-    ),
-  );
+const commitChange =
+  (groups: ServiceMap.Service.Shape<typeof GroupsRepository>) => (change: Change) =>
+    Effect.succeed(change).pipe(
+      Effect.tap(
+        change.action === 'added'
+          ? groups.addMemberById(change.groupId, change.memberId)
+          : groups.removeMemberById(change.groupId, change.memberId),
+      ),
+    );
 
-const commitChanges = (groups: GroupsRepository, changes: readonly Change[]) =>
+const commitChanges = (
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
+  changes: readonly Change[],
+) =>
   pipe(
     changes,
     Array.map(commitChange(groups)),
@@ -120,7 +123,7 @@ const commitChanges = (groups: GroupsRepository, changes: readonly Change[]) =>
       ),
     ),
     Array.map(Effect.tapError(Effect.logError)),
-    Effect.allSuccesses,
+    Effect.all,
     Effect.tap((commits) =>
       Effect.logInfo(`Successfully made ${commits.length} changes to age-based groups!`),
     ),
@@ -131,7 +134,7 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
 }> {}
 
 const notifyAdmins = (
-  notifications: NotificationsRepository,
+  notifications: ServiceMap.Service.Shape<typeof NotificationsRepository>,
   teamId: Team.TeamId,
   changes: readonly Change[],
   teamMembers: readonly MemberWithBirthDate[],
@@ -166,12 +169,12 @@ const notifyAdmins = (
       ),
     ),
     Effect.tap((notifications) =>
-      Array.isEmptyArray(notifications) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
+      Array.isArrayEmpty(notifications) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
     ),
     Effect.flatMap((n) => notifications.insertBulk(n)),
     Effect.catchTag('NoChanges', () => Effect.void),
     Effect.tapError((e) => Effect.logWarning('Failed to notify admins about age-based changes', e)),
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementError', () => Effect.void),
   );
 
 const evaluateTeam =
@@ -182,7 +185,7 @@ const evaluateTeam =
       Effect.bind('teamMembers', () => thresholds.getMembersWithBirthDates(teamId)),
       Effect.let('changes', ({ rules, teamMembers }) => detectChanges(today, rules, teamMembers)),
       Effect.tap(({ changes }) =>
-        Array.isEmptyArray(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
+        Array.isArrayEmpty(changes) ? Effect.fail(new NoChanges({ count: 0 })) : Effect.void,
       ),
       Effect.tap(({ changes }) =>
         Effect.logInfo(`Detected ${changes.length} changes to be made with age-based groups!`),
@@ -208,6 +211,8 @@ const evaluateTeam =
                   `You have been removed from the "${change.groupName}" group.`,
                 ),
           ),
+          Effect.all,
+          Effect.asVoid,
         ),
       ),
       Effect.tap(({ changes, teamMembers }) =>
@@ -233,7 +238,7 @@ const evaluateTeam =
                   change.discordId,
                 ),
           ),
-          Effect.allSuccesses,
+          Effect.all,
           Effect.asVoid,
         ),
       ),
@@ -253,17 +258,20 @@ const evaluateTeam =
       Effect.catchTag('NoChanges', () => Effect.succeed(Array.empty())),
     );
 
-export class AgeCheckService extends Effect.Service<AgeCheckService>()('api/AgeCheckService', {
-  effect: Effect.Do.pipe(
-    Effect.bind('thresholds', () => AgeThresholdRepository),
-    Effect.bind('groups', () => GroupsRepository),
-    Effect.bind('notifications', () => NotificationsRepository),
-    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
-    Effect.let('evaluateTeam', evaluateTeam),
-    Effect.map(({ evaluateTeam }) => ({ evaluateTeam })),
-  ),
-}) {
-  evaluate(teamId: Team.TeamId, today: Date) {
-    return this.evaluateTeam(teamId, today);
-  }
+const make = Effect.Do.pipe(
+  Effect.bind('thresholds', () => AgeThresholdRepository.asEffect()),
+  Effect.bind('groups', () => GroupsRepository.asEffect()),
+  Effect.bind('notifications', () => NotificationsRepository.asEffect()),
+  Effect.bind('channelSync', () => ChannelSyncEventsRepository.asEffect()),
+  Effect.let('evaluateTeam', evaluateTeam),
+  Effect.map(({ evaluateTeam }) => ({
+    evaluate: (teamId: Team.TeamId, today: Date) => evaluateTeam(teamId, today),
+  })),
+);
+
+export class AgeCheckService extends ServiceMap.Service<
+  AgeCheckService,
+  Effect.Success<typeof make>
+>()('api/AgeCheckService') {
+  static readonly Default = Layer.effect(AgeCheckService, make);
 }

@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Effect, Option, Schema } from 'effect';
@@ -28,19 +28,21 @@ const maxBirthYear = currentYear - Auth.MIN_AGE;
 const defaultBirthMonth = new Date(currentYear - Auth.DEFAULT_BIRTH_YEAR_OFFSET, 0);
 
 const ProfileFormSchema = Schema.Struct({
-  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
-  birthDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }).pipe(
-    Schema.filter((s) => {
-      const d = new Date(s);
-      if (Number.isNaN(d.getTime())) return m.validation_required();
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - Auth.MIN_AGE);
-      if (d > minDate) return m.validation_minAge({ minAge: Auth.MIN_AGE });
-      return true;
-    }),
+  name: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
+  birthDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }).pipe(
+    Schema.check(
+      Schema.makeFilter((s: string) => {
+        const d = new Date(s);
+        if (Number.isNaN(d.getTime())) return m.validation_required();
+        const minDate = new Date();
+        minDate.setFullYear(minDate.getFullYear() - Auth.MIN_AGE);
+        if (d > minDate) return m.validation_minAge({ minAge: Auth.MIN_AGE });
+        return true;
+      }),
+    ),
   ),
-  gender: Schema.Literal('male', 'female', 'other').annotations({
-    message: () => m.validation_invalidOption(),
+  gender: Schema.Literals(['male', 'female', 'other']).annotate({
+    message: m.validation_invalidOption(),
   }),
 });
 
@@ -61,7 +63,7 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
   const run = useRun();
 
   const form = useForm({
-    resolver: effectTsResolver(ProfileFormSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(ProfileFormSchema)),
     mode: 'onChange',
     defaultValues: {
       name: initialName,
@@ -70,13 +72,13 @@ export function ProfileCompleteForm({ initialName, onSuccess }: ProfileCompleteF
   });
 
   const onSubmit = async (values: ProfileFormValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.auth.completeProfile({
           payload: values,
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.profile_complete_saveFailed())),
+      Effect.mapError(() => ClientError.make(m.profile_complete_saveFailed())),
       run({ success: m.profile_profileCompleted() }),
     );
     if (Option.isSome(result)) {

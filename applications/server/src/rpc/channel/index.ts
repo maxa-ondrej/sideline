@@ -9,7 +9,7 @@ import {
   type Team,
 } from '@sideline/domain';
 import { Bind, LogicError } from '@sideline/effect-lib';
-import { Array, Cause, Data, Effect, flow, Option } from 'effect';
+import { Array, Cause, Data, Effect, flow, Option, Result } from 'effect';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
@@ -41,9 +41,9 @@ const toChannelMapping = (m: {
   });
 
 export const ChannelsRpcLive = Effect.Do.pipe(
-  Effect.bind('syncEvents', () => ChannelSyncEventsRepository),
-  Effect.bind('mappings', () => DiscordChannelMappingRepository),
-  Effect.bind('rosters', () => RostersRepository),
+  Effect.bind('syncEvents', () => ChannelSyncEventsRepository.asEffect()),
+  Effect.bind('mappings', () => DiscordChannelMappingRepository.asEffect()),
+  Effect.bind('rosters', () => RostersRepository.asEffect()),
   Effect.let(
     'Channel/GetUnprocessedEvents',
     ({ syncEvents }) =>
@@ -54,22 +54,19 @@ export const ChannelsRpcLive = Effect.Do.pipe(
               flow(
                 constructEvent,
                 Effect.tapErrorTag('EventPropertyMissing', EventPropertyMissing.handle),
+                Effect.result,
               ),
             ),
           ),
-          Effect.tap(
-            flow(
-              Array.isEmptyReadonlyArray,
-              Effect.if({
-                onTrue: NoChanges.make,
-                onFalse: () => Effect.void,
-              }),
-            ),
+          Effect.tap((arr) =>
+            Array.isArrayEmpty(arr) ? Effect.fail(NoChanges.make()) : Effect.void,
           ),
           Effect.tap((events) =>
             Effect.logInfo(`Collected ${events.length} channel events from database.`),
           ),
-          Effect.flatMap(Effect.allSuccesses),
+          Effect.flatMap(Effect.all),
+          Effect.tap(flow(Array.filterMap(Result.flip), Array.map(Effect.logError), Effect.all)),
+          Effect.map(Array.filterMap((r) => r)),
           Effect.tap((events) =>
             Effect.logInfo(`Successfully mapped ${events.length} channel events from database.`),
           ),
@@ -190,7 +187,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         rosters.findRosterById(roster_id).pipe(
           Effect.flatMap(
             Option.match({
-              onNone: () => Effect.fail(new Cause.NoSuchElementException()),
+              onNone: () => Effect.fail(new Cause.NoSuchElementError()),
               onSome: (existing) =>
                 rosters.update({
                   id: roster_id,
@@ -203,7 +200,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
             }),
           ),
           Effect.catchTag(
-            'NoSuchElementException',
+            'NoSuchElementError',
             LogicError.withMessage(() => `Roster ${roster_id} not found when updating channel`),
           ),
           Effect.asVoid,

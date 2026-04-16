@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Permission, RoleId } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
@@ -27,118 +27,118 @@ export class RoleDetail extends Schema.Class<RoleDetail>('RoleDetail')({
   canManage: Schema.Boolean,
 }) {}
 
-export class CreateRoleRequest extends Schema.Class<CreateRoleRequest>('CreateRoleRequest')({
+export const CreateRoleRequest = Schema.Struct({
   name: Schema.NonEmptyString,
   permissions: Schema.Array(Permission),
-}) {}
+});
+export type CreateRoleRequest = Schema.Schema.Type<typeof CreateRoleRequest>;
 
-export class UpdateRoleRequest extends Schema.Class<UpdateRoleRequest>('UpdateRoleRequest')({
+export const UpdateRoleRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.NonEmptyString),
   permissions: Schema.OptionFromNullOr(Schema.Array(Permission)),
-}) {}
+});
+export type UpdateRoleRequest = Schema.Schema.Type<typeof UpdateRoleRequest>;
 
-export class RoleNotFound extends Schema.TaggedError<RoleNotFound>()(
-  'RoleNotFound',
-  {},
-  HttpApiSchema.annotations({ status: 404 }),
-) {}
+export class RoleNotFound extends Schema.TaggedErrorClass<RoleNotFound>()('RoleNotFound', {}) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'RoleForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('RoleForbidden', {}) {}
 
-export class CannotModifyBuiltIn extends Schema.TaggedError<CannotModifyBuiltIn>()(
+export class CannotModifyBuiltIn extends Schema.TaggedErrorClass<CannotModifyBuiltIn>()(
   'CannotModifyBuiltIn',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
-export class AssignRoleRequest extends Schema.Class<AssignRoleRequest>('AssignRoleRequest')({
+export const AssignRoleRequest = Schema.Struct({
   roleId: RoleId,
-}) {}
+});
+export type AssignRoleRequest = Schema.Schema.Type<typeof AssignRoleRequest>;
 
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'MemberNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class RoleInUse extends Schema.TaggedError<RoleInUse>()(
-  'RoleInUse',
-  {},
-  HttpApiSchema.annotations({ status: 409 }),
-) {}
+export class RoleInUse extends Schema.TaggedErrorClass<RoleInUse>()('RoleInUse', {}) {}
 
-export class RoleNameAlreadyTaken extends Schema.TaggedError<RoleNameAlreadyTaken>()(
+export class RoleNameAlreadyTaken extends Schema.TaggedErrorClass<RoleNameAlreadyTaken>()(
   'RoleNameAlreadyTaken',
   {},
-  HttpApiSchema.annotations({ status: 409 }),
 ) {}
 
 export class RoleApiGroup extends HttpApiGroup.make('role')
   .add(
-    HttpApiEndpoint.get('listRoles', '/teams/:teamId/roles')
-      .addSuccess(RoleListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listRoles', '/teams/:teamId/roles', {
+      success: RoleListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createRole', '/teams/:teamId/roles')
-      .addSuccess(RoleDetail, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .addError(RoleNameAlreadyTaken, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateRoleRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createRole', '/teams/:teamId/roles', {
+      success: RoleDetail.pipe(HttpApiSchema.status(201)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RoleNameAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: CreateRoleRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getRole', '/teams/:teamId/roles/:roleId')
-      .addSuccess(RoleDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(RoleNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getRole', '/teams/:teamId/roles/:roleId', {
+      success: RoleDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RoleNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, roleId: RoleId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateRole', '/teams/:teamId/roles/:roleId')
-      .addSuccess(RoleDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(RoleNotFound, { status: 404 })
-      .addError(CannotModifyBuiltIn, { status: 400 })
-      .addError(RoleNameAlreadyTaken, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
-      .setPayload(UpdateRoleRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateRole', '/teams/:teamId/roles/:roleId', {
+      success: RoleDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RoleNotFound.pipe(HttpApiSchema.status(404)),
+        CannotModifyBuiltIn.pipe(HttpApiSchema.status(400)),
+        RoleNameAlreadyTaken.pipe(HttpApiSchema.status(409)),
+      ],
+      payload: UpdateRoleRequest,
+      params: { teamId: TeamId, roleId: RoleId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('deleteRole', '/teams/:teamId/roles/:roleId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(RoleNotFound, { status: 404 })
-      .addError(CannotModifyBuiltIn, { status: 400 })
-      .addError(RoleInUse, { status: 409 })
-      .setPath(Schema.Struct({ teamId: TeamId, roleId: RoleId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('deleteRole', '/teams/:teamId/roles/:roleId', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RoleNotFound.pipe(HttpApiSchema.status(404)),
+        CannotModifyBuiltIn.pipe(HttpApiSchema.status(400)),
+        RoleInUse.pipe(HttpApiSchema.status(409)),
+      ],
+      params: { teamId: TeamId, roleId: RoleId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('assignRole', '/teams/:teamId/members/:memberId/roles')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(MemberNotFound, { status: 404 })
-      .addError(RoleNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-      .setPayload(AssignRoleRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('assignRole', '/teams/:teamId/members/:memberId/roles', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        MemberNotFound.pipe(HttpApiSchema.status(404)),
+        RoleNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      payload: AssignRoleRequest,
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('unassignRole', '/teams/:teamId/members/:memberId/roles/:roleId')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .addError(MemberNotFound, { status: 404 })
-      .addError(RoleNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId, roleId: RoleId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('unassignRole', '/teams/:teamId/members/:memberId/roles/:roleId', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        MemberNotFound.pipe(HttpApiSchema.status(404)),
+        RoleNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, memberId: TeamMemberId, roleId: RoleId },
+    }).middleware(AuthMiddleware),
   ) {}

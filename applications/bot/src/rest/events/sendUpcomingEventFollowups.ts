@@ -64,7 +64,7 @@ export const sendUpcomingEventFollowups = (params: {
                 },
               })
               .pipe(
-                Effect.catchAll((error) =>
+                Effect.catch((error) =>
                   Effect.logDebug('Failed to mark ephemeral message as stale', error),
                 ),
               ),
@@ -76,7 +76,7 @@ export const sendUpcomingEventFollowups = (params: {
   const extraCount = total - events.length;
 
   return sendMessages.pipe(
-    Effect.tap((messageIds) => Effect.forkDaemon(markStale(messageIds))),
+    Effect.tap((messageIds) => Effect.forkDetach(markStale(messageIds))),
     Effect.tap(() => (extraCount > 0 ? sendExtra(extraCount) : Effect.void)),
     Effect.asVoid,
   );

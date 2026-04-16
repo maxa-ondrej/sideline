@@ -1,46 +1,54 @@
-import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { User } from '@sideline/domain';
-import { Effect, Schema } from 'effect';
+import { Schemas } from '@sideline/effect-lib';
+import { Effect, Layer, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class UpsertDiscordInput extends Schema.Class<UpsertDiscordInput>('UpsertDiscordInput')({
+const UpsertDiscordInput = Schema.Struct({
   discord_id: Schema.String,
   username: Schema.String,
   avatar: Schema.OptionFromNullOr(Schema.String),
   discord_nickname: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-const CompleteProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
+const CompleteProfileInput = Schema.Struct({
+  id: User.UserId,
+  name: Schema.OptionFromNullOr(Schema.String),
+  birth_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  gender: Schema.OptionFromNullOr(User.Gender),
+});
 
-const AdminUpdateProfileInput = User.User.pipe(Schema.pick('id', 'name', 'birth_date', 'gender'));
+const AdminUpdateProfileInput = Schema.Struct({
+  id: User.UserId,
+  name: Schema.OptionFromNullOr(Schema.String),
+  birth_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  gender: Schema.OptionFromNullOr(User.Gender),
+});
 
-export class UsersRepository extends Effect.Service<UsersRepository>()('api/UsersRepository', {
-  effect: SqlClient.SqlClient.pipe(
-    Effect.bindTo('sql'),
-    Effect.bind('repo', () =>
-      Model.makeRepository(User.User, {
-        tableName: 'users',
-        spanPrefix: 'UsersRepository',
-        idColumn: 'id',
-      }),
-    ),
-  ),
-}) {
-  private findByDiscordIdQuery = SqlSchema.findOne({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByDiscordIdQuery = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: User.User,
-    execute: (discordId) => this.sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
+    execute: (discordId) => sql`SELECT * FROM users WHERE discord_id = ${discordId}`,
   });
 
-  findByDiscordId = (discordId: string) =>
-    this.findByDiscordIdQuery(discordId).pipe(catchSqlErrors);
+  const findByDiscordId = (discordId: string) =>
+    findByDiscordIdQuery(discordId).pipe(catchSqlErrors);
 
-  findById = (id: User.UserId) => this.repo.findById(id);
+  const findByIdQuery = SqlSchema.findOneOption({
+    Request: User.UserId,
+    Result: User.User,
+    execute: (id) => sql`SELECT * FROM users WHERE id = ${id}`,
+  });
 
-  private upsertFromDiscordQuery = SqlSchema.single({
+  const findById = (id: User.UserId) => findByIdQuery(id).pipe(catchSqlErrors);
+
+  const upsertFromDiscordQuery = SqlSchema.findOne({
     Request: UpsertDiscordInput,
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO users (discord_id, username, avatar, discord_nickname)
       VALUES (${input.discord_id}, ${input.username}, ${input.avatar}, ${input.discord_nickname})
       ON CONFLICT (discord_id) DO UPDATE SET
@@ -52,13 +60,13 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  upsertFromDiscord = (input: UpsertDiscordInput) =>
-    this.upsertFromDiscordQuery(input).pipe(catchSqlErrors);
+  const upsertFromDiscord = (input: Schema.Schema.Type<typeof UpsertDiscordInput>) =>
+    upsertFromDiscordQuery(input).pipe(catchSqlErrors);
 
-  private completeProfileQuery = SqlSchema.single({
+  const completeProfileQuery = SqlSchema.findOne({
     Request: CompleteProfileInput,
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE users SET
         name = ${input.name},
         birth_date = ${input.birth_date},
@@ -70,13 +78,13 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  completeProfile = (input: Schema.Schema.Type<typeof CompleteProfileInput>) =>
-    this.completeProfileQuery(input).pipe(catchSqlErrors);
+  const completeProfile = (input: Schema.Schema.Type<typeof CompleteProfileInput>) =>
+    completeProfileQuery(input).pipe(catchSqlErrors);
 
-  private updateLocaleQuery = SqlSchema.single({
+  const updateLocaleQuery = SqlSchema.findOne({
     Request: Schema.Struct({ id: User.UserId, locale: User.Locale }),
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE users SET
         locale = ${input.locale},
         updated_at = now()
@@ -85,13 +93,13 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  updateLocale = (input: { readonly id: User.UserId; readonly locale: User.Locale }) =>
-    this.updateLocaleQuery(input).pipe(catchSqlErrors);
+  const updateLocale = (input: { readonly id: User.UserId; readonly locale: User.Locale }) =>
+    updateLocaleQuery(input).pipe(catchSqlErrors);
 
-  private updateAdminProfileQuery = SqlSchema.single({
+  const updateAdminProfileQuery = SqlSchema.findOne({
     Request: AdminUpdateProfileInput,
     Result: User.User,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE users SET
         name = ${input.name},
         birth_date = ${input.birth_date},
@@ -102,6 +110,22 @@ export class UsersRepository extends Effect.Service<UsersRepository>()('api/User
     `,
   });
 
-  updateAdminProfile = (input: Schema.Schema.Type<typeof AdminUpdateProfileInput>) =>
-    this.updateAdminProfileQuery(input).pipe(catchSqlErrors);
+  const updateAdminProfile = (input: Schema.Schema.Type<typeof AdminUpdateProfileInput>) =>
+    updateAdminProfileQuery(input).pipe(catchSqlErrors);
+
+  return {
+    findByDiscordId,
+    findById,
+    upsertFromDiscord,
+    completeProfile,
+    updateLocale,
+    updateAdminProfile,
+  };
+});
+
+export class UsersRepository extends ServiceMap.Service<
+  UsersRepository,
+  Effect.Success<typeof make>
+>()('api/UsersRepository') {
+  static readonly Default = Layer.effect(UsersRepository, make);
 }

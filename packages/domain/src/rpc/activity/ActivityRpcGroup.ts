@@ -1,5 +1,5 @@
-import { Rpc, RpcGroup } from '@effect/rpc';
 import { Schema } from 'effect';
+import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import { Discord } from '~/index.js';
 import {
   ActivityGuildNotFound,
@@ -15,11 +15,13 @@ export const ActivityRpcGroup = RpcGroup.make(
       guild_id: Discord.Snowflake,
       discord_user_id: Discord.Snowflake,
       activity_type: Schema.String,
-      duration_minutes: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.between(1, 1440))),
+      duration_minutes: Schema.OptionFromNullOr(
+        Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
+      ),
       note: Schema.OptionFromNullOr(Schema.String),
     },
     success: LogActivityResult,
-    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+    error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),
   }),
   Rpc.make('GetStats', {
     payload: {
@@ -27,15 +29,15 @@ export const ActivityRpcGroup = RpcGroup.make(
       discord_user_id: Discord.Snowflake,
     },
     success: GetStatsResult,
-    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+    error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),
   }),
   Rpc.make('GetLeaderboard', {
     payload: {
       guild_id: Discord.Snowflake,
       discord_user_id: Discord.Snowflake,
-      limit: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.positive())),
+      limit: Schema.OptionFromNullOr(Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0)))),
     },
     success: GetLeaderboardResult,
-    error: Schema.Union(ActivityMemberNotFound, ActivityGuildNotFound),
+    error: Schema.Union([ActivityMemberNotFound, ActivityGuildNotFound]),
   }),
 ).prefix('Activity/');

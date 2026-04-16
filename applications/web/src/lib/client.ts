@@ -1,11 +1,4 @@
 import {
-  FetchHttpClient,
-  HttpApi,
-  HttpApiClient,
-  HttpClient,
-  HttpClientRequest,
-} from '@effect/platform';
-import {
   ActivityLogApi,
   ActivityStatsApi,
   AgeThresholdApi,
@@ -25,18 +18,18 @@ import {
   TeamSettingsApi,
   TrainingTypeApi,
 } from '@sideline/domain';
-import { Context, Effect, Option } from 'effect';
-import { getToken } from '~/lib/auth';
+import { Effect, Option, ServiceMap } from 'effect';
+import { FetchHttpClient, HttpClient, HttpClientRequest } from 'effect/unstable/http';
+import { HttpApi, HttpApiClient } from 'effect/unstable/httpapi';
+import { getToken } from '~/lib/token';
 
 export type ClientConfigService = {
   readonly baseUrl: string;
 };
 
-export type ClientConfig = { readonly _tag: 'api/ClientConfig' };
-
-export const ClientConfig = Context.GenericTag<ClientConfig, ClientConfigService>(
+export class ClientConfig extends ServiceMap.Service<ClientConfig, ClientConfigService>()(
   'api/ClientConfig',
-);
+) {}
 
 class ClientApi extends HttpApi.make('api')
   .add(ActivityLogApi.ActivityLogApiGroup)
@@ -58,7 +51,7 @@ class ClientApi extends HttpApi.make('api')
   .add(TeamSettingsApi.TeamSettingsApiGroup)
   .add(TrainingTypeApi.TrainingTypeApiGroup) {}
 
-export const client = ClientConfig.pipe(
+export const client = ClientConfig.asEffect().pipe(
   Effect.flatMap(({ baseUrl }) =>
     HttpApiClient.make(ClientApi, {
       baseUrl: baseUrl,

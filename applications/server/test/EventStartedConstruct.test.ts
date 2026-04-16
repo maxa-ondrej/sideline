@@ -9,7 +9,7 @@ const SYNC_EVENT_ID = 'sync-event-uuid-001';
 const TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const GUILD_ID = '999999999999999999' as Discord.Snowflake;
 const EVENT_ID = '00000000-0000-0000-0000-000000000060' as Event.EventId;
-const START_AT = DateTime.unsafeMake('2026-04-09T10:00:00Z');
+const START_AT = DateTime.makeUnsafe('2026-04-09T10:00:00Z');
 
 describe('constructEvent with event_started type', () => {
   it.effect('constructs EventStartedEvent from event_started row', () =>

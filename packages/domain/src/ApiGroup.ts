@@ -1,14 +1,12 @@
-import type { HttpApiEndpoint, HttpApiError, HttpApiGroup } from '@effect/platform';
+import type { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 
 export const getEndpoint =
   <
     Id extends string,
-    Endpoints extends HttpApiEndpoint.HttpApiEndpoint.Any = never,
-    Error = HttpApiError.HttpApiDecodeError,
-    R = never,
+    Endpoints extends HttpApiEndpoint.Any = never,
     TopLevel extends true | false = false,
   >(
-    key: Endpoints['name'],
+    key: HttpApiEndpoint.Name<Endpoints>,
   ) =>
-  (group: HttpApiGroup.HttpApiGroup<Id, Endpoints, Error, R, TopLevel>) =>
-    group.endpoints[key];
+  (group: HttpApiGroup.HttpApiGroup<Id, Endpoints, TopLevel>) =>
+    group.endpoints[key] as Endpoints;

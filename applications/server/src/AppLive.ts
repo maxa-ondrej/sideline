@@ -1,13 +1,9 @@
-import {
-  FetchHttpClient,
-  HttpApiBuilder,
-  HttpApiSwagger,
-  type HttpRouter,
-  HttpServer,
-} from '@effect/platform';
-import { RpcSerialization, RpcServer } from '@effect/rpc';
 import { SyncRpcs } from '@sideline/domain';
 import { Layer } from 'effect';
+import { FetchHttpClient, HttpRouter, HttpServer } from 'effect/unstable/http';
+import { HttpApiSwagger } from 'effect/unstable/httpapi';
+import { RpcSerialization, RpcServer } from 'effect/unstable/rpc';
+import { Api } from '~/api/api.js';
 import { ApiLive } from '~/api/index.js';
 import { AuthMiddlewareLive } from '~/middleware/AuthMiddlewareLive.js';
 import { RpcObservability, RpcObservabilityLive } from '~/middleware/RpcObservability.js';
@@ -53,7 +49,6 @@ const RpcLive = RpcServer.layer(ObservableSyncRpcs).pipe(
   Layer.provide(
     RpcServer.layerProtocolHttp({
       path: env.RPC_PREFIX as HttpRouter.PathInput,
-      routerTag: HttpApiBuilder.Router,
     }),
   ),
   Layer.provide(RpcSerialization.layerNdjson),
@@ -90,12 +85,14 @@ const Repositories = Layer.mergeAll(
   LeaderboardRepository.Default,
 );
 
-export const AppLive = HttpApiBuilder.serve(HttpLogger).pipe(
-  Layer.provide(HttpApiSwagger.layer({ path: '/docs/swagger-ui' })),
-  Layer.provide(HttpApiBuilder.middlewareOpenApi({ path: '/docs/openapi.json' })),
-  Layer.provide(HttpApiBuilder.middlewareCors({ credentials: true, allowedOrigins: () => true })),
-  Layer.provide(ApiLive),
-  Layer.provide(RpcLive),
+const AppLayer = Layer.mergeAll(
+  ApiLive,
+  HttpApiSwagger.layer(Api, { path: '/docs/swagger-ui' }),
+  HttpRouter.cors({ credentials: true }),
+  RpcLive,
+);
+
+export const AppLive = HttpRouter.serve(AppLayer, { middleware: HttpLogger }).pipe(
   HttpServer.withLogAddress,
   Layer.provide(AuthMiddlewareLive),
   Layer.provide(AgeCheckService.Default),

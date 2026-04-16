@@ -1,11 +1,14 @@
-import { DevTools } from '@effect/experimental';
 import { NodeRuntime } from '@effect/platform-node';
-import { Effect, Layer, Logger, LogLevel, Option } from 'effect';
+import { Effect, Layer, Logger, type LogLevel, Option, References } from 'effect';
+import { DevTools } from 'effect/unstable/devtools';
 
 const LogLayer = (logLevel: Option.Option<LogLevel.LogLevel>) =>
   Layer.mergeAll(
-    Logger.pretty,
-    Logger.minimumLogLevel(Option.getOrElse(logLevel, () => LogLevel.Info)),
+    Logger.layer([Logger.consolePretty()]),
+    Layer.succeed(
+      References.MinimumLogLevel,
+      Option.getOrElse(logLevel, () => 'Info' as const),
+    ),
   );
 
 const DevToolsLayer = (env: 'development' | 'production') =>
@@ -23,5 +26,12 @@ export const runMain =
     logLevel: Option.Option<LogLevel.LogLevel> = Option.none(),
     additionalLayers: Layer.Layer<never> = Layer.empty,
   ) =>
-  <A, E>(effect: Effect.Effect<A, E>): void =>
-    NodeRuntime.runMain(Effect.provide(effect, RuntimeLayer(env, logLevel, additionalLayers)));
+  // biome-ignore lint/suspicious/noExplicitAny: entry-point — requirements are fully provided by the caller
+  <A, E, R = never>(effect: Effect.Effect<A, E, R>): void =>
+    NodeRuntime.runMain(
+      Effect.provide(effect, RuntimeLayer(env, logLevel, additionalLayers)) as Effect.Effect<
+        A,
+        E,
+        never
+      >,
+    );

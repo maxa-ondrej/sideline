@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { EventSeriesApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Discord, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -39,15 +39,15 @@ import { toGroupOptions } from '~/lib/group-options';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateScheduleSchema = Schema.Struct({
-  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  title: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   description: Schema.String,
-  frequency: EventSeries.RecurrenceFrequency.annotations({
-    message: () => m.validation_invalidOption(),
+  frequency: EventSeries.RecurrenceFrequency.annotate({
+    message: m.validation_invalidOption(),
   }),
   daysOfWeek: EventSeries.DaysOfWeek,
-  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
-  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endTime: Schema.String,
   location: Schema.String,
 });
@@ -97,7 +97,7 @@ export function TrainingTypeDetailPage({
   const [editingSeriesId, setEditingSeriesId] = React.useState<string | null>(null);
 
   const scheduleForm = useForm({
-    resolver: effectTsResolver(CreateScheduleSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateScheduleSchema)),
     mode: 'onChange',
     defaultValues: {
       title: trainingTypeDetail.name,
@@ -114,15 +114,15 @@ export function TrainingTypeDetailPage({
 
   const handleSaveName = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.updateTrainingType({
-          path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
+          params: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
           payload: {
             name,
             discordChannelId: Option.some(
               channelId !== NONE_VALUE
-                ? Option.some(Discord.Snowflake.make(channelId))
+                ? Option.some(Discord.Snowflake.makeUnsafe(channelId))
                 : Option.none(),
             ),
             ownerGroupId: Option.some(
@@ -138,7 +138,7 @@ export function TrainingTypeDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_updateFailed())),
       run({ success: m.trainingType_saved() }),
     );
     setSaving(false);
@@ -158,13 +158,13 @@ export function TrainingTypeDetailPage({
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.trainingType_deleteConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.trainingType.deleteTrainingType({
-          path: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
+          params: { teamId: teamIdBranded, trainingTypeId: trainingTypeIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_deleteFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_deleteFailed())),
       run({ success: m.trainingType_deleted() }),
     );
     if (Option.isSome(result)) {
@@ -173,10 +173,10 @@ export function TrainingTypeDetailPage({
   }, [teamId, teamIdBranded, trainingTypeIdBranded, run, navigate]);
 
   const onSubmitSchedule = async (values: CreateScheduleValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.createEventSeries({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             title: values.title,
             trainingTypeId: Option.some(trainingTypeIdBranded),
@@ -196,7 +196,7 @@ export function TrainingTypeDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_createScheduleFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_createScheduleFailed())),
       run({ success: m.trainingType_scheduleCreated() }),
     );
     if (Option.isSome(result)) {
@@ -209,16 +209,16 @@ export function TrainingTypeDetailPage({
   const handleCancelSchedule = React.useCallback(
     async (seriesId: string) => {
       if (!window.confirm(m.trainingType_cancelScheduleConfirm())) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.eventSeries.cancelEventSeries({
-            path: {
+            params: {
               teamId: teamIdBranded,
               seriesId: Schema.decodeSync(EventSeries.EventSeriesId)(seriesId),
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
+        Effect.mapError(() => ClientError.make(m.event_cancelFailed())),
         run({ success: m.trainingType_scheduleCancelled() }),
       );
       if (Option.isSome(result)) {
@@ -253,10 +253,10 @@ export function TrainingTypeDetailPage({
   const handleUpdateSchedule = async (values: CreateScheduleValues) => {
     if (!editingSeriesId) return;
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(editingSeriesId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
-          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          params: { teamId: teamIdBranded, seriesId: seriesIdBranded },
           payload: {
             title: Option.some(values.title),
             trainingTypeId: Option.none(),
@@ -280,7 +280,7 @@ export function TrainingTypeDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.trainingType_updateScheduleFailed())),
+      Effect.mapError(() => ClientError.make(m.trainingType_updateScheduleFailed())),
       run({ success: m.trainingType_scheduleUpdated() }),
     );
     if (Option.isSome(result)) {

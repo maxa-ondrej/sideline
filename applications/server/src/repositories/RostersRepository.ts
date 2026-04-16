@@ -1,6 +1,6 @@
-import { Model, SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { RosterEntry } from '~/repositories/TeamMembersRepository.js';
 
@@ -12,50 +12,43 @@ class RosterWithCount extends Schema.Class<RosterWithCount>('RosterWithCount')({
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-  created_at: Model.DateTimeFromDate,
+  created_at: Schema.DateTimeUtcFromDate,
   member_count: Schema.Number,
 }) {}
 
-class RosterInsertInput extends Schema.Class<RosterInsertInput>('RosterInsertInput')({
+const RosterInsertInput = Schema.Struct({
   team_id: Schema.String,
   name: Schema.String,
   active: Schema.Boolean,
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class RosterUpdateInput extends Schema.Class<RosterUpdateInput>('RosterUpdateInput')({
+const RosterUpdateInput = Schema.Struct({
   id: RosterModel.RosterId,
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
   color: Schema.OptionFromNullOr(Schema.String),
   emoji: Schema.OptionFromNullOr(Schema.String),
-  discord_channel_id: Schema.optionalWith(Schema.OptionFromNullOr(Discord.Snowflake), {
-    as: 'Option',
-  }),
-}) {}
+  discord_channel_id: Schema.OptionFromOptional(Schema.OptionFromNullOr(Discord.Snowflake)),
+});
 
-class RosterMemberInput extends Schema.Class<RosterMemberInput>('RosterMemberInput')({
+const RosterMemberInput = Schema.Struct({
   roster_id: RosterModel.RosterId,
   team_member_id: TeamMember.TeamMemberId,
-}) {}
+});
 
-class RosterMemberEntriesInput extends Schema.Class<RosterMemberEntriesInput>(
-  'RosterMemberEntriesInput',
-)({
+const RosterMemberEntriesInput = Schema.Struct({
   roster_id: RosterModel.RosterId,
-}) {}
+});
 
-export class RostersRepository extends Effect.Service<RostersRepository>()(
-  'api/RostersRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private findByTeam = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByTeam = SqlSchema.findAll({
     Request: Schema.String,
     Result: RosterWithCount,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT r.id, r.team_id, r.name, r.active, r.color, r.emoji, r.discord_channel_id, r.created_at,
              (SELECT COUNT(*) FROM roster_members rm WHERE rm.roster_id = r.id)::int AS member_count
       FROM rosters r
@@ -64,23 +57,23 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     `,
   });
 
-  private findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: RosterModel.RosterId,
     Result: RosterModel.Roster,
-    execute: (id) => this.sql`SELECT * FROM rosters WHERE id = ${id}`,
+    execute: (id) => sql`SELECT * FROM rosters WHERE id = ${id}`,
   });
 
-  private insertOne = SqlSchema.single({
+  const insertOne = SqlSchema.findOne({
     Request: RosterInsertInput,
     Result: RosterModel.Roster,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO rosters (team_id, name, active, color, emoji)
       VALUES (${input.team_id}, ${input.name}, ${input.active}, ${input.color}, ${input.emoji})
       RETURNING *
     `,
   });
 
-  private updateOne = SqlSchema.single({
+  const updateOne = SqlSchema.findOne({
     Request: Schema.Struct({
       id: RosterModel.RosterId,
       name: Schema.OptionFromNullOr(Schema.String),
@@ -91,7 +84,7 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
       discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     }),
     Result: RosterModel.Roster,
-    execute: (i) => this.sql`
+    execute: (i) => sql`
       UPDATE rosters
       SET name = COALESCE(${i.name}, name),
           active = COALESCE(${i.active}, active),
@@ -103,15 +96,15 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     `,
   });
 
-  private deleteOne = SqlSchema.void({
+  const deleteOne = SqlSchema.void({
     Request: RosterModel.RosterId,
-    execute: (id) => this.sql`DELETE FROM rosters WHERE id = ${id}`,
+    execute: (id) => sql`DELETE FROM rosters WHERE id = ${id}`,
   });
 
-  private findMemberEntries = SqlSchema.findAll({
+  const findMemberEntries = SqlSchema.findAll({
     Request: RosterMemberEntriesInput,
     Result: RosterEntry,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT tm.id AS member_id, tm.user_id, u.discord_id,
              COALESCE(
                (SELECT string_agg(DISTINCT r.name, ',' ORDER BY r.name)
@@ -148,51 +141,69 @@ export class RostersRepository extends Effect.Service<RostersRepository>()(
     `,
   });
 
-  private addMember = SqlSchema.void({
+  const addMember = SqlSchema.void({
     Request: RosterMemberInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO roster_members (roster_id, team_member_id)
       VALUES (${input.roster_id}, ${input.team_member_id})
       ON CONFLICT DO NOTHING
     `,
   });
 
-  private removeMember = SqlSchema.void({
+  const removeMember = SqlSchema.void({
     Request: RosterMemberInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       DELETE FROM roster_members
       WHERE roster_id = ${input.roster_id} AND team_member_id = ${input.team_member_id}
     `,
   });
 
-  findByTeamId = (teamId: Team.TeamId) => this.findByTeam(teamId).pipe(catchSqlErrors);
+  const findByTeamId = (teamId: Team.TeamId) => findByTeam(teamId).pipe(catchSqlErrors);
 
-  findRosterById = (rosterId: RosterModel.RosterId) => this.findById(rosterId).pipe(catchSqlErrors);
+  const findRosterById = (rosterId: RosterModel.RosterId) =>
+    findById(rosterId).pipe(catchSqlErrors);
 
-  insert = (input: typeof RosterInsertInput.Type) =>
-    this.insertOne(new RosterInsertInput(input)).pipe(catchSqlErrors);
+  const insert = (input: typeof RosterInsertInput.Type) => insertOne(input).pipe(catchSqlErrors);
 
-  update = (input: typeof RosterUpdateInput.Type) => {
-    const parsed = new RosterUpdateInput(input);
-    return this.updateOne({
-      id: parsed.id,
-      name: parsed.name,
-      active: parsed.active,
-      color: parsed.color,
-      emoji: parsed.emoji,
-      update_channel: Option.isSome(parsed.discord_channel_id),
-      discord_channel_id: Option.getOrElse(parsed.discord_channel_id, () => Option.none()),
+  const update = (input: typeof RosterUpdateInput.Type) =>
+    updateOne({
+      id: input.id,
+      name: input.name,
+      active: input.active,
+      color: input.color,
+      emoji: input.emoji,
+      update_channel: Option.isSome(input.discord_channel_id),
+      discord_channel_id: Option.getOrElse(input.discord_channel_id, () => Option.none()),
     }).pipe(catchSqlErrors);
+
+  const _delete = (id: RosterModel.RosterId) => deleteOne(id).pipe(catchSqlErrors);
+
+  const addMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
+    addMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
+
+  const removeMemberById = (
+    rosterId: RosterModel.RosterId,
+    teamMemberId: TeamMember.TeamMemberId,
+  ) => removeMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
+
+  const findMemberEntriesById = (rosterId: RosterModel.RosterId) =>
+    findMemberEntries({ roster_id: rosterId }).pipe(catchSqlErrors);
+
+  return {
+    findByTeamId,
+    findRosterById,
+    insert,
+    update,
+    delete: _delete,
+    addMemberById,
+    removeMemberById,
+    findMemberEntriesById,
   };
+});
 
-  delete = (id: RosterModel.RosterId) => this.deleteOne(id).pipe(catchSqlErrors);
-
-  addMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
-    this.addMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
-
-  removeMemberById = (rosterId: RosterModel.RosterId, teamMemberId: TeamMember.TeamMemberId) =>
-    this.removeMember({ roster_id: rosterId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
-
-  findMemberEntriesById = (rosterId: RosterModel.RosterId) =>
-    this.findMemberEntries({ roster_id: rosterId }).pipe(catchSqlErrors);
+export class RostersRepository extends ServiceMap.Service<
+  RostersRepository,
+  Effect.Success<typeof make>
+>()('api/RostersRepository') {
+  static readonly Default = Layer.effect(RostersRepository, make);
 }

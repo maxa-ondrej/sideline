@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { ActivityStats, ActivityStatsApi, Auth } from '@sideline/domain';
 import { Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
@@ -8,12 +8,12 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 
 export const ActivityStatsApiLive = HttpApiBuilder.group(Api, 'activityStats', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.map(({ members, activityLogs }) =>
-      handlers.handle('getMemberStats', ({ path: { teamId, memberId } }) =>
+      handlers.handle('getMemberStats', ({ params: { teamId, memberId } }) =>
         Effect.Do.pipe(
-          Effect.bind('currentUser', () => Auth.CurrentUserContext),
+          Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
           Effect.bind('membership', ({ currentUser }) =>
             requireMembership(members, teamId, currentUser.id, new ActivityStatsApi.Forbidden()),
           ),

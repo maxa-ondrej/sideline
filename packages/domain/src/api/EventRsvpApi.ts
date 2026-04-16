@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { EventId } from '~/models/Event.js';
 import { RsvpResponse } from '~/models/EventRsvp.js';
@@ -25,27 +25,22 @@ export class EventRsvpDetail extends Schema.Class<EventRsvpDetail>('EventRsvpDet
   minPlayersThreshold: Schema.Number,
 }) {}
 
-export class SubmitRsvpRequest extends Schema.Class<SubmitRsvpRequest>('SubmitRsvpRequest')({
+export const SubmitRsvpRequest = Schema.Struct({
   response: RsvpResponse,
   message: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
+export type SubmitRsvpRequest = Schema.Schema.Type<typeof SubmitRsvpRequest>;
 
-export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
+export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()(
   'EventRsvpEventNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'EventRsvpForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('EventRsvpForbidden', {}) {}
 
-export class RsvpDeadlinePassed extends Schema.TaggedError<RsvpDeadlinePassed>()(
+export class RsvpDeadlinePassed extends Schema.TaggedErrorClass<RsvpDeadlinePassed>()(
   'RsvpDeadlinePassed',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
 export class NonResponderEntry extends Schema.Class<NonResponderEntry>('NonResponderEntry')({
@@ -62,28 +57,34 @@ export class NonRespondersResponse extends Schema.Class<NonRespondersResponse>(
 
 export class EventRsvpApiGroup extends HttpApiGroup.make('eventRsvp')
   .add(
-    HttpApiEndpoint.get('getRsvps', '/teams/:teamId/events/:eventId/rsvps')
-      .addSuccess(EventRsvpDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getRsvps', '/teams/:teamId/events/:eventId/rsvps', {
+      success: EventRsvpDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.put('submitRsvp', '/teams/:teamId/events/:eventId/rsvp')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .addError(RsvpDeadlinePassed, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .setPayload(SubmitRsvpRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.put('submitRsvp', '/teams/:teamId/events/:eventId/rsvp', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+        RsvpDeadlinePassed.pipe(HttpApiSchema.status(400)),
+      ],
+      payload: SubmitRsvpRequest,
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getNonResponders', '/teams/:teamId/events/:eventId/rsvps/non-responders')
-      .addSuccess(NonRespondersResponse)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getNonResponders', '/teams/:teamId/events/:eventId/rsvps/non-responders', {
+      success: NonRespondersResponse,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   ) {}

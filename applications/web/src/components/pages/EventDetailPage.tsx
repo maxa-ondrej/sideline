@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { EventApi, EventRsvpApi, GroupApi, TrainingTypeApi } from '@sideline/domain';
 import { Discord, Event, EventSeries, GroupModel, Team, TrainingType } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -37,12 +37,12 @@ import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 const NONE_VALUE = '__none__';
 
 const EventEditSchema = Schema.Struct({
-  title: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
-  eventType: Event.EventType.annotations({ message: () => m.validation_invalidOption() }),
+  title: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
+  eventType: Event.EventType.annotate({ message: m.validation_invalidOption() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
-  startDate: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
-  startTime: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
+  startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
   endTime: Schema.String,
   location: Schema.String,
@@ -94,7 +94,7 @@ export function EventDetailPage({
   const eventIdBranded = Schema.decodeSync(Event.EventId)(eventId);
 
   const form = useForm<EventEditValues>({
-    resolver: effectTsResolver(EventEditSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(EventEditSchema)),
     mode: 'onChange',
     defaultValues: {
       title: eventDetail.title,
@@ -136,10 +136,10 @@ export function EventDetailPage({
     setSaving(true);
     setShowEditScope(false);
     const { trainingTypeIdOption, startAt, endAt } = buildPayload(values);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.event.updateEvent({
-          path: { teamId: teamIdBranded, eventId: eventIdBranded },
+          params: { teamId: teamIdBranded, eventId: eventIdBranded },
           payload: {
             title: Option.some(values.title),
             eventType: Option.some(values.eventType),
@@ -152,7 +152,7 @@ export function EventDetailPage({
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                ? Option.some(Discord.Snowflake.makeUnsafe(values.discordChannelId))
                 : Option.none(),
             ),
             ownerGroupId: Option.some(
@@ -168,7 +168,7 @@ export function EventDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.event_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.event_updateFailed())),
       run({ success: m.event_eventSaved() }),
     );
     setSaving(false);
@@ -186,10 +186,10 @@ export function EventDetailPage({
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
       eventDetail.seriesId.value,
     );
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.updateEventSeries({
-          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          params: { teamId: teamIdBranded, seriesId: seriesIdBranded },
           payload: {
             title: Option.some(values.title),
             trainingTypeId: Option.some(trainingTypeIdOption),
@@ -207,7 +207,7 @@ export function EventDetailPage({
             endDate: Option.none(),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
-                ? Option.some(Discord.Snowflake.make(values.discordChannelId))
+                ? Option.some(Discord.Snowflake.makeUnsafe(values.discordChannelId))
                 : Option.none(),
             ),
             ownerGroupId: Option.some(
@@ -223,7 +223,7 @@ export function EventDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.event_updateSeriesFailed())),
+      Effect.mapError(() => ClientError.make(m.event_updateSeriesFailed())),
       run({ success: m.event_seriesSaved() }),
     );
     setSaving(false);
@@ -242,11 +242,11 @@ export function EventDetailPage({
 
   const doCancelThisOnly = React.useCallback(async () => {
     setShowCancelScope(false);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
-        api.event.cancelEvent({ path: { teamId: teamIdBranded, eventId: eventIdBranded } }),
+        api.event.cancelEvent({ params: { teamId: teamIdBranded, eventId: eventIdBranded } }),
       ),
-      Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
+      Effect.mapError(() => ClientError.make(m.event_cancelFailed())),
       run({ success: m.event_cancelled() }),
     );
     if (Option.isSome(result)) {
@@ -260,13 +260,13 @@ export function EventDetailPage({
     const seriesIdBranded = Schema.decodeSync(EventSeries.EventSeriesId)(
       eventDetail.seriesId.value,
     );
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.eventSeries.cancelEventSeries({
-          path: { teamId: teamIdBranded, seriesId: seriesIdBranded },
+          params: { teamId: teamIdBranded, seriesId: seriesIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.event_cancelFailed())),
+      Effect.mapError(() => ClientError.make(m.event_cancelFailed())),
       run({ success: m.event_seriesCancelled() }),
     );
     if (Option.isSome(result)) {
@@ -285,17 +285,17 @@ export function EventDetailPage({
 
   const handleRsvpSubmit = React.useCallback(
     (response: 'yes' | 'no' | 'maybe', message: string) =>
-      ApiClient.pipe(
+      ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.eventRsvp.submitRsvp({
-            path: { teamId: teamIdBranded, eventId: eventIdBranded },
+            params: { teamId: teamIdBranded, eventId: eventIdBranded },
             payload: {
               response,
               message: message ? Option.some(message) : Option.none(),
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.rsvp_submitFailed())),
+        Effect.mapError(() => ClientError.make(m.rsvp_submitFailed())),
         Effect.tap(() => Effect.sync(() => router.invalidate())),
       ),
     [teamIdBranded, eventIdBranded, router],

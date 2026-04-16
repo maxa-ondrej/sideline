@@ -69,8 +69,8 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: TEST_GUILD_ID,
           created_by: 'user-1',
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
@@ -83,14 +83,14 @@ const MockTeamsRepositoryLayer = Layer.succeed(TeamsRepository, {
           name: 'Test Team',
           guild_id: TEST_GUILD_ID,
           created_by: 'user-1',
-          created_at: DateTime.unsafeNow(),
-          updated_at: DateTime.unsafeNow(),
+          created_at: DateTime.nowUnsafe(),
+          updated_at: DateTime.nowUnsafe(),
         }),
       );
     return Effect.succeed(Option.none());
   },
   insert: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamsRepository);
+} as any);
 
 const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, {
   findByTeamId: (teamId: string) => {
@@ -119,7 +119,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   updateTrainingType: () => Effect.die(new Error('Not implemented')),
   deleteTrainingType: () => Effect.void,
   deleteTrainingTypeById: () => Effect.void,
-} as unknown as TrainingTypesRepository);
+} as any);
 
 const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (_teamId: Team.TeamId, _userId: string) =>
@@ -143,7 +143,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   insertEvent: (input: { trainingTypeId: Option.Option<string> }) => {
@@ -155,7 +155,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: 'training' as Event.EventType,
       title: 'Test Training',
       description: Option.none(),
-      start_at: DateTime.unsafeNow(),
+      start_at: DateTime.nowUnsafe(),
       end_at: Option.none(),
       location: Option.none(),
       status: 'active' as Event.EventStatus,
@@ -190,7 +190,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   saveDiscordMessageId: () => Effect.void,
   getDiscordMessageId: () => Effect.succeed(Option.none()),
   findNonResponders: () => Effect.succeed([]),
-} as unknown as EventsRepository);
+} as any);
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
   emitEventCreated: () => Effect.void,
@@ -200,7 +200,7 @@ const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsReposito
   findUnprocessed: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
-} as unknown as EventSyncEventsRepository);
+} as any);
 
 // --- Helper to import and call handler functions ---
 // Since GetTrainingTypesByGuild is a new RPC, we test the server handler logic directly
@@ -228,8 +228,8 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
     // This test verifies the server logic: guild_id -> team_id -> training types
     // The handler queries TeamsRepository.findByGuildId then TrainingTypesRepository.findTrainingTypesByTeamId
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ teams, trainingTypes }) =>
         Effect.Do.pipe(
           Effect.bind('team', () => teams.findByGuildId(TEST_GUILD_ID)),
@@ -244,11 +244,13 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
           ),
         ),
       ),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(2);
-        expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_1)?.name).toBe('Fitness');
-        expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_2)?.name).toBe('Tactics');
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(2);
+          expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_1)?.name).toBe('Fitness');
+          expect(result.find((tt) => tt.id === TEST_TRAINING_TYPE_2)?.name).toBe('Tactics');
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -258,8 +260,8 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
     const unknownGuildId = '000000000000000001' as Discord.Snowflake;
 
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ teams, trainingTypes }) =>
         Effect.Do.pipe(
           Effect.bind('team', () => teams.findByGuildId(unknownGuildId)),
@@ -274,9 +276,11 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
           ),
         ),
       ),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(0);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(0);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -287,8 +291,8 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
     trainingTypesStore.clear();
 
     return Effect.Do.pipe(
-      Effect.bind('teams', () => TeamsRepository),
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('teams', () => TeamsRepository.asEffect()),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ teams, trainingTypes }) =>
         Effect.Do.pipe(
           Effect.bind('team', () => teams.findByGuildId(TEST_GUILD_ID)),
@@ -303,9 +307,11 @@ describe('GetTrainingTypesByGuild RPC handler', () => {
           ),
         ),
       ),
-      Effect.tap((result) => {
-        expect(result).toHaveLength(0);
-      }),
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result).toHaveLength(0);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -321,7 +327,7 @@ describe('CreateEvent RPC with training_type_id', () => {
 
     // Simulate the updated createEvent handler behavior
     return Effect.Do.pipe(
-      Effect.bind('events', () => EventsRepository),
+      Effect.bind('events', () => EventsRepository.asEffect()),
       Effect.flatMap(({ events }) =>
         events.insertEvent({
           teamId: TEST_TEAM_ID,
@@ -329,17 +335,19 @@ describe('CreateEvent RPC with training_type_id', () => {
           eventType: 'training',
           title: 'Test Training',
           description: Option.none(),
-          startAt: DateTime.unsafeNow(),
+          startAt: DateTime.nowUnsafe(),
           endAt: Option.none(),
           location: Option.none(),
           createdBy: TEST_ADMIN_MEMBER_ID,
         }),
       ),
-      Effect.tap(() => {
-        expect(eventsInserted).toHaveLength(1);
-        expect(Option.isSome(eventsInserted[0].trainingTypeId)).toBe(true);
-        expect(Option.getOrNull(eventsInserted[0].trainingTypeId)).toBe(TEST_TRAINING_TYPE_1);
-      }),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(eventsInserted).toHaveLength(1);
+          expect(Option.isSome(eventsInserted[0].trainingTypeId)).toBe(true);
+          expect(Option.getOrNull(eventsInserted[0].trainingTypeId)).toBe(TEST_TRAINING_TYPE_1);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -348,7 +356,7 @@ describe('CreateEvent RPC with training_type_id', () => {
   it.effect('passes Option.none() for training_type_id when not provided (backward compat)', () => {
     // The updated CreateEvent should be backward-compatible when training_type_id is absent.
     return Effect.Do.pipe(
-      Effect.bind('events', () => EventsRepository),
+      Effect.bind('events', () => EventsRepository.asEffect()),
       Effect.flatMap(({ events }) =>
         events.insertEvent({
           teamId: TEST_TEAM_ID,
@@ -356,16 +364,18 @@ describe('CreateEvent RPC with training_type_id', () => {
           eventType: 'match',
           title: 'Test Match',
           description: Option.none(),
-          startAt: DateTime.unsafeNow(),
+          startAt: DateTime.nowUnsafe(),
           endAt: Option.none(),
           location: Option.none(),
           createdBy: TEST_ADMIN_MEMBER_ID,
         }),
       ),
-      Effect.tap(() => {
-        expect(eventsInserted).toHaveLength(1);
-        expect(Option.isNone(eventsInserted[0].trainingTypeId)).toBe(true);
-      }),
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(eventsInserted).toHaveLength(1);
+          expect(Option.isNone(eventsInserted[0].trainingTypeId)).toBe(true);
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
@@ -393,7 +403,7 @@ describe('CreateEvent RPC with training_type_id', () => {
 
     // The validation logic: fetch training type and check team_id matches
     return Effect.Do.pipe(
-      Effect.bind('trainingTypes', () => TrainingTypesRepository),
+      Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
       Effect.flatMap(({ trainingTypes }) =>
         trainingTypes.findTrainingTypeById(foreignTrainingTypeId).pipe(
           Effect.flatMap(
@@ -407,13 +417,15 @@ describe('CreateEvent RPC with training_type_id', () => {
           ),
         ),
       ),
-      Effect.either,
-      Effect.tap((result) => {
-        expect(result._tag).toBe('Left');
-        if (result._tag === 'Left') {
-          expect(result.left._tag).toBe('CreateEventForbidden');
-        }
-      }),
+      Effect.result,
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result._tag).toBe('Failure');
+          if (result._tag === 'Failure') {
+            expect(result.failure._tag).toBe('CreateEventForbidden');
+          }
+        }),
+      ),
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );

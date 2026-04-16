@@ -1,11 +1,11 @@
+import { Schema, ServiceMap } from 'effect';
 import {
   HttpApiEndpoint,
   HttpApiGroup,
   HttpApiMiddleware,
   HttpApiSchema,
   HttpApiSecurity,
-} from '@effect/platform';
-import { Context, Schema } from 'effect';
+} from 'effect/unstable/httpapi';
 import { Snowflake } from '~/models/Discord.js';
 import { Permission } from '~/models/Role.js';
 import { TeamId } from '~/models/Team.js';
@@ -36,14 +36,19 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   locale: Locale,
 }) {}
 
-export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('UpdateLocaleRequest')({
+export const UpdateLocaleRequest = Schema.Struct({
   locale: Locale,
-}) {}
+});
+export type UpdateLocaleRequest = Schema.Schema.Type<typeof UpdateLocaleRequest>;
 
-export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTeamRequest')({
-  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
+export const CreateTeamRequest = Schema.Struct({
+  name: Schema.String.pipe(
+    Schema.check(Schema.isMinLength(1)),
+    Schema.check(Schema.isMaxLength(100)),
+  ),
   guildId: Snowflake,
-}) {}
+});
+export type CreateTeamRequest = Schema.Schema.Type<typeof CreateTeamRequest>;
 
 export class DiscordGuild extends Schema.Class<DiscordGuild>('DiscordGuild')({
   id: Snowflake,
@@ -53,31 +58,11 @@ export class DiscordGuild extends Schema.Class<DiscordGuild>('DiscordGuild')({
   botPresent: Schema.Boolean,
 }) {}
 
-export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
-  'CompleteProfileRequest',
-)({
+export const CompleteProfileRequest = Schema.Struct({
   name: Schema.String,
   birthDate: Schema.String.pipe(
-    Schema.filter((s) => {
-      const d = new Date(s);
-      if (Number.isNaN(d.getTime())) return 'Invalid date';
-      if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - MIN_AGE);
-      if (d > minDate) return `Must be at least ${MIN_AGE} years old`;
-      return true;
-    }),
-  ),
-  gender: Gender,
-}) {}
-
-export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
-  'UpdateProfileRequest',
-)({
-  name: Schema.OptionFromNullOr(Schema.String),
-  birthDate: Schema.OptionFromNullOr(
-    Schema.String.pipe(
-      Schema.filter((s) => {
+    Schema.check(
+      Schema.makeFilter<string>((s) => {
         const d = new Date(s);
         if (Number.isNaN(d.getTime())) return 'Invalid date';
         if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
@@ -88,90 +73,116 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
       }),
     ),
   ),
-  gender: Schema.OptionFromNullOr(Gender),
-}) {}
+  gender: Gender,
+});
+export type CompleteProfileRequest = Schema.Schema.Type<typeof CompleteProfileRequest>;
 
-export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
-  'Unauthorized',
-  {},
-  HttpApiSchema.annotations({ status: 401 }),
+export const UpdateProfileRequest = Schema.Struct({
+  name: Schema.OptionFromNullOr(Schema.String),
+  birthDate: Schema.OptionFromNullOr(
+    Schema.String.pipe(
+      Schema.check(
+        Schema.makeFilter<string>((s) => {
+          const d = new Date(s);
+          if (Number.isNaN(d.getTime())) return 'Invalid date';
+          if (d < new Date('1900-01-01')) return 'Date must be after 1900-01-01';
+          const minDate = new Date();
+          minDate.setFullYear(minDate.getFullYear() - MIN_AGE);
+          if (d > minDate) return `Must be at least ${MIN_AGE} years old`;
+          return true;
+        }),
+      ),
+    ),
+  ),
+  gender: Schema.OptionFromNullOr(Gender),
+});
+export type UpdateProfileRequest = Schema.Schema.Type<typeof UpdateProfileRequest>;
+
+export class Unauthorized extends Schema.TaggedErrorClass<Unauthorized>()('Unauthorized', {}) {}
+
+export class CurrentUserContext extends ServiceMap.Service<CurrentUserContext, CurrentUser>()(
+  'CurrentUserContext',
 ) {}
 
-export class CurrentUserContext extends Context.Tag('CurrentUserContext')<
-  CurrentUserContext,
-  CurrentUser
->() {}
-
-export class AuthMiddleware extends HttpApiMiddleware.Tag<AuthMiddleware>()('AuthMiddleware', {
-  failure: Unauthorized,
-  provides: CurrentUserContext,
+export class AuthMiddleware extends HttpApiMiddleware.Service<
+  AuthMiddleware,
+  { provides: CurrentUserContext }
+>()('AuthMiddleware', {
+  error: Unauthorized.pipe(HttpApiSchema.status(401)),
   security: { token: HttpApiSecurity.bearer },
 }) {}
 
 export class AuthApiGroup extends HttpApiGroup.make('auth')
-  .add(HttpApiEndpoint.get('getLogin', '/login/url').addSuccess(Schema.URL))
-  .add(HttpApiEndpoint.get('doLogin', '/login').addSuccess(Schema.Void, { status: 302 }))
   .add(
-    HttpApiEndpoint.get('callback', '/callback')
-      .addSuccess(Schema.Void, { status: 302 })
-      .setUrlParams(
-        Schema.Struct({
-          code: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-          state: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-          error: Schema.String.pipe(Schema.optionalWith({ as: 'Option' })),
-        }),
-      ),
+    HttpApiEndpoint.get('getLogin', '/login/url', {
+      success: Schema.URLFromString,
+    }),
   )
   .add(
-    HttpApiEndpoint.get('me', '/me')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('doLogin', '/login', {
+      success: Schema.Void.pipe(HttpApiSchema.status(302)),
+    }),
   )
   .add(
-    HttpApiEndpoint.post('completeProfile', '/profile')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(CompleteProfileRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('callback', '/callback', {
+      success: Schema.Void.pipe(HttpApiSchema.status(302)),
+      query: {
+        code: Schema.OptionFromOptional(Schema.String),
+        state: Schema.OptionFromOptional(Schema.String),
+        error: Schema.OptionFromOptional(Schema.String),
+      },
+    }),
   )
   .add(
-    HttpApiEndpoint.patch('updateLocale', '/me/locale')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(UpdateLocaleRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('me', '/me', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateProfile', '/me')
-      .addSuccess(CurrentUser)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(UpdateProfileRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('completeProfile', '/profile', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: CompleteProfileRequest,
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('myTeams', '/me/teams')
-      .addSuccess(Schema.Array(UserTeam))
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateLocale', '/me/locale', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: UpdateLocaleRequest,
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('myGuilds', '/me/guilds')
-      .addSuccess(Schema.Array(DiscordGuild))
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateProfile', '/me', {
+      success: CurrentUser,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: UpdateProfileRequest,
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createTeam', '/me/teams')
-      .addSuccess(UserTeam)
-      .addError(Unauthorized, { status: 401 })
-      .setPayload(CreateTeamRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('myTeams', '/me/teams', {
+      success: Schema.Array(UserTeam),
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('autoJoinTeams', '/me/teams/auto-join')
-      .addSuccess(Schema.Array(UserTeam))
-      .addError(Unauthorized, { status: 401 })
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('myGuilds', '/me/guilds', {
+      success: Schema.Array(DiscordGuild),
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('createTeam', '/me/teams', {
+      success: UserTeam,
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+      payload: CreateTeamRequest,
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('autoJoinTeams', '/me/teams/auto-join', {
+      success: Schema.Array(UserTeam),
+      error: Unauthorized.pipe(HttpApiSchema.status(401)),
+    }).middleware(AuthMiddleware),
   )
   .prefix('/auth') {}

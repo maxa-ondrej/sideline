@@ -4,8 +4,8 @@ import { AgeThresholdRepository } from '~/repositories/AgeThresholdRepository.js
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 
 const cronEffect = Effect.Do.pipe(
-  Effect.bind('thresholds', () => AgeThresholdRepository),
-  Effect.bind('ageCheck', () => AgeCheckService),
+  Effect.bind('thresholds', () => AgeThresholdRepository.asEffect()),
+  Effect.bind('ageCheck', () => AgeCheckService.asEffect()),
   Effect.tap(() => Effect.logInfo('AgeCheckCron: starting evaluation cycle')),
   Effect.bind('teamIds', ({ thresholds }) => thresholds.getAllTeamsWithRules()),
   Effect.let('today', () => new Date()),

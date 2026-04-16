@@ -1,6 +1,6 @@
-import { SqlClient } from '@effect/sql';
 import { PgClient } from '@effect/sql-pg';
 import { Config, Effect } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 
 const TestPgClientConfig = {
   host: Config.string('DATABASE_HOST'),
@@ -12,7 +12,7 @@ const TestPgClientConfig = {
 
 export const TestPgClient = PgClient.layerConfig(TestPgClientConfig);
 
-export const cleanDatabase = SqlClient.SqlClient.pipe(
+export const cleanDatabase = SqlClient.SqlClient.asEffect().pipe(
   Effect.andThen((sql) =>
     sql.unsafe(`
       DO $$ DECLARE r RECORD;

@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
 import { ChannelCleanupMode } from '~/models/ChannelSyncEvent.js';
@@ -7,9 +7,9 @@ import { Snowflake } from '~/models/Discord.js';
 import { TeamId } from '~/models/Team.js';
 
 const DiscordFormatString = Schema.String.pipe(
-  Schema.filter((s) => s.includes('{name}'), {
-    message: () => 'Format must include {name}',
-  }),
+  Schema.check(
+    Schema.makeFilter<string>((s) => (s.includes('{name}') ? true : 'Format must include {name}')),
+  ),
 );
 
 export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettingsInfo')({
@@ -33,63 +33,44 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordChannelFormat: Schema.String,
 }) {}
 
-export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
-  'UpdateTeamSettingsRequest',
-)({
-  eventHorizonDays: Schema.Int.pipe(Schema.between(1, 365)),
-  minPlayersThreshold: Schema.optionalWith(Schema.Int.pipe(Schema.between(0, 100)), {
-    as: 'Option',
-  }),
-  rsvpReminderHours: Schema.optionalWith(Schema.Int.pipe(Schema.between(0, 168)), {
-    as: 'Option',
-  }),
-  discordChannelTraining: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelMatch: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelTournament: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelMeeting: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelSocial: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelOther: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelLateRsvp: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  createDiscordChannelOnGroup: Schema.optionalWith(Schema.Boolean, { as: 'Option' }),
-  createDiscordChannelOnRoster: Schema.optionalWith(Schema.Boolean, { as: 'Option' }),
-  discordArchiveCategoryId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), {
-    as: 'Option',
-  }),
-  discordChannelCleanupOnGroupDelete: Schema.optionalWith(ChannelCleanupMode, { as: 'Option' }),
-  discordChannelCleanupOnRosterDeactivate: Schema.optionalWith(ChannelCleanupMode, {
-    as: 'Option',
-  }),
-  discordRoleFormat: Schema.optionalWith(DiscordFormatString, { as: 'Option' }),
-  discordChannelFormat: Schema.optionalWith(DiscordFormatString, { as: 'Option' }),
-}) {}
+export const UpdateTeamSettingsRequest = Schema.Struct({
+  eventHorizonDays: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 365 }))),
+  minPlayersThreshold: Schema.OptionFromOptional(
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 100 }))),
+  ),
+  rsvpReminderHours: Schema.OptionFromOptional(
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 168 }))),
+  ),
+  discordChannelTraining: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelMatch: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelTournament: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelMeeting: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelSocial: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelOther: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelLateRsvp: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  createDiscordChannelOnGroup: Schema.OptionFromOptional(Schema.Boolean),
+  createDiscordChannelOnRoster: Schema.OptionFromOptional(Schema.Boolean),
+  discordArchiveCategoryId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordChannelCleanupOnGroupDelete: Schema.OptionFromOptional(ChannelCleanupMode),
+  discordChannelCleanupOnRosterDeactivate: Schema.OptionFromOptional(ChannelCleanupMode),
+  discordRoleFormat: Schema.OptionFromOptional(DiscordFormatString),
+  discordChannelFormat: Schema.OptionFromOptional(DiscordFormatString),
+});
+export type UpdateTeamSettingsRequest = Schema.Schema.Type<typeof UpdateTeamSettingsRequest>;
 
 export class TeamSettingsApiGroup extends HttpApiGroup.make('teamSettings')
   .add(
-    HttpApiEndpoint.get('getTeamSettings', '/teams/:teamId/settings')
-      .addSuccess(TeamSettingsInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getTeamSettings', '/teams/:teamId/settings', {
+      success: TeamSettingsInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateTeamSettings', '/teams/:teamId/settings')
-      .addSuccess(TeamSettingsInfo)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(UpdateTeamSettingsRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateTeamSettings', '/teams/:teamId/settings', {
+      success: TeamSettingsInfo,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: UpdateTeamSettingsRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

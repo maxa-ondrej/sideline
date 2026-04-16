@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, NotificationApi } from '@sideline/domain';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 
@@ -8,14 +8,14 @@ const forbidden = new NotificationApi.Forbidden();
 
 export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('notifications', () => NotificationsRepository),
+    Effect.bind('notifications', () => NotificationsRepository.asEffect()),
     Effect.map(({ notifications }) =>
       handlers
-        .handle('listNotifications', ({ urlParams }) =>
+        .handle('listNotifications', ({ query }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('list', ({ currentUser }) =>
-              notifications.findByUserAndTeam(currentUser.id, urlParams.teamId),
+              notifications.findByUserAndTeam(currentUser.id, query.teamId),
             ),
             Effect.map(({ list }) =>
               Array.map(
@@ -34,9 +34,9 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
             ),
           ),
         )
-        .handle('markAsRead', ({ path: { notificationId } }) =>
+        .handle('markAsRead', ({ params: { notificationId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('notification', () =>
               notifications.findById(notificationId).pipe(
                 Effect.flatMap(
@@ -56,7 +56,7 @@ export const NotificationApiLive = HttpApiBuilder.group(Api, 'notification', (ha
         )
         .handle('markAllAsRead', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>
               notifications.markAllAsReadForTeam(currentUser.id, payload.teamId),
             ),

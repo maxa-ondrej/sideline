@@ -14,20 +14,20 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/members/$me
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(params.memberId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          player: api.roster.getMember({ path: { teamId, memberId } }),
+          player: api.roster.getMember({ params: { teamId, memberId } }),
           myTeams: api.auth.myTeams(),
-          roles: api.role.listRoles({ path: { teamId } }),
-          activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
-          activityLogs: api.activityLog.listLogs({ path: { teamId, memberId } }).pipe(
+          roles: api.role.listRoles({ params: { teamId } }),
+          activityStats: api.activityStats.getMemberStats({ params: { teamId, memberId } }),
+          activityLogs: api.activityLog.listLogs({ params: { teamId, memberId } }).pipe(
             Effect.map((r) => ({ isOwnProfile: true as boolean, logs: r.logs })),
-            Effect.catchAll(() =>
+            Effect.catch(() =>
               Effect.succeed({ isOwnProfile: false as boolean, logs: [] as const }),
             ),
           ),
-          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
+          activityTypes: api.activityLog.listActivityTypes({ params: { teamId } }),
         }),
       ),
       warnAndCatchAll,
@@ -70,19 +70,19 @@ function MemberDetailRoute() {
 
   const handleSave = React.useCallback(
     async (values: PlayerEditValues) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.roster.updateMember({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: {
-              name: Option.fromNullable(values.name),
+              name: Option.fromNullishOr(values.name),
               birthDate: values.birthDate ? Option.some(values.birthDate) : Option.none(),
-              gender: Option.fromNullable(values.gender),
-              jerseyNumber: Option.fromNullable(values.jerseyNumber),
+              gender: Option.fromNullishOr(values.gender),
+              jerseyNumber: Option.fromNullishOr(values.jerseyNumber),
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.members_saveFailed())),
+        Effect.mapError(() => ClientError.make(m.members_saveFailed())),
         run({ success: m.members_playerSaved() }),
       );
       if (Option.isSome(result)) {
@@ -94,14 +94,14 @@ function MemberDetailRoute() {
 
   const handleAssignRole = React.useCallback(
     async (roleId: string) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.role.assignRole({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: { roleId: roleId as Role.RoleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roles_assignFailed())),
+        Effect.mapError(() => ClientError.make(m.roles_assignFailed())),
         run({ success: m.role_roleAssigned() }),
       );
       if (Option.isSome(result)) {
@@ -113,13 +113,13 @@ function MemberDetailRoute() {
 
   const handleUnassignRole = React.useCallback(
     async (roleId: string) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.role.unassignRole({
-            path: { teamId, memberId, roleId: roleId as Role.RoleId },
+            params: { teamId, memberId, roleId: roleId as Role.RoleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.roles_unassignFailed())),
+        Effect.mapError(() => ClientError.make(m.roles_unassignFailed())),
         run({ success: m.role_roleUnassigned() }),
       );
       if (Option.isSome(result)) {
@@ -135,10 +135,10 @@ function MemberDetailRoute() {
       durationMinutes: Option.Option<number>;
       note: Option.Option<string>;
     }) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.createLog({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -146,7 +146,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_logFailed())),
         run({ success: m.activityLog_logged() }),
       );
       if (Option.isSome(result)) {
@@ -165,10 +165,10 @@ function MemberDetailRoute() {
         note: Option.Option<Option.Option<string>>;
       },
     ) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.updateLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -176,7 +176,7 @@ function MemberDetailRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_updateFailed())),
         run({ success: m.activityLog_updated() }),
       );
       if (Option.isSome(result)) {
@@ -188,13 +188,13 @@ function MemberDetailRoute() {
 
   const handleDeleteLog = React.useCallback(
     async (logId: ActivityLog.ActivityLogId) => {
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.deleteLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_deleteFailed())),
         run({ success: m.activityLog_deleted() }),
       );
       if (Option.isSome(result)) {

@@ -1,7 +1,7 @@
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 
-export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
+export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
   Effect.Do.pipe(
     Effect.tap(() => sql`ALTER TABLE teams ADD COLUMN guild_id TEXT`),
     Effect.tap(() => sql`CREATE INDEX idx_teams_guild_id ON teams(guild_id)`),

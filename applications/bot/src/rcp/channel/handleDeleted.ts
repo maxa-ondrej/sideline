@@ -5,7 +5,7 @@ import { deleteChannelAndRole } from './channelUtils.js';
 
 export const handleDeleted = (event: ChannelRpcEvents.GroupChannelDeletedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.tap(() =>
       deleteChannelAndRole(event.guild_id, event.discord_channel_id, event.discord_role_id),
     ),
@@ -17,7 +17,7 @@ export const handleDeleted = (event: ChannelRpcEvents.GroupChannelDeletedEvent) 
 
 export const handleRosterDeleted = (event: ChannelRpcEvents.RosterChannelDeletedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.tap(() =>
       deleteChannelAndRole(event.guild_id, event.discord_channel_id, event.discord_role_id),
     ),

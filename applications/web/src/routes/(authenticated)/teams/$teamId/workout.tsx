@@ -13,15 +13,15 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const userId = context.user?.id;
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
           leaderboard: api.leaderboard.getLeaderboard({
-            path: { teamId },
-            urlParams: { timeframe: Option.none(), activityTypeId: Option.none() },
+            params: { teamId },
+            query: { timeframe: Option.none(), activityTypeId: Option.none() },
           }),
-          members: api.roster.listMembers({ path: { teamId } }),
-          activityTypes: api.activityLog.listActivityTypes({ path: { teamId } }),
+          members: api.roster.listMembers({ params: { teamId } }),
+          activityTypes: api.activityLog.listActivityTypes({ params: { teamId } }),
         }).pipe(
           Effect.flatMap(({ leaderboard, members, activityTypes }) => {
             const currentMember = members.find((member) => member.userId === userId);
@@ -36,10 +36,10 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/workout')({
             }
             const memberId = currentMember.memberId;
             return Effect.all({
-              activityStats: api.activityStats.getMemberStats({ path: { teamId, memberId } }),
-              activityLogs: api.activityLog.listLogs({ path: { teamId, memberId } }).pipe(
+              activityStats: api.activityStats.getMemberStats({ params: { teamId, memberId } }),
+              activityLogs: api.activityLog.listLogs({ params: { teamId, memberId } }).pipe(
                 Effect.map((r) => r.logs as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
-                Effect.catchAll(() =>
+                Effect.catch(() =>
                   Effect.succeed([] as ReadonlyArray<ActivityLogApi.ActivityLogEntry>),
                 ),
               ),
@@ -90,10 +90,10 @@ function MakanickoRoute() {
       note: Option.Option<string>;
     }) => {
       if (!memberId) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.createLog({
-            path: { teamId, memberId },
+            params: { teamId, memberId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -101,7 +101,7 @@ function MakanickoRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_logFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_logFailed())),
         run({ success: m.activityLog_logged() }),
       );
       if (Option.isSome(result)) {
@@ -121,10 +121,10 @@ function MakanickoRoute() {
       },
     ) => {
       if (!memberId) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.updateLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
             payload: {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
@@ -132,7 +132,7 @@ function MakanickoRoute() {
             },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_updateFailed())),
         run({ success: m.activityLog_updated() }),
       );
       if (Option.isSome(result)) {
@@ -145,13 +145,13 @@ function MakanickoRoute() {
   const handleDeleteLog = React.useCallback(
     async (logId: ActivityLog.ActivityLogId) => {
       if (!memberId) return;
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.activityLog.deleteLog({
-            path: { teamId, memberId, logId },
+            params: { teamId, memberId, logId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.activityLog_deleteFailed())),
+        Effect.mapError(() => ClientError.make(m.activityLog_deleteFailed())),
         run({ success: m.activityLog_deleted() }),
       );
       if (Option.isSome(result)) {

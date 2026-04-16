@@ -8,8 +8,8 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/notificatio
   component: TeamNotificationsRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    return ApiClient.pipe(
-      Effect.flatMap((api) => api.notification.listNotifications({ urlParams: { teamId } })),
+    return ApiClient.asEffect().pipe(
+      Effect.flatMap((api) => api.notification.listNotifications({ query: { teamId } })),
       warnAndCatchAll,
       context.run,
     );

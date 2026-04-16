@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, Invite } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Effect, Option, Schedule } from 'effect';
+import { Duration, Effect, Option, Schedule } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
@@ -20,12 +20,12 @@ const forbidden = new Invite.Forbidden();
 
 export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('invites', () => TeamInvitesRepository),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('invites', () => TeamInvitesRepository.asEffect()),
     Effect.map(({ teams, members, invites }) =>
       handlers
-        .handle('getInvite', ({ path: { code } }) =>
+        .handle('getInvite', ({ params: { code } }) =>
           invites.findByCode(code).pipe(
             Effect.flatMap(
               Option.match({
@@ -54,9 +54,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             ),
           ),
         )
-        .handle('joinViaInvite', ({ path: { code } }) =>
+        .handle('joinViaInvite', ({ params: { code } }) =>
           Effect.Do.pipe(
-            Effect.bind('user', () => Auth.CurrentUserContext),
+            Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('invite', () =>
               invites.findByCode(code).pipe(
                 Effect.flatMap(
@@ -106,14 +106,14 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               Effect.fail(new Invite.AlreadyMember()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed joining via invite — no row returned'),
             ),
           ),
         )
-        .handle('regenerateInvite', ({ path: { teamId } }) =>
+        .handle('regenerateInvite', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('user', () => Auth.CurrentUserContext),
+            Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ user }) =>
               requireMembership(members, teamId, user.id, forbidden),
             ),
@@ -128,7 +128,11 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                   expires_at: Option.none(),
                   created_at: undefined,
                 }),
-              ).pipe(Effect.retry(Schedule.addDelay(Schedule.recurs(5), () => '100 millis'))),
+              ).pipe(
+                Effect.retry(
+                  Schedule.addDelay(Schedule.recurs(5), () => Effect.succeed(Duration.millis(100))),
+                ),
+              ),
             ),
             Effect.tap(({ newInvite }) =>
               invites.deactivateByTeamExcept({ teamId, excludeId: newInvite.id }),
@@ -141,14 +145,14 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed regenerating invite — no row returned'),
             ),
           ),
         )
-        .handle('disableInvite', ({ path: { teamId } }) =>
+        .handle('disableInvite', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('user', () => Auth.CurrentUserContext),
+            Effect.bind('user', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ user }) =>
               requireMembership(members, teamId, user.id, forbidden),
             ),

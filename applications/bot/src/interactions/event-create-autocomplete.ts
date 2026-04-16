@@ -13,13 +13,13 @@ export const EventCreateAutocomplete = Ix.autocomplete(
   Effect.Do.pipe(
     Effect.tap(() =>
       Metric.update(
-        pipe(discordInteractionsTotal, Metric.tagged('interaction_type', 'autocomplete')),
+        Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'autocomplete' }),
         1,
       ),
     ),
-    Effect.bind('interaction', () => Interaction),
-    Effect.bind('focused', () => FocusedOptionContext),
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('interaction', () => Interaction.asEffect()),
+    Effect.bind('focused', () => FocusedOptionContext.asEffect()),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.tap(() => Effect.logInfo('[autocomplete] handler invoked')),
     Effect.flatMap(({ interaction, focused, rpc }) => {
       const guildId = interaction.guild_id;

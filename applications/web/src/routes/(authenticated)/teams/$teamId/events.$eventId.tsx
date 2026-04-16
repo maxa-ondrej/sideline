@@ -10,21 +10,21 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/$eve
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
     const eventId = Schema.decodeSync(Event.EventId)(params.eventId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          event: api.event.getEvent({ path: { teamId, eventId } }),
-          trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
-          rsvpDetail: api.eventRsvp.getRsvps({ path: { teamId, eventId } }),
+          event: api.event.getEvent({ params: { teamId, eventId } }),
+          trainingTypes: api.trainingType.listTrainingTypes({ params: { teamId } }),
+          rsvpDetail: api.eventRsvp.getRsvps({ params: { teamId, eventId } }),
           discordChannels: api.group
-            .listDiscordChannels({ path: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .listDiscordChannels({ params: { teamId } })
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
           nonResponders: api.eventRsvp
-            .getNonResponders({ path: { teamId, eventId } })
-            .pipe(Effect.catchAll(() => Effect.succeed({ nonResponders: [] }))),
+            .getNonResponders({ params: { teamId, eventId } })
+            .pipe(Effect.catch(() => Effect.succeed({ nonResponders: [] }))),
           groups: api.group
-            .listGroups({ path: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .listGroups({ params: { teamId } })
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

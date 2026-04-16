@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { ActivityTypeId } from '~/models/ActivityType.js';
 import { LeaderboardTimeframe } from '~/models/Leaderboard.js';
@@ -8,12 +8,12 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 import { UserId } from '~/models/User.js';
 
 export class LeaderboardEntry extends Schema.Class<LeaderboardEntry>('LeaderboardEntry')({
-  rank: Schema.Int.pipe(Schema.positive()),
+  rank: Schema.Int.pipe(Schema.check(Schema.isGreaterThan(0))),
   teamMemberId: TeamMemberId,
   userId: UserId,
   username: Schema.String,
-  name: Schema.optionalWith(Schema.String, { as: 'Option' }),
-  avatar: Schema.optionalWith(Schema.String, { as: 'Option' }),
+  name: Schema.OptionFromOptional(Schema.String),
+  avatar: Schema.OptionFromOptional(Schema.String),
   totalActivities: Schema.Int,
   totalDurationMinutes: Schema.Int,
   currentStreak: Schema.Int,
@@ -24,22 +24,16 @@ export class LeaderboardResponse extends Schema.Class<LeaderboardResponse>('Lead
   entries: Schema.Array(LeaderboardEntry),
 }) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'LeaderboardForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('LeaderboardForbidden', {}) {}
 
 export class LeaderboardApiGroup extends HttpApiGroup.make('leaderboard').add(
-  HttpApiEndpoint.get('getLeaderboard', '/teams/:teamId/leaderboard')
-    .addSuccess(LeaderboardResponse)
-    .addError(Forbidden)
-    .setPath(Schema.Struct({ teamId: TeamId }))
-    .setUrlParams(
-      Schema.Struct({
-        timeframe: Schema.optionalWith(LeaderboardTimeframe, { as: 'Option' }),
-        activityTypeId: Schema.optionalWith(ActivityTypeId, { as: 'Option' }),
-      }),
-    )
-    .middleware(AuthMiddleware),
+  HttpApiEndpoint.get('getLeaderboard', '/teams/:teamId/leaderboard', {
+    success: LeaderboardResponse,
+    error: Forbidden,
+    params: { teamId: TeamId },
+    query: {
+      timeframe: Schema.OptionFromOptional(LeaderboardTimeframe),
+      activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
+    },
+  }).middleware(AuthMiddleware),
 ) {}

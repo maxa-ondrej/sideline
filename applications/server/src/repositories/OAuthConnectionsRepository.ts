@@ -1,34 +1,31 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { OAuthConnection, User } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
+const UpsertInput = Schema.Struct({
   user_id: User.UserId,
   provider: Schema.String,
   access_token: Schema.String,
   refresh_token: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class FindInput extends Schema.Class<FindInput>('FindInput')({
+const FindInput = Schema.Struct({
   user_id: User.UserId,
   provider: Schema.String,
-}) {}
+});
 
 class AccessTokenRow extends Schema.Class<AccessTokenRow>('AccessTokenRow')({
   access_token: Schema.String,
 }) {}
 
-export class OAuthConnectionsRepository extends Effect.Service<OAuthConnectionsRepository>()(
-  'api/OAuthConnectionsRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private _upsertConnection = SqlSchema.single({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const _upsertConnection = SqlSchema.findOne({
     Request: UpsertInput,
     Result: OAuthConnection.OAuthConnection,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO oauth_connections (user_id, provider, access_token, refresh_token)
       VALUES (${input.user_id}, ${input.provider}, ${input.access_token}, ${input.refresh_token})
       ON CONFLICT (user_id, provider) DO UPDATE SET
@@ -39,43 +36,56 @@ export class OAuthConnectionsRepository extends Effect.Service<OAuthConnectionsR
     `,
   });
 
-  private _findByUserAndProvider = SqlSchema.findOne({
+  const _findByUserAndProvider = SqlSchema.findOneOption({
     Request: FindInput,
     Result: OAuthConnection.OAuthConnection,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT * FROM oauth_connections
       WHERE user_id = ${input.user_id} AND provider = ${input.provider}
     `,
   });
 
-  private _findAccessToken = SqlSchema.findOne({
+  const _findAccessToken = SqlSchema.findOneOption({
     Request: FindInput,
     Result: AccessTokenRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT access_token FROM oauth_connections
       WHERE user_id = ${input.user_id} AND provider = ${input.provider}
     `,
   });
 
-  upsert = (
+  const upsert = (
     userId: User.UserId,
     provider: string,
     accessToken: string,
     refreshToken: Option.Option<string>,
   ) =>
-    this._upsertConnection({
+    _upsertConnection({
       user_id: userId,
       provider,
       access_token: accessToken,
       refresh_token: refreshToken,
     }).pipe(catchSqlErrors);
 
-  findByUser = (userId: User.UserId, provider: string) =>
-    this._findByUserAndProvider({ user_id: userId, provider }).pipe(catchSqlErrors);
+  const findByUser = (userId: User.UserId, provider: string) =>
+    _findByUserAndProvider({ user_id: userId, provider }).pipe(catchSqlErrors);
 
-  getAccessToken = (userId: User.UserId, provider: string) =>
-    this._findAccessToken({ user_id: userId, provider }).pipe(
+  const getAccessToken = (userId: User.UserId, provider: string) =>
+    _findAccessToken({ user_id: userId, provider }).pipe(
       catchSqlErrors,
       Effect.map(Option.map((row) => row.access_token)),
     );
+
+  return {
+    upsert,
+    findByUser,
+    getAccessToken,
+  };
+});
+
+export class OAuthConnectionsRepository extends ServiceMap.Service<
+  OAuthConnectionsRepository,
+  Effect.Success<typeof make>
+>()('api/OAuthConnectionsRepository') {
+  static readonly Default = Layer.effect(OAuthConnectionsRepository, make);
 }

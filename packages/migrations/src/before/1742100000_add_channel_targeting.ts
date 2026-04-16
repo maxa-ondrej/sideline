@@ -1,7 +1,7 @@
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 
-export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
+export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
   Effect.Do.pipe(
     Effect.tap(() => sql`ALTER TABLE events ADD COLUMN discord_target_channel_id TEXT`),
     Effect.tap(() => sql`ALTER TABLE event_series ADD COLUMN discord_target_channel_id TEXT`),

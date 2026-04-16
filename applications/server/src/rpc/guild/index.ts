@@ -1,5 +1,5 @@
 import { type Discord, GuildRpcGroup, type Team, type TeamMember } from '@sideline/domain';
-import { Array, type Cause, Effect, Option, pipe } from 'effect';
+import { Array, type Cause, Effect, Option, pipe, Result, type ServiceMap } from 'effect';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -22,12 +22,12 @@ type RegisterMemberPayload = {
 };
 
 type Deps = {
-  teams: TeamsRepository;
-  users: UsersRepository;
-  members: TeamMembersRepository;
-  roleMappings: DiscordRoleMappingRepository;
-  channelMappings: DiscordChannelMappingRepository;
-  groups: GroupsRepository;
+  teams: ServiceMap.Service.Shape<typeof TeamsRepository>;
+  users: ServiceMap.Service.Shape<typeof UsersRepository>;
+  members: ServiceMap.Service.Shape<typeof TeamMembersRepository>;
+  roleMappings: ServiceMap.Service.Shape<typeof DiscordRoleMappingRepository>;
+  channelMappings: ServiceMap.Service.Shape<typeof DiscordChannelMappingRepository>;
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>;
 };
 
 const setupNewMember = (
@@ -68,10 +68,13 @@ const setupNewMember = (
             pipe(
               mappings,
               Array.filterMap((m) =>
-                Option.flatMap(m.group_id, (groupId) =>
-                  Option.flatMap(m.discord_role_id, (roleId) =>
-                    roles.includes(roleId) ? Option.some(groupId) : Option.none(),
+                Result.fromOption(
+                  Option.flatMap(m.group_id, (groupId) =>
+                    Option.flatMap(m.discord_role_id, (roleId) =>
+                      roles.includes(roleId) ? Option.some(groupId) : Option.none(),
+                    ),
                   ),
+                  () => undefined,
                 ),
               ),
               Array.map((groupId) => deps.groups.addMemberById(groupId, newMember.id)),
@@ -111,7 +114,7 @@ const registerMemberLogic =
                 }
                 const resolveMemberId: Effect.Effect<
                   { id: TeamMember.TeamMemberId },
-                  MemberAlreadyExistsError | Cause.NoSuchElementException,
+                  MemberAlreadyExistsError | Cause.NoSuchElementError,
                   never
                 > = Option.isNone(existingMembership)
                   ? Effect.map(
@@ -134,14 +137,14 @@ const registerMemberLogic =
             ),
         }),
       ),
-      Effect.catchTag('MemberAlreadyExistsError', 'NoSuchElementException', (error) =>
+      Effect.catchTag(['MemberAlreadyExistsError', 'NoSuchElementError'], (error) =>
         Effect.logError(`RegisterMember failed for ${username}`, error),
       ),
     );
 
 const buildHandlers = (
-  botGuilds: BotGuildsRepository,
-  discordChannels: DiscordChannelsRepository,
+  botGuilds: ServiceMap.Service.Shape<typeof BotGuildsRepository>,
+  discordChannels: ServiceMap.Service.Shape<typeof DiscordChannelsRepository>,
   deps: Deps,
 ) => {
   const register = registerMemberLogic(deps);
@@ -245,14 +248,14 @@ const buildHandlers = (
 };
 
 export const GuildsRpcLive = Effect.Do.pipe(
-  Effect.bind('botGuilds', () => BotGuildsRepository),
-  Effect.bind('discordChannels', () => DiscordChannelsRepository),
-  Effect.bind('teams', () => TeamsRepository),
-  Effect.bind('users', () => UsersRepository),
-  Effect.bind('members', () => TeamMembersRepository),
-  Effect.bind('roleMappings', () => DiscordRoleMappingRepository),
-  Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
-  Effect.bind('groups', () => GroupsRepository),
+  Effect.bind('botGuilds', () => BotGuildsRepository.asEffect()),
+  Effect.bind('discordChannels', () => DiscordChannelsRepository.asEffect()),
+  Effect.bind('teams', () => TeamsRepository.asEffect()),
+  Effect.bind('users', () => UsersRepository.asEffect()),
+  Effect.bind('members', () => TeamMembersRepository.asEffect()),
+  Effect.bind('roleMappings', () => DiscordRoleMappingRepository.asEffect()),
+  Effect.bind('channelMappings', () => DiscordChannelMappingRepository.asEffect()),
+  Effect.bind('groups', () => GroupsRepository.asEffect()),
   Effect.map(
     ({
       botGuilds,

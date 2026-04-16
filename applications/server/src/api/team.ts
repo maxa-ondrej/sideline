@@ -1,6 +1,6 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventApi, type Team, TeamApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { Effect, Option, type ServiceMap } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -18,7 +18,10 @@ const teamToInfo = (team: Team.Team) =>
     guildId: team.guild_id,
   });
 
-const getTeamOrForbidden = (teams: TeamsRepository, teamId: Team.TeamId) =>
+const getTeamOrForbidden = (
+  teams: ServiceMap.Service.Shape<typeof TeamsRepository>,
+  teamId: Team.TeamId,
+) =>
   teams
     .findById(teamId)
     .pipe(
@@ -29,13 +32,13 @@ const getTeamOrForbidden = (teams: TeamsRepository, teamId: Team.TeamId) =>
 
 export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('teams', () => TeamsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
     Effect.map(({ members, teams }) =>
       handlers
-        .handle('getTeamInfo', ({ path: { teamId } }) =>
+        .handle('getTeamInfo', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -43,9 +46,9 @@ export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
             Effect.map(({ team }) => teamToInfo(team)),
           ),
         )
-        .handle('updateTeamInfo', ({ path: { teamId }, payload }) =>
+        .handle('updateTeamInfo', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

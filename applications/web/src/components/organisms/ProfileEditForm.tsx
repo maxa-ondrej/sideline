@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import { Auth } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Effect, Option, Schema } from 'effect';
@@ -33,20 +33,22 @@ const NONE_VALUE = '__none__';
 const ProfileEditSchema = Schema.Struct({
   name: Schema.String,
   birthDate: Schema.String.pipe(
-    Schema.filter((s) => {
-      if (s === '') return true;
-      const d = new Date(s);
-      if (Number.isNaN(d.getTime())) return m.validation_required();
-      const minDate = new Date();
-      minDate.setFullYear(minDate.getFullYear() - Auth.MIN_AGE);
-      if (d > minDate) return m.validation_minAge({ minAge: Auth.MIN_AGE });
-      return true;
-    }),
+    Schema.check(
+      Schema.makeFilter((s: string) => {
+        if (s === '') return true;
+        const d = new Date(s);
+        if (Number.isNaN(d.getTime())) return m.validation_required();
+        const minDate = new Date();
+        minDate.setFullYear(minDate.getFullYear() - Auth.MIN_AGE);
+        if (d > minDate) return m.validation_minAge({ minAge: Auth.MIN_AGE });
+        return true;
+      }),
+    ),
   ),
-  gender: Schema.Union(
-    Schema.Literal('male', 'female', 'other'),
+  gender: Schema.Union([
+    Schema.Literals(['male', 'female', 'other']),
     Schema.Literal(NONE_VALUE),
-  ).annotations({ message: () => m.validation_invalidOption() }),
+  ]).annotate({ message: m.validation_invalidOption() }),
 });
 
 type ProfileEditValues = Schema.Schema.Type<typeof ProfileEditSchema>;
@@ -72,13 +74,13 @@ export function ProfileEditForm({ user, onSuccess }: ProfileEditFormProps) {
   };
 
   const form = useForm({
-    resolver: effectTsResolver(ProfileEditSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(ProfileEditSchema)),
     mode: 'onChange',
     defaultValues,
   });
 
   const onSubmit = async (values: ProfileEditValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.auth.updateProfile({
           payload: {
@@ -88,14 +90,7 @@ export function ProfileEditForm({ user, onSuccess }: ProfileEditFormProps) {
           },
         }),
       ),
-      Effect.catchTag(
-        'HttpApiDecodeError',
-        'ParseError',
-        'RequestError',
-        'ResponseError',
-        'Unauthorized',
-        () => ClientError.make(m.profile_updateFailed()),
-      ),
+      Effect.mapError(() => ClientError.make(m.profile_updateFailed())),
       run({ success: m.profile_saveSuccess() }),
     );
     if (Option.isSome(result)) {

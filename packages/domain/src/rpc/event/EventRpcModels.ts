@@ -47,37 +47,37 @@ export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelE
   discord_message_id: Snowflake,
 }) {}
 
-export class RsvpMemberNotFound extends Schema.TaggedError<RsvpMemberNotFound>()(
+export class RsvpMemberNotFound extends Schema.TaggedErrorClass<RsvpMemberNotFound>()(
   'RsvpMemberNotFound',
   {},
 ) {}
 
-export class RsvpDeadlinePassed extends Schema.TaggedError<RsvpDeadlinePassed>()(
+export class RsvpDeadlinePassed extends Schema.TaggedErrorClass<RsvpDeadlinePassed>()(
   'RsvpDeadlinePassed',
   {},
 ) {}
 
-export class RsvpEventNotFound extends Schema.TaggedError<RsvpEventNotFound>()(
+export class RsvpEventNotFound extends Schema.TaggedErrorClass<RsvpEventNotFound>()(
   'RsvpEventNotFound',
   {},
 ) {}
 
-export class RsvpNotGroupMember extends Schema.TaggedError<RsvpNotGroupMember>()(
+export class RsvpNotGroupMember extends Schema.TaggedErrorClass<RsvpNotGroupMember>()(
   'RsvpNotGroupMember',
   {},
 ) {}
 
-export class CreateEventNotMember extends Schema.TaggedError<CreateEventNotMember>()(
+export class CreateEventNotMember extends Schema.TaggedErrorClass<CreateEventNotMember>()(
   'CreateEventNotMember',
   {},
 ) {}
 
-export class CreateEventForbidden extends Schema.TaggedError<CreateEventForbidden>()(
+export class CreateEventForbidden extends Schema.TaggedErrorClass<CreateEventForbidden>()(
   'CreateEventForbidden',
   {},
 ) {}
 
-export class CreateEventInvalidDate extends Schema.TaggedError<CreateEventInvalidDate>()(
+export class CreateEventInvalidDate extends Schema.TaggedErrorClass<CreateEventInvalidDate>()(
   'CreateEventInvalidDate',
   {},
 ) {}
@@ -107,14 +107,14 @@ export class GuildEventListResult extends Schema.Class<GuildEventListResult>(
   team_id: Schema.String,
 }) {}
 
-export class GuildNotFound extends Schema.TaggedError<GuildNotFound>()('GuildNotFound', {}) {}
+export class GuildNotFound extends Schema.TaggedErrorClass<GuildNotFound>()('GuildNotFound', {}) {}
 
 export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAttendeeEntry')({
   discord_id: Schema.OptionFromNullOr(Snowflake),
   name: Schema.OptionFromNullOr(Schema.String),
   nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
-  response: Schema.Literal('yes', 'no', 'maybe'),
+  response: Schema.Literals(['yes', 'no', 'maybe']),
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
@@ -159,7 +159,7 @@ export class UpcomingEventForUserEntry extends Schema.Class<UpcomingEventForUser
   yes_count: Schema.Number,
   no_count: Schema.Number,
   maybe_count: Schema.Number,
-  my_response: Schema.OptionFromNullOr(Schema.Literal('yes', 'no', 'maybe')),
+  my_response: Schema.OptionFromNullOr(Schema.Literals(['yes', 'no', 'maybe'])),
   my_message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 

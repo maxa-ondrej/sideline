@@ -1,14 +1,11 @@
-import { Effect, Schedule } from 'effect';
+import { type Effect, Layer, ServiceMap } from 'effect';
 import { ProcessorService } from './ProcessorService.js';
 
-export class RoleSyncService extends Effect.Service<RoleSyncService>()('bot/RoleSyncService', {
-  effect: ProcessorService,
-}) {
-  poll() {
-    return this.processTick;
-  }
+const make = ProcessorService;
 
-  pollLoop() {
-    return this.processTick.pipe(Effect.repeat(Schedule.spaced('5 seconds')));
-  }
+export class RoleSyncService extends ServiceMap.Service<
+  RoleSyncService,
+  Effect.Success<typeof make>
+>()('bot/RoleSyncService') {
+  static readonly Default = Layer.effect(RoleSyncService, make);
 }

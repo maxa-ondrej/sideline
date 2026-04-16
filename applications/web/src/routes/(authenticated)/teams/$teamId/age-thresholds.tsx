@@ -10,13 +10,15 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/age-thresho
   loader: async ({ params, context }) => {
     const teamId = await pipe(
       params.teamId,
-      Schema.decode(Team.TeamId),
+      Schema.decodeEffect(Team.TeamId),
       Effect.mapError(NotFound.make),
       context.run,
     );
     const [rules, groups] = await Effect.all([
-      Effect.flatMap(ApiClient, (api) => api.ageThreshold.listAgeThresholds({ path: { teamId } })),
-      Effect.flatMap(ApiClient, (api) => api.group.listGroups({ path: { teamId } })),
+      Effect.flatMap(ApiClient.asEffect(), (api) =>
+        api.ageThreshold.listAgeThresholds({ params: { teamId } }),
+      ),
+      Effect.flatMap(ApiClient.asEffect(), (api) => api.group.listGroups({ params: { teamId } })),
     ]).pipe(warnAndCatchAll, context.run);
     return { rules, groups };
   },

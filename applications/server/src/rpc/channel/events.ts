@@ -16,7 +16,7 @@ export class EventPropertyMissing extends Data.TaggedError('EventPropertyMissing
   log = () => Effect.logError(this.errorMessage());
 
   markFailed = () =>
-    ChannelSyncEventsRepository.pipe(
+    ChannelSyncEventsRepository.asEffect().pipe(
       Effect.flatMap((repository) => repository.markFailed(this.id, this.errorMessage())),
     );
 
@@ -35,10 +35,11 @@ const nullable = <
   event: E,
   key: K,
 ) =>
-  event[key].pipe(
-    Effect.catchTag(
-      'NoSuchElementException',
-      () => new EventPropertyMissing({ event_type: event.event_type, id: event.id, property: key }),
+  Effect.fromOption(event[key] as Option.Option<unknown>).pipe(
+    Effect.catchTag('NoSuchElementError', () =>
+      Effect.fail(
+        new EventPropertyMissing({ event_type: event.event_type, id: event.id, property: key }),
+      ),
     ),
   ) as Effect.Effect<E[K] extends Option.Option<infer T> ? T : never, EventPropertyMissing>;
 

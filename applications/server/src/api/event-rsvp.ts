@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, DateTime, Effect, Metric, Option, pipe } from 'effect';
+import { Array, DateTime, Effect, Metric, Option, pipe, type ServiceMap } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
@@ -17,7 +17,7 @@ const notFound = new EventRsvpApi.EventNotFound();
 const deadlinePassed = new EventRsvpApi.RsvpDeadlinePassed();
 
 const checkGroupAccess = (
-  groups: GroupsRepository,
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
   memberId: TeamMember.TeamMemberId,
   groupId: Option.Option<GroupModel.GroupId>,
 ): Effect.Effect<boolean, never, never> => {
@@ -28,12 +28,16 @@ const checkGroupAccess = (
 };
 
 const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
-  !DateTime.lessThan(DateTime.unsafeNow(), startAt);
+  !DateTime.isLessThan(DateTime.nowUnsafe(), startAt);
 
 const buildRsvpDetail = (
-  rsvps: EventRsvpsRepository,
-  eventId: Parameters<EventRsvpsRepository['findRsvpsByEventId']>[0],
-  myMemberId: Parameters<EventRsvpsRepository['findRsvpByEventAndMember']>[1],
+  rsvps: ServiceMap.Service.Shape<typeof EventRsvpsRepository>,
+  eventId: Parameters<
+    ServiceMap.Service.Shape<typeof EventRsvpsRepository>['findRsvpsByEventId']
+  >[0],
+  myMemberId: Parameters<
+    ServiceMap.Service.Shape<typeof EventRsvpsRepository>['findRsvpByEventAndMember']
+  >[1],
   canRsvp: boolean,
   minPlayersThreshold: number,
 ) =>
@@ -83,17 +87,17 @@ const buildRsvpDetail = (
 
 export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('rsvps', () => EventRsvpsRepository),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository),
-    Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.bind('groups', () => GroupsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
+    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
+    Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.map(({ members, events, rsvps, syncEvents, teamSettings, groups }) =>
       handlers
-        .handle('getRsvps', ({ path: { teamId, eventId } }) =>
+        .handle('getRsvps', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -128,9 +132,9 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
           ),
         )
-        .handle('submitRsvp', ({ path: { teamId, eventId }, payload }) =>
+        .handle('submitRsvp', ({ params: { teamId, eventId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -161,12 +165,12 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             Effect.tap(({ membership }) =>
               rsvps.upsertRsvp(eventId, membership.id, payload.response, payload.message).pipe(
                 Effect.catchTag(
-                  'NoSuchElementException',
+                  'NoSuchElementError',
                   LogicError.withMessage(() => 'Failed upserting RSVP — no row returned'),
                 ),
                 Effect.tap(() =>
                   Metric.update(
-                    Metric.tagged(rsvpSubmissionsTotal, 'response', payload.response),
+                    Metric.withAttributes(rsvpSubmissionsTotal, { response: payload.response }),
                     1,
                   ),
                 ),
@@ -186,9 +190,9 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
             ),
           ),
         )
-        .handle('getNonResponders', ({ path: { teamId, eventId } }) =>
+        .handle('getNonResponders', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

@@ -6,9 +6,9 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { resolveOwnerGroupChannel } from '~/services/EventChannelResolver.js';
 
 const cronEffect = Effect.Do.pipe(
-  Effect.bind('settingsRepo', () => TeamSettingsRepository),
-  Effect.bind('eventsRepo', () => EventsRepository),
-  Effect.bind('syncRepo', () => EventSyncEventsRepository),
+  Effect.bind('settingsRepo', () => TeamSettingsRepository.asEffect()),
+  Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
+  Effect.bind('syncRepo', () => EventSyncEventsRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('RsvpReminderCron: starting reminder cycle')),
   Effect.bind('events', ({ settingsRepo }) => settingsRepo.findEventsNeedingReminder()),
   Effect.tap(({ events, syncRepo, eventsRepo }) =>

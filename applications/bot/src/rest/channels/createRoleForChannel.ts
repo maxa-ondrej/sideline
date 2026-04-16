@@ -13,7 +13,7 @@ export const createRoleForChannel = (
   roleColor?: number,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('role', ({ rest }) =>
       rest
         .createGuildRole(guildId, { name: roleName, color: roleColor })

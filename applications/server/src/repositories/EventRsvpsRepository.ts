@@ -1,6 +1,6 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Event, EventRsvp, TeamMember } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMemberName')({
@@ -21,18 +21,18 @@ class RsvpRow extends Schema.Class<RsvpRow>('RsvpRow')({
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
-class UpsertInput extends Schema.Class<UpsertInput>('UpsertInput')({
+const UpsertInput = Schema.Struct({
   event_id: Schema.String,
   team_member_id: Schema.String,
   response: Schema.String,
   message: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class UpsertClearInput extends Schema.Class<UpsertClearInput>('UpsertClearInput')({
+const UpsertClearInput = Schema.Struct({
   event_id: Schema.String,
   team_member_id: Schema.String,
   response: Schema.String,
-}) {}
+});
 
 class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDiscordInfo')({
   discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
@@ -60,16 +60,13 @@ class ResponseCount extends Schema.Class<ResponseCount>('ResponseCount')({
   count: Schema.NumberFromString,
 }) {}
 
-export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()(
-  'api/EventRsvpsRepository',
-  {
-    effect: SqlClient.SqlClient.pipe(Effect.bindTo('sql')),
-  },
-) {
-  private findByEventId = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByEventId = SqlSchema.findAll({
     Request: Event.EventId,
     Result: RsvpWithMemberName,
-    execute: (eventId) => this.sql`
+    execute: (eventId) => sql`
       SELECT r.id, r.event_id, r.team_member_id, r.response, r.message,
              u.name AS member_name, u.username
       FROM event_rsvps r
@@ -80,13 +77,13 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private findByEventAndMember = SqlSchema.findOne({
+  const findByEventAndMember = SqlSchema.findOneOption({
     Request: Schema.Struct({
       event_id: Schema.String,
       team_member_id: Schema.String,
     }),
     Result: RsvpRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT id, event_id, team_member_id, response, message
       FROM event_rsvps
       WHERE event_id = ${input.event_id}
@@ -94,10 +91,10 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private upsert = SqlSchema.single({
+  const upsert = SqlSchema.findOne({
     Request: UpsertInput,
     Result: RsvpRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO event_rsvps (event_id, team_member_id, response, message)
       VALUES (${input.event_id}, ${input.team_member_id}, ${input.response}, ${input.message})
       ON CONFLICT (event_id, team_member_id)
@@ -106,10 +103,10 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private upsertClearing = SqlSchema.single({
+  const upsertClearing = SqlSchema.findOne({
     Request: UpsertClearInput,
     Result: RsvpRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO event_rsvps (event_id, team_member_id, response, message)
       VALUES (${input.event_id}, ${input.team_member_id}, ${input.response}, NULL)
       ON CONFLICT (event_id, team_member_id)
@@ -118,10 +115,10 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private countByEventId = SqlSchema.findAll({
+  const countByEventId = SqlSchema.findAll({
     Request: Event.EventId,
     Result: ResponseCount,
-    execute: (eventId) => this.sql`
+    execute: (eventId) => sql`
       SELECT response, COUNT(*)::text AS count
       FROM event_rsvps
       WHERE event_id = ${eventId}
@@ -129,14 +126,14 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private findAttendeesPage = SqlSchema.findAll({
+  const findAttendeesPage = SqlSchema.findAll({
     Request: Schema.Struct({
       event_id: Schema.String,
       limit: Schema.Number,
       offset: Schema.Number,
     }),
     Result: RsvpWithDiscordInfo,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, r.response, r.message
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
@@ -147,23 +144,23 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private countTotalByEventId = SqlSchema.findOne({
+  const countTotalByEventId = SqlSchema.findOneOption({
     Request: Event.EventId,
     Result: TotalCount,
-    execute: (eventId) => this.sql`
+    execute: (eventId) => sql`
       SELECT COUNT(*)::text AS count
       FROM event_rsvps
       WHERE event_id = ${eventId}
     `,
   });
 
-  private findYesAttendeesWithLimit = SqlSchema.findAll({
+  const findYesAttendeesWithLimit = SqlSchema.findAll({
     Request: Schema.Struct({
       event_id: Schema.String,
       limit: Schema.Number,
     }),
     Result: RsvpWithDiscordInfo,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, r.response, r.message
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
@@ -175,10 +172,10 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private findYesRsvpMemberIds = SqlSchema.findAll({
+  const findYesRsvpMemberIds = SqlSchema.findAll({
     Request: Event.EventId,
     Result: Schema.Struct({ team_member_id: TeamMember.TeamMemberId }),
-    execute: (eventId) => this.sql`
+    execute: (eventId) => sql`
       SELECT team_member_id
       FROM event_rsvps
       WHERE event_id = ${eventId}
@@ -186,14 +183,14 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  private findNonResponders = SqlSchema.findAll({
+  const findNonResponders = SqlSchema.findAll({
     Request: Schema.Struct({
       event_id: Schema.String,
       team_id: Schema.String,
       member_group_id: Schema.OptionFromNullOr(Schema.String),
     }),
     Result: NonResponderRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       WITH eligible_members AS (
         SELECT tm.id AS team_member_id, tm.user_id
         FROM team_members tm
@@ -222,14 +219,16 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     `,
   });
 
-  findRsvpsByEventId = (eventId: Event.EventId) => this.findByEventId(eventId).pipe(catchSqlErrors);
+  const findRsvpsByEventId = (eventId: Event.EventId) =>
+    findByEventId(eventId).pipe(catchSqlErrors);
 
-  findRsvpByEventAndMember = (eventId: Event.EventId, teamMemberId: TeamMember.TeamMemberId) =>
-    this.findByEventAndMember({ event_id: eventId, team_member_id: teamMemberId }).pipe(
-      catchSqlErrors,
-    );
+  const findRsvpByEventAndMember = (
+    eventId: Event.EventId,
+    teamMemberId: TeamMember.TeamMemberId,
+  ) =>
+    findByEventAndMember({ event_id: eventId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
 
-  upsertRsvp = (
+  const upsertRsvp = (
     eventId: Event.EventId,
     teamMemberId: TeamMember.TeamMemberId,
     response: EventRsvp.RsvpResponse,
@@ -237,39 +236,58 @@ export class EventRsvpsRepository extends Effect.Service<EventRsvpsRepository>()
     clearMessage = false,
   ) =>
     (clearMessage
-      ? this.upsertClearing({ event_id: eventId, team_member_id: teamMemberId, response })
-      : this.upsert({ event_id: eventId, team_member_id: teamMemberId, response, message })
+      ? upsertClearing({ event_id: eventId, team_member_id: teamMemberId, response })
+      : upsert({ event_id: eventId, team_member_id: teamMemberId, response, message })
     ).pipe(catchSqlErrors);
 
-  countRsvpsByEventId = (eventId: Event.EventId) =>
-    this.countByEventId(eventId).pipe(catchSqlErrors);
+  const countRsvpsByEventId = (eventId: Event.EventId) =>
+    countByEventId(eventId).pipe(catchSqlErrors);
 
-  findRsvpAttendeesPage = (eventId: Event.EventId, offset: number, limit: number) =>
-    this.findAttendeesPage({ event_id: eventId, limit, offset }).pipe(catchSqlErrors);
+  const findRsvpAttendeesPage = (eventId: Event.EventId, offset: number, limit: number) =>
+    findAttendeesPage({ event_id: eventId, limit, offset }).pipe(catchSqlErrors);
 
-  findNonRespondersByEventId = (
+  const findNonRespondersByEventId = (
     eventId: Event.EventId,
     teamId: string,
     memberGroupId: Option.Option<string> = Option.none(),
   ) =>
-    this.findNonResponders({
+    findNonResponders({
       event_id: eventId,
       team_id: teamId,
       member_group_id: memberGroupId,
     }).pipe(catchSqlErrors);
 
-  countRsvpTotal = (eventId: Event.EventId) =>
-    this.countTotalByEventId(eventId).pipe(
+  const countRsvpTotal = (eventId: Event.EventId) =>
+    countTotalByEventId(eventId).pipe(
       Effect.map(Option.match({ onNone: () => 0, onSome: (r) => r.count })),
       catchSqlErrors,
     );
 
-  findYesAttendeesForEmbed = (eventId: Event.EventId, limit: number) =>
-    this.findYesAttendeesWithLimit({ event_id: eventId, limit }).pipe(catchSqlErrors);
+  const findYesAttendeesForEmbed = (eventId: Event.EventId, limit: number) =>
+    findYesAttendeesWithLimit({ event_id: eventId, limit }).pipe(catchSqlErrors);
 
-  findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
-    this.findYesRsvpMemberIds(eventId).pipe(
+  const findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
+    findYesRsvpMemberIds(eventId).pipe(
       Effect.map((rows) => rows.map((r) => r.team_member_id)),
       catchSqlErrors,
     );
+
+  return {
+    findRsvpsByEventId,
+    findRsvpByEventAndMember,
+    upsertRsvp,
+    countRsvpsByEventId,
+    findRsvpAttendeesPage,
+    findNonRespondersByEventId,
+    countRsvpTotal,
+    findYesAttendeesForEmbed,
+    findYesRsvpMemberIdsByEventId,
+  };
+});
+
+export class EventRsvpsRepository extends ServiceMap.Service<
+  EventRsvpsRepository,
+  Effect.Success<typeof make>
+>()('api/EventRsvpsRepository') {
+  static readonly Default = Layer.effect(EventRsvpsRepository, make);
 }

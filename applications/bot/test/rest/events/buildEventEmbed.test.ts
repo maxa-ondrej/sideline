@@ -10,7 +10,7 @@ const makeAttendee = (
   nickname: Option.Option<string> = Option.none(),
 ): EventRpcModels.RsvpAttendeeEntry =>
   new EventRpcModels.RsvpAttendeeEntry({
-    discord_id: Option.map(discord_id, DomainDiscord.Snowflake.make),
+    discord_id: Option.map(discord_id, DomainDiscord.Snowflake.makeUnsafe),
     name,
     nickname,
     username,
@@ -21,7 +21,7 @@ const makeAttendee = (
 const makeCounts = (yesCount = 0, noCount = 0, maybeCount = 0, canRsvp = true) =>
   new EventRpcModels.RsvpCountsResult({ yesCount, noCount, maybeCount, canRsvp });
 
-const START_AT = DateTime.unsafeMake('2026-06-01T18:00:00Z');
+const START_AT = DateTime.makeUnsafe('2026-06-01T18:00:00Z');
 
 const baseOpts = {
   teamId: 'team-1',

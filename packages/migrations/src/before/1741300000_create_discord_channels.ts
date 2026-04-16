@@ -1,8 +1,8 @@
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 
 export default Effect.flatMap(
-  SqlClient.SqlClient,
+  Effect.service(SqlClient.SqlClient),
   (sql) =>
     sql`CREATE TABLE discord_channels (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),

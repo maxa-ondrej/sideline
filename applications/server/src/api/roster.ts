@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, type Discord, Roster, type RosterModel } from '@sideline/domain';
-import { LogicError } from '@sideline/effect-lib';
+import { LogicError, Options } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Match, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -42,7 +42,7 @@ const resolveChannelName = (
   allChannels: readonly ChannelLike[],
 ): Option.Option<string> =>
   Option.flatMap(channelId, (id) =>
-    Option.fromNullable(allChannels.find((ch) => ch.channel_id === id)?.name),
+    Option.fromNullishOr(allChannels.find((ch) => ch.channel_id === id)?.name),
   );
 
 const toRosterInfo = (
@@ -67,14 +67,14 @@ const toRosterInfo = (
 
 export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('users', () => UsersRepository),
-    Effect.bind('rosters', () => RostersRepository),
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('discordChannels', () => DiscordChannelsRepository),
-    Effect.bind('channelSync', () => ChannelSyncEventsRepository),
-    Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.bind('channelMappings', () => DiscordChannelMappingRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('users', () => UsersRepository.asEffect()),
+    Effect.bind('rosters', () => RostersRepository.asEffect()),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('discordChannels', () => DiscordChannelsRepository.asEffect()),
+    Effect.bind('channelSync', () => ChannelSyncEventsRepository.asEffect()),
+    Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
+    Effect.bind('channelMappings', () => DiscordChannelMappingRepository.asEffect()),
     Effect.map(
       ({
         members,
@@ -87,9 +87,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
         channelMappings,
       }) =>
         handlers
-          .handle('listMembers', ({ path: { teamId } }) =>
+          .handle('listMembers', ({ params: { teamId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -100,9 +100,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.map(({ roster }) => Array.map(roster, toRosterPlayer)),
             ),
           )
-          .handle('getMember', ({ path: { teamId, memberId } }) =>
+          .handle('getMember', ({ params: { teamId, memberId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -122,9 +122,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.map(({ entry }) => toRosterPlayer(entry)),
             ),
           )
-          .handle('updateMember', ({ path: { teamId, memberId }, payload }) =>
+          .handle('updateMember', ({ params: { teamId, memberId }, payload }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -145,7 +145,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 users.updateAdminProfile({
                   id: entry.user_id,
                   name: payload.name,
-                  birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
+                  birth_date: Option.map(payload.birthDate, DateTime.makeUnsafe),
                   gender: payload.gender,
                 }),
               ),
@@ -169,16 +169,16 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                   }),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(
                   () => 'Failed updating roster member profile — no row returned',
                 ),
               ),
             ),
           )
-          .handle('deactivateMember', ({ path: { teamId, memberId } }) =>
+          .handle('deactivateMember', ({ params: { teamId, memberId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -198,14 +198,14 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.tap(() => members.deactivateMemberByIds(teamId, memberId)),
               Effect.asVoid,
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => 'Failed deactivating roster member — no row returned'),
               ),
             ),
           )
-          .handle('listRosters', ({ path: { teamId } }) =>
+          .handle('listRosters', ({ params: { teamId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -217,12 +217,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
               Effect.bind('rosterList', () => rosters.findByTeamId(teamId)),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
-                    Effect.fail(new Roster.Forbidden()),
-                  ),
-                ),
+                teams
+                  .findById(teamId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new Roster.Forbidden()))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -255,9 +252,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               }),
             ),
           )
-          .handle('createRoster', ({ path: { teamId }, payload }) =>
+          .handle('createRoster', ({ params: { teamId }, payload }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -319,14 +316,14 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               }),
               Effect.map(({ roster }) => toRosterInfo(roster, 0, [], false)),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => 'Failed creating roster — no row returned'),
               ),
             ),
           )
-          .handle('getRoster', ({ path: { teamId, rosterId } }) =>
+          .handle('getRoster', ({ params: { teamId, rosterId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -350,12 +347,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 rosters.findMemberEntriesById(roster.id),
               ),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
-                    Effect.fail(new Roster.Forbidden()),
-                  ),
-                ),
+                teams
+                  .findById(teamId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new Roster.Forbidden()))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -382,9 +376,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               ),
             ),
           )
-          .handle('updateRoster', ({ path: { teamId, rosterId }, payload }) =>
+          .handle('updateRoster', ({ params: { teamId, rosterId }, payload }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -645,12 +639,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 rosters.findMemberEntriesById(updated.id).pipe(Effect.map((e) => e.length)),
               ),
               Effect.bind('team', () =>
-                teams.findById(teamId).pipe(
-                  Effect.flatten,
-                  Effect.catchTag('NoSuchElementException', () =>
-                    Effect.fail(new Roster.Forbidden()),
-                  ),
-                ),
+                teams
+                  .findById(teamId)
+                  .pipe(Effect.flatMap(Options.toEffect(() => new Roster.Forbidden()))),
               ),
               Effect.bind('allChannels', ({ team }) =>
                 discordChannels.findByGuildId(team.guild_id),
@@ -662,14 +653,14 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 toRosterInfo(updated, memberCount, allChannels, provisioningIds.length > 0),
               ),
               Effect.catchTag(
-                'NoSuchElementException',
+                'NoSuchElementError',
                 LogicError.withMessage(() => 'Failed updating roster — no row returned'),
               ),
             ),
           )
-          .handle('deleteRoster', ({ path: { teamId, rosterId } }) =>
+          .handle('deleteRoster', ({ params: { teamId, rosterId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -727,6 +718,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                           onNone: () => Effect.void,
                         }),
                       ),
+                      Match.exhaustive,
                     ),
                   ),
                   Option.getOrElse(() => Effect.void),
@@ -736,9 +728,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.asVoid,
             ),
           )
-          .handle('addRosterMember', ({ path: { teamId, rosterId }, payload }) =>
+          .handle('addRosterMember', ({ params: { teamId, rosterId }, payload }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -786,9 +778,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.asVoid,
             ),
           )
-          .handle('removeRosterMember', ({ path: { teamId, rosterId, memberId } }) =>
+          .handle('removeRosterMember', ({ params: { teamId, rosterId, memberId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),
@@ -836,9 +828,9 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               Effect.asVoid,
             ),
           )
-          .handle('createChannel', ({ path: { teamId, rosterId } }) =>
+          .handle('createChannel', ({ params: { teamId, rosterId } }) =>
             Effect.Do.pipe(
-              Effect.bind('currentUser', () => Auth.CurrentUserContext),
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
               Effect.bind('membership', ({ currentUser }) =>
                 requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
               ),

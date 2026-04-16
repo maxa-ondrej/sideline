@@ -10,9 +10,12 @@ import { discordInteractionsTotal } from '~/metrics.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
-export const leaderboardHandler = Interaction.pipe(
+export const leaderboardHandler = Interaction.asEffect().pipe(
   Effect.tap(() =>
-    Metric.update(Metric.tagged(discordInteractionsTotal, 'interaction_type', 'command'), 1),
+    Metric.update(
+      Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'command' }),
+      1,
+    ),
   ),
   Effect.flatMap((interaction) => {
     const locale = userLocale(interaction);
@@ -30,7 +33,7 @@ export const leaderboardHandler = Interaction.pipe(
       );
     }
 
-    const snowflakeGuildId = Discord.Snowflake.make(guildId);
+    const snowflakeGuildId = Discord.Snowflake.makeUnsafe(guildId);
     const maybeUserId = interactionUserId(interaction);
 
     if (Option.isNone(maybeUserId)) {
@@ -48,8 +51,8 @@ export const leaderboardHandler = Interaction.pipe(
     const discordUserId = maybeUserId.value;
 
     const work = Effect.Do.pipe(
-      Effect.bind('rpc', () => SyncRpc),
-      Effect.bind('rest', () => DiscordREST),
+      Effect.bind('rpc', () => SyncRpc.asEffect()),
+      Effect.bind('rest', () => DiscordREST.asEffect()),
       Effect.flatMap(({ rpc, rest }) =>
         rpc['Activity/GetLeaderboard']({
           guild_id: snowflakeGuildId,
@@ -111,12 +114,8 @@ export const leaderboardHandler = Interaction.pipe(
               payload,
             }),
           ),
-          Effect.catchTag(
-            'RequestError',
-            'ResponseError',
-            'RatelimitedResponse',
-            'ErrorResponse',
-            (error) => Effect.logError('Failed to update makanicko leaderboard response', error),
+          Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
+            Effect.logError('Failed to update makanicko leaderboard response', error),
           ),
         ),
       ),
@@ -126,7 +125,7 @@ export const leaderboardHandler = Interaction.pipe(
       type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
       data: { flags: DiscordTypes.MessageFlags.Ephemeral },
     };
-    return Effect.as(Effect.forkDaemon(work), deferred);
+    return Effect.as(Effect.forkDetach(work), deferred);
   }),
   Effect.withSpan('command/makanicko/leaderboard'),
 );

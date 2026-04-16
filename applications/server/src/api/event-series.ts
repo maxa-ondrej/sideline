@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, EventApi, EventSeriesApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { checkCoachScoping, checkGroupAccess, checkTrainingTypeOwnerGroup } from '~/api/scoping.js';
@@ -21,18 +21,18 @@ const notActive = new EventSeriesApi.EventSeriesNotActive();
 
 export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('events', () => EventsRepository),
-    Effect.bind('series', () => EventSeriesRepository),
-    Effect.bind('teamSettings', () => TeamSettingsRepository),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository),
-    Effect.bind('trainingTypes', () => TrainingTypesRepository),
-    Effect.bind('groups', () => GroupsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('events', () => EventsRepository.asEffect()),
+    Effect.bind('series', () => EventSeriesRepository.asEffect()),
+    Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
+    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
+    Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
+    Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.map(({ members, events, series, teamSettings, syncEvents, trainingTypes, groups }) =>
       handlers
-        .handle('createEventSeries', ({ path: { teamId }, payload }) =>
+        .handle('createEventSeries', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -117,9 +117,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               Effect.all(
                 Array.map(dates, (date) => {
                   const dateStr = DateTime.formatIsoDateUtc(date);
-                  const startAt = DateTime.unsafeMake(`${dateStr}T${inserted.start_time}Z`);
+                  const startAt = DateTime.makeUnsafe(`${dateStr}T${inserted.start_time}Z`);
                   const endAt = Option.map(inserted.end_time, (t) =>
-                    DateTime.unsafeMake(`${dateStr}T${t}Z`),
+                    DateTime.makeUnsafe(`${dateStr}T${t}Z`),
                   );
                   return events
                     .insertEvent({
@@ -188,14 +188,14 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating event series — no row returned'),
             ),
           ),
         )
-        .handle('listEventSeries', ({ path: { teamId } }) =>
+        .handle('listEventSeries', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.tap(({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -228,9 +228,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
           ),
         )
-        .handle('getEventSeries', ({ path: { teamId, seriesId } }) =>
+        .handle('getEventSeries', ({ params: { teamId, seriesId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -277,9 +277,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
           ),
         )
-        .handle('updateEventSeries', ({ path: { teamId, seriesId }, payload }) =>
+        .handle('updateEventSeries', ({ params: { teamId, seriesId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -408,7 +408,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   return Option.match(existing.last_generated_date, {
                     onNone: () => Effect.void,
                     onSome: (lastGen) => {
-                      if (!DateTime.greaterThan(effectiveEnd, lastGen)) return Effect.void;
+                      if (!DateTime.isGreaterThan(effectiveEnd, lastGen)) return Effect.void;
                       const nextDay = DateTime.add(lastGen, { days: 1 });
                       const newDates = generateOccurrenceDates({
                         frequency: existing.frequency,
@@ -420,9 +420,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       return Effect.all(
                         Array.map(newDates, (date) => {
                           const dateStr = DateTime.formatIsoDateUtc(date);
-                          const startAt = DateTime.unsafeMake(`${dateStr}T${existing.start_time}Z`);
+                          const startAt = DateTime.makeUnsafe(`${dateStr}T${existing.start_time}Z`);
                           const endAt = Option.map(existing.end_time, (t) =>
-                            DateTime.unsafeMake(`${dateStr}T${t}Z`),
+                            DateTime.makeUnsafe(`${dateStr}T${t}Z`),
                           );
                           return events.insertEvent({
                             teamId,
@@ -486,14 +486,14 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating event series — no row returned'),
             ),
           ),
         )
-        .handle('cancelEventSeries', ({ path: { teamId, seriesId } }) =>
+        .handle('cancelEventSeries', ({ params: { teamId, seriesId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),

@@ -1,9 +1,9 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { Discord, Role, RoleSyncEvent, Team, TeamMember } from '@sideline/domain';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
+const InsertInput = Schema.Struct({
   team_id: Team.TeamId,
   guild_id: Discord.Snowflake,
   event_type: RoleSyncEvent.RoleSyncEventType,
@@ -11,7 +11,7 @@ class InsertInput extends Schema.Class<InsertInput>('InsertInput')({
   role_name: Schema.OptionFromNullOr(Schema.String),
   team_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
   discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
-}) {}
+});
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
   guild_id: Discord.Snowflake,
@@ -28,39 +28,36 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
   discord_user_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
-class MarkProcessedInput extends Schema.Class<MarkProcessedInput>('MarkProcessedInput')({
+const MarkProcessedInput = Schema.Struct({
   id: RoleSyncEvent.RoleSyncEventId,
-}) {}
+});
 
-class MarkFailedInput extends Schema.Class<MarkFailedInput>('MarkFailedInput')({
+const MarkFailedInput = Schema.Struct({
   id: RoleSyncEvent.RoleSyncEventId,
   error: Schema.String,
-}) {}
+});
 
-export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepository>()(
-  'api/RoleSyncEventsRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private insertEvent = SqlSchema.void({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const insertEvent = SqlSchema.void({
     Request: InsertInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO role_sync_events (team_id, guild_id, event_type, role_id, role_name, team_member_id, discord_user_id)
       VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.role_id}, ${input.role_name}, ${input.team_member_id}, ${input.discord_user_id})
     `,
   });
 
-  private lookupGuildId = SqlSchema.findOne({
+  const lookupGuildId = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: GuildLookupResult,
-    execute: (teamId) => this.sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
+    execute: (teamId) => sql`SELECT guild_id FROM teams WHERE id = ${teamId}`,
   });
 
-  private findUnprocessedEvents = SqlSchema.findAll({
+  const findUnprocessedEvents = SqlSchema.findAll({
     Request: Schema.Number,
     Result: EventRow,
-    execute: (limit) => this.sql`
+    execute: (limit) => sql`
       SELECT id, team_id, guild_id, event_type, role_id, role_name, team_member_id, discord_user_id
       FROM role_sync_events
       WHERE processed_at IS NULL
@@ -69,21 +66,21 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
     `,
   });
 
-  private markEventProcessed = SqlSchema.void({
+  const markEventProcessed = SqlSchema.void({
     Request: MarkProcessedInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE role_sync_events SET processed_at = now() WHERE id = ${input.id}
     `,
   });
 
-  private markEventFailed = SqlSchema.void({
+  const markEventFailed = SqlSchema.void({
     Request: MarkFailedInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE role_sync_events SET processed_at = now(), error = ${input.error} WHERE id = ${input.id}
     `,
   });
 
-  private _emitIfGuildLinked = (
+  const _emitIfGuildLinked = (
     teamId: Team.TeamId,
     eventType: RoleSyncEvent.RoleSyncEventType,
     roleId: Role.RoleId,
@@ -91,12 +88,12 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
     teamMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
     discordUserId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
-    this.lookupGuildId(teamId).pipe(
+    lookupGuildId(teamId).pipe(
       Effect.flatMap(
         Option.match({
           onNone: () => Effect.void,
           onSome: ({ guild_id }) =>
-            this.insertEvent({
+            insertEvent({
               team_id: teamId,
               guild_id,
               event_type: eventType,
@@ -110,20 +107,20 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
       catchSqlErrors,
     );
 
-  emitRoleCreated = (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
-    this._emitIfGuildLinked(teamId, 'role_created', roleId, roleName);
+  const emitRoleCreated = (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
+    _emitIfGuildLinked(teamId, 'role_created', roleId, roleName);
 
-  emitRoleDeleted = (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
-    this._emitIfGuildLinked(teamId, 'role_deleted', roleId, roleName);
+  const emitRoleDeleted = (teamId: Team.TeamId, roleId: Role.RoleId, roleName: string) =>
+    _emitIfGuildLinked(teamId, 'role_deleted', roleId, roleName);
 
-  emitRoleAssigned = (
+  const emitRoleAssigned = (
     teamId: Team.TeamId,
     roleId: Role.RoleId,
     roleName: string,
     teamMemberId: TeamMember.TeamMemberId,
     discordUserId: Discord.Snowflake,
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'role_assigned',
       roleId,
@@ -132,14 +129,14 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
       Option.some(discordUserId),
     );
 
-  emitRoleUnassigned = (
+  const emitRoleUnassigned = (
     teamId: Team.TeamId,
     roleId: Role.RoleId,
     roleName: string,
     teamMemberId: TeamMember.TeamMemberId,
     discordUserId: Discord.Snowflake,
   ) =>
-    this._emitIfGuildLinked(
+    _emitIfGuildLinked(
       teamId,
       'role_unassigned',
       roleId,
@@ -148,11 +145,28 @@ export class RoleSyncEventsRepository extends Effect.Service<RoleSyncEventsRepos
       Option.some(discordUserId),
     );
 
-  findUnprocessed = (limit: number) => this.findUnprocessedEvents(limit).pipe(catchSqlErrors);
+  const findUnprocessed = (limit: number) => findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
-  markProcessed = (id: RoleSyncEvent.RoleSyncEventId) =>
-    this.markEventProcessed({ id }).pipe(catchSqlErrors);
+  const markProcessed = (id: RoleSyncEvent.RoleSyncEventId) =>
+    markEventProcessed({ id }).pipe(catchSqlErrors);
 
-  markFailed = (id: RoleSyncEvent.RoleSyncEventId, error: string) =>
-    this.markEventFailed({ id, error }).pipe(catchSqlErrors);
+  const markFailed = (id: RoleSyncEvent.RoleSyncEventId, error: string) =>
+    markEventFailed({ id, error }).pipe(catchSqlErrors);
+
+  return {
+    emitRoleCreated,
+    emitRoleDeleted,
+    emitRoleAssigned,
+    emitRoleUnassigned,
+    findUnprocessed,
+    markProcessed,
+    markFailed,
+  };
+});
+
+export class RoleSyncEventsRepository extends ServiceMap.Service<
+  RoleSyncEventsRepository,
+  Effect.Success<typeof make>
+>()('api/RoleSyncEventsRepository') {
+  static readonly Default = Layer.effect(RoleSyncEventsRepository, make);
 }

@@ -1,4 +1,3 @@
-import { HttpApiBuilder, HttpClient, HttpClientRequest } from '@effect/platform';
 import { ApiGroup, Auth, Discord, Role, type Team, type User } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { DiscordConfig, DiscordREST, DiscordRESTLive, MemoryRateLimitStoreLive } from 'dfx';
@@ -12,8 +11,11 @@ import {
   pipe,
   Redacted,
   Schema,
+  type ServiceMap,
   Struct,
 } from 'effect';
+import { HttpClient, HttpClientRequest } from 'effect/unstable/http';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { Redirect } from '~/api/index.js';
 import { env } from '~/env.js';
@@ -26,7 +28,7 @@ import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 
-class AuthError extends Schema.TaggedError<AuthError>()('AuthError', {
+class AuthError extends Schema.TaggedErrorClass<AuthError>()('AuthError', {
   error: Schema.Literal('auth_failed'),
   reason: Schema.String,
 }) {
@@ -38,9 +40,9 @@ class AuthError extends Schema.TaggedError<AuthError>()('AuthError', {
     );
 }
 
-const CustomClient = HttpClient.HttpClient.pipe(
+const CustomClient = HttpClient.HttpClient.asEffect().pipe(
   Effect.bindTo('client'),
-  Effect.bind('config', () => DiscordConfig.DiscordConfig),
+  Effect.bind('config', () => DiscordConfig.DiscordConfig.asEffect()),
   Effect.map(({ client, config }) =>
     client.pipe(
       HttpClient.mapRequest(HttpClientRequest.bearerToken(config.token)),
@@ -50,10 +52,10 @@ const CustomClient = HttpClient.HttpClient.pipe(
   Layer.effect(HttpClient.HttpClient),
 );
 
-const LoginSchema = Schema.parseJson(
+const LoginSchema = Schema.fromJsonString(
   Schema.Struct({
-    id: Schema.UUID,
-    redirectUrl: Schema.URL,
+    id: Schema.String.pipe(Schema.check(Schema.isUUID())),
+    redirectUrl: Schema.URLFromString,
   }),
 );
 
@@ -67,10 +69,10 @@ const handleDiscordLogin = ({
 }: {
   code: string;
   state: Schema.Schema.Type<typeof LoginSchema>;
-  discord: DiscordOAuth;
-  users: UsersRepository;
-  sessions: SessionsRepository;
-  oauthConnections: OAuthConnectionsRepository;
+  discord: ServiceMap.Service.Shape<typeof DiscordOAuth>;
+  users: ServiceMap.Service.Shape<typeof UsersRepository>;
+  sessions: ServiceMap.Service.Shape<typeof SessionsRepository>;
+  oauthConnections: ServiceMap.Service.Shape<typeof OAuthConnectionsRepository>;
 }) =>
   Effect.Do.pipe(
     Effect.bind('oauth', () => discord.validateAuthorizationCode(code)),
@@ -85,7 +87,7 @@ const handleDiscordLogin = ({
       }),
     ),
     Effect.bind('client', ({ DiscordConfigLive }) =>
-      DiscordREST.pipe(
+      DiscordREST.asEffect().pipe(
         Effect.provide(
           DiscordRESTLive.pipe(
             Layer.provideMerge(CustomClient),
@@ -108,11 +110,12 @@ const handleDiscordLogin = ({
     Effect.let('sessionToken', () => crypto.randomUUID()),
     Effect.bind('now', () => DateTime.now),
     Effect.let('expiresAt', ({ now }) => DateTime.add(now, { days: 30 })),
+  ).pipe(
     Effect.bind('dbUser', ({ discordUser }) =>
       users.upsertFromDiscord({
         discord_id: discordUser.id,
         username: discordUser.username,
-        avatar: Option.fromNullable(discordUser.avatar),
+        avatar: Option.fromNullishOr(discordUser.avatar),
         discord_nickname: Option.none(),
       }),
     ),
@@ -124,19 +127,20 @@ const handleDiscordLogin = ({
         dbUser.id,
         'discord',
         oauth.accessToken(),
-        Option.fromNullable(oauth.refreshToken()),
+        Option.fromNullishOr(oauth.refreshToken()),
       ),
     ),
     Effect.bind('session', ({ dbUser, sessionToken, expiresAt }) =>
+      // biome-ignore lint/suspicious/noExplicitAny: TypeScript can't resolve Session.insert.Type in this chain depth
       sessions.create({
         user_id: dbUser.id,
         token: sessionToken,
-        expires_at: expiresAt,
+        expires_at: expiresAt as any,
         created_at: undefined,
       }),
     ),
     Effect.tap(() => Effect.logInfo('[auth/callback] session created, redirecting')),
-    Effect.catchTag('RequestError', 'ResponseError', 'DiscordOAuthError', AuthError.failCause),
+    Effect.catchTag(['HttpClientError', 'DiscordOAuthError'], AuthError.failCause),
     Effect.map(({ sessionToken }) =>
       pipe(
         Redirect.fromUrl(state.redirectUrl),
@@ -155,7 +159,7 @@ const handleDiscordLogin = ({
       ),
     ),
     Effect.catchTag(
-      'NoSuchElementException',
+      'NoSuchElementError',
       LogicError.withMessage(() => 'OAuth token exchange — failed to create user session'),
     ),
   );
@@ -166,7 +170,7 @@ const MANAGE_GUILD = 0x20n;
 const ADMINISTRATOR = 0x8n;
 
 const makeUserDiscordClient = (accessToken: string) =>
-  DiscordREST.pipe(
+  DiscordREST.asEffect().pipe(
     Effect.provide(
       DiscordRESTLive.pipe(
         Layer.provideMerge(CustomClient),
@@ -182,14 +186,14 @@ const makeUserDiscordClient = (accessToken: string) =>
 
 export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('discord', () => DiscordOAuth),
-    Effect.bind('users', () => UsersRepository),
-    Effect.bind('sessions', () => SessionsRepository),
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('teams', () => TeamsRepository),
-    Effect.bind('roles', () => RolesRepository),
-    Effect.bind('botGuilds', () => BotGuildsRepository),
-    Effect.bind('oauthConnections', () => OAuthConnectionsRepository),
+    Effect.bind('discord', () => DiscordOAuth.asEffect()),
+    Effect.bind('users', () => UsersRepository.asEffect()),
+    Effect.bind('sessions', () => SessionsRepository.asEffect()),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('teams', () => TeamsRepository.asEffect()),
+    Effect.bind('roles', () => RolesRepository.asEffect()),
+    Effect.bind('botGuilds', () => BotGuildsRepository.asEffect()),
+    Effect.bind('oauthConnections', () => OAuthConnectionsRepository.asEffect()),
     Effect.map(({ discord, users, sessions, members, teams, roles, botGuilds, oauthConnections }) =>
       handlers
         .handle('getLogin', () =>
@@ -201,11 +205,11 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           Effect.sync(() => crypto.randomUUID()).pipe(
             Effect.bindTo('id'),
             Effect.let('redirectUrl', () => env.FRONTEND_URL),
-            Effect.flatMap(Schema.encode(LoginSchema)),
+            Effect.flatMap(Schema.encodeEffect(LoginSchema)),
             Effect.flatMap(discord.createAuthorizationURL),
             Effect.map(Redirect.fromUrl),
             Effect.map(Redirect.toResponse),
-            Effect.catchTag('ParseError', AuthError.failCause),
+            Effect.catchTag('SchemaError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>
               pipe(
                 Redirect.fromUrl(env.FRONTEND_URL),
@@ -217,7 +221,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
           ),
         )
-        .handle('callback', ({ urlParams: { code, state, error } }) =>
+        .handle('callback', ({ query: { code, state, error } }) =>
           Effect.Do.pipe(
             Effect.tap(() =>
               Effect.logInfo('[auth/callback] received callback', {
@@ -226,12 +230,12 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 hasError: Option.isSome(error),
               }),
             ),
-            Effect.bind('code', () => code),
-            Effect.bind('stateRaw', () => state),
-            Effect.catchTag('NoSuchElementException', () =>
-              AuthError.withReason(Option.getOrElse(error, () => 'missing_params')),
+            Effect.bind('code', () => Effect.fromOption(code)),
+            Effect.bind('stateRaw', () => Effect.fromOption(state)),
+            Effect.catchTag('NoSuchElementError', () =>
+              Effect.fail(AuthError.withReason(Option.getOrElse(error, () => 'missing_params'))),
             ),
-            Effect.bind('state', ({ stateRaw }) => Schema.decode(LoginSchema)(stateRaw)),
+            Effect.bind('state', ({ stateRaw }) => Schema.decodeEffect(LoginSchema)(stateRaw)),
             Effect.tap(({ state }) =>
               Effect.logInfo('[auth/callback] state decoded', {
                 redirectUrl: state.redirectUrl.toString(),
@@ -241,7 +245,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             Effect.andThen(({ state, code }) =>
               handleDiscordLogin({ code, state, discord, users, sessions, oauthConnections }),
             ),
-            Effect.catchTag('ParseError', AuthError.failCause),
+            Effect.catchTag('SchemaError', AuthError.failCause),
             Effect.catchTag('AuthError', (e) =>
               pipe(
                 Redirect.fromUrl(env.FRONTEND_URL),
@@ -253,10 +257,10 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
           ),
         )
-        .handle('me', () => Auth.CurrentUserContext)
+        .handle('me', () => Auth.CurrentUserContext.asEffect())
         .handle('updateLocale', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('updated', ({ currentUser }) =>
               users.updateLocale({
                 id: currentUser.id,
@@ -279,19 +283,19 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating locale — no row returned'),
             ),
           ),
         )
         .handle('updateProfile', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('updated', ({ currentUser }) =>
               users.updateAdminProfile({
                 id: currentUser.id,
                 name: payload.name,
-                birth_date: Option.map(payload.birthDate, DateTime.unsafeMake),
+                birth_date: Option.map(payload.birthDate, DateTime.makeUnsafe),
                 gender: payload.gender,
               }),
             ),
@@ -311,19 +315,19 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed updating admin profile — no row returned'),
             ),
           ),
         )
         .handle('completeProfile', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('updated', ({ currentUser }) =>
               users.completeProfile({
                 id: currentUser.id,
                 name: Option.some(payload.name),
-                birth_date: Option.some(DateTime.unsafeMake(payload.birthDate)),
+                birth_date: Option.some(DateTime.makeUnsafe(payload.birthDate)),
                 gender: Option.some(payload.gender),
               }),
             ),
@@ -343,14 +347,14 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 }),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed completing user profile — no row returned'),
             ),
           ),
         )
         .handle('myTeams', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('memberships', ({ currentUser }) => members.findByUser(currentUser.id)),
             Effect.flatMap(
               flow(
@@ -382,7 +386,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
         )
         .handle('myGuilds', () =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('accessToken', ({ currentUser }) =>
               oauthConnections.getAccessToken(currentUser.id, 'discord').pipe(
                 Effect.flatMap(
@@ -410,7 +414,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                           new Auth.DiscordGuild({
                             id: Schema.decodeSync(Discord.Snowflake)(g.id),
                             name: g.name,
-                            icon: Option.fromNullable(g.icon),
+                            icon: Option.fromNullishOr(g.icon),
                             owner: g.owner,
                             botPresent: present,
                           }),
@@ -421,16 +425,14 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                 { concurrency: 'unbounded' },
               ),
             ),
-            Effect.catchTag('RequestError', 'ResponseError', () =>
-              Effect.fail(new Auth.Unauthorized()),
-            ),
+            Effect.catchTag('HttpClientError', () => Effect.fail(new Auth.Unauthorized())),
             Effect.catchTag('ErrorResponse', () => Effect.fail(new Auth.Unauthorized())),
             Effect.catchTag('RatelimitedResponse', () => Effect.fail(new Auth.Unauthorized())),
           ),
         )
         .handle('createTeam', ({ payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('team', ({ currentUser }) =>
               teams.insert({
                 name: payload.name,
@@ -480,7 +482,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
               LogicError.withMessage(() => 'Unexpected duplicate member during team creation'),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => 'Failed creating team — no row returned'),
             ),
           ),
@@ -538,7 +540,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             );
 
           return Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.flatMap(({ currentUser }) =>
               !currentUser.isProfileComplete
                 ? Effect.succeed(emptyTeams)
@@ -554,7 +556,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                               Array.map(guilds, (g) => Schema.decodeSync(Discord.Snowflake)(g.id)),
                             ),
                             Effect.flatMap(({ guildIds }) =>
-                              Array.isEmptyReadonlyArray(guildIds)
+                              Array.isArrayEmpty(guildIds)
                                 ? Effect.succeed(emptyTeams)
                                 : teams.findByGuildIds(guildIds).pipe(
                                     Effect.flatMap((matchingTeams) =>
@@ -569,10 +571,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
                                   ),
                             ),
                             Effect.catchTag(
-                              'RequestError',
-                              'ResponseError',
-                              'ErrorResponse',
-                              'RatelimitedResponse',
+                              ['HttpClientError', 'ErrorResponse', 'RatelimitedResponse'],
                               () => Effect.succeed(emptyTeams),
                             ),
                           ),
@@ -582,7 +581,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
             ),
             // NoSuchElementException can be produced by Auth.CurrentUserContext when no session exists
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(
                 () => 'Auto-join teams — unexpected missing session or current user',
               ),

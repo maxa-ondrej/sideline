@@ -28,9 +28,9 @@ const GROUP_DISCORD_CHANNEL_ID = '999000999000' as Discord.Snowflake;
 // A date in the past that, when used as start_date, will produce occurrences
 // within a 30-day horizon from "today". We use a fixed Monday.
 // The series runs weekly on Monday (day index 1).
-// We use DateTime.unsafeMake with a very early date so the horizon window (today +30 days)
+// We use DateTime.makeUnsafe with a very early date so the horizon window (today +30 days)
 // will always contain at least one occurrence.
-const START_DATE = DateTime.unsafeMake('2020-01-06T00:00:00Z'); // a Monday
+const START_DATE = DateTime.makeUnsafe('2020-01-06T00:00:00Z'); // a Monday
 
 // --- Types for in-memory store ---
 type InsertedEvent = {
@@ -131,7 +131,7 @@ const makeMockEventSeriesRepository = (activeSeries: ReturnType<typeof makeActiv
     findSeriesById: () => Effect.die(new Error('Not implemented')),
     updateEventSeries: () => Effect.die(new Error('Not implemented')),
     cancelEventSeries: () => Effect.die(new Error('Not implemented')),
-  } as unknown as EventSeriesRepository);
+  } as any);
 
 const makeMockEventsRepositoryLayer = (
   findEventByIdWithDetailsOverride?: (
@@ -151,7 +151,7 @@ const makeMockEventsRepositoryLayer = (
         training_type_id: Option.none(),
         event_type: 'training',
         description: Option.none(),
-        start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+        start_at: DateTime.makeUnsafe('2026-04-14T10:00:00Z'),
         end_at: Option.none(),
         location: Option.none(),
         status: 'active',
@@ -175,7 +175,7 @@ const makeMockEventsRepositoryLayer = (
           event_type: 'training',
           title: 'Weekly Training',
           description: Option.none(),
-          start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+          start_at: DateTime.makeUnsafe('2026-04-14T10:00:00Z'),
           end_at: Option.none(),
           location: Option.none(),
           status: 'active',
@@ -213,7 +213,7 @@ const makeMockEventsRepositoryLayer = (
     findEndedTrainingsForAutoLog: () => Effect.die(new Error('Not implemented')),
     markTrainingAutoLogged: () => Effect.die(new Error('Not implemented')),
     findUpcomingWithRsvp: () => Effect.die(new Error('Not implemented')),
-  } as unknown as EventsRepository);
+  } as any);
 
 const MockEventsRepositoryLayer = makeMockEventsRepositoryLayer();
 
@@ -224,7 +224,7 @@ const MockTrainingTypesRepositoryLayer = Layer.succeed(TrainingTypesRepository, 
   insertTrainingType: () => Effect.die(new Error('Not implemented')),
   updateTrainingType: () => Effect.die(new Error('Not implemented')),
   deleteTrainingTypeById: () => Effect.die(new Error('Not implemented')),
-} as unknown as TrainingTypesRepository);
+} as any);
 
 const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
   findByTeamId: () => Effect.succeed(Option.none()),
@@ -232,7 +232,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
   getHorizonDays: () => Effect.die(new Error('Not implemented')),
   findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
   findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
-} as unknown as TeamSettingsRepository);
+} as any);
 
 const makeMockSyncEventsRepository = (
   overrides: Partial<{
@@ -287,7 +287,7 @@ const makeMockSyncEventsRepository = (
     findUnprocessed: () => Effect.succeed([]),
     markProcessed: () => Effect.void,
     markFailed: () => Effect.void,
-  } as unknown as EventSyncEventsRepository);
+  } as any);
 
 const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMappingRepository, {
   findByGroupId: (_teamId: Team.TeamId, _groupId: GroupModel.GroupId) =>
@@ -303,7 +303,7 @@ const MockDiscordChannelMappingRepositoryLayer = Layer.succeed(DiscordChannelMap
   insertRoster: () => Effect.die(new Error('Not implemented')),
   deleteByRosterId: () => Effect.die(new Error('Not implemented')),
   findAllByTeam: () => Effect.die(new Error('Not implemented')),
-} as unknown as DiscordChannelMappingRepository);
+} as any);
 
 const makeTestLayer = (
   activeSeries: ReturnType<typeof makeActiveSeries>[],
@@ -334,7 +334,7 @@ describe('eventHorizonCronEffect', () => {
       last_generated_date: Option.none(),
       // Use a start_date just before the horizon window starts (a Monday from the recent past)
       // so occurrences land within the 30-day horizon.
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1, 2, 3, 4, 5], // Mon-Fri, so we get multiple occurrences
       event_horizon_days: 30,
     });
@@ -374,7 +374,7 @@ describe('eventHorizonCronEffect', () => {
   it.effect('notification failure does not block event creation', () => {
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1, 2, 3, 4, 5],
       event_horizon_days: 30,
     });
@@ -401,7 +401,7 @@ describe('eventHorizonCronEffect', () => {
     // returning Effect.void without recording anything (simulate the internal behavior)
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1, 2, 3],
       event_horizon_days: 30,
     });
@@ -436,7 +436,7 @@ describe('eventHorizonCronEffect', () => {
   it.effect('passes resolved channel to emitEventCreated', () => {
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1], // Just Monday so we get a predictable number of events
       event_horizon_days: 7,
     });
@@ -470,7 +470,7 @@ describe('eventHorizonCronEffect', () => {
       getHorizonDays: () => Effect.die(new Error('Not implemented')),
       findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
       findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
-    } as unknown as TeamSettingsRepository);
+    } as any);
 
     const trackingEmittedLayer = Layer.succeed(EventSyncEventsRepository, {
       emitEventCreated: (
@@ -494,7 +494,7 @@ describe('eventHorizonCronEffect', () => {
       findUnprocessed: () => Effect.succeed([]),
       markProcessed: () => Effect.void,
       markFailed: () => Effect.void,
-    } as unknown as EventSyncEventsRepository);
+    } as any);
 
     return eventHorizonCronEffect.pipe(
       Effect.tap(() =>
@@ -526,7 +526,7 @@ describe('eventHorizonCronEffect', () => {
   it.effect('updates lastGeneratedDate after all events in a series', () => {
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1, 2, 3],
       event_horizon_days: 30,
     });
@@ -548,7 +548,7 @@ describe('eventHorizonCronEffect', () => {
     // but the owner group has a Discord channel mapping.
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1],
       event_horizon_days: 7,
       owner_group_id: Option.some(GROUP_ID),
@@ -568,7 +568,7 @@ describe('eventHorizonCronEffect', () => {
           event_type: 'training',
           title: 'Weekly Training',
           description: Option.none(),
-          start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+          start_at: DateTime.makeUnsafe('2026-04-14T10:00:00Z'),
           end_at: Option.none(),
           location: Option.none(),
           status: 'active',
@@ -609,7 +609,7 @@ describe('eventHorizonCronEffect', () => {
     // Team settings (fallback #3) should take priority over owner group (fallback #4).
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1],
       event_horizon_days: 7,
       owner_group_id: Option.some(GROUP_ID),
@@ -648,7 +648,7 @@ describe('eventHorizonCronEffect', () => {
       getHorizonDays: () => Effect.die(new Error('Not implemented')),
       findLateRsvpChannelId: () => Effect.die(new Error('Not implemented')),
       findEventsNeedingReminder: () => Effect.die(new Error('Not implemented')),
-    } as unknown as TeamSettingsRepository);
+    } as any);
 
     // Arrange: the event returned by findEventByIdWithDetails has owner_group_id set
     const findEventWithOwnerGroup = (eventId: Event.EventId) =>
@@ -660,7 +660,7 @@ describe('eventHorizonCronEffect', () => {
           event_type: 'training',
           title: 'Weekly Training',
           description: Option.none(),
-          start_at: DateTime.unsafeMake('2026-04-14T10:00:00Z'),
+          start_at: DateTime.makeUnsafe('2026-04-14T10:00:00Z'),
           end_at: Option.none(),
           location: Option.none(),
           status: 'active',
@@ -710,7 +710,7 @@ describe('eventHorizonCronEffect', () => {
     // and owner_group_id is Option.none() — so channel should be Option.none().
     const series = makeActiveSeries({
       last_generated_date: Option.none(),
-      start_date: DateTime.subtract(DateTime.unsafeNow(), { days: 1 }),
+      start_date: DateTime.subtract(DateTime.nowUnsafe(), { days: 1 }),
       days_of_week: [1],
       event_horizon_days: 7,
       owner_group_id: Option.none(),

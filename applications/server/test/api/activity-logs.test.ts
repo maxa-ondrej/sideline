@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
 import type { ActivityLog, ActivityType, Auth, Role, Team, TeamMember } from '@sideline/domain';
 import { ActivityLogApi } from '@sideline/domain';
-import { DateTime, Effect, Either, Layer, Option } from 'effect';
+import { DateTime, Effect, Layer, Option, Result } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -27,7 +27,7 @@ type ActivityLogRecord = {
   team_member_id: TeamMember.TeamMemberId;
   activity_type_id: ActivityType.ActivityTypeId;
   activity_type_name: string;
-  logged_at: Date;
+  logged_at: string;
   duration_minutes: Option.Option<number>;
   note: Option.Option<string>;
   source: ActivityLog.ActivitySource;
@@ -42,7 +42,7 @@ const resetStores = () => {
     team_member_id: TEST_MEMBER_ID,
     activity_type_id: GYM_TYPE_ID,
     activity_type_name: 'Gym',
-    logged_at: new Date('2026-03-25T10:00:00Z'),
+    logged_at: '2026-03-25T10:00:00.000Z',
     duration_minutes: Option.some(60),
     note: Option.some('Leg day'),
     source: 'manual',
@@ -52,7 +52,7 @@ const resetStores = () => {
     team_member_id: TEST_MEMBER_ID,
     activity_type_id: RUNNING_TYPE_ID,
     activity_type_name: 'Run',
-    logged_at: new Date('2026-03-26T08:00:00Z'),
+    logged_at: '2026-03-26T08:00:00.000Z',
     duration_minutes: Option.none(),
     note: Option.none(),
     source: 'manual',
@@ -96,7 +96,7 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockInactiveMemberTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
   findMembershipByIds: (teamId: Team.TeamId, userId: Auth.UserId) => {
@@ -123,7 +123,7 @@ const MockInactiveMemberTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRe
   assignRole: () => Effect.void,
   unassignRole: () => Effect.void,
   setJerseyNumber: () => Effect.void,
-} as unknown as TeamMembersRepository);
+} as any);
 
 const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
   findByTeamMember: (memberId: TeamMember.TeamMemberId) => {
@@ -132,7 +132,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       .map((l) => ({
         activity_type_id: l.activity_type_id,
         activity_type_name: l.activity_type_name,
-        logged_at_date: l.logged_at.toISOString().slice(0, 10),
+        logged_at_date: l.logged_at.slice(0, 10),
         duration_minutes: l.duration_minutes,
       }));
     return Effect.succeed(logs);
@@ -162,13 +162,14 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       source: 'manual',
       activity_type_name: 'Gym',
       ...input,
+      logged_at: input.logged_at.toISOString(),
     };
     activityLogsStore.set(id, record);
     return Effect.succeed({
       id,
       activity_type_id: input.activity_type_id,
       activity_type_name: record.activity_type_name,
-      logged_at: input.logged_at.toISOString(),
+      logged_at: record.logged_at,
       source: record.source,
     });
   },
@@ -202,7 +203,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
     activityLogsStore.delete(id);
     return Effect.void;
   },
-} as unknown as ActivityLogsRepository);
+} as any);
 
 const MockProvideLayer = Layer.mergeAll(
   MockTeamMembersRepositoryLayer,
@@ -226,8 +227,8 @@ const listLogs = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -253,7 +254,7 @@ const listLogs = (payload: {
                 id: l.id,
                 activityTypeId: l.activity_type_id,
                 activityTypeName: l.activity_type_name,
-                loggedAt: l.logged_at.toISOString(),
+                loggedAt: l.logged_at,
                 durationMinutes: l.duration_minutes,
                 note: l.note,
                 source: l.source,
@@ -276,8 +277,8 @@ const createLog = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -300,7 +301,7 @@ const createLog = (payload: {
       activityLogs.insert({
         team_member_id: payload.memberId,
         activity_type_id: payload.activityTypeId,
-        logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+        logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
         duration_minutes: payload.durationMinutes,
         note: payload.note,
         source: 'manual',
@@ -337,8 +338,8 @@ const updateLog = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -370,7 +371,7 @@ const updateLog = (payload: {
           id: updated.id,
           activityTypeId: updated.activity_type_id,
           activityTypeName: updated.activity_type_name,
-          loggedAt: updated.logged_at.toISOString(),
+          loggedAt: updated.logged_at,
           durationMinutes: updated.duration_minutes,
           note: updated.note,
           source: updated.source,
@@ -392,8 +393,8 @@ const deleteLog = (payload: {
   TeamMembersRepository | ActivityLogsRepository
 > =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('activityLogs', () => ActivityLogsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
     Effect.bind('membership', ({ members }) =>
       members.findMembershipByIds(payload.teamId, payload.currentUserId).pipe(
         Effect.flatMap(
@@ -455,12 +456,12 @@ describe('listLogs handler', () => {
       memberId: TEST_OTHER_MEMBER_ID,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
         }),
       ),
@@ -502,12 +503,12 @@ describe('createLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -526,12 +527,12 @@ describe('createLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogMemberInactive');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogMemberInactive');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -574,12 +575,12 @@ describe('updateLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogNotFound');
           }
         }),
       ),
@@ -598,12 +599,12 @@ describe('updateLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
         }),
       ),
@@ -622,12 +623,12 @@ describe('updateLog handler', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogMemberInactive');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogMemberInactive');
           }
         }),
       ),
@@ -663,12 +664,12 @@ describe('deleteLog handler', () => {
       logId: TEST_NONEXISTENT_LOG_ID,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogNotFound');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogNotFound');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -685,12 +686,12 @@ describe('deleteLog handler', () => {
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogForbidden');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -707,12 +708,12 @@ describe('deleteLog handler', () => {
       logId: TEST_LOG_ID_1,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogMemberInactive');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogMemberInactive');
           }
           expect(activityLogsStore.size).toBe(2);
         }),
@@ -734,7 +735,7 @@ describe('auto-source guard on updateLog', () => {
       team_member_id: TEST_MEMBER_ID,
       activity_type_id: TRAINING_TYPE_ID,
       activity_type_name: 'Training',
-      logged_at: new Date('2026-03-27T09:00:00Z'),
+      logged_at: '2026-03-27T09:00:00.000Z',
       duration_minutes: Option.none(),
       note: Option.none(),
       source: 'auto',
@@ -748,12 +749,12 @@ describe('auto-source guard on updateLog', () => {
       durationMinutes: Option.none(),
       note: Option.none(),
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogAutoSourceForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogAutoSourceForbidden');
           }
         }),
       ),
@@ -770,7 +771,7 @@ describe('auto-source guard on deleteLog', () => {
       team_member_id: TEST_MEMBER_ID,
       activity_type_id: TRAINING_TYPE_ID,
       activity_type_name: 'Training',
-      logged_at: new Date('2026-03-27T09:00:00Z'),
+      logged_at: '2026-03-27T09:00:00.000Z',
       duration_minutes: Option.none(),
       note: Option.none(),
       source: 'auto',
@@ -781,12 +782,12 @@ describe('auto-source guard on deleteLog', () => {
       logId: TEST_AUTO_LOG_ID,
       currentUserId: TEST_USER_ID,
     }).pipe(
-      Effect.either,
+      Effect.result,
       Effect.tap((result) =>
         Effect.sync(() => {
-          expect(Either.isLeft(result)).toBe(true);
-          if (Either.isLeft(result)) {
-            expect(result.left._tag).toBe('ActivityLogAutoSourceForbidden');
+          expect(Result.isFailure(result)).toBe(true);
+          if (Result.isFailure(result)) {
+            expect(result.failure._tag).toBe('ActivityLogAutoSourceForbidden');
           }
           expect(activityLogsStore.has(TEST_AUTO_LOG_ID)).toBe(true);
         }),
@@ -804,7 +805,7 @@ describe('listLogs includes source field', () => {
       team_member_id: TEST_MEMBER_ID,
       activity_type_id: TRAINING_TYPE_ID,
       activity_type_name: 'Training',
-      logged_at: new Date('2026-03-27T09:00:00Z'),
+      logged_at: '2026-03-27T09:00:00.000Z',
       duration_minutes: Option.none(),
       note: Option.none(),
       source: 'auto',

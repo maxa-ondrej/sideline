@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
@@ -20,23 +20,17 @@ export class ActivityStatsResponse extends Schema.Class<ActivityStatsResponse>(
   ),
 }) {}
 
-export class MemberNotFound extends Schema.TaggedError<MemberNotFound>()(
+export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'ActivityStatsMemberNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'ActivityStatsForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('ActivityStatsForbidden', {}) {}
 
 export class ActivityStatsApiGroup extends HttpApiGroup.make('activityStats').add(
-  HttpApiEndpoint.get('getMemberStats', '/teams/:teamId/members/:memberId/activity-stats')
-    .addSuccess(ActivityStatsResponse)
-    .addError(MemberNotFound)
-    .addError(Forbidden)
-    .setPath(Schema.Struct({ teamId: TeamId, memberId: TeamMemberId }))
-    .middleware(AuthMiddleware),
+  HttpApiEndpoint.get('getMemberStats', '/teams/:teamId/members/:memberId/activity-stats', {
+    success: ActivityStatsResponse,
+    error: [MemberNotFound, Forbidden],
+    params: { teamId: TeamId, memberId: TeamMemberId },
+  }).middleware(AuthMiddleware),
 ) {}

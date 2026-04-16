@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { Model } from 'effect/unstable/schema';
 import { GroupId } from '~/models/GroupModel.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
@@ -8,7 +8,7 @@ import { TeamMemberId } from '~/models/TeamMember.js';
 export const ChannelSyncEventId = Schema.String.pipe(Schema.brand('ChannelSyncEventId'));
 export type ChannelSyncEventId = typeof ChannelSyncEventId.Type;
 
-export const ChannelSyncEventType = Schema.Literal(
+export const ChannelSyncEventType = Schema.Literals([
   'channel_created',
   'channel_updated',
   'channel_deleted',
@@ -16,13 +16,13 @@ export const ChannelSyncEventType = Schema.Literal(
   'channel_detached',
   'member_added',
   'member_removed',
-);
+]);
 
-export const ChannelCleanupMode = Schema.Literal('nothing', 'delete', 'archive');
+export const ChannelCleanupMode = Schema.Literals(['nothing', 'delete', 'archive']);
 export type ChannelCleanupMode = typeof ChannelCleanupMode.Type;
 export type ChannelSyncEventType = typeof ChannelSyncEventType.Type;
 
-export const ChannelSyncEntityType = Schema.Literal('group', 'roster');
+export const ChannelSyncEntityType = Schema.Literals(['group', 'roster']);
 export type ChannelSyncEntityType = typeof ChannelSyncEntityType.Type;
 
 export class ChannelSyncEvent extends Model.Class<ChannelSyncEvent>('ChannelSyncEvent')({

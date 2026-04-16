@@ -1,5 +1,5 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { TeamId } from '~/models/Team.js';
 
@@ -20,50 +20,44 @@ export class InviteCode extends Schema.Class<InviteCode>('InviteCode')({
   active: Schema.Boolean,
 }) {}
 
-export class InviteNotFound extends Schema.TaggedError<InviteNotFound>()(
+export class InviteNotFound extends Schema.TaggedErrorClass<InviteNotFound>()(
   'InviteNotFound',
   {},
-  HttpApiSchema.annotations({ status: 404 }),
 ) {}
 
-export class AlreadyMember extends Schema.TaggedError<AlreadyMember>()(
-  'AlreadyMember',
-  {},
-  HttpApiSchema.annotations({ status: 409 }),
-) {}
+export class AlreadyMember extends Schema.TaggedErrorClass<AlreadyMember>()('AlreadyMember', {}) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'Forbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('Forbidden', {}) {}
 
 export class InviteApiGroup extends HttpApiGroup.make('invite')
   .add(
-    HttpApiEndpoint.get('getInvite', '/invite/:code')
-      .addSuccess(InviteInfo)
-      .addError(InviteNotFound, { status: 404 })
-      .setPath(Schema.Struct({ code: Schema.String })),
+    HttpApiEndpoint.get('getInvite', '/invite/:code', {
+      success: InviteInfo,
+      error: InviteNotFound.pipe(HttpApiSchema.status(404)),
+      params: { code: Schema.String },
+    }),
   )
   .add(
-    HttpApiEndpoint.post('joinViaInvite', '/invite/:code/join')
-      .addSuccess(JoinResult)
-      .addError(InviteNotFound, { status: 404 })
-      .addError(AlreadyMember, { status: 409 })
-      .setPath(Schema.Struct({ code: Schema.String }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('joinViaInvite', '/invite/:code/join', {
+      success: JoinResult,
+      error: [
+        InviteNotFound.pipe(HttpApiSchema.status(404)),
+        AlreadyMember.pipe(HttpApiSchema.status(409)),
+      ],
+      params: { code: Schema.String },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('regenerateInvite', '/teams/:teamId/invite/regenerate')
-      .addSuccess(InviteCode)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('regenerateInvite', '/teams/:teamId/invite/regenerate', {
+      success: InviteCode,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.del('disableInvite', '/teams/:teamId/invite')
-      .addSuccess(Schema.Void)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.delete('disableInvite', '/teams/:teamId/invite', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   ) {}

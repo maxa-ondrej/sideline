@@ -1,7 +1,7 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { ChannelSyncEvent, Discord, Event, GroupModel, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
-import { Effect, Option, Schema } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { DEFAULT_CHANNEL_FORMAT, DEFAULT_ROLE_FORMAT } from '~/utils/applyDiscordFormat.js';
 
@@ -26,9 +26,7 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   discord_channel_format: Schema.String,
 }) {}
 
-class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
-  'TeamSettingsUpsertInput',
-)({
+const TeamSettingsUpsertInput = Schema.Struct({
   team_id: Schema.String,
   event_horizon_days: Schema.Number,
   min_players_threshold: Schema.Number,
@@ -47,7 +45,7 @@ class TeamSettingsUpsertInput extends Schema.Class<TeamSettingsUpsertInput>(
   discord_channel_cleanup_on_roster_deactivate: ChannelSyncEvent.ChannelCleanupMode,
   discord_role_format: Schema.String,
   discord_channel_format: Schema.String,
-}) {}
+});
 
 class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeedingReminder')({
   event_id: Event.EventId,
@@ -59,16 +57,13 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
   owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
-export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepository>()(
-  'api/TeamSettingsRepository',
-  {
-    effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-  },
-) {
-  private _findByTeam = SqlSchema.findOne({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const _findByTeam = SqlSchema.findOneOption({
     Request: Schema.String,
     Result: TeamSettingsRow,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT team_id, event_horizon_days,
              min_players_threshold, rsvp_reminder_hours,
              discord_channel_training, discord_channel_match,
@@ -86,10 +81,10 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     `,
   });
 
-  private _upsertSettings = SqlSchema.single({
+  const _upsertSettings = SqlSchema.findOne({
     Request: TeamSettingsUpsertInput,
     Result: TeamSettingsRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO team_settings (team_id, event_horizon_days,
                                  min_players_threshold, rsvp_reminder_hours,
                                  discord_channel_training, discord_channel_match,
@@ -148,20 +143,20 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     `,
   });
 
-  private _getHorizon = SqlSchema.single({
+  const _getHorizon = SqlSchema.findOne({
     Request: Schema.String,
     Result: Schema.Struct({ event_horizon_days: Schema.Number }),
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT COALESCE(ts.event_horizon_days, 30) AS event_horizon_days
       FROM (SELECT ${teamId}::uuid AS id) t
       LEFT JOIN team_settings ts ON ts.team_id = t.id
     `,
   });
 
-  private _findEventsForReminder = SqlSchema.findAll({
+  const _findEventsForReminder = SqlSchema.findAll({
     Request: Schema.Void,
     Result: EventNeedingReminder,
-    execute: () => this.sql`
+    execute: () => sql`
       SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.event_type,
              e.discord_target_channel_id, e.owner_group_id
       FROM events e
@@ -174,9 +169,9 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     `,
   });
 
-  findByTeamId = (teamId: Team.TeamId) => this._findByTeam(teamId).pipe(catchSqlErrors);
+  const findByTeamId = (teamId: Team.TeamId) => _findByTeam(teamId).pipe(catchSqlErrors);
 
-  upsert = ({
+  const upsert = ({
     teamId,
     eventHorizonDays,
     minPlayersThreshold,
@@ -215,7 +210,7 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
     discordRoleFormat?: string;
     discordChannelFormat?: string;
   }) =>
-    this._upsertSettings({
+    _upsertSettings({
       team_id: teamId,
       event_horizon_days: eventHorizonDays,
       min_players_threshold: minPlayersThreshold,
@@ -236,18 +231,33 @@ export class TeamSettingsRepository extends Effect.Service<TeamSettingsRepositor
       discord_channel_format: discordChannelFormat,
     }).pipe(catchSqlErrors);
 
-  getHorizonDays = (teamId: Team.TeamId) =>
-    this._getHorizon(teamId).pipe(
+  const getHorizonDays = (teamId: Team.TeamId) =>
+    _getHorizon(teamId).pipe(
       Effect.map((r) => r.event_horizon_days),
       catchSqlErrors,
     );
 
-  findLateRsvpChannelId = (teamId: Team.TeamId) =>
-    this.findByTeamId(teamId).pipe(
+  const findLateRsvpChannelId = (teamId: Team.TeamId) =>
+    findByTeamId(teamId).pipe(
       Effect.map(Option.flatMap((s) => s.discord_channel_late_rsvp)),
       catchSqlErrors,
     );
 
-  findEventsNeedingReminder = () =>
-    this._findEventsForReminder(undefined as undefined).pipe(catchSqlErrors);
+  const findEventsNeedingReminder = () =>
+    _findEventsForReminder(undefined as undefined).pipe(catchSqlErrors);
+
+  return {
+    findByTeamId,
+    upsert,
+    getHorizonDays,
+    findLateRsvpChannelId,
+    findEventsNeedingReminder,
+  };
+});
+
+export class TeamSettingsRepository extends ServiceMap.Service<
+  TeamSettingsRepository,
+  Effect.Success<typeof make>
+>()('api/TeamSettingsRepository') {
+  static readonly Default = Layer.effect(TeamSettingsRepository, make);
 }

@@ -11,14 +11,12 @@ export const ensureMapping = (
   roleName: string,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('cached', ({ rpc }) =>
       rpc['Role/GetMapping']({ team_id: teamId, role_id: roleId }),
     ),
-    Effect.flatMap(({ cached }) => cached),
+    Effect.flatMap(({ cached }) => Effect.fromOption(cached)),
     Effect.map(({ discord_role_id }) => discord_role_id),
-    Effect.catchTag('NoSuchElementException', () =>
-      createGuildRole(teamId, roleId, guildId, roleName),
-    ),
+    Effect.catchTag('NoSuchElementError', () => createGuildRole(teamId, roleId, guildId, roleName)),
   );

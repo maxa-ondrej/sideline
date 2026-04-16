@@ -1,10 +1,10 @@
-import { SqlClient, SqlSchema } from '@effect/sql';
 import { GroupModel, Role, Team } from '@sideline/domain';
 import { SqlErrors } from '@sideline/effect-lib';
-import { Array, Effect, type Option, Schema } from 'effect';
+import { Array, Effect, Layer, type Option, Schema, ServiceMap } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
-export class RoleNameAlreadyTakenError extends Schema.TaggedError<RoleNameAlreadyTakenError>()(
+export class RoleNameAlreadyTakenError extends Schema.TaggedErrorClass<RoleNameAlreadyTakenError>()(
   'RoleNameAlreadyTakenError',
   {},
 ) {}
@@ -30,50 +30,48 @@ class PermissionRow extends Schema.Class<PermissionRow>('PermissionRow')({
   permission: Role.Permission,
 }) {}
 
-class RoleInsertInput extends Schema.Class<RoleInsertInput>('RoleInsertInput')({
+const RoleInsertInput = Schema.Struct({
   team_id: Schema.String,
   name: Schema.String,
   is_built_in: Schema.Boolean,
-}) {}
+});
 
-class RoleUpdateInput extends Schema.Class<RoleUpdateInput>('RoleUpdateInput')({
+const RoleUpdateInput = Schema.Struct({
   id: Role.RoleId,
   name: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
 
-class InsertPermissionInput extends Schema.Class<InsertPermissionInput>('InsertPermissionInput')({
+const InsertPermissionInput = Schema.Struct({
   role_id: Role.RoleId,
   permission: Role.Permission,
-}) {}
+});
 
-class FindByTeamAndNameInput extends Schema.Class<FindByTeamAndNameInput>('FindByTeamAndNameInput')(
-  {
-    team_id: Schema.String,
-    name: Schema.String,
-  },
-) {}
-
-class InitTeamRolesInput extends Schema.Class<InitTeamRolesInput>('InitTeamRolesInput')({
+const FindByTeamAndNameInput = Schema.Struct({
   team_id: Schema.String,
-}) {}
+  name: Schema.String,
+});
 
-class RoleGroupInput extends Schema.Class<RoleGroupInput>('RoleGroupInput')({
+const InitTeamRolesInput = Schema.Struct({
+  team_id: Schema.String,
+});
+
+const RoleGroupInput = Schema.Struct({
   role_id: Role.RoleId,
   group_id: GroupModel.GroupId,
-}) {}
+});
 
 class RoleGroupRow extends Schema.Class<RoleGroupRow>('RoleGroupRow')({
   group_id: GroupModel.GroupId,
   group_name: Schema.String,
 }) {}
 
-export class RolesRepository extends Effect.Service<RolesRepository>()('api/RolesRepository', {
-  effect: Effect.bindTo(SqlClient.SqlClient, 'sql'),
-}) {
-  private findByTeamId = SqlSchema.findAll({
+const make = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+
+  const findByTeamId = SqlSchema.findAll({
     Request: Schema.String,
     Result: RoleWithPermissionCount,
-    execute: (teamId) => this.sql`
+    execute: (teamId) => sql`
       SELECT r.id, r.team_id, r.name, r.is_built_in,
              (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id)::int AS permission_count
       FROM roles r
@@ -82,35 +80,33 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     `,
   });
 
-  private findById = SqlSchema.findOne({
+  const findById = SqlSchema.findOneOption({
     Request: Role.RoleId,
     Result: RoleRow,
     execute: (id) =>
-      this
-        .sql`SELECT id, team_id, name, is_built_in FROM roles WHERE id = ${id} AND is_archived = false`,
+      sql`SELECT id, team_id, name, is_built_in FROM roles WHERE id = ${id} AND is_archived = false`,
   });
 
-  private findPermissions = SqlSchema.findAll({
+  const findPermissions = SqlSchema.findAll({
     Request: Role.RoleId,
     Result: PermissionRow,
-    execute: (roleId) =>
-      this.sql`SELECT permission FROM role_permissions WHERE role_id = ${roleId}`,
+    execute: (roleId) => sql`SELECT permission FROM role_permissions WHERE role_id = ${roleId}`,
   });
 
-  private insertQuery = SqlSchema.single({
+  const insertQuery = SqlSchema.findOne({
     Request: RoleInsertInput,
     Result: RoleRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO roles (team_id, name, is_built_in)
       VALUES (${input.team_id}, ${input.name}, ${input.is_built_in})
       RETURNING id, team_id, name, is_built_in
     `,
   });
 
-  private updateQuery = SqlSchema.single({
+  const updateQuery = SqlSchema.findOne({
     Request: RoleUpdateInput,
     Result: RoleRow,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       UPDATE roles
       SET name = COALESCE(${input.name}, name)
       WHERE id = ${input.id}
@@ -118,43 +114,42 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     `,
   });
 
-  private archiveRoleQuery = SqlSchema.void({
+  const archiveRoleQuery = SqlSchema.void({
     Request: Role.RoleId,
-    execute: (id) => this.sql`UPDATE roles SET is_archived = true WHERE id = ${id}`,
+    execute: (id) => sql`UPDATE roles SET is_archived = true WHERE id = ${id}`,
   });
 
-  private deletePermissions = SqlSchema.void({
+  const deletePermissions = SqlSchema.void({
     Request: Role.RoleId,
-    execute: (roleId) => this.sql`DELETE FROM role_permissions WHERE role_id = ${roleId}`,
+    execute: (roleId) => sql`DELETE FROM role_permissions WHERE role_id = ${roleId}`,
   });
 
-  private insertPermission = SqlSchema.void({
+  const insertPermission = SqlSchema.void({
     Request: InsertPermissionInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO role_permissions (role_id, permission)
       VALUES (${input.role_id}, ${input.permission})
       ON CONFLICT DO NOTHING
     `,
   });
 
-  private findByTeamAndName = SqlSchema.findOne({
+  const findByTeamAndName = SqlSchema.findOneOption({
     Request: FindByTeamAndNameInput,
     Result: RoleRow,
     execute: (input) =>
-      this
-        .sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name} AND is_archived = false`,
+      sql`SELECT id, team_id, name, is_built_in FROM roles WHERE team_id = ${input.team_id} AND name = ${input.name} AND is_archived = false`,
   });
 
-  private countMembersForRole = SqlSchema.single({
+  const countMembersForRole = SqlSchema.findOne({
     Request: Role.RoleId,
     Result: Schema.Struct({ count: Schema.Number }),
     execute: (roleId) =>
-      this.sql`SELECT COUNT(*)::int AS count FROM member_roles WHERE role_id = ${roleId}`,
+      sql`SELECT COUNT(*)::int AS count FROM member_roles WHERE role_id = ${roleId}`,
   });
 
-  private initTeamRoles = SqlSchema.void({
+  const initTeamRoles = SqlSchema.void({
     Request: InitTeamRolesInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO roles (team_id, name, is_built_in)
       VALUES
         (${input.team_id}, 'Admin', true),
@@ -164,10 +159,10 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     `,
   });
 
-  private findGroupsForRoleIdQuery = SqlSchema.findAll({
+  const findGroupsForRoleIdQuery = SqlSchema.findAll({
     Request: Role.RoleId,
     Result: RoleGroupRow,
-    execute: (roleId) => this.sql`
+    execute: (roleId) => sql`
       SELECT g.id AS group_id, g.name AS group_name
       FROM role_groups rg
       JOIN groups g ON g.id = rg.group_id
@@ -176,87 +171,111 @@ export class RolesRepository extends Effect.Service<RolesRepository>()('api/Role
     `,
   });
 
-  private assignRoleGroupQuery = SqlSchema.void({
+  const assignRoleGroupQuery = SqlSchema.void({
     Request: RoleGroupInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       INSERT INTO role_groups (role_id, group_id)
       VALUES (${input.role_id}, ${input.group_id})
       ON CONFLICT DO NOTHING
     `,
   });
 
-  private unassignRoleGroupQuery = SqlSchema.void({
+  const unassignRoleGroupQuery = SqlSchema.void({
     Request: RoleGroupInput,
-    execute: (input) => this.sql`
+    execute: (input) => sql`
       DELETE FROM role_groups
       WHERE role_id = ${input.role_id} AND group_id = ${input.group_id}
     `,
   });
 
-  findRolesByTeamId = (teamId: Team.TeamId) => this.findByTeamId(teamId).pipe(catchSqlErrors);
+  const findRolesByTeamId = (teamId: Team.TeamId) => findByTeamId(teamId).pipe(catchSqlErrors);
 
-  findRoleById = (roleId: Role.RoleId) => this.findById(roleId).pipe(catchSqlErrors);
+  const findRoleById = (roleId: Role.RoleId) => findById(roleId).pipe(catchSqlErrors);
 
-  getPermissionsForRoleId = (roleId: Role.RoleId) =>
-    this.findPermissions(roleId).pipe(Effect.map(Array.map((r) => r.permission)), catchSqlErrors);
+  const getPermissionsForRoleId = (roleId: Role.RoleId) =>
+    findPermissions(roleId).pipe(Effect.map(Array.map((r) => r.permission)), catchSqlErrors);
 
-  insertRole = (teamId: Team.TeamId, name: string) =>
-    this.insertQuery({ team_id: teamId, name, is_built_in: false }).pipe(
+  const insertRole = (teamId: Team.TeamId, name: string) =>
+    insertQuery({ team_id: teamId, name, is_built_in: false }).pipe(
       SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
       catchSqlErrors,
     );
 
-  updateRole = (roleId: Role.RoleId, name: Option.Option<string>) =>
-    this.updateQuery({ id: roleId, name }).pipe(
+  const updateRole = (roleId: Role.RoleId, name: Option.Option<string>) =>
+    updateQuery({ id: roleId, name }).pipe(
       SqlErrors.catchUniqueViolation(() => new RoleNameAlreadyTakenError()),
       catchSqlErrors,
     );
 
-  archiveRoleById = (roleId: Role.RoleId) => this.archiveRoleQuery(roleId).pipe(catchSqlErrors);
+  const archiveRoleById = (roleId: Role.RoleId) => archiveRoleQuery(roleId).pipe(catchSqlErrors);
 
-  setRolePermissions = (roleId: Role.RoleId, permissions: ReadonlyArray<Role.Permission>) =>
-    this.deletePermissions(roleId).pipe(
+  const setRolePermissions = (roleId: Role.RoleId, permissions: ReadonlyArray<Role.Permission>) =>
+    deletePermissions(roleId).pipe(
       Effect.flatMap(() =>
         Effect.all(
-          Array.map(permissions, (p) => this.insertPermission({ role_id: roleId, permission: p })),
+          Array.map(permissions, (p) => insertPermission({ role_id: roleId, permission: p })),
         ),
       ),
       Effect.asVoid,
       catchSqlErrors,
     );
 
-  initializeTeamRoles = (teamId: Team.TeamId) =>
-    this.initTeamRoles({ team_id: teamId }).pipe(catchSqlErrors);
+  const initializeTeamRoles = (teamId: Team.TeamId) =>
+    initTeamRoles({ team_id: teamId }).pipe(catchSqlErrors);
 
-  findRoleByTeamAndName = (teamId: Team.TeamId, name: string) =>
-    this.findByTeamAndName({ team_id: teamId, name }).pipe(catchSqlErrors);
+  const findRoleByTeamAndName = (teamId: Team.TeamId, name: string) =>
+    findByTeamAndName({ team_id: teamId, name }).pipe(catchSqlErrors);
 
-  seedTeamRolesWithPermissions = (teamId: Team.TeamId) =>
-    this.initializeTeamRoles(teamId).pipe(
-      Effect.flatMap(() => this.findByTeamId(teamId)),
+  const seedTeamRolesWithPermissions = (teamId: Team.TeamId) =>
+    initializeTeamRoles(teamId).pipe(
+      Effect.flatMap(() => findByTeamId(teamId)),
       Effect.tap((roles) =>
         Effect.all(
           Array.map(roles, (role) => {
             const perms = Role.defaultPermissions[role.name];
-            return perms ? this.setRolePermissions(role.id, perms) : Effect.void;
+            return perms ? setRolePermissions(role.id, perms) : Effect.void;
           }),
         ),
       ),
       catchSqlErrors,
     );
 
-  getMemberCountForRole = (roleId: Role.RoleId) =>
-    this.countMembersForRole(roleId).pipe(
+  const getMemberCountForRole = (roleId: Role.RoleId) =>
+    countMembersForRole(roleId).pipe(
       Effect.map((r) => r.count),
       catchSqlErrors,
     );
 
-  findGroupsForRole = (roleId: Role.RoleId) =>
-    this.findGroupsForRoleIdQuery(roleId).pipe(catchSqlErrors);
+  const findGroupsForRole = (roleId: Role.RoleId) =>
+    findGroupsForRoleIdQuery(roleId).pipe(catchSqlErrors);
 
-  assignRoleToGroup = (roleId: Role.RoleId, groupId: GroupModel.GroupId) =>
-    this.assignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(catchSqlErrors);
+  const assignRoleToGroup = (roleId: Role.RoleId, groupId: GroupModel.GroupId) =>
+    assignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(catchSqlErrors);
 
-  unassignRoleFromGroup = (roleId: Role.RoleId, groupId: GroupModel.GroupId) =>
-    this.unassignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(catchSqlErrors);
+  const unassignRoleFromGroup = (roleId: Role.RoleId, groupId: GroupModel.GroupId) =>
+    unassignRoleGroupQuery({ role_id: roleId, group_id: groupId }).pipe(catchSqlErrors);
+
+  return {
+    findRolesByTeamId,
+    findRoleById,
+    getPermissionsForRoleId,
+    insertRole,
+    updateRole,
+    archiveRoleById,
+    setRolePermissions,
+    initializeTeamRoles,
+    findRoleByTeamAndName,
+    seedTeamRolesWithPermissions,
+    getMemberCountForRole,
+    findGroupsForRole,
+    assignRoleToGroup,
+    unassignRoleFromGroup,
+  };
+});
+
+export class RolesRepository extends ServiceMap.Service<
+  RolesRepository,
+  Effect.Success<typeof make>
+>()('api/RolesRepository') {
+  static readonly Default = Layer.effect(RolesRepository, make);
 }

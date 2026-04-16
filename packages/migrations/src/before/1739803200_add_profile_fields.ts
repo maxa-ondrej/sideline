@@ -1,8 +1,8 @@
-import { SqlClient } from '@effect/sql';
 import { Effect } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 
 export default Effect.flatMap(
-  SqlClient.SqlClient,
+  Effect.service(SqlClient.SqlClient),
   (sql) => sql`
     ALTER TABLE users ADD COLUMN name TEXT;
     ALTER TABLE users ADD COLUMN birth_year INTEGER;

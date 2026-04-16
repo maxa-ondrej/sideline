@@ -8,12 +8,12 @@ export class LogActivityResult extends Schema.Class<LogActivityResult>('LogActiv
   logged_at: Schema.String,
 }) {}
 
-export class ActivityMemberNotFound extends Schema.TaggedError<ActivityMemberNotFound>()(
+export class ActivityMemberNotFound extends Schema.TaggedErrorClass<ActivityMemberNotFound>()(
   'ActivityMemberNotFound',
   {},
 ) {}
 
-export class ActivityGuildNotFound extends Schema.TaggedError<ActivityGuildNotFound>()(
+export class ActivityGuildNotFound extends Schema.TaggedErrorClass<ActivityGuildNotFound>()(
   'ActivityGuildNotFound',
   {},
 ) {}

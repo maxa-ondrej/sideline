@@ -12,41 +12,41 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/groups/$gro
     const groupId = Schema.decodeSync(GroupModel.GroupId)(params.groupId);
     const [groupDetail, allMembers, allRoles, channelMapping, allGroups, discordChannels, guildId] =
       await Promise.all([
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.getGroup({ path: { teamId, groupId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.group.getGroup({ params: { teamId, groupId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.roster.listMembers({ path: { teamId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.roster.listMembers({ params: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.role.listRoles({ path: { teamId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.role.listRoles({ params: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.getChannelMapping({ path: { teamId, groupId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.group.getChannelMapping({ params: { teamId, groupId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.listGroups({ path: { teamId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.group.listGroups({ params: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.group.listDiscordChannels({ path: { teamId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.group.listDiscordChannels({ params: { teamId } })),
           warnAndCatchAll,
           context.run,
         ),
-        ApiClient.pipe(
-          Effect.flatMap((api) => api.team.getTeamInfo({ path: { teamId } })),
+        ApiClient.asEffect().pipe(
+          Effect.flatMap((api) => api.team.getTeamInfo({ params: { teamId } })),
           Effect.map((info) => Option.some(info.guildId)),
           Effect.tapError((e) => Effect.logWarning('Failed to load team info', e)),
-          Effect.catchAll(() => Effect.succeed(Option.none<string>())),
+          Effect.catch(() => Effect.succeed(Option.none<string>())),
           context.run,
         ),
       ]);

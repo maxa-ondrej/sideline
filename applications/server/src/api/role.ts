@@ -1,7 +1,7 @@
-import { HttpApiBuilder } from '@effect/platform';
 import { Auth, RoleApi } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
+import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
@@ -12,14 +12,14 @@ const forbidden = new RoleApi.Forbidden();
 
 export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
   Effect.Do.pipe(
-    Effect.bind('members', () => TeamMembersRepository),
-    Effect.bind('roles', () => RolesRepository),
-    Effect.bind('notifications', () => NotificationsRepository),
+    Effect.bind('members', () => TeamMembersRepository.asEffect()),
+    Effect.bind('roles', () => RolesRepository.asEffect()),
+    Effect.bind('notifications', () => NotificationsRepository.asEffect()),
     Effect.map(({ members, roles, notifications }) =>
       handlers
-        .handle('listRoles', ({ path: { teamId } }) =>
+        .handle('listRoles', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -45,9 +45,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('createRole', ({ path: { teamId }, payload }) =>
+        .handle('createRole', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -69,16 +69,16 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               Effect.fail(new RoleApi.RoleNameAlreadyTaken()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(
                 () => `Failed creating role "${payload.name}" — no row returned`,
               ),
             ),
           ),
         )
-        .handle('getRole', ({ path: { teamId, roleId } }) =>
+        .handle('getRole', ({ params: { teamId, roleId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -108,9 +108,9 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             ),
           ),
         )
-        .handle('updateRole', ({ path: { teamId, roleId }, payload }) =>
+        .handle('updateRole', ({ params: { teamId, roleId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -158,14 +158,14 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
               Effect.fail(new RoleApi.RoleNameAlreadyTaken()),
             ),
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => `Failed updating role ${roleId} — no row returned`),
             ),
           ),
         )
-        .handle('deleteRole', ({ path: { teamId, roleId } }) =>
+        .handle('deleteRole', ({ params: { teamId, roleId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -190,14 +190,14 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
             Effect.tap(() => roles.archiveRoleById(roleId)),
             Effect.asVoid,
             Effect.catchTag(
-              'NoSuchElementException',
+              'NoSuchElementError',
               LogicError.withMessage(() => `Failed deleting role ${roleId} — no row returned`),
             ),
           ),
         )
-        .handle('assignRole', ({ path: { teamId, memberId }, payload }) =>
+        .handle('assignRole', ({ params: { teamId, memberId }, payload }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -239,15 +239,15 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   Effect.tapError((e) =>
                     Effect.logWarning('Failed to create role-assigned notification', e),
                   ),
-                  Effect.catchTag('NoSuchElementException', () => Effect.void),
+                  Effect.catchTag('NoSuchElementError', () => Effect.void),
                 ),
             ),
             Effect.asVoid,
           ),
         )
-        .handle('unassignRole', ({ path: { teamId, memberId, roleId } }) =>
+        .handle('unassignRole', ({ params: { teamId, memberId, roleId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext),
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
               requireMembership(members, teamId, currentUser.id, forbidden),
             ),
@@ -286,7 +286,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
                   `You have been removed from the "${role.name}" role.`,
                 )
                 .pipe(
-                  Effect.catchTag('NoSuchElementException', (e) =>
+                  Effect.catchTag('NoSuchElementError', (e) =>
                     Effect.logWarning('Failed to create role-removed notification', e),
                   ),
                 ),

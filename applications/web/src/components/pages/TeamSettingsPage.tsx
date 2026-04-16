@@ -138,7 +138,7 @@ export function TeamSettingsPage({
 
   const channelToOption = React.useCallback(
     (value: string) =>
-      value !== NONE_VALUE ? Option.some(Discord.Snowflake.make(value)) : Option.none(),
+      value !== NONE_VALUE ? Option.some(Discord.Snowflake.makeUnsafe(value)) : Option.none(),
     [],
   );
 
@@ -147,10 +147,10 @@ export function TeamSettingsPage({
   const handleSaveProfile = React.useCallback(async () => {
     if (!teamName.trim()) return;
     setSavingProfile(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.team.updateTeamInfo({
-          path: { teamId: teamInfo.teamId },
+          params: { teamId: teamInfo.teamId },
           payload: {
             name: Option.some(teamName.trim()),
             description: Option.some(
@@ -161,7 +161,7 @@ export function TeamSettingsPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.teamSettings_profileSaveFailed())),
+      Effect.mapError(() => ClientError.make(m.teamSettings_profileSaveFailed())),
       run({ success: m.teamSettings_profileSaved() }),
     );
     setSavingProfile(false);
@@ -180,10 +180,10 @@ export function TeamSettingsPage({
       return;
     if (!isFormatValid(roleFormat) || !isFormatValid(channelFormat)) return;
     setSavingSettings(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.teamSettings.updateTeamSettings({
-          path: { teamId: settings.teamId },
+          params: { teamId: settings.teamId },
           payload: {
             eventHorizonDays: parsed,
             minPlayersThreshold: Option.some(parsedThreshold),
@@ -205,7 +205,7 @@ export function TeamSettingsPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.teamSettings_saveFailed())),
+      Effect.mapError(() => ClientError.make(m.teamSettings_saveFailed())),
       run({ success: m.teamSettings_saved() }),
     );
     setSavingSettings(false);

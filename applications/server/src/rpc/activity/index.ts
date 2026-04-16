@@ -15,12 +15,12 @@ import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
 export const ActivityRpcLive = Effect.Do.pipe(
-  Effect.bind('teams', () => TeamsRepository),
-  Effect.bind('users', () => UsersRepository),
-  Effect.bind('members', () => TeamMembersRepository),
-  Effect.bind('activityLogs', () => ActivityLogsRepository),
-  Effect.bind('activityTypes', () => ActivityTypesRepository),
-  Effect.bind('leaderboardRepo', () => LeaderboardRepository),
+  Effect.bind('teams', () => TeamsRepository.asEffect()),
+  Effect.bind('users', () => UsersRepository.asEffect()),
+  Effect.bind('members', () => TeamMembersRepository.asEffect()),
+  Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+  Effect.bind('activityTypes', () => ActivityTypesRepository.asEffect()),
+  Effect.bind('leaderboardRepo', () => LeaderboardRepository.asEffect()),
   Effect.let(
     'Activity/LogActivity',
     ({ teams, users, members, activityLogs, activityTypes }) =>
@@ -84,7 +84,7 @@ export const ActivityRpcLive = Effect.Do.pipe(
             activityLogs.insert({
               team_member_id: member.id,
               activity_type_id: activityType.id,
-              logged_at: DateTime.toDateUtc(DateTime.unsafeNow()),
+              logged_at: DateTime.toDateUtc(DateTime.nowUnsafe()),
               duration_minutes,
               note,
               source: 'manual',

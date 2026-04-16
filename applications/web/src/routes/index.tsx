@@ -16,50 +16,45 @@ class SkipError extends Data.TaggedError('SkipError') {}
 
 export const Route = createFileRoute('/')({
   component: HomeRoute,
-  validateSearch: Schema.standardSchemaV1(
+  validateSearch: Schema.toStandardSchemaV1(
     Schema.Struct({
-      token: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
-      error: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
-      reason: Schema.String.pipe(Schema.optionalWith({ nullable: true })),
+      token: Schema.optional(Schema.NullOr(Schema.String)),
+      error: Schema.optional(Schema.NullOr(Schema.String)),
+      reason: Schema.optional(Schema.NullOr(Schema.String)),
     }),
   ),
   beforeLoad: ({ search, context }) =>
     Effect.Do.pipe(
-      Effect.flatMap(() => Option.fromNullable(search.token)),
+      Effect.flatMap(() => Effect.fromOption(Option.fromNullishOr(search.token))),
       Effect.flatMap(finishLogin),
-      Effect.flatMap(() => Redirect.make({ to: '.' })),
-      Effect.catchTag('NoSuchElementException', () => Effect.void),
+      Effect.flatMap(() => Effect.fail(Redirect.make({ to: '.' }))),
+      Effect.catchTag('NoSuchElementError', () => Effect.void),
       Effect.tap(
         Option.match(context.userOption, {
           onSome: () => Effect.void,
-          onNone: () => new SkipError(),
+          onNone: () => Effect.fail(new SkipError()),
         }),
       ),
       Effect.flatMap(() => getPendingInvite),
       Effect.tap(() => clearPendingInvite),
-      Effect.flatMap(
-        Option.match({
-          onSome: (code) => Redirect.make({ to: '/invite/$code', params: { code } }),
+      Effect.flatMap((pendingInvite) =>
+        Option.match(pendingInvite, {
+          onSome: (code) => Effect.fail(Redirect.make({ to: '/invite/$code', params: { code } })),
           onNone: () => Effect.void,
         }),
       ),
       Effect.flatMap(() => client),
       Effect.flatMap((c) => c.auth.myTeams()),
-      Effect.catchTag(
-        'HttpApiDecodeError',
-        'ParseError',
-        'RequestError',
-        'ResponseError',
-        'Unauthorized',
-        () => Effect.succeed([] as readonly Auth.UserTeam[]),
+      Effect.catchTag(['Unauthorized', 'BadRequest', 'HttpClientError', 'SchemaError'], () =>
+        Effect.succeed([] as readonly Auth.UserTeam[]),
       ),
       Effect.tap((teams) =>
         getLastTeamId.pipe(
-          Effect.flatMap(
-            Option.match({
+          Effect.flatMap((lastTeamIdOption) =>
+            Option.match(lastTeamIdOption, {
               onSome: (teamId) =>
                 Option.isSome(Array.findFirst(teams, (t) => t.teamId === teamId))
-                  ? Redirect.make({ to: '/teams/$teamId', params: { teamId } })
+                  ? Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId } }))
                   : Effect.void,
               onNone: () => Effect.void,
             }),
@@ -67,11 +62,13 @@ export const Route = createFileRoute('/')({
         ),
       ),
       Effect.map(Array.head),
-      Effect.flatten,
+      Effect.flatMap(Effect.fromOption),
       Effect.flatMap((team) =>
         Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
       ),
-      Effect.catchTag('NoSuchElementException', () => Redirect.make({ to: '/create-team' })),
+      Effect.catchTag('NoSuchElementError', () =>
+        Effect.fail(Redirect.make({ to: '/create-team' })),
+      ),
       Effect.catchTag('SkipError', () => Effect.void),
       context.run,
     ),
@@ -81,7 +78,7 @@ export const Route = createFileRoute('/')({
       Effect.tapError((e) => Effect.logWarning('Failed to generate login URL', e)),
       // Intentional UI error boundary: any login URL failure redirects to /error page.
       // The tapError above already logs the cause for debugging.
-      Effect.catchAll(() => Effect.succeed('/error')),
+      Effect.catch(() => Effect.succeed('/error')),
       Effect.bindTo('loginUrl'),
       context.run,
     ),
@@ -94,8 +91,8 @@ function HomeRoute() {
   return (
     <HomePage
       loginUrl={loginUrl}
-      error={Option.fromNullable(error)}
-      reason={Option.fromNullable(reason)}
+      error={Option.fromNullishOr(error)}
+      reason={Option.fromNullishOr(reason)}
     />
   );
 }

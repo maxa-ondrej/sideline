@@ -1,4 +1,4 @@
-import { effectTsResolver } from '@hookform/resolvers/effect-ts';
+import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { Roster as RosterDomain } from '@sideline/domain';
 import { Team } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
@@ -21,7 +21,7 @@ import { Input } from '~/components/ui/input';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const CreateRosterSchema = Schema.Struct({
-  name: Schema.NonEmptyString.annotations({ message: () => m.validation_required() }),
+  name: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
 });
 
 type CreateRosterValues = Schema.Schema.Type<typeof CreateRosterSchema>;
@@ -41,16 +41,16 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
   const [createColor, setCreateColor] = React.useState<string | undefined>(undefined);
 
   const form = useForm({
-    resolver: effectTsResolver(CreateRosterSchema),
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateRosterSchema)),
     mode: 'onChange',
     defaultValues: { name: '' },
   });
 
   const onSubmit = async (values: CreateRosterValues) => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.roster.createRoster({
-          path: { teamId: teamIdBranded },
+          params: { teamId: teamIdBranded },
           payload: {
             name: values.name,
             emoji: createEmoji ? Option.some(createEmoji) : Option.none(),
@@ -58,7 +58,7 @@ export function RostersListPage({ teamId, rosters, canManage }: RostersListPageP
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.roster_createFailed())),
+      Effect.mapError(() => ClientError.make(m.roster_createFailed())),
       run({ success: m.roster_rosterCreated() }),
     );
     if (Option.isSome(result)) {

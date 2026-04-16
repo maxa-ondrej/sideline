@@ -10,8 +10,8 @@ const deletePermissionOverwrite = (
   discordRoleId: Option.Option<Discord.Snowflake>,
 ) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
-    Effect.bind('roleId', () => discordRoleId),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
+    Effect.bind('roleId', () => Effect.fromOption(discordRoleId)),
     Effect.tap(({ rest, roleId }) =>
       rest
         .deleteChannelPermissionOverwrite(discordChannelId, roleId)
@@ -22,12 +22,12 @@ const deletePermissionOverwrite = (
         `Deleted permission overwrite for role ${roleId} on channel ${discordChannelId}`,
       ),
     ),
-    Effect.catchTag('NoSuchElementException', () => Effect.void),
+    Effect.catchTag('NoSuchElementError', () => Effect.void),
   );
 
 const moveToArchive = (discordChannelId: Discord.Snowflake, archiveCategoryId: Discord.Snowflake) =>
   Effect.Do.pipe(
-    Effect.bind('rest', () => DiscordREST),
+    Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.tap(({ rest }) =>
       rest
         .updateChannel(discordChannelId, { parent_id: archiveCategoryId })
@@ -43,10 +43,10 @@ const moveToArchive = (discordChannelId: Discord.Snowflake, archiveCategoryId: D
 
 export const handleGroupArchived = (event: ChannelRpcEvents.GroupChannelArchivedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.tap(() =>
       moveToArchive(event.discord_channel_id, event.archive_category_id).pipe(
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           Effect.logWarning(
             `Failed to move group channel ${event.discord_channel_id} to archive, falling back to deletion`,
             error,
@@ -70,10 +70,10 @@ export const handleGroupArchived = (event: ChannelRpcEvents.GroupChannelArchived
 
 export const handleRosterArchived = (event: ChannelRpcEvents.RosterChannelArchivedEvent) =>
   Effect.Do.pipe(
-    Effect.bind('rpc', () => SyncRpc),
+    Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.tap(() =>
       moveToArchive(event.discord_channel_id, event.archive_category_id).pipe(
-        Effect.catchAll((error) =>
+        Effect.catch((error) =>
           Effect.logWarning(
             `Failed to move roster channel ${event.discord_channel_id} to archive, falling back to deletion`,
             error,

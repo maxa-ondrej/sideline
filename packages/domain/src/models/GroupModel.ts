@@ -1,5 +1,5 @@
-import { Model } from '@effect/sql';
 import { Schema } from 'effect';
+import { Model } from 'effect/unstable/schema';
 import { TeamId } from '~/models/Team.js';
 
 export const GroupId = Schema.String.pipe(Schema.brand('GroupId'));

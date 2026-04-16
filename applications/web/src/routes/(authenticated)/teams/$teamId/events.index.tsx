@@ -9,17 +9,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/events/')({
   component: EventsRoute,
   loader: async ({ params, context }) => {
     const teamId = Schema.decodeSync(Team.TeamId)(params.teamId);
-    return ApiClient.pipe(
+    return ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all({
-          eventList: api.event.listEvents({ path: { teamId } }),
-          trainingTypes: api.trainingType.listTrainingTypes({ path: { teamId } }),
+          eventList: api.event.listEvents({ params: { teamId } }),
+          trainingTypes: api.trainingType.listTrainingTypes({ params: { teamId } }),
           discordChannels: api.group
-            .listDiscordChannels({ path: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .listDiscordChannels({ params: { teamId } })
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
           groups: api.group
-            .listGroups({ path: { teamId } })
-            .pipe(Effect.catchAll(() => Effect.succeed([] as const))),
+            .listGroups({ params: { teamId } })
+            .pipe(Effect.catch(() => Effect.succeed([] as const))),
         }),
       ),
       warnAndCatchAll,

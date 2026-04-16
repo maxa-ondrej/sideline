@@ -1,6 +1,6 @@
-import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from '@effect/platform';
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { Snowflake } from '~/models/Discord.js';
 import { EventId, EventStatus, EventType } from '~/models/Event.js';
@@ -51,7 +51,7 @@ export class EventListResponse extends Schema.Class<EventListResponse>('EventLis
   events: Schema.Array(EventInfo),
 }) {}
 
-export class CreateEventRequest extends Schema.Class<CreateEventRequest>('CreateEventRequest')({
+export const CreateEventRequest = Schema.Struct({
   title: Schema.NonEmptyString,
   eventType: EventType,
   trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
@@ -62,87 +62,83 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   memberGroupId: Schema.OptionFromNullOr(GroupId),
-}) {}
+});
+export type CreateEventRequest = Schema.Schema.Type<typeof CreateEventRequest>;
 
-export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
-  title: Schema.optionalWith(Schema.NonEmptyString, { as: 'Option' }),
-  eventType: Schema.optionalWith(EventType, { as: 'Option' }),
-  trainingTypeId: Schema.optionalWith(Schema.OptionFromNullOr(TrainingTypeId), { as: 'Option' }),
-  description: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  startAt: Schema.optionalWith(Schemas.DateTimeFromIsoString, { as: 'Option' }),
-  endAt: Schema.optionalWith(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString), {
-    as: 'Option',
-  }),
-  location: Schema.optionalWith(Schema.OptionFromNullOr(Schema.String), { as: 'Option' }),
-  discordChannelId: Schema.optionalWith(Schema.OptionFromNullOr(Snowflake), { as: 'Option' }),
-  ownerGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
-  memberGroupId: Schema.optionalWith(Schema.OptionFromNullOr(GroupId), { as: 'Option' }),
-}) {}
+export const UpdateEventRequest = Schema.Struct({
+  title: Schema.OptionFromOptional(Schema.NonEmptyString),
+  eventType: Schema.OptionFromOptional(EventType),
+  trainingTypeId: Schema.OptionFromOptional(Schema.OptionFromNullOr(TrainingTypeId)),
+  description: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  startAt: Schema.OptionFromOptional(Schemas.DateTimeFromIsoString),
+  endAt: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString)),
+  location: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+  memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+});
+export type UpdateEventRequest = Schema.Schema.Type<typeof UpdateEventRequest>;
 
-export class EventNotFound extends Schema.TaggedError<EventNotFound>()(
-  'EventNotFound',
-  {},
-  HttpApiSchema.annotations({ status: 404 }),
-) {}
+export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()('EventNotFound', {}) {}
 
-export class Forbidden extends Schema.TaggedError<Forbidden>()(
-  'EventForbidden',
-  {},
-  HttpApiSchema.annotations({ status: 403 }),
-) {}
+export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('EventForbidden', {}) {}
 
-export class EventCancelled extends Schema.TaggedError<EventCancelled>()(
+export class EventCancelled extends Schema.TaggedErrorClass<EventCancelled>()(
   'EventCancelled',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
-export class EventNotActive extends Schema.TaggedError<EventNotActive>()(
+export class EventNotActive extends Schema.TaggedErrorClass<EventNotActive>()(
   'EventNotActive',
   {},
-  HttpApiSchema.annotations({ status: 400 }),
 ) {}
 
 export class EventApiGroup extends HttpApiGroup.make('event')
   .add(
-    HttpApiEndpoint.get('listEvents', '/teams/:teamId/events')
-      .addSuccess(EventListResponse)
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('listEvents', '/teams/:teamId/events', {
+      success: EventListResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('createEvent', '/teams/:teamId/events')
-      .addSuccess(EventInfo, { status: 201 })
-      .addError(Forbidden, { status: 403 })
-      .setPath(Schema.Struct({ teamId: TeamId }))
-      .setPayload(CreateEventRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('createEvent', '/teams/:teamId/events', {
+      success: EventInfo.pipe(HttpApiSchema.status(201)),
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      payload: CreateEventRequest,
+      params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.get('getEvent', '/teams/:teamId/events/:eventId')
-      .addSuccess(EventDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.get('getEvent', '/teams/:teamId/events/:eventId', {
+      success: EventDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.patch('updateEvent', '/teams/:teamId/events/:eventId')
-      .addSuccess(EventDetail)
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .addError(EventNotActive, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .setPayload(UpdateEventRequest)
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.patch('updateEvent', '/teams/:teamId/events/:eventId', {
+      success: EventDetail,
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+        EventNotActive.pipe(HttpApiSchema.status(400)),
+      ],
+      payload: UpdateEventRequest,
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   )
   .add(
-    HttpApiEndpoint.post('cancelEvent', '/teams/:teamId/events/:eventId/cancel')
-      .addSuccess(Schema.Void, { status: 204 })
-      .addError(Forbidden, { status: 403 })
-      .addError(EventNotFound, { status: 404 })
-      .addError(EventNotActive, { status: 400 })
-      .setPath(Schema.Struct({ teamId: TeamId, eventId: EventId }))
-      .middleware(AuthMiddleware),
+    HttpApiEndpoint.post('cancelEvent', '/teams/:teamId/events/:eventId/cancel', {
+      success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotFound.pipe(HttpApiSchema.status(404)),
+        EventNotActive.pipe(HttpApiSchema.status(400)),
+      ],
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
   ) {}

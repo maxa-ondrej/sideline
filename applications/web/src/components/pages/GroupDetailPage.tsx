@@ -75,10 +75,10 @@ export function GroupDetailPage({
 
   const handleSaveName = React.useCallback(async () => {
     setSaving(true);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.updateGroup({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: {
             name,
             emoji: emoji ? Option.some(emoji) : Option.none(),
@@ -86,7 +86,7 @@ export function GroupDetailPage({
           },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_updateFailed())),
       run({ success: m.group_groupSaved() }),
     );
     setSaving(false);
@@ -98,14 +98,14 @@ export function GroupDetailPage({
   const handleAddMember = React.useCallback(async () => {
     if (!selectedMemberId) return;
     const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(selectedMemberId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.addGroupMember({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: { memberId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_updateFailed())),
       run({ success: m.group_memberAdded() }),
     );
     if (Option.isSome(result)) {
@@ -117,13 +117,13 @@ export function GroupDetailPage({
   const handleRemoveMember = React.useCallback(
     async (memberIdRaw: string) => {
       const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.removeGroupMember({
-            path: { teamId: teamIdBranded, groupId: groupIdBranded, memberId },
+            params: { teamId: teamIdBranded, groupId: groupIdBranded, memberId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.group_updateFailed())),
         run({ success: m.group_memberRemoved() }),
       );
       if (Option.isSome(result)) {
@@ -136,14 +136,14 @@ export function GroupDetailPage({
   const handleAssignRole = React.useCallback(async () => {
     if (!selectedRoleId) return;
     const roleId = Schema.decodeSync(Role.RoleId)(selectedRoleId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.assignGroupRole({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: { roleId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_updateFailed())),
       run({ success: m.group_roleAssigned() }),
     );
     if (Option.isSome(result)) {
@@ -155,13 +155,13 @@ export function GroupDetailPage({
   const handleUnassignRole = React.useCallback(
     async (roleIdRaw: string) => {
       const roleId = Schema.decodeSync(Role.RoleId)(roleIdRaw);
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.unassignGroupRole({
-            path: { teamId: teamIdBranded, groupId: groupIdBranded, roleId },
+            params: { teamId: teamIdBranded, groupId: groupIdBranded, roleId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.group_updateFailed())),
+        Effect.mapError(() => ClientError.make(m.group_updateFailed())),
         run({ success: m.group_roleUnassigned() }),
       );
       if (Option.isSome(result)) {
@@ -173,13 +173,13 @@ export function GroupDetailPage({
 
   const handleDelete = React.useCallback(async () => {
     if (!window.confirm(m.group_deleteGroupConfirm())) return;
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.deleteGroup({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_deleteFailed())),
+      Effect.mapError(() => ClientError.make(m.group_deleteFailed())),
       run({ success: m.group_groupDeleted() }),
     );
     if (Option.isSome(result)) {
@@ -190,14 +190,14 @@ export function GroupDetailPage({
   const handleLinkChannel = React.useCallback(async () => {
     if (!selectedChannelId) return;
     const discordChannelId = Schema.decodeSync(Discord.Snowflake)(selectedChannelId);
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.setChannelMapping({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
           payload: { discordChannelId },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
+      Effect.mapError(() => ClientError.make(m.group_channelLinkFailed())),
       run({ success: m.group_channelLinked() }),
     );
     if (Option.isSome(result)) {
@@ -207,13 +207,13 @@ export function GroupDetailPage({
   }, [selectedChannelId, teamIdBranded, groupIdBranded, run, router]);
 
   const handleUnlinkChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.deleteChannelMapping({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_channelLinkFailed())),
+      Effect.mapError(() => ClientError.make(m.group_channelLinkFailed())),
       run({ success: m.group_channelUnlinked() }),
     );
     if (Option.isSome(result)) {
@@ -227,14 +227,14 @@ export function GroupDetailPage({
         newParentId === '__root__'
           ? Option.none()
           : Option.some(Schema.decodeSync(GroupModel.GroupId)(newParentId));
-      const result = await ApiClient.pipe(
+      const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
           api.group.moveGroup({
-            path: { teamId: teamIdBranded, groupId: groupIdBranded },
+            params: { teamId: teamIdBranded, groupId: groupIdBranded },
             payload: { parentId },
           }),
         ),
-        Effect.catchAll(() => ClientError.make(m.group_moveGroupFailed())),
+        Effect.mapError(() => ClientError.make(m.group_moveGroupFailed())),
         run({ success: m.group_parentChanged() }),
       );
       if (Option.isSome(result)) {
@@ -245,13 +245,13 @@ export function GroupDetailPage({
   );
 
   const handleCreateChannel = React.useCallback(async () => {
-    const result = await ApiClient.pipe(
+    const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         api.group.createChannel({
-          path: { teamId: teamIdBranded, groupId: groupIdBranded },
+          params: { teamId: teamIdBranded, groupId: groupIdBranded },
         }),
       ),
-      Effect.catchAll(() => ClientError.make(m.group_channelCreateFailed())),
+      Effect.mapError(() => ClientError.make(m.group_channelCreateFailed())),
       run({ success: m.group_channelCreateRequested() }),
     );
     if (Option.isSome(result)) {
