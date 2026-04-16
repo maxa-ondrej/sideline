@@ -3,7 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
-import { formatNameWithMention, joinEntriesWithLimit } from '~/rest/utils.js';
+import { formatNameWithMention, splitIntoFieldChunks } from '~/rest/utils.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -36,18 +36,11 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       }
       const locale = guildLocale({ guild_locale: guild.preferred_locale });
 
-      const andMore = (count: number) =>
-        m.bot_and_more_members({ count: String(count) }, { locale });
+      const nameFieldChunks = (entries: ReadonlyArray<string>, fieldName: string) =>
+        splitIntoFieldChunks(entries).map((value) => ({ name: fieldName, value, inline: false }));
 
-      const nonResponderText = joinEntriesWithLimit(
-        pipe(summary.nonResponders, Array.map(formatNameWithMention)),
-        andMore,
-      );
-
-      const yesAttendeeText = joinEntriesWithLimit(
-        pipe(summary.yesAttendees, Array.map(formatNameWithMention)),
-        andMore,
-      );
+      const yesAttendeeNames = pipe(summary.yesAttendees, Array.map(formatNameWithMention));
+      const nonResponderNames = pipe(summary.nonResponders, Array.map(formatNameWithMention));
 
       const fields = [
         {
@@ -67,23 +60,9 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
           ),
           inline: false,
         },
+        ...nameFieldChunks(yesAttendeeNames, m.bot_embed_going({}, { locale })),
+        ...nameFieldChunks(nonResponderNames, m.rsvp_nonRespondersTitle({}, { locale })),
       ];
-
-      if (yesAttendeeText) {
-        fields.push({
-          name: m.bot_embed_going({}, { locale }),
-          value: yesAttendeeText,
-          inline: false,
-        });
-      }
-
-      if (nonResponderText) {
-        fields.push({
-          name: m.rsvp_nonRespondersTitle({}, { locale }),
-          value: nonResponderText,
-          inline: false,
-        });
-      }
 
       const whenText = `${toDiscordTimestamp(event.start_at, 'f')} (${toDiscordTimestamp(event.start_at, 'R')})`;
 
