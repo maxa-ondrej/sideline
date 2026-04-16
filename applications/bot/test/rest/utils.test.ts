@@ -1,7 +1,7 @@
 import { Discord as DomainDiscord, EventRpcModels } from '@sideline/domain';
 import { Option } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { formatName, formatNameWithMention } from '~/rest/utils.js';
+import { formatName, formatNameWithMention, joinEntriesWithLimit } from '~/rest/utils.js';
 
 const makeAttendee = (opts: {
   discord_id?: Option.Option<string>;
@@ -181,5 +181,41 @@ describe('formatNameWithMention', () => {
       username: Option.some('handle'),
     });
     expect(formatNameWithMention(attendee)).toBe('**Alice** (<@123>)');
+  });
+});
+
+describe('joinEntriesWithLimit', () => {
+  const andMore = (count: number) => `...and ${count} more`;
+
+  it('returns the full joined string when it fits under the limit', () => {
+    const out = joinEntriesWithLimit(['Alice', 'Bob', 'Carol'], andMore, 100);
+    expect(out).toBe('Alice, Bob, Carol');
+  });
+
+  it('truncates with "...and N more" when the joined result would exceed the limit', () => {
+    const entries = ['AAAAA', 'BBBBB', 'CCCCC', 'DDDDD', 'EEEEE'];
+    const out = joinEntriesWithLimit(entries, andMore, 30);
+    expect(out.length).toBeLessThanOrEqual(30);
+    expect(out.startsWith('AAAAA')).toBe(true);
+    expect(out).toMatch(/\.\.\.and \d+ more$/);
+  });
+
+  it('returns only the overflow suffix when even the first entry does not fit', () => {
+    const entries = ['WayTooLongEntryThatCannotFit', 'Second'];
+    const out = joinEntriesWithLimit(entries, andMore, 10);
+    expect(out).toBe('...and 2 more');
+  });
+
+  it('handles an empty array by returning an empty string', () => {
+    expect(joinEntriesWithLimit([], andMore, 100)).toBe('');
+  });
+
+  it('defaults the limit to 1024 characters (Discord embed field cap)', () => {
+    const entry = 'x'.repeat(50);
+    // 30 * 52 ('x'*50 + ', ') > 1024; should truncate.
+    const entries = new Array(30).fill(entry) as Array<string>;
+    const out = joinEntriesWithLimit(entries, andMore);
+    expect(out.length).toBeLessThanOrEqual(1024);
+    expect(out).toMatch(/\.\.\.and \d+ more$/);
   });
 });

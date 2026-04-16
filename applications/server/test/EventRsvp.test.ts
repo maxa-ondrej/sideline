@@ -1240,11 +1240,19 @@ const resetRpcStores = () => {
 
 // Mock SQL layer: returns the member ID for all queries
 // (used by Event/SubmitRsvp to look up member by discord_user_id)
+const MOCK_MEMBER_LOOKUP_ROW = {
+  id: RPC_TEST_MEMBER_ID,
+  name: null,
+  nickname: null,
+  display_name: null,
+  username: null,
+};
+
 const MockSqlClientLayer = Layer.succeed(
   SqlClient.SqlClient,
   Object.assign(
     function mockSql(_strings: TemplateStringsArray, ..._args: unknown[]) {
-      return Effect.succeed([{ id: RPC_TEST_MEMBER_ID }]);
+      return Effect.succeed([MOCK_MEMBER_LOOKUP_ROW]);
     },
     {
       safe: undefined as any,
@@ -1257,7 +1265,7 @@ const MockSqlClientLayer = Layer.succeed(
       reactive: () => Effect.succeed([] as never[]),
       reactiveMailbox: () => Effect.die(new Error('reactiveMailbox not implemented')),
       unsafe: (_sql: string, _params?: ReadonlyArray<unknown>) =>
-        Effect.succeed([{ id: RPC_TEST_MEMBER_ID }]),
+        Effect.succeed([MOCK_MEMBER_LOOKUP_ROW]),
       literal: (_sql: string) => ({ _tag: 'Fragment' as const, segments: [] }),
       in: (..._args: unknown[]) => Effect.succeed([] as never[]),
       insert: (..._args: unknown[]) => Effect.succeed([] as never[]),
