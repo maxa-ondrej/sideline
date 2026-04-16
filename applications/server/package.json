@@ -47,6 +47,6 @@
     }
   },
   "devDependencies": {
-    "testcontainers": "^11.13.0"
+    "testcontainers": "^11.14.0"
   }
 }

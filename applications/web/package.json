@@ -48,17 +48,17 @@
   },
   "devDependencies": {
     "@effect/platform-browser": "4.0.0-beta.40",
-    "@tanstack/devtools-vite": "0.3.11",
-    "@tanstack/router-cli": "1.160.1",
-    "@testing-library/dom": "10.4.0",
-    "@testing-library/react": "16.2.0",
+    "@tanstack/devtools-vite": "0.6.0",
+    "@tanstack/router-cli": "1.166.33",
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/react": "16.3.2",
     "@types/node": "22.10.2",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
     "@vitejs/plugin-react": "5.0.4",
     "jsdom": "27.0.0",
     "typescript": "5.7.2",
-    "vite": "8.0.7",
+    "vite": "8.0.8",
     "vitest": "3.0.5"
   }
 }
