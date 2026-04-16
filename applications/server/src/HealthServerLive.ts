@@ -18,7 +18,7 @@ const HealthApiLive = HttpApiBuilder.group(HealthApi, 'health', (handlers) =>
 );
 
 export const HealthServerLive = HttpRouter.serve(
-  Layer.mergeAll(HttpApiBuilder.layer(HealthApi), HealthApiLive),
+  HttpApiBuilder.layer(HealthApi).pipe(Layer.provide(HealthApiLive)),
 ).pipe(
   Layer.withSpan('Health'),
   HttpServer.withLogAddress,
