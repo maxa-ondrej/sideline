@@ -1,4 +1,3 @@
-import type { EventRpcModels } from '@sideline/domain';
 import { Array, Option, pipe, Schedule } from 'effect';
 import type { Permission } from './permissions.js';
 
@@ -10,9 +9,14 @@ export const allow = (permission: Permission) => Number(permission.allow ?? 0);
 
 export const deny = (permission: Permission) => Number(permission.deny ?? 0);
 
-export const formatName = (entry: EventRpcModels.RsvpAttendeeEntry) =>
+export const formatName = (entry: {
+  readonly name: Option.Option<string>;
+  readonly nickname: Option.Option<string>;
+  readonly display_name: Option.Option<string>;
+  readonly username: Option.Option<string>;
+}) =>
   pipe(
-    Array.make(entry.name, entry.nickname, entry.username),
+    Array.make(entry.name, entry.nickname, entry.display_name, entry.username),
     Array.map(Option.map((u) => `**${u}**`)),
     Array.getSomes,
     Array.head,

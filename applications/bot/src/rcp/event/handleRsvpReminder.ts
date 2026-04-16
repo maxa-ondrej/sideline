@@ -3,6 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
+import { formatName } from '~/rest/utils.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -35,34 +36,9 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       }
       const locale = guildLocale({ guild_locale: guild.preferred_locale });
 
-      const formatReminderEntry = (entry: {
-        discord_id: Option.Option<string>;
-        name: Option.Option<string>;
-        nickname: Option.Option<string>;
-        username: Option.Option<string>;
-      }): string => {
-        const boldName = Option.orElse(
-          Option.map(entry.name, (n) => `**${n}**`),
-          () =>
-            Option.orElse(
-              Option.map(entry.nickname, (n) => `**${n}**`),
-              () => Option.map(entry.username, (u) => `**${u}**`),
-            ),
-        );
-        return Option.getOrElse(boldName, () => '?');
-      };
+      const nonResponderText = pipe(summary.nonResponders, Array.map(formatName), Array.join(', '));
 
-      const nonResponderText = pipe(
-        summary.nonResponders,
-        Array.map(formatReminderEntry),
-        Array.join(', '),
-      );
-
-      const yesAttendeeText = pipe(
-        summary.yesAttendees,
-        Array.map(formatReminderEntry),
-        Array.join(', '),
-      );
+      const yesAttendeeText = pipe(summary.yesAttendees, Array.map(formatName), Array.join(', '));
 
       const fields = [
         {

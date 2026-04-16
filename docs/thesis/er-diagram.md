@@ -100,6 +100,8 @@ erDiagram
         TEXT gender
         TEXT locale
         BOOLEAN is_profile_complete
+        TEXT discord_nickname
+        TEXT discord_display_name
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }

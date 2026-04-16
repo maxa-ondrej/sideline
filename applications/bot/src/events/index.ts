@@ -72,6 +72,7 @@ export const eventHandlers = Effect.Do.pipe(
                         avatar: decoded.user.avatar,
                         roles: decoded.roles,
                         nickname: decoded.nick,
+                        display_name: decoded.user.global_name,
                       }),
                   ),
                 ),
@@ -144,6 +145,7 @@ export const eventHandlers = Effect.Do.pipe(
                 avatar: user.avatar,
                 roles: Arr.map(member.roles, (r) => decodeSnowflake(r)),
                 nickname: Option.fromNullishOr(member.nick ?? null),
+                display_name: user.global_name,
               }),
         ),
         Effect.catchTag('RpcClientError', (error) =>

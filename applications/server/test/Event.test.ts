@@ -90,6 +90,7 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
+  discord_display_name: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -105,6 +106,7 @@ const testAdmin = {
   birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
+  discord_display_name: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -120,6 +122,7 @@ const testCaptain = {
   birth_date: Option.some(DateTime.makeUnsafe('1992-01-01')),
   gender: Option.some('male' as const),
   locale: 'en' as const,
+  discord_display_name: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };

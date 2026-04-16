@@ -114,6 +114,7 @@ export class RsvpAttendeeEntry extends Schema.Class<RsvpAttendeeEntry>('RsvpAtte
   name: Schema.OptionFromNullOr(Schema.String),
   nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
   response: Schema.Literals(['yes', 'no', 'maybe']),
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
@@ -130,6 +131,7 @@ export class NonResponderRpcEntry extends Schema.Class<NonResponderRpcEntry>(
   name: Schema.OptionFromNullOr(Schema.String),
   nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class RsvpReminderSummary extends Schema.Class<RsvpReminderSummary>('RsvpReminderSummary')({

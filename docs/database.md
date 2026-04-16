@@ -41,12 +41,14 @@ Central identity record created during Discord OAuth sign-in.
 | `gender` | TEXT | CHECK (`'male'`, `'female'`, `'other'`) | — |
 | `locale` | VARCHAR(5) | NOT NULL | `'en'` |
 | `is_profile_complete` | BOOLEAN | NOT NULL | `false` |
+| `discord_nickname` | TEXT | — | — |
+| `discord_display_name` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
 **Indexes**: `idx_users_discord_id` on `(discord_id)`
 
-**Notes**: `username` and `avatar` were originally named `discord_username` and `discord_avatar` (renamed in migration `1742300000`). `birth_date` replaced the integer `birth_year` column (migration `1741900000`). The `jersey_number`, `position`, and `proficiency` columns that existed briefly were moved to `team_members` or dropped (migration `1740990000`).
+**Notes**: `username` and `avatar` were originally named `discord_username` and `discord_avatar` (renamed in migration `1742300000`). `birth_date` replaced the integer `birth_year` column (migration `1741900000`). The `jersey_number`, `position`, and `proficiency` columns that existed briefly were moved to `team_members` or dropped (migration `1740990000`). `discord_nickname` added in migration `1744200000`; `discord_display_name` added in migration `1744300000`.
 
 ---
 
@@ -754,7 +756,7 @@ In-app alert records scoped to a specific team and user.
 
 ## Migration History
 
-All 41 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 43 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -807,6 +809,8 @@ All 41 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1743900000 | `add_late_rsvp_channel` | Adds `discord_channel_late_rsvp TEXT` to team_settings |
 | 1744000000 | `add_event_started_status` | Extends events `status` CHECK to include `'started'`; extends event_sync_events `event_type` CHECK to include `'event_started'` |
 | 1744100000 | `create_channel_event_dividers` | Creates `channel_event_dividers` table with `discord_channel_id TEXT PK` and `discord_message_id TEXT NOT NULL` |
+| 1744200000 | `add_discord_nickname` | Adds `discord_nickname TEXT` to users |
+| 1744300000 | `add_discord_display_name` | Adds `discord_display_name TEXT` to users |
 
 ### After Migrations (seed data)
 

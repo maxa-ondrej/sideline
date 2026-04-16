@@ -25,6 +25,7 @@ export const DfxUser = Schema.Struct({
   id: Discord.Snowflake,
   username: Schema.String,
   avatar: Nullish(Schema.String),
+  global_name: Nullish(Schema.String),
   bot: Schema.optional(Schema.Boolean),
 });
 

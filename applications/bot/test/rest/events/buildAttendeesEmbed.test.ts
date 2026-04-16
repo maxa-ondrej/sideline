@@ -7,6 +7,7 @@ const makeAttendee = (opts: {
   discord_id?: Option.Option<string>;
   name?: Option.Option<string>;
   nickname?: Option.Option<string>;
+  display_name?: Option.Option<string>;
   username?: Option.Option<string>;
   message?: Option.Option<string>;
   response?: 'yes' | 'no' | 'maybe';
@@ -15,6 +16,7 @@ const makeAttendee = (opts: {
     discord_id: Option.map(opts.discord_id ?? Option.none(), DomainDiscord.Snowflake.makeUnsafe),
     name: opts.name ?? Option.none(),
     nickname: opts.nickname ?? Option.none(),
+    display_name: opts.display_name ?? Option.none(),
     username: opts.username ?? Option.none(),
     response: opts.response ?? 'yes',
     message: opts.message ?? Option.none(),
@@ -128,5 +130,32 @@ describe('buildAttendeesEmbed - formatEntry', () => {
     const text = collectFieldValues([attendee]);
     expect(text).toContain('**bob_discord**');
     expect(text).not.toContain('<@');
+  });
+
+  it('falls back to bold display_name when name and nickname are None but display_name is set', () => {
+    const attendee = makeAttendee({
+      discord_id: Option.some('123'),
+      name: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.some('Global Nick'),
+      username: Option.some('bob_discord'),
+    });
+    const text = collectFieldValues([attendee]);
+    expect(text).toContain('**Global Nick** (<@123>)');
+    expect(text).not.toContain('bob_discord');
+  });
+
+  it('prefers nickname over display_name when both are set', () => {
+    const attendee = makeAttendee({
+      discord_id: Option.some('456'),
+      name: Option.none(),
+      nickname: Option.some('Server Nick'),
+      display_name: Option.some('Global Nick'),
+      username: Option.some('bob_discord'),
+    });
+    const text = collectFieldValues([attendee]);
+    expect(text).toContain('**Server Nick** (<@456>)');
+    expect(text).not.toContain('Global Nick');
+    expect(text).not.toContain('bob_discord');
   });
 });
