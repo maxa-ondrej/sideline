@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.12.8
+
+### Patch Changes
+
+- [#221](https://github.com/maxa-ondrej/sideline/pull/221) [`efca9d7`](https://github.com/maxa-ondrej/sideline/commit/efca9d7556dac7e05fc19d2255b76788c1ed8700) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add discord display name to the name fallback chain in formatName
+
 ## 0.12.7
 
 ### Patch Changes
