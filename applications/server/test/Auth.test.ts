@@ -48,6 +48,7 @@ const testUser = {
   birth_date: Option.none(),
   gender: Option.none(),
   locale: 'en' as const,
+  discord_display_name: Option.none(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };

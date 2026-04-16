@@ -524,6 +524,7 @@ const rpcHandlers = Effect.Do.pipe(
                       name: row.member_name,
                       nickname: row.nickname,
                       username: row.username,
+                      display_name: row.display_name,
                       response: row.response,
                       message: row.message,
                     }),
@@ -567,6 +568,7 @@ const rpcHandlers = Effect.Do.pipe(
                     name: nr.member_name,
                     nickname: nr.nickname,
                     username: nr.username,
+                    display_name: nr.display_name,
                   }),
               ),
               yesAttendees: Array.map(
@@ -577,6 +579,7 @@ const rpcHandlers = Effect.Do.pipe(
                     name: a.member_name,
                     nickname: a.nickname,
                     username: a.username,
+                    display_name: a.display_name,
                   }),
               ),
             });
@@ -877,6 +880,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
                   name: row.member_name,
                   nickname: row.nickname,
                   username: row.username,
+                  display_name: row.display_name,
                   response: row.response,
                   message: row.message,
                 }),

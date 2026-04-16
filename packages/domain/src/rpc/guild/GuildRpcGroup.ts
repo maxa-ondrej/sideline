@@ -57,6 +57,7 @@ export const GuildRpcGroup = RpcGroup.make(
           avatar: Schema.OptionFromNullOr(Schema.String),
           roles: Schema.Array(Schema.String),
           nickname: Schema.OptionFromNullOr(Schema.String),
+          display_name: Schema.OptionFromNullOr(Schema.String),
         }),
       ),
     },
@@ -69,6 +70,7 @@ export const GuildRpcGroup = RpcGroup.make(
       avatar: Schema.OptionFromNullOr(Schema.String),
       roles: Schema.Array(Schema.String),
       nickname: Schema.OptionFromNullOr(Schema.String),
+      display_name: Schema.OptionFromNullOr(Schema.String),
     },
   }),
 ).prefix('Guild/');

@@ -9,6 +9,7 @@ const UpsertDiscordInput = Schema.Struct({
   username: Schema.String,
   avatar: Schema.OptionFromNullOr(Schema.String),
   discord_nickname: Schema.OptionFromNullOr(Schema.String),
+  discord_display_name: Schema.OptionFromNullOr(Schema.String),
 });
 
 const CompleteProfileInput = Schema.Struct({
@@ -49,12 +50,13 @@ const make = Effect.gen(function* () {
     Request: UpsertDiscordInput,
     Result: User.User,
     execute: (input) => sql`
-      INSERT INTO users (discord_id, username, avatar, discord_nickname)
-      VALUES (${input.discord_id}, ${input.username}, ${input.avatar}, ${input.discord_nickname})
+      INSERT INTO users (discord_id, username, avatar, discord_nickname, discord_display_name)
+      VALUES (${input.discord_id}, ${input.username}, ${input.avatar}, ${input.discord_nickname}, ${input.discord_display_name})
       ON CONFLICT (discord_id) DO UPDATE SET
         username = ${input.username},
         avatar = ${input.avatar},
         discord_nickname = ${input.discord_nickname},
+        discord_display_name = ${input.discord_display_name},
         updated_at = now()
       RETURNING *
     `,

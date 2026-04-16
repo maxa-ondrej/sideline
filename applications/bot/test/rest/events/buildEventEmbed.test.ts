@@ -8,11 +8,13 @@ const makeAttendee = (
   name: Option.Option<string>,
   username: Option.Option<string> = Option.none(),
   nickname: Option.Option<string> = Option.none(),
+  display_name: Option.Option<string> = Option.none(),
 ): EventRpcModels.RsvpAttendeeEntry =>
   new EventRpcModels.RsvpAttendeeEntry({
     discord_id: Option.map(discord_id, DomainDiscord.Snowflake.makeUnsafe),
     name,
     nickname,
+    display_name,
     username,
     response: 'yes',
     message: Option.none(),
@@ -120,6 +122,26 @@ describe('buildEventEmbed', () => {
       const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
       expect(goingField).toBeDefined();
       expect(goingField?.value).toBe('Unknown');
+    });
+
+    it('falls back to bold display_name when name and nickname are None but display_name is set', () => {
+      const attendee = makeAttendee(
+        Option.some('789'),
+        Option.none(),
+        Option.none(),
+        Option.none(),
+        Option.some('Global Nick'),
+      );
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        counts: makeCounts(1, 0, 0),
+        yesAttendees: [attendee],
+      });
+
+      const fields = embeds[0].fields ?? [];
+      const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
+      expect(goingField).toBeDefined();
+      expect(goingField?.value).toContain('**Global Nick**');
     });
 
     it('is omitted when isStarted is true', () => {

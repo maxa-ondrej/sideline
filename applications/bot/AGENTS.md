@@ -11,7 +11,7 @@ src/
 ├── HealthServerLive.ts — Health check HTTP endpoint with gateway shard status
 ├── env.ts           — Environment config (token, intents, health port)
 ├── run.ts           — Runtime entrypoint (config, logging, NodeRuntime)
-├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser)
+├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser incl. global_name)
 ├── commands/        — Slash command registry (event/create, event/list, event/overview, makanicko/*)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member, channel lifecycle)
@@ -227,12 +227,33 @@ All Discord embeds that display user/member names must use the **bold name + men
 | Only name present | `**Name**` | `**Alice**` |
 | Neither present | `Unknown` or `?` | `Unknown` |
 
+#### `formatName` — Canonical Name Resolver
+
+`formatName` in `src/rest/utils.ts` is the single implementation for resolving a user's display name. Always use it instead of building name resolution inline.
+
+**Fallback priority** (first `Some` wins):
+1. `name` — user's real name (from profile)
+2. `nickname` — Discord server nickname
+3. `display_name` — Discord global display name (`global_name`)
+4. `username` — Discord username (always present)
+
+If all are `None`, returns `"Unknown"`.
+
+`formatName` accepts a **structural type** — any object with `{ name, nickname, display_name, username }` as `Option<string>` fields. This includes `RsvpAttendeeEntry`, `NonResponderRpcEntry`, and any future model with these fields.
+
+```typescript
+import { formatName } from '~/rest/utils.js';
+
+// Works with any object matching the structural type
+const displayText = formatName(attendeeEntry); // => "**Alice**"
+```
+
 This pattern is used in:
 - `buildEventEmbed.ts` — "Going" field (bold name only, no mention, comma-separated)
 - `buildAttendeesEmbed.ts` — attendee entries (`**Name** (<@id>)` with optional message)
 - `handleRsvpReminder.ts` — non-responder and yes-attendee lists in reminder embeds
 
-When building new embed functions that display user names, always follow this priority: bold name first, mention as parenthetical supplement.
+When building new embed functions that display user names, always use `formatName` for the bold name portion and follow this priority: bold name first, mention as parenthetical supplement.
 
 ### Paginated Embed Pattern
 

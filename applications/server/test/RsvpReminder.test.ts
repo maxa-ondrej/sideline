@@ -72,6 +72,7 @@ type UserLike = {
   birth_date: Option.Option<DateTime.Utc>;
   gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
+  discord_display_name: Option.Option<string>;
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
 };
@@ -86,6 +87,7 @@ const testUser: UserLike = {
   birth_date: Option.some(DateTime.makeUnsafe('2000-01-01')),
   gender: Option.some('male' as const),
   locale: 'en',
+  discord_display_name: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -100,6 +102,7 @@ const testAdmin: UserLike = {
   birth_date: Option.some(DateTime.makeUnsafe('1990-01-01')),
   gender: Option.some('male' as const),
   locale: 'en',
+  discord_display_name: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };

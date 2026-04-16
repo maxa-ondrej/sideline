@@ -39,6 +39,7 @@ class RsvpWithDiscordInfo extends Schema.Class<RsvpWithDiscordInfo>('RsvpWithDis
   member_name: Schema.OptionFromNullOr(Schema.String),
   nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
   response: EventRsvp.RsvpResponse,
   message: Schema.OptionFromNullOr(Schema.String),
 }) {}
@@ -48,6 +49,7 @@ class NonResponderRow extends Schema.Class<NonResponderRow>('NonResponderRow')({
   member_name: Schema.OptionFromNullOr(Schema.String),
   nickname: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
   discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
@@ -134,7 +136,7 @@ const make = Effect.gen(function* () {
     }),
     Result: RsvpWithDiscordInfo,
     execute: (input) => sql`
-      SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, r.response, r.message
+      SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, u.discord_display_name AS display_name, r.response, r.message
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
       LEFT JOIN users u ON u.id = tm.user_id
@@ -161,7 +163,7 @@ const make = Effect.gen(function* () {
     }),
     Result: RsvpWithDiscordInfo,
     execute: (input) => sql`
-      SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, r.response, r.message
+      SELECT u.discord_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, u.discord_display_name AS display_name, r.response, r.message
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
       LEFT JOIN users u ON u.id = tm.user_id
@@ -210,7 +212,7 @@ const make = Effect.gen(function* () {
             )
           )
       )
-      SELECT em.team_member_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, u.discord_id
+      SELECT em.team_member_id, u.name AS member_name, u.discord_nickname AS nickname, u.username, u.discord_display_name AS display_name, u.discord_id
       FROM eligible_members em
       LEFT JOIN users u ON u.id = em.user_id
       LEFT JOIN event_rsvps er ON er.team_member_id = em.team_member_id AND er.event_id = ${input.event_id}

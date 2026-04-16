@@ -19,6 +19,7 @@ type RegisterMemberPayload = {
   readonly avatar: Option.Option<string>;
   readonly roles: ReadonlyArray<string>;
   readonly nickname: Option.Option<string>;
+  readonly display_name: Option.Option<string>;
 };
 
 type Deps = {
@@ -88,7 +89,15 @@ const setupNewMember = (
 
 const registerMemberLogic =
   (deps: Deps) =>
-  ({ guild_id, discord_id, username, avatar, roles, nickname }: RegisterMemberPayload) =>
+  ({
+    guild_id,
+    discord_id,
+    username,
+    avatar,
+    roles,
+    nickname,
+    display_name,
+  }: RegisterMemberPayload) =>
     Effect.Do.pipe(
       Effect.bind('teamOption', () => deps.teams.findByGuildId(guild_id)),
       Effect.flatMap(({ teamOption }) =>
@@ -103,6 +112,7 @@ const registerMemberLogic =
                   username,
                   avatar,
                   discord_nickname: nickname,
+                  discord_display_name: display_name,
                 }),
               ),
               Effect.bind('existingMembership', ({ user }) =>
@@ -220,6 +230,7 @@ const buildHandlers = (
         readonly avatar: Option.Option<string>;
         readonly roles: ReadonlyArray<string>;
         readonly nickname: Option.Option<string>;
+        readonly display_name: Option.Option<string>;
       }>;
     }) =>
       Effect.Do.pipe(
@@ -236,6 +247,7 @@ const buildHandlers = (
                 avatar: member.avatar,
                 roles: member.roles,
                 nickname: member.nickname,
+                display_name: member.display_name,
               }),
             ),
             { concurrency: 5 },
