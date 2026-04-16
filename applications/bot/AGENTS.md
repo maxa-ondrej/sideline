@@ -248,10 +248,12 @@ import { formatName } from '~/rest/utils.js';
 const displayText = formatName(attendeeEntry); // => "**Alice**"
 ```
 
+`formatNameWithMention` (same file) is the mention-aware variant. It additionally requires `discord_id: Option<string>` on the entry and returns `**Name** (<@id>)`, `**Name**`, `<@id>`, or `"Unknown"` per the table above. Use it when the embed should render the mention alongside the bold name; use `formatName` when only the bold name is wanted.
+
 This pattern is used in:
-- `buildEventEmbed.ts` — "Going" field (bold name only, no mention, comma-separated)
-- `buildAttendeesEmbed.ts` — attendee entries (`**Name** (<@id>)` with optional message)
-- `handleRsvpReminder.ts` — non-responder and yes-attendee lists in reminder embeds
+- `buildEventEmbed.ts` — "Going" field (bold name only via `formatName`, no mention, comma-separated)
+- `buildAttendeesEmbed.ts` — attendee entries via `formatNameWithMention` (with optional message suffix)
+- `handleRsvpReminder.ts` — non-responder and yes-attendee lists via `formatNameWithMention`
 
 When building new embed functions that display user names, always use `formatName` for the bold name portion and follow this priority: bold name first, mention as parenthetical supplement.
 
