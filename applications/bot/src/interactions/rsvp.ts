@@ -14,6 +14,7 @@ import { DateTime, Effect, Metric, Option, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
+import { formatNameWithMention } from '~/rest/utils.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc, type SyncRpcClient } from '~/services/SyncRpc.js';
 
@@ -145,13 +146,20 @@ export const postRsvpDiscordUpdates = (params: {
                 onNone: () => m.bot_rsvp_event_not_found({}, { locale: embedLocale }),
                 onSome: (i) => i.title,
               });
+              const userDisplay = formatNameWithMention({
+                discord_id: Option.some(discordUserId),
+                name: counts.userName,
+                nickname: counts.userNickname,
+                display_name: counts.userDisplayName,
+                username: counts.userUsername,
+              });
               return rest.createMessage(channelId, {
                 embeds: [
                   {
                     color: 0xe67e22,
                     description: m.bot_late_rsvp_notification(
                       {
-                        user: `<@${discordUserId}>`,
+                        user: userDisplay,
                         response: localizeRsvpResponse(response, embedLocale),
                         event: eventTitle,
                       },

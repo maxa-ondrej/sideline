@@ -158,4 +158,16 @@ describe('buildAttendeesEmbed - formatEntry', () => {
     expect(text).not.toContain('Global Nick');
     expect(text).not.toContain('bob_discord');
   });
+
+  it('falls back to bold display_name with mention when name, nickname, and username are all None', () => {
+    const attendee = makeAttendee({
+      discord_id: Option.some('123'),
+      name: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.some('Global Nick'),
+      username: Option.none(),
+    });
+    const text = collectFieldValues([attendee]);
+    expect(text).toContain('**Global Nick** (<@123>)');
+  });
 });

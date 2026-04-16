@@ -3,17 +3,12 @@ import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
 import { Option } from 'effect';
 import type { Locale } from '~/locale.js';
-import { formatName } from '../utils.js';
+import { formatNameWithMention } from '../utils.js';
 
 const EVENT_COLOR = 0x5865f2;
 
 const formatEntry = (entry: EventRpcModels.RsvpAttendeeEntry): string => {
-  const hasName =
-    Option.isSome(entry.name) || Option.isSome(entry.nickname) || Option.isSome(entry.username);
-  const mention = Option.map(entry.discord_id, (id) => `<@${id}>`);
-  const display = hasName
-    ? `${formatName(entry)}${Option.match(mention, { onNone: () => '', onSome: (m) => ` (${m})` })}`
-    : Option.getOrElse(mention, () => 'Unknown');
+  const display = formatNameWithMention(entry);
   const suffix = Option.match(entry.message, {
     onNone: () => '',
     onSome: (msg) => ` — "${msg}"`,

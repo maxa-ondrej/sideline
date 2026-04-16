@@ -23,6 +23,11 @@ export class SubmitRsvpResult extends Schema.Class<SubmitRsvpResult>('SubmitRsvp
   isLateRsvp: Schema.Boolean,
   lateRsvpChannelId: Schema.OptionFromNullOr(Snowflake),
   message: Schema.OptionFromNullOr(Schema.String),
+  /** The RSVP'ing user's name fields, for rendering `**Name** (<@id>)` on the bot side. */
+  userName: Schema.OptionFromNullOr(Schema.String),
+  userNickname: Schema.OptionFromNullOr(Schema.String),
+  userDisplayName: Schema.OptionFromNullOr(Schema.String),
+  userUsername: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({

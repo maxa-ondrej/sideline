@@ -43,6 +43,10 @@ class NoChanges extends Data.TaggedError('NoChanges')<{
 
 class TeamMemberLookup extends Schema.Class<TeamMemberLookup>('TeamMemberLookup')({
   id: TeamMember.TeamMemberId,
+  name: Schema.OptionFromNullOr(Schema.String),
+  nickname: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
+  username: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 const getRsvpCounts = (
@@ -376,7 +380,12 @@ const rpcHandlers = Effect.Do.pipe(
               }),
               Result: TeamMemberLookup,
               execute: (input) => sql`
-                SELECT tm.id FROM team_members tm
+                SELECT tm.id,
+                       u.name,
+                       u.discord_nickname AS nickname,
+                       u.discord_display_name AS display_name,
+                       u.username
+                FROM team_members tm
                 JOIN users u ON u.id = tm.user_id
                 WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
               `,
@@ -435,7 +444,7 @@ const rpcHandlers = Effect.Do.pipe(
               : Effect.succeed(Option.none<Discord.Snowflake>()),
           ),
           Effect.map(
-            ({ counts, isLateRsvp, lateRsvpChannelId, savedRsvp }) =>
+            ({ counts, isLateRsvp, lateRsvpChannelId, savedRsvp, member }) =>
               new EventRpcModels.SubmitRsvpResult({
                 yesCount: counts.yesCount,
                 noCount: counts.noCount,
@@ -444,6 +453,10 @@ const rpcHandlers = Effect.Do.pipe(
                 isLateRsvp,
                 lateRsvpChannelId,
                 message: savedRsvp.message,
+                userName: member.name,
+                userNickname: member.nickname,
+                userDisplayName: member.display_name,
+                userUsername: member.username,
               }),
           ),
         ),

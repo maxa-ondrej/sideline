@@ -3,7 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import { guildLocale } from '~/locale.js';
-import { formatName } from '~/rest/utils.js';
+import { formatNameWithMention, joinEntriesWithLimit } from '~/rest/utils.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -36,9 +36,18 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       }
       const locale = guildLocale({ guild_locale: guild.preferred_locale });
 
-      const nonResponderText = pipe(summary.nonResponders, Array.map(formatName), Array.join(', '));
+      const andMore = (count: number) =>
+        m.bot_and_more_members({ count: String(count) }, { locale });
 
-      const yesAttendeeText = pipe(summary.yesAttendees, Array.map(formatName), Array.join(', '));
+      const nonResponderText = joinEntriesWithLimit(
+        pipe(summary.nonResponders, Array.map(formatNameWithMention)),
+        andMore,
+      );
+
+      const yesAttendeeText = joinEntriesWithLimit(
+        pipe(summary.yesAttendees, Array.map(formatNameWithMention)),
+        andMore,
+      );
 
       const fields = [
         {
