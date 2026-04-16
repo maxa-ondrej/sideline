@@ -25,10 +25,11 @@ export class EventRsvpDetail extends Schema.Class<EventRsvpDetail>('EventRsvpDet
   minPlayersThreshold: Schema.Number,
 }) {}
 
-export class SubmitRsvpRequest extends Schema.Class<SubmitRsvpRequest>('SubmitRsvpRequest')({
+export const SubmitRsvpRequest = Schema.Struct({
   response: RsvpResponse,
   message: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
+export type SubmitRsvpRequest = Schema.Schema.Type<typeof SubmitRsvpRequest>;
 
 export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()(
   'EventRsvpEventNotFound',

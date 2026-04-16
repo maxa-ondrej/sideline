@@ -33,23 +33,21 @@ export class TrainingTypeListResponse extends Schema.Class<TrainingTypeListRespo
   trainingTypes: Schema.Array(TrainingTypeInfo),
 }) {}
 
-export class CreateTrainingTypeRequest extends Schema.Class<CreateTrainingTypeRequest>(
-  'CreateTrainingTypeRequest',
-)({
+export const CreateTrainingTypeRequest = Schema.Struct({
   name: Schema.NonEmptyString,
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   memberGroupId: Schema.OptionFromNullOr(GroupId),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
-}) {}
+});
+export type CreateTrainingTypeRequest = Schema.Schema.Type<typeof CreateTrainingTypeRequest>;
 
-export class UpdateTrainingTypeRequest extends Schema.Class<UpdateTrainingTypeRequest>(
-  'UpdateTrainingTypeRequest',
-)({
+export const UpdateTrainingTypeRequest = Schema.Struct({
   name: Schema.NonEmptyString,
   ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
   memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
   discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
-}) {}
+});
+export type UpdateTrainingTypeRequest = Schema.Schema.Type<typeof UpdateTrainingTypeRequest>;
 
 export class TrainingTypeNotFound extends Schema.TaggedErrorClass<TrainingTypeNotFound>()(
   'TrainingTypeNotFound',

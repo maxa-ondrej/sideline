@@ -33,9 +33,7 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordChannelFormat: Schema.String,
 }) {}
 
-export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRequest>(
-  'UpdateTeamSettingsRequest',
-)({
+export const UpdateTeamSettingsRequest = Schema.Struct({
   eventHorizonDays: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 365 }))),
   minPlayersThreshold: Schema.OptionFromOptional(
     Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 100 }))),
@@ -57,7 +55,8 @@ export class UpdateTeamSettingsRequest extends Schema.Class<UpdateTeamSettingsRe
   discordChannelCleanupOnRosterDeactivate: Schema.OptionFromOptional(ChannelCleanupMode),
   discordRoleFormat: Schema.OptionFromOptional(DiscordFormatString),
   discordChannelFormat: Schema.OptionFromOptional(DiscordFormatString),
-}) {}
+});
+export type UpdateTeamSettingsRequest = Schema.Schema.Type<typeof UpdateTeamSettingsRequest>;
 
 export class TeamSettingsApiGroup extends HttpApiGroup.make('teamSettings')
   .add(

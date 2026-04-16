@@ -36,17 +36,19 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   locale: Locale,
 }) {}
 
-export class UpdateLocaleRequest extends Schema.Class<UpdateLocaleRequest>('UpdateLocaleRequest')({
+export const UpdateLocaleRequest = Schema.Struct({
   locale: Locale,
-}) {}
+});
+export type UpdateLocaleRequest = Schema.Schema.Type<typeof UpdateLocaleRequest>;
 
-export class CreateTeamRequest extends Schema.Class<CreateTeamRequest>('CreateTeamRequest')({
+export const CreateTeamRequest = Schema.Struct({
   name: Schema.String.pipe(
     Schema.check(Schema.isMinLength(1)),
     Schema.check(Schema.isMaxLength(100)),
   ),
   guildId: Snowflake,
-}) {}
+});
+export type CreateTeamRequest = Schema.Schema.Type<typeof CreateTeamRequest>;
 
 export class DiscordGuild extends Schema.Class<DiscordGuild>('DiscordGuild')({
   id: Snowflake,
@@ -56,9 +58,7 @@ export class DiscordGuild extends Schema.Class<DiscordGuild>('DiscordGuild')({
   botPresent: Schema.Boolean,
 }) {}
 
-export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>(
-  'CompleteProfileRequest',
-)({
+export const CompleteProfileRequest = Schema.Struct({
   name: Schema.String,
   birthDate: Schema.String.pipe(
     Schema.check(
@@ -74,11 +74,10 @@ export class CompleteProfileRequest extends Schema.Class<CompleteProfileRequest>
     ),
   ),
   gender: Gender,
-}) {}
+});
+export type CompleteProfileRequest = Schema.Schema.Type<typeof CompleteProfileRequest>;
 
-export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
-  'UpdateProfileRequest',
-)({
+export const UpdateProfileRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.String),
   birthDate: Schema.OptionFromNullOr(
     Schema.String.pipe(
@@ -96,7 +95,8 @@ export class UpdateProfileRequest extends Schema.Class<UpdateProfileRequest>(
     ),
   ),
   gender: Schema.OptionFromNullOr(Gender),
-}) {}
+});
+export type UpdateProfileRequest = Schema.Schema.Type<typeof UpdateProfileRequest>;
 
 export class Unauthorized extends Schema.TaggedErrorClass<Unauthorized>()('Unauthorized', {}) {}
 

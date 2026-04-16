@@ -25,12 +25,13 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   avatar: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
-export class UpdatePlayerRequest extends Schema.Class<UpdatePlayerRequest>('UpdatePlayerRequest')({
+export const UpdatePlayerRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.String),
   birthDate: Schema.OptionFromNullOr(Schema.String),
   gender: Schema.OptionFromNullOr(Gender),
   jerseyNumber: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
+export type UpdatePlayerRequest = Schema.Schema.Type<typeof UpdatePlayerRequest>;
 
 export class PlayerNotFound extends Schema.TaggedErrorClass<PlayerNotFound>()(
   'PlayerNotFound',
@@ -83,25 +84,26 @@ export class RosterDetail extends Schema.Class<RosterDetail>('RosterDetail')({
   discordChannelProvisioning: Schema.Boolean,
 }) {}
 
-export class CreateRosterRequest extends Schema.Class<CreateRosterRequest>('CreateRosterRequest')({
+export const CreateRosterRequest = Schema.Struct({
   name: Schema.String,
   color: Schema.OptionFromNullOr(HexColor),
   emoji: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
+export type CreateRosterRequest = Schema.Schema.Type<typeof CreateRosterRequest>;
 
-export class UpdateRosterRequest extends Schema.Class<UpdateRosterRequest>('UpdateRosterRequest')({
+export const UpdateRosterRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.String),
   active: Schema.OptionFromNullOr(Schema.Boolean),
   color: Schema.OptionFromNullOr(HexColor),
   emoji: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
-}) {}
+});
+export type UpdateRosterRequest = Schema.Schema.Type<typeof UpdateRosterRequest>;
 
-export class AddRosterMemberRequest extends Schema.Class<AddRosterMemberRequest>(
-  'AddRosterMemberRequest',
-)({
+export const AddRosterMemberRequest = Schema.Struct({
   memberId: TeamMemberId,
-}) {}
+});
+export type AddRosterMemberRequest = Schema.Schema.Type<typeof AddRosterMemberRequest>;
 
 export class RosterApiGroup extends HttpApiGroup.make('roster')
   .add(

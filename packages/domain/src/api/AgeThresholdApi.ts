@@ -23,20 +23,18 @@ export class AgeGroupChange extends Schema.Class<AgeGroupChange>('AgeGroupChange
   action: Schema.Literals(['added', 'removed']),
 }) {}
 
-export class CreateAgeThresholdRequest extends Schema.Class<CreateAgeThresholdRequest>(
-  'CreateAgeThresholdRequest',
-)({
+export const CreateAgeThresholdRequest = Schema.Struct({
   groupId: GroupId,
   minAge: Schema.OptionFromNullOr(Schema.Number),
   maxAge: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
+export type CreateAgeThresholdRequest = Schema.Schema.Type<typeof CreateAgeThresholdRequest>;
 
-export class UpdateAgeThresholdRequest extends Schema.Class<UpdateAgeThresholdRequest>(
-  'UpdateAgeThresholdRequest',
-)({
+export const UpdateAgeThresholdRequest = Schema.Struct({
   minAge: Schema.OptionFromNullOr(Schema.Number),
   maxAge: Schema.OptionFromNullOr(Schema.Number),
-}) {}
+});
+export type UpdateAgeThresholdRequest = Schema.Schema.Type<typeof UpdateAgeThresholdRequest>;
 
 export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('AgeThresholdForbidden', {}) {}
 

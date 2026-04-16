@@ -51,7 +51,7 @@ export class EventListResponse extends Schema.Class<EventListResponse>('EventLis
   events: Schema.Array(EventInfo),
 }) {}
 
-export class CreateEventRequest extends Schema.Class<CreateEventRequest>('CreateEventRequest')({
+export const CreateEventRequest = Schema.Struct({
   title: Schema.NonEmptyString,
   eventType: EventType,
   trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
@@ -62,9 +62,10 @@ export class CreateEventRequest extends Schema.Class<CreateEventRequest>('Create
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   memberGroupId: Schema.OptionFromNullOr(GroupId),
-}) {}
+});
+export type CreateEventRequest = Schema.Schema.Type<typeof CreateEventRequest>;
 
-export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('UpdateEventRequest')({
+export const UpdateEventRequest = Schema.Struct({
   title: Schema.OptionFromOptional(Schema.NonEmptyString),
   eventType: Schema.OptionFromOptional(EventType),
   trainingTypeId: Schema.OptionFromOptional(Schema.OptionFromNullOr(TrainingTypeId)),
@@ -75,7 +76,8 @@ export class UpdateEventRequest extends Schema.Class<UpdateEventRequest>('Update
   discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
   memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
-}) {}
+});
+export type UpdateEventRequest = Schema.Schema.Type<typeof UpdateEventRequest>;
 
 export class EventNotFound extends Schema.TaggedErrorClass<EventNotFound>()('EventNotFound', {}) {}
 

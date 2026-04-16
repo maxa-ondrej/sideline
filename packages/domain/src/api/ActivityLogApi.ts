@@ -22,19 +22,16 @@ export class ActivityLogListResponse extends Schema.Class<ActivityLogListRespons
   logs: Schema.Array(ActivityLogEntry),
 }) {}
 
-export class CreateActivityLogRequest extends Schema.Class<CreateActivityLogRequest>(
-  'CreateActivityLogRequest',
-)({
+export const CreateActivityLogRequest = Schema.Struct({
   activityTypeId: ActivityTypeId,
   durationMinutes: Schema.OptionFromNullOr(
     Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   ),
   note: Schema.OptionFromNullOr(Schema.String),
-}) {}
+});
+export type CreateActivityLogRequest = Schema.Schema.Type<typeof CreateActivityLogRequest>;
 
-export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequest>(
-  'UpdateActivityLogRequest',
-)({
+export const UpdateActivityLogRequest = Schema.Struct({
   activityTypeId: Schema.OptionFromOptional(ActivityTypeId),
   durationMinutes: Schema.OptionFromOptional(
     Schema.OptionFromNullOr(
@@ -42,7 +39,8 @@ export class UpdateActivityLogRequest extends Schema.Class<UpdateActivityLogRequ
     ),
   ),
   note: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
-}) {}
+});
+export type UpdateActivityLogRequest = Schema.Schema.Type<typeof UpdateActivityLogRequest>;
 
 export class ActivityTypeEntry extends Schema.Class<ActivityTypeEntry>('ActivityTypeEntry')({
   id: ActivityTypeId,

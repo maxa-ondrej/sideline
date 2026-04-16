@@ -14,7 +14,7 @@ export class TeamInfo extends Schema.Class<TeamInfo>('TeamInfo')({
   guildId: Snowflake,
 }) {}
 
-export class UpdateTeamRequest extends Schema.Class<UpdateTeamRequest>('UpdateTeamRequest')({
+export const UpdateTeamRequest = Schema.Struct({
   name: Schema.OptionFromOptional(
     Schema.String.pipe(Schema.check(Schema.isMinLength(1)), Schema.check(Schema.isMaxLength(100))),
   ),
@@ -27,7 +27,8 @@ export class UpdateTeamRequest extends Schema.Class<UpdateTeamRequest>('UpdateTe
   logoUrl: Schema.OptionFromOptional(
     Schema.OptionFromNullOr(Schema.String.pipe(Schema.check(Schema.isMaxLength(2048)))),
   ),
-}) {}
+});
+export type UpdateTeamRequest = Schema.Schema.Type<typeof UpdateTeamRequest>;
 
 export class TeamApiGroup extends HttpApiGroup.make('team')
   .add(

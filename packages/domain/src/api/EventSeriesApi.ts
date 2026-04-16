@@ -59,9 +59,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   canCancel: Schema.Boolean,
 }) {}
 
-export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequest>(
-  'CreateEventSeriesRequest',
-)({
+export const CreateEventSeriesRequest = Schema.Struct({
   title: Schema.NonEmptyString,
   trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
   description: Schema.OptionFromNullOr(Schema.String),
@@ -75,11 +73,10 @@ export class CreateEventSeriesRequest extends Schema.Class<CreateEventSeriesRequ
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   memberGroupId: Schema.OptionFromNullOr(GroupId),
-}) {}
+});
+export type CreateEventSeriesRequest = Schema.Schema.Type<typeof CreateEventSeriesRequest>;
 
-export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequest>(
-  'UpdateEventSeriesRequest',
-)({
+export const UpdateEventSeriesRequest = Schema.Struct({
   title: Schema.OptionFromOptional(Schema.NonEmptyString),
   trainingTypeId: Schema.OptionFromOptional(Schema.OptionFromNullOr(TrainingTypeId)),
   description: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
@@ -91,7 +88,8 @@ export class UpdateEventSeriesRequest extends Schema.Class<UpdateEventSeriesRequ
   discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
   memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
-}) {}
+});
+export type UpdateEventSeriesRequest = Schema.Schema.Type<typeof UpdateEventSeriesRequest>;
 
 export class EventSeriesNotFound extends Schema.TaggedErrorClass<EventSeriesNotFound>()(
   'EventSeriesNotFound',

@@ -43,34 +43,35 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
   discordChannelProvisioning: Schema.Boolean,
 }) {}
 
-export class CreateGroupRequest extends Schema.Class<CreateGroupRequest>('CreateGroupRequest')({
+export const CreateGroupRequest = Schema.Struct({
   name: Schema.NonEmptyString,
   parentId: Schema.OptionFromNullOr(GroupId),
   emoji: Schema.OptionFromNullOr(Schema.String),
   color: Schema.OptionFromNullOr(HexColor),
-}) {}
+});
+export type CreateGroupRequest = Schema.Schema.Type<typeof CreateGroupRequest>;
 
-export class UpdateGroupRequest extends Schema.Class<UpdateGroupRequest>('UpdateGroupRequest')({
+export const UpdateGroupRequest = Schema.Struct({
   name: Schema.NonEmptyString,
   emoji: Schema.OptionFromNullOr(Schema.String),
   color: Schema.OptionFromNullOr(HexColor),
-}) {}
+});
+export type UpdateGroupRequest = Schema.Schema.Type<typeof UpdateGroupRequest>;
 
-export class AddGroupMemberRequest extends Schema.Class<AddGroupMemberRequest>(
-  'AddGroupMemberRequest',
-)({
+export const AddGroupMemberRequest = Schema.Struct({
   memberId: TeamMemberId,
-}) {}
+});
+export type AddGroupMemberRequest = Schema.Schema.Type<typeof AddGroupMemberRequest>;
 
-export class AssignGroupRoleRequest extends Schema.Class<AssignGroupRoleRequest>(
-  'AssignGroupRoleRequest',
-)({
+export const AssignGroupRoleRequest = Schema.Struct({
   roleId: RoleId,
-}) {}
+});
+export type AssignGroupRoleRequest = Schema.Schema.Type<typeof AssignGroupRoleRequest>;
 
-export class MoveGroupRequest extends Schema.Class<MoveGroupRequest>('MoveGroupRequest')({
+export const MoveGroupRequest = Schema.Struct({
   parentId: Schema.OptionFromNullOr(GroupId),
-}) {}
+});
+export type MoveGroupRequest = Schema.Schema.Type<typeof MoveGroupRequest>;
 
 export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('ChannelMappingInfo')({
   discordChannelId: Snowflake,
@@ -78,11 +79,10 @@ export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('Channe
   discordRoleId: Schema.OptionFromNullOr(Snowflake),
 }) {}
 
-export class SetChannelMappingRequest extends Schema.Class<SetChannelMappingRequest>(
-  'SetChannelMappingRequest',
-)({
+export const SetChannelMappingRequest = Schema.Struct({
   discordChannelId: Snowflake,
-}) {}
+});
+export type SetChannelMappingRequest = Schema.Schema.Type<typeof SetChannelMappingRequest>;
 
 export class DiscordChannelInfo extends Schema.Class<DiscordChannelInfo>('DiscordChannelInfo')({
   id: Snowflake,

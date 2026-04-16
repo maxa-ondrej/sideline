@@ -27,15 +27,17 @@ export class RoleDetail extends Schema.Class<RoleDetail>('RoleDetail')({
   canManage: Schema.Boolean,
 }) {}
 
-export class CreateRoleRequest extends Schema.Class<CreateRoleRequest>('CreateRoleRequest')({
+export const CreateRoleRequest = Schema.Struct({
   name: Schema.NonEmptyString,
   permissions: Schema.Array(Permission),
-}) {}
+});
+export type CreateRoleRequest = Schema.Schema.Type<typeof CreateRoleRequest>;
 
-export class UpdateRoleRequest extends Schema.Class<UpdateRoleRequest>('UpdateRoleRequest')({
+export const UpdateRoleRequest = Schema.Struct({
   name: Schema.OptionFromNullOr(Schema.NonEmptyString),
   permissions: Schema.OptionFromNullOr(Schema.Array(Permission)),
-}) {}
+});
+export type UpdateRoleRequest = Schema.Schema.Type<typeof UpdateRoleRequest>;
 
 export class RoleNotFound extends Schema.TaggedErrorClass<RoleNotFound>()('RoleNotFound', {}) {}
 
@@ -46,9 +48,10 @@ export class CannotModifyBuiltIn extends Schema.TaggedErrorClass<CannotModifyBui
   {},
 ) {}
 
-export class AssignRoleRequest extends Schema.Class<AssignRoleRequest>('AssignRoleRequest')({
+export const AssignRoleRequest = Schema.Struct({
   roleId: RoleId,
-}) {}
+});
+export type AssignRoleRequest = Schema.Schema.Type<typeof AssignRoleRequest>;
 
 export class MemberNotFound extends Schema.TaggedErrorClass<MemberNotFound>()(
   'MemberNotFound',
