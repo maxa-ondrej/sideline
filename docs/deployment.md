@@ -16,12 +16,13 @@
 
 ## 1. Architecture Overview
 
-Sideline is composed of four containerized services backed by a PostgreSQL 17 database. All services are built with Docker and orchestrated via Docker Compose. In production the stack runs on a VPS managed by Coolify.
+Sideline is composed of five containerized services backed by a PostgreSQL 17 database. All services are built with Docker and orchestrated via Docker Compose. In production the stack runs on a VPS managed by Coolify.
 
 ```
 Internet ──► Proxy (nginx :80)
-               ├── /api/*  ──────────► Server (:80)
-               └── /*      ──────────► Web (:3000)
+               ├── /api/*   ─────────► Server (:80)
+               ├── /docs/*  ─────────► Docs (:80)
+               └── /*       ─────────► Web (:3000)
 
 Bot ──────────────────────────────────► Server (HTTP RPC at /rpc/sync)
 
@@ -32,10 +33,11 @@ Server, Bot, Web ────────────────────►
 
 | Service | Technology | Role |
 |---------|-----------|------|
-| `proxy` | nginx + njs | Reverse proxy; routes `/api/*` to server and `/*` to web |
+| `proxy` | nginx + njs | Reverse proxy; routes `/api/*` to server, `/docs/*` to docs, and `/*` to web |
 | `server` | Node.js 25, Effect-TS | REST API, RPC endpoint, cron jobs, database migrations |
 | `bot` | Node.js 25, Effect-TS, dfx | Discord bot; connects to gateway and processes sync events |
 | `web` | Node.js 25, TanStack Start, React 19 | Server-side rendered frontend |
+| `docs` | Astro + Starlight → nginx:alpine | Static end-user documentation site served at `/docs` |
 
 **Container registry:** `ghcr.io/maxa-ondrej/sideline/<app>`
 
@@ -58,11 +60,13 @@ Server, Bot, Web ────────────────────►
 
 **Health check:** `GET http://localhost:9000/health` returns `{"status": "ok"}`
 
-**Dependencies:** `server` (healthy), `web` (healthy)
+**Dependencies:** `server` (healthy), `web` (healthy), `docs` (healthy)
 
 **Routing rules (nginx.conf):**
 - `GET /api/auth/callback` — handled inline by njs script
 - `GET /api/*` — proxied to `http://$SERVER_HOST:$SERVER_PORT`
+- `GET /docs` — 301 redirect to `/docs/`
+- `GET /docs/*` — proxied to `http://$DOCS_HOST:$DOCS_PORT`
 - `GET /*` — proxied to `http://$WEB_HOST:$WEB_PORT`
 
 ---
@@ -150,6 +154,25 @@ Build stages: `base` → `deps` → `build` → `production`. The Vite build out
 
 ---
 
+### 2.5 Docs
+
+**Purpose:** Static end-user documentation site (Astro + Starlight) served at the `/docs` path prefix.
+
+**Dockerfile:** `applications/docs/Dockerfile`
+
+Build stages:
+1. `build` — Node.js 25 slim + pnpm 10; installs dependencies, runs `pnpm --filter @sideline/docs build`, outputs static files to `applications/docs/dist/`
+2. `production` — `nginx:alpine`; copies the built static files to `/usr/share/nginx/html/docs` and serves them with a minimal nginx config
+
+**Ports:**
+- `:80` — static file serving
+
+**Health check:** `GET http://localhost/health` returns `{"status": "ok"}` — checked up to 3 times (30 s apart, 10 s start period)
+
+**Dependencies:** none
+
+---
+
 ## 3. Environment Variables
 
 ### 3.1 Server (`applications/server/src/env.ts`)
@@ -204,6 +227,8 @@ Build stages: `base` → `deps` → `build` → `production`. The Vite build out
 | `SERVER_PORT` | No | `80` | Port of the server service |
 | `WEB_HOST` | Yes | — | Hostname of the web service (Docker service name) |
 | `WEB_PORT` | Yes | — | Port of the web service |
+| `DOCS_HOST` | Yes | — | Hostname of the docs service (Docker service name, set to `$SERVICE_NAME_DOCS`) |
+| `DOCS_PORT` | No | `80` | Port of the docs service |
 | `FRONTEND_URL` | Yes | — | Public frontend URL, injected into nginx config for redirect handling |
 | `MAX_BODY_SIZE` | No | `0` | nginx `client_max_body_size` value (`0` = unlimited) |
 

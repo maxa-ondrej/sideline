@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Sideline is a sports-team management platform that integrates with Discord. The system is built as an Effect-TS monorepo, written entirely in TypeScript with strict functional programming conventions. It consists of four deployed applications — a reverse proxy, a web frontend, an HTTP API server, and a Discord bot — backed by a PostgreSQL database and observed via OpenTelemetry.
+Sideline is a sports-team management platform that integrates with Discord. The system is built as an Effect-TS monorepo, written entirely in TypeScript with strict functional programming conventions. It consists of five deployed applications — a reverse proxy, a web frontend, an HTTP API server, a Discord bot, and a static documentation site — backed by a PostgreSQL database and observed via OpenTelemetry.
 
 This document describes the system's deployment topology, internal package structure, communication patterns, technology stack, background jobs, and the shared application-composition pattern used throughout the codebase.
 
@@ -10,7 +10,7 @@ This document describes the system's deployment topology, internal package struc
 
 ## 1. Deployment Architecture
 
-All four application containers are orchestrated via Docker Compose. The proxy is the single public-facing entry point; the web and server containers are only reachable through it. The bot container reaches the server directly over the internal Docker network using its HTTP RPC endpoint.
+All five application containers are orchestrated via Docker Compose. The proxy is the single public-facing entry point; the web, server, and docs containers are only reachable through it. The bot container reaches the server directly over the internal Docker network using its HTTP RPC endpoint.
 
 ```mermaid
 graph TD
@@ -22,6 +22,7 @@ graph TD
         Web["Web App\nTanStack Start / React 19\n(port 3000)"]
         Server["API Server\nEffect HttpApi\n(port 80)"]
         Bot["Discord Bot\ndfx / Effect\n(port 9000 health)"]
+        Docs["Docs Site\nAstro + Starlight → nginx:alpine\n(port 80)"]
         DB[(PostgreSQL)]
     end
 
@@ -30,6 +31,7 @@ graph TD
     Client -->|HTTPS| Proxy
     Proxy -->|"/ (all routes)"| Web
     Proxy -->|"/api/ (REST)"| Server
+    Proxy -->|"/docs/ (static)"| Docs
     Web -.->|"SSR: SERVER_URL/api"| Server
 
     Bot -->|"HTTP RPC /rpc/sync (NDJSON)"| Server
@@ -42,6 +44,7 @@ graph TD
 
     Proxy -.->|"depends_on (healthy)"| Server
     Proxy -.->|"depends_on (healthy)"| Web
+    Proxy -.->|"depends_on (healthy)"| Docs
     Bot -.->|"depends_on (healthy)"| Server
 ```
 
@@ -51,6 +54,8 @@ graph TD
 |---|---|---|
 | `/api/auth/callback` | Server (via JS handler) | Discord OAuth2 redirect |
 | `/api/` | Server (`$var_server_upstream`) | All REST API calls |
+| `/docs` | — | 301 redirect to `/docs/` |
+| `/docs/` | Docs (`$var_docs_upstream`) | Astro + Starlight static site |
 | `/` | Web (`$var_web_upstream`) | TanStack Start SSR |
 
 ---
@@ -73,6 +78,7 @@ graph TD
         BOT["applications/bot\nDiscord bot (dfx)"]
         WEB["applications/web\nTanStack Start + React 19"]
         PROXY["applications/proxy\nNginx reverse proxy"]
+        DOCS["applications/docs\nAstro + Starlight static site"]
     end
 
     DOM --> EL
@@ -132,6 +138,7 @@ Key protocols:
 | Effect system | Effect-TS 3.10+ (`effect`, `@effect/platform`, `@effect/rpc`) |
 | API layer | `@effect/platform` `HttpApi` (declarative, schema-validated) |
 | Frontend framework | TanStack Start (SSR) + React 19 |
+| Docs site | Astro + Starlight (static, served via nginx:alpine) |
 | Discord bot runtime | `dfx` (Effect-native Discord framework) |
 | Authentication | Discord OAuth2 (server-side token exchange) |
 | Database | PostgreSQL (via `@effect/sql-pg`) |
@@ -144,7 +151,7 @@ Key protocols:
 | Package manager | pnpm 10+ (workspace-aware) |
 | CI | GitHub Actions (`check.yml`: lint, build, typecheck, test) |
 | Docker images | Built per-app, pushed to GHCR (`ghcr.io/maxa-ondrej/sideline/<app>`) |
-| Containerisation | Docker Compose (four services: proxy, web, server, bot) |
+| Containerisation | Docker Compose (five services: proxy, web, server, bot, docs) |
 
 ---
 

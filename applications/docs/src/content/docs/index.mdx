@@ -1,0 +1,46 @@
+---
+title: Sideline Docs
+description: Everything you need to run your amateur sports team on Discord.
+template: splash
+hero:
+  tagline: Sideline keeps your roster, events, and RSVPs in Discord — these docs help you get the most out of it.
+  actions:
+    - text: Get started
+      link: /quick-start/players/
+      icon: right-arrow
+    - text: Report a bug
+      link: /about/report-a-bug/
+      variant: minimal
+      icon: external
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Pick your role
+
+<CardGrid>
+  <LinkCard title="Player" description="RSVP to events, track attendance, join your team." href="/quick-start/players/" />
+  <LinkCard title="Captain" description="Build rosters, schedule events, manage members." href="/quick-start/captains/" />
+  <LinkCard title="Admin" description="Install the bot, configure your Discord server." href="/quick-start/admins/" />
+</CardGrid>
+
+## Feature highlights
+
+<CardGrid>
+  <Card title="Events" icon="calendar">
+    One-off and recurring trainings, games, and socials.
+  </Card>
+  <Card title="RSVPs" icon="approve-check">
+    Yes, No, or Maybe — with reminders that keep people honest.
+  </Card>
+  <Card title="Discord-first" icon="seti:discord">
+    Slash commands, channel linking, automatic cleanup.
+  </Card>
+  <Card title="Reminders" icon="bell">
+    Automatic pings before and after RSVP deadlines.
+  </Card>
+</CardGrid>
+
+## Need help?
+
+Check the [FAQ](/faq/), [report a bug](/about/report-a-bug/), or reach out on the [contact page](/about/contact/).

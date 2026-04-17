@@ -38,9 +38,10 @@ If any package source code changed (not just docs/config), create a changeset fi
 
 Run the `/docs` and `/meta` agents **in parallel** (both in one message):
 
-1. **`/docs` agent** — Updates `docs/` and `docs/thesis/` files:
-   - Reads the diff to identify affected documentation
-   - Makes targeted edits to API docs, database docs, ER diagrams, use-cases, etc.
+1. **`/docs` agent** — Updates two documentation surfaces:
+   - **Internal technical reference** (`docs/*.md`, `docs/thesis/*.md`) — API docs, database docs, ER diagrams, use-cases, deployment
+   - **End-user product docs** (`applications/docs/src/content/docs/**`) — Starlight site at `/docs` (guides, quick-start, api overview, changelog, FAQ)
+   - Reads the diff to identify affected documentation across both surfaces
    - Checks and updates E2E mock data if API schemas changed
 
 2. **`/meta` agent** — Updates AGENTS.md files and `.claude/` configuration:

@@ -46,6 +46,7 @@ There are two categories:
 | `applications/server/AGENTS.md` | New server patterns (repositories, API handlers, middleware, SQL patterns) |
 | `applications/bot/AGENTS.md` | New bot patterns (commands, interactions, gateway, RPC sync) |
 | `applications/web/AGENTS.md` | New frontend patterns (routes, components, API client, i18n) |
+| `applications/docs/AGENTS.md` | New docs-site patterns (Starlight components, content collections, sidebar config, CZ translation policy, nginx/Docker for the static site) |
 | `packages/domain/AGENTS.md` | New domain patterns (schemas, models, API contracts, RPC definitions) |
 | `packages/migrations/AGENTS.md` | New migration patterns |
 | `packages/effect-lib/AGENTS.md` | New Effect utilities or shared patterns |

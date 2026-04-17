@@ -1,0 +1,57 @@
+---
+title: Quick start for Captains
+description: Set up your roster, create your first event, and get your team RSVPing.
+---
+
+import { Steps, Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+By the end of this page you'll have a working roster, a recurring training schedule, and a sent invite for new members.
+
+## Before you start
+
+- Your admin needs to have created the team and given you the **captain** role.
+- You need to be signed in to Discord and to the Sideline web app.
+
+## Steps
+
+<Steps>
+
+1. **Open your team.**
+
+   From the dashboard, click your team name. You'll land on the team overview with tabs for Events, Roster, and Settings.
+
+2. **Review the roster.**
+
+   Check who's currently listed. Remove anyone who's no longer playing (archive rather than delete — it preserves attendance history). Add jersey numbers if your sport uses them.
+
+3. **Create your groups.**
+
+   If your team has subdivisions (first team / reserves / junior / senior), create a group per subdivision from the **Roster** tab and assign members to them. Events can target a group instead of the whole team.
+
+4. **Create a recurring event.**
+
+   Go to **Events → New event series**. Pick a day of the week, a start time, a location, and a training type. Sideline will post each occurrence in Discord at the right time and collect RSVPs.
+
+5. **Send invites.**
+
+   Go to **Roster → Invite**. Copy the link and share it in your Discord. New players sign in with Discord and land straight on your team's roster.
+
+</Steps>
+
+<Aside type="tip" title="Before your first event">
+  Check **Notifications** in the team settings. You can control when RSVP reminders go out and who gets pinged. Defaults are reasonable, but your team may want earlier or more frequent nudges.
+</Aside>
+
+## Day-to-day as captain
+
+- **Before each event**, Sideline auto-posts the RSVP prompt in Discord. You don't need to do anything.
+- **Missing RSVPs**? Trigger a reminder from the event page, or let the automatic reminder handle it.
+- **One-off changes** (cancelling a training, moving locations)? Edit the individual event — not the series — so only that occurrence changes.
+
+## Next steps
+
+<CardGrid>
+  <LinkCard title="Manage your roster" href="/guides/manage-your-roster/" />
+  <LinkCard title="Create recurring events" href="/guides/create-recurring-events/" />
+  <LinkCard title="Notifications" href="/guides/notifications/" />
+</CardGrid>

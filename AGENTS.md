@@ -8,9 +8,10 @@ This is an **Effect-TS monorepo** built with TypeScript, utilizing a modern func
 
 ```
 applications/
-├── bot/       — Discord bot (dfx, Effect-native)        → see applications/bot/AGENTS.md
-├── server/    — HTTP API server (Effect + PostgreSQL)    → see applications/server/AGENTS.md
-├── web/       — TanStack Start frontend (React 19, Vite) → see applications/web/AGENTS.md
+├── bot/       — Discord bot (dfx, Effect-native)            → see applications/bot/AGENTS.md
+├── server/    — HTTP API server (Effect + PostgreSQL)       → see applications/server/AGENTS.md
+├── web/       — TanStack Start frontend (React 19, Vite)    → see applications/web/AGENTS.md
+├── docs/      — End-user product docs (Astro + Starlight)   → see applications/docs/AGENTS.md
 └── proxy/     — Reverse proxy (nginx-like routing)
 packages/
 ├── domain/    — Core domain models and API contracts     → see packages/domain/AGENTS.md
@@ -528,12 +529,35 @@ When searching logs in SigNoz, always filter by resource attributes for faster q
 
 ## Documentation Conventions
 
+Sideline has **three distinct documentation surfaces**. Know which one to update:
+
+| Surface | Audience | Location | Format |
+|---------|----------|----------|--------|
+| Agent guides | AI agents, developers | `AGENTS.md` files | Markdown |
+| Internal tech reference | Developers, operators | `docs/*.md` | Markdown |
+| End-user product docs | Players, captains, admins, API integrators | `applications/docs/src/content/docs/**` | Starlight (MDX / Markdown) |
+
 - **Always update the relevant AGENTS.md** when making architecture changes, adding new patterns, or establishing new conventions
 - Package-specific docs go in the package's `AGENTS.md`, not here
 
-### Technical Documentation (`docs/`)
+### Product-user documentation (`applications/docs/`)
 
-The `docs/` directory contains comprehensive technical documentation. These must stay in sync with the codebase. Update them as part of the same PR when making relevant changes:
+The user-facing docs site lives at `applications/docs/` (Astro + Starlight, served at `/docs`). Update it in the same PR when code changes alter end-user behaviour:
+
+| Code change | Required docs update |
+|-------------|----------------------|
+| New or changed user-facing flow | Matching `guides/*.mdx` |
+| New role / changed permission | `quick-start/<role>.mdx` |
+| New Discord bot slash command | `guides/discord-integration.mdx` or `faq.md` |
+| New API endpoint or changed schema | `api/overview.mdx` (and future per-endpoint pages) |
+| New domain term | `introduction/key-concepts.md` |
+| User-visible release | Append a plain-language entry to `changelog.md` |
+
+See `applications/docs/AGENTS.md` for content conventions, translation policy (no CZ stubs in v1 — Starlight's fallback banner handles untranslated pages), and local dev workflow.
+
+### Internal technical reference (`docs/`)
+
+The root `docs/` directory contains comprehensive technical documentation for contributors and operators. These must stay in sync with the codebase. Update them as part of the same PR when making relevant changes:
 
 | Document | Update when… |
 |----------|-------------|
@@ -558,4 +582,4 @@ The `docs/thesis/` directory contains Mermaid diagrams and documentation for the
 
 ---
 
-**Last Updated**: 2026-04-10
+**Last Updated**: 2026-04-17

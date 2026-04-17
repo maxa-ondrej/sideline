@@ -1,0 +1,59 @@
+---
+title: Quick start for Admins
+description: Connect Sideline to your Discord server, invite the bot, and set up permissions.
+---
+
+import { Steps, Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+By the end of this page you'll have the Sideline bot installed on your Discord server, linked to a Sideline team, with channels and permissions configured.
+
+## Before you start
+
+- You need **Manage Server** permissions on the Discord server.
+- You need to be signed in to the Sideline web app with the Discord account that will own the team.
+
+## Steps
+
+<Steps>
+
+1. **Create a team.**
+
+   From the dashboard, click **New team**. Pick a name and a short description. You become the team's first admin automatically.
+
+2. **Invite the Sideline bot.**
+
+   From **Team settings → Discord integration**, click **Install bot**. Discord's OAuth flow asks which server to add the bot to — pick yours. Grant the permissions it requests (send messages, manage roles, read member list).
+
+3. **Link channels.**
+
+   Sideline needs to know which Discord channels it should post into. At minimum, pick an **events channel** — that's where RSVP prompts appear. Optionally pick a **reminders channel** if you want late-RSVP pings in a separate place.
+
+4. **Configure groups and roles.**
+
+   Decide how your team is subdivided (see [Key concepts](/introduction/key-concepts/#group)). Create groups in the web app; Sideline can auto-create matching Discord roles so channel access stays in sync.
+
+5. **Invite captains.**
+
+   Use **Roster → Invite** to generate invite links scoped to the **captain** role. Send them to your captains over Discord DM.
+
+</Steps>
+
+<Aside type="caution" title="Permission model">
+  Admins can do anything. Captains can manage events and rosters. Players can only manage their own RSVPs. Changing someone's role is immediate and retroactive — archived events keep their old RSVP history.
+</Aside>
+
+## After setup
+
+Once the bot is installed and linked:
+
+- Captains create events; Sideline posts them automatically.
+- Players join via your invite links; Sideline matches them to Discord accounts.
+- If someone leaves your Discord server, their roster entry stays (archived), so attendance history is preserved.
+
+## Next steps
+
+<CardGrid>
+  <LinkCard title="Discord integration" href="/guides/discord-integration/" />
+  <LinkCard title="Invite members" href="/guides/invite-members/" />
+  <LinkCard title="Notifications" href="/guides/notifications/" />
+</CardGrid>
