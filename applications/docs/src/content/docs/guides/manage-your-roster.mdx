@@ -1,0 +1,54 @@
+---
+title: Manage your roster
+description: Add members, assign groups, set jersey numbers, and archive inactive players.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Your roster is the source of truth for who's on the team. Sideline keeps it in sync with Discord roles and uses it to decide who gets notified about events.
+
+## Concepts
+
+Every person on the roster has:
+
+- A **Discord account** (linked on first sign-in).
+- A **role**: player, captain, or admin.
+- Zero or more **groups** (first team, reserves, juniors, etc.).
+- An optional **jersey number**.
+- A **status**: active or archived.
+
+Archived entries preserve attendance history but don't appear in active headcounts or get notified about future events.
+
+## Adding a member
+
+The preferred path is an invite link — the new member signs in with Discord and Sideline creates the roster entry automatically. See [Invite members](/guides/invite-members/) for the full flow.
+
+If you need to add someone who isn't on Discord yet, create a **placeholder entry** from **Roster → Add member**. They can later claim it by signing in with Discord using the matching email or Discord ID.
+
+## Assigning groups
+
+<Steps>
+
+1. Open the roster and click the member you want to edit.
+2. Under **Groups**, check the groups they belong to.
+3. Save. Sideline updates Discord roles to match (if group→role sync is on).
+
+</Steps>
+
+## Jersey numbers
+
+Jersey numbers are optional. Set them from the member's profile. Sideline prevents duplicates within the same group — if two players share a number, you'll see a warning on the roster view.
+
+## Archiving vs. removing
+
+<Aside type="tip" title="Archive, don't remove">
+  Archiving hides the member from active lists but keeps their RSVPs and attendance history. Removing deletes all their data — use it only for GDPR requests or spam accounts.
+</Aside>
+
+- **Archive:** roster → member → **Archive**. Reversible.
+- **Remove (destructive):** roster → member → **⋯ menu → Delete**. Confirms twice.
+
+## See also
+
+- [Invite members](/guides/invite-members/) — onboard new players.
+- [Groups and rosters](/guides/groups-and-rosters/) — how groups and roles interact.

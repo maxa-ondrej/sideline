@@ -1,0 +1,68 @@
+---
+title: Frequently asked questions
+description: Quick answers to the most common Sideline questions.
+---
+
+## General
+
+### Is Sideline free?
+
+Yes. Sideline is free to use and open source. The hosted instance at sideline.majksa.net is free for all amateur teams. You can also self-host — see the GitHub repo for instructions.
+
+### Does it work without Discord?
+
+Partially. The web app works standalone, but you lose the best part of Sideline — the in-Discord event posts, RSVP buttons, and reminders. We strongly recommend using Discord alongside the web app.
+
+### What happens to my data?
+
+Your data stays yours. Sideline stores what's needed for the product to work: your Discord profile, team membership, roster entries, events, and RSVPs. You can export or delete your data from **Profile → Settings** at any time.
+
+## For players
+
+### How do I change my RSVP after I submitted it?
+
+Click a different button — Yes, No, or Maybe. The new answer overwrites the old one. You can change it as many times as you like until the event starts.
+
+### Why didn't I get a Discord notification?
+
+Common causes:
+
+- The bot doesn't have permission to @-mention you in the reminders channel.
+- You have Discord notifications turned off for that channel.
+- Your team has reminders disabled in their notification settings.
+
+### Can I hide events from groups I'm not in?
+
+Events are only posted to the groups they target, so you should only see events you're actually invited to. If you're seeing extra posts, check with your captain — you may be assigned to groups you shouldn't be.
+
+## For captains
+
+### Can I RSVP on behalf of a player?
+
+No. RSVPs are always the player's own action — we don't want captains to fake headcounts. You can manually record attendance after the event from the event page if someone forgot to click.
+
+### How far in advance are recurring events posted?
+
+By default, the next 4 weeks. Change it from **Team settings → Events → Scheduling window**.
+
+### Can I move an event to a different time without editing the whole series?
+
+Yes. Edit the individual event (not the series). The change applies to that occurrence only. See [Create recurring events](/guides/create-recurring-events/#one-off-changes).
+
+## For admins
+
+### Can I change a team's name after creation?
+
+Yes, from **Team settings → General**. The change is immediate and applies everywhere.
+
+### How do I transfer admin rights to someone else?
+
+Promote them to admin from the roster. They'll have full access immediately. You can then demote yourself if you're stepping down.
+
+### What if someone leaves Discord — do I lose their history?
+
+No. If someone leaves your Discord server, their Sideline roster entry is archived automatically. RSVP and attendance history is preserved. If they rejoin later, their entry can be reactivated.
+
+### Can I use one Sideline account for multiple teams?
+
+Yes. One Discord account can be in any number of teams. The dashboard aggregates events across all of them.

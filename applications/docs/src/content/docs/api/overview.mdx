@@ -1,0 +1,65 @@
+---
+title: API overview
+description: What the Sideline HTTP API is for, how to authenticate, and where to find schemas.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The Sideline API is an HTTP + JSON interface covering everything the web app can do — teams, rosters, events, RSVPs, invites, and more. It's the same API the web app uses; there are no hidden endpoints.
+
+## Base URL
+
+```
+https://sideline.majksa.net/api
+```
+
+Self-hosted instances: replace the host with your deployment. The `/api` prefix is fixed.
+
+## Authentication
+
+Sideline uses **Discord OAuth** + server-side sessions. The typical flow:
+
+1. Redirect the user to `GET /api/auth/login`.
+2. Sideline redirects them to Discord, asks them to authorise, then redirects back to `/api/auth/callback`.
+3. Sideline sets a `Set-Cookie` session header on the response.
+4. Send the cookie with subsequent requests. No bearer tokens or API keys to manage.
+
+For server-to-server integrations (bots, CI), use a **personal access token** generated from your profile settings. Send it as `Authorization: Bearer <token>`.
+
+<Aside type="caution" title="Tokens are scoped to your account">
+  A personal access token inherits all your roles across teams. Treat it like a password. Revoke it from your profile if it leaks.
+</Aside>
+
+## Response format
+
+All responses are JSON. Successful responses return the resource (or a collection envelope). Errors return a tagged error object:
+
+```json
+{
+  "_tag": "TeamNotFound",
+  "message": "No team with id team_abc123",
+  "status": 404
+}
+```
+
+The `_tag` is stable across versions — program against the tag, not the message.
+
+## Pagination
+
+Collection endpoints support cursor-based pagination via `?cursor=<opaque>&limit=<n>`. Responses include `nextCursor` (or `null` at the end).
+
+## Rate limits
+
+<Aside type="note" title="Coming soon">
+  Current limits are generous and unpublished. A documented rate limit policy with 429 retry guidance is on the roadmap.
+</Aside>
+
+## OpenAPI schema
+
+<Aside type="note" title="Coming soon">
+  A machine-readable OpenAPI schema will be published alongside the API once it's stable. Until then, this overview + the response shapes in the web app's network tab are the canonical reference.
+</Aside>
+
+## Getting help
+
+Found a bug in the API? [Report it](/about/report-a-bug/). Have a question? [Contact us](/about/contact/).

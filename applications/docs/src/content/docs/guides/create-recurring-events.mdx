@@ -1,0 +1,49 @@
+---
+title: Create recurring events
+description: Set up trainings that repeat weekly without manually posting each one.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Most amateur teams train on a fixed schedule. Create an **event series** once and let Sideline generate each occurrence automatically.
+
+## Concepts
+
+An **event series** is a pattern: a day of the week, a time, a location, and a training type. From it, Sideline generates individual **events** a few weeks in advance. Editing the series changes future events; editing a single event changes only that occurrence.
+
+## Creating a series
+
+<Steps>
+
+1. Open your team → **Events** → **New event series**.
+2. Pick the **day(s) of the week** and **time**.
+3. Set the **location**.
+4. Choose a **training type** (training, match, tournament, friendly, other).
+5. Pick the **target group** — who should be invited to RSVP.
+6. Optionally set a **start date** and **end date** (for seasonal schedules).
+7. Save. Sideline schedules the next few occurrences and starts posting them in Discord.
+
+</Steps>
+
+## One-off changes
+
+Something changes for next week only — different location, earlier time, cancelled training? Edit the **event**, not the series. The change applies to that occurrence only.
+
+## Permanent changes
+
+Moving your training time permanently? Edit the **series**. Future events inherit the change; past events are untouched.
+
+## Cancelling events
+
+<Aside type="caution" title="Cancel vs. delete">
+  **Cancel** marks the event as cancelled but keeps it on the calendar with its RSVP history. **Delete** removes it entirely. Prefer cancelling — it tells players "this was planned but won't happen" rather than silently erasing it.
+</Aside>
+
+## Exceptions
+
+Out for a tournament next weekend? Add an **exception** to the series so no event is generated on that date. The series continues normally afterwards.
+
+## See also
+
+- [Notifications](/guides/notifications/) — control when RSVP reminders fire.
+- [RSVP to an event](/guides/rsvp-to-an-event/) — what players see.

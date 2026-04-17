@@ -1,0 +1,47 @@
+---
+title: Notifications
+description: How reminders work, when they fire, and how to control them.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Reminders are Sideline's most-loved feature. They make sure nobody has to manually chase players for RSVPs.
+
+## When reminders fire
+
+By default, Sideline sends two rounds of reminders per event:
+
+- **Pre-deadline** — N hours before the RSVP deadline, ping everyone who hasn't answered yet.
+- **Post-deadline** — shortly after the deadline, ping remaining holdouts one last time.
+
+The exact timing is configurable per team from **Team settings → Notifications**.
+
+## Where reminders go
+
+- **In Discord**, in the team's reminders channel (or events channel if no separate reminders channel is configured). Each reminder @-mentions every player who hasn't responded.
+- Reminders are **one-off posts** — once everyone has answered, no more pings for that event.
+
+## Who gets pinged
+
+Only players in the event's **target group** who haven't RSVPed. Once someone clicks Yes / No / Maybe, they drop off the reminder list.
+
+## Disabling reminders
+
+Per-event: toggle **Reminders** off when creating or editing the event.
+
+Per-team: from **Team settings → Notifications**, set **Reminders enabled** to off. Useful if you're running a one-off tournament with its own comms channel.
+
+<Aside type="tip" title="Reminder hygiene">
+  Reminders are effective when they're rare enough to matter. If you trigger manual reminders every hour, people tune them out. Trust the defaults.
+</Aside>
+
+## Per-user preferences
+
+<Aside type="caution" title="Coming soon">
+  Per-user preferences (e.g. "don't @-mention me — send me a DM instead") are on the roadmap. For now, reminder settings are team-wide.
+</Aside>
+
+## See also
+
+- [Discord integration](/guides/discord-integration/).
+- [Create recurring events](/guides/create-recurring-events/).

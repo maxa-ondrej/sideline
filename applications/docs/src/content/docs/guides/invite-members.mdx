@@ -1,0 +1,51 @@
+---
+title: Invite members
+description: Generate invite links, onboard new players, and revoke access when needed.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+Invites are how new people join your team. Each invite is a URL that, when opened, signs the user in with Discord and adds them to your roster.
+
+## Generating an invite
+
+<Steps>
+
+1. Open your team → **Roster** → **Invite**.
+2. Pick a **role** — player (default), captain, or admin.
+3. Optionally scope to a **group**.
+4. Optionally set an **expiry** (default: 7 days) and **max uses** (default: 1).
+5. Copy the link and share it.
+
+</Steps>
+
+## What the new member sees
+
+<Steps>
+
+1. They click the invite URL.
+2. Sideline prompts them to sign in with Discord.
+3. They complete their profile (real name, optional jersey number).
+4. They land on your team's dashboard with the role and groups from the invite.
+
+</Steps>
+
+## Single-use vs. reusable invites
+
+- **Single-use** (default): the link becomes invalid after the first successful sign-up. Good for onboarding one specific person.
+- **Reusable**: same link, multiple people. Good for seasonal recruitment drives. Set a high **max uses** or leave it unlimited; always pair with an **expiry** so it doesn't leak forever.
+
+## Revoking an invite
+
+<Aside type="tip" title="Revoke early, revoke often">
+  If an invite leaks or you shared the wrong one, revoke it from **Roster → Invites → history**. Any future attempt to use the link will fail.
+</Aside>
+
+## Removing a member
+
+That's a separate action — see [Manage your roster](/guides/manage-your-roster/#archiving-vs-removing).
+
+## See also
+
+- [Manage your roster](/guides/manage-your-roster/).
+- [Quick start for Admins](/quick-start/admins/) — initial team setup.

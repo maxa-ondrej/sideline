@@ -6,6 +6,10 @@ map $host $var_web_upstream {
   default "http://$WEB_HOST:$WEB_PORT";
 }
 
+map $host $var_docs_upstream {
+  default "http://$DOCS_HOST:$DOCS_PORT";
+}
+
 map $host $var_frontend_url {
   default "$FRONTEND_URL";
 }

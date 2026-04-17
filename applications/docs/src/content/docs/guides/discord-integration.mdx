@@ -1,0 +1,67 @@
+---
+title: Discord integration
+description: How Sideline works inside Discord — slash commands, channel linking, role sync, and cleanup modes.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Sideline is Discord-first. Once the bot is installed, most day-to-day interactions happen in Discord — without ever opening the web app.
+
+## What the bot does
+
+- **Posts events** in the linked events channel with RSVP buttons.
+- **Sends reminders** to players who haven't responded.
+- **Syncs roles** — group membership on Sideline is mirrored to Discord roles so channel access matches reality.
+- **Cleans up** old event posts according to your chosen cleanup mode.
+
+## Installing the bot
+
+See [Quick start for Admins](/quick-start/admins/#steps) for the full install flow. In short: admin → Team settings → Discord integration → **Install bot** → pick your Discord server → grant permissions.
+
+## Channels
+
+You link Discord channels to Sideline for specific purposes:
+
+- **Events channel** — where event posts with RSVP buttons appear.
+- **Reminders channel** (optional) — where late-RSVP pings go. If unset, reminders are sent to the events channel.
+- **Announcements channel** (optional) — where admin broadcasts go.
+
+Change channel links at any time from **Team settings → Discord integration**.
+
+## Slash commands
+
+The bot responds to a handful of slash commands inside your linked Discord server:
+
+- `/events` — list upcoming events for your role and groups.
+- `/rsvp` — RSVP to an event by name or ID.
+- `/roster` — show the current active roster.
+- `/help` — link to these docs.
+
+<Aside type="note" title="Where commands show up">
+  Slash commands only appear in channels where the bot has permission to reply. If `/events` doesn't autocomplete, check the bot's channel permissions.
+</Aside>
+
+## Role sync
+
+If you enable **group → role sync**, Sideline keeps a Discord role matching each group. When you add someone to the "first team" group, they get the "first team" Discord role — which can then gate channel access.
+
+Turn it off if your Discord roles are managed separately.
+
+## Cleanup modes
+
+Old event posts accumulate. You pick a cleanup strategy per team:
+
+- **Do nothing** — posts stay forever.
+- **Delete** — posts are removed a configurable time after the event ends.
+- **Archive** — posts are moved to an archive channel you configure.
+
+## Troubleshooting
+
+<Aside type="caution" title="Bot doesn't respond">
+  Most common cause: the bot doesn't have permission to send messages or read the channel. Check Discord server settings → **Integrations → Sideline → channel permissions**.
+</Aside>
+
+## See also
+
+- [Notifications](/guides/notifications/).
+- [Quick start for Admins](/quick-start/admins/).

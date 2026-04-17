@@ -7,10 +7,14 @@ services:
         condition: service_healthy
       web:
         condition: service_healthy
+      docs:
+        condition: service_healthy
     environment:
       WEB_PORT: 3000
       WEB_HOST: ${SERVICE_NAME_WEB}
       SERVER_HOST: ${SERVICE_NAME_SERVER}
+      DOCS_HOST: ${SERVICE_NAME_DOCS}
+      DOCS_PORT: 80
       FRONTEND_URL: ${SERVICE_URL_PROXY}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health" ]
@@ -85,3 +89,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+  docs:
+    build:
+      dockerfile: applications/docs/Dockerfile
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
