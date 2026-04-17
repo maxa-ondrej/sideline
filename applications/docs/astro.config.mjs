@@ -1,11 +1,16 @@
 // @ts-check
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
+import { basePath } from './scripts/base-path.mjs';
+import { remarkBasePath } from './scripts/remark-base-path.mjs';
 
 export default defineConfig({
   site: 'https://sideline.majksa.net',
-  base: '/docs',
+  base: basePath,
   trailingSlash: 'always',
+  markdown: {
+    remarkPlugins: [remarkBasePath()],
+  },
   integrations: [
     starlight({
       title: 'Sideline Docs',
@@ -21,7 +26,7 @@ export default defineConfig({
             rel: 'icon',
             type: 'image/png',
             sizes: '32x32',
-            href: '/docs/favicon-32.png',
+            href: `${basePath}/favicon-32.png`,
           },
         },
       ],

@@ -16,6 +16,7 @@
     "@astrojs/starlight": "^0.33.2",
     "astro": "^5.9.2",
     "sharp": "^0.33.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "unist-util-visit": "^5.1.0"
   }
 }

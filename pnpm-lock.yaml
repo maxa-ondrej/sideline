@@ -140,6 +140,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
 
   applications/proxy: {}
 
@@ -321,7 +324,7 @@ importers:
         version: 8.0.7(@types/node@22.10.2)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
       vitest:
         specifier: 3.0.5
-        version: 3.0.5(@types/debug@4.1.13)(@types/node@22.10.2)(@vitest/ui@3.2.4)(jiti@2.6.1)(jsdom@27.0.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+        version: 3.0.5(@types/debug@4.1.13)(@types/node@22.10.2)(@vitest/ui@3.2.4(vitest@3.2.4))(jiti@2.6.1)(jsdom@27.0.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/domain:
     dependencies:
@@ -14756,7 +14759,7 @@ snapshots:
     optionalDependencies:
       vite: 8.0.7(@types/node@22.10.2)(esbuild@0.27.3)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
-  vitest@3.0.5(@types/debug@4.1.13)(@types/node@22.10.2)(@vitest/ui@3.2.4)(jiti@2.6.1)(jsdom@27.0.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2):
+  vitest@3.0.5(@types/debug@4.1.13)(@types/node@22.10.2)(@vitest/ui@3.2.4(vitest@3.2.4))(jiti@2.6.1)(jsdom@27.0.0)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 3.0.5
       '@vitest/mocker': 3.0.5(vite@6.4.2(@types/node@22.10.2)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
