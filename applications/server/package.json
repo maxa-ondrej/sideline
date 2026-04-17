@@ -29,7 +29,7 @@
     "@sideline/domain": "workspace:^",
     "@sideline/effect-lib": "workspace:^",
     "@sideline/migrations": "workspace:^",
-    "@t3-oss/env-core": "^0.13.8",
+    "@t3-oss/env-core": "^0.13.11",
     "arctic": "^3.7.0",
     "dfx": "1.0.11",
     "effect": "4.0.0-beta.40"
@@ -47,6 +47,6 @@
     }
   },
   "devDependencies": {
-    "testcontainers": "^11.13.0"
+    "testcontainers": "^11.14.0"
   }
 }
