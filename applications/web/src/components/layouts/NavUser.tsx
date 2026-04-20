@@ -5,6 +5,8 @@ import { Link } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import {
   Bell,
+  BookOpen,
+  Bug,
   Check,
   ChevronsUpDown,
   Languages,
@@ -188,6 +190,25 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
                   ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <a href='/docs/' target='_blank' rel='noopener noreferrer'>
+                  <BookOpen />
+                  {m.nav_documentation()}
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href='https://majksa.notion.site/33b93506081880de83b1ed40e3759e46'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                >
+                  <Bug />
+                  {m.nav_reportBug()}
+                </a>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onLogout}>

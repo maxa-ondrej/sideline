@@ -9,7 +9,7 @@ Found something broken? Thank you for telling us.
 
 **[Submit a bug report →](https://majksa.notion.site/33b93506081880de83b1ed40e3759e46)**
 
-That form routes your report directly into our triage queue. Please use it in preference to opening GitHub issues or pinging us on Discord — it captures the information we need and we won't lose track of it.
+The quickest path is the **Report a bug** link in the app: open the user menu in the sidebar of the web app and click **Report a bug**. It opens the bug report form in a new tab. The form routes your report directly into our triage queue. Please use it in preference to opening GitHub issues or pinging us on Discord — it captures the information we need and we won't lose track of it.
 
 ## How to write a good bug report
 
