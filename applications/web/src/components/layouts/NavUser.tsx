@@ -201,7 +201,7 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <a
-                  href='https://github.com/maxa-ondrej/sideline/issues/new'
+                  href='https://majksa.notion.site/33b93506081880de83b1ed40e3759e46'
                   target='_blank'
                   rel='noopener noreferrer'
                 >
