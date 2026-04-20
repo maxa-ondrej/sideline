@@ -553,6 +553,8 @@
   "nav_selectTeam": "Select team",
   "nav_teams": "Teams",
   "nav_addTeam": "Add team",
+  "nav_documentation": "Documentation",
+  "nav_reportBug": "Report a bug",
   "breadcrumb_createTeam": "Create Team",
   "breadcrumb_profile": "Profile",
   "breadcrumb_complete": "Complete",
