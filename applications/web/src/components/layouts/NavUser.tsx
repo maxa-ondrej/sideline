@@ -194,7 +194,7 @@ export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <a href='/docs' target='_blank' rel='noopener noreferrer'>
+                <a href='/docs/' target='_blank' rel='noopener noreferrer'>
                   <BookOpen />
                   {m.nav_documentation()}
                 </a>
