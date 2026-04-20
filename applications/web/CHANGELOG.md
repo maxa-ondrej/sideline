@@ -1,5 +1,14 @@
 # @sideline/web
 
+## 0.10.3
+
+### Patch Changes
+
+- [#227](https://github.com/maxa-ondrej/sideline/pull/227) [`13f887c`](https://github.com/maxa-ondrej/sideline/commit/13f887ced827ab2425a279da00281b183c15a1ea) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add Documentation and Report a bug links to the user menu in the web navigation sidebar. Both open in a new tab: Documentation points to the hosted Starlight docs, Report a bug opens a fresh GitHub issue.
+
+- Updated dependencies [[`13f887c`](https://github.com/maxa-ondrej/sideline/commit/13f887ced827ab2425a279da00281b183c15a1ea)]:
+  - @sideline/i18n@0.3.12
+
 ## 0.10.2
 
 ### Patch Changes
