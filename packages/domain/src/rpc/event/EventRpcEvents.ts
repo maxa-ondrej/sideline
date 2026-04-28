@@ -1,6 +1,9 @@
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
-import { Discord, Event, Team } from '~/index.js';
+import * as Discord from '~/models/Discord.js';
+import * as Event from '~/models/Event.js';
+import * as GroupModel from '~/models/GroupModel.js';
+import * as Team from '~/models/Team.js';
 
 export class EventCreatedEvent extends Schema.TaggedClass<EventCreatedEvent>()('event_created', {
   id: Schema.String,
@@ -45,6 +48,14 @@ export class EventStartedEvent extends Schema.TaggedClass<EventStartedEvent>()('
   team_id: Team.TeamId,
   guild_id: Discord.Snowflake,
   event_id: Event.EventId,
+  title: Schema.String,
+  start_at: Schemas.DateTimeFromIsoString,
+  end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
+  location: Schema.OptionFromNullOr(Schema.String),
+  event_type: Schema.String,
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('rsvp_reminder', {
@@ -55,6 +66,8 @@ export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('
   title: Schema.String,
   start_at: Schemas.DateTimeFromIsoString,
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export const UnprocessedEventSyncEvent = Schema.Union([

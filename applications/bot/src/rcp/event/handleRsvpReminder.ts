@@ -42,10 +42,12 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       const yesAttendeeNames = pipe(summary.yesAttendees, Array.map(formatNameWithMention));
       const nonResponderNames = pipe(summary.nonResponders, Array.map(formatNameWithMention));
 
+      const whenText = `${toDiscordTimestamp(event.start_at, 'f')} (${toDiscordTimestamp(event.start_at, 'R')})`;
+
       const fields = [
         {
           name: m.bot_embed_when({}, { locale }),
-          value: `${toDiscordTimestamp(event.start_at, 'f')} (${toDiscordTimestamp(event.start_at, 'R')})`,
+          value: whenText,
           inline: false,
         },
         {
@@ -64,10 +66,21 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
         ...nameFieldChunks(nonResponderNames, m.rsvp_nonRespondersTitle({}, { locale })),
       ];
 
-      const whenText = `${toDiscordTimestamp(event.start_at, 'f')} (${toDiscordTimestamp(event.start_at, 'R')})`;
+      const roleMention = Option.match(event.discord_role_id, {
+        onNone: () =>
+          ({}) as {
+            content?: string;
+            allowed_mentions?: { parse: []; roles: string[] };
+          },
+        onSome: (role) => ({
+          content: `<@&${role}>`,
+          allowed_mentions: { parse: [] as [], roles: [role] },
+        }),
+      });
 
       const postChannel = rest
         .createMessage(channelId, {
+          ...roleMention,
           embeds: [
             {
               title: m.bot_rsvp_reminder_title({ title: event.title }, { locale }),

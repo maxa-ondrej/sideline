@@ -132,6 +132,8 @@ Typed errors automatically merge into unions. Handle specific errors with `Effec
      this.findByTeamQuery(teamId).pipe(catchSqlErrors);
    ```
 
+5. **`Effect.either` is NOT exported** in the Effect 4 beta used by this repo. To convert a per-item failure into a successful `Exit` (e.g. for batch error isolation), use `Effect.exit` — it captures both typed errors and defects.
+
 ### Resource Management
 
 Use `Effect.acquireRelease` for automatic resource cleanup.
@@ -582,4 +584,4 @@ The `docs/thesis/` directory contains Mermaid diagrams and documentation for the
 
 ---
 
-**Last Updated**: 2026-04-17
+**Last Updated**: 2026-04-27

@@ -12,11 +12,24 @@ const DiscordFormatString = Schema.String.pipe(
   ),
 );
 
+const isValidIanaTimezone = (tz: string): boolean => {
+  if (tz.length === 0) return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettingsInfo')({
   teamId: TeamId,
   eventHorizonDays: Schema.Int,
   minPlayersThreshold: Schema.Int,
-  rsvpReminderHours: Schema.Int,
+  rsvpReminderDaysBefore: Schema.Int,
+  rsvpReminderTime: Schema.String,
+  remindersChannelId: Schema.OptionFromNullOr(Snowflake),
+  timezone: Schema.String,
   discordChannelTraining: Schema.OptionFromNullOr(Snowflake),
   discordChannelMatch: Schema.OptionFromNullOr(Snowflake),
   discordChannelTournament: Schema.OptionFromNullOr(Snowflake),
@@ -38,8 +51,31 @@ export const UpdateTeamSettingsRequest = Schema.Struct({
   minPlayersThreshold: Schema.OptionFromOptional(
     Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 100 }))),
   ),
-  rsvpReminderHours: Schema.OptionFromOptional(
-    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 168 }))),
+  rsvpReminderDaysBefore: Schema.OptionFromOptional(
+    Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 0, maximum: 14 }))),
+  ),
+  rsvpReminderTime: Schema.OptionFromOptional(
+    Schema.String.pipe(
+      Schema.check(
+        Schema.makeFilter<string>((s) => {
+          if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(s)) return 'Must be a valid HH:MM time';
+          const [hh, mm] = s.split(':').map(Number);
+          if (hh === 23 && mm >= 55)
+            return 'Reminder time must be 23:54 or earlier to avoid midnight wrap';
+          return true;
+        }),
+      ),
+    ),
+  ),
+  remindersChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  timezone: Schema.OptionFromOptional(
+    Schema.String.pipe(
+      Schema.check(
+        Schema.makeFilter<string>((tz) =>
+          isValidIanaTimezone(tz) ? true : 'Must be a valid IANA timezone',
+        ),
+      ),
+    ),
   ),
   discordChannelTraining: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   discordChannelMatch: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),

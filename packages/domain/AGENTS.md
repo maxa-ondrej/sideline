@@ -71,6 +71,10 @@ Current shared schemas:
 |--------|-----------|----------------|
 | `HexColor` | `src/api/GroupApi.ts` | `src/api/Roster.ts` |
 
+## RPC Folder Import Rule
+
+Files under `src/rpc/**` must import models from their concrete paths (e.g. `import * as Discord from '~/models/Discord.js'`), **not** via the barrel `~/index.js`. The barrel re-exports both `models/*` and `rpc/*`, and rpc files transitively pulled in through the barrel before their model dependencies finish initialising — at runtime this surfaces as `Cannot read properties of undefined (reading 'ast')` when a `Schema.TaggedClass` or `RpcGroup.make` references e.g. `Team.TeamId`. Always import models directly inside `src/rpc/**`.
+
 ## Build Requirement
 
 **Critical**: After changing source files in this package, always rebuild before running type checks or tests in consuming packages:

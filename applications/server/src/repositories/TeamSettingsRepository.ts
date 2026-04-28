@@ -9,7 +9,10 @@ class TeamSettingsRow extends Schema.Class<TeamSettingsRow>('TeamSettingsRow')({
   team_id: Team.TeamId,
   event_horizon_days: Schema.Number,
   min_players_threshold: Schema.Number,
-  rsvp_reminder_hours: Schema.Number,
+  rsvp_reminder_days_before: Schema.Number,
+  rsvp_reminder_time: Schema.String,
+  reminders_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  timezone: Schema.String,
   discord_channel_training: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_match: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_tournament: Schema.OptionFromNullOr(Discord.Snowflake),
@@ -30,7 +33,10 @@ const TeamSettingsUpsertInput = Schema.Struct({
   team_id: Schema.String,
   event_horizon_days: Schema.Number,
   min_players_threshold: Schema.Number,
-  rsvp_reminder_hours: Schema.Number,
+  rsvp_reminder_days_before: Schema.Number,
+  rsvp_reminder_time: Schema.String,
+  reminders_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  timezone: Schema.String,
   discord_channel_training: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_match: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_channel_tournament: Schema.OptionFromNullOr(Discord.Snowflake),
@@ -55,6 +61,9 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
   event_type: Schema.String,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  reminders_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  timezone: Schema.String,
 }) {}
 
 const make = Effect.gen(function* () {
@@ -65,7 +74,9 @@ const make = Effect.gen(function* () {
     Result: TeamSettingsRow,
     execute: (teamId) => sql`
       SELECT team_id, event_horizon_days,
-             min_players_threshold, rsvp_reminder_hours,
+             min_players_threshold,
+             rsvp_reminder_days_before, TO_CHAR(rsvp_reminder_time, 'HH24:MI') AS rsvp_reminder_time,
+             reminders_channel_id, timezone,
              discord_channel_training, discord_channel_match,
              discord_channel_tournament, discord_channel_meeting,
              discord_channel_social, discord_channel_other,
@@ -86,7 +97,9 @@ const make = Effect.gen(function* () {
     Result: TeamSettingsRow,
     execute: (input) => sql`
       INSERT INTO team_settings (team_id, event_horizon_days,
-                                 min_players_threshold, rsvp_reminder_hours,
+                                 min_players_threshold,
+                                 rsvp_reminder_days_before, rsvp_reminder_time,
+                                 reminders_channel_id, timezone,
                                  discord_channel_training, discord_channel_match,
                                  discord_channel_tournament, discord_channel_meeting,
                                  discord_channel_social, discord_channel_other,
@@ -98,7 +111,9 @@ const make = Effect.gen(function* () {
                                  discord_role_format,
                                  discord_channel_format)
       VALUES (${input.team_id}, ${input.event_horizon_days},
-              ${input.min_players_threshold}, ${input.rsvp_reminder_hours},
+              ${input.min_players_threshold},
+              ${input.rsvp_reminder_days_before}, ${input.rsvp_reminder_time},
+              ${input.reminders_channel_id}, ${input.timezone},
               ${input.discord_channel_training}, ${input.discord_channel_match},
               ${input.discord_channel_tournament}, ${input.discord_channel_meeting},
               ${input.discord_channel_social}, ${input.discord_channel_other},
@@ -112,7 +127,10 @@ const make = Effect.gen(function* () {
       ON CONFLICT (team_id) DO UPDATE SET
         event_horizon_days = ${input.event_horizon_days},
         min_players_threshold = ${input.min_players_threshold},
-        rsvp_reminder_hours = ${input.rsvp_reminder_hours},
+        rsvp_reminder_days_before = ${input.rsvp_reminder_days_before},
+        rsvp_reminder_time = ${input.rsvp_reminder_time},
+        reminders_channel_id = ${input.reminders_channel_id},
+        timezone = ${input.timezone},
         discord_channel_training = ${input.discord_channel_training},
         discord_channel_match = ${input.discord_channel_match},
         discord_channel_tournament = ${input.discord_channel_tournament},
@@ -129,7 +147,9 @@ const make = Effect.gen(function* () {
         discord_channel_format = ${input.discord_channel_format},
         updated_at = now()
       RETURNING team_id, event_horizon_days,
-                min_players_threshold, rsvp_reminder_hours,
+                min_players_threshold,
+                rsvp_reminder_days_before, TO_CHAR(rsvp_reminder_time, 'HH24:MI') AS rsvp_reminder_time,
+                reminders_channel_id, timezone,
                 discord_channel_training, discord_channel_match,
                 discord_channel_tournament, discord_channel_meeting,
                 discord_channel_social, discord_channel_other,
@@ -153,21 +173,28 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const _findEventsForReminder = SqlSchema.findAll({
-    Request: Schema.Void,
-    Result: EventNeedingReminder,
-    execute: () => sql`
-      SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.event_type,
-             e.discord_target_channel_id, e.owner_group_id
-      FROM events e
-      JOIN team_settings ts ON ts.team_id = e.team_id
-      WHERE e.status = 'active'
-        AND e.reminder_sent_at IS NULL
-        AND ts.rsvp_reminder_hours > 0
-        AND e.start_at > NOW()
-        AND e.start_at <= NOW() + (ts.rsvp_reminder_hours || ' hours')::interval
-    `,
-  });
+  const _findEventsForReminderAt = (nowParam: string) =>
+    SqlSchema.findAll({
+      Request: Schema.Void,
+      Result: EventNeedingReminder,
+      execute: () => sql`
+        SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.event_type,
+               e.discord_target_channel_id, e.owner_group_id, e.member_group_id,
+               ts.reminders_channel_id, ts.timezone
+        FROM events e
+        JOIN team_settings ts ON ts.team_id = e.team_id
+        WHERE e.status = 'active'
+          AND e.reminder_sent_at IS NULL
+          AND ts.rsvp_reminder_days_before > 0
+          AND DATE((${nowParam}::timestamptz) AT TIME ZONE ts.timezone)
+              + ts.rsvp_reminder_days_before
+              = DATE(e.start_at AT TIME ZONE ts.timezone)
+          AND ((${nowParam}::timestamptz) AT TIME ZONE ts.timezone)::time
+              BETWEEN ts.rsvp_reminder_time
+              AND ts.rsvp_reminder_time::time + INTERVAL '5 minutes'
+          AND e.start_at > (${nowParam}::timestamptz)
+      `,
+    });
 
   const findByTeamId = (teamId: Team.TeamId) => _findByTeam(teamId).pipe(catchSqlErrors);
 
@@ -175,7 +202,10 @@ const make = Effect.gen(function* () {
     teamId,
     eventHorizonDays,
     minPlayersThreshold,
-    rsvpReminderHours,
+    rsvpReminderDaysBefore = 1,
+    rsvpReminderTime = '18:00',
+    remindersChannelId = Option.none(),
+    timezone = 'Europe/Prague',
     discordChannelTraining = Option.none(),
     discordChannelMatch = Option.none(),
     discordChannelTournament = Option.none(),
@@ -194,7 +224,10 @@ const make = Effect.gen(function* () {
     teamId: Team.TeamId;
     eventHorizonDays: number;
     minPlayersThreshold: number;
-    rsvpReminderHours: number;
+    rsvpReminderDaysBefore?: number;
+    rsvpReminderTime?: string;
+    remindersChannelId?: Option.Option<Discord.Snowflake>;
+    timezone?: string;
     discordChannelTraining?: Option.Option<Discord.Snowflake>;
     discordChannelMatch?: Option.Option<Discord.Snowflake>;
     discordChannelTournament?: Option.Option<Discord.Snowflake>;
@@ -214,7 +247,10 @@ const make = Effect.gen(function* () {
       team_id: teamId,
       event_horizon_days: eventHorizonDays,
       min_players_threshold: minPlayersThreshold,
-      rsvp_reminder_hours: rsvpReminderHours,
+      rsvp_reminder_days_before: rsvpReminderDaysBefore,
+      rsvp_reminder_time: rsvpReminderTime,
+      reminders_channel_id: remindersChannelId,
+      timezone,
       discord_channel_training: discordChannelTraining,
       discord_channel_match: discordChannelMatch,
       discord_channel_tournament: discordChannelTournament,
@@ -243,8 +279,10 @@ const make = Effect.gen(function* () {
       catchSqlErrors,
     );
 
-  const findEventsNeedingReminder = () =>
-    _findEventsForReminder(undefined as undefined).pipe(catchSqlErrors);
+  const findEventsNeedingReminderAt = (now: Date) =>
+    _findEventsForReminderAt(now.toISOString())(undefined as undefined).pipe(catchSqlErrors);
+
+  const findEventsNeedingReminder = () => findEventsNeedingReminderAt(new Date());
 
   return {
     findByTeamId,
@@ -252,6 +290,7 @@ const make = Effect.gen(function* () {
     getHorizonDays,
     findLateRsvpChannelId,
     findEventsNeedingReminder,
+    findEventsNeedingReminderAt,
   };
 });
 

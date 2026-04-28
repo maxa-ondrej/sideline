@@ -175,7 +175,10 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `team_id` | UUID | PK, FK → `teams(id)` ON DELETE CASCADE | — |
 | `event_horizon_days` | INTEGER | NOT NULL | `30` |
 | `min_players_threshold` | INTEGER | NOT NULL | `0` |
-| `rsvp_reminder_hours` | INTEGER | NOT NULL | `24` |
+| `rsvp_reminder_days_before` | INTEGER | NOT NULL | `1` |
+| `rsvp_reminder_time` | TIME | NOT NULL | `'18:00'` |
+| `reminders_channel_id` | TEXT | — | — |
+| `timezone` | TEXT | NOT NULL | `'Europe/Prague'` |
 | `discord_channel_training` | TEXT | — | — |
 | `discord_channel_match` | TEXT | — | — |
 | `discord_channel_tournament` | TEXT | — | — |
@@ -193,7 +196,7 @@ One-to-one extension of `teams` holding configurable operational defaults.
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
-**Notes**: Created in migration `1741600000`. RSVP reminder columns added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743600000`. `discord_role_format` and `discord_channel_format` added in `1743700000`. `discord_channel_late_rsvp` added in `1743900000`. The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type; `discord_channel_late_rsvp` is the channel where the bot posts a notification when a member submits or changes their RSVP after the reminder was sent. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`). `discord_role_format` and `discord_channel_format` are template strings used to format Discord role and channel names respectively; they must contain `{name}` and may contain `{emoji}`.
+**Notes**: Created in migration `1741600000`. RSVP reminder columns (`min_players_threshold` and `rsvp_reminder_hours`) added in `1742500000`. Discord channel columns added in `1742100000`. `create_discord_channel_on_roster` added in `1743500000`. `discord_archive_category_id` added in `1743600000`. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` added in `1743600000`. `discord_role_format` and `discord_channel_format` added in `1743700000`. `discord_channel_late_rsvp` added in `1743900000`. `rsvp_reminder_days_before`, `rsvp_reminder_time`, `reminders_channel_id`, and `timezone` added in `1745800000` (`rsvp_reminder_v2`); `rsvp_reminder_hours` was dropped in the same migration with data migrated to `rsvp_reminder_days_before`. `rsvp_reminder_days_before` specifies how many days before the event the reminder fires (0 disables reminders). `rsvp_reminder_time` is the time-of-day (in the team's `timezone`) at which the reminder fires; the cron matches within a 5-minute window. `reminders_channel_id` is the Discord channel where RSVP reminders and event-start announcements are posted; when `NULL` the bot falls back to the event owner-group's channel. `timezone` is a valid IANA timezone string (default `'Europe/Prague'`). The `discord_channel_*` columns hold Discord channel IDs for the bot to post event announcements by event type; `discord_channel_late_rsvp` is the channel where the bot posts a notification when a member submits or changes their RSVP after the reminder was sent. `create_discord_channel_on_group` and `create_discord_channel_on_roster` control whether the bot automatically creates Discord channels when a group or roster is created. `discord_archive_category_id` is the Discord category channel ID to move channels into when `archive` mode is active. `discord_channel_cleanup_on_group_delete` and `discord_channel_cleanup_on_roster_deactivate` each accept one of three values: `'nothing'` (keep the channel, delete only the role and mapping), `'delete'` (delete the channel and role), or `'archive'` (move the channel to `discord_archive_category_id`). `discord_role_format` and `discord_channel_format` are template strings used to format Discord role and channel names respectively; they must contain `{name}` and may contain `{emoji}`.
 
 ---
 
@@ -622,13 +625,15 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 | `event_location` | TEXT | — | — |
 | `event_event_type` | TEXT | NOT NULL | — |
 | `discord_target_channel_id` | TEXT | — | — |
+| `member_group_id` | UUID | — | — |
+| `discord_role_id` | TEXT | — | — |
 | `processed_at` | TIMESTAMPTZ | — | — |
 | `error` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
 **Indexes**: `idx_event_sync_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes.
+**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes. `member_group_id` and `discord_role_id` added in migration `1745800000`; `member_group_id` stores the UUID of the member group whose attendee list the bot should display (no FK constraint by design, to preserve rows after group deletion); `discord_role_id` is the Discord role to @-mention in the reminder or start-announcement message.
 
 ---
 
@@ -756,7 +761,7 @@ In-app alert records scoped to a specific team and user.
 
 ## Migration History
 
-All 43 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 44 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -811,6 +816,7 @@ All 43 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1744100000 | `create_channel_event_dividers` | Creates `channel_event_dividers` table with `discord_channel_id TEXT PK` and `discord_message_id TEXT NOT NULL` |
 | 1744200000 | `add_discord_nickname` | Adds `discord_nickname TEXT` to users |
 | 1744300000 | `add_discord_display_name` | Adds `discord_display_name TEXT` to users |
+| 1745800000 | `rsvp_reminder_v2` | Drops `team_settings.rsvp_reminder_hours`; adds `rsvp_reminder_days_before INT NOT NULL DEFAULT 1`, `rsvp_reminder_time TIME NOT NULL DEFAULT '18:00'`, `reminders_channel_id TEXT`, `timezone TEXT NOT NULL DEFAULT 'Europe/Prague'` to team_settings; migrates existing `rsvp_reminder_hours` values to `rsvp_reminder_days_before` (ceiling of hours÷24); adds `member_group_id UUID` and `discord_role_id TEXT` to event_sync_events |
 
 ### After Migrations (seed data)
 
@@ -830,7 +836,7 @@ Three tables act as outbox queues for bot-server communication:
 |---|---|---|
 | `role_sync_events` | Role Sync | `role_created`, `role_deleted`, `role_assigned`, `role_unassigned` |
 | `channel_sync_events` | Channel Sync | `channel_created`, `channel_updated`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed` |
-| `event_sync_events` | Event Sync | `event_created`, `event_updated`, `event_cancelled`, `rsvp_reminder` |
+| `event_sync_events` | Event Sync | `event_created`, `event_updated`, `event_cancelled`, `rsvp_reminder`, `event_started` |
 
 The server inserts rows when the relevant domain action occurs. The bot polls `WHERE processed_at IS NULL ORDER BY created_at` and updates `processed_at` (and optionally `error`) when processing is complete. Partial indexes on `(created_at) WHERE processed_at IS NULL` make these polls efficient. Event data is denormalised into snapshot columns so that the bot's message content remains accurate even if the source row is subsequently modified.
 

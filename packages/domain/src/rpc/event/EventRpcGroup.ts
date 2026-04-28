@@ -1,6 +1,11 @@
 import { Schema } from 'effect';
 import { Rpc, RpcGroup } from 'effect/unstable/rpc';
-import { Discord, Event, EventRsvp, Team, TrainingType } from '~/index.js';
+import * as Discord from '~/models/Discord.js';
+import * as Event from '~/models/Event.js';
+import * as EventRsvp from '~/models/EventRsvp.js';
+import * as GroupModel from '~/models/GroupModel.js';
+import * as Team from '~/models/Team.js';
+import * as TrainingType from '~/models/TrainingType.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
   ChannelEventEntry,
@@ -81,7 +86,11 @@ export const EventRpcGroup = RpcGroup.make(
     success: RsvpAttendeesResult,
   }),
   Rpc.make('GetYesAttendeesForEmbed', {
-    payload: { event_id: Event.EventId, limit: Schema.Number },
+    payload: {
+      event_id: Event.EventId,
+      limit: Schema.Number,
+      member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+    },
     success: Schema.Array(RsvpAttendeeEntry),
   }),
   Rpc.make('GetRsvpReminderSummary', {

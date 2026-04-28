@@ -1,9 +1,24 @@
-import type { EventRpcEvents } from '@sideline/domain';
+import type { EventRpcEvents, EventRpcModels } from '@sideline/domain';
+import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect, Option } from 'effect';
+import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
+import type { Locale } from '~/locale.js';
 import { guildLocale } from '~/locale.js';
 import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
+import { formatNameWithMention, splitIntoFieldChunks } from '~/rest/utils.js';
+import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+
+const STARTED_POST_COLOR = 0xfee75c; // yellow
+
+const toDiscordTimestamp = (dt: DateTime.Utc, style: 'F' | 'R' | 'f' = 'F'): string =>
+  `<t:${Math.floor(Number(DateTime.toEpochMillis(dt)) / 1000)}:${style}>`;
+
+const parseGuild = (raw: unknown) =>
+  Effect.try({
+    try: () => Schema.decodeUnknownSync(DfxGuild)(raw),
+    catch: () => new Error('Failed to decode guild'),
+  });
 
 export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
   Effect.Do.pipe(
@@ -12,30 +27,40 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
     Effect.bind('stored', ({ rpc }) =>
       rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
     ),
-    Effect.flatMap(({ rpc, rest, stored }) =>
-      Option.match(stored, {
+    Effect.flatMap(({ rpc, rest, stored }) => {
+      // In-place edit of existing embed — guild fetch failure falls back to default locale
+      const inPlaceEdit = Option.match(stored, {
         onNone: () =>
           Effect.logWarning(
             `No Discord message stored for event ${event.event_id}, skipping started`,
           ),
         onSome: (msg) =>
-          Effect.all({
-            counts: rpc['Event/GetRsvpCounts']({ event_id: event.event_id }),
-            embedInfo: rpc['Event/GetEventEmbedInfo']({ event_id: event.event_id }),
-            yesAttendees: rpc['Event/GetYesAttendeesForEmbed']({
-              event_id: event.event_id,
-              limit: YES_EMBED_LIMIT,
-            }),
-            guild: rest.getGuild(event.guild_id),
-          }).pipe(
-            Effect.flatMap(({ counts, embedInfo, yesAttendees, guild }) =>
+          Effect.Do.pipe(
+            Effect.bind('locale', () =>
+              rest.getGuild(event.guild_id).pipe(
+                Effect.flatMap(parseGuild),
+                Effect.map((g) => guildLocale({ guild_locale: g.preferred_locale })),
+                Effect.catch(() => Effect.succeed<Locale>('en')),
+              ),
+            ),
+            Effect.bind('counts', () => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
+            Effect.bind('embedInfo', () =>
+              rpc['Event/GetEventEmbedInfo']({ event_id: event.event_id }),
+            ),
+            Effect.bind('yesAttendees', () =>
+              rpc['Event/GetYesAttendeesForEmbed']({
+                event_id: event.event_id,
+                limit: YES_EMBED_LIMIT,
+                member_group_id: Option.none(),
+              }),
+            ),
+            Effect.flatMap(({ locale, counts, embedInfo, yesAttendees }) =>
               Option.match(embedInfo, {
                 onNone: () =>
                   Effect.logWarning(
                     `Event ${event.event_id} not found when building started embed`,
                   ),
                 onSome: (info) => {
-                  const locale = guildLocale({ guild_locale: guild.preferred_locale });
                   const payload = buildEventEmbed({
                     teamId: event.team_id,
                     eventId: event.event_id,
@@ -67,6 +92,130 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
             ),
             Effect.asVoid,
           ),
-      }),
-    ),
+      });
+
+      // New "Starting now" post — only fetches guild when discord_channel_id is absent
+      const newPost = Effect.Do.pipe(
+        Effect.bind('guildOpt', () =>
+          Option.isNone(event.discord_channel_id)
+            ? rest.getGuild(event.guild_id).pipe(
+                Effect.flatMap(parseGuild),
+                Effect.map(
+                  (g) => Option.some(g) as Option.Option<Schema.Schema.Type<typeof DfxGuild>>,
+                ),
+                Effect.catch((e) =>
+                  Effect.logWarning(
+                    `handleStarted: failed to fetch guild for "Starting now" post, skipping`,
+                    e,
+                  ).pipe(
+                    Effect.as(Option.none() as Option.Option<Schema.Schema.Type<typeof DfxGuild>>),
+                  ),
+                ),
+              )
+            : Effect.succeed(Option.none() as Option.Option<Schema.Schema.Type<typeof DfxGuild>>),
+        ),
+        Effect.flatMap(({ guildOpt }) => {
+          const channelId = Option.getOrUndefined(
+            Option.orElse(event.discord_channel_id, () =>
+              Option.flatMap(guildOpt, (g) => g.system_channel_id),
+            ),
+          );
+
+          if (!channelId) {
+            return Effect.logWarning(
+              `Guild ${event.guild_id} has no channel for "Starting now" post, skipping`,
+            );
+          }
+
+          const locale: Locale = guildLocale({
+            guild_locale: Option.match(guildOpt, {
+              onSome: (g) => g.preferred_locale,
+              onNone: () => 'en-US',
+            }),
+          });
+
+          return rpc['Event/GetYesAttendeesForEmbed']({
+            event_id: event.event_id,
+            limit: YES_EMBED_LIMIT,
+            member_group_id: Option.some(event.member_group_id),
+          }).pipe(
+            Effect.flatMap((yesAttendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>) => {
+              const nameFieldChunks = (entries: ReadonlyArray<string>, fieldName: string) =>
+                splitIntoFieldChunks(entries).map((value) => ({
+                  name: fieldName,
+                  value,
+                  inline: false,
+                }));
+
+              const yesAttendeeNames = pipe(yesAttendees, Array.map(formatNameWithMention));
+
+              const descParts: string[] = [`${toDiscordTimestamp(event.start_at, 'F')}`];
+              if (Option.isSome(event.location)) {
+                descParts.push(event.location.value);
+              }
+
+              const fields = [
+                ...nameFieldChunks(
+                  yesAttendeeNames,
+                  m.bot_event_started_post_attendees({}, { locale }),
+                ),
+              ];
+
+              const roleMention = Option.match(event.discord_role_id, {
+                onNone: () =>
+                  ({}) as {
+                    content?: string;
+                    allowed_mentions?: { parse: []; roles: string[] };
+                  },
+                onSome: (role) => ({
+                  content: `<@&${role}>`,
+                  allowed_mentions: { parse: [] as [], roles: [role] },
+                }),
+              });
+
+              return rest
+                .createMessage(channelId, {
+                  ...roleMention,
+                  embeds: [
+                    {
+                      title: m.bot_event_started_post_title({ title: event.title }, { locale }),
+                      color: STARTED_POST_COLOR,
+                      description: descParts.join('\n'),
+                      fields,
+                    },
+                  ],
+                })
+                .pipe(
+                  Effect.tap((msg: { id: string }) =>
+                    Effect.logInfo(
+                      `Posted "Starting now" for "${event.title}" to channel ${channelId}, message ${msg.id}`,
+                    ),
+                  ),
+                  Effect.asVoid,
+                );
+            }),
+          );
+        }),
+      );
+
+      const safeInPlaceEdit = Effect.exit(inPlaceEdit).pipe(
+        Effect.tap((exit) =>
+          exit._tag === 'Failure'
+            ? Effect.logWarning('handleStarted: in-place edit failed', exit.cause)
+            : Effect.void,
+        ),
+      );
+
+      const safeNewPost = Effect.exit(newPost).pipe(
+        Effect.tap((exit) =>
+          exit._tag === 'Failure'
+            ? Effect.logWarning('handleStarted: new post failed', exit.cause)
+            : Effect.void,
+        ),
+      );
+
+      return Effect.all([safeInPlaceEdit, safeNewPost], { concurrency: 'unbounded' }).pipe(
+        Effect.asVoid,
+      );
+    }),
   );

@@ -22,20 +22,22 @@ See [Quick start for Admins](/quick-start/admins/#steps) for the full install fl
 
 You link Discord channels to Sideline for specific purposes:
 
-- **Events channel** — where event posts with RSVP buttons appear.
-- **Reminders channel** (optional) — where late-RSVP pings go. If unset, reminders are sent to the events channel.
-- **Announcements channel** (optional) — where admin broadcasts go.
+- **Events channel** — where event posts with RSVP buttons appear (configurable per event type: training, match, tournament, etc.).
+- **Reminders channel** (optional) — where RSVP reminders and event-start announcements are posted. If unset, the bot falls back to the event's owner-group channel.
+- **Late-RSVP channel** (optional) — where the bot posts a notification when a member RSVPs after the reminder has already been sent.
 
 Change channel links at any time from **Team settings → Discord integration**.
 
 ## Slash commands
 
-The bot responds to a handful of slash commands inside your linked Discord server:
+The bot responds to the following slash commands inside your linked Discord server:
 
-- `/events` — list upcoming events for your role and groups.
-- `/rsvp` — RSVP to an event by name or ID.
-- `/roster` — show the current active roster.
-- `/help` — link to these docs.
+- `/event create` — create a new event (opens a modal with title, start/end time, location, and description).
+- `/event list` — show your upcoming events with RSVP buttons, visible only to you.
+- `/event overview` — post a persistent "Show My Events" button in the current channel (requires Manage Server permission).
+- `/makanicko log` — log a personal physical activity (gym, running, stretching).
+- `/makanicko stats` — view your personal activity stats and streaks.
+- `/makanicko leaderboard` — view the team activity leaderboard.
 
 <Aside type="note" title="Where commands show up">
   Slash commands only appear in channels where the bot has permission to reply. If `/events` doesn't autocomplete, check the bot's channel permissions.

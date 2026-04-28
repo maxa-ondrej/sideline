@@ -1,7 +1,8 @@
-import { Array, Effect, Schedule } from 'effect';
+import { Array, Effect, Option, Schedule } from 'effect';
 import { withCronMetrics } from '~/metrics.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { resolveGroupRoleId, resolveReminderChannel } from '~/services/EventChannelResolver.js';
 
 export const eventStartCronEffect = Effect.Do.pipe(
   Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
@@ -11,32 +12,56 @@ export const eventStartCronEffect = Effect.Do.pipe(
   Effect.tap(({ events, syncRepo, eventsRepo }) =>
     Effect.all(
       Array.map(events, (event) =>
-        eventsRepo.startEvent(event.id).pipe(
-          Effect.flatMap(() =>
-            syncRepo
-              .emitEventStarted(
-                event.team_id,
-                event.id,
-                event.title,
-                event.description,
-                event.start_at,
-                event.end_at,
-                event.location,
-                event.event_type,
-              )
-              .pipe(
-                Effect.tap(() =>
-                  Effect.logInfo(
-                    `EventStartCron: marked event "${event.title}" (${event.id}) as started`,
+        Effect.Do.pipe(
+          Effect.bind('startResult', () => eventsRepo.startEvent(event.id)),
+          Effect.flatMap(({ startResult }) =>
+            Option.match(startResult, {
+              onNone: () =>
+                Effect.logDebug(
+                  `EventStartCron: event "${event.title}" (${event.id}) no longer active, skipping`,
+                ).pipe(Effect.asVoid),
+              onSome: () =>
+                Effect.Do.pipe(
+                  Effect.bind('discordRoleId', () =>
+                    resolveGroupRoleId(event.team_id, event.member_group_id),
+                  ),
+                  Effect.bind('channel', () =>
+                    resolveReminderChannel(
+                      event.team_id,
+                      event.owner_group_id,
+                      event.reminders_channel_id,
+                    ),
+                  ),
+                  Effect.flatMap(({ discordRoleId, channel }) =>
+                    syncRepo.emitEventStarted(
+                      event.team_id,
+                      event.id,
+                      event.title,
+                      event.description,
+                      event.start_at,
+                      event.end_at,
+                      event.location,
+                      event.event_type,
+                      channel,
+                      event.member_group_id,
+                      discordRoleId,
+                    ),
+                  ),
+                  Effect.tap(() =>
+                    Effect.logInfo(
+                      `EventStartCron: marked event "${event.title}" (${event.id}) as started`,
+                    ),
                   ),
                 ),
-              ),
+            }),
           ),
-          Effect.catchTag('NoSuchElementError', () =>
-            Effect.logDebug(
-              `EventStartCron: event "${event.title}" (${event.id}) no longer active, skipping`,
+          Effect.tapError((e) =>
+            Effect.logWarning(
+              `EventStartCron: failed post-start processing for event ${event.id}`,
+              e,
             ),
           ),
+          Effect.exit,
         ),
       ),
       { concurrency: 1 },

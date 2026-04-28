@@ -179,7 +179,10 @@ erDiagram
         UUID team_id FK
         INTEGER event_horizon_days
         INTEGER min_players_threshold
-        INTEGER rsvp_reminder_hours
+        INTEGER rsvp_reminder_days_before
+        TIME rsvp_reminder_time
+        TEXT reminders_channel_id
+        TEXT timezone
         TEXT discord_channel_training
         TEXT discord_channel_match
         TEXT discord_channel_tournament
@@ -499,6 +502,8 @@ erDiagram
         TEXT event_location
         TEXT event_event_type
         TEXT discord_target_channel_id
+        UUID member_group_id
+        TEXT discord_role_id
         TIMESTAMPTZ processed_at
         TEXT error
         TIMESTAMPTZ created_at

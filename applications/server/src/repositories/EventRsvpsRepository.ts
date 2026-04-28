@@ -160,6 +160,7 @@ const make = Effect.gen(function* () {
     Request: Schema.Struct({
       event_id: Schema.String,
       limit: Schema.Number,
+      member_group_id: Schema.OptionFromNullOr(Schema.String),
     }),
     Result: RsvpWithDiscordInfo,
     execute: (input) => sql`
@@ -169,6 +170,19 @@ const make = Effect.gen(function* () {
       LEFT JOIN users u ON u.id = tm.user_id
       WHERE r.event_id = ${input.event_id}
         AND r.response = 'yes'
+        AND (
+          ${input.member_group_id}::uuid IS NULL
+          OR tm.id IN (
+            WITH RECURSIVE descendant_groups AS (
+              SELECT id FROM groups WHERE id = ${input.member_group_id}::uuid
+              UNION ALL
+              SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id
+            )
+            SELECT gm.team_member_id
+            FROM group_members gm
+            JOIN descendant_groups dg ON dg.id = gm.group_id
+          )
+        )
       ORDER BY r.created_at ASC
       LIMIT ${input.limit}
     `,
@@ -265,8 +279,16 @@ const make = Effect.gen(function* () {
       catchSqlErrors,
     );
 
-  const findYesAttendeesForEmbed = (eventId: Event.EventId, limit: number) =>
-    findYesAttendeesWithLimit({ event_id: eventId, limit }).pipe(catchSqlErrors);
+  const findYesAttendeesForEmbed = (
+    eventId: Event.EventId,
+    limit: number,
+    memberGroupId: Option.Option<string> = Option.none(),
+  ) =>
+    findYesAttendeesWithLimit({
+      event_id: eventId,
+      limit,
+      member_group_id: memberGroupId,
+    }).pipe(catchSqlErrors);
 
   const findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
     findYesRsvpMemberIds(eventId).pipe(

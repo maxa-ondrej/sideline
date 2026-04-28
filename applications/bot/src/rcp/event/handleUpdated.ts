@@ -26,6 +26,7 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
             yesAttendees: rpc['Event/GetYesAttendeesForEmbed']({
               event_id: event.event_id,
               limit: YES_EMBED_LIMIT,
+              member_group_id: Option.none(),
             }),
           }).pipe(
             Effect.flatMap(({ counts, yesAttendees }) => {
