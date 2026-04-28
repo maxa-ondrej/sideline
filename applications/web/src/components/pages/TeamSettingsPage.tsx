@@ -66,8 +66,15 @@ export function TeamSettingsPage({
   const [minPlayersThreshold, setMinPlayersThreshold] = React.useState(
     String(settings.minPlayersThreshold),
   );
-  const [rsvpReminderHours, setRsvpReminderHours] = React.useState(
-    String(settings.rsvpReminderHours),
+  const [rsvpReminderDaysBefore, setRsvpReminderDaysBefore] = React.useState(
+    String(settings.rsvpReminderDaysBefore),
+  );
+  const [rsvpReminderTime, setRsvpReminderTime] = React.useState(
+    settings.rsvpReminderTime || '18:00',
+  );
+  const [timezone, setTimezone] = React.useState(settings.timezone || 'Europe/Prague');
+  const [remindersChannelId, setRemindersChannelId] = React.useState(
+    Option.getOrElse(settings.remindersChannelId, () => NONE_VALUE),
   );
 
   // Discord channels state
@@ -120,7 +127,10 @@ export function TeamSettingsPage({
   const hasSettingsChanges =
     horizonDays !== String(settings.eventHorizonDays) ||
     minPlayersThreshold !== String(settings.minPlayersThreshold) ||
-    rsvpReminderHours !== String(settings.rsvpReminderHours) ||
+    rsvpReminderDaysBefore !== String(settings.rsvpReminderDaysBefore) ||
+    rsvpReminderTime !== (settings.rsvpReminderTime || '18:00') ||
+    timezone !== (settings.timezone || 'Europe/Prague') ||
+    remindersChannelId !== Option.getOrElse(settings.remindersChannelId, () => NONE_VALUE) ||
     channelTraining !== Option.getOrElse(settings.discordChannelTraining, () => NONE_VALUE) ||
     channelMatch !== Option.getOrElse(settings.discordChannelMatch, () => NONE_VALUE) ||
     channelTournament !== Option.getOrElse(settings.discordChannelTournament, () => NONE_VALUE) ||
@@ -175,8 +185,12 @@ export function TeamSettingsPage({
     if (Number.isNaN(parsed) || parsed < 1 || parsed > 365) return;
     const parsedThreshold = Number.parseInt(minPlayersThreshold, 10);
     if (Number.isNaN(parsedThreshold) || parsedThreshold < 0 || parsedThreshold > 100) return;
-    const parsedReminderHours = Number.parseInt(rsvpReminderHours, 10);
-    if (Number.isNaN(parsedReminderHours) || parsedReminderHours < 0 || parsedReminderHours > 168)
+    const parsedReminderDaysBefore = Number.parseInt(rsvpReminderDaysBefore, 10);
+    if (
+      Number.isNaN(parsedReminderDaysBefore) ||
+      parsedReminderDaysBefore < 0 ||
+      parsedReminderDaysBefore > 14
+    )
       return;
     if (!isFormatValid(roleFormat) || !isFormatValid(channelFormat)) return;
     setSavingSettings(true);
@@ -187,7 +201,10 @@ export function TeamSettingsPage({
           payload: {
             eventHorizonDays: parsed,
             minPlayersThreshold: Option.some(parsedThreshold),
-            rsvpReminderHours: Option.some(parsedReminderHours),
+            rsvpReminderDaysBefore: Option.some(parsedReminderDaysBefore),
+            rsvpReminderTime: Option.some(rsvpReminderTime),
+            timezone: Option.some(timezone),
+            remindersChannelId: Option.some(channelToOption(remindersChannelId)),
             discordChannelTraining: Option.some(channelToOption(channelTraining)),
             discordChannelMatch: Option.some(channelToOption(channelMatch)),
             discordChannelTournament: Option.some(channelToOption(channelTournament)),
@@ -216,7 +233,10 @@ export function TeamSettingsPage({
     settings.teamId,
     horizonDays,
     minPlayersThreshold,
-    rsvpReminderHours,
+    rsvpReminderDaysBefore,
+    rsvpReminderTime,
+    timezone,
+    remindersChannelId,
     channelTraining,
     channelMatch,
     channelTournament,
@@ -424,23 +444,88 @@ export function TeamSettingsPage({
                   className='max-w-32'
                 />
               </div>
-              <Separator />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Reminders */}
+        <Card>
+          <CardHeader>
+            <CardTitle className='text-base'>{m.teamSettings_remindersChannel()}</CardTitle>
+            <CardDescription>{m.teamSettings_rsvpReminderHelp()}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className='flex flex-col gap-5'>
               <div>
-                <label htmlFor='rsvp-reminder-hours' className='text-sm font-medium mb-1 block'>
-                  {m.teamSettings_rsvpReminderHours()}
+                <label htmlFor='reminders-channel' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_remindersChannel()}
                 </label>
                 <p className='text-xs text-muted-foreground mb-2'>
-                  {m.teamSettings_rsvpReminderHoursHelp()}
+                  {m.teamSettings_remindersChannelHelp()}
                 </p>
+                <SearchableSelect
+                  id='reminders-channel'
+                  value={remindersChannelId}
+                  onValueChange={setRemindersChannelId}
+                  placeholder={m.teamSettings_channelNone()}
+                  pinnedValues={[NONE_VALUE]}
+                  options={[
+                    { value: NONE_VALUE, label: m.teamSettings_channelNone() },
+                    ...discordChannels
+                      .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                      .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
+                  ]}
+                />
+              </div>
+              <Separator />
+              <div>
+                <label
+                  htmlFor='rsvp-reminder-days-before'
+                  className='text-sm font-medium mb-1 block'
+                >
+                  {m.teamSettings_rsvpReminderDaysBefore()}
+                </label>
                 <Input
-                  id='rsvp-reminder-hours'
+                  id='rsvp-reminder-days-before'
                   type='number'
                   min={0}
-                  max={168}
-                  value={rsvpReminderHours}
-                  onChange={(e) => setRsvpReminderHours(e.target.value)}
+                  max={14}
+                  value={rsvpReminderDaysBefore}
+                  onChange={(e) => setRsvpReminderDaysBefore(e.target.value)}
                   className='max-w-32'
                 />
+              </div>
+              <div>
+                <label htmlFor='rsvp-reminder-time' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_rsvpReminderTime()}
+                </label>
+                <input
+                  id='rsvp-reminder-time'
+                  type='time'
+                  value={rsvpReminderTime}
+                  onChange={(e) => setRsvpReminderTime(e.target.value)}
+                  className='flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors max-w-32'
+                />
+              </div>
+              <div>
+                <label htmlFor='timezone' className='text-sm font-medium mb-1 block'>
+                  {m.teamSettings_timezone()}
+                </label>
+                <p className='text-xs text-muted-foreground mb-2'>
+                  {m.teamSettings_timezoneHelp()}
+                </p>
+                <select
+                  id='timezone'
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className='flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors max-w-xs'
+                >
+                  {Intl.supportedValuesOf('timeZone').map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </CardContent>

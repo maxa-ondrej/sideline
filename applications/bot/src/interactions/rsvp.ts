@@ -100,7 +100,11 @@ export const postRsvpDiscordUpdates = (params: {
   return Effect.all([
     rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
     rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
-    rpc['Event/GetYesAttendeesForEmbed']({ event_id: eventId, limit: YES_EMBED_LIMIT }),
+    rpc['Event/GetYesAttendeesForEmbed']({
+      event_id: eventId,
+      limit: YES_EMBED_LIMIT,
+      member_group_id: Option.none(),
+    }),
     rest.getGuild(guildId),
   ] as const).pipe(
     Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) => {

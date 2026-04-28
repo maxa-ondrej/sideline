@@ -16,7 +16,11 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
     Effect.bind('rest', () => DiscordREST.asEffect()),
     Effect.bind('counts', ({ rpc }) => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
     Effect.bind('yesAttendees', ({ rpc }) =>
-      rpc['Event/GetYesAttendeesForEmbed']({ event_id: event.event_id, limit: YES_EMBED_LIMIT }),
+      rpc['Event/GetYesAttendeesForEmbed']({
+        event_id: event.event_id,
+        limit: YES_EMBED_LIMIT,
+        member_group_id: Option.none(),
+      }),
     ),
     Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id).pipe(Effect.map(decodeGuild))),
     Effect.flatMap(({ rpc, rest, counts, yesAttendees, guild }) => {

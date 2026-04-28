@@ -1,4 +1,4 @@
-import { Discord, Event, Team } from '@sideline/domain';
+import { Discord, Event, GroupModel, Team } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { type DateTime, Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
@@ -25,6 +25,8 @@ const InsertInput = Schema.Struct({
   event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
 });
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
@@ -44,6 +46,8 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   event_location: Schema.OptionFromNullOr(Schema.String),
   event_event_type: Schema.String,
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+  discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 const MarkProcessedInput = Schema.Struct({
@@ -61,8 +65,8 @@ const make = Effect.gen(function* () {
   const insertEvent = SqlSchema.void({
     Request: InsertInput,
     execute: (input) => sql`
-      INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id)
-      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id})
+      INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id, member_group_id, discord_role_id)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id}, ${input.member_group_id}, ${input.discord_role_id})
     `,
   });
 
@@ -76,7 +80,7 @@ const make = Effect.gen(function* () {
     Request: Schema.Number,
     Result: EventSyncEventRow,
     execute: (limit) => sql`
-      SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id
+      SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id, member_group_id, discord_role_id
       FROM event_sync_events
       WHERE processed_at IS NULL
       ORDER BY created_at ASC
@@ -109,6 +113,8 @@ const make = Effect.gen(function* () {
     location: Option.Option<string>,
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
+    discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     lookupGuildId(teamId).pipe(
       Effect.flatMap(
@@ -127,6 +133,8 @@ const make = Effect.gen(function* () {
               event_location: location,
               event_event_type: eventEventType,
               discord_target_channel_id: discordTargetChannelId,
+              member_group_id: memberGroupId,
+              discord_role_id: discordRoleId,
             }),
         }),
       ),
@@ -143,6 +151,8 @@ const make = Effect.gen(function* () {
     location: Option.Option<string>,
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
+    discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -155,6 +165,8 @@ const make = Effect.gen(function* () {
       location,
       eventEventType,
       discordTargetChannelId,
+      memberGroupId,
+      discordRoleId,
     );
 
   const emitEventUpdated = (
@@ -167,6 +179,8 @@ const make = Effect.gen(function* () {
     location: Option.Option<string>,
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
+    discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -179,6 +193,8 @@ const make = Effect.gen(function* () {
       location,
       eventEventType,
       discordTargetChannelId,
+      memberGroupId,
+      discordRoleId,
     );
 
   const emitEventCancelled = (
@@ -191,6 +207,8 @@ const make = Effect.gen(function* () {
     location: Option.Option<string>,
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
+    discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -203,6 +221,8 @@ const make = Effect.gen(function* () {
       location,
       eventEventType,
       discordTargetChannelId,
+      memberGroupId,
+      discordRoleId,
     );
 
   const emitRsvpReminder = (
@@ -215,6 +235,8 @@ const make = Effect.gen(function* () {
     location: Option.Option<string>,
     eventEventType: string,
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
+    discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -227,6 +249,8 @@ const make = Effect.gen(function* () {
       location,
       eventEventType,
       discordTargetChannelId,
+      memberGroupId,
+      discordRoleId,
     );
 
   const emitEventStarted = (
@@ -238,6 +262,9 @@ const make = Effect.gen(function* () {
     endAt: Option.Option<DateTime.Utc>,
     location: Option.Option<string>,
     eventEventType: string,
+    discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
+    memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
+    discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -249,6 +276,9 @@ const make = Effect.gen(function* () {
       endAt,
       location,
       eventEventType,
+      discordTargetChannelId,
+      memberGroupId,
+      discordRoleId,
     );
 
   const findUnprocessed = (limit: number) => findUnprocessedEvents(limit).pipe(catchSqlErrors);

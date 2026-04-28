@@ -40,6 +40,7 @@ const editMessage = (
       rpc['Event/GetYesAttendeesForEmbed']({
         event_id: Event.EventId.makeUnsafe(entry.event_id),
         limit: YES_EMBED_LIMIT,
+        member_group_id: Option.none(),
       }),
     ),
     Effect.flatMap(({ rpc, rest, counts, yesAttendees }) => {

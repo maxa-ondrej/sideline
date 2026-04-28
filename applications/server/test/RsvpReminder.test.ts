@@ -144,18 +144,28 @@ type RsvpRecord = {
 };
 
 let rsvpsStore: Map<string, RsvpRecord>;
+// NOTE (TDD additions at bottom): new tests reference new fields on the store and
+// mock repository that do not yet exist (rsvpReminderDaysBefore, rsvpReminderTime,
+// remindersChannelId, timezone). They will FAIL until the developer implements the
+// server task and updates this file's mock accordingly.
 let teamSettingsStore: {
   min_players_threshold: number;
-  rsvp_reminder_hours: number;
   event_horizon_days: number;
+  rsvp_reminder_days_before: number;
+  rsvp_reminder_time: string;
+  reminders_channel_id: Option.Option<string>;
+  timezone: string;
 };
 
 const resetStores = () => {
   rsvpsStore = new Map();
   teamSettingsStore = {
     min_players_threshold: 5,
-    rsvp_reminder_hours: 24,
     event_horizon_days: 30,
+    rsvp_reminder_days_before: 1,
+    rsvp_reminder_time: '18:00',
+    reminders_channel_id: Option.none(),
+    timezone: 'Europe/Prague',
   };
 };
 
@@ -475,7 +485,10 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         team_id: TEST_TEAM_ID,
         event_horizon_days: teamSettingsStore.event_horizon_days,
         min_players_threshold: teamSettingsStore.min_players_threshold,
-        rsvp_reminder_hours: teamSettingsStore.rsvp_reminder_hours,
+        rsvp_reminder_days_before: teamSettingsStore.rsvp_reminder_days_before,
+        rsvp_reminder_time: teamSettingsStore.rsvp_reminder_time,
+        reminders_channel_id: teamSettingsStore.reminders_channel_id,
+        timezone: teamSettingsStore.timezone,
         discord_channel_training: Option.none(),
         discord_channel_match: Option.none(),
         discord_channel_tournament: Option.none(),
@@ -498,7 +511,10 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         team_id: TEST_TEAM_ID,
         event_horizon_days: teamSettingsStore.event_horizon_days,
         min_players_threshold: teamSettingsStore.min_players_threshold,
-        rsvp_reminder_hours: teamSettingsStore.rsvp_reminder_hours,
+        rsvp_reminder_days_before: teamSettingsStore.rsvp_reminder_days_before,
+        rsvp_reminder_time: teamSettingsStore.rsvp_reminder_time,
+        reminders_channel_id: teamSettingsStore.reminders_channel_id,
+        timezone: teamSettingsStore.timezone,
         discord_channel_training: Option.none(),
         discord_channel_match: Option.none(),
         discord_channel_tournament: Option.none(),
@@ -519,7 +535,10 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
     team_id: string;
     event_horizon_days: number;
     min_players_threshold: number;
-    rsvp_reminder_hours: number;
+    rsvp_reminder_days_before?: number;
+    rsvp_reminder_time?: string;
+    reminders_channel_id?: Option.Option<string>;
+    timezone?: string;
     discord_channel_training: Option.Option<string>;
     discord_channel_match: Option.Option<string>;
     discord_channel_tournament: Option.Option<string>;
@@ -531,7 +550,11 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       team_id: TEST_TEAM_ID,
       event_horizon_days: input.event_horizon_days,
       min_players_threshold: input.min_players_threshold,
-      rsvp_reminder_hours: input.rsvp_reminder_hours,
+      rsvp_reminder_days_before:
+        input.rsvp_reminder_days_before ?? teamSettingsStore.rsvp_reminder_days_before,
+      rsvp_reminder_time: input.rsvp_reminder_time ?? teamSettingsStore.rsvp_reminder_time,
+      reminders_channel_id: input.reminders_channel_id ?? teamSettingsStore.reminders_channel_id,
+      timezone: input.timezone ?? teamSettingsStore.timezone,
       discord_channel_training: Option.none(),
       discord_channel_match: Option.none(),
       discord_channel_tournament: Option.none(),
@@ -551,7 +574,10 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
     teamId: string;
     eventHorizonDays: number;
     minPlayersThreshold: number;
-    rsvpReminderHours: number;
+    rsvpReminderDaysBefore?: number;
+    rsvpReminderTime?: string;
+    remindersChannelId?: Option.Option<string>;
+    timezone?: string;
     discordChannelTraining?: Option.Option<string>;
     discordChannelMatch?: Option.Option<string>;
     discordChannelTournament?: Option.Option<string>;
@@ -560,13 +586,22 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
     discordChannelOther?: Option.Option<string>;
   }) => {
     teamSettingsStore.min_players_threshold = input.minPlayersThreshold;
-    teamSettingsStore.rsvp_reminder_hours = input.rsvpReminderHours;
     teamSettingsStore.event_horizon_days = input.eventHorizonDays;
+    if (input.rsvpReminderDaysBefore !== undefined)
+      teamSettingsStore.rsvp_reminder_days_before = input.rsvpReminderDaysBefore;
+    if (input.rsvpReminderTime !== undefined)
+      teamSettingsStore.rsvp_reminder_time = input.rsvpReminderTime;
+    if (input.remindersChannelId !== undefined)
+      teamSettingsStore.reminders_channel_id = input.remindersChannelId;
+    if (input.timezone !== undefined) teamSettingsStore.timezone = input.timezone;
     return Effect.succeed({
       team_id: TEST_TEAM_ID,
       event_horizon_days: input.eventHorizonDays,
       min_players_threshold: input.minPlayersThreshold,
-      rsvp_reminder_hours: input.rsvpReminderHours,
+      rsvp_reminder_days_before: teamSettingsStore.rsvp_reminder_days_before,
+      rsvp_reminder_time: teamSettingsStore.rsvp_reminder_time,
+      reminders_channel_id: teamSettingsStore.reminders_channel_id,
+      timezone: teamSettingsStore.timezone,
       discord_channel_training: Option.none(),
       discord_channel_match: Option.none(),
       discord_channel_tournament: Option.none(),
@@ -895,17 +930,20 @@ const BASE = `http://localhost/teams/${TEST_TEAM_ID}/events`;
 
 describe('RSVP Reminder Features', () => {
   describe('Team Settings - new fields', () => {
-    it('GET returns min_players_threshold and rsvp_reminder_hours', async () => {
+    it('GET returns min_players_threshold and new reminder fields', async () => {
       const response = await handler(
         new Request(SETTINGS_URL, { headers: { Authorization: 'Bearer admin-token' } }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.minPlayersThreshold).toBe(5);
-      expect(body.rsvpReminderHours).toBe(24);
+      expect(body.rsvpReminderDaysBefore).toBe(1);
+      expect(body.rsvpReminderTime).toBe('18:00');
+      expect(body.remindersChannelId).toBeNull();
+      expect(body.timezone).toBe('Europe/Prague');
     });
 
-    it('PATCH updates min_players_threshold and rsvp_reminder_hours', async () => {
+    it('PATCH updates min_players_threshold', async () => {
       const response = await handler(
         new Request(SETTINGS_URL, {
           method: 'PATCH',
@@ -916,14 +954,12 @@ describe('RSVP Reminder Features', () => {
           body: JSON.stringify({
             eventHorizonDays: 30,
             minPlayersThreshold: 10,
-            rsvpReminderHours: 48,
           }),
         }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.minPlayersThreshold).toBe(10);
-      expect(body.rsvpReminderHours).toBe(48);
     });
   });
 
@@ -992,6 +1028,240 @@ describe('RSVP Reminder Features', () => {
         }),
       );
       expect(response.status).toBe(404);
+    });
+  });
+
+  // NOTE: The tests below reference NEW fields not yet implemented.
+  // They will FAIL until the developer updates TeamSettingsApi, the HTTP handler,
+  // and the mock repository in this file to carry the new fields.
+
+  describe('Team Settings - new reminder fields (TDD)', () => {
+    it('GET returns new reminder fields with correct defaults', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, { headers: { Authorization: 'Bearer admin-token' } }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.rsvpReminderDaysBefore).toBe(1);
+      expect(body.rsvpReminderTime).toBe('18:00');
+      expect(body.remindersChannelId).toBeNull();
+      expect(body.timezone).toBe('Europe/Prague');
+    });
+
+    it('PATCH updates rsvpReminderDaysBefore', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderDaysBefore: 3,
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.rsvpReminderDaysBefore).toBe(3);
+    });
+
+    it('PATCH updates rsvpReminderTime', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderTime: '09:00',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.rsvpReminderTime).toBe('09:00');
+    });
+
+    it('PATCH updates remindersChannelId to a snowflake', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            remindersChannelId: '123456789012345678',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.remindersChannelId).toBe('123456789012345678');
+    });
+
+    it('PATCH updates timezone', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            timezone: 'America/New_York',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.timezone).toBe('America/New_York');
+    });
+
+    it('PATCH rejects invalid rsvpReminderTime format', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderTime: '25:00',
+          }),
+        }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('PATCH rejects rsvpReminderDaysBefore out of range (15)', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderDaysBefore: 15,
+          }),
+        }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('PATCH rejects invalid timezone string', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            timezone: 'Not/ATimezone',
+          }),
+        }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('GET returns rsvpReminderTime without seconds (HH:MM not HH:MM:SS)', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, { headers: { Authorization: 'Bearer admin-token' } }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      // Must be exactly HH:MM format, not HH:MM:SS
+      expect(body.rsvpReminderTime).toMatch(/^\d{2}:\d{2}$/);
+      expect(body.rsvpReminderTime).toBe('18:00');
+    });
+
+    it('PATCH round-trips rsvpReminderTime value (GET → PATCH same value → 200)', async () => {
+      const getResponse = await handler(
+        new Request(SETTINGS_URL, { headers: { Authorization: 'Bearer admin-token' } }),
+      );
+      const getBody = await getResponse.json();
+      const currentTime: string = getBody.rsvpReminderTime;
+
+      const patchResponse = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderTime: currentTime,
+          }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      const patchBody = await patchResponse.json();
+      expect(patchBody.rsvpReminderTime).toBe(currentTime);
+    });
+
+    it('PATCH rejects rsvpReminderTime at 23:55 (midnight wrap)', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderTime: '23:55',
+          }),
+        }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('PATCH rejects rsvpReminderTime at 23:59 (midnight wrap)', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderTime: '23:59',
+          }),
+        }),
+      );
+      expect(response.status).toBe(400);
+    });
+
+    it('PATCH accepts rsvpReminderTime at 23:54 (last valid time)', async () => {
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            rsvpReminderTime: '23:54',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.rsvpReminderTime).toBe('23:54');
     });
   });
 });

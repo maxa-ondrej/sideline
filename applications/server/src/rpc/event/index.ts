@@ -4,6 +4,7 @@ import {
   EventRpcGroup,
   EventRpcModels,
   type EventRsvp,
+  type GroupModel,
   Team,
   TeamMember,
   type TrainingType,
@@ -557,9 +558,17 @@ const rpcHandlers = Effect.Do.pipe(
           ),
           Effect.bind('counts', () => rsvps.countRsvpsByEventId(event_id)),
           Effect.bind('nonResponders', ({ event }) =>
-            event ? rsvps.findNonRespondersByEventId(event_id, event.team_id) : Effect.succeed([]),
+            event
+              ? rsvps.findNonRespondersByEventId(event_id, event.team_id, event.member_group_id)
+              : Effect.succeed([]),
           ),
-          Effect.bind('yesAttendees', () => rsvps.findYesAttendeesForEmbed(event_id, 50)),
+          Effect.bind('yesAttendees', ({ event }) =>
+            rsvps.findYesAttendeesForEmbed(
+              event_id,
+              50,
+              event ? event.member_group_id : Option.none(),
+            ),
+          ),
           Effect.map(({ counts, nonResponders, yesAttendees }) => {
             let yesCount = 0;
             let noCount = 0;
@@ -883,8 +892,16 @@ export const EventsRpcLive = rpcHandlers.pipe(
   Effect.let(
     'Event/GetYesAttendeesForEmbed',
     ({ rsvps }) =>
-      ({ event_id, limit }: { readonly event_id: Event.EventId; readonly limit: number }) =>
-        rsvps.findYesAttendeesForEmbed(event_id, limit).pipe(
+      ({
+        event_id,
+        limit,
+        member_group_id,
+      }: {
+        readonly event_id: Event.EventId;
+        readonly limit: number;
+        readonly member_group_id: Option.Option<GroupModel.GroupId>;
+      }) =>
+        rsvps.findYesAttendeesForEmbed(event_id, limit, member_group_id).pipe(
           Effect.map(
             Array.map(
               (row) =>

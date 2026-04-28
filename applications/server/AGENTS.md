@@ -187,6 +187,31 @@ Key rules:
 2. Each cron gets its own repository layer in `run.ts` and runs as a separate concurrent fiber
 3. Always wrap with `withCronMetrics('name')` for observability
 
+### Per-Item Error Isolation
+
+When a cron iterates over a batch (events, members, etc.) and processes each item independently, **isolate failures per item** so one bad row does not poison the rest of the cycle. Wrap each item's effect with `Effect.tapError` (to log) followed by `Effect.exit` (to convert any failure or defect into a successful `Exit`). Used by `RsvpReminderCron` and `EventStartCron`:
+
+```typescript
+Effect.all(
+  Array.map(events, (event) =>
+    processEvent(event).pipe(
+      Effect.tapError((e) =>
+        Effect.logWarning(`MyCron: failed for event ${event.id}`, e),
+      ),
+      Effect.exit,
+    ),
+  ),
+  { concurrency: 1 },
+)
+```
+
+Use `Effect.exit` (not `Effect.either`) — `Effect.either` is not exported in the Effect 4 beta used by this repo, and `Effect.exit` additionally catches defects.
+
+## Postgres Type Conventions
+
+- **`TIME` columns** — node-postgres returns `'HH:MM:SS'`. If consumers expect `'HH:MM'`, normalize on read with `TO_CHAR(col, 'HH24:MI') AS col` in both `SELECT` and `RETURNING` clauses (see `TeamSettingsRepository._findByTeam`).
+- **`sql` template tag** — interpolated values become bind parameters, never SQL fragments. To pass "now" into a query, pass a real `Date` (or its ISO string) and cast in SQL (`${nowIso}::timestamptz`); never interpolate the literal string `'NOW()'` — it becomes a bound text value, not a function call.
+
 ## Testing
 
 Tests go in `test/` directory. When adding new repositories, add corresponding mock implementations to all test files that compose `AppLive` (e.g., `MockChannelSyncEventsRepository`).

@@ -190,7 +190,7 @@ const make = Effect.gen(function* () {
       sql`UPDATE events SET status = 'cancelled', updated_at = now() WHERE id = ${id}`,
   });
 
-  const start = SqlSchema.findOne({
+  const start = SqlSchema.findOneOption({
     Request: Event.EventId,
     Result: Schema.Struct({ id: Event.EventId }),
     execute: (id) =>
@@ -208,12 +208,19 @@ const make = Effect.gen(function* () {
       end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
       location: Schema.OptionFromNullOr(Schema.String),
       event_type: Schema.String,
+      member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+      discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+      owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
+      reminders_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     }),
     execute: () => sql`
-      SELECT id, team_id, title, description, start_at, end_at, location, event_type
-      FROM events
-      WHERE status = 'active'
-        AND start_at <= NOW()
+      SELECT e.id, e.team_id, e.title, e.description, e.start_at, e.end_at, e.location, e.event_type,
+             e.member_group_id, e.discord_target_channel_id, e.owner_group_id,
+             ts.reminders_channel_id
+      FROM events e
+      LEFT JOIN team_settings ts ON ts.team_id = e.team_id
+      WHERE e.status = 'active'
+        AND e.start_at <= NOW()
     `,
   });
 
