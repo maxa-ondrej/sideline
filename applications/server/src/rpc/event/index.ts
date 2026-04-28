@@ -899,9 +899,9 @@ export const EventsRpcLive = rpcHandlers.pipe(
       }: {
         readonly event_id: Event.EventId;
         readonly limit: number;
-        readonly member_group_id: Option.Option<Option.Option<GroupModel.GroupId>>;
+        readonly member_group_id: Option.Option<GroupModel.GroupId>;
       }) =>
-        rsvps.findYesAttendeesForEmbed(event_id, limit, Option.flatten(member_group_id)).pipe(
+        rsvps.findYesAttendeesForEmbed(event_id, limit, member_group_id).pipe(
           Effect.map(
             Array.map(
               (row) =>

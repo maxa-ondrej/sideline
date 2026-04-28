@@ -137,7 +137,7 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
           return rpc['Event/GetYesAttendeesForEmbed']({
             event_id: event.event_id,
             limit: YES_EMBED_LIMIT,
-            member_group_id: Option.some(event.member_group_id),
+            member_group_id: event.member_group_id,
           }).pipe(
             Effect.flatMap((yesAttendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>) => {
               const nameFieldChunks = (entries: ReadonlyArray<string>, fieldName: string) =>
