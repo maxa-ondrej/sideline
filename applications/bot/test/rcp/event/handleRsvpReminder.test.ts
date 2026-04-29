@@ -1,8 +1,3 @@
-// NOTE: These tests are written in TDD mode BEFORE the implementation.
-// They reference the new discord_role_id field on RsvpReminderEvent and the
-// corresponding <@&roleId> mention prefix + allowed_mentions behaviour.
-// They will FAIL to compile / run until the developer implements the bot task.
-
 import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import type { MessageCreateRequest } from 'dfx/types';
@@ -110,9 +105,8 @@ const run = (
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('handleRsvpReminder — discord_role_id behaviour', () => {
-  // Role mention rendered when discord_role_id is Some
-  it('prepends <@&roleId> to content when discord_role_id is Some', async () => {
+describe('handleRsvpReminder — no member-group role mention', () => {
+  it('does NOT include role mention in content when discord_role_id is Some', async () => {
     const { layer: rpcLayer } = makeRecordingSyncRpc();
     const { createMessageCalls, layer: restLayer } = makeRecordingDiscordREST();
 
@@ -121,14 +115,12 @@ describe('handleRsvpReminder — discord_role_id behaviour', () => {
       Layer.merge(rpcLayer, restLayer),
     );
 
-    // The channel post is the first createMessage call (not DM)
     expect(createMessageCalls.length).toBeGreaterThanOrEqual(1);
     const [_channelId, payload] = createMessageCalls[0];
-    expect(typeof payload.content).toBe('string');
-    expect(payload.content).toContain(`<@&${ROLE_ID}>`);
+    const content = payload.content ?? '';
+    expect(content).not.toContain('<@&');
   });
 
-  // Role mention omitted when discord_role_id is None
   it('does NOT include role mention in content when discord_role_id is None', async () => {
     const { layer: rpcLayer } = makeRecordingSyncRpc();
     const { createMessageCalls, layer: restLayer } = makeRecordingDiscordREST();
@@ -144,8 +136,7 @@ describe('handleRsvpReminder — discord_role_id behaviour', () => {
     expect(content).not.toContain('<@&');
   });
 
-  // allowed_mentions must be set when role is present
-  it('sets allowed_mentions.roles = [roleId] and parse = [] when discord_role_id is Some', async () => {
+  it('does NOT set allowed_mentions.roles when discord_role_id is Some', async () => {
     const { layer: rpcLayer } = makeRecordingSyncRpc();
     const { createMessageCalls, layer: restLayer } = makeRecordingDiscordREST();
 
@@ -156,24 +147,6 @@ describe('handleRsvpReminder — discord_role_id behaviour', () => {
 
     expect(createMessageCalls.length).toBeGreaterThanOrEqual(1);
     const [_channelId, payload] = createMessageCalls[0];
-    expect(payload.allowed_mentions).toBeDefined();
-    expect(payload.allowed_mentions?.parse).toEqual([]);
-    expect(payload.allowed_mentions?.roles).toEqual([ROLE_ID]);
-  });
-
-  // allowed_mentions is absent (or empty) when discord_role_id is None
-  it('does NOT set allowed_mentions.roles when discord_role_id is None', async () => {
-    const { layer: rpcLayer } = makeRecordingSyncRpc();
-    const { createMessageCalls, layer: restLayer } = makeRecordingDiscordREST();
-
-    await run(
-      handleRsvpReminder(makeEvent({ discord_role_id: Option.none() })),
-      Layer.merge(rpcLayer, restLayer),
-    );
-
-    expect(createMessageCalls.length).toBeGreaterThanOrEqual(1);
-    const [_channelId, payload] = createMessageCalls[0];
-    // Either allowed_mentions is absent, or roles array is empty/absent
     const roles = payload.allowed_mentions?.roles ?? [];
     expect(roles).toHaveLength(0);
   });

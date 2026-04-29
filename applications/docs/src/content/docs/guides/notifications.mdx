@@ -22,14 +22,14 @@ The exact timing is configurable per team from **Team settings → Notifications
 
 ## Where reminders go
 
-- **In Discord**, in the team's configured reminders channel (or the event's owner-group channel if no dedicated reminders channel is set). Each reminder @-mentions the Discord role linked to the event's member group, so only relevant players are notified.
+- **In Discord**, in the team's configured reminders channel (or the event's owner-group channel if no dedicated reminders channel is set).
 - Reminders are **one-off posts** — once the reminder is sent, the event is marked so it won't fire again.
 
 ## Who gets pinged
 
 Only players who are members of the event's **member group** (and any of its sub-groups) who haven't RSVPed yet. Once someone clicks Yes / No / Maybe, they drop off the reminder list.
 
-The reminder message @-mentions the Discord role associated with the event's member group (if one exists), ensuring Discord sends a notification to everyone in that role.
+The bot sends a direct message to each non-responder who has a linked Discord account, with a link to the event's voting message.
 
 ## Event-start announcements
 
