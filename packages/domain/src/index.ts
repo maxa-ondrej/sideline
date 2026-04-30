@@ -26,6 +26,15 @@ export * as LeaderboardApi from './api/LeaderboardApi.js';
 
 export * as NotificationApi from './api/NotificationApi.js';
 
+/**
+ * Field state classification for cross-field schema filters.
+ *
+ * - `'absent'`  — field is not in the request (Option.none on a single-Option create field, or Option.none outer on a double-Option update field). Encoded form: key is `undefined`.
+ * - `'clearing'` — field is in the request and is being set to "no value" (null on a single-Option create field, or Option.some(Option.none()) on a double-Option update field). Encoded form: value is `null`.
+ * - `'setting'`  — field is in the request and is being set to a concrete value. Encoded form: a non-null value.
+ */
+export * as RequestFilters from './api/RequestFilters.js';
+
 export * as RoleApi from './api/RoleApi.js';
 
 export * as Roster from './api/Roster.js';

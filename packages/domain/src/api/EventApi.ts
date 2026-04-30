@@ -2,6 +2,7 @@ import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { fieldState } from '~/api/RequestFilters.js';
 import { Snowflake } from '~/models/Discord.js';
 import { EventId, EventStatus, EventType } from '~/models/Event.js';
 import { EventSeriesId } from '~/models/EventSeries.js';
@@ -161,7 +162,7 @@ const CreateEventRequestStruct = Schema.Struct({
 export const CreateEventRequest = CreateEventRequestStruct.pipe(
   Schema.check(
     Schema.makeFilter<Schema.Schema.Type<typeof CreateEventRequestStruct>>((req) => {
-      if (req.locationUrl._tag === 'Some' && req.location._tag === 'None')
+      if (fieldState(req.locationUrl) === 'setting' && fieldState(req.location) !== 'setting')
         return 'Location URL requires location text';
       return true;
     }),
@@ -186,13 +187,7 @@ const UpdateEventRequestStruct = Schema.Struct({
 export const UpdateEventRequest = UpdateEventRequestStruct.pipe(
   Schema.check(
     Schema.makeFilter<Schema.Schema.Type<typeof UpdateEventRequestStruct>>((req) => {
-      // locationUrl being Some(Some(_)) means a URL is being set — location must also be provided
-      if (
-        req.locationUrl._tag === 'Some' &&
-        req.locationUrl.value._tag === 'Some' &&
-        req.location._tag === 'Some' &&
-        req.location.value._tag === 'None'
-      )
+      if (fieldState(req.locationUrl) === 'setting' && fieldState(req.location) === 'clearing')
         return 'Location URL requires location text';
       return true;
     }),
