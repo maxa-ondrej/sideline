@@ -23,6 +23,7 @@ const InsertInput = Schema.Struct({
   event_id: Schema.String,
   event_title: Schema.String,
   event_description: Schema.OptionFromNullOr(Schema.String),
+  event_image_url: Schema.OptionFromNullOr(Schema.String),
   event_start_at: Schemas.DateTimeFromIsoString,
   event_end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   event_location: Schema.OptionFromNullOr(Schema.String),
@@ -46,6 +47,7 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   event_id: Event.EventId,
   event_title: Schema.String,
   event_description: Schema.OptionFromNullOr(Schema.String),
+  event_image_url: Schema.OptionFromNullOr(Schema.String),
   event_start_at: Schemas.DateTimeFromIsoString,
   event_end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   event_location: Schema.OptionFromNullOr(Schema.String),
@@ -72,8 +74,8 @@ const make = Effect.gen(function* () {
   const insertEvent = SqlSchema.void({
     Request: InsertInput,
     execute: (input) => sql`
-      INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id, member_group_id, discord_role_id, claimed_by_member_id, claimed_by_display_name)
-      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id}, ${input.member_group_id}, ${input.discord_role_id}, ${input.claimed_by_member_id}, ${input.claimed_by_display_name})
+      INSERT INTO event_sync_events (team_id, guild_id, event_type, event_id, event_title, event_description, event_image_url, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id, member_group_id, discord_role_id, claimed_by_member_id, claimed_by_display_name)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.event_id}, ${input.event_title}, ${input.event_description}, ${input.event_image_url}, ${input.event_start_at}, ${input.event_end_at}, ${input.event_location}, ${input.event_event_type}, ${input.discord_target_channel_id}, ${input.member_group_id}, ${input.discord_role_id}, ${input.claimed_by_member_id}, ${input.claimed_by_display_name})
     `,
   });
 
@@ -87,7 +89,7 @@ const make = Effect.gen(function* () {
     Request: Schema.Number,
     Result: EventSyncEventRow,
     execute: (limit) => sql`
-      SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id, member_group_id, discord_role_id, claimed_by_member_id, claimed_by_display_name
+      SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_image_url, event_start_at, event_end_at, event_location, event_event_type, discord_target_channel_id, member_group_id, discord_role_id, claimed_by_member_id, claimed_by_display_name
       FROM event_sync_events
       WHERE processed_at IS NULL
       ORDER BY created_at ASC
@@ -115,6 +117,7 @@ const make = Effect.gen(function* () {
     eventId: Event.EventId,
     title: string,
     description: Option.Option<string>,
+    imageUrl: Option.Option<string>,
     startAt: DateTime.Utc,
     endAt: Option.Option<DateTime.Utc>,
     location: Option.Option<string>,
@@ -137,6 +140,7 @@ const make = Effect.gen(function* () {
               event_id: eventId,
               event_title: title,
               event_description: description,
+              event_image_url: imageUrl,
               event_start_at: startAt,
               event_end_at: endAt,
               event_location: location,
@@ -164,6 +168,7 @@ const make = Effect.gen(function* () {
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
     memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
     discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
+    imageUrl: Option.Option<string> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -171,6 +176,7 @@ const make = Effect.gen(function* () {
       eventId,
       title,
       description,
+      imageUrl,
       startAt,
       endAt,
       location,
@@ -192,6 +198,7 @@ const make = Effect.gen(function* () {
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
     memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
     discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
+    imageUrl: Option.Option<string> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -199,6 +206,7 @@ const make = Effect.gen(function* () {
       eventId,
       title,
       description,
+      imageUrl,
       startAt,
       endAt,
       location,
@@ -227,6 +235,7 @@ const make = Effect.gen(function* () {
       eventId,
       title,
       description,
+      Option.none(),
       startAt,
       endAt,
       location,
@@ -255,6 +264,7 @@ const make = Effect.gen(function* () {
       eventId,
       title,
       description,
+      Option.none(),
       startAt,
       endAt,
       location,
@@ -276,6 +286,7 @@ const make = Effect.gen(function* () {
     discordTargetChannelId: Option.Option<Discord.Snowflake> = Option.none(),
     memberGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
     discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
+    imageUrl: Option.Option<string> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -283,6 +294,7 @@ const make = Effect.gen(function* () {
       eventId,
       title,
       description,
+      imageUrl,
       startAt,
       endAt,
       location,
@@ -309,6 +321,7 @@ const make = Effect.gen(function* () {
       eventId,
       title,
       description,
+      Option.none(),
       startAt,
       endAt,
       location,
@@ -344,6 +357,7 @@ const make = Effect.gen(function* () {
               event_id: eventId,
               event_title: title,
               event_description: description,
+              event_image_url: Option.none(),
               event_start_at: startAt,
               event_end_at: endAt,
               event_location: location,
@@ -383,6 +397,7 @@ const make = Effect.gen(function* () {
               event_id: eventId,
               event_title: title,
               event_description: Option.none(),
+              event_image_url: Option.none(),
               event_start_at: startAt,
               event_end_at: endAt,
               event_location: location,

@@ -55,6 +55,13 @@ const CreateEventSchema = Schema.Struct({
   eventType: Event.EventType.annotate({ message: m.validation_invalidOption() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
+  imageUrl: Schema.String.pipe(
+    Schema.check(
+      Schema.makeFilter<string>((s) =>
+        s === '' || s.startsWith('https://') ? true : m.event_imageUrlInvalid(),
+      ),
+    ),
+  ),
   startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
@@ -118,6 +125,7 @@ export function EventsListPage({
       eventType: 'training' as Event.EventType,
       trainingTypeId: NONE_VALUE,
       description: '',
+      imageUrl: '',
       startDate: '',
       startTime: '',
       endDate: '',
@@ -174,6 +182,7 @@ export function EventsListPage({
                 ? Option.some(Schema.decodeSync(TrainingType.TrainingTypeId)(values.trainingTypeId))
                 : Option.none(),
             description: values.description ? Option.some(values.description) : Option.none(),
+            imageUrl: values.imageUrl ? Option.some(values.imageUrl) : Option.none(),
             startAt,
             endAt: endAt ? Option.some(endAt) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
@@ -453,6 +462,40 @@ export function EventsListPage({
                                 rows={3}
                               />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...form.register('imageUrl')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_imageUrl()}</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type='url'
+                                placeholder={m.event_imageUrlPlaceholder()}
+                              />
+                            </FormControl>
+                            {field.value &&
+                              URL.canParse(field.value) &&
+                              field.value.startsWith('https://') && (
+                                <img
+                                  src={field.value}
+                                  alt=''
+                                  loading='lazy'
+                                  decoding='async'
+                                  referrerPolicy='no-referrer'
+                                  className='mt-2 aspect-video max-h-32 rounded-md border object-cover'
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              )}
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_imageUrlHelp()}
+                            </p>
                             <FormMessage />
                           </FormItem>
                         )}

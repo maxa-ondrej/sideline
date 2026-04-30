@@ -257,6 +257,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
       member_group_id: '00000000-0000-0000-0000-000000000010',
       discord_channel_id: '987654321098765432',
       discord_role_id: '111111111111111111',
+      image_url: 'https://example.com/cover.png',
     };
     const result = Schema.decodeUnknownSync(EventRpcEvents.EventStartedEvent)(input);
     expect(Option.isSome(result.end_at)).toBe(true);
@@ -264,6 +265,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
     expect(Option.isSome(result.member_group_id)).toBe(true);
     expect(Option.isSome(result.discord_channel_id)).toBe(true);
     expect(Option.isSome(result.discord_role_id)).toBe(true);
+    expect(Option.isSome(result.image_url)).toBe(true);
   });
 
   it('round-trips with all Option fields None (null in payload)', () => {
@@ -274,6 +276,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
       member_group_id: null,
       discord_channel_id: null,
       discord_role_id: null,
+      image_url: null,
     };
     const result = Schema.decodeUnknownSync(EventRpcEvents.EventStartedEvent)(input);
     expect(Option.isNone(result.end_at)).toBe(true);
@@ -281,6 +284,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
     expect(Option.isNone(result.member_group_id)).toBe(true);
     expect(Option.isNone(result.discord_channel_id)).toBe(true);
     expect(Option.isNone(result.discord_role_id)).toBe(true);
+    expect(Option.isNone(result.image_url)).toBe(true);
   });
 });
 

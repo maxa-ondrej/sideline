@@ -115,6 +115,7 @@ export const buildUpcomingEventEmbed = (params: {
       description: descParts.join('\n'),
       color,
       fields,
+      ...(Option.isSome(entry.image_url) ? { thumbnail: { url: entry.image_url.value } } : {}),
     },
   ];
 

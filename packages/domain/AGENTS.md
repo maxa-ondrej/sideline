@@ -71,6 +71,22 @@ Current shared schemas:
 |--------|-----------|----------------|
 | `HexColor` | `src/api/GroupApi.ts` | `src/api/Roster.ts` |
 
+### Externally-Fetched URLs (SSRF guard)
+
+Any user-supplied URL that the server (or a downstream service such as Discord) will fetch or render MUST be validated with the SSRF guard pattern, not just `Schema.pattern(/^https:/)`. Reference implementation: `EventImageUrl` in `src/api/EventApi.ts`.
+
+The schema MUST enforce all of the following via `Schema.check(Schema.makeFilter<string>(...))`:
+
+1. Parses with `new URL(value)` — reject otherwise.
+2. `url.protocol === 'https:'` — reject `http:`, `data:`, `javascript:`, `file:`, `ftp:`, etc.
+3. Hostname (after stripping IPv6 brackets) does NOT match the private-IPv4 pattern: `localhost`, `127.`, `10.`, `172.(16-31).`, `192.168.`, `169.254.`, `0.0.0.0`.
+4. Hostname does NOT match the private-IPv6 pattern: `::1`, `::`, `fc00::/7` (`fc..:`/`fd..:`), link-local `fe80::/10` (`fe8x:`–`febx:`), and IPv4-mapped `::ffff:`.
+5. A `Schema.isMaxLength(2048)` cap.
+
+The filter predicate returns `true` on success and a human-readable error string on failure (so decode errors are descriptive). Do NOT replace the IPv4/IPv6 patterns with a synchronous DNS lookup — domain schemas must remain pure (no I/O). The patterns block IP-literal URLs at the schema layer; defence-in-depth (e.g. egress filtering, DNS rebinding mitigation) is the consuming service's responsibility.
+
+When adding a new URL field, copy the `isValidEventImageUrl` predicate verbatim and rename it; do not partially reimplement the checks.
+
 ## RPC Folder Import Rule
 
 Files under `src/rpc/**` must import models from their concrete paths (e.g. `import * as Discord from '~/models/Discord.js'`), **not** via the barrel `~/index.js`. The barrel re-exports both `models/*` and `rpc/*`, and rpc files transitively pulled in through the barrel before their model dependencies finish initialising — at runtime this surfaces as `Cannot read properties of undefined (reading 'ast')` when a `Schema.TaggedClass` or `RpcGroup.make` references e.g. `Team.TeamId`. Always import models directly inside `src/rpc/**`.

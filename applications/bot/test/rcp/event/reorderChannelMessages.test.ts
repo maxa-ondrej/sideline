@@ -19,6 +19,7 @@ const makeEntry = (
     team_id: 'team-1',
     title: 'Test Event',
     description: Option.none(),
+    image_url: Option.none(),
     start_at: DateTime.makeUnsafe(isoDate),
     end_at: Option.none(),
     location: Option.none(),

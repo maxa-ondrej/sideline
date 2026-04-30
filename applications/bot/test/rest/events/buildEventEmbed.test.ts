@@ -1,7 +1,7 @@
 import { Discord as DomainDiscord, EventRpcModels } from '@sideline/domain';
 import { DateTime, Option } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
+import { buildCancelledEmbed, buildEventEmbed } from '~/rest/events/buildEventEmbed.js';
 
 const makeAttendee = (
   discord_id: Option.Option<string>,
@@ -30,6 +30,7 @@ const baseOpts = {
   eventId: 'event-1',
   title: 'Test Event',
   description: Option.none<string>(),
+  imageUrl: Option.none<string>(),
   startAt: START_AT,
   endAt: Option.none<DateTime.Utc>(),
   location: Option.none<string>(),
@@ -157,5 +158,76 @@ describe('buildEventEmbed', () => {
       const goingField = fields.find((f) => f.name.toLowerCase().includes('going'));
       expect(goingField).toBeUndefined();
     });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Image URL / thumbnail tests
+  // These tests will FAIL until the developer updates buildEventEmbed to
+  // accept imageUrl and set embeds[0].thumbnail when Option.isSome.
+  // ---------------------------------------------------------------------------
+
+  describe('thumbnail (imageUrl)', () => {
+    it('embeds[0] has no thumbnail when imageUrl is Option.none()', () => {
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        imageUrl: Option.none<string>(),
+        counts: makeCounts(0, 0, 0),
+        yesAttendees: [],
+      });
+      expect((embeds[0] as any).thumbnail).toBeUndefined();
+    });
+
+    it('embeds[0] has no image key when imageUrl is Option.none()', () => {
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        imageUrl: Option.none<string>(),
+        counts: makeCounts(0, 0, 0),
+        yesAttendees: [],
+      });
+      expect((embeds[0] as any).image).toBeUndefined();
+    });
+
+    it('embeds[0].thumbnail.url equals the image URL when imageUrl is Option.some()', () => {
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        imageUrl: Option.some('https://example.com/cover.png'),
+        counts: makeCounts(0, 0, 0),
+        yesAttendees: [],
+      });
+      expect((embeds[0] as any).thumbnail).toEqual({ url: 'https://example.com/cover.png' });
+    });
+
+    it('embeds[0] has no image key (only thumbnail) when imageUrl is Option.some()', () => {
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        imageUrl: Option.some('https://example.com/cover.png'),
+        counts: makeCounts(0, 0, 0),
+        yesAttendees: [],
+      });
+      expect((embeds[0] as any).image).toBeUndefined();
+    });
+
+    it('thumbnail is still set when isStarted is true and imageUrl is Some', () => {
+      const { embeds } = buildEventEmbed({
+        ...baseOpts,
+        imageUrl: Option.some('https://example.com/started.png'),
+        counts: makeCounts(0, 0, 0),
+        yesAttendees: [],
+        isStarted: true,
+      });
+      expect((embeds[0] as any).thumbnail).toEqual({ url: 'https://example.com/started.png' });
+    });
+  });
+});
+
+describe('buildCancelledEmbed — thumbnail', () => {
+  it('cancelled embed has no thumbnail regardless of title', () => {
+    const { embeds } = buildCancelledEmbed('Cancelled Event', 'en');
+    expect((embeds[0] as any).thumbnail).toBeUndefined();
+  });
+
+  it('cancelled embed has no image regardless of title', () => {
+    const { embeds } = buildCancelledEmbed('Cancelled Event', 'en');
+    expect((embeds[0] as any).image).toBeUndefined();
   });
 });

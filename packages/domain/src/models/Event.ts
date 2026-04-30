@@ -30,6 +30,7 @@ export class Event extends Model.Class<Event>('Event')({
   event_type: EventType,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
+  image_url: Schema.OptionFromNullOr(Schema.String),
   start_at: Schemas.DateTimeFromDate,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),

@@ -5,6 +5,12 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-04 — Cover images for events
+
+- You can now attach a cover image URL to any event. The image appears as a banner on the event detail page.
+- The image is also shown as a small thumbnail in Discord event embeds.
+- Paste any public `https://` image URL into the new **Image URL** field when creating or editing an event.
+
 ## 2026-04 — Training claim board
 
 - When a training event is created, the bot now posts a **claim-board message** to the owner group's Discord channel with a **Claim** button.

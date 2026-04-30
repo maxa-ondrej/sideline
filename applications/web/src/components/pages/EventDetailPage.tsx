@@ -41,6 +41,13 @@ const EventEditSchema = Schema.Struct({
   eventType: Event.EventType.annotate({ message: m.validation_invalidOption() }),
   trainingTypeId: Schema.String,
   description: Schema.String,
+  imageUrl: Schema.String.pipe(
+    Schema.check(
+      Schema.makeFilter<string>((s) =>
+        s === '' || s.startsWith('https://') ? true : m.event_imageUrlInvalid(),
+      ),
+    ),
+  ),
   startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
@@ -101,6 +108,7 @@ export function EventDetailPage({
       eventType: eventDetail.eventType,
       trainingTypeId: Option.getOrElse(eventDetail.trainingTypeId, () => NONE_VALUE),
       description: Option.getOrElse(eventDetail.description, () => ''),
+      imageUrl: Option.getOrElse(eventDetail.imageUrl, () => ''),
       startDate: formatLocalDate(eventDetail.startAt),
       startTime: formatLocalTime(eventDetail.startAt),
       endDate: Option.match(eventDetail.endAt, {
@@ -147,6 +155,7 @@ export function EventDetailPage({
             description: Option.some(
               values.description ? Option.some(values.description) : Option.none(),
             ),
+            imageUrl: Option.some(values.imageUrl ? Option.some(values.imageUrl) : Option.none()),
             startAt: Option.some(startAt),
             endAt: Option.some(endAt),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
@@ -329,6 +338,23 @@ export function EventDetailPage({
         </div>
       )}
 
+      {Option.isSome(eventDetail.imageUrl) && (
+        <div className='mb-6 overflow-hidden rounded-lg border bg-muted aspect-video max-h-[360px]'>
+          <img
+            src={eventDetail.imageUrl.value}
+            alt=''
+            loading='lazy'
+            decoding='async'
+            referrerPolicy='no-referrer'
+            className='h-full w-full object-cover'
+            onError={(e) => {
+              const parent = e.currentTarget.parentElement;
+              if (parent) parent.style.display = 'none';
+            }}
+          />
+        </div>
+      )}
+
       <div className='flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_380px]'>
         <div className='order-2 lg:order-1'>
           <div className='flex flex-col gap-6 max-w-lg'>
@@ -487,6 +513,39 @@ export function EventDetailPage({
                             rows={3}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    {...form.register('imageUrl')}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{m.event_imageUrl()}</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type='url'
+                            placeholder={m.event_imageUrlPlaceholder()}
+                          />
+                        </FormControl>
+                        {field.value &&
+                          URL.canParse(field.value) &&
+                          field.value.startsWith('https://') && (
+                            <img
+                              src={field.value}
+                              alt=''
+                              loading='lazy'
+                              decoding='async'
+                              referrerPolicy='no-referrer'
+                              className='mt-2 aspect-video max-h-32 rounded-md border object-cover'
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                        <p className='text-xs text-muted-foreground'>{m.event_imageUrlHelp()}</p>
                         <FormMessage />
                       </FormItem>
                     )}

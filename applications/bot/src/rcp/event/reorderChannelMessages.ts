@@ -52,6 +52,7 @@ const editMessage = (
               eventId: entry.event_id,
               title: entry.title,
               description: entry.description,
+              imageUrl: entry.image_url,
               startAt: entry.start_at,
               endAt: entry.end_at,
               location: entry.location,

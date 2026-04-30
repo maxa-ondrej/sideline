@@ -15,6 +15,7 @@ const makeEntry = (
     team_id: 'team-1',
     title: 'Training Session',
     description: Option.none(),
+    image_url: Option.none(),
     start_at: FUTURE_START,
     end_at: Option.none(),
     location: Option.none(),
@@ -279,6 +280,38 @@ describe('buildUpcomingEventEmbed', () => {
       const { components } = buildUpcomingEventEmbed({ ...baseParams, entry });
       const clearBtn = components[1].components[1] as { style: number };
       expect(clearBtn.style).toBe(4);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Image URL / thumbnail tests
+  // These tests will FAIL until the developer updates buildUpcomingEventEmbed to
+  // accept image_url from the entry and set embeds[0].thumbnail when isSome.
+  // ---------------------------------------------------------------------------
+
+  describe('thumbnail (image_url)', () => {
+    it('embeds[0] has no thumbnail when image_url is Option.none()', () => {
+      const entry = makeEntry({ image_url: Option.none() });
+      const { embeds } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      expect((embeds[0] as any).thumbnail).toBeUndefined();
+    });
+
+    it('embeds[0] has no image key when image_url is Option.none()', () => {
+      const entry = makeEntry({ image_url: Option.none() });
+      const { embeds } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      expect((embeds[0] as any).image).toBeUndefined();
+    });
+
+    it('embeds[0].thumbnail.url equals the image URL when image_url is Option.some()', () => {
+      const entry = makeEntry({ image_url: Option.some('https://example.com/upcoming.png') });
+      const { embeds } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      expect((embeds[0] as any).thumbnail).toEqual({ url: 'https://example.com/upcoming.png' });
+    });
+
+    it('embeds[0] has no image key (only thumbnail) when image_url is Option.some()', () => {
+      const entry = makeEntry({ image_url: Option.some('https://example.com/upcoming.png') });
+      const { embeds } = buildUpcomingEventEmbed({ ...baseParams, entry });
+      expect((embeds[0] as any).image).toBeUndefined();
     });
   });
 });

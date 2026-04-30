@@ -85,6 +85,7 @@ const makeRecordingSyncRpc = (
         Option.some({
           title: 'Saturday Match',
           description: Option.none(),
+          image_url: Option.none(),
           start_at: DateTime.makeUnsafe('2026-05-01T16:00:00Z'),
           end_at: Option.none(),
           location: Option.none(),
