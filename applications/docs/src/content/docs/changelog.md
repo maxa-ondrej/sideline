@@ -5,6 +5,13 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-04 — Training claim board
+
+- When a training event is created, the bot now posts a **claim-board message** to the owner group's Discord channel with a **Claim** button.
+- A coach (any member of the training's owner group or a sub-group) can claim or release responsibility for the training directly from Discord.
+- The claimed state is shown in the embed: orange when unclaimed, green with the coach's name when claimed.
+- If no coach has claimed a training by the time the RSVP reminder fires, the bot posts an additional **unclaimed training reminder** to the owner group's channel.
+
 ## 2026-04 — RSVP reminder no longer pings a role
 
 - The RSVP reminder post is now a quiet embed. It no longer @-mentions the member group's Discord role. The bot still sends a direct message to each non-responder who has a linked Discord account.

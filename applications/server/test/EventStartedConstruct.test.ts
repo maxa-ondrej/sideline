@@ -30,6 +30,8 @@ describe('constructEvent with event_started type', () => {
           discord_target_channel_id: Option.none(),
           member_group_id: Option.none(),
           discord_role_id: Option.none(),
+          claimed_by_member_id: Option.none(),
+          claimed_by_display_name: Option.none(),
         }),
       ),
       Effect.tap(({ result }) =>
@@ -65,6 +67,8 @@ describe('constructEvent with event_started type', () => {
           discord_target_channel_id: Option.none(),
           member_group_id: Option.none(),
           discord_role_id: Option.none(),
+          claimed_by_member_id: Option.none(),
+          claimed_by_display_name: Option.none(),
         }),
       ),
       Effect.tap(({ result }) =>
@@ -95,6 +99,8 @@ describe('constructEvent with event_started type', () => {
           discord_target_channel_id: Option.none(),
           member_group_id: Option.none(),
           discord_role_id: Option.none(),
+          claimed_by_member_id: Option.none(),
+          claimed_by_display_name: Option.none(),
         }),
       ),
       Effect.tap(({ result }) =>

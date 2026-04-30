@@ -7,9 +7,14 @@
 //   - findEventsNeedingReminder returning reminders_channel_id, member_group_id,
 //     discord_role_id and timezone from the new schema
 // They will FAIL to compile / run until the developer implements the server task.
+//
+// Cases 15-17 (unclaimed_training_reminder) are added at the bottom in TDD mode:
+//   - emitUnclaimedTrainingReminder on EventSyncEventsRepository does not yet exist.
+//   - EventNeedingReminder schema does not yet have claimed_by / discord_message_id fields.
+//   These tests will FAIL until the developer adds those fields and the cron logic.
 
 import { afterEach, beforeEach, describe, expect, it } from '@effect/vitest';
-import type { Discord, Event, GroupModel, Team } from '@sideline/domain';
+import type { Discord, Event, GroupModel, Team, TeamMember } from '@sideline/domain';
 import { Effect, Layer, Option } from 'effect';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
@@ -495,4 +500,224 @@ describe('rsvpReminderCronEffect', () => {
       Effect.asVoid,
     );
   });
+});
+
+// ---------------------------------------------------------------------------
+// Cases 15-17 — unclaimed_training_reminder emission
+//
+// The cron should also emit unclaimed_training_reminder for trainings that:
+//   - are active training events (event_type = 'training')
+//   - have claimed_by IS NULL
+//   - have an owner group with a Discord channel mapping
+//   - have NOT yet sent an unclaimed reminder (or just always on reminder window)
+//
+// These tests reference:
+//   - ReminderEvent.claimed_by (new field — does not yet exist in schema)
+//   - ReminderEvent.claim_discord_channel_id / claim_discord_message_id (for jump link)
+//   - EventSyncEventsRepository.emitUnclaimedTrainingReminder (does not yet exist)
+//
+// They WILL FAIL until the developer adds these fields and the cron logic.
+// ---------------------------------------------------------------------------
+
+// Extra IDs for unclaimed reminder tests
+const EVENT_ID_UNCLAIMED_TRAINING = '00000000-0000-0000-0000-000000000010' as Event.EventId;
+const EVENT_ID_CLAIMED_TRAINING = '00000000-0000-0000-0000-000000000011' as Event.EventId;
+const COACH_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
+const CLAIM_CHANNEL = '666666666666666666' as Discord.Snowflake;
+const CLAIM_MESSAGE_ID = '777777777777777777' as Discord.Snowflake;
+
+// Extend the ReminderEvent type to include the new fields that the implementation will add.
+// (These fields do not yet exist — the EventNeedingReminder schema will be extended.)
+type ExtendedReminderEvent = ReminderEvent & {
+  /** claimed_by IS NULL means unclaimed */
+  claimed_by: Option.Option<TeamMember.TeamMemberId>;
+  /** Discord channel + message IDs for the claim message (for jump link) */
+  claim_discord_channel_id: Option.Option<Discord.Snowflake>;
+  claim_discord_message_id: Option.Option<Discord.Snowflake>;
+};
+
+type EmittedUnclaimedReminder = {
+  teamId: Team.TeamId;
+  eventId: Event.EventId;
+  discordTargetChannelId: Discord.Snowflake;
+  discordRoleId: Option.Option<Discord.Snowflake>;
+  claimDiscordChannelId: Option.Option<Discord.Snowflake>;
+  claimDiscordMessageId: Option.Option<Discord.Snowflake>;
+};
+
+let emittedUnclaimedReminders: EmittedUnclaimedReminder[];
+
+const makeExtendedBaseEvent = (
+  id: Event.EventId,
+  overrides: Partial<ExtendedReminderEvent> = {},
+): ExtendedReminderEvent => ({
+  event_id: id,
+  team_id: TEAM_ID,
+  title: 'Test Training',
+  start_at: new Date('2026-05-01T16:00:00Z'),
+  event_type: 'training',
+  discord_target_channel_id: Option.none(),
+  owner_group_id: Option.some(GROUP_ID_A),
+  member_group_id: Option.none(),
+  reminders_channel_id: Option.none(),
+  discord_role_id: Option.none(),
+  claimed_by: Option.none(),
+  claim_discord_channel_id: Option.none(),
+  claim_discord_message_id: Option.none(),
+  ...overrides,
+});
+
+const makeMockSyncEventsWithUnclaimedReminder = () =>
+  Layer.succeed(EventSyncEventsRepository, {
+    emitRsvpReminder: (
+      teamId: Team.TeamId,
+      eventId: Event.EventId,
+      _title: string,
+      _description: Option.Option<string>,
+      _startAt: unknown,
+      _endAt: Option.Option<unknown>,
+      _location: Option.Option<string>,
+      _eventType: string,
+      channelId: Option.Option<Discord.Snowflake>,
+      memberGroupId: Option.Option<GroupModel.GroupId>,
+      discordRoleId: Option.Option<Discord.Snowflake>,
+    ) => {
+      emittedReminders.push({ teamId, eventId, channelId, memberGroupId, discordRoleId });
+      return Effect.void;
+    },
+    // New method: emitUnclaimedTrainingReminder
+    emitUnclaimedTrainingReminder: (
+      teamId: Team.TeamId,
+      eventId: Event.EventId,
+      _title: string,
+      _startAt: unknown,
+      _endAt: unknown,
+      _location: unknown,
+      discordTargetChannelId: Discord.Snowflake,
+      discordRoleId: Option.Option<Discord.Snowflake>,
+      claimDiscordChannelId: Option.Option<Discord.Snowflake>,
+      claimDiscordMessageId: Option.Option<Discord.Snowflake>,
+    ) => {
+      emittedUnclaimedReminders.push({
+        teamId,
+        eventId,
+        discordTargetChannelId,
+        discordRoleId,
+        claimDiscordChannelId,
+        claimDiscordMessageId,
+      });
+      return Effect.void;
+    },
+    emitEventCreated: () => Effect.void,
+    emitEventUpdated: () => Effect.void,
+    emitEventCancelled: () => Effect.void,
+    emitEventStarted: () => Effect.void,
+    findUnprocessed: () => Effect.succeed([]),
+    markProcessed: () => Effect.void,
+    markFailed: () => Effect.void,
+  } as any);
+
+const buildUnclaimedReminderMockLayer = () =>
+  Layer.mergeAll(
+    makeMockTeamSettingsRepository(),
+    makeMockEventsRepository(),
+    makeMockSyncEventsWithUnclaimedReminder(),
+    makeMockChannelMappingRepository(),
+  );
+
+describe('rsvpReminderCronEffect — unclaimed_training_reminder', () => {
+  beforeEach(() => {
+    resetStores();
+    emittedUnclaimedReminders = [];
+  });
+
+  afterEach(() => {
+    resetStores();
+    emittedUnclaimedReminders = [];
+  });
+
+  // Case 15: emits unclaimed_training_reminder when training+unclaimed+owner-channel
+  it.effect(
+    'emits unclaimed_training_reminder for an unclaimed training with owner-group channel',
+    () => {
+      const event = makeExtendedBaseEvent(EVENT_ID_UNCLAIMED_TRAINING, {
+        event_type: 'training',
+        claimed_by: Option.none(),
+        owner_group_id: Option.some(GROUP_ID_A),
+        claim_discord_channel_id: Option.some(CLAIM_CHANNEL),
+        claim_discord_message_id: Option.some(CLAIM_MESSAGE_ID),
+      });
+      channelMappings.set(`${TEAM_ID}:${GROUP_ID_A}`, {
+        discord_channel_id: CHANNEL_OWNER,
+        discord_role_id: Option.none(),
+      });
+      eventsNeedingReminder = [event as any];
+
+      return rsvpReminderCronEffect.pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            const unclaimedEmitted = emittedUnclaimedReminders.filter(
+              (e) => e.eventId === EVENT_ID_UNCLAIMED_TRAINING,
+            );
+            expect(unclaimedEmitted).toHaveLength(1);
+            expect(unclaimedEmitted[0].discordTargetChannelId).toBe(CHANNEL_OWNER);
+          }),
+        ),
+        Effect.provide(buildUnclaimedReminderMockLayer()),
+        Effect.asVoid,
+      );
+    },
+  );
+
+  // Case 16: does NOT emit when claimed_by IS NOT NULL
+  it.effect('does NOT emit unclaimed_training_reminder when training is already claimed', () => {
+    const event = makeExtendedBaseEvent(EVENT_ID_CLAIMED_TRAINING, {
+      event_type: 'training',
+      claimed_by: Option.some(COACH_MEMBER_ID),
+      owner_group_id: Option.some(GROUP_ID_A),
+      claim_discord_channel_id: Option.some(CLAIM_CHANNEL),
+      claim_discord_message_id: Option.some(CLAIM_MESSAGE_ID),
+    });
+    channelMappings.set(`${TEAM_ID}:${GROUP_ID_A}`, {
+      discord_channel_id: CHANNEL_OWNER,
+      discord_role_id: Option.none(),
+    });
+    eventsNeedingReminder = [event as any];
+
+    return rsvpReminderCronEffect.pipe(
+      Effect.tap(() =>
+        Effect.sync(() => {
+          expect(emittedUnclaimedReminders).toHaveLength(0);
+        }),
+      ),
+      Effect.provide(buildUnclaimedReminderMockLayer()),
+      Effect.asVoid,
+    );
+  });
+
+  // Case 17: does NOT emit when owner-group has no channel mapping
+  it.effect(
+    'does NOT emit unclaimed_training_reminder when owner-group has no channel mapping',
+    () => {
+      const event = makeExtendedBaseEvent(EVENT_ID_UNCLAIMED_TRAINING, {
+        event_type: 'training',
+        claimed_by: Option.none(),
+        owner_group_id: Option.some(GROUP_ID_A),
+        claim_discord_channel_id: Option.none(),
+        claim_discord_message_id: Option.none(),
+      });
+      // No channel mapping for GROUP_ID_A
+      eventsNeedingReminder = [event as any];
+
+      return rsvpReminderCronEffect.pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            expect(emittedUnclaimedReminders).toHaveLength(0);
+          }),
+        ),
+        Effect.provide(buildUnclaimedReminderMockLayer()),
+        Effect.asVoid,
+      );
+    },
+  );
 });

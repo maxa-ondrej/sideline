@@ -40,6 +40,22 @@ export default Effect.flatMap(SqlClient.SqlClient, (sql) =>
 
 New nullable columns do not need a `DEFAULT` clause — PostgreSQL defaults to `NULL`. Add `NOT NULL DEFAULT ...` only when the column must never be null.
 
+### Partial Indexes for Hot Filters
+
+When a cron or query repeatedly scans a table for rows matching a stable predicate (e.g. "active unclaimed trainings for team X"), prefer a partial index over a full index. Use `CREATE INDEX IF NOT EXISTS ... WHERE ...`:
+
+```typescript
+Effect.tap(
+  () => sql`
+    CREATE INDEX IF NOT EXISTS idx_events_claimed_by_unclaimed
+      ON events (team_id)
+      WHERE event_type = 'training' AND status = 'active' AND claimed_by IS NULL
+  `,
+),
+```
+
+Partial indexes only contain the matching rows, so they stay small and avoid bloat from inactive/historical data.
+
 ### Updating CHECK Constraints
 
 To add a new value to an existing CHECK constraint (e.g. adding a status enum value), drop the old constraint and create a new one:

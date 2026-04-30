@@ -212,6 +212,29 @@ Use `Effect.exit` (not `Effect.either`) — `Effect.either` is not exported in t
 - **`TIME` columns** — node-postgres returns `'HH:MM:SS'`. If consumers expect `'HH:MM'`, normalize on read with `TO_CHAR(col, 'HH24:MI') AS col` in both `SELECT` and `RETURNING` clauses (see `TeamSettingsRepository._findByTeam`).
 - **`sql` template tag** — interpolated values become bind parameters, never SQL fragments. To pass "now" into a query, pass a real `Date` (or its ISO string) and cast in SQL (`${nowIso}::timestamptz`); never interpolate the literal string `'NOW()'` — it becomes a bound text value, not a function call.
 
+## Atomic Conditional UPDATE Pattern
+
+When a state transition must be race-free (e.g. "claim if not yet claimed", "mark started if still active"), encode the precondition in the `WHERE` clause and use `RETURNING id` to detect whether the row was updated. Use `SqlSchema.findOneOption` so callers receive `Option<{ id }>` — `Option.isSome` means "we won the race", `Option.isNone` means "preconditions failed (already claimed / cancelled / wrong member / not found)".
+
+```typescript
+const _claimTraining = SqlSchema.findOneOption({
+  Request: Schema.Struct({ event_id: Event.EventId, team_member_id: TeamMember.TeamMemberId }),
+  Result: Schema.Struct({ id: Event.EventId }),
+  execute: (input) =>
+    sql`UPDATE events SET claimed_by = ${input.team_member_id}
+        WHERE id = ${input.event_id}
+          AND status = 'active'
+          AND event_type = 'training'
+          AND claimed_by IS NULL
+        RETURNING id`,
+});
+```
+
+Rules:
+1. Always include every business precondition in the `WHERE` clause — never read-then-update across two statements
+2. The handler that consumes the `Option` must, on `None`, re-read the row to distinguish which precondition failed and map to the appropriate typed error (e.g. `ClaimEventNotFound` vs `ClaimAlreadyClaimed` vs `ClaimEventInactive`)
+3. Used by: `EventsRepository.claimTraining` / `unclaimTraining` (claim race), `EventsRepository.markEventStarted` (start race), `EventRsvpsRepository` upserts
+
 ## Testing
 
 Tests go in `test/` directory. When adding new repositories, add corresponding mock implementations to all test files that compose `AppLive` (e.g., `MockChannelSyncEventsRepository`).

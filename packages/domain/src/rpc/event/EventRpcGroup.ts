@@ -9,10 +9,17 @@ import * as TrainingType from '~/models/TrainingType.js';
 import { UnprocessedEventSyncEvent } from './EventRpcEvents.js';
 import {
   ChannelEventEntry,
+  ClaimAlreadyClaimed,
+  ClaimEventInactive,
+  ClaimEventNotFound,
+  ClaimNotClaimer,
+  ClaimNotOwnerGroupMember,
+  ClaimNotTraining,
   CreateEventForbidden,
   CreateEventInvalidDate,
   CreateEventNotMember,
   CreateEventResult,
+  EventClaimInfo,
   EventDiscordMessage,
   EventEmbedInfo,
   GuildEventListResult,
@@ -147,5 +154,41 @@ export const EventRpcGroup = RpcGroup.make(
   }),
   Rpc.make('DeleteChannelDivider', {
     payload: { discord_channel_id: Discord.Snowflake },
+  }),
+  Rpc.make('ClaimTraining', {
+    payload: {
+      event_id: Event.EventId,
+      team_id: Team.TeamId,
+      discord_user_id: Discord.Snowflake,
+    },
+    success: EventClaimInfo,
+    error: Schema.Union([
+      ClaimEventNotFound,
+      ClaimNotTraining,
+      ClaimEventInactive,
+      ClaimNotOwnerGroupMember,
+      ClaimAlreadyClaimed,
+    ]),
+  }),
+  Rpc.make('UnclaimTraining', {
+    payload: {
+      event_id: Event.EventId,
+      team_id: Team.TeamId,
+      discord_user_id: Discord.Snowflake,
+    },
+    success: EventClaimInfo,
+    error: Schema.Union([ClaimEventNotFound, ClaimEventInactive, ClaimNotClaimer]),
+  }),
+  Rpc.make('SaveClaimDiscordMessageId', {
+    payload: {
+      event_id: Event.EventId,
+      channel_id: Discord.Snowflake,
+      message_id: Discord.Snowflake,
+    },
+    success: Schema.Void,
+  }),
+  Rpc.make('GetClaimInfo', {
+    payload: { event_id: Event.EventId },
+    success: Schema.OptionFromNullOr(EventClaimInfo),
   }),
 ).prefix('Event/');

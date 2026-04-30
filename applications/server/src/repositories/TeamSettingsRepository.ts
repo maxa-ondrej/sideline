@@ -1,4 +1,4 @@
-import { ChannelSyncEvent, Discord, Event, GroupModel, Team } from '@sideline/domain';
+import { ChannelSyncEvent, Discord, Event, GroupModel, Team, TeamMember } from '@sideline/domain';
 import { Schemas } from '@sideline/effect-lib';
 import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
@@ -64,6 +64,9 @@ class EventNeedingReminder extends Schema.Class<EventNeedingReminder>('EventNeed
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   reminders_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   timezone: Schema.String,
+  claimed_by: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+  claim_discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  claim_discord_message_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 const make = Effect.gen(function* () {
@@ -180,7 +183,8 @@ const make = Effect.gen(function* () {
       execute: () => sql`
         SELECT e.id AS event_id, e.team_id, e.title, e.start_at, e.event_type,
                e.discord_target_channel_id, e.owner_group_id, e.member_group_id,
-               ts.reminders_channel_id, ts.timezone
+               ts.reminders_channel_id, ts.timezone,
+               e.claimed_by, e.claim_discord_channel_id, e.claim_discord_message_id
         FROM events e
         JOIN team_settings ts ON ts.team_id = e.team_id
         WHERE e.status = 'active'

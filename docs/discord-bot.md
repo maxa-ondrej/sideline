@@ -377,6 +377,60 @@ Appears on each per-user upcoming event message (produced by `/event list` and t
 
 ---
 
+### Claim Button — `claim:{teamId}:{eventId}`
+
+Appears on the training claim-board message posted to the event's owner-group channel when a training is created. Allows coaches (members of the training's owner group or any descendant group) to claim the training.
+
+**Custom ID pattern:** `claim:{teamId}:{eventId}`
+
+**Behavior:**
+
+1. Parses `teamId` and `eventId` from the custom ID.
+2. Responds with a deferred ephemeral acknowledgement and forks a background fiber.
+3. The background fiber calls `Event/ClaimTraining` RPC with `event_id`, `team_id`, and the invoking user's `discord_user_id`.
+4. On success, updates the ephemeral message with a localised "claimed" confirmation.
+5. The server emits a `training_claim_update` event sync event; the bot's Event Sync worker then edits the claim-board message to reflect the new claimer and replaces the Claim button with an Unclaim button.
+
+**Errors from `Event/ClaimTraining`:**
+
+| Error tag | User-visible message |
+|-----------|----------------------|
+| `ClaimAlreadyClaimed` | Already claimed by `**{name}**` |
+| `ClaimNotOwnerGroupMember` | You are not in the owner group for this training |
+| `ClaimEventInactive` | The training has been cancelled |
+| `ClaimEventNotFound` | The training has been cancelled |
+| `ClaimNotTraining` | The training has been cancelled |
+
+**Source file:** `applications/bot/src/interactions/claim.ts` (`ClaimButton`)
+
+---
+
+### Unclaim Button — `unclaim:{teamId}:{eventId}`
+
+Appears on the training claim-board message after a coach has claimed the training. Allows the current claimer to release their claim.
+
+**Custom ID pattern:** `unclaim:{teamId}:{eventId}`
+
+**Behavior:**
+
+1. Parses `teamId` and `eventId` from the custom ID.
+2. Responds with a deferred ephemeral acknowledgement and forks a background fiber.
+3. The background fiber calls `Event/UnclaimTraining` RPC with `event_id`, `team_id`, and `discord_user_id`.
+4. On success, updates the ephemeral message with a localised "released" confirmation.
+5. The server emits a `training_claim_update` event sync event; the bot's Event Sync worker edits the claim-board message back to unclaimed state and restores the Claim button.
+
+**Errors from `Event/UnclaimTraining`:**
+
+| Error tag | User-visible message |
+|-----------|----------------------|
+| `ClaimNotClaimer` | You are not the person who claimed this training |
+| `ClaimEventInactive` | The training has been cancelled |
+| `ClaimEventNotFound` | The training has been cancelled |
+
+**Source file:** `applications/bot/src/interactions/claim.ts` (`UnclaimButton`)
+
+---
+
 ### Event Create Autocomplete
 
 Provides training type suggestions for the `/event create training_type` option.
@@ -541,6 +595,9 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 | `event_cancelled` | `handleCancelled.ts` | Looks up the stored Discord message, replaces the embed content with a cancelled-state embed (no RSVP buttons), edits the existing Discord message |
 | `event_started` | `handleStarted.ts` | Two actions run in parallel. (1) In-place edit: looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts and embed info, rebuilds the embed without RSVP action-row buttons, and edits the existing Discord message. (2) New announcement post: posts a fresh "Starting now: {title}" message to the team's configured reminders channel (falls back to the guild system channel when no reminders channel is set). The announcement embed lists the going attendees filtered to the event's member group, includes a role @-mention (`<@&roleId>`) in the message `content` with `allowed_mentions.roles`, and is formatted in yellow. The `GetYesAttendeesForEmbed` RPC is called with `member_group_id` so only members in the event's member group (and their descendants, via `WITH RECURSIVE descendant_groups`) appear. Emitted by `EventStartCron` when an event's `start_at` time passes. |
 | `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the team's configured reminders channel (falls back to the owner-group's channel). No role @-mention is included in the message content — the reminder is embed-only. Non-responders and yes-attendees are filtered to the event's member group. Non-responders and yes-attendees are formatted as `**Name** (<@id>)` (dual format: bold name plus mention) when both are available; name-only when no Discord ID is linked; mention-only when only a Discord ID is known. The embed also includes a "Going" field listing current yes-attendees. Sends a direct message to each non-responder with a linked Discord account with a link to the voting message. |
+| `training_claim_request` | `handleTrainingClaimRequest.ts` | Posts a claim-board message to the event's owner-group channel (resolved from `discord_target_channel_id` in the sync event). The embed shows event details, an orange "Unclaimed" colour, and a "Claim" primary button. If a Discord role is set for the owner group, the message content @-mentions that role. After posting, saves the resulting message ID via `Event/SaveClaimDiscordMessageId` so future `training_claim_update` events know where to edit. |
+| `training_claim_update` | `handleTrainingClaimUpdate.ts` | Edits the existing claim-board message (located via `claim_discord_channel_id` / `claim_discord_message_id`). The updated embed reflects whether the training is now claimed (green, claimer's name, Unclaim button) or unclaimed (orange, Claim button). If the message has been deleted (404 response), the update is silently skipped. |
+| `unclaimed_training_reminder` | `handleUnclaimedTrainingReminder.ts` | Posts a yellow reminder embed to the owner-group's channel warning that the training is still unclaimed. If `claim_discord_channel_id` and `claim_discord_message_id` are present, the embed description includes a jump link to the claim-board message. If a Discord role is set, the message content @-mentions that role. Emitted by `RsvpReminderCron` alongside the normal RSVP reminder when the training's `claimed_by` is NULL. |
 
 **Lifecycle RPCs:**
 - `Event/MarkEventProcessed`
@@ -611,6 +668,10 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/GetChannelDivider` | Look up the stored divider message ID for a Discord channel |
 | `Event/SaveChannelDivider` | Persist the divider message ID for a Discord channel (upsert) |
 | `Event/DeleteChannelDivider` | Remove the divider message record for a Discord channel |
+| `Event/ClaimTraining` | Atomically claim a training for the invoking coach; returns `EventClaimInfo` or a typed error (`ClaimEventNotFound`, `ClaimNotTraining`, `ClaimEventInactive`, `ClaimNotOwnerGroupMember`, `ClaimAlreadyClaimed`) |
+| `Event/UnclaimTraining` | Release a coach's claim on a training; returns `EventClaimInfo` or a typed error (`ClaimEventNotFound`, `ClaimEventInactive`, `ClaimNotClaimer`) |
+| `Event/SaveClaimDiscordMessageId` | Persist the Discord channel and message IDs for the claim-board message after posting |
+| `Event/GetClaimInfo` | Fetch current claim state (`EventClaimInfo`) for a training; returns `None` if the event does not exist |
 
 ### Activity group (`Activity/`)
 

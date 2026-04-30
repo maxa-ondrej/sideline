@@ -9,6 +9,9 @@ import { handleCancelled } from './handleCancelled.js';
 import { handleCreated } from './handleCreated.js';
 import { handleRsvpReminder } from './handleRsvpReminder.js';
 import { handleStarted } from './handleStarted.js';
+import { handleTrainingClaimRequest } from './handleTrainingClaimRequest.js';
+import { handleTrainingClaimUpdate } from './handleTrainingClaimUpdate.js';
+import { handleUnclaimedTrainingReminder } from './handleUnclaimedTrainingReminder.js';
 import { handleUpdated } from './handleUpdated.js';
 
 const action: (
@@ -20,6 +23,9 @@ const action: (
     Match.tag('event_cancelled', handleCancelled),
     Match.tag('event_started', handleStarted),
     Match.tag('rsvp_reminder', handleRsvpReminder),
+    Match.tag('training_claim_request', handleTrainingClaimRequest),
+    Match.tag('training_claim_update', handleTrainingClaimUpdate),
+    Match.tag('unclaimed_training_reminder', handleUnclaimedTrainingReminder),
     Match.exhaustive,
   );
 

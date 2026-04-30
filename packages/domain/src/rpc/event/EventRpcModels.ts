@@ -1,6 +1,8 @@
 import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { Snowflake } from '~/models/Discord.js';
+import { EventId } from '~/models/Event.js';
+import { TeamMemberId } from '~/models/TeamMember.js';
 import { TrainingTypeId } from '~/models/TrainingType.js';
 
 export class EventDiscordMessage extends Schema.Class<EventDiscordMessage>('EventDiscordMessage')({
@@ -177,3 +179,45 @@ export class UpcomingEventsForUserResult extends Schema.Class<UpcomingEventsForU
   total: Schema.Number,
   team_id: Schema.String,
 }) {}
+
+export class EventClaimInfo extends Schema.Class<EventClaimInfo>('EventClaimInfo')({
+  event_id: EventId,
+  event_type: Schema.String,
+  status: Schema.String,
+  claimed_by_member_id: Schema.OptionFromNullOr(TeamMemberId),
+  claimed_by_display_name: Schema.OptionFromNullOr(Schema.String),
+  claim_discord_channel_id: Schema.OptionFromNullOr(Snowflake),
+  claim_discord_message_id: Schema.OptionFromNullOr(Snowflake),
+}) {}
+
+export class ClaimEventNotFound extends Schema.TaggedErrorClass<ClaimEventNotFound>()(
+  'ClaimEventNotFound',
+  {},
+) {}
+
+export class ClaimNotTraining extends Schema.TaggedErrorClass<ClaimNotTraining>()(
+  'ClaimNotTraining',
+  {},
+) {}
+
+export class ClaimEventInactive extends Schema.TaggedErrorClass<ClaimEventInactive>()(
+  'ClaimEventInactive',
+  {},
+) {}
+
+export class ClaimNotOwnerGroupMember extends Schema.TaggedErrorClass<ClaimNotOwnerGroupMember>()(
+  'ClaimNotOwnerGroupMember',
+  {},
+) {}
+
+export class ClaimAlreadyClaimed extends Schema.TaggedErrorClass<ClaimAlreadyClaimed>()(
+  'ClaimAlreadyClaimed',
+  {
+    claimer_display: Schema.OptionFromNullOr(Schema.String),
+  },
+) {}
+
+export class ClaimNotClaimer extends Schema.TaggedErrorClass<ClaimNotClaimer>()(
+  'ClaimNotClaimer',
+  {},
+) {}

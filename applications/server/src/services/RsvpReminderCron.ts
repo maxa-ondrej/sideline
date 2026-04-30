@@ -50,6 +50,44 @@ export const rsvpReminderCronEffect = Effect.Do.pipe(
               `RsvpReminderCron: queued reminder for event "${event.title}" (${event.event_id})`,
             ),
           ),
+          Effect.tap(() =>
+            event.event_type === 'training' && Option.isNone(event.claimed_by)
+              ? Option.match(event.owner_group_id, {
+                  onNone: () => Effect.void,
+                  onSome: (ownerGroupId) =>
+                    mappingRepo.findByGroupId(event.team_id, ownerGroupId).pipe(
+                      Effect.flatMap((mapping) =>
+                        Option.match(mapping, {
+                          onNone: () =>
+                            Effect.logWarning(
+                              `RsvpReminderCron: no owner channel for unclaimed training ${event.event_id}, skipping unclaimed reminder`,
+                            ),
+                          onSome: (m) =>
+                            syncRepo.emitUnclaimedTrainingReminder(
+                              event.team_id,
+                              event.event_id,
+                              event.title,
+                              event.start_at,
+                              Option.none(),
+                              Option.none(),
+                              m.discord_channel_id,
+                              m.discord_role_id,
+                              event.claim_discord_channel_id,
+                              event.claim_discord_message_id,
+                            ),
+                        }),
+                      ),
+                      Effect.tapDefect((e) =>
+                        Effect.logWarning(
+                          `RsvpReminderCron: failed to emit unclaimed training reminder for event ${event.event_id}`,
+                          e,
+                        ),
+                      ),
+                      Effect.catchDefect(() => Effect.void),
+                    ),
+                })
+              : Effect.void,
+          ),
         ).pipe(
           Effect.tapError((e) =>
             Effect.logWarning(`RsvpReminderCron: failed for event ${event.event_id}`, e),
