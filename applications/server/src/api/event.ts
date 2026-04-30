@@ -11,6 +11,7 @@ import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
+import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventApi.EventNotFound();
@@ -140,6 +141,19 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 event.event_type,
                 resolvedChannel,
               ),
+            ),
+            Effect.tap(({ event }) =>
+              emitTrainingClaimRequestIfApplicable({
+                teamId,
+                eventId: event.id,
+                eventType: event.event_type,
+                ownerGroupId: event.owner_group_id,
+                title: event.title,
+                description: event.description,
+                startAt: event.start_at,
+                endAt: event.end_at,
+                location: event.location,
+              }),
             ),
             Effect.map(
               ({ event }) =>

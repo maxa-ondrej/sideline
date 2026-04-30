@@ -1,5 +1,5 @@
 import { EventRpcEvents } from '@sideline/domain';
-import { Effect, Match } from 'effect';
+import { Effect, Match, Option } from 'effect';
 import {
   type EventSyncEventRow,
   EventSyncEventsRepository,
@@ -101,6 +101,61 @@ export const constructEvent = Match.type<EventSyncEventRow>().pipe(
         member_group_id: r.member_group_id,
         discord_channel_id: r.discord_target_channel_id,
         discord_role_id: r.discord_role_id,
+      }),
+    ),
+  ),
+  Match.when({ event_type: 'training_claim_request' }, (r) =>
+    Effect.succeed(
+      new EventRpcEvents.TrainingClaimRequestEvent({
+        id: r.id,
+        team_id: r.team_id,
+        guild_id: r.guild_id,
+        event_id: r.event_id,
+        title: r.event_title,
+        start_at: r.event_start_at,
+        end_at: r.event_end_at,
+        location: r.event_location,
+        description: r.event_description,
+        discord_target_channel_id: r.discord_target_channel_id,
+        discord_role_id: r.discord_role_id,
+      }),
+    ),
+  ),
+  Match.when({ event_type: 'training_claim_update' }, (r) =>
+    Effect.succeed(
+      new EventRpcEvents.TrainingClaimUpdateEvent({
+        id: r.id,
+        team_id: r.team_id,
+        guild_id: r.guild_id,
+        event_id: r.event_id,
+        title: r.event_title,
+        start_at: r.event_start_at,
+        end_at: r.event_end_at,
+        location: r.event_location,
+        description: r.event_description,
+        claim_discord_channel_id: r.discord_target_channel_id,
+        claim_discord_message_id: r.discord_role_id,
+        claimed_by_member_id: r.claimed_by_member_id,
+        claimed_by_display_name: r.claimed_by_display_name,
+        event_status: r.event_event_type,
+      }),
+    ),
+  ),
+  Match.when({ event_type: 'unclaimed_training_reminder' }, (r) =>
+    Effect.succeed(
+      new EventRpcEvents.UnclaimedTrainingReminderEvent({
+        id: r.id,
+        team_id: r.team_id,
+        guild_id: r.guild_id,
+        event_id: r.event_id,
+        title: r.event_title,
+        start_at: r.event_start_at,
+        end_at: r.event_end_at,
+        location: r.event_location,
+        discord_target_channel_id: r.discord_target_channel_id,
+        discord_role_id: r.discord_role_id,
+        claim_discord_channel_id: Option.none(),
+        claim_discord_message_id: Option.none(),
       }),
     ),
   ),

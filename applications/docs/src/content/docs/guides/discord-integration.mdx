@@ -43,6 +43,20 @@ The bot responds to the following slash commands inside your linked Discord serv
   Slash commands only appear in channels where the bot has permission to reply. If `/events` doesn't autocomplete, check the bot's channel permissions.
 </Aside>
 
+## Training claim board
+
+When a training event is created, the bot posts a **claim-board message** to the owner group's Discord channel. The message shows training details and an orange **Claim** button.
+
+A coach (any member of the training's owner group or a sub-group of it) can click **Claim** to mark themselves as responsible for running the training. The message turns green and shows the coach's name. If the training is already claimed by someone else, the button responds with a quiet "already claimed" notice visible only to you.
+
+The current claimer can click **Release** to give up the claim, returning the board to its unclaimed (orange) state for others to pick up.
+
+If no one has claimed a training by the time the regular RSVP reminder fires, the bot posts an additional **unclaimed training reminder** to the owner group's channel, including a jump link back to the claim-board message.
+
+<Aside type="note" title="Who can claim?">
+  Only members (including coaches in sub-groups) of the training's **owner group** can claim or release a training. The Claim button silently rejects everyone else.
+</Aside>
+
 ## Role sync
 
 If you enable **group → role sync**, Sideline keeps a Discord role matching each group. When you add someone to the "first team" group, they get the "first team" Discord role — which can then gate channel access.

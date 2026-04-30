@@ -1,6 +1,7 @@
 import {
   Discord,
   Event,
+  EventRpcModels,
   EventSeries,
   GroupModel,
   Team,
@@ -34,6 +35,10 @@ class EventWithDetails extends Schema.Class<EventWithDetails>('EventWithDetails'
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   member_group_name: Schema.OptionFromNullOr(Schema.String),
   reminder_sent_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+  claimed_by: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+  claimer_name: Schema.OptionFromNullOr(Schema.String),
+  claim_discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  claim_discord_message_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 class EventRow extends Schema.Class<EventRow>('EventRow')({
@@ -105,13 +110,19 @@ const make = Effect.gen(function* () {
                    e.discord_target_channel_id,
                    e.owner_group_id, og.name AS owner_group_name,
                    e.member_group_id, mg.name AS member_group_name,
-                   e.reminder_sent_at
+                   e.reminder_sent_at,
+                   e.claimed_by,
+                   cu.name AS claimer_name,
+                   e.claim_discord_channel_id,
+                   e.claim_discord_message_id
             FROM events e
             LEFT JOIN training_types tt ON tt.id = e.training_type_id
             LEFT JOIN team_members tm ON tm.id = e.created_by
             LEFT JOIN users u ON u.id = tm.user_id
             LEFT JOIN groups og ON og.id = e.owner_group_id
             LEFT JOIN groups mg ON mg.id = e.member_group_id
+            LEFT JOIN team_members ctm ON ctm.id = e.claimed_by
+            LEFT JOIN users cu ON cu.id = ctm.user_id
             WHERE e.team_id = ${teamId}
             ORDER BY e.start_at ASC
           `,
@@ -130,13 +141,19 @@ const make = Effect.gen(function* () {
                    e.discord_target_channel_id,
                    e.owner_group_id, og.name AS owner_group_name,
                    e.member_group_id, mg.name AS member_group_name,
-                   e.reminder_sent_at
+                   e.reminder_sent_at,
+                   e.claimed_by,
+                   cu.name AS claimer_name,
+                   e.claim_discord_channel_id,
+                   e.claim_discord_message_id
             FROM events e
             LEFT JOIN training_types tt ON tt.id = e.training_type_id
             LEFT JOIN team_members tm ON tm.id = e.created_by
             LEFT JOIN users u ON u.id = tm.user_id
             LEFT JOIN groups og ON og.id = e.owner_group_id
             LEFT JOIN groups mg ON mg.id = e.member_group_id
+            LEFT JOIN team_members ctm ON ctm.id = e.claimed_by
+            LEFT JOIN users cu ON cu.id = ctm.user_id
             WHERE e.id = ${id}
           `,
   });
@@ -304,6 +321,52 @@ const make = Effect.gen(function* () {
   const markAutoLogged = SqlSchema.void({
     Request: Event.EventId,
     execute: (id) => sql`UPDATE events SET auto_logged_at = now() WHERE id = ${id}`,
+  });
+
+  const _claimTraining = SqlSchema.findOneOption({
+    Request: Schema.Struct({ event_id: Event.EventId, team_member_id: TeamMember.TeamMemberId }),
+    Result: Schema.Struct({ id: Event.EventId }),
+    execute: (input) =>
+      sql`UPDATE events SET claimed_by = ${input.team_member_id} WHERE id = ${input.event_id} AND status = 'active' AND event_type = 'training' AND claimed_by IS NULL RETURNING id`,
+  });
+
+  const _unclaimTraining = SqlSchema.findOneOption({
+    Request: Schema.Struct({ event_id: Event.EventId, team_member_id: TeamMember.TeamMemberId }),
+    Result: Schema.Struct({ id: Event.EventId }),
+    execute: (input) =>
+      sql`UPDATE events SET claimed_by = NULL WHERE id = ${input.event_id} AND status = 'active' AND claimed_by = ${input.team_member_id} RETURNING id`,
+  });
+
+  const _saveClaimDiscordMessage = SqlSchema.void({
+    Request: Schema.Struct({
+      event_id: Event.EventId,
+      channel_id: Schema.String,
+      message_id: Schema.String,
+    }),
+    execute: (input) =>
+      sql`UPDATE events SET claim_discord_channel_id = ${input.channel_id}, claim_discord_message_id = ${input.message_id} WHERE id = ${input.event_id}`,
+  });
+
+  const _findClaimInfo = SqlSchema.findOneOption({
+    Request: Event.EventId,
+    Result: Schema.Struct({
+      event_id: Event.EventId,
+      event_type: Schema.String,
+      status: Schema.String,
+      claimed_by: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+      claimer_name: Schema.OptionFromNullOr(Schema.String),
+      claim_discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+      claim_discord_message_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    }),
+    execute: (id) => sql`
+      SELECT e.id AS event_id, e.event_type, e.status,
+             e.claimed_by, cu.name AS claimer_name,
+             e.claim_discord_channel_id, e.claim_discord_message_id
+      FROM events e
+      LEFT JOIN team_members ctm ON ctm.id = e.claimed_by
+      LEFT JOIN users cu ON cu.id = ctm.user_id
+      WHERE e.id = ${id}
+    `,
   });
 
   const findEndedTrainings = SqlSchema.findAll({
@@ -603,6 +666,38 @@ const make = Effect.gen(function* () {
   const markTrainingAutoLogged = (eventId: Event.EventId) =>
     markAutoLogged(eventId).pipe(catchSqlErrors);
 
+  const claimTraining = (eventId: Event.EventId, memberId: TeamMember.TeamMemberId) =>
+    _claimTraining({ event_id: eventId, team_member_id: memberId }).pipe(catchSqlErrors);
+
+  const unclaimTraining = (eventId: Event.EventId, memberId: TeamMember.TeamMemberId) =>
+    _unclaimTraining({ event_id: eventId, team_member_id: memberId }).pipe(catchSqlErrors);
+
+  const saveClaimDiscordMessage = (eventId: Event.EventId, channelId: string, messageId: string) =>
+    _saveClaimDiscordMessage({
+      event_id: eventId,
+      channel_id: channelId,
+      message_id: messageId,
+    }).pipe(catchSqlErrors);
+
+  const findClaimInfo = (eventId: Event.EventId) =>
+    _findClaimInfo(eventId).pipe(
+      Effect.map(
+        Option.map(
+          (row) =>
+            new EventRpcModels.EventClaimInfo({
+              event_id: row.event_id,
+              event_type: row.event_type,
+              status: row.status,
+              claimed_by_member_id: row.claimed_by,
+              claimed_by_display_name: row.claimer_name,
+              claim_discord_channel_id: row.claim_discord_channel_id,
+              claim_discord_message_id: row.claim_discord_message_id,
+            }),
+        ),
+      ),
+      catchSqlErrors,
+    );
+
   const findEndedTrainingsForAutoLog = () => findEndedTrainings(undefined).pipe(catchSqlErrors);
 
   const markEventSeriesModified = (eventId: Event.EventId) =>
@@ -661,6 +756,10 @@ const make = Effect.gen(function* () {
     cancelFutureInSeries,
     findUpcomingWithRsvp,
     updateFutureUnmodifiedInSeries,
+    claimTraining,
+    unclaimTraining,
+    saveClaimDiscordMessage,
+    findClaimInfo,
   };
 });
 

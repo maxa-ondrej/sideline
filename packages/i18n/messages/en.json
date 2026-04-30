@@ -718,5 +718,21 @@
   "event_eventCreated": "Event created",
   "event_seriesCreated": "Series created",
   "event_rsvpSubmitted": "RSVP submitted",
-  "role_perm_groupManage": "Manage Groups"
+  "role_perm_groupManage": "Manage Groups",
+  "bot_claim_message_title": "Coach needed: {title}",
+  "bot_claim_button": "Claim training",
+  "bot_unclaim_button": "Release",
+  "bot_claim_status_label": "Status",
+  "bot_claim_status_unclaimed": "🟠 Unclaimed",
+  "bot_claim_status_claimed_by": "🟢 Claimed by {user}",
+  "bot_claim_unclaimed_reminder_title": "{title} — still no coach",
+  "bot_claim_unclaimed_reminder_description": "This training is happening {when} and nobody has volunteered yet.",
+  "bot_claim_unclaimed_reminder_jump": "Jump to claim ↗",
+  "bot_claim_already_claimed_by": "This training is already claimed by {user}.",
+  "bot_claim_not_owner": "Only coaches can claim trainings.",
+  "bot_claim_event_cancelled": "This training was cancelled.",
+  "bot_claim_event_started": "This training has already started.",
+  "bot_claim_release_not_claimer": "Only the coach who claimed this training can release it.",
+  "bot_claim_success": "You've claimed this training.",
+  "bot_claim_release_success": "You've released this training."
 }

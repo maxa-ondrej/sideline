@@ -414,6 +414,9 @@ Individual scheduled occurrences (training, match, tournament, meeting, social, 
 | `series_modified` | BOOLEAN | NOT NULL | `false` |
 | `reminder_sent_at` | TIMESTAMPTZ | — | — |
 | `auto_logged_at` | TIMESTAMPTZ | — | — |
+| `claimed_by` | UUID | FK → `team_members(id)` ON DELETE SET NULL | — |
+| `claim_discord_channel_id` | TEXT | — | — |
+| `claim_discord_message_id` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
@@ -421,7 +424,9 @@ Individual scheduled occurrences (training, match, tournament, meeting, social, 
 
 **Unique**: `idx_events_series_date` — partial unique index on `(series_id, (start_at AT TIME ZONE 'UTC')::date) WHERE series_id IS NOT NULL`, preventing duplicate series-generated events for the same day
 
-**Notes**: Original date/time columns (`event_date DATE`, `start_time TIME`, `end_time TIME`) were consolidated into `start_at` and `end_at` in migration `1741800000`. `discord_channel_id` and `discord_message_id` track where the event embed was posted. `discord_target_channel_id` overrides the default channel per-event. `auto_logged_at` is set by `TrainingAutoLogCron` when training attendance is auto-logged. `status` was extended to include `'started'` in migration `1744000000`; events transition to `started` automatically when their `start_at` time passes (set by `EventStartCron`).
+**Partial index**: `idx_events_claimed_by_unclaimed` on `(team_id) WHERE event_type = 'training' AND status = 'active' AND claimed_by IS NULL` — efficient lookup of unclaimed active training events per team.
+
+**Notes**: Original date/time columns (`event_date DATE`, `start_time TIME`, `end_time TIME`) were consolidated into `start_at` and `end_at` in migration `1741800000`. `discord_channel_id` and `discord_message_id` track where the event embed was posted. `discord_target_channel_id` overrides the default channel per-event. `auto_logged_at` is set by `TrainingAutoLogCron` when training attendance is auto-logged. `status` was extended to include `'started'` in migration `1744000000`; events transition to `started` automatically when their `start_at` time passes (set by `EventStartCron`). `claimed_by` is the team member who has claimed the training (NULL = unclaimed); set atomically via a conditional UPDATE. `claim_discord_channel_id` and `claim_discord_message_id` track the claim-board message posted to the owner-group's channel (added in migration `1745900000`).
 
 ---
 
@@ -616,7 +621,7 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 | `id` | UUID | PK | `gen_random_uuid()` |
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `guild_id` | TEXT | NOT NULL | — |
-| `event_type` | TEXT | NOT NULL, CHECK (`'event_created'`, `'event_updated'`, `'event_cancelled'`, `'rsvp_reminder'`, `'event_started'`) | — |
+| `event_type` | TEXT | NOT NULL, CHECK (`'event_created'`, `'event_updated'`, `'event_cancelled'`, `'rsvp_reminder'`, `'event_started'`, `'training_claim_request'`, `'training_claim_update'`, `'unclaimed_training_reminder'`) | — |
 | `event_id` | UUID | NOT NULL, FK → `events(id)` ON DELETE CASCADE | — |
 | `event_title` | TEXT | NOT NULL | — |
 | `event_description` | TEXT | — | — |
@@ -627,13 +632,15 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 | `discord_target_channel_id` | TEXT | — | — |
 | `member_group_id` | UUID | — | — |
 | `discord_role_id` | TEXT | — | — |
+| `claimed_by_member_id` | UUID | — | — |
+| `claimed_by_display_name` | TEXT | — | — |
 | `processed_at` | TIMESTAMPTZ | — | — |
 | `error` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
 **Indexes**: `idx_event_sync_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes. `member_group_id` and `discord_role_id` added in migration `1745800000`; `member_group_id` stores the UUID of the member group whose attendee list the bot should display (no FK constraint by design, to preserve rows after group deletion); `discord_role_id` is the Discord role to @-mention in the reminder or start-announcement message.
+**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes. `member_group_id` and `discord_role_id` added in migration `1745800000`; `member_group_id` stores the UUID of the member group whose attendee list the bot should display (no FK constraint by design, to preserve rows after group deletion); `discord_role_id` is the Discord role to @-mention in the reminder or start-announcement message. `training_claim_request`, `training_claim_update`, and `unclaimed_training_reminder` event types added in migration `1745900000` to drive the training-claim board in Discord; `claimed_by_member_id` and `claimed_by_display_name` carry the current claimer for `training_claim_update` events (no FK constraint by design, to preserve rows after member deletion).
 
 ---
 
@@ -761,7 +768,7 @@ In-app alert records scoped to a specific team and user.
 
 ## Migration History
 
-All 44 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 45 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -817,6 +824,7 @@ All 44 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1744200000 | `add_discord_nickname` | Adds `discord_nickname TEXT` to users |
 | 1744300000 | `add_discord_display_name` | Adds `discord_display_name TEXT` to users |
 | 1745800000 | `rsvp_reminder_v2` | Drops `team_settings.rsvp_reminder_hours`; adds `rsvp_reminder_days_before INT NOT NULL DEFAULT 1`, `rsvp_reminder_time TIME NOT NULL DEFAULT '18:00'`, `reminders_channel_id TEXT`, `timezone TEXT NOT NULL DEFAULT 'Europe/Prague'` to team_settings; migrates existing `rsvp_reminder_hours` values to `rsvp_reminder_days_before` (ceiling of hours÷24); adds `member_group_id UUID` and `discord_role_id TEXT` to event_sync_events |
+| 1745900000 | `add_event_claim` | Adds `claimed_by UUID FK → team_members(id) ON DELETE SET NULL`, `claim_discord_channel_id TEXT`, `claim_discord_message_id TEXT` to events; adds partial index `idx_events_claimed_by_unclaimed` on `events(team_id) WHERE event_type = 'training' AND status = 'active' AND claimed_by IS NULL`; extends event_sync_events `event_type` CHECK to include `'training_claim_request'`, `'training_claim_update'`, `'unclaimed_training_reminder'`; adds `claimed_by_member_id UUID` and `claimed_by_display_name TEXT` to event_sync_events |
 
 ### After Migrations (seed data)
 
@@ -836,7 +844,7 @@ Three tables act as outbox queues for bot-server communication:
 |---|---|---|
 | `role_sync_events` | Role Sync | `role_created`, `role_deleted`, `role_assigned`, `role_unassigned` |
 | `channel_sync_events` | Channel Sync | `channel_created`, `channel_updated`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed` |
-| `event_sync_events` | Event Sync | `event_created`, `event_updated`, `event_cancelled`, `rsvp_reminder`, `event_started` |
+| `event_sync_events` | Event Sync | `event_created`, `event_updated`, `event_cancelled`, `rsvp_reminder`, `event_started`, `training_claim_request`, `training_claim_update`, `unclaimed_training_reminder` |
 
 The server inserts rows when the relevant domain action occurs. The bot polls `WHERE processed_at IS NULL ORDER BY created_at` and updates `processed_at` (and optionally `error`) when processing is complete. Partial indexes on `(created_at) WHERE processed_at IS NULL` make these polls efficient. Event data is denormalised into snapshot columns so that the bot's message content remains accurate even if the source row is subsequently modified.
 

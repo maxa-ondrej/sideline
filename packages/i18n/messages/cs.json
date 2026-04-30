@@ -718,5 +718,21 @@
   "event_eventCreated": "Událost vytvořena",
   "event_seriesCreated": "Série vytvořena",
   "event_rsvpSubmitted": "RSVP odesláno",
-  "role_perm_groupManage": "Spravovat skupiny"
+  "role_perm_groupManage": "Spravovat skupiny",
+  "bot_claim_message_title": "Trénink potřebuje trenéra: {title}",
+  "bot_claim_button": "Vzít trénink",
+  "bot_unclaim_button": "Uvolnit",
+  "bot_claim_status_label": "Stav",
+  "bot_claim_status_unclaimed": "🟠 Bez trenéra",
+  "bot_claim_status_claimed_by": "🟢 Vzal/a si {user}",
+  "bot_claim_unclaimed_reminder_title": "{title} — stále bez trenéra",
+  "bot_claim_unclaimed_reminder_description": "Trénink je {when} a nikdo se ho zatím neujal.",
+  "bot_claim_unclaimed_reminder_jump": "Přejít a vzít si ↗",
+  "bot_claim_already_claimed_by": "Tento trénink si už vzal/a {user}.",
+  "bot_claim_not_owner": "Trénink si mohou vzít jen trenéři.",
+  "bot_claim_event_cancelled": "Tento trénink byl zrušen.",
+  "bot_claim_event_started": "Tento trénink už začal.",
+  "bot_claim_release_not_claimer": "Uvolnit trénink může jen ten trenér, který si ho vzal.",
+  "bot_claim_success": "Vzal/a sis tento trénink.",
+  "bot_claim_release_success": "Uvolnil/a jsi tento trénink."
 }

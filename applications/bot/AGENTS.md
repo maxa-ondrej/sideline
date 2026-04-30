@@ -27,16 +27,20 @@ src/
 │   ├── handleMemberRemoved.ts — member_removed handler
 │   └── handleRosterChannelCreated.ts — roster channel_created handler
 └── rcp/event/       — Event sync event handlers
-    ├── ProcessorService.ts    — Match.tag dispatcher for event sync events
-    ├── handleCreated.ts       — event_created handler
-    ├── handleUpdated.ts       — event_updated handler
-    ├── handleCancelled.ts     — event_cancelled handler
-    ├── handleStarted.ts       — event_started handler (updates embed, removes RSVP buttons)
-    └── handleRsvpReminder.ts  — rsvp_reminder handler
+    ├── ProcessorService.ts             — Match.tag dispatcher for event sync events
+    ├── handleCreated.ts                — event_created handler
+    ├── handleUpdated.ts                — event_updated handler
+    ├── handleCancelled.ts              — event_cancelled handler
+    ├── handleStarted.ts                — event_started handler (updates embed, removes RSVP buttons)
+    ├── handleRsvpReminder.ts           — rsvp_reminder handler
+    ├── handleTrainingClaimRequest.ts   — training_claim_request handler (posts claim embed, saves message id back via Event/SaveClaimDiscordMessageId)
+    ├── handleTrainingClaimUpdate.ts    — training_claim_update handler (edits existing claim embed in place)
+    └── handleUnclaimedTrainingReminder.ts — unclaimed_training_reminder handler (posts reminder pointing to claim message)
 └── rest/events/     — Embed builder functions
     ├── buildEventEmbed.ts              — Main event embed (RSVP counts, "Going" field)
     ├── buildAttendeesEmbed.ts          — Paginated attendee list embed
     ├── buildUpcomingEventEmbed.ts      — Per-user upcoming events embed (/event list, overview button)
+    ├── buildClaimMessage.ts            — Coach-claim embed + Claim/Release button row
     └── sendUpcomingEventFollowups.ts   — Shared helper: sends one ephemeral follow-up message per event (max 10)
 ```
 
@@ -168,9 +172,13 @@ Syncs event lifecycle to Discord embed messages. When events are created/updated
 | Domain model | `packages/domain/src/rpc/event/EventRpcEvents.ts` |
 | Bot service | `src/rcp/event/ProcessorService.ts` |
 
-Event types: `event_created`, `event_updated`, `event_cancelled`, `event_started`, `rsvp_reminder`
+Event types: `event_created`, `event_updated`, `event_cancelled`, `event_started`, `rsvp_reminder`, `training_claim_request`, `training_claim_update`, `unclaimed_training_reminder`
 
 The `event_started` handler updates the Discord embed to remove RSVP buttons and rebuilds the embed with current RSVP counts.
+
+#### Coach-claim message id round-trip
+
+The `training_claim_request` handler posts the initial claim embed to the owner-group channel. The server does not know the resulting Discord channel/message id ahead of time. After `rest.createMessage` succeeds, the handler must call `rpc['Event/SaveClaimDiscordMessageId']({ event_id, channel_id, message_id })` so subsequent `training_claim_update` and `unclaimed_training_reminder` events can locate and edit / link to that message. Always save the id in the same effect chain as the create call (via `Effect.tap`) so a failure to save is logged together with the create.
 
 ### Sync Pattern (all types)
 
@@ -279,3 +287,7 @@ Used by `/event list` and the overview show button (`overview-show`). Instead of
 2. `sendUpcomingEventFollowups` in `src/rest/events/sendUpcomingEventFollowups.ts` is the shared helper used by both `/event list` and `OverviewShowButton`. It calls `Event/GetUpcomingEventsForUser` (fetching up to 10 events), then sends one ephemeral follow-up message per event via `rest.createFollowupMessage`
 3. `UpcomingRsvpButton` (`src/interactions/upcoming-rsvp.ts`) handles inline RSVP — submits the RSVP via `Event/SubmitRsvp`, triggers embed updates via `postRsvpDiscordUpdates`, then edits the current ephemeral message to reflect the new RSVP state
 4. `OverviewShowButton` (`src/interactions/overview-channel.ts`) handles the `overview-show` button — delegates to `sendUpcomingEventFollowups`
+
+#### Coach claim / release buttons
+
+`ClaimButton` and `UnclaimButton` (`src/interactions/claim.ts`) are matched via `Ix.idStartsWith('claim:')` and `Ix.idStartsWith('unclaim:')`. The `custom_id` format is `claim:{team_id}:{event_id}` and `unclaim:{team_id}:{event_id}` — parsed positionally by `data.custom_id.split(':')`. Both handlers respond with `DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE` (ephemeral), fork the RPC call (`Event/ClaimTraining` / `Event/UnclaimTraining`) in the background via `Effect.forkDetach`, and edit the original webhook message with the localized result. RPC error tags are mapped to localized strings via `Effect.catchTag`: `ClaimAlreadyClaimed` → `bot_claim_already_claimed_by`, `ClaimNotOwnerGroupMember` → `bot_claim_not_owner`, `ClaimEventInactive` / `ClaimEventNotFound` / `ClaimNotTraining` → `bot_claim_event_cancelled`, `ClaimNotClaimer` → `bot_claim_release_not_claimer`.

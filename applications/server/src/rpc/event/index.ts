@@ -25,6 +25,7 @@ import {
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { ChannelEventDividersRepository } from '~/repositories/ChannelEventDividersRepository.js';
+import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
@@ -34,6 +35,7 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
+import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 import { constructEvent } from './events.js';
 
 class NoChanges extends Data.TaggedError('NoChanges')<{
@@ -113,6 +115,7 @@ const createEvent = (
   syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
   members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
   trainingTypes: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
+  mappingRepo: ServiceMap.Service.Shape<typeof DiscordChannelMappingRepository>,
   input: {
     readonly guild_id: Discord.Snowflake;
     readonly discord_user_id: Discord.Snowflake;
@@ -212,9 +215,41 @@ const createEvent = (
               ),
           }),
     ),
+    // Inherit owner/member groups from the training type when not provided.
+    Effect.bind('resolvedGroups', ({ validatedTrainingTypeId }) =>
+      Option.match(validatedTrainingTypeId, {
+        onNone: () =>
+          Effect.succeed({
+            ownerGroupId: Option.none<GroupModel.GroupId>(),
+            memberGroupId: Option.none<GroupModel.GroupId>(),
+          }),
+        onSome: (ttId) =>
+          trainingTypes.findTrainingTypeById(ttId).pipe(
+            Effect.map(
+              Option.match({
+                onNone: () => ({
+                  ownerGroupId: Option.none<GroupModel.GroupId>(),
+                  memberGroupId: Option.none<GroupModel.GroupId>(),
+                }),
+                onSome: (tt) => ({
+                  ownerGroupId: tt.owner_group_id,
+                  memberGroupId: tt.member_group_id,
+                }),
+              }),
+            ),
+          ),
+      }),
+    ),
     Effect.bind(
       'event',
-      ({ teamId, userLookup, parsedStartAt, parsedEndAt, validatedTrainingTypeId }) =>
+      ({
+        teamId,
+        userLookup,
+        parsedStartAt,
+        parsedEndAt,
+        validatedTrainingTypeId,
+        resolvedGroups,
+      }) =>
         events
           .insertEvent({
             teamId,
@@ -226,6 +261,8 @@ const createEvent = (
             endAt: parsedEndAt,
             location: input.location,
             createdBy: userLookup.team_member_id,
+            ownerGroupId: resolvedGroups.ownerGroupId,
+            memberGroupId: resolvedGroups.memberGroupId,
           })
           .pipe(
             Effect.catchTag(
@@ -250,6 +287,19 @@ const createEvent = (
         resolvedChannel,
       ),
     ),
+    Effect.tap(({ teamId, event }) =>
+      emitTrainingClaimRequestIfApplicable({
+        teamId,
+        eventId: event.id,
+        eventType: event.event_type,
+        ownerGroupId: event.owner_group_id,
+        title: event.title,
+        description: event.description,
+        startAt: event.start_at,
+        endAt: event.end_at,
+        location: event.location,
+      }),
+    ),
     Effect.map(
       ({ event }) =>
         new EventRpcModels.CreateEventResult({
@@ -272,6 +322,7 @@ const rpcHandlers = Effect.Do.pipe(
       teamsRepo: TeamsRepository.asEffect(),
       teamSettings: TeamSettingsRepository.asEffect(),
       channelDividers: ChannelEventDividersRepository.asEffect(),
+      mappingRepo: DiscordChannelMappingRepository.asEffect(),
     }),
   ),
   Effect.let(
@@ -920,7 +971,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
   ),
   Effect.let(
     'Event/CreateEvent',
-    ({ deps: { sql, members, syncEvents, trainingTypesRepo }, events }) =>
+    ({ deps: { sql, members, syncEvents, trainingTypesRepo, mappingRepo }, events }) =>
       (input: {
         readonly guild_id: Discord.Snowflake;
         readonly discord_user_id: Discord.Snowflake;
@@ -932,7 +983,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
         readonly description: Option.Option<string>;
         readonly training_type_id: Option.Option<TrainingType.TrainingTypeId>;
       }) =>
-        createEvent(sql, events, syncEvents, members, trainingTypesRepo, input),
+        createEvent(sql, events, syncEvents, members, trainingTypesRepo, mappingRepo, input),
   ),
   Effect.let(
     'Event/GetChannelDivider',
@@ -957,6 +1008,274 @@ export const EventsRpcLive = rpcHandlers.pipe(
     ({ deps: { channelDividers } }) =>
       ({ discord_channel_id }: { readonly discord_channel_id: Discord.Snowflake }) =>
         channelDividers.deleteByChannelId(discord_channel_id),
+  ),
+  Effect.let(
+    'Event/ClaimTraining',
+    ({ events, deps: { sql, groups, syncEvents } }) =>
+      ({
+        event_id,
+        team_id,
+        discord_user_id,
+      }: {
+        readonly event_id: Event.EventId;
+        readonly team_id: Team.TeamId;
+        readonly discord_user_id: Discord.Snowflake;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('member', () =>
+            SqlSchema.findOne({
+              Request: Schema.Struct({
+                discord_user_id: Schema.String,
+                team_id: Schema.String,
+              }),
+              Result: TeamMemberLookup,
+              execute: (input) => sql`
+                SELECT tm.id,
+                       u.name,
+                       u.discord_nickname AS nickname,
+                       u.discord_display_name AS display_name,
+                       u.username
+                FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
+              `,
+            })({
+              discord_user_id,
+              team_id,
+            }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.ClaimNotOwnerGroupMember()),
+              ),
+              Effect.mapError(() => new EventRpcModels.ClaimNotOwnerGroupMember()),
+            ),
+          ),
+          Effect.bind('event', () =>
+            events.findEventByIdWithDetails(event_id).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new EventRpcModels.ClaimEventNotFound()),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+          ),
+          Effect.tap(({ event }) =>
+            event.event_type !== 'training'
+              ? Effect.fail(new EventRpcModels.ClaimNotTraining())
+              : Effect.void,
+          ),
+          Effect.tap(({ event }) =>
+            event.status !== 'active'
+              ? Effect.fail(new EventRpcModels.ClaimEventInactive())
+              : Effect.void,
+          ),
+          Effect.tap(({ event }) =>
+            Option.isNone(event.owner_group_id)
+              ? Effect.fail(new EventRpcModels.ClaimNotOwnerGroupMember())
+              : Effect.void,
+          ),
+          Effect.tap(({ event, member }) =>
+            Option.match(event.owner_group_id, {
+              onNone: () => Effect.fail(new EventRpcModels.ClaimNotOwnerGroupMember()),
+              onSome: (ownerGroupId) =>
+                groups
+                  .getDescendantMemberIds(ownerGroupId)
+                  .pipe(
+                    Effect.flatMap((memberIds) =>
+                      Array.contains(memberIds, member.id)
+                        ? Effect.void
+                        : Effect.fail(new EventRpcModels.ClaimNotOwnerGroupMember()),
+                    ),
+                  ),
+            }),
+          ),
+          Effect.tap(({ event }) =>
+            Option.isSome(event.claimed_by)
+              ? Effect.fail(
+                  new EventRpcModels.ClaimAlreadyClaimed({
+                    claimer_display: event.claimer_name,
+                  }),
+                )
+              : Effect.void,
+          ),
+          Effect.bind('claimResult', ({ member }) => events.claimTraining(event_id, member.id)),
+          Effect.bind(
+            'claimInfo',
+            ({
+              claimResult,
+            }): Effect.Effect<
+              EventRpcModels.EventClaimInfo,
+              | EventRpcModels.ClaimEventNotFound
+              | EventRpcModels.ClaimAlreadyClaimed
+              | EventRpcModels.ClaimEventInactive,
+              never
+            > =>
+              Option.isNone(claimResult)
+                ? events.findEventByIdWithDetails(event_id).pipe(
+                    Effect.flatMap(
+                      (
+                        reloaded,
+                      ): Effect.Effect<
+                        never,
+                        | EventRpcModels.ClaimEventNotFound
+                        | EventRpcModels.ClaimAlreadyClaimed
+                        | EventRpcModels.ClaimEventInactive,
+                        never
+                      > => {
+                        if (Option.isNone(reloaded)) {
+                          return Effect.fail(new EventRpcModels.ClaimEventNotFound());
+                        }
+                        if (Option.isSome(reloaded.value.claimed_by)) {
+                          return Effect.fail(
+                            new EventRpcModels.ClaimAlreadyClaimed({
+                              claimer_display: reloaded.value.claimer_name,
+                            }),
+                          );
+                        }
+                        return Effect.fail(new EventRpcModels.ClaimEventInactive());
+                      },
+                    ),
+                  )
+                : events
+                    .findClaimInfo(event_id)
+                    .pipe(
+                      Effect.flatMap(
+                        Options.toEffect(() => new EventRpcModels.ClaimEventNotFound()),
+                      ),
+                    ),
+          ),
+          Effect.tap(({ event, claimInfo }) =>
+            syncEvents.emitTrainingClaimUpdate(
+              team_id,
+              event_id,
+              event.title,
+              event.start_at,
+              event.end_at,
+              event.location,
+              event.description,
+              claimInfo.claim_discord_channel_id,
+              claimInfo.claim_discord_message_id,
+              claimInfo.claimed_by_member_id,
+              claimInfo.claimed_by_display_name,
+              claimInfo.status,
+            ),
+          ),
+          Effect.map(({ claimInfo }) => claimInfo),
+        ),
+  ),
+  Effect.let(
+    'Event/UnclaimTraining',
+    ({ events, deps: { sql, syncEvents } }) =>
+      ({
+        event_id,
+        team_id,
+        discord_user_id,
+      }: {
+        readonly event_id: Event.EventId;
+        readonly team_id: Team.TeamId;
+        readonly discord_user_id: Discord.Snowflake;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('member', () =>
+            SqlSchema.findOne({
+              Request: Schema.Struct({
+                discord_user_id: Schema.String,
+                team_id: Schema.String,
+              }),
+              Result: TeamMemberLookup,
+              execute: (input) => sql`
+                SELECT tm.id,
+                       u.name,
+                       u.discord_nickname AS nickname,
+                       u.discord_display_name AS display_name,
+                       u.username
+                FROM team_members tm
+                JOIN users u ON u.id = tm.user_id
+                WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
+              `,
+            })({
+              discord_user_id,
+              team_id,
+            }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.ClaimNotClaimer()),
+              ),
+              Effect.mapError(() => new EventRpcModels.ClaimNotClaimer()),
+            ),
+          ),
+          Effect.bind('event', () =>
+            events.findEventByIdWithDetails(event_id).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new EventRpcModels.ClaimEventNotFound()),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+          ),
+          Effect.tap(({ event }) =>
+            event.status !== 'active'
+              ? Effect.fail(new EventRpcModels.ClaimEventInactive())
+              : Effect.void,
+          ),
+          Effect.bind('unclaimResult', ({ member }) => events.unclaimTraining(event_id, member.id)),
+          Effect.bind(
+            'claimInfo',
+            ({
+              unclaimResult,
+            }): Effect.Effect<
+              EventRpcModels.EventClaimInfo,
+              EventRpcModels.ClaimEventNotFound | EventRpcModels.ClaimNotClaimer,
+              never
+            > =>
+              Option.isNone(unclaimResult)
+                ? Effect.fail(new EventRpcModels.ClaimNotClaimer())
+                : events
+                    .findClaimInfo(event_id)
+                    .pipe(
+                      Effect.flatMap(
+                        Options.toEffect(() => new EventRpcModels.ClaimEventNotFound()),
+                      ),
+                    ),
+          ),
+          Effect.tap(({ event, claimInfo }) =>
+            syncEvents.emitTrainingClaimUpdate(
+              team_id,
+              event_id,
+              event.title,
+              event.start_at,
+              event.end_at,
+              event.location,
+              event.description,
+              claimInfo.claim_discord_channel_id,
+              claimInfo.claim_discord_message_id,
+              claimInfo.claimed_by_member_id,
+              claimInfo.claimed_by_display_name,
+              claimInfo.status,
+            ),
+          ),
+          Effect.map(({ claimInfo }) => claimInfo),
+        ),
+  ),
+  Effect.let(
+    'Event/SaveClaimDiscordMessageId',
+    ({ events }) =>
+      ({
+        event_id,
+        channel_id,
+        message_id,
+      }: {
+        readonly event_id: Event.EventId;
+        readonly channel_id: Discord.Snowflake;
+        readonly message_id: Discord.Snowflake;
+      }) =>
+        events.saveClaimDiscordMessage(event_id, channel_id, message_id),
+  ),
+  Effect.let(
+    'Event/GetClaimInfo',
+    ({ events }) =>
+      ({ event_id }: { readonly event_id: Event.EventId }) =>
+        events.findClaimInfo(event_id),
   ),
   Bind.remove('events'),
   Bind.remove('rsvps'),

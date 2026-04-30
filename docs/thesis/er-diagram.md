@@ -50,6 +50,7 @@ erDiagram
     team_members ||--o{ roster_members : "appears on"
     team_members ||--o{ events : "creates"
     team_members ||--o{ event_series : "creates"
+    team_members o|--o{ events : "claims"
 
     roles ||--o{ role_permissions : "grants"
     roles ||--o{ member_roles : "assigned via"
@@ -355,6 +356,9 @@ erDiagram
         BOOLEAN series_modified
         TIMESTAMPTZ reminder_sent_at
         TIMESTAMPTZ auto_logged_at
+        UUID claimed_by FK
+        TEXT claim_discord_channel_id
+        TEXT claim_discord_message_id
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
@@ -401,6 +405,7 @@ erDiagram
     groups o|--o{ event_series : "scopes"
     team_members ||--o{ events : "creates"
     team_members ||--o{ event_series : "creates"
+    team_members o|--o{ events : "claims"
     events ||--o{ event_rsvps : "collects"
     team_members ||--o{ event_rsvps : "submits"
 ```
@@ -504,6 +509,8 @@ erDiagram
         TEXT discord_target_channel_id
         UUID member_group_id
         TEXT discord_role_id
+        UUID claimed_by_member_id
+        TEXT claimed_by_display_name
         TIMESTAMPTZ processed_at
         TEXT error
         TIMESTAMPTZ created_at
