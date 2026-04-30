@@ -34,7 +34,8 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
-import { resolveChannel, resolveOwnerGroupChannel } from '~/services/EventChannelResolver.js';
+import { resolveChannel } from '~/services/EventChannelResolver.js';
+import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 import { constructEvent } from './events.js';
 
 class NoChanges extends Data.TaggedError('NoChanges')<{
@@ -214,9 +215,41 @@ const createEvent = (
               ),
           }),
     ),
+    // Inherit owner/member groups from the training type when not provided.
+    Effect.bind('resolvedGroups', ({ validatedTrainingTypeId }) =>
+      Option.match(validatedTrainingTypeId, {
+        onNone: () =>
+          Effect.succeed({
+            ownerGroupId: Option.none<GroupModel.GroupId>(),
+            memberGroupId: Option.none<GroupModel.GroupId>(),
+          }),
+        onSome: (ttId) =>
+          trainingTypes.findTrainingTypeById(ttId).pipe(
+            Effect.map(
+              Option.match({
+                onNone: () => ({
+                  ownerGroupId: Option.none<GroupModel.GroupId>(),
+                  memberGroupId: Option.none<GroupModel.GroupId>(),
+                }),
+                onSome: (tt) => ({
+                  ownerGroupId: tt.owner_group_id,
+                  memberGroupId: tt.member_group_id,
+                }),
+              }),
+            ),
+          ),
+      }),
+    ),
     Effect.bind(
       'event',
-      ({ teamId, userLookup, parsedStartAt, parsedEndAt, validatedTrainingTypeId }) =>
+      ({
+        teamId,
+        userLookup,
+        parsedStartAt,
+        parsedEndAt,
+        validatedTrainingTypeId,
+        resolvedGroups,
+      }) =>
         events
           .insertEvent({
             teamId,
@@ -228,6 +261,8 @@ const createEvent = (
             endAt: parsedEndAt,
             location: input.location,
             createdBy: userLookup.team_member_id,
+            ownerGroupId: resolvedGroups.ownerGroupId,
+            memberGroupId: resolvedGroups.memberGroupId,
           })
           .pipe(
             Effect.catchTag(
@@ -253,42 +288,17 @@ const createEvent = (
       ),
     ),
     Effect.tap(({ teamId, event }) =>
-      event.event_type === 'training'
-        ? resolveOwnerGroupChannel(teamId, event.owner_group_id).pipe(
-            Effect.flatMap((ownerChannel) =>
-              Option.match(ownerChannel, {
-                onNone: () => Effect.void,
-                onSome: (channelId) =>
-                  Option.match(event.owner_group_id, {
-                    onNone: () => Effect.void,
-                    onSome: (ownerGroupId) =>
-                      mappingRepo.findByGroupId(teamId, ownerGroupId).pipe(
-                        Effect.flatMap((mapping) =>
-                          syncEvents.emitTrainingClaimRequest(
-                            teamId,
-                            event.id,
-                            event.title,
-                            event.start_at,
-                            event.end_at,
-                            event.location,
-                            event.description,
-                            channelId,
-                            Option.flatMap(mapping, (m) => m.discord_role_id),
-                          ),
-                        ),
-                      ),
-                  }),
-              }),
-            ),
-            Effect.tapDefect((e) =>
-              Effect.logWarning(
-                `CreateEvent: failed to emit training_claim_request for event ${event.id}`,
-                e,
-              ),
-            ),
-            Effect.catchDefect(() => Effect.void),
-          )
-        : Effect.void,
+      emitTrainingClaimRequestIfApplicable({
+        teamId,
+        eventId: event.id,
+        eventType: event.event_type,
+        ownerGroupId: event.owner_group_id,
+        title: event.title,
+        description: event.description,
+        startAt: event.start_at,
+        endAt: event.end_at,
+        location: event.location,
+      }),
     ),
     Effect.map(
       ({ event }) =>

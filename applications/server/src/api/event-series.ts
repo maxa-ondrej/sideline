@@ -14,6 +14,7 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
+import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 
 const forbidden = new EventApi.Forbidden();
 const notFound = new EventSeriesApi.EventSeriesNotFound();
@@ -154,6 +155,19 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                             ),
                           ),
                         ),
+                      ),
+                      Effect.tap((event) =>
+                        emitTrainingClaimRequestIfApplicable({
+                          teamId,
+                          eventId: event.id,
+                          eventType: event.event_type,
+                          ownerGroupId: event.owner_group_id,
+                          title: event.title,
+                          description: event.description,
+                          startAt: event.start_at,
+                          endAt: event.end_at,
+                          location: event.location,
+                        }),
                       ),
                     );
                 }),

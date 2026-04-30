@@ -5,6 +5,7 @@ import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsReposit
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
+import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 
 export const eventHorizonCronEffect = Effect.Do.pipe(
   Effect.bind('seriesRepo', () => EventSeriesRepository.asEffect()),
@@ -78,6 +79,19 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                     ),
                     Effect.catchDefect(() => Effect.void),
                   ),
+                ),
+                Effect.tap((event) =>
+                  emitTrainingClaimRequestIfApplicable({
+                    teamId: s.team_id,
+                    eventId: event.id,
+                    eventType: event.event_type,
+                    ownerGroupId: event.owner_group_id,
+                    title: event.title,
+                    description: event.description,
+                    startAt: event.start_at,
+                    endAt: event.end_at,
+                    location: event.location,
+                  }),
                 ),
               );
           }),
