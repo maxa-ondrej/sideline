@@ -37,21 +37,11 @@ export const handleTrainingClaimRequest = (event: EventRpcEvents.TrainingClaimRe
             locale,
           });
 
-          const roleMention = Option.match(event.discord_role_id, {
-            onNone: () =>
-              ({}) as {
-                content?: string;
-                allowed_mentions?: { parse: []; roles: string[] };
-              },
-            onSome: (role) => ({
-              content: `<@&${role}>`,
-              allowed_mentions: { parse: [] as [], roles: [role] },
-            }),
-          });
-
+          // Initial claim post: no role mention to avoid noise on every training
+          // creation. The unclaimed-training reminder is the channel where the
+          // owner role is pinged.
           return rest
             .createMessage(channelId, {
-              ...roleMention,
               embeds: payload.embeds,
               components: payload.components,
             })
