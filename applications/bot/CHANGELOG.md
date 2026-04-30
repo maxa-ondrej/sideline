@@ -1,5 +1,21 @@
 # @sideline/bot
 
+## 0.11.0
+
+### Minor Changes
+
+- [#236](https://github.com/maxa-ondrej/sideline/pull/236) [`cb91dc7`](https://github.com/maxa-ondrej/sideline/commit/cb91dc72b9f471511d96ac5604e086a60f4193f5) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - feat: add coach claim training feature
+
+  Coaches can now volunteer to organize trainings via a dedicated Discord message posted to the owners group's channel. The message contains a Claim button that toggles to Release once claimed, and the regular reminder cron also posts a "still no coach" reminder when a training stays unclaimed at reminder time.
+
+### Patch Changes
+
+- [#234](https://github.com/maxa-ondrej/sideline/pull/234) [`62db409`](https://github.com/maxa-ondrej/sideline/commit/62db409f482d724157dbab513171b41fa7259248) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - fix: drop member-group role mention from RSVP reminder posts
+
+- Updated dependencies [[`cb91dc7`](https://github.com/maxa-ondrej/sideline/commit/cb91dc72b9f471511d96ac5604e086a60f4193f5)]:
+  - @sideline/domain@0.16.0
+  - @sideline/i18n@0.3.13
+
 ## 0.10.8
 
 ### Patch Changes
