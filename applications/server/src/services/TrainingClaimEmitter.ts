@@ -1,6 +1,6 @@
 import type { Event, GroupModel, Team } from '@sideline/domain';
-import type { DateTime, Option } from 'effect';
-import { Effect } from 'effect';
+import type { DateTime } from 'effect';
+import { Effect, Option } from 'effect';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 
@@ -22,6 +22,7 @@ export const emitTrainingClaimRequestIfApplicable = (args: {
   readonly startAt: DateTime.Utc;
   readonly endAt: Option.Option<DateTime.Utc>;
   readonly location: Option.Option<string>;
+  readonly locationUrl?: Option.Option<string>;
 }): Effect.Effect<void, never, EventSyncEventsRepository | DiscordChannelMappingRepository> => {
   if (args.eventType !== 'training') return Effect.void;
 
@@ -43,6 +44,7 @@ export const emitTrainingClaimRequestIfApplicable = (args: {
             args.description,
             mapping.value.discord_channel_id,
             mapping.value.discord_role_id,
+            args.locationUrl ?? Option.none(),
           );
         }),
       );

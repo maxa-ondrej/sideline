@@ -2,6 +2,7 @@ import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
 import { DateTime, Option } from 'effect';
 import type { Locale } from '~/locale.js';
+import { locationDisplay } from './locationDisplay.js';
 
 const UNCLAIMED_COLOR = 0xed8936; // orange
 const CLAIMED_COLOR = 0x57f287; // green (matches EVENT_TYPE_COLORS.training)
@@ -26,6 +27,7 @@ export const buildClaimMessage = (opts: {
   startAt: DateTime.Utc;
   endAt: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
+  locationUrl: Option.Option<string>;
   description: Option.Option<string>;
   claimedBy: Option.Option<{ teamMemberId: string; displayName: string }>;
   eventStatus: string;
@@ -66,13 +68,11 @@ export const buildClaimMessage = (opts: {
   fields.push({ name: m.bot_embed_when({}, { locale }), value: when, inline: false });
 
   // Where field (optional)
-  if (Option.isSome(opts.location)) {
-    fields.push({
-      name: m.bot_embed_where({}, { locale }),
-      value: opts.location.value,
-      inline: false,
-    });
-  }
+  Option.match(locationDisplay(opts.location, opts.locationUrl), {
+    onNone: () => undefined,
+    onSome: (value) =>
+      fields.push({ name: m.bot_embed_where({}, { locale }), value, inline: false }),
+  });
 
   // Status field — only when active
   if (isActive) {

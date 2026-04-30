@@ -54,6 +54,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                         trainingTypeName: e.training_type_name,
                         description: e.description,
                         imageUrl: e.image_url,
+                        locationUrl: e.location_url,
                         startAt: e.start_at,
                         endAt: e.end_at,
                         location: e.location,
@@ -125,6 +126,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 startAt: payload.startAt,
                 endAt: payload.endAt,
                 location: payload.location,
+                locationUrl: payload.locationUrl,
                 createdBy: membership.id,
                 discordTargetChannelId: payload.discordChannelId,
                 ownerGroupId: resolvedGroups.ownerGroupId,
@@ -146,6 +148,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 Option.none(),
                 Option.none(),
                 event.image_url,
+                event.location_url,
               ),
             ),
             Effect.tap(({ event }) =>
@@ -159,6 +162,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 startAt: event.start_at,
                 endAt: event.end_at,
                 location: event.location,
+                locationUrl: event.location_url,
               }),
             ),
             Effect.map(
@@ -171,6 +175,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   trainingTypeName: Option.none(),
                   description: event.description,
                   imageUrl: event.image_url,
+                  locationUrl: event.location_url,
                   startAt: event.start_at,
                   endAt: event.end_at,
                   location: event.location,
@@ -235,6 +240,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   trainingTypeName: event.training_type_name,
                   description: event.description,
                   imageUrl: event.image_url,
+                  locationUrl: event.location_url,
                   startAt: event.start_at,
                   endAt: event.end_at,
                   location: event.location,
@@ -311,7 +317,18 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 teamId,
               ),
             ),
-            Effect.bind('updated', ({ existing }) =>
+            Effect.let('mergedLocation', ({ existing }) =>
+              Option.getOrElse(payload.location, () => existing.location),
+            ),
+            Effect.let('mergedLocationUrl', ({ existing }) =>
+              Option.getOrElse(payload.locationUrl, () => existing.location_url),
+            ),
+            Effect.tap(({ mergedLocation, mergedLocationUrl }) =>
+              Option.isSome(mergedLocationUrl) && Option.isNone(mergedLocation)
+                ? Effect.fail(forbidden)
+                : Effect.void,
+            ),
+            Effect.bind('updated', ({ existing, mergedLocation, mergedLocationUrl }) =>
               events.updateEvent({
                 id: eventId,
                 title: Option.getOrElse(payload.title, () => existing.title),
@@ -333,10 +350,8 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   onNone: () => existing.end_at,
                   onSome: (v) => v,
                 }),
-                location: Option.match(payload.location, {
-                  onNone: () => existing.location,
-                  onSome: (v) => v,
-                }),
+                location: mergedLocation,
+                locationUrl: mergedLocationUrl,
                 discordTargetChannelId: Option.match(payload.discordChannelId, {
                   onNone: () => existing.discord_target_channel_id,
                   onSome: (v) => v,
@@ -383,6 +398,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 Option.none(),
                 Option.none(),
                 detail.image_url,
+                detail.location_url,
               ),
             ),
             Effect.map(
@@ -396,6 +412,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                   trainingTypeName: detail.training_type_name,
                   description: detail.description,
                   imageUrl: detail.image_url,
+                  locationUrl: detail.location_url,
                   startAt: detail.start_at,
                   endAt: detail.end_at,
                   location: detail.location,
@@ -473,6 +490,10 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 existing.end_at,
                 existing.location,
                 existing.event_type,
+                Option.none(),
+                Option.none(),
+                Option.none(),
+                existing.location_url,
               ),
             ),
             Effect.asVoid,

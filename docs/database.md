@@ -407,6 +407,7 @@ Individual scheduled occurrences (training, match, tournament, meeting, social, 
 | `start_at` | TIMESTAMPTZ | NOT NULL | — |
 | `end_at` | TIMESTAMPTZ | — | — |
 | `location` | TEXT | — | — |
+| `location_url` | TEXT | — | — |
 | `status` | TEXT | NOT NULL, CHECK (`'active'`, `'cancelled'`, `'started'`) | `'active'` |
 | `discord_channel_id` | TEXT | — | — |
 | `discord_message_id` | TEXT | — | — |
@@ -427,7 +428,7 @@ Individual scheduled occurrences (training, match, tournament, meeting, social, 
 
 **Partial index**: `idx_events_claimed_by_unclaimed` on `(team_id) WHERE event_type = 'training' AND status = 'active' AND claimed_by IS NULL` — efficient lookup of unclaimed active training events per team.
 
-**Notes**: Original date/time columns (`event_date DATE`, `start_time TIME`, `end_time TIME`) were consolidated into `start_at` and `end_at` in migration `1741800000`. `discord_channel_id` and `discord_message_id` track where the event embed was posted. `discord_target_channel_id` overrides the default channel per-event. `auto_logged_at` is set by `TrainingAutoLogCron` when training attendance is auto-logged. `status` was extended to include `'started'` in migration `1744000000`; events transition to `started` automatically when their `start_at` time passes (set by `EventStartCron`). `claimed_by` is the team member who has claimed the training (NULL = unclaimed); set atomically via a conditional UPDATE. `claim_discord_channel_id` and `claim_discord_message_id` track the claim-board message posted to the owner-group's channel (added in migration `1745900000`). `image_url` is an optional public `https://` URL for a cover image shown on the event detail page and as a thumbnail in Discord embeds (added in migration `1746000000`).
+**Notes**: Original date/time columns (`event_date DATE`, `start_time TIME`, `end_time TIME`) were consolidated into `start_at` and `end_at` in migration `1741800000`. `discord_channel_id` and `discord_message_id` track where the event embed was posted. `discord_target_channel_id` overrides the default channel per-event. `auto_logged_at` is set by `TrainingAutoLogCron` when training attendance is auto-logged. `status` was extended to include `'started'` in migration `1744000000`; events transition to `started` automatically when their `start_at` time passes (set by `EventStartCron`). `claimed_by` is the team member who has claimed the training (NULL = unclaimed); set atomically via a conditional UPDATE. `claim_discord_channel_id` and `claim_discord_message_id` track the claim-board message posted to the owner-group's channel (added in migration `1745900000`). `image_url` is an optional public `https://` URL for a cover image shown on the event detail page and as a thumbnail in Discord embeds (added in migration `1746000000`). `location_url` is an optional public `https://` URL attached to the location text; requires `location` to be non-empty (added in migration `1746100000`).
 
 ---
 
@@ -448,6 +449,7 @@ Recurring event schedules. The `EventHorizonCron` generates individual `events` 
 | `start_time` | TIME | NOT NULL | — |
 | `end_time` | TIME | — | — |
 | `location` | TEXT | — | — |
+| `location_url` | TEXT | — | — |
 | `frequency` | TEXT | NOT NULL, CHECK (`'weekly'`, `'biweekly'`) | — |
 | `days_of_week` | INTEGER[] | NOT NULL, CHECK (non-empty, length ≤ 7), values 0–6 (0 = Sunday) | `'{}'` |
 | `start_date` | DATE | NOT NULL | — |
@@ -460,7 +462,7 @@ Recurring event schedules. The `EventHorizonCron` generates individual `events` 
 
 **Indexes**: `idx_event_series_team` on `(team_id)`
 
-**Notes**: `end_date` was made nullable in migration `1741600000` when the rolling horizon model was introduced. `days_of_week` replaced the single `day_of_week INTEGER` column in migration `1742400000`, allowing a series to recur on multiple days per week.
+**Notes**: `end_date` was made nullable in migration `1741600000` when the rolling horizon model was introduced. `days_of_week` replaced the single `day_of_week INTEGER` column in migration `1742400000`, allowing a series to recur on multiple days per week. `location_url` is an optional public `https://` URL attached to the location text; requires `location` to be non-empty (added in migration `1746100000`).
 
 ---
 
@@ -629,6 +631,7 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 | `event_start_at` | TEXT | NOT NULL | — |
 | `event_end_at` | TEXT | — | — |
 | `event_location` | TEXT | — | — |
+| `event_location_url` | TEXT | — | — |
 | `event_event_type` | TEXT | NOT NULL | — |
 | `discord_target_channel_id` | TEXT | — | — |
 | `member_group_id` | UUID | — | — |
@@ -642,7 +645,7 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 
 **Indexes**: `idx_event_sync_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes. `member_group_id` and `discord_role_id` added in migration `1745800000`; `member_group_id` stores the UUID of the member group whose attendee list the bot should display (no FK constraint by design, to preserve rows after group deletion); `discord_role_id` is the Discord role to @-mention in the reminder or start-announcement message. `training_claim_request`, `training_claim_update`, and `unclaimed_training_reminder` event types added in migration `1745900000` to drive the training-claim board in Discord; `claimed_by_member_id` and `claimed_by_display_name` carry the current claimer for `training_claim_update` events (no FK constraint by design, to preserve rows after member deletion).
+**Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes. `member_group_id` and `discord_role_id` added in migration `1745800000`; `member_group_id` stores the UUID of the member group whose attendee list the bot should display (no FK constraint by design, to preserve rows after group deletion); `discord_role_id` is the Discord role to @-mention in the reminder or start-announcement message. `training_claim_request`, `training_claim_update`, and `unclaimed_training_reminder` event types added in migration `1745900000` to drive the training-claim board in Discord; `claimed_by_member_id` and `claimed_by_display_name` carry the current claimer for `training_claim_update` events (no FK constraint by design, to preserve rows after member deletion). `event_location_url` added in migration `1746100000`; snapshot of the event's optional location URL at sync time.
 
 ---
 
@@ -828,6 +831,7 @@ All 45 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1745800000 | `rsvp_reminder_v2` | Drops `team_settings.rsvp_reminder_hours`; adds `rsvp_reminder_days_before INT NOT NULL DEFAULT 1`, `rsvp_reminder_time TIME NOT NULL DEFAULT '18:00'`, `reminders_channel_id TEXT`, `timezone TEXT NOT NULL DEFAULT 'Europe/Prague'` to team_settings; migrates existing `rsvp_reminder_hours` values to `rsvp_reminder_days_before` (ceiling of hours÷24); adds `member_group_id UUID` and `discord_role_id TEXT` to event_sync_events |
 | 1745900000 | `add_event_claim` | Adds `claimed_by UUID FK → team_members(id) ON DELETE SET NULL`, `claim_discord_channel_id TEXT`, `claim_discord_message_id TEXT` to events; adds partial index `idx_events_claimed_by_unclaimed` on `events(team_id) WHERE event_type = 'training' AND status = 'active' AND claimed_by IS NULL`; extends event_sync_events `event_type` CHECK to include `'training_claim_request'`, `'training_claim_update'`, `'unclaimed_training_reminder'`; adds `claimed_by_member_id UUID` and `claimed_by_display_name TEXT` to event_sync_events |
 | 1746000000 | `add_event_image_url` | Adds `image_url TEXT` (nullable) to events; adds `event_image_url TEXT` (nullable) to event_sync_events |
+| 1746100000 | `add_event_location_url` | Adds `location_url TEXT` (nullable) to events and event_series; adds `event_location_url TEXT` (nullable) to event_sync_events |
 
 ### After Migrations (seed data)
 

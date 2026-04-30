@@ -29,6 +29,7 @@ const buildICalFeed = (
     start_at: DateTime.Utc;
     end_at: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
+    location_url: Option.Option<string>;
     status: string;
     event_type: string;
     team_name: string;
@@ -54,7 +55,17 @@ const buildICalFeed = (
       lines.push(`DTEND:${formatDateTimeUtc(endAt)}`);
     });
     lines.push(`SUMMARY:${escapeICalText(`${prefix}${event.title}`)}`);
-    Option.map(event.description, (desc) => {
+    const description = Option.match(event.location_url, {
+      onNone: () => event.description,
+      onSome: (url) =>
+        Option.some(
+          Option.match(event.description, {
+            onNone: () => url,
+            onSome: (desc) => `${desc}\n\n${url}`,
+          }),
+        ),
+    });
+    Option.map(description, (desc) => {
       lines.push(`DESCRIPTION:${escapeICalText(desc)}`);
     });
     Option.map(event.location, (loc) => {

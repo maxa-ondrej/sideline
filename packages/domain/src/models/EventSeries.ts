@@ -35,6 +35,7 @@ export class EventSeries extends Model.Class<EventSeries>('EventSeries')({
   start_time: Schema.String,
   end_time: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   frequency: RecurrenceFrequency,
   days_of_week: DaysOfWeek,
   start_date: Schema.instanceOf(Date),

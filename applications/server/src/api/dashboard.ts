@@ -74,6 +74,7 @@ export const DashboardApiLive = HttpApiBuilder.group(Api, 'dashboard', (handlers
                 startAt: e.start_at,
                 endAt: e.end_at,
                 location: e.location,
+                locationUrl: e.location_url,
                 myRsvp: Option.flatMap(e.my_rsvp, (r) =>
                   r === 'yes' || r === 'no' || r === 'maybe' ? Option.some(r) : Option.none(),
                 ),

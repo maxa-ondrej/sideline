@@ -203,6 +203,7 @@ type SeriesRecord = {
   start_time: string;
   end_time: Option.Option<string>;
   location: Option.Option<string>;
+  location_url: Option.Option<string>;
   frequency: 'weekly' | 'biweekly';
   days_of_week: number[];
   start_date: DateTime.Utc;
@@ -230,6 +231,7 @@ type EventRecord = {
   start_at: DateTime.Utc;
   end_at: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
+  location_url: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
   training_type_name: Option.Option<string>;
@@ -256,6 +258,7 @@ const resetStores = () => {
     start_time: '18:00:00',
     end_time: Option.some('20:00:00'),
     location: Option.some('Main Field'),
+    location_url: Option.none(),
     frequency: 'weekly',
     days_of_week: [2],
     start_date: DateTime.makeUnsafe('2026-03-03T00:00:00Z'),
@@ -439,6 +442,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: input.start_at,
       end_at: input.end_at,
       location: input.location,
+      location_url: Option.none(),
       status: 'active',
       created_by: input.created_by as TeamMember.TeamMemberId,
       training_type_name: Option.none(),
@@ -462,6 +466,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: record.start_at,
       end_at: record.end_at,
       location: record.location,
+      location_url: record.location_url,
       status: record.status,
       created_by: record.created_by,
       series_id: record.series_id,
@@ -496,6 +501,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: input.startAt,
       end_at: input.endAt,
       location: input.location,
+      location_url: Option.none(),
       status: 'active',
       created_by: input.createdBy as TeamMember.TeamMemberId,
       training_type_name: Option.none(),
@@ -519,6 +525,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: record.start_at,
       end_at: record.end_at,
       location: record.location,
+      location_url: record.location_url,
       status: record.status,
       created_by: record.created_by,
       series_id: record.series_id,
@@ -580,6 +587,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_time: input.start_time,
       end_time: input.end_time,
       location: input.location,
+      location_url: Option.none(),
       frequency: input.frequency as 'weekly' | 'biweekly',
       days_of_week: input.days_of_week,
       start_date: input.start_date,
@@ -603,6 +611,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_time: record.start_time,
       end_time: record.end_time,
       location: record.location,
+      location_url: record.location_url,
       frequency: record.frequency,
       days_of_week: record.days_of_week,
       start_date: record.start_date,
@@ -639,6 +648,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_time: input.startTime,
       end_time: input.endTime,
       location: input.location,
+      location_url: Option.none(),
       frequency: input.frequency as 'weekly' | 'biweekly',
       days_of_week: input.daysOfWeek,
       start_date: input.startDate,
@@ -662,6 +672,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_time: record.start_time,
       end_time: record.end_time,
       location: record.location,
+      location_url: record.location_url,
       frequency: record.frequency,
       days_of_week: record.days_of_week,
       start_date: record.start_date,
@@ -726,6 +737,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_time: updated.start_time,
       end_time: updated.end_time,
       location: updated.location,
+      location_url: updated.location_url,
       frequency: updated.frequency,
       days_of_week: updated.days_of_week,
       start_date: updated.start_date,
@@ -772,6 +784,7 @@ const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {
       start_time: updated.start_time,
       end_time: updated.end_time,
       location: updated.location,
+      location_url: updated.location_url,
       frequency: updated.frequency,
       days_of_week: updated.days_of_week,
       start_date: updated.start_date,

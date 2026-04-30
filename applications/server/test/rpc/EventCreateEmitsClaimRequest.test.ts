@@ -46,6 +46,7 @@ type EmittedClaimRequest = {
   eventId: Event.EventId;
   discordTargetChannelId: Discord.Snowflake;
   discordRoleId: Option.Option<Discord.Snowflake>;
+  locationUrl: Option.Option<string>;
 };
 
 let emittedEventCreated: Event.EventId[];
@@ -160,6 +161,7 @@ const makeMockEventsRepository = (
       startAt: DateTime.Utc;
       endAt: Option.Option<DateTime.Utc>;
       location: Option.Option<string>;
+      locationUrl: Option.Option<string>;
       createdBy: TeamMember.TeamMemberId;
     }) =>
       Effect.succeed({
@@ -171,6 +173,7 @@ const makeMockEventsRepository = (
         start_at: input.startAt,
         end_at: input.endAt,
         location: input.location,
+        location_url: input.locationUrl,
         status: 'active' as Event.EventStatus,
         created_by: input.createdBy,
         training_type_id: input.trainingTypeId,
@@ -224,8 +227,15 @@ const makeMockSyncEventsRepository = () =>
       _description: unknown,
       discordTargetChannelId: Discord.Snowflake,
       discordRoleId: Option.Option<Discord.Snowflake>,
+      locationUrl: Option.Option<string>,
     ) => {
-      emittedClaimRequests.push({ teamId, eventId, discordTargetChannelId, discordRoleId });
+      emittedClaimRequests.push({
+        teamId,
+        eventId,
+        discordTargetChannelId,
+        discordRoleId,
+        locationUrl,
+      });
       return Effect.void;
     },
     emitTrainingClaimUpdate: () => Effect.void,
@@ -382,6 +392,7 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
                 start_at: '2099-12-31 18:00',
                 end_at: Option.none<string>(),
                 location: Option.none<string>(),
+                location_url: Option.none<string>(),
                 description: Option.none<string>(),
                 training_type_id: Option.some(TRAINING_TYPE_ID),
               }) as Effect.Effect<EventRpcModels.CreateEventResult, unknown, never>,
@@ -418,6 +429,7 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
               start_at: '2099-12-31 18:00',
               end_at: Option.none<string>(),
               location: Option.none<string>(),
+              location_url: Option.none<string>(),
               description: Option.none<string>(),
               training_type_id: Option.none<TrainingType.TrainingTypeId>(),
             }) as Effect.Effect<EventRpcModels.CreateEventResult, unknown, never>,
@@ -453,6 +465,7 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
               start_at: '2099-12-31 18:00',
               end_at: Option.none<string>(),
               location: Option.none<string>(),
+              location_url: Option.none<string>(),
               description: Option.none<string>(),
               training_type_id: Option.none<TrainingType.TrainingTypeId>(),
             }) as Effect.Effect<EventRpcModels.CreateEventResult, unknown, never>,
@@ -467,6 +480,40 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
       ),
       // Provide layer where training type has no owner_group
       Effect.provide(buildRpcTestLayer(Option.none())),
+      Effect.asVoid,
+    ),
+  );
+
+  itEffect.effect('captures locationUrl in emitted training_claim_request', () =>
+    Effect.scoped(
+      (RpcTest.makeClient(EventRpcGroup.EventRpcGroup) as Effect.Effect<any, never, any>).pipe(
+        Effect.flatMap(
+          (rpc: any) =>
+            rpc['Event/CreateEvent']({
+              guild_id: GUILD_ID,
+              discord_user_id: CREATOR_DISCORD_ID,
+              event_type: 'training' as Event.EventType,
+              title: 'Training With Location URL',
+              start_at: '2099-12-31 18:00',
+              end_at: Option.none<string>(),
+              location: Option.some('Main Field'),
+              location_url: Option.some('https://maps.google.com/x'),
+              description: Option.none<string>(),
+              training_type_id: Option.some(TRAINING_TYPE_ID),
+            }) as Effect.Effect<EventRpcModels.CreateEventResult, unknown, never>,
+        ),
+      ),
+    ).pipe(
+      Effect.tap((_result) =>
+        Effect.sync(() => {
+          expect(emittedClaimRequests).toHaveLength(1);
+          expect(emittedClaimRequests[0].eventId).toBe(NEW_EVENT_ID);
+          expect(emittedClaimRequests[0].locationUrl).toEqual(
+            Option.some('https://maps.google.com/x'),
+          );
+        }),
+      ),
+      Effect.provide(buildRpcTestLayer()),
       Effect.asVoid,
     ),
   );
@@ -489,6 +536,7 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
                 start_at: '2099-12-31 18:00',
                 end_at: Option.none<string>(),
                 location: Option.none<string>(),
+                location_url: Option.none<string>(),
                 description: Option.none<string>(),
                 training_type_id: Option.some(TRAINING_TYPE_ID),
               }) as Effect.Effect<EventRpcModels.CreateEventResult, unknown, never>,

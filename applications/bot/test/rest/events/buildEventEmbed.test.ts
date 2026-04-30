@@ -34,6 +34,7 @@ const baseOpts = {
   startAt: START_AT,
   endAt: Option.none<DateTime.Utc>(),
   location: Option.none<string>(),
+  locationUrl: Option.none<string>(),
   eventType: 'training',
   locale: 'en' as const,
 };

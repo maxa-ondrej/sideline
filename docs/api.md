@@ -494,6 +494,7 @@ Returns a summary view for the authenticated user within a team: upcoming events
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
+| `locationUrl` | `string \| null` | Yes | Optional location URL (public `https://`, max 2048 chars) |
 | `myRsvp` | `"yes" \| "no" \| "maybe" \| null` | Yes | User's current RSVP response |
 
 `DashboardActivitySummary`:
@@ -1644,6 +1645,7 @@ Lists all events for a team.
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
+| `locationUrl` | `string \| null` | Yes | Optional location URL (public `https://`, max 2048 chars) |
 | `status` | `EventStatus` | No | `"active"`, `"cancelled"`, or `"started"` |
 | `seriesId` | `EventSeriesId \| null` | Yes | Linked series ID (if part of a series) |
 
@@ -1680,6 +1682,7 @@ Creates a new event.
 | `startAt` | `string` (ISO 8601) | Yes | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time (null if open-ended) |
 | `location` | `string \| null` | Yes | Location |
+| `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty |
 | `discordChannelId` | `Snowflake \| null` | Yes | Discord channel for the event embed |
 | `ownerGroupId` | `GroupId \| null` | Yes | Group that owns/manages the event |
 | `memberGroupId` | `GroupId \| null` | Yes | Group whose members are eligible to RSVP |
@@ -1722,6 +1725,7 @@ Returns full details for a specific event.
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
+| `locationUrl` | `string \| null` | Yes | Optional location URL (public `https://`, max 2048 chars) |
 | `status` | `EventStatus` | No | `"active"`, `"cancelled"`, or `"started"` |
 | `createdByName` | `string \| null` | Yes | Name of the member who created the event |
 | `canEdit` | `boolean` | No | Whether the user can edit this event |
@@ -1769,6 +1773,7 @@ Updates an event's fields. All fields are optional.
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | No | End date/time |
 | `location` | `string \| null` | No | Location |
+| `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty when setting a URL |
 | `discordChannelId` | `Snowflake \| null` | No | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | No | Owner group ID |
 | `memberGroupId` | `GroupId \| null` | No | Member group ID |
@@ -1979,6 +1984,7 @@ Creates a new recurring event series.
 | `startTime` | `string` | Yes | Start time (e.g. `"14:30"`) |
 | `endTime` | `string \| null` | Yes | End time (null if open-ended) |
 | `location` | `string \| null` | Yes | Location |
+| `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty |
 | `discordChannelId` | `Snowflake \| null` | Yes | Discord channel for event embeds |
 | `ownerGroupId` | `GroupId \| null` | Yes | Owner group ID |
 | `memberGroupId` | `GroupId \| null` | Yes | Member group ID |
@@ -2000,6 +2006,7 @@ Creates a new recurring event series.
 | `startTime` | `string` | No | Start time string |
 | `endTime` | `string \| null` | Yes | End time string |
 | `location` | `string \| null` | Yes | Location |
+| `locationUrl` | `string \| null` | Yes | Optional location URL (public `https://`, max 2048 chars) |
 | `discordChannelId` | `Snowflake \| null` | Yes | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | Yes | Owner group ID |
 | `ownerGroupName` | `string \| null` | Yes | Owner group name |
@@ -2091,6 +2098,7 @@ Updates a series. Changes apply only to future generated events. All fields are 
 | `startTime` | `string` | No | Start time |
 | `endTime` | `string \| null` | No | End time |
 | `location` | `string \| null` | No | Location |
+| `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty when setting a URL |
 | `endDate` | `string \| null` | No | Series end date |
 | `discordChannelId` | `Snowflake \| null` | No | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | No | Owner group ID |

@@ -35,7 +35,11 @@ function ProfileCompleteRoute() {
   const handleSuccess = React.useCallback(async () => {
     const lastTeamId = Effect.runSync(getLastTeamId);
     if (Option.isSome(lastTeamId)) {
-      if (Option.isSome(Array.findFirst(teams, (t) => t.teamId === lastTeamId.value))) {
+      if (
+        Option.isSome(
+          Array.findFirst(teams, (t: { teamId: string }) => t.teamId === lastTeamId.value),
+        )
+      ) {
         await navigate({ to: '/teams/$teamId', params: { teamId: lastTeamId.value } });
       } else {
         await navigate({ to: '/' });

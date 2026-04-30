@@ -349,6 +349,7 @@ erDiagram
         TIMESTAMPTZ start_at
         TIMESTAMPTZ end_at
         TEXT location
+        TEXT location_url
         TEXT status
         TEXT discord_channel_id
         TEXT discord_message_id
@@ -376,6 +377,7 @@ erDiagram
         TIME start_time
         TIME end_time
         TEXT location
+        TEXT location_url
         TEXT frequency
         INTEGER[] days_of_week
         DATE start_date
@@ -506,6 +508,7 @@ erDiagram
         TEXT event_start_at
         TEXT event_end_at
         TEXT event_location
+        TEXT event_location_url
         TEXT event_event_type
         TEXT discord_target_channel_id
         UUID member_group_id

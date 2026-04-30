@@ -3,6 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import * as Discord from 'dfx/types';
 import { DateTime, Option } from 'effect';
 import type { Locale } from '~/locale.js';
+import { locationDisplay } from './locationDisplay.js';
 
 const EVENT_TYPE_COLORS: Record<string, number> = {
   training: 0x57f287,
@@ -81,13 +82,11 @@ export const buildUpcomingEventEmbed = (params: {
   });
   fields.push({ name: m.bot_embed_when({}, { locale }), value: when, inline: false });
 
-  if (Option.isSome(entry.location)) {
-    fields.push({
-      name: m.bot_embed_where({}, { locale }),
-      value: entry.location.value,
-      inline: false,
-    });
-  }
+  Option.match(locationDisplay(entry.location, entry.location_url), {
+    onNone: () => undefined,
+    onSome: (value) =>
+      fields.push({ name: m.bot_embed_where({}, { locale }), value, inline: false }),
+  });
 
   fields.push({
     name: m.bot_embed_rsvps({}, { locale }),

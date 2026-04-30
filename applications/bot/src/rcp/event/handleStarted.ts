@@ -5,6 +5,7 @@ import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import type { Locale } from '~/locale.js';
 import { guildLocale } from '~/locale.js';
 import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
+import { locationDisplay } from '~/rest/events/locationDisplay.js';
 import { formatNameWithMention, splitIntoFieldChunks } from '~/rest/utils.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -70,6 +71,7 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
                     startAt: info.start_at,
                     endAt: info.end_at,
                     location: info.location,
+                    locationUrl: info.location_url,
                     eventType: info.event_type,
                     counts,
                     yesAttendees,
@@ -151,9 +153,10 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
               const yesAttendeeNames = pipe(yesAttendees, Array.map(formatNameWithMention));
 
               const descParts: string[] = [`${toDiscordTimestamp(event.start_at, 'F')}`];
-              if (Option.isSome(event.location)) {
-                descParts.push(event.location.value);
-              }
+              Option.match(locationDisplay(event.location, event.location_url), {
+                onNone: () => undefined,
+                onSome: (loc) => descParts.push(loc),
+              });
 
               const fields = [
                 ...nameFieldChunks(

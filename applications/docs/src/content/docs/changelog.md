@@ -5,6 +5,12 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-04 — Location links for events
+
+- You can now add a URL to any event's location field. When a URL is set, the location text becomes a clickable link on the event detail page and in Discord event embeds.
+- The URL must be a public `https://` address (no private/local addresses). A location text must also be provided — a URL alone is not accepted.
+- To add or change the link, open the event in the web app and edit the **Location URL** field next to the location text. The `/event create` Discord modal does not include this field; add the link via the web app after creating the event.
+
 ## 2026-04 — Cover images for events
 
 - You can now attach a cover image URL to any event. The image appears as a banner on the event detail page.

@@ -265,6 +265,16 @@ This pattern is used in:
 
 When building new embed functions that display user names, always use `formatName` for the bold name portion and follow this priority: bold name first, mention as parenthetical supplement.
 
+### Discord Markdown Link Injection
+
+Whenever an embed/message renders a `[label](url)` Discord markdown link from user-supplied data, follow the canonical pattern in `src/rest/events/locationDisplay.ts`:
+
+1. Validate the URL with `EventApi.isPublicHttpsUrl(url)` from `@sideline/domain`. If it returns `false`, fall back to plain text (no link). Never render an unvalidated URL inside `(…)`.
+2. Escape the label by replacing `\` with `\\` first, then `]` with `\]` — order matters (escape backslashes before brackets, otherwise the bracket-escape's added backslash would be re-escaped).
+3. Wrap the URL in angle brackets: `[label](<url>)`. The `<…>` form lets URLs containing `(` or `)` (common in Google Maps and Wikipedia links) render correctly and prevents Discord from greedily terminating the URL at the first `)`.
+
+Do not roll your own escaper — call `locationDisplay` (or extract a sibling helper that mirrors its three steps). The same input contract applies to any future field that pairs free-text with an external URL.
+
 ### Paginated Embed Pattern
 
 Two pagination models are used:

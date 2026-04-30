@@ -62,6 +62,13 @@ const CreateEventSchema = Schema.Struct({
       ),
     ),
   ),
+  locationUrl: Schema.String.pipe(
+    Schema.check(
+      Schema.makeFilter<string>((s) =>
+        s === '' || s.startsWith('https://') ? true : m.event_locationUrlInvalid(),
+      ),
+    ),
+  ),
   startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
@@ -82,6 +89,13 @@ const CreateSeriesSchema = Schema.Struct({
     message: m.validation_invalidOption(),
   }),
   daysOfWeek: EventSeries.DaysOfWeek,
+  locationUrl: Schema.String.pipe(
+    Schema.check(
+      Schema.makeFilter<string>((s) =>
+        s === '' || s.startsWith('https://') ? true : m.event_locationUrlInvalid(),
+      ),
+    ),
+  ),
   startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
   startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
@@ -126,6 +140,7 @@ export function EventsListPage({
       trainingTypeId: NONE_VALUE,
       description: '',
       imageUrl: '',
+      locationUrl: '',
       startDate: '',
       startTime: '',
       endDate: '',
@@ -148,6 +163,7 @@ export function EventsListPage({
       description: '',
       frequency: 'weekly' as EventSeries.RecurrenceFrequency,
       daysOfWeek: [] as number[],
+      locationUrl: '',
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       startTime: '',
@@ -159,11 +175,26 @@ export function EventsListPage({
     },
   });
 
+  const watchedLocation = form.watch('location');
+  const watchedSeriesLocation = seriesForm.watch('location');
+
   React.useEffect(() => {
     if (watchedEventType !== 'training') {
       form.setValue('trainingTypeId', NONE_VALUE);
     }
   }, [watchedEventType, form]);
+
+  React.useEffect(() => {
+    if (!watchedLocation) {
+      form.setValue('locationUrl', '');
+    }
+  }, [watchedLocation, form]);
+
+  React.useEffect(() => {
+    if (!watchedSeriesLocation) {
+      seriesForm.setValue('locationUrl', '');
+    }
+  }, [watchedSeriesLocation, seriesForm]);
 
   const onSubmit = async (values: CreateEventValues) => {
     const startAt = localToUtc(values.startDate, values.startTime);
@@ -183,6 +214,7 @@ export function EventsListPage({
                 : Option.none(),
             description: values.description ? Option.some(values.description) : Option.none(),
             imageUrl: values.imageUrl ? Option.some(values.imageUrl) : Option.none(),
+            locationUrl: values.locationUrl ? Option.some(values.locationUrl) : Option.none(),
             startAt,
             endAt: endAt ? Option.some(endAt) : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
@@ -231,6 +263,7 @@ export function EventsListPage({
               ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
               : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
+            locationUrl: values.locationUrl ? Option.some(values.locationUrl) : Option.none(),
             discordChannelId:
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
                 ? Option.some(Discord.Snowflake.makeUnsafe(values.discordChannelId))
@@ -446,6 +479,28 @@ export function EventsListPage({
                             <FormControl>
                               <Input {...field} placeholder={m.event_locationPlaceholder()} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...form.register('locationUrl')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_locationUrl()}</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type='url'
+                                inputMode='url'
+                                autoComplete='url'
+                                placeholder={m.event_locationUrlPlaceholder()}
+                                disabled={!form.watch('location')}
+                              />
+                            </FormControl>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_locationUrlHelp()}
+                            </p>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -762,6 +817,28 @@ export function EventsListPage({
                             <FormControl>
                               <Input {...field} placeholder={m.event_locationPlaceholder()} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        {...seriesForm.register('locationUrl')}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{m.event_locationUrl()}</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type='url'
+                                inputMode='url'
+                                autoComplete='url'
+                                placeholder={m.event_locationUrlPlaceholder()}
+                                disabled={!seriesForm.watch('location')}
+                              />
+                            </FormControl>
+                            <p className='text-xs text-muted-foreground'>
+                              {m.event_locationUrlHelp()}
+                            </p>
                             <FormMessage />
                           </FormItem>
                         )}

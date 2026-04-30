@@ -7,6 +7,7 @@ import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 
+import { EventLocation } from '~/components/atoms/EventLocation.js';
 import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { EventRsvpPanel } from '~/components/organisms/EventRsvpPanel.js';
 import { Button } from '~/components/ui/button';
@@ -45,6 +46,13 @@ const EventEditSchema = Schema.Struct({
     Schema.check(
       Schema.makeFilter<string>((s) =>
         s === '' || s.startsWith('https://') ? true : m.event_imageUrlInvalid(),
+      ),
+    ),
+  ),
+  locationUrl: Schema.String.pipe(
+    Schema.check(
+      Schema.makeFilter<string>((s) =>
+        s === '' || s.startsWith('https://') ? true : m.event_locationUrlInvalid(),
       ),
     ),
   ),
@@ -120,6 +128,7 @@ export function EventDetailPage({
         onSome: formatLocalTime,
       }),
       location: Option.getOrElse(eventDetail.location, () => ''),
+      locationUrl: Option.getOrElse(eventDetail.locationUrl, () => ''),
       discordChannelId: Option.getOrElse(eventDetail.discordChannelId, () => NONE_VALUE),
       ownerGroupId: Option.getOrElse(eventDetail.ownerGroupId, () => NONE_VALUE),
       memberGroupId: Option.getOrElse(eventDetail.memberGroupId, () => NONE_VALUE),
@@ -127,12 +136,19 @@ export function EventDetailPage({
   });
 
   const watchedEventType = form.watch('eventType');
+  const watchedLocation = form.watch('location');
 
   React.useEffect(() => {
     if (watchedEventType !== 'training') {
       form.setValue('trainingTypeId', NONE_VALUE);
     }
   }, [watchedEventType, form]);
+
+  React.useEffect(() => {
+    if (!watchedLocation) {
+      form.setValue('locationUrl', '');
+    }
+  }, [watchedLocation, form]);
 
   const [saving, setSaving] = React.useState(false);
   const [showEditScope, setShowEditScope] = React.useState(false);
@@ -159,6 +175,9 @@ export function EventDetailPage({
             startAt: Option.some(startAt),
             endAt: Option.some(endAt),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
+            locationUrl: Option.some(
+              values.locationUrl ? Option.some(values.locationUrl) : Option.none(),
+            ),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
                 ? Option.some(Discord.Snowflake.makeUnsafe(values.discordChannelId))
@@ -213,6 +232,9 @@ export function EventDetailPage({
                 : Option.none(),
             ),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
+            locationUrl: Option.some(
+              values.locationUrl ? Option.some(values.locationUrl) : Option.none(),
+            ),
             endDate: Option.none(),
             discordChannelId: Option.some(
               values.discordChannelId && values.discordChannelId !== NONE_VALUE
@@ -502,6 +524,27 @@ export function EventDetailPage({
                   />
 
                   <FormField
+                    {...form.register('locationUrl')}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{m.event_locationUrl()}</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type='url'
+                            inputMode='url'
+                            autoComplete='url'
+                            placeholder={m.event_locationUrlPlaceholder()}
+                            disabled={!form.watch('location')}
+                          />
+                        </FormControl>
+                        <p className='text-xs text-muted-foreground'>{m.event_locationUrlHelp()}</p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
                     {...form.register('description')}
                     render={({ field }) => (
                       <FormItem>
@@ -699,7 +742,10 @@ export function EventDetailPage({
                 {Option.isSome(eventDetail.location) && (
                   <p>
                     <span className='text-sm font-medium'>{m.event_location()}: </span>
-                    {eventDetail.location.value}
+                    <EventLocation
+                      text={eventDetail.location.value}
+                      url={eventDetail.locationUrl}
+                    />
                   </p>
                 )}
                 {Option.isSome(eventDetail.description) && (

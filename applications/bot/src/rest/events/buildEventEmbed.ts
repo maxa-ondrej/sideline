@@ -4,6 +4,7 @@ import type * as Discord from 'dfx/types';
 import { Array, DateTime, Option, pipe } from 'effect';
 import type { Locale } from '~/locale.js';
 import { formatName } from '../utils.js';
+import { locationDisplay } from './locationDisplay.js';
 
 export const YES_EMBED_LIMIT = 20;
 
@@ -45,6 +46,7 @@ export const buildEventEmbed = (opts: {
   startAt: DateTime.Utc;
   endAt: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
+  locationUrl: Option.Option<string>;
   eventType: string;
   counts: EventRpcModels.RsvpCountsResult;
   yesAttendees: ReadonlyArray<EventRpcModels.RsvpAttendeeEntry>;
@@ -76,13 +78,11 @@ export const buildEventEmbed = (opts: {
   });
   fields.push({ name: m.bot_embed_when({}, { locale }), value: when, inline: false });
 
-  if (Option.isSome(opts.location)) {
-    fields.push({
-      name: m.bot_embed_where({}, { locale }),
-      value: opts.location.value,
-      inline: false,
-    });
-  }
+  Option.match(locationDisplay(opts.location, opts.locationUrl), {
+    onNone: () => undefined,
+    onSome: (value) =>
+      fields.push({ name: m.bot_embed_where({}, { locale }), value, inline: false }),
+  });
 
   fields.push({
     name: m.bot_embed_rsvps({}, { locale }),

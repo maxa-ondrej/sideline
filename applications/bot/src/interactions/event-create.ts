@@ -115,6 +115,7 @@ export const EventCreateModal = Ix.modalSubmit(
         start_at: startAt.value,
         end_at: endAt,
         location,
+        location_url: Option.none(),
         description,
         training_type_id,
       }).pipe(

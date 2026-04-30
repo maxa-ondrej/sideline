@@ -93,6 +93,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 startTime: payload.startTime,
                 endTime: payload.endTime,
                 location: payload.location,
+                locationUrl: payload.locationUrl,
                 createdBy: membership.id,
                 discordTargetChannelId: payload.discordChannelId,
                 ownerGroupId: resolvedGroups.ownerGroupId,
@@ -132,6 +133,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       startAt,
                       endAt,
                       location: inserted.location,
+                      locationUrl: inserted.location_url,
                       createdBy: membership.id,
                       seriesId: Option.some(inserted.id),
                       discordTargetChannelId: inserted.discord_target_channel_id,
@@ -152,6 +154,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                               event.location,
                               event.event_type,
                               resolved,
+                              Option.none(),
+                              Option.none(),
+                              Option.none(),
+                              event.location_url,
                             ),
                           ),
                         ),
@@ -167,6 +173,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           startAt: event.start_at,
                           endAt: event.end_at,
                           location: event.location,
+                          locationUrl: event.location_url,
                         }),
                       ),
                     );
@@ -194,6 +201,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   startTime: inserted.start_time,
                   endTime: inserted.end_time,
                   location: inserted.location,
+                  locationUrl: inserted.location_url,
                   discordChannelId: inserted.discord_target_channel_id,
                   ownerGroupId: inserted.owner_group_id,
                   ownerGroupName: Option.none(),
@@ -232,6 +240,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     startTime: s.start_time,
                     endTime: s.end_time,
                     location: s.location,
+                    locationUrl: s.location_url,
                     discordChannelId: s.discord_target_channel_id,
                     ownerGroupId: s.owner_group_id,
                     ownerGroupName: s.owner_group_name,
@@ -280,6 +289,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   startTime: found.start_time,
                   endTime: found.end_time,
                   location: found.location,
+                  locationUrl: found.location_url,
                   discordChannelId: found.discord_target_channel_id,
                   ownerGroupId: found.owner_group_id,
                   ownerGroupName: found.owner_group_name,
@@ -369,6 +379,10 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 onNone: () => existing.location,
                 onSome: (v) => v,
               }),
+              locationUrl: Option.match(payload.locationUrl, {
+                onNone: () => existing.location_url,
+                onSome: (v) => v,
+              }),
               endDate: Option.match(payload.endDate, {
                 onNone: () => existing.end_date,
                 onSome: (v) => v,
@@ -387,6 +401,11 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
               }),
             })),
             Effect.tap(({ resolved }) =>
+              Option.isSome(resolved.locationUrl) && Option.isNone(resolved.location)
+                ? Effect.fail(forbidden)
+                : Effect.void,
+            ),
+            Effect.tap(({ resolved }) =>
               series.updateEventSeries({
                 id: seriesId,
                 title: resolved.title,
@@ -396,6 +415,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 startTime: resolved.startTime,
                 endTime: resolved.endTime,
                 location: resolved.location,
+                locationUrl: resolved.locationUrl,
                 endDate: resolved.endDate,
                 discordTargetChannelId: resolved.discordTargetChannelId,
                 ownerGroupId: resolved.ownerGroupId,
@@ -410,6 +430,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 startTime: resolved.startTime,
                 endTime: resolved.endTime,
                 location: resolved.location,
+                locationUrl: resolved.locationUrl,
               }),
             ),
             Effect.tap(({ existing, resolved, membership }) =>
@@ -447,6 +468,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                             startAt,
                             endAt,
                             location: existing.location,
+                            locationUrl: existing.location_url,
                             createdBy: membership.id,
                             seriesId: Option.some(existing.id),
                             ownerGroupId: existing.owner_group_id,
@@ -489,6 +511,7 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   startTime: detail.start_time,
                   endTime: detail.end_time,
                   location: detail.location,
+                  locationUrl: detail.location_url,
                   discordChannelId: detail.discord_target_channel_id,
                   ownerGroupId: detail.owner_group_id,
                   ownerGroupName: detail.owner_group_name,

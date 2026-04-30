@@ -91,6 +91,7 @@ const makeActiveSeries = (
     end_time: Option.Option<string>;
     training_type_id: Option.Option<TrainingType.TrainingTypeId>;
     location: Option.Option<string>;
+    location_url: Option.Option<string>;
     description: Option.Option<string>;
     created_by: TeamMember.TeamMemberId;
   }> = {},
@@ -102,6 +103,7 @@ const makeActiveSeries = (
   start_time: overrides.start_time ?? '10:00:00',
   end_time: overrides.end_time ?? Option.none<string>(),
   location: overrides.location ?? Option.none<string>(),
+  location_url: overrides.location_url ?? Option.none<string>(),
   frequency: overrides.frequency ?? ('weekly' as const),
   days_of_week: overrides.days_of_week ?? [1], // Monday
   start_date: overrides.start_date ?? START_DATE,

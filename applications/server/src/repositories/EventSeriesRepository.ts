@@ -13,6 +13,7 @@ class EventSeriesRow extends Schema.Class<EventSeriesRow>('EventSeriesRow')({
   start_time: Schema.String,
   end_time: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   frequency: EventSeries.RecurrenceFrequency,
   days_of_week: EventSeries.DaysOfWeek,
   start_date: Schemas.DateTimeFromDate,
@@ -33,6 +34,7 @@ class EventSeriesWithDetails extends Schema.Class<EventSeriesWithDetails>('Event
     start_time: Schema.String,
     end_time: Schema.OptionFromNullOr(Schema.String),
     location: Schema.OptionFromNullOr(Schema.String),
+    location_url: Schema.OptionFromNullOr(Schema.String),
     frequency: EventSeries.RecurrenceFrequency,
     days_of_week: EventSeries.DaysOfWeek,
     start_date: Schemas.DateTimeFromDate,
@@ -59,6 +61,7 @@ class EventSeriesForGeneration extends Schema.Class<EventSeriesForGeneration>(
   start_time: Schema.String,
   end_time: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   frequency: EventSeries.RecurrenceFrequency,
   days_of_week: EventSeries.DaysOfWeek,
   start_date: Schemas.DateTimeFromDate,
@@ -79,6 +82,7 @@ const EventSeriesInsertInput = Schema.Struct({
   start_time: Schema.String,
   end_time: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   frequency: Schema.String,
   days_of_week: Schema.Array(Schema.Number),
   start_date: Schemas.DateTimeFromDate,
@@ -98,6 +102,7 @@ const EventSeriesUpdateInput = Schema.Struct({
   start_time: Schema.String,
   end_time: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   end_date: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   owner_group_id: Schema.OptionFromNullOr(Schema.String),
@@ -112,16 +117,16 @@ const make = Effect.gen(function* () {
     Result: EventSeriesRow,
     execute: (input) => sql`
             INSERT INTO event_series (team_id, training_type_id, title, description,
-                                      start_time, end_time, location, frequency,
+                                      start_time, end_time, location, location_url, frequency,
                                       days_of_week, start_date, end_date, created_by,
                                       discord_target_channel_id, owner_group_id, member_group_id)
             VALUES (${input.team_id}, ${input.training_type_id}, ${input.title},
                     ${input.description}, ${input.start_time}, ${input.end_time},
-                    ${input.location}, ${input.frequency}, ${input.days_of_week},
+                    ${input.location}, ${input.location_url}, ${input.frequency}, ${input.days_of_week},
                     ${input.start_date}, ${input.end_date}, ${input.created_by},
                     ${input.discord_target_channel_id}, ${input.owner_group_id}, ${input.member_group_id})
             RETURNING id, team_id, training_type_id, title, description,
-                      start_time, end_time, location, frequency,
+                      start_time, end_time, location, location_url, frequency,
                       days_of_week, start_date, end_date, status,
                       discord_target_channel_id, owner_group_id, member_group_id
           `,
@@ -132,7 +137,7 @@ const make = Effect.gen(function* () {
     Result: EventSeriesWithDetails,
     execute: (teamId) => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
-                   es.start_time, es.end_time, es.location, es.frequency,
+                   es.start_time, es.end_time, es.location, es.location_url, es.frequency,
                    es.days_of_week, es.start_date, es.end_date, es.status,
                    tt.name AS training_type_name, es.last_generated_date,
                    es.discord_target_channel_id,
@@ -152,7 +157,7 @@ const make = Effect.gen(function* () {
     Result: EventSeriesWithDetails,
     execute: (id) => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
-                   es.start_time, es.end_time, es.location, es.frequency,
+                   es.start_time, es.end_time, es.location, es.location_url, es.frequency,
                    es.days_of_week, es.start_date, es.end_date, es.status,
                    tt.name AS training_type_name, es.last_generated_date,
                    es.discord_target_channel_id,
@@ -171,7 +176,7 @@ const make = Effect.gen(function* () {
     Result: EventSeriesForGeneration,
     execute: () => sql`
             SELECT es.id, es.team_id, es.training_type_id, es.title, es.description,
-                   es.start_time, es.end_time, es.location, es.frequency,
+                   es.start_time, es.end_time, es.location, es.location_url, es.frequency,
                    es.days_of_week, es.start_date, es.end_date,
                    es.last_generated_date, es.discord_target_channel_id,
                    es.owner_group_id, es.member_group_id,
@@ -205,6 +210,7 @@ const make = Effect.gen(function* () {
               start_time = ${input.start_time},
               end_time = ${input.end_time},
               location = ${input.location},
+              location_url = ${input.location_url},
               end_date = ${input.end_date},
               discord_target_channel_id = ${input.discord_target_channel_id},
               owner_group_id = ${input.owner_group_id},
@@ -212,7 +218,7 @@ const make = Effect.gen(function* () {
               updated_at = now()
             WHERE id = ${input.id}
             RETURNING id, team_id, training_type_id, title, description,
-                      start_time, end_time, location, frequency,
+                      start_time, end_time, location, location_url, frequency,
                       days_of_week, start_date, end_date, status,
                       discord_target_channel_id, owner_group_id, member_group_id
           `,
@@ -232,6 +238,7 @@ const make = Effect.gen(function* () {
     startTime,
     endTime,
     location,
+    locationUrl = Option.none(),
     frequency,
     daysOfWeek,
     startDate,
@@ -248,6 +255,7 @@ const make = Effect.gen(function* () {
     startTime: string;
     endTime: Option.Option<string>;
     location: Option.Option<string>;
+    locationUrl?: Option.Option<string>;
     frequency: string;
     daysOfWeek: ReadonlyArray<number>;
     startDate: DateTime.Utc;
@@ -265,6 +273,7 @@ const make = Effect.gen(function* () {
       start_time: startTime,
       end_time: endTime,
       location,
+      location_url: locationUrl,
       frequency,
       days_of_week: Array.from(daysOfWeek),
       start_date: startDate,
@@ -289,6 +298,7 @@ const make = Effect.gen(function* () {
     startTime,
     endTime,
     location,
+    locationUrl = Option.none(),
     endDate,
     discordTargetChannelId = Option.none(),
     ownerGroupId = Option.none(),
@@ -302,6 +312,7 @@ const make = Effect.gen(function* () {
     startTime: string;
     endTime: Option.Option<string>;
     location: Option.Option<string>;
+    locationUrl?: Option.Option<string>;
     endDate: Option.Option<DateTime.Utc>;
     discordTargetChannelId?: Option.Option<Discord.Snowflake>;
     ownerGroupId?: Option.Option<string>;
@@ -316,6 +327,7 @@ const make = Effect.gen(function* () {
       start_time: startTime,
       end_time: endTime,
       location,
+      location_url: locationUrl,
       end_date: endDate,
       discord_target_channel_id: discordTargetChannelId,
       owner_group_id: ownerGroupId,

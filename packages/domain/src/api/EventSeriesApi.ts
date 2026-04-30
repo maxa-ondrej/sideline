@@ -2,7 +2,7 @@ import * as Schemas from '@sideline/effect-lib/Schemas';
 import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
-import { Forbidden } from '~/api/EventApi.js';
+import { EventLocationUrl, Forbidden } from '~/api/EventApi.js';
 import { Snowflake } from '~/models/Discord.js';
 import {
   DaysOfWeek,
@@ -28,6 +28,7 @@ export class EventSeriesInfo extends Schema.Class<EventSeriesInfo>('EventSeriesI
   startTime: Schema.String,
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  locationUrl: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   ownerGroupName: Schema.OptionFromNullOr(Schema.String),
@@ -50,6 +51,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   startTime: Schema.String,
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  locationUrl: Schema.OptionFromNullOr(Schema.String),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   ownerGroupName: Schema.OptionFromNullOr(Schema.String),
@@ -59,7 +61,7 @@ export class EventSeriesDetail extends Schema.Class<EventSeriesDetail>('EventSer
   canCancel: Schema.Boolean,
 }) {}
 
-export const CreateEventSeriesRequest = Schema.Struct({
+const CreateEventSeriesRequestStruct = Schema.Struct({
   title: Schema.NonEmptyString,
   trainingTypeId: Schema.OptionFromNullOr(TrainingTypeId),
   description: Schema.OptionFromNullOr(Schema.String),
@@ -70,13 +72,23 @@ export const CreateEventSeriesRequest = Schema.Struct({
   startTime: Schema.String,
   endTime: Schema.OptionFromNullOr(Schema.String),
   location: Schema.OptionFromNullOr(Schema.String),
+  locationUrl: Schema.OptionFromOptionalNullOr(EventLocationUrl),
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   ownerGroupId: Schema.OptionFromNullOr(GroupId),
   memberGroupId: Schema.OptionFromNullOr(GroupId),
 });
+export const CreateEventSeriesRequest = CreateEventSeriesRequestStruct.pipe(
+  Schema.check(
+    Schema.makeFilter<Schema.Schema.Type<typeof CreateEventSeriesRequestStruct>>((req) => {
+      if (req.locationUrl._tag === 'Some' && req.location._tag === 'None')
+        return 'Location URL requires location text';
+      return true;
+    }),
+  ),
+);
 export type CreateEventSeriesRequest = Schema.Schema.Type<typeof CreateEventSeriesRequest>;
 
-export const UpdateEventSeriesRequest = Schema.Struct({
+const UpdateEventSeriesRequestStruct = Schema.Struct({
   title: Schema.OptionFromOptional(Schema.NonEmptyString),
   trainingTypeId: Schema.OptionFromOptional(Schema.OptionFromNullOr(TrainingTypeId)),
   description: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
@@ -84,11 +96,26 @@ export const UpdateEventSeriesRequest = Schema.Struct({
   startTime: Schema.OptionFromOptional(Schema.String),
   endTime: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
   location: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schema.String)),
+  locationUrl: Schema.OptionFromOptional(Schema.OptionFromNullOr(EventLocationUrl)),
   endDate: Schema.OptionFromOptional(Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString)),
   discordChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   ownerGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
   memberGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
 });
+export const UpdateEventSeriesRequest = UpdateEventSeriesRequestStruct.pipe(
+  Schema.check(
+    Schema.makeFilter<Schema.Schema.Type<typeof UpdateEventSeriesRequestStruct>>((req) => {
+      if (
+        req.locationUrl._tag === 'Some' &&
+        req.locationUrl.value._tag === 'Some' &&
+        req.location._tag === 'Some' &&
+        req.location.value._tag === 'None'
+      )
+        return 'Location URL requires location text';
+      return true;
+    }),
+  ),
+);
 export type UpdateEventSeriesRequest = Schema.Schema.Type<typeof UpdateEventSeriesRequest>;
 
 export class EventSeriesNotFound extends Schema.TaggedErrorClass<EventSeriesNotFound>()(
