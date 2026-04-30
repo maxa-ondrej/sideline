@@ -254,6 +254,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
       ...baseFields,
       end_at: '2026-05-01T18:00:00.000Z',
       location: 'Stadium',
+      location_url: 'https://maps.google.com/stadium',
       member_group_id: '00000000-0000-0000-0000-000000000010',
       discord_channel_id: '987654321098765432',
       discord_role_id: '111111111111111111',
@@ -262,6 +263,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
     const result = Schema.decodeUnknownSync(EventRpcEvents.EventStartedEvent)(input);
     expect(Option.isSome(result.end_at)).toBe(true);
     expect(Option.isSome(result.location)).toBe(true);
+    expect(Option.isSome(result.location_url)).toBe(true);
     expect(Option.isSome(result.member_group_id)).toBe(true);
     expect(Option.isSome(result.discord_channel_id)).toBe(true);
     expect(Option.isSome(result.discord_role_id)).toBe(true);
@@ -273,6 +275,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
       ...baseFields,
       end_at: null,
       location: null,
+      location_url: null,
       member_group_id: null,
       discord_channel_id: null,
       discord_role_id: null,
@@ -281,6 +284,7 @@ describe('EventStartedEvent — round-trip with new fields', () => {
     const result = Schema.decodeUnknownSync(EventRpcEvents.EventStartedEvent)(input);
     expect(Option.isNone(result.end_at)).toBe(true);
     expect(Option.isNone(result.location)).toBe(true);
+    expect(Option.isNone(result.location_url)).toBe(true);
     expect(Option.isNone(result.member_group_id)).toBe(true);
     expect(Option.isNone(result.discord_channel_id)).toBe(true);
     expect(Option.isNone(result.discord_role_id)).toBe(true);

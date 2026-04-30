@@ -13,6 +13,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import { EventLocation } from '~/components/atoms/EventLocation.js';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
@@ -279,7 +280,11 @@ function UpcomingEventsCard({
                     {Option.isSome(event.location) && (
                       <span className='flex items-center gap-1 truncate'>
                         <MapPin className='size-3 shrink-0' />
-                        {event.location.value}
+                        <EventLocation
+                          text={event.location.value}
+                          url={event.locationUrl}
+                          stopPropagation
+                        />
                       </span>
                     )}
                   </div>

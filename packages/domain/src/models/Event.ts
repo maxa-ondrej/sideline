@@ -34,6 +34,7 @@ export class Event extends Model.Class<Event>('Event')({
   start_at: Schemas.DateTimeFromDate,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   owner_group_id: Schema.OptionFromNullOr(GroupId),
   member_group_id: Schema.OptionFromNullOr(GroupId),
   series_id: Schema.OptionFromNullOr(EventSeriesId),

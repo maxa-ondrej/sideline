@@ -42,6 +42,7 @@ export const handleCreated = (event: EventRpcEvents.EventCreatedEvent) =>
         startAt: event.start_at,
         endAt: event.end_at,
         location: event.location,
+        locationUrl: event.location_url,
         eventType: event.event_type,
         counts,
         yesAttendees,

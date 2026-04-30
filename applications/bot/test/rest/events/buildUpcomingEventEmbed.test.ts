@@ -19,6 +19,7 @@ const makeEntry = (
     start_at: FUTURE_START,
     end_at: Option.none(),
     location: Option.none(),
+    location_url: Option.none(),
     event_type: 'training',
     yes_count: 0,
     no_count: 0,

@@ -129,6 +129,7 @@ export const postRsvpDiscordUpdates = (params: {
                 startAt: info.start_at,
                 endAt: info.end_at,
                 location: info.location,
+                locationUrl: info.location_url,
                 eventType: info.event_type,
                 counts,
                 yesAttendees,

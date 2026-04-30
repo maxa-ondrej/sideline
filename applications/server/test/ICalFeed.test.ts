@@ -125,6 +125,7 @@ const testEvents = [
     start_at: DateTime.makeUnsafe('2026-03-15T18:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-15T19:30:00Z')),
     location: Option.some('Main Field'),
+    location_url: Option.none<string>(),
     status: 'active',
     event_type: 'training',
     team_name: 'Test FC',
@@ -137,10 +138,24 @@ const testEvents = [
     start_at: DateTime.makeUnsafe('2026-03-20T15:00:00Z'),
     end_at: Option.none<DateTime.Utc>(),
     location: Option.none<string>(),
+    location_url: Option.none<string>(),
     status: 'active',
     event_type: 'match',
     team_name: 'Test FC',
     rsvp_response: 'maybe',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000062',
+    title: 'Training with Map Link',
+    description: Option.some('Warm-up included'),
+    start_at: DateTime.makeUnsafe('2026-03-22T17:00:00Z'),
+    end_at: Option.none<DateTime.Utc>(),
+    location: Option.some('Stadium'),
+    location_url: Option.some('https://maps.google.com/x'),
+    status: 'active',
+    event_type: 'training',
+    team_name: 'Test FC',
+    rsvp_response: 'yes',
   },
 ];
 
@@ -461,5 +476,24 @@ describe('iCal Subscription API', () => {
     storedToken = null;
     const response = await handler(new Request('http://localhost/ical/invalid-token'));
     expect(response.status).toBe(404);
+  });
+
+  it('GET /ical/:token embeds location_url in DESCRIPTION when present', async () => {
+    storedToken = {
+      id: 'ical-id-1',
+      user_id: TEST_USER_ID,
+      token: 'loc-url-token',
+      created_at: new Date(),
+    };
+    const response = await handler(new Request('http://localhost/ical/loc-url-token'));
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    // The event "Training with Map Link" has location_url set.
+    // The URL must appear in the DESCRIPTION field (embedded), NOT as a URL: property.
+    expect(text).toContain('SUMMARY:Training with Map Link');
+    // URL appended to description
+    expect(text).toContain('https://maps.google.com/x');
+    // Must NOT use a standalone URL: property for location URL (RFC-incorrect for location)
+    expect(text).not.toMatch(/^URL:https:\/\/maps\.google\.com\/x/m);
   });
 });

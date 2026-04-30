@@ -39,6 +39,7 @@ export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
 }) {}
 
@@ -51,6 +52,7 @@ export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelE
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   status: Schema.String,
   discord_message_id: Snowflake,
@@ -102,6 +104,7 @@ export class GuildEventListEntry extends Schema.Class<GuildEventListEntry>('Guil
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   yes_count: Schema.Number,
   no_count: Schema.Number,
@@ -167,6 +170,7 @@ export class UpcomingEventForUserEntry extends Schema.Class<UpcomingEventForUser
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
+  location_url: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   yes_count: Schema.Number,
   no_count: Schema.Number,

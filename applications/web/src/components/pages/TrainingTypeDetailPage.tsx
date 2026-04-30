@@ -45,6 +45,13 @@ const CreateScheduleSchema = Schema.Struct({
     message: m.validation_invalidOption(),
   }),
   daysOfWeek: EventSeries.DaysOfWeek,
+  locationUrl: Schema.String.pipe(
+    Schema.check(
+      Schema.makeFilter<string>((s) =>
+        s === '' || s.startsWith('https://') ? true : m.event_locationUrlInvalid(),
+      ),
+    ),
+  ),
   startDate: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
   endDate: Schema.String,
   startTime: Schema.NonEmptyString.annotate({ message: m.validation_required() }),
@@ -104,6 +111,7 @@ export function TrainingTypeDetailPage({
       description: '',
       frequency: 'weekly' as EventSeries.RecurrenceFrequency,
       daysOfWeek: [] as number[],
+      locationUrl: '',
       startDate: new Date().toISOString().slice(0, 10),
       endDate: '',
       startTime: '',
@@ -111,6 +119,14 @@ export function TrainingTypeDetailPage({
       location: '',
     },
   });
+
+  const watchedScheduleLocation = scheduleForm.watch('location');
+
+  React.useEffect(() => {
+    if (!watchedScheduleLocation) {
+      scheduleForm.setValue('locationUrl', '');
+    }
+  }, [watchedScheduleLocation, scheduleForm]);
 
   const handleSaveName = React.useCallback(async () => {
     setSaving(true);
@@ -190,6 +206,7 @@ export function TrainingTypeDetailPage({
               ? Option.some(formatUtcTime(localToUtc(values.startDate, values.endTime)))
               : Option.none(),
             location: values.location ? Option.some(values.location) : Option.none(),
+            locationUrl: values.locationUrl ? Option.some(values.locationUrl) : Option.none(),
             discordChannelId: Option.none(),
             ownerGroupId: Option.none(),
             memberGroupId: Option.none(),
@@ -243,6 +260,7 @@ export function TrainingTypeDetailPage({
         startTime: utcTimeToLocal(s.startTime),
         endTime: Option.match(s.endTime, { onNone: () => '', onSome: utcTimeToLocal }),
         location: Option.getOrElse(s.location, () => ''),
+        locationUrl: Option.getOrElse(s.locationUrl, () => ''),
       });
       setEditingSeriesId(s.seriesId);
       setShowCreateForm(true);
@@ -271,6 +289,9 @@ export function TrainingTypeDetailPage({
                 : Option.none(),
             ),
             location: Option.some(values.location ? Option.some(values.location) : Option.none()),
+            locationUrl: Option.some(
+              values.locationUrl ? Option.some(values.locationUrl) : Option.none(),
+            ),
             endDate: Option.some(
               values.endDate ? Option.some(dateOnlyToUtc(values.endDate)) : Option.none(),
             ),
@@ -291,6 +312,7 @@ export function TrainingTypeDetailPage({
         description: '',
         frequency: 'weekly',
         daysOfWeek: [],
+        locationUrl: '',
         startDate: new Date().toISOString().slice(0, 10),
         endDate: '',
         startTime: '',
@@ -638,6 +660,28 @@ export function TrainingTypeDetailPage({
                       )}
                     />
                     <FormField
+                      {...scheduleForm.register('locationUrl')}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{m.event_locationUrl()}</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type='url'
+                              inputMode='url'
+                              autoComplete='url'
+                              placeholder={m.event_locationUrlPlaceholder()}
+                              disabled={!scheduleForm.watch('location')}
+                            />
+                          </FormControl>
+                          <p className='text-xs text-muted-foreground'>
+                            {m.event_locationUrlHelp()}
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
                       {...scheduleForm.register('description')}
                       render={({ field }) => (
                         <FormItem>
@@ -670,6 +714,7 @@ export function TrainingTypeDetailPage({
                             description: '',
                             frequency: 'weekly',
                             daysOfWeek: [],
+                            locationUrl: '',
                             startDate: new Date().toISOString().slice(0, 10),
                             endDate: '',
                             startTime: '',

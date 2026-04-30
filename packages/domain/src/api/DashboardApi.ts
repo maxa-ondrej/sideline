@@ -16,6 +16,7 @@ export class DashboardUpcomingEvent extends Schema.Class<DashboardUpcomingEvent>
   startAt: Schemas.DateTimeFromIsoString,
   endAt: Schema.OptionFromOptional(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromOptional(Schema.String),
+  locationUrl: Schema.OptionFromOptional(Schema.String),
   myRsvp: Schema.OptionFromOptional(RsvpResponse),
 }) {}
 

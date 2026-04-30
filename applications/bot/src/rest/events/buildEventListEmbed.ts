@@ -3,6 +3,7 @@ import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
 import { DateTime, Option } from 'effect';
 import type { Locale } from '~/locale.js';
+import { locationDisplay } from './locationDisplay.js';
 
 const EVENT_COLOR = 0x5865f2;
 
@@ -25,9 +26,9 @@ const toDiscordTimestamp = (
 
 const formatEntry = (entry: EventRpcModels.GuildEventListEntry, locale: Locale): string => {
   const emoji = EVENT_TYPE_EMOJIS[entry.event_type] ?? EVENT_TYPE_EMOJIS.other;
-  const locationPart = Option.match(entry.location, {
+  const locationPart = Option.match(locationDisplay(entry.location, entry.location_url), {
     onNone: () => '',
-    onSome: (loc) => `\n\u{1F4CD} ${loc}`,
+    onSome: (text) => `\n\u{1F4CD} ${text}`,
   });
   const rsvpSummary = m.bot_embed_rsvp_summary(
     {

@@ -52,6 +52,7 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                 startAt,
                 endAt,
                 location: s.location,
+                locationUrl: s.location_url,
                 createdBy: s.created_by,
                 seriesId: Option.some(s.id),
                 discordTargetChannelId: s.discord_target_channel_id,
@@ -72,6 +73,10 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                         event.location,
                         event.event_type,
                         resolved,
+                        Option.none(),
+                        Option.none(),
+                        Option.none(),
+                        event.location_url,
                       ),
                     ),
                     Effect.tapDefect((defect) =>
@@ -91,6 +96,7 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                     startAt: event.start_at,
                     endAt: event.end_at,
                     location: event.location,
+                    locationUrl: event.location_url,
                   }),
                 ),
               );

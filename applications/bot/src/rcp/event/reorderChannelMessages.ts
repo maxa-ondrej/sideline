@@ -56,6 +56,7 @@ const editMessage = (
               startAt: entry.start_at,
               endAt: entry.end_at,
               location: entry.location,
+              locationUrl: entry.location_url,
               eventType: entry.event_type,
               counts,
               yesAttendees,

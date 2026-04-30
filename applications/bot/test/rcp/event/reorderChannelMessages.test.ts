@@ -23,6 +23,7 @@ const makeEntry = (
     start_at: DateTime.makeUnsafe(isoDate),
     end_at: Option.none(),
     location: Option.none(),
+    location_url: Option.none(),
     event_type: 'match',
     status: 'scheduled',
     discord_message_id: overrides?.discord_message_id ?? DomainDiscord.Snowflake.makeUnsafe(id),

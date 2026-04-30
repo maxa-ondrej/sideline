@@ -124,6 +124,7 @@ const createEvent = (
     readonly start_at: string;
     readonly end_at: Option.Option<string>;
     readonly location: Option.Option<string>;
+    readonly location_url: Option.Option<string>;
     readonly description: Option.Option<string>;
     readonly training_type_id: Option.Option<TrainingType.TrainingTypeId>;
   },
@@ -260,6 +261,7 @@ const createEvent = (
             startAt: parsedStartAt,
             endAt: parsedEndAt,
             location: input.location,
+            locationUrl: input.location_url,
             createdBy: userLookup.team_member_id,
             ownerGroupId: resolvedGroups.ownerGroupId,
             memberGroupId: resolvedGroups.memberGroupId,
@@ -298,6 +300,7 @@ const createEvent = (
         startAt: event.start_at,
         endAt: event.end_at,
         location: event.location,
+        locationUrl: event.location_url,
       }),
     ),
     Effect.map(
@@ -534,6 +537,7 @@ const rpcHandlers = Effect.Do.pipe(
                   start_at: row.start_at,
                   end_at: row.end_at,
                   location: row.location,
+                  location_url: row.location_url,
                   event_type: row.event_type,
                 }),
             ),
@@ -557,6 +561,7 @@ const rpcHandlers = Effect.Do.pipe(
                   start_at: row.start_at,
                   end_at: row.end_at,
                   location: row.location,
+                  location_url: row.location_url,
                   event_type: row.event_type,
                   status: row.status,
                   discord_message_id: row.discord_message_id,
@@ -701,6 +706,7 @@ const rpcHandlers = Effect.Do.pipe(
                       start_at: row.start_at,
                       end_at: row.end_at,
                       location: row.location,
+                      location_url: row.location_url,
                       event_type: row.event_type,
                       yes_count: row.yes_count,
                       no_count: row.no_count,
@@ -779,6 +785,7 @@ const rpcHandlers = Effect.Do.pipe(
                 start_at: Schemas.DateTimeFromDate,
                 end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
                 location: Schema.OptionFromNullOr(Schema.String),
+                location_url: Schema.OptionFromNullOr(Schema.String),
                 event_type: Schema.String,
                 yes_count: Schema.Number,
                 no_count: Schema.Number,
@@ -796,6 +803,7 @@ const rpcHandlers = Effect.Do.pipe(
                   e.start_at,
                   e.end_at,
                   e.location,
+                  e.location_url,
                   e.event_type,
                   COALESCE(SUM(CASE WHEN er.response = 'yes' THEN 1 ELSE 0 END), 0)::int AS yes_count,
                   COALESCE(SUM(CASE WHEN er.response = 'no' THEN 1 ELSE 0 END), 0)::int AS no_count,
@@ -899,6 +907,7 @@ const rpcHandlers = Effect.Do.pipe(
                       start_at: row.start_at,
                       end_at: row.end_at,
                       location: row.location,
+                      location_url: row.location_url,
                       event_type: row.event_type,
                       yes_count: row.yes_count,
                       no_count: row.no_count,
@@ -985,6 +994,7 @@ export const EventsRpcLive = rpcHandlers.pipe(
         readonly start_at: string;
         readonly end_at: Option.Option<string>;
         readonly location: Option.Option<string>;
+        readonly location_url: Option.Option<string>;
         readonly description: Option.Option<string>;
         readonly training_type_id: Option.Option<TrainingType.TrainingTypeId>;
       }) =>

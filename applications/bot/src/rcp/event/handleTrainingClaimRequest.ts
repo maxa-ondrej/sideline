@@ -29,6 +29,7 @@ export const handleTrainingClaimRequest = (event: EventRpcEvents.TrainingClaimRe
             startAt: event.start_at,
             endAt: event.end_at,
             location: event.location,
+            locationUrl: event.location_url,
             description: event.description,
             claimedBy: Option.none(),
             eventStatus: 'active',

@@ -136,6 +136,7 @@ export const EventRpcGroup = RpcGroup.make(
       start_at: Schema.String,
       end_at: Schema.OptionFromNullOr(Schema.String),
       location: Schema.OptionFromNullOr(Schema.String),
+      location_url: Schema.OptionFromNullOr(Schema.String),
       description: Schema.OptionFromNullOr(Schema.String),
       training_type_id: Schema.OptionFromNullOr(TrainingType.TrainingTypeId),
     },

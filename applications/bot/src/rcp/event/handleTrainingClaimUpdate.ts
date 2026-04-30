@@ -46,6 +46,7 @@ export const handleTrainingClaimUpdate = (event: EventRpcEvents.TrainingClaimUpd
             startAt: event.start_at,
             endAt: event.end_at,
             location: event.location,
+            locationUrl: event.location_url,
             description: event.description,
             claimedBy,
             eventStatus: event.event_status,

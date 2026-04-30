@@ -200,6 +200,7 @@ type EventRecord = {
   start_at: DateTime.Utc;
   end_at: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
+  location_url: Option.Option<string>;
   status: Event.EventStatus;
   created_by: TeamMember.TeamMemberId;
   training_type_name: Option.Option<string>;
@@ -228,6 +229,7 @@ const resetStores = () => {
     start_at: DateTime.makeUnsafe('2026-03-10T18:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-10T20:00:00Z')),
     location: Option.some('Main Field'),
+    location_url: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: Option.none(),
@@ -251,6 +253,7 @@ const resetStores = () => {
     start_at: DateTime.makeUnsafe('2026-03-15T14:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-15T16:00:00Z')),
     location: Option.none(),
+    location_url: Option.none(),
     status: 'cancelled',
     created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: Option.none(),
@@ -274,6 +277,7 @@ const resetStores = () => {
     start_at: DateTime.makeUnsafe('2026-03-12T17:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-12T19:00:00Z')),
     location: Option.none(),
+    location_url: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: Option.some('Type A'),
@@ -297,6 +301,7 @@ const resetStores = () => {
     start_at: DateTime.makeUnsafe('2026-03-20T18:00:00Z'),
     end_at: Option.none(),
     location: Option.none(),
+    location_url: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: Option.none(),
@@ -504,6 +509,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: input.start_at,
       end_at: input.end_at,
       location: input.location,
+      location_url: Option.none(),
       status: 'active',
       created_by: input.created_by as TeamMember.TeamMemberId,
       training_type_name: Option.none(),
@@ -528,6 +534,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: record.start_at,
       end_at: record.end_at,
       location: record.location,
+      location_url: record.location_url,
       status: record.status,
       created_by: record.created_by,
       series_id: record.series_id,
@@ -562,6 +569,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: input.startAt,
       end_at: input.endAt,
       location: input.location,
+      location_url: Option.none(),
       status: 'active',
       created_by: input.createdBy as TeamMember.TeamMemberId,
       training_type_name: Option.none(),
@@ -586,6 +594,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: record.start_at,
       end_at: record.end_at,
       location: record.location,
+      location_url: record.location_url,
       status: record.status,
       created_by: record.created_by,
       series_id: record.series_id,
@@ -631,6 +640,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: updated.start_at,
       end_at: updated.end_at,
       location: updated.location,
+      location_url: updated.location_url,
       status: updated.status,
       created_by: updated.created_by,
       discord_target_channel_id: updated.discord_target_channel_id,
@@ -674,6 +684,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       start_at: updated.start_at,
       end_at: updated.end_at,
       location: updated.location,
+      location_url: updated.location_url,
       status: updated.status,
       created_by: updated.created_by,
       discord_target_channel_id: updated.discord_target_channel_id,

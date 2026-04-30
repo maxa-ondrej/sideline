@@ -3,6 +3,11 @@
 // the image_url column added in the event-image-attachment feature.
 // They will FAIL until the developer runs the migration and updates the
 // repository.
+//
+// location_url tests (added in TDD mode for the location-split feature) are
+// at the bottom of this file in the "EventsRepository — location_url" describe
+// block.  They will FAIL until the migration adds the column and the repository
+// is updated.
 
 import { describe, expect, it } from '@effect/vitest';
 import type { Discord, Team, TeamMember, User } from '@sideline/domain';
@@ -375,6 +380,281 @@ describe('EventsRepository — image_url', () => {
           const row = Option.getOrThrow(found);
           expect(row.id).toBe(inserted.id);
           expect(Option.getOrNull(row.image_url)).toBe('https://cdn.example.com/event-banner.jpg');
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// location_url tests
+// ---------------------------------------------------------------------------
+
+describe('EventsRepository — location_url', () => {
+  it.effect('insertEvent with locationUrl Some stores and round-trips the URL', () =>
+    Effect.Do.pipe(
+      Effect.bind('ownerId', () => createUser('400000000000000001', 'events-loc-url-owner-1')),
+      Effect.bind('team', ({ ownerId }) =>
+        createTeam('401010101010101010' as Discord.Snowflake, ownerId),
+      ),
+      Effect.bind('tm', ({ team, ownerId }) => addTeamMember(team.id, ownerId)),
+      Effect.bind('inserted', ({ team, tm }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.insertEvent({
+              teamId: team.id,
+              eventType: 'training',
+              title: 'Event With Location URL',
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: DateTime.fromDateUnsafe(new Date('2099-12-31T18:00:00Z')),
+              endAt: Option.none(),
+              location: Option.some('Main Field'),
+              locationUrl: Option.some('https://maps.google.com/x'),
+              ownerGroupId: Option.none(),
+              memberGroupId: Option.none(),
+              trainingTypeId: Option.none(),
+              seriesId: Option.none(),
+              discordTargetChannelId: Option.none(),
+              createdBy: (tm as any).id as TeamMember.TeamMemberId,
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('found', ({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findEventByIdWithDetails(inserted.id)),
+        ),
+      ),
+      Effect.tap(({ found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const row = Option.getOrThrow(found);
+          expect(Option.isSome(row.location_url)).toBe(true);
+          expect(Option.getOrNull(row.location_url)).toBe('https://maps.google.com/x');
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('insertEvent with locationUrl None stores null and round-trips as None', () =>
+    Effect.Do.pipe(
+      Effect.bind('ownerId', () => createUser('400000000000000002', 'events-loc-url-owner-2')),
+      Effect.bind('team', ({ ownerId }) =>
+        createTeam('402020202020202020' as Discord.Snowflake, ownerId),
+      ),
+      Effect.bind('tm', ({ team, ownerId }) => addTeamMember(team.id, ownerId)),
+      Effect.bind('inserted', ({ team, tm }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.insertEvent({
+              teamId: team.id,
+              eventType: 'training',
+              title: 'Event Without Location URL',
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: DateTime.fromDateUnsafe(new Date('2099-12-31T18:00:00Z')),
+              endAt: Option.none(),
+              location: Option.some('Main Field'),
+              locationUrl: Option.none(),
+              ownerGroupId: Option.none(),
+              memberGroupId: Option.none(),
+              trainingTypeId: Option.none(),
+              seriesId: Option.none(),
+              discordTargetChannelId: Option.none(),
+              createdBy: (tm as any).id as TeamMember.TeamMemberId,
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('found', ({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findEventByIdWithDetails(inserted.id)),
+        ),
+      ),
+      Effect.tap(({ found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const row = Option.getOrThrow(found);
+          expect(Option.isNone(row.location_url)).toBe(true);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('updateEvent can set locationUrl on an event that had none', () =>
+    Effect.Do.pipe(
+      Effect.bind('ownerId', () => createUser('400000000000000003', 'events-loc-url-owner-3')),
+      Effect.bind('team', ({ ownerId }) =>
+        createTeam('403030303030303030' as Discord.Snowflake, ownerId),
+      ),
+      Effect.bind('tm', ({ team, ownerId }) => addTeamMember(team.id, ownerId)),
+      Effect.bind('inserted', ({ team, tm }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.insertEvent({
+              teamId: team.id,
+              eventType: 'training',
+              title: 'Set Location URL Test',
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: DateTime.fromDateUnsafe(new Date('2099-12-31T18:00:00Z')),
+              endAt: Option.none(),
+              location: Option.some('Main Field'),
+              locationUrl: Option.none(),
+              ownerGroupId: Option.none(),
+              memberGroupId: Option.none(),
+              trainingTypeId: Option.none(),
+              seriesId: Option.none(),
+              discordTargetChannelId: Option.none(),
+              createdBy: (tm as any).id as TeamMember.TeamMemberId,
+            }),
+          ),
+        ),
+      ),
+      Effect.tap(({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.updateEvent({
+              id: inserted.id,
+              title: 'Set Location URL Test',
+              eventType: 'training',
+              trainingTypeId: Option.none(),
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: inserted.start_at,
+              endAt: Option.none(),
+              location: Option.some('Main Field'),
+              locationUrl: Option.some('https://maps.google.com/updated'),
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('found', ({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findEventByIdWithDetails(inserted.id)),
+        ),
+      ),
+      Effect.tap(({ found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const row = Option.getOrThrow(found);
+          expect(Option.isSome(row.location_url)).toBe(true);
+          expect(Option.getOrNull(row.location_url)).toBe('https://maps.google.com/updated');
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('updateEvent can clear locationUrl (set to None) on an event that had one', () =>
+    Effect.Do.pipe(
+      Effect.bind('ownerId', () => createUser('400000000000000004', 'events-loc-url-owner-4')),
+      Effect.bind('team', ({ ownerId }) =>
+        createTeam('404040404040404040' as Discord.Snowflake, ownerId),
+      ),
+      Effect.bind('tm', ({ team, ownerId }) => addTeamMember(team.id, ownerId)),
+      Effect.bind('inserted', ({ team, tm }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.insertEvent({
+              teamId: team.id,
+              eventType: 'training',
+              title: 'Clear Location URL Test',
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: DateTime.fromDateUnsafe(new Date('2099-12-31T18:00:00Z')),
+              endAt: Option.none(),
+              location: Option.some('Main Field'),
+              locationUrl: Option.some('https://maps.google.com/to-clear'),
+              ownerGroupId: Option.none(),
+              memberGroupId: Option.none(),
+              trainingTypeId: Option.none(),
+              seriesId: Option.none(),
+              discordTargetChannelId: Option.none(),
+              createdBy: (tm as any).id as TeamMember.TeamMemberId,
+            }),
+          ),
+        ),
+      ),
+      Effect.tap(({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.updateEvent({
+              id: inserted.id,
+              title: 'Clear Location URL Test',
+              eventType: 'training',
+              trainingTypeId: Option.none(),
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: inserted.start_at,
+              endAt: Option.none(),
+              location: Option.some('Main Field'),
+              locationUrl: Option.none(),
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('found', ({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findEventByIdWithDetails(inserted.id)),
+        ),
+      ),
+      Effect.tap(({ found }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const row = Option.getOrThrow(found);
+          expect(Option.isNone(row.location_url)).toBe(true);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('findEventByIdWithDetails round-trips location_url', () =>
+    Effect.Do.pipe(
+      Effect.bind('ownerId', () => createUser('400000000000000005', 'events-loc-url-owner-5')),
+      Effect.bind('team', ({ ownerId }) =>
+        createTeam('405050505050505050' as Discord.Snowflake, ownerId),
+      ),
+      Effect.bind('tm', ({ team, ownerId }) => addTeamMember(team.id, ownerId)),
+      Effect.bind('inserted', ({ team, tm }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.insertEvent({
+              teamId: team.id,
+              eventType: 'match',
+              title: 'Round Trip Location URL',
+              description: Option.none(),
+              imageUrl: Option.none(),
+              startAt: DateTime.fromDateUnsafe(new Date('2099-12-31T18:00:00Z')),
+              endAt: Option.none(),
+              location: Option.some('Stadium'),
+              locationUrl: Option.some('https://maps.google.com/round-trip'),
+              ownerGroupId: Option.none(),
+              memberGroupId: Option.none(),
+              trainingTypeId: Option.none(),
+              seriesId: Option.none(),
+              discordTargetChannelId: Option.none(),
+              createdBy: (tm as any).id as TeamMember.TeamMemberId,
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('found', ({ inserted }) =>
+        EventsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findEventByIdWithDetails(inserted.id)),
+        ),
+      ),
+      Effect.tap(({ found, inserted }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(found)).toBe(true);
+          const row = Option.getOrThrow(found);
+          expect(row.id).toBe(inserted.id);
+          expect(Option.getOrNull(row.location_url)).toBe('https://maps.google.com/round-trip');
         }),
       ),
       Effect.provide(TestLayer),
