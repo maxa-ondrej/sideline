@@ -1,5 +1,15 @@
 # @sideline/bot
 
+## 0.11.2
+
+### Patch Changes
+
+- [#240](https://github.com/maxa-ondrej/sideline/pull/240) [`57cde28`](https://github.com/maxa-ondrej/sideline/commit/57cde28ef0095cc6b309ab3316967f859cd6b1f2) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - You can now attach an optional link to an event's location (e.g. Google Maps, venue page). The location text becomes a clickable link on the website and a markdown hyperlink in Discord posts.
+
+- Updated dependencies [[`57cde28`](https://github.com/maxa-ondrej/sideline/commit/57cde28ef0095cc6b309ab3316967f859cd6b1f2)]:
+  - @sideline/domain@0.16.2
+  - @sideline/i18n@0.3.15
+
 ## 0.11.1
 
 ### Patch Changes
