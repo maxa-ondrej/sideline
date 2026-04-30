@@ -1,5 +1,11 @@
 # @sideline/migrations
 
+## 0.12.11
+
+### Patch Changes
+
+- [#238](https://github.com/maxa-ondrej/sideline/pull/238) [`2e53d6a`](https://github.com/maxa-ondrej/sideline/commit/2e53d6a4b2a40f222efee89e9a204a66bf33fc4c) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - You can now attach a cover image URL to events. Images appear on the event page and as a thumbnail in Discord posts.
+
 ## 0.12.10
 
 ### Patch Changes

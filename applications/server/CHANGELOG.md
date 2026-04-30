@@ -1,5 +1,15 @@
 # @sideline/server
 
+## 0.16.1
+
+### Patch Changes
+
+- [#238](https://github.com/maxa-ondrej/sideline/pull/238) [`2e53d6a`](https://github.com/maxa-ondrej/sideline/commit/2e53d6a4b2a40f222efee89e9a204a66bf33fc4c) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - You can now attach a cover image URL to events. Images appear on the event page and as a thumbnail in Discord posts.
+
+- Updated dependencies [[`2e53d6a`](https://github.com/maxa-ondrej/sideline/commit/2e53d6a4b2a40f222efee89e9a204a66bf33fc4c)]:
+  - @sideline/domain@0.16.1
+  - @sideline/migrations@0.12.11
+
 ## 0.16.0
 
 ### Minor Changes
