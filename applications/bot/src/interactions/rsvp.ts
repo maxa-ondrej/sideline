@@ -125,6 +125,7 @@ export const postRsvpDiscordUpdates = (params: {
                 eventId,
                 title: info.title,
                 description: info.description,
+                imageUrl: info.image_url,
                 startAt: info.start_at,
                 endAt: info.end_at,
                 location: info.location,

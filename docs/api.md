@@ -1639,6 +1639,8 @@ Lists all events for a team.
 | `title` | `string` | No | Event title |
 | `eventType` | `EventType` | No | Type of event |
 | `trainingTypeName` | `string \| null` | Yes | Training type name (for training events) |
+| `description` | `string \| null` | Yes | Description |
+| `imageUrl` | `string \| null` | Yes | Cover image URL (must be `https://`, max 2048 chars, public host only) |
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
@@ -1674,6 +1676,7 @@ Creates a new event.
 | `eventType` | `EventType` | Yes | Type of event |
 | `trainingTypeId` | `TrainingTypeId \| null` | Yes | Training type (for training events; null otherwise) |
 | `description` | `string \| null` | Yes | Optional description |
+| `imageUrl` | `string \| null` | No | Optional cover image URL (must be `https://`, max 2048 chars, public host only) |
 | `startAt` | `string` (ISO 8601) | Yes | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time (null if open-ended) |
 | `location` | `string \| null` | Yes | Location |
@@ -1715,6 +1718,7 @@ Returns full details for a specific event.
 | `trainingTypeId` | `TrainingTypeId \| null` | Yes | Training type ID |
 | `trainingTypeName` | `string \| null` | Yes | Training type name |
 | `description` | `string \| null` | Yes | Description |
+| `imageUrl` | `string \| null` | Yes | Cover image URL (must be `https://`, max 2048 chars, public host only) |
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | Yes | End date/time |
 | `location` | `string \| null` | Yes | Location |
@@ -1761,6 +1765,7 @@ Updates an event's fields. All fields are optional.
 | `eventType` | `EventType` | No | Type of event |
 | `trainingTypeId` | `TrainingTypeId \| null` | No | Training type ID |
 | `description` | `string \| null` | No | Description |
+| `imageUrl` | `string \| null` | No | Cover image URL (must be `https://`, max 2048 chars, public host only) |
 | `startAt` | `string` (ISO 8601) | No | Start date/time |
 | `endAt` | `string \| null` | No | End date/time |
 | `location` | `string \| null` | No | Location |

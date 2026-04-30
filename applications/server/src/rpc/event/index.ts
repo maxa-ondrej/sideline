@@ -115,7 +115,7 @@ const createEvent = (
   syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
   members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
   trainingTypes: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
-  mappingRepo: ServiceMap.Service.Shape<typeof DiscordChannelMappingRepository>,
+  _mappingRepo: ServiceMap.Service.Shape<typeof DiscordChannelMappingRepository>,
   input: {
     readonly guild_id: Discord.Snowflake;
     readonly discord_user_id: Discord.Snowflake;
@@ -530,6 +530,7 @@ const rpcHandlers = Effect.Do.pipe(
                 new EventRpcModels.EventEmbedInfo({
                   title: row.title,
                   description: row.description,
+                  image_url: row.image_url,
                   start_at: row.start_at,
                   end_at: row.end_at,
                   location: row.location,
@@ -552,6 +553,7 @@ const rpcHandlers = Effect.Do.pipe(
                   team_id: row.team_id,
                   title: row.title,
                   description: row.description,
+                  image_url: row.image_url,
                   start_at: row.start_at,
                   end_at: row.end_at,
                   location: row.location,
@@ -773,6 +775,7 @@ const rpcHandlers = Effect.Do.pipe(
                 team_id: Schema.String,
                 title: Schema.String,
                 description: Schema.OptionFromNullOr(Schema.String),
+                image_url: Schema.OptionFromNullOr(Schema.String),
                 start_at: Schemas.DateTimeFromDate,
                 end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
                 location: Schema.OptionFromNullOr(Schema.String),
@@ -789,6 +792,7 @@ const rpcHandlers = Effect.Do.pipe(
                   e.team_id,
                   e.title,
                   e.description,
+                  e.image_url,
                   e.start_at,
                   e.end_at,
                   e.location,
@@ -891,6 +895,7 @@ const rpcHandlers = Effect.Do.pipe(
                       team_id: row.team_id,
                       title: row.title,
                       description: row.description,
+                      image_url: row.image_url,
                       start_at: row.start_at,
                       end_at: row.end_at,
                       location: row.location,

@@ -45,6 +45,7 @@ export const eventStartCronEffect = Effect.Do.pipe(
                       channel,
                       event.member_group_id,
                       discordRoleId,
+                      event.image_url,
                     ),
                   ),
                   Effect.tap(() =>

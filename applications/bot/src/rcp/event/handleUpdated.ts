@@ -36,6 +36,7 @@ export const handleUpdated = (event: EventRpcEvents.EventUpdatedEvent) =>
                 eventId: event.event_id,
                 title: event.title,
                 description: event.description,
+                imageUrl: event.image_url,
                 startAt: event.start_at,
                 endAt: event.end_at,
                 location: event.location,

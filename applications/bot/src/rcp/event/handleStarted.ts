@@ -66,6 +66,7 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
                     eventId: event.event_id,
                     title: info.title,
                     description: info.description,
+                    imageUrl: info.image_url,
                     startAt: info.start_at,
                     endAt: info.end_at,
                     location: info.location,

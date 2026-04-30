@@ -47,6 +47,7 @@ const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleI
 const TEST_EVENT_1 = '00000000-0000-0000-0000-000000000060' as Event.EventId;
 const TEST_EVENT_2 = '00000000-0000-0000-0000-000000000061' as Event.EventId;
 const TEST_EVENT_SCOPED = '00000000-0000-0000-0000-000000000062' as Event.EventId;
+const TEST_EVENT_WITH_IMAGE = '00000000-0000-0000-0000-000000000063' as Event.EventId;
 const TEST_TRAINING_TYPE_A = '00000000-0000-0000-0000-000000000050' as TrainingType.TrainingTypeId;
 const TEST_TRAINING_TYPE_B = '00000000-0000-0000-0000-000000000051' as TrainingType.TrainingTypeId;
 
@@ -195,6 +196,7 @@ type EventRecord = {
   event_type: Event.EventType;
   title: string;
   description: Option.Option<string>;
+  image_url: Option.Option<string>;
   start_at: DateTime.Utc;
   end_at: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
@@ -222,6 +224,7 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Tuesday Training',
     description: Option.some('Weekly training session'),
+    image_url: Option.none(),
     start_at: DateTime.makeUnsafe('2026-03-10T18:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-10T20:00:00Z')),
     location: Option.some('Main Field'),
@@ -244,6 +247,7 @@ const resetStores = () => {
     event_type: 'match',
     title: 'Cancelled Match',
     description: Option.none(),
+    image_url: Option.none(),
     start_at: DateTime.makeUnsafe('2026-03-15T14:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-15T16:00:00Z')),
     location: Option.none(),
@@ -266,12 +270,36 @@ const resetStores = () => {
     event_type: 'training',
     title: 'Scoped Training',
     description: Option.none(),
+    image_url: Option.none(),
     start_at: DateTime.makeUnsafe('2026-03-12T17:00:00Z'),
     end_at: Option.some(DateTime.makeUnsafe('2026-03-12T19:00:00Z')),
     location: Option.none(),
     status: 'active',
     created_by: TEST_ADMIN_MEMBER_ID,
     training_type_name: Option.some('Type A'),
+    created_by_name: Option.some('Admin User'),
+    series_id: Option.none(),
+    series_modified: false,
+    discord_target_channel_id: Option.none(),
+    owner_group_id: Option.none(),
+    member_group_id: Option.none(),
+    owner_group_name: Option.none(),
+    member_group_name: Option.none(),
+  });
+  eventsStore.set(TEST_EVENT_WITH_IMAGE, {
+    id: TEST_EVENT_WITH_IMAGE,
+    team_id: TEST_TEAM_ID,
+    training_type_id: Option.none(),
+    event_type: 'training',
+    title: 'Training With Image',
+    description: Option.none(),
+    image_url: Option.some('https://example.com/banner.png'),
+    start_at: DateTime.makeUnsafe('2026-03-20T18:00:00Z'),
+    end_at: Option.none(),
+    location: Option.none(),
+    status: 'active',
+    created_by: TEST_ADMIN_MEMBER_ID,
+    training_type_name: Option.none(),
     created_by_name: Option.some('Admin User'),
     series_id: Option.none(),
     series_modified: false,
@@ -457,6 +485,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     title: string;
     description: Option.Option<string>;
+    image_url?: Option.Option<string>;
     start_at: DateTime.Utc;
     end_at: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
@@ -471,6 +500,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.event_type as Event.EventType,
       title: input.title,
       description: input.description,
+      image_url: input.image_url ?? Option.none(),
       start_at: input.start_at,
       end_at: input.end_at,
       location: input.location,
@@ -494,6 +524,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: record.event_type,
       title: record.title,
       description: record.description,
+      image_url: record.image_url,
       start_at: record.start_at,
       end_at: record.end_at,
       location: record.location,
@@ -512,6 +543,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     title: string;
     description: Option.Option<string>;
+    imageUrl?: Option.Option<string>;
     startAt: DateTime.Utc;
     endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
@@ -526,6 +558,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.eventType as Event.EventType,
       title: input.title,
       description: input.description,
+      image_url: input.imageUrl ?? Option.none(),
       start_at: input.startAt,
       end_at: input.endAt,
       location: input.location,
@@ -549,6 +582,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: record.event_type,
       title: record.title,
       description: record.description,
+      image_url: record.image_url,
       start_at: record.start_at,
       end_at: record.end_at,
       location: record.location,
@@ -567,6 +601,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     event_type: string;
     training_type_id: Option.Option<string>;
     description: Option.Option<string>;
+    image_url?: Option.Option<string>;
     start_at: DateTime.Utc;
     end_at: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
@@ -579,6 +614,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.event_type as Event.EventType,
       training_type_id: input.training_type_id,
       description: input.description,
+      image_url: input.image_url !== undefined ? input.image_url : event.image_url,
       start_at: input.start_at,
       end_at: input.end_at,
       location: input.location,
@@ -591,6 +627,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: updated.event_type,
       title: updated.title,
       description: updated.description,
+      image_url: updated.image_url,
       start_at: updated.start_at,
       end_at: updated.end_at,
       location: updated.location,
@@ -607,6 +644,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
     eventType: string;
     trainingTypeId: Option.Option<string>;
     description: Option.Option<string>;
+    imageUrl?: Option.Option<string>;
     startAt: DateTime.Utc;
     endAt: Option.Option<DateTime.Utc>;
     location: Option.Option<string>;
@@ -619,6 +657,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: input.eventType as Event.EventType,
       training_type_id: input.trainingTypeId,
       description: input.description,
+      image_url: input.imageUrl !== undefined ? input.imageUrl : event.image_url,
       start_at: input.startAt,
       end_at: input.endAt,
       location: input.location,
@@ -631,6 +670,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
       event_type: updated.event_type,
       title: updated.title,
       description: updated.description,
+      image_url: updated.image_url,
       start_at: updated.start_at,
       end_at: updated.end_at,
       location: updated.location,
@@ -990,7 +1030,7 @@ describe('Events API', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canCreate).toBe(true);
-      expect(body.events).toHaveLength(3);
+      expect(body.events).toHaveLength(4);
     });
 
     it('returns 200 with canCreate:true for captain', async () => {
@@ -1009,7 +1049,7 @@ describe('Events API', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.canCreate).toBe(false);
-      expect(body.events).toHaveLength(3);
+      expect(body.events).toHaveLength(4);
     });
   });
 
@@ -1326,6 +1366,246 @@ describe('Events API', () => {
         }),
       );
       expect(response.status).toBe(201);
+    });
+  });
+
+  describe('POST /teams/:teamId/events — imageUrl field', () => {
+    const basePayload = {
+      title: 'Image Test Event',
+      eventType: 'training',
+      trainingTypeId: null,
+      description: null,
+      startAt: '2026-03-20T18:00:00',
+      endAt: null,
+      location: null,
+      discordChannelId: null,
+      ownerGroupId: null,
+      memberGroupId: null,
+    };
+
+    it('returns 201 with imageUrl in response when valid https URL provided', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: 'https://example.com/cover.png' }),
+        }),
+      );
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.imageUrl).toBe('https://example.com/cover.png');
+    });
+
+    it('returns 201 with null imageUrl when imageUrl is explicitly null', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: null }),
+        }),
+      );
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.imageUrl).toBeNull();
+    });
+
+    it('returns 201 when imageUrl field is absent entirely', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(basePayload),
+        }),
+      );
+      expect(response.status).toBe(201);
+    });
+
+    it('returns 4xx when imageUrl uses http:// protocol', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: 'http://example.com/x.png' }),
+        }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+    });
+
+    it('returns 4xx when imageUrl uses javascript: scheme', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: 'javascript:alert(1)' }),
+        }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+    });
+
+    it('returns 4xx when imageUrl points to localhost (loopback)', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: 'https://localhost/x.png' }),
+        }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+    });
+
+    it('returns 4xx when imageUrl points to RFC1918 address', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: 'https://192.168.1.1/x.png' }),
+        }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+    });
+
+    it('returns 4xx when imageUrl is not a valid URL', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...basePayload, imageUrl: 'not a url' }),
+        }),
+      );
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+    });
+  });
+
+  describe('GET /teams/:teamId/events/:eventId — imageUrl field', () => {
+    it('returns imageUrl when event has an image', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_WITH_IMAGE}`, {
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.imageUrl).toBe('https://example.com/banner.png');
+    });
+
+    it('returns null imageUrl when event has no image', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.imageUrl).toBeNull();
+    });
+  });
+
+  describe('PATCH /teams/:teamId/events/:eventId — imageUrl field', () => {
+    it('returns 200 with updated imageUrl and subsequent GET returns the new URL', async () => {
+      const patchResponse = await handler(
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageUrl: 'https://new.url/event.png' }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      const patchBody = await patchResponse.json();
+      expect(patchBody.imageUrl).toBe('https://new.url/event.png');
+
+      const getResponse = await handler(
+        new Request(`${BASE}/${TEST_EVENT_1}`, {
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(getResponse.status).toBe(200);
+      const getBody = await getResponse.json();
+      expect(getBody.imageUrl).toBe('https://new.url/event.png');
+    });
+
+    it('clears imageUrl when PATCH sends imageUrl: null', async () => {
+      const patchResponse = await handler(
+        new Request(`${BASE}/${TEST_EVENT_WITH_IMAGE}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageUrl: null }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      const patchBody = await patchResponse.json();
+      expect(patchBody.imageUrl).toBeNull();
+    });
+
+    it('preserves existing imageUrl when PATCH omits the imageUrl field', async () => {
+      const patchResponse = await handler(
+        new Request(`${BASE}/${TEST_EVENT_WITH_IMAGE}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title: 'Updated Title Only' }),
+        }),
+      );
+      expect(patchResponse.status).toBe(200);
+      const patchBody = await patchResponse.json();
+      expect(patchBody.imageUrl).toBe('https://example.com/banner.png');
+    });
+  });
+
+  describe('GET /teams/:teamId/events (list) — imageUrl field', () => {
+    it('each event entry in the list includes imageUrl', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(Array.isArray(body.events)).toBe(true);
+      for (const event of body.events) {
+        expect(Object.hasOwn(event, 'imageUrl')).toBe(true);
+      }
+      const imageEvent = body.events.find(
+        (e: { eventId: string }) => e.eventId === TEST_EVENT_WITH_IMAGE,
+      );
+      expect(imageEvent).toBeDefined();
+      expect(imageEvent?.imageUrl).toBe('https://example.com/banner.png');
     });
   });
 });

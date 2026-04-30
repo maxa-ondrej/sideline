@@ -41,6 +41,7 @@ export const buildEventEmbed = (opts: {
   eventId: string;
   title: string;
   description: Option.Option<string>;
+  imageUrl: Option.Option<string>;
   startAt: DateTime.Utc;
   endAt: Option.Option<DateTime.Utc>;
   location: Option.Option<string>;
@@ -118,6 +119,7 @@ export const buildEventEmbed = (opts: {
       description: descParts.join('\n'),
       color,
       fields,
+      ...(Option.isSome(opts.imageUrl) ? { thumbnail: { url: opts.imageUrl.value } } : {}),
     },
   ];
 

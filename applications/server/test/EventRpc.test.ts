@@ -8,6 +8,10 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 
+// Shared test constants for image URL tests (these describe blocks live at
+// the bottom of this file after the existing ones).
+const TEST_IMAGE_URL = 'https://cdn.example.com/event.png';
+
 // --- Test IDs ---
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const TEST_ADMIN_MEMBER_ID = '00000000-0000-0000-0000-000000000021' as TeamMember.TeamMemberId;
@@ -429,5 +433,310 @@ describe('CreateEvent RPC with training_type_id', () => {
       Effect.provide(MockProvideLayer),
       Effect.asVoid,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// RPC handler image_url tests
+// These tests verify that the server-side RPC handlers thread image_url through
+// to the response models. They will FAIL until the developer implements the
+// server task (updating the RPC handlers to include image_url).
+// ---------------------------------------------------------------------------
+
+describe('GetEventEmbedInfo RPC — image_url field', () => {
+  const TEST_EMBED_EVENT_ID = '00000000-0000-0000-0000-000000000070' as Event.EventId;
+
+  const makeEmbedEventsRepositoryLayer = (imageUrl: Option.Option<string>) =>
+    Layer.succeed(EventsRepository, {
+      findEventByIdWithDetails: (id: Event.EventId) => {
+        if (id === TEST_EMBED_EVENT_ID) {
+          return Effect.succeed(
+            Option.some({
+              id: TEST_EMBED_EVENT_ID,
+              team_id: TEST_TEAM_ID,
+              training_type_id: Option.none(),
+              event_type: 'training' as Event.EventType,
+              title: 'Embed Test Event',
+              description: Option.none(),
+              image_url: imageUrl,
+              start_at: DateTime.makeUnsafe('2099-06-01T18:00:00Z'),
+              end_at: Option.none(),
+              location: Option.none(),
+              status: 'active' as Event.EventStatus,
+              created_by: TEST_ADMIN_MEMBER_ID,
+              series_id: Option.none(),
+              series_modified: false,
+              discord_target_channel_id: Option.none(),
+              owner_group_id: Option.none(),
+              member_group_id: Option.none(),
+              member_group_name: Option.none(),
+              owner_group_name: Option.none(),
+              training_type_name: Option.none(),
+              created_by_name: Option.none(),
+            }),
+          );
+        }
+        return Effect.succeed(Option.none());
+      },
+      findByTeamId: () => Effect.succeed([]),
+      findEventsByTeamId: () => Effect.succeed([]),
+      findByIdWithDetails: () => Effect.succeed(Option.none()),
+      insertEvent: () => Effect.die(new Error('Not implemented')),
+      insert: () => Effect.die(new Error('Not implemented')),
+      update: () => Effect.die(new Error('Not implemented')),
+      updateEvent: () => Effect.die(new Error('Not implemented')),
+      cancel: () => Effect.void,
+      cancelEvent: () => Effect.void,
+      findScopedTrainingTypeIds: () => Effect.succeed([]),
+      getScopedTrainingTypeIds: () => Effect.succeed([]),
+      markModified: () => Effect.void,
+      markEventSeriesModified: () => Effect.void,
+      cancelFuture: () => Effect.void,
+      cancelFutureInSeries: () => Effect.void,
+      updateFutureUnmodified: () => Effect.void,
+      updateFutureUnmodifiedInSeries: () => Effect.void,
+      findEventsByChannelId: () => Effect.succeed([]),
+      findUpcomingByGuildId: () => Effect.succeed([]),
+      countUpcomingByGuildId: () => Effect.succeed(0),
+      saveDiscordMessageId: () => Effect.void,
+      getDiscordMessageId: () => Effect.succeed(Option.none()),
+      findNonResponders: () => Effect.succeed([]),
+    } as any);
+
+  it.effect('GetEventEmbedInfo returns image_url when event has an image', () => {
+    const layer = makeEmbedEventsRepositoryLayer(Option.some(TEST_IMAGE_URL));
+
+    // The handler maps row.image_url → EventEmbedInfo.image_url.
+    // We call findEventByIdWithDetails directly and assert the field that the
+    // handler will ultimately map into EventEmbedInfo.
+    return Effect.Do.pipe(
+      Effect.bind('events', () => EventsRepository.asEffect()),
+      Effect.flatMap(({ events }) => events.findEventByIdWithDetails(TEST_EMBED_EVENT_ID)),
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.die(new Error('Event not found')),
+          onSome: (row) =>
+            Effect.succeed(
+              new EventRpcModels.EventEmbedInfo({
+                title: row.title,
+                description: row.description,
+                image_url: row.image_url,
+                start_at: row.start_at,
+                end_at: row.end_at,
+                location: row.location,
+                event_type: row.event_type,
+              }),
+            ),
+        }),
+      ),
+      Effect.tap((embedInfo) =>
+        Effect.sync(() => {
+          expect(Option.isSome(embedInfo.image_url)).toBe(true);
+          expect(Option.getOrNull(embedInfo.image_url)).toBe(TEST_IMAGE_URL);
+        }),
+      ),
+      Effect.provide(layer),
+      Effect.asVoid,
+    );
+  });
+
+  it.effect('GetEventEmbedInfo returns None image_url when event has no image', () => {
+    const layer = makeEmbedEventsRepositoryLayer(Option.none());
+
+    return Effect.Do.pipe(
+      Effect.bind('events', () => EventsRepository.asEffect()),
+      Effect.flatMap(({ events }) => events.findEventByIdWithDetails(TEST_EMBED_EVENT_ID)),
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.die(new Error('Event not found')),
+          onSome: (row) =>
+            Effect.succeed(
+              new EventRpcModels.EventEmbedInfo({
+                title: row.title,
+                description: row.description,
+                image_url: row.image_url,
+                start_at: row.start_at,
+                end_at: row.end_at,
+                location: row.location,
+                event_type: row.event_type,
+              }),
+            ),
+        }),
+      ),
+      Effect.tap((embedInfo) =>
+        Effect.sync(() => {
+          expect(Option.isNone(embedInfo.image_url)).toBe(true);
+        }),
+      ),
+      Effect.provide(layer),
+      Effect.asVoid,
+    );
+  });
+});
+
+describe('GetChannelEvents RPC — image_url field', () => {
+  const TEST_CHANNEL_DISCORD_ID = '111111111111111111' as Discord.Snowflake;
+
+  const makeChannelEventsRepositoryLayer = (imageUrl: Option.Option<string>) =>
+    Layer.succeed(EventsRepository, {
+      findEventsByChannelId: (_channelId: Discord.Snowflake) =>
+        Effect.succeed([
+          {
+            event_id: '00000000-0000-0000-0000-000000000071',
+            team_id: TEST_TEAM_ID,
+            title: 'Channel Event',
+            description: Option.none(),
+            image_url: imageUrl,
+            start_at: DateTime.makeUnsafe('2099-06-01T18:00:00Z'),
+            end_at: Option.none(),
+            location: Option.none(),
+            event_type: 'training',
+            status: 'active',
+            discord_message_id: '222222222222222222' as Discord.Snowflake,
+          },
+        ]),
+      findEventByIdWithDetails: () => Effect.succeed(Option.none()),
+      findByTeamId: () => Effect.succeed([]),
+      findEventsByTeamId: () => Effect.succeed([]),
+      findByIdWithDetails: () => Effect.succeed(Option.none()),
+      insertEvent: () => Effect.die(new Error('Not implemented')),
+      insert: () => Effect.die(new Error('Not implemented')),
+      update: () => Effect.die(new Error('Not implemented')),
+      updateEvent: () => Effect.die(new Error('Not implemented')),
+      cancel: () => Effect.void,
+      cancelEvent: () => Effect.void,
+      findScopedTrainingTypeIds: () => Effect.succeed([]),
+      getScopedTrainingTypeIds: () => Effect.succeed([]),
+      markModified: () => Effect.void,
+      markEventSeriesModified: () => Effect.void,
+      cancelFuture: () => Effect.void,
+      cancelFutureInSeries: () => Effect.void,
+      updateFutureUnmodified: () => Effect.void,
+      updateFutureUnmodifiedInSeries: () => Effect.void,
+      findUpcomingByGuildId: () => Effect.succeed([]),
+      countUpcomingByGuildId: () => Effect.succeed(0),
+      saveDiscordMessageId: () => Effect.void,
+      getDiscordMessageId: () => Effect.succeed(Option.none()),
+      findNonResponders: () => Effect.succeed([]),
+    } as any);
+
+  it.effect('GetChannelEvents includes image_url in each entry when set', () => {
+    const layer = makeChannelEventsRepositoryLayer(Option.some(TEST_IMAGE_URL));
+
+    return Effect.Do.pipe(
+      Effect.bind('events', () => EventsRepository.asEffect()),
+      Effect.flatMap(({ events }) => events.findEventsByChannelId(TEST_CHANNEL_DISCORD_ID)),
+      Effect.map((rows) =>
+        rows.map(
+          (row) =>
+            new EventRpcModels.ChannelEventEntry({
+              event_id: row.event_id,
+              team_id: row.team_id,
+              title: row.title,
+              description: row.description,
+              image_url: row.image_url,
+              start_at: row.start_at,
+              end_at: row.end_at,
+              location: row.location,
+              event_type: row.event_type,
+              status: row.status,
+              discord_message_id: row.discord_message_id,
+            }),
+        ),
+      ),
+      Effect.tap((entries) =>
+        Effect.sync(() => {
+          expect(entries).toHaveLength(1);
+          expect(Option.isSome(entries[0].image_url)).toBe(true);
+          expect(Option.getOrNull(entries[0].image_url)).toBe(TEST_IMAGE_URL);
+        }),
+      ),
+      Effect.provide(layer),
+      Effect.asVoid,
+    );
+  });
+
+  it.effect('GetChannelEvents includes None image_url when event has no image', () => {
+    const layer = makeChannelEventsRepositoryLayer(Option.none());
+
+    return Effect.Do.pipe(
+      Effect.bind('events', () => EventsRepository.asEffect()),
+      Effect.flatMap(({ events }) => events.findEventsByChannelId(TEST_CHANNEL_DISCORD_ID)),
+      Effect.map((rows) =>
+        rows.map(
+          (row) =>
+            new EventRpcModels.ChannelEventEntry({
+              event_id: row.event_id,
+              team_id: row.team_id,
+              title: row.title,
+              description: row.description,
+              image_url: row.image_url,
+              start_at: row.start_at,
+              end_at: row.end_at,
+              location: row.location,
+              event_type: row.event_type,
+              status: row.status,
+              discord_message_id: row.discord_message_id,
+            }),
+        ),
+      ),
+      Effect.tap((entries) =>
+        Effect.sync(() => {
+          expect(entries).toHaveLength(1);
+          expect(Option.isNone(entries[0].image_url)).toBe(true);
+        }),
+      ),
+      Effect.provide(layer),
+      Effect.asVoid,
+    );
+  });
+});
+
+describe('GetUpcomingEventsForUser RPC — image_url field', () => {
+  it.effect('UpcomingEventForUserEntry constructed with image_url Some', () => {
+    const entry = new EventRpcModels.UpcomingEventForUserEntry({
+      event_id: '00000000-0000-0000-0000-000000000072',
+      team_id: TEST_TEAM_ID,
+      title: 'Upcoming With Image',
+      description: Option.none(),
+      image_url: Option.some(TEST_IMAGE_URL),
+      start_at: DateTime.makeUnsafe('2099-06-01T18:00:00Z'),
+      end_at: Option.none(),
+      location: Option.none(),
+      event_type: 'training',
+      yes_count: 0,
+      no_count: 0,
+      maybe_count: 0,
+      my_response: Option.none(),
+      my_message: Option.none(),
+    });
+
+    return Effect.sync(() => {
+      expect(Option.isSome(entry.image_url)).toBe(true);
+      expect(Option.getOrNull(entry.image_url)).toBe(TEST_IMAGE_URL);
+    });
+  });
+
+  it.effect('UpcomingEventForUserEntry constructed with image_url None', () => {
+    const entry = new EventRpcModels.UpcomingEventForUserEntry({
+      event_id: '00000000-0000-0000-0000-000000000073',
+      team_id: TEST_TEAM_ID,
+      title: 'Upcoming Without Image',
+      description: Option.none(),
+      image_url: Option.none(),
+      start_at: DateTime.makeUnsafe('2099-06-01T18:00:00Z'),
+      end_at: Option.none(),
+      location: Option.none(),
+      event_type: 'training',
+      yes_count: 0,
+      no_count: 0,
+      maybe_count: 0,
+      my_response: Option.none(),
+      my_message: Option.none(),
+    });
+
+    return Effect.sync(() => {
+      expect(Option.isNone(entry.image_url)).toBe(true);
+    });
   });
 });

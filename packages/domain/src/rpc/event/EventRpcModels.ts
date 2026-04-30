@@ -35,6 +35,7 @@ export class SubmitRsvpResult extends Schema.Class<SubmitRsvpResult>('SubmitRsvp
 export class EventEmbedInfo extends Schema.Class<EventEmbedInfo>('EventEmbedInfo')({
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
+  image_url: Schema.OptionFromNullOr(Schema.String),
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
@@ -46,6 +47,7 @@ export class ChannelEventEntry extends Schema.Class<ChannelEventEntry>('ChannelE
   team_id: Schema.String,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
+  image_url: Schema.OptionFromNullOr(Schema.String),
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),
@@ -161,6 +163,7 @@ export class UpcomingEventForUserEntry extends Schema.Class<UpcomingEventForUser
   team_id: Schema.String,
   title: Schema.String,
   description: Schema.OptionFromNullOr(Schema.String),
+  image_url: Schema.OptionFromNullOr(Schema.String),
   start_at: Schemas.DateTimeFromIsoString,
   end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
   location: Schema.OptionFromNullOr(Schema.String),

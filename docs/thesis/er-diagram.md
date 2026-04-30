@@ -359,6 +359,7 @@ erDiagram
         UUID claimed_by FK
         TEXT claim_discord_channel_id
         TEXT claim_discord_message_id
+        TEXT image_url
         TIMESTAMPTZ created_at
         TIMESTAMPTZ updated_at
     }
@@ -511,6 +512,7 @@ erDiagram
         TEXT discord_role_id
         UUID claimed_by_member_id
         TEXT claimed_by_display_name
+        TEXT event_image_url
         TIMESTAMPTZ processed_at
         TEXT error
         TIMESTAMPTZ created_at
