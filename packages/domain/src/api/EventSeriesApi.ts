@@ -3,6 +3,7 @@ import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { EventLocationUrl, Forbidden } from '~/api/EventApi.js';
+import { fieldState } from '~/api/RequestFilters.js';
 import { Snowflake } from '~/models/Discord.js';
 import {
   DaysOfWeek,
@@ -80,7 +81,7 @@ const CreateEventSeriesRequestStruct = Schema.Struct({
 export const CreateEventSeriesRequest = CreateEventSeriesRequestStruct.pipe(
   Schema.check(
     Schema.makeFilter<Schema.Schema.Type<typeof CreateEventSeriesRequestStruct>>((req) => {
-      if (req.locationUrl._tag === 'Some' && req.location._tag === 'None')
+      if (fieldState(req.locationUrl) === 'setting' && fieldState(req.location) !== 'setting')
         return 'Location URL requires location text';
       return true;
     }),
@@ -105,12 +106,7 @@ const UpdateEventSeriesRequestStruct = Schema.Struct({
 export const UpdateEventSeriesRequest = UpdateEventSeriesRequestStruct.pipe(
   Schema.check(
     Schema.makeFilter<Schema.Schema.Type<typeof UpdateEventSeriesRequestStruct>>((req) => {
-      if (
-        req.locationUrl._tag === 'Some' &&
-        req.locationUrl.value._tag === 'Some' &&
-        req.location._tag === 'Some' &&
-        req.location.value._tag === 'None'
-      )
+      if (fieldState(req.locationUrl) === 'setting' && fieldState(req.location) === 'clearing')
         return 'Location URL requires location text';
       return true;
     }),
