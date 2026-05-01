@@ -192,4 +192,12 @@ export const EventRpcGroup = RpcGroup.make(
     payload: { event_id: Event.EventId },
     success: Schema.OptionFromNullOr(EventClaimInfo),
   }),
+  Rpc.make('GetChannelsWithStoredMessages', {
+    success: Schema.Array(
+      Schema.Struct({
+        discord_channel_id: Discord.Snowflake,
+        guild_id: Discord.Snowflake,
+      }),
+    ),
+  }),
 ).prefix('Event/');

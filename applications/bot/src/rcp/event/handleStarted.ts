@@ -1,4 +1,4 @@
-import type { EventRpcEvents, EventRpcModels } from '@sideline/domain';
+import { Discord, type EventRpcEvents, type EventRpcModels } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
@@ -9,6 +9,7 @@ import { locationDisplay } from '~/rest/events/locationDisplay.js';
 import { formatNameWithMention, splitIntoFieldChunks } from '~/rest/utils.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+import { reorderChannelMessages } from './reorderChannelMessages.js';
 
 const STARTED_POST_COLOR = 0xfee75c; // yellow
 
@@ -89,6 +90,35 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
                           `Marked event ${event.event_id} as started in channel ${msg.discord_channel_id}`,
                         ),
                       ),
+                      Effect.asVoid,
+                      Effect.catchTag('ErrorResponse', (err) =>
+                        err.data.code === 10008 // Unknown Message — message was deleted
+                          ? rest
+                              .createMessage(msg.discord_channel_id, {
+                                embeds: payload.embeds,
+                                components: payload.components,
+                              })
+                              .pipe(
+                                Effect.flatMap((newMsg) =>
+                                  Schema.decodeEffect(Discord.Snowflake)(newMsg.id),
+                                ),
+                                Effect.tap((newId) =>
+                                  rpc['Event/SaveDiscordMessageId']({
+                                    event_id: event.event_id,
+                                    discord_channel_id: msg.discord_channel_id,
+                                    discord_message_id: newId,
+                                  }),
+                                ),
+                                Effect.tap((newId) =>
+                                  Effect.logInfo(
+                                    `Recreated missing started message for event ${event.event_id} in channel ${msg.discord_channel_id}, new id ${newId}`,
+                                  ),
+                                ),
+                                Effect.asVoid,
+                              )
+                          : Effect.fail(err),
+                      ),
+                      Effect.tap(() => reorderChannelMessages(msg.discord_channel_id, locale)),
                     );
                 },
               }),

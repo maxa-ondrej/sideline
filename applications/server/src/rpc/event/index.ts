@@ -389,6 +389,12 @@ const rpcHandlers = Effect.Do.pipe(
         ),
   ),
   Effect.let(
+    'Event/GetChannelsWithStoredMessages',
+    ({ events }) =>
+      () =>
+        events.findAllChannelsWithStoredMessages(),
+  ),
+  Effect.let(
     'Event/SubmitRsvp',
     ({ rsvps, events, deps: { sql, groups, teamSettings } }) =>
       ({

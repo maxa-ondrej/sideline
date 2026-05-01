@@ -97,6 +97,8 @@ const makeRecordingSyncRpc = (
       calls.GetYesAttendeesForEmbed.push(_args);
       return Effect.succeed([]);
     },
+    'Event/GetChannelEvents': () => Effect.succeed([]),
+    'Event/GetChannelDivider': () => Effect.succeed(Option.none()),
   };
 
   const layer = Layer.succeed(
