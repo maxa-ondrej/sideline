@@ -1,5 +1,14 @@
 # @sideline/bot
 
+## 0.11.4
+
+### Patch Changes
+
+- [#244](https://github.com/maxa-ondrej/sideline/pull/244) [`b5ddcc9`](https://github.com/maxa-ondrej/sideline/commit/b5ddcc974359ff7e505e11e652fdcf0a57f0e88f) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Render the claimer of a training in the Discord claim-message embed using the same `**Name** (<@discord-id>)` formatter that already powers the events RSVP attendees embed, so claimers now appear with their Discord mention instead of just a plain display name. Identity is resolved at read-time via a join in the sync-event outbox, with a fallback to the snapshotted display name for orphaned rows — no database migration required.
+
+- Updated dependencies [[`b5ddcc9`](https://github.com/maxa-ondrej/sideline/commit/b5ddcc974359ff7e505e11e652fdcf0a57f0e88f)]:
+  - @sideline/domain@0.16.4
+
 ## 0.11.3
 
 ### Patch Changes
