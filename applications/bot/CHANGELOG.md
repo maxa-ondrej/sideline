@@ -1,5 +1,14 @@
 # @sideline/bot
 
+## 0.11.5
+
+### Patch Changes
+
+- [#246](https://github.com/maxa-ondrej/sideline/pull/246) [`3c63376`](https://github.com/maxa-ondrej/sideline/commit/3c633763b8d7d1db4c474c6786f44d2de68b1057) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - When an event starts, push the original embed up into the past section and apply the started color/banner consistently. Also recover from messages that have been deleted in Discord — `editMessage` and `handleStarted`'s in-place edit fall back to creating a new message and saving the new ID, and the bot runs a one-time scan on connect to recreate any messages that went missing while it was offline.
+
+- Updated dependencies [[`3c63376`](https://github.com/maxa-ondrej/sideline/commit/3c633763b8d7d1db4c474c6786f44d2de68b1057)]:
+  - @sideline/domain@0.16.5
+
 ## 0.11.4
 
 ### Patch Changes
