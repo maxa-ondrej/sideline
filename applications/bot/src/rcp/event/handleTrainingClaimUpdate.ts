@@ -32,13 +32,12 @@ export const handleTrainingClaimUpdate = (event: EventRpcEvents.TrainingClaimUpd
         Effect.flatMap((guild) => {
           const locale = guildLocale({ guild_locale: guild.preferred_locale });
 
-          const claimedBy = Option.match(event.claimed_by_member_id, {
-            onNone: () => Option.none<{ teamMemberId: string; displayName: string }>(),
-            onSome: (memberId) =>
-              Option.some({
-                teamMemberId: memberId,
-                displayName: Option.getOrElse(event.claimed_by_display_name, () => memberId),
-              }),
+          const claimedBy = Option.as(event.claimed_by_member_id, {
+            discord_id: event.claimed_by_discord_id,
+            name: event.claimed_by_name,
+            nickname: event.claimed_by_nickname,
+            display_name: event.claimed_by_display_name,
+            username: event.claimed_by_username,
           });
 
           const payload = buildClaimMessage({

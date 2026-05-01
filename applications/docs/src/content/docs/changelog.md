@@ -5,6 +5,10 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05 — Claimer shown with Discord handle on training claim board
+
+- The claim-board message now shows the claiming coach as **Name** (@DiscordHandle) instead of just a display name, matching the format used for RSVP attendee lists.
+
 ## 2026-04 — Location links for events
 
 - You can now add a URL to any event's location field. When a URL is set, the location text becomes a clickable link on the event detail page and in Discord event embeds.

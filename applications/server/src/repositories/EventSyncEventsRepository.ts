@@ -58,7 +58,11 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
   claimed_by_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
-  claimed_by_display_name: Schema.OptionFromNullOr(Schema.String),
+  claimed_by_discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  claimed_by_name: Schema.OptionFromNullOr(Schema.String),
+  claimed_by_nickname: Schema.OptionFromNullOr(Schema.String),
+  claimed_by_user_display_name: Schema.OptionFromNullOr(Schema.String),
+  claimed_by_username: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 const MarkProcessedInput = Schema.Struct({
@@ -91,10 +95,22 @@ const make = Effect.gen(function* () {
     Request: Schema.Number,
     Result: EventSyncEventRow,
     execute: (limit) => sql`
-      SELECT id, team_id, guild_id, event_type, event_id, event_title, event_description, event_image_url, event_start_at, event_end_at, event_location, event_location_url, event_event_type, discord_target_channel_id, member_group_id, discord_role_id, claimed_by_member_id, claimed_by_display_name
-      FROM event_sync_events
-      WHERE processed_at IS NULL
-      ORDER BY created_at ASC
+      SELECT ese.id, ese.team_id, ese.guild_id, ese.event_type, ese.event_id,
+             ese.event_title, ese.event_description, ese.event_image_url,
+             ese.event_start_at, ese.event_end_at, ese.event_location,
+             ese.event_location_url, ese.event_event_type,
+             ese.discord_target_channel_id, ese.member_group_id, ese.discord_role_id,
+             ese.claimed_by_member_id,
+             u.discord_id           AS claimed_by_discord_id,
+             COALESCE(u.name, ese.claimed_by_display_name) AS claimed_by_name,
+             u.discord_nickname     AS claimed_by_nickname,
+             u.discord_display_name AS claimed_by_user_display_name,
+             u.username             AS claimed_by_username
+      FROM event_sync_events ese
+      LEFT JOIN team_members tm ON tm.id = ese.claimed_by_member_id
+      LEFT JOIN users u         ON u.id = tm.user_id
+      WHERE ese.processed_at IS NULL
+      ORDER BY ese.created_at ASC
       LIMIT ${limit}
     `,
   });
