@@ -514,7 +514,6 @@ erDiagram
         UUID member_group_id
         TEXT discord_role_id
         UUID claimed_by_member_id
-        TEXT claimed_by_display_name
         TEXT event_image_url
         TIMESTAMPTZ processed_at
         TEXT error

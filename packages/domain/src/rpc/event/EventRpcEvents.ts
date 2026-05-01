@@ -111,7 +111,11 @@ export class TrainingClaimUpdateEvent extends Schema.TaggedClass<TrainingClaimUp
     claim_discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     claim_discord_message_id: Schema.OptionFromNullOr(Discord.Snowflake),
     claimed_by_member_id: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
+    claimed_by_discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    claimed_by_name: Schema.OptionFromNullOr(Schema.String),
+    claimed_by_nickname: Schema.OptionFromNullOr(Schema.String),
     claimed_by_display_name: Schema.OptionFromNullOr(Schema.String),
+    claimed_by_username: Schema.OptionFromNullOr(Schema.String),
     event_status: Schema.String,
   },
 ) {}

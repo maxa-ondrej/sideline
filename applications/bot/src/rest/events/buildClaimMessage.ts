@@ -2,6 +2,7 @@ import * as m from '@sideline/i18n/messages';
 import type * as Discord from 'dfx/types';
 import { DateTime, Option } from 'effect';
 import type { Locale } from '~/locale.js';
+import { formatNameWithMention } from '../utils.js';
 import { locationDisplay } from './locationDisplay.js';
 
 const UNCLAIMED_COLOR = 0xed8936; // orange
@@ -22,6 +23,14 @@ const isSameDay = (a: DateTime.Utc, b: DateTime.Utc): boolean => {
   return pa.year === pb.year && pa.month === pb.month && pa.day === pb.day;
 };
 
+export type ClaimedByEntry = {
+  readonly discord_id: Option.Option<string>;
+  readonly name: Option.Option<string>;
+  readonly nickname: Option.Option<string>;
+  readonly display_name: Option.Option<string>;
+  readonly username: Option.Option<string>;
+};
+
 export const buildClaimMessage = (opts: {
   title: string;
   startAt: DateTime.Utc;
@@ -29,7 +38,7 @@ export const buildClaimMessage = (opts: {
   location: Option.Option<string>;
   locationUrl: Option.Option<string>;
   description: Option.Option<string>;
-  claimedBy: Option.Option<{ teamMemberId: string; displayName: string }>;
+  claimedBy: Option.Option<ClaimedByEntry>;
   eventStatus: string;
   teamId: string;
   eventId: string;
@@ -79,7 +88,7 @@ export const buildClaimMessage = (opts: {
     const statusDisplay = Option.match(opts.claimedBy, {
       onNone: () => m.bot_claim_status_unclaimed({}, { locale }),
       onSome: (claimer) =>
-        m.bot_claim_status_claimed_by({ user: `**${claimer.displayName}**` }, { locale }),
+        m.bot_claim_status_claimed_by({ user: formatNameWithMention(claimer) }, { locale }),
     });
     fields.push({
       name: m.bot_claim_status_label({}, { locale }),

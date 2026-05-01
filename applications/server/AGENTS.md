@@ -109,6 +109,19 @@ When API handlers create/delete resources that need Discord sync:
 2. Call `repo.emitIfGuildLinked(teamId, eventType, ...)` — looks up `guild_id` from `teams` table; if linked, inserts event row; if not, no-op
 3. Wrap emission in `Effect.catchAllDefect(() => Effect.void)` so sync failures never break the primary operation. Use `Effect.catchAllDefect` (not `Effect.catchAll`) because repository methods convert SQL/parse errors to defects via `catchSqlErrors`. Always log before catching with `Effect.tapDefect`
 
+### Resolving identity fields on outbox reads
+
+`*_sync_events` outbox tables (e.g. `event_sync_events`) are written once at emit-time and read once before being marked processed. When a sync event payload needs additional identity fields beyond the foreign-key id stored at emit-time (e.g. the claimer's `discord_id`, `nickname`, `display_name`, `username`), resolve them via `LEFT JOIN` inside the `findUnprocessed*Events` SELECT — **never** add new denormalised columns to the outbox table.
+
+Rules:
+1. The outbox row stores only the foreign-key id (e.g. `claimed_by_member_id`) — no denormalised name/handle columns
+2. The `findUnprocessed*Events` query LEFT JOINs `team_members` and `users` and aliases the resolved columns to the names the row schema expects (e.g. `u.discord_id AS claimed_by_discord_id`)
+3. Use `LEFT JOIN` (not `JOIN`) so events with no associated user (`claimed_by_member_id IS NULL`) still return one row with `Option.none()` identity fields
+4. When a denormalised field already exists on the outbox table for legacy reasons, prefer `COALESCE(u.<col>, ese.<legacy_col>) AS <col>` so the JOIN can supersede stale snapshot data while still working when the user row is missing
+5. The `EventSyncEventRow` schema lists every aliased column; `Schema.OptionFromNullOr` decodes nullable JOIN results to `Option`
+
+Reference: `EventSyncEventsRepository.findUnprocessedEvents` resolves the claimer's `discord_id`, `name`, `nickname`, `display_name`, `username` from `users` via `team_members`.
+
 ### Discord Name Formatting
 
 The **server** applies Discord name formatting before emitting sync events. The bot receives pre-formatted `discord_channel_name` and `discord_role_name` fields and uses them directly.

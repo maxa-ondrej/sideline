@@ -247,7 +247,7 @@ All Discord embeds that display user/member names must use the **bold name + men
 
 If all are `None`, returns `"Unknown"`.
 
-`formatName` accepts a **structural type** — any object with `{ name, nickname, display_name, username }` as `Option<string>` fields. This includes `RsvpAttendeeEntry`, `NonResponderRpcEntry`, and any future model with these fields.
+`formatName` accepts a **structural type** — any object with `{ name, nickname, display_name, username }` as `Option<string>` fields. `formatNameWithMention` additionally requires `discord_id: Option<string>`. This five-field tuple `{ discord_id, name, nickname, display_name, username }` (all `Option<string>`) is the **canonical identity-tuple** for any embed/message that mentions a user. `RsvpAttendeeEntry` and `NonResponderRpcEntry` already match it; new RPC event payloads that carry a user identity (e.g. `TrainingClaimUpdateEvent.claimed_by_*`) MUST use the same five field names so call sites can pass the payload directly to `formatNameWithMention` without per-call adapters.
 
 ```typescript
 import { formatName } from '~/rest/utils.js';
@@ -262,6 +262,7 @@ This pattern is used in:
 - `buildEventEmbed.ts` — "Going" field (bold name only via `formatName`, no mention, comma-separated)
 - `buildAttendeesEmbed.ts` — attendee entries via `formatNameWithMention` (with optional message suffix)
 - `handleRsvpReminder.ts` — non-responder and yes-attendee lists via `formatNameWithMention`
+- `buildClaimMessage.ts` — Status field renders the claimer via `formatNameWithMention`; `claimedBy` is `Option<ClaimedByEntry>` where `ClaimedByEntry` is the canonical five-field identity-tuple
 
 When building new embed functions that display user names, always use `formatName` for the bold name portion and follow this priority: bold name first, mention as parenthetical supplement.
 
