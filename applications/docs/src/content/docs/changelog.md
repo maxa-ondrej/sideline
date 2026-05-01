@@ -5,6 +5,11 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05 — Bot recovers deleted event messages on startup
+
+- If a Discord event embed is deleted while the bot is offline, the bot automatically recreates the missing message the next time it starts up.
+- When an event transitions to "started", the bot now reorders the channel so the started event moves to the top of the past-events section and the next upcoming event becomes the most recent message.
+
 ## 2026-05 — Claimer shown with Discord handle on training claim board
 
 - The claim-board message now shows the claiming coach as **Name** (@DiscordHandle) instead of just a display name, matching the format used for RSVP attendee lists.

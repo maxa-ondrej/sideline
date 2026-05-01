@@ -393,7 +393,7 @@ sequenceDiagram
 
 ## 7. Event Started (Cron)
 
-The `EventStartCron` runs every minute (`* * * * *`). On each tick it queries for `active` events whose `start_at` timestamp is in the past, atomically transitions each to `started` status, and emits an `event_started` row in the `event_sync_events` outbox. The bot's Event Sync worker picks up the event and edits the Discord embed to remove the RSVP action-row buttons, preventing members from RSVPing after the event has begun.
+The `EventStartCron` runs every minute (`* * * * *`). On each tick it queries for `active` events whose `start_at` timestamp is in the past, atomically transitions each to `started` status, and emits an `event_started` row in the `event_sync_events` outbox. The bot's Event Sync worker picks up the event, edits the Discord embed to the started state (yellow, no RSVP buttons), and then reorders channel messages so the started event moves into the channel's "past" section. If the original Discord message has been deleted (error 10008), the bot recreates it and persists the new message ID. On bot startup a `recoverDeletedMessages` task scans every channel with stored event messages and reruns the reorder, recreating any messages that were deleted while the bot was offline.
 
 ```mermaid
 sequenceDiagram
@@ -444,12 +444,33 @@ sequenceDiagram
             Bot->>Discord: GET /guilds/{guild_id} (preferred locale)
             Discord-->>Bot: Guild {preferred_locale}
 
-            Note over Bot: Build embed — same as active embed<br/>but components array is empty (no RSVP buttons)
+            Note over Bot: Build started embed — yellow colour,<br/>isStarted=true, components array empty (no RSVP buttons)
             Bot->>Discord: PATCH /channels/{channel_id}/messages/{message_id}<br/>{embeds: [...], components: []}
-            Discord-->>Bot: Updated message
+
+            alt Discord returns 200 OK
+                Discord-->>Bot: Updated message
+            else Discord returns 10008 (Unknown Message — deleted)
+                Bot->>Discord: POST /channels/{channel_id}/messages (recreate embed)
+                Discord-->>Bot: New message {id}
+                Bot->>DB: RPC Event/SaveDiscordMessageId {event_id, channel_id, new_message_id}
+            end
+
+            Note over Bot: Reorder channel messages (past/upcoming split)
+            Bot->>DB: RPC Event/GetChannelEvents {channel_id}
+            Bot->>Discord: Edit / recreate each event message in sorted order
         end
 
         Bot->>DB: RPC Event/MarkEventProcessed {id}
+    end
+
+    Note over Bot: Startup task — recoverDeletedMessages
+    Bot->>DB: RPC Event/GetChannelsWithStoredMessages
+    DB-->>Bot: [{discord_channel_id, guild_id}, ...]
+
+    loop For each channel (concurrency: 3)
+        Bot->>Discord: GET /guilds/{guild_id} (preferred locale)
+        Discord-->>Bot: Guild {preferred_locale} (or default 'en' on failure)
+        Note over Bot: reorderChannelMessages — edits or recreates<br/>each stored event message; persists new IDs on 10008
     end
 ```
 

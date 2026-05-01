@@ -586,6 +586,8 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 
 **Polling RPC:** `Event/GetUnprocessedEvents`
 
+**Message recovery:** whenever `reorderChannelMessages` (called from several handlers) attempts to edit an existing Discord message and receives error code 10008 (Unknown Message — the message was deleted while the bot was offline), it falls back to `createMessage` and persists the new message ID via `Event/SaveDiscordMessageId`. This recovery also runs during the startup task described below.
+
 **Events processed:**
 
 | Event tag | Handler file | Discord action |
@@ -593,7 +595,7 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 | `event_created` | `handleCreated.ts` | Fetches RSVP counts (`Event/GetRsvpCounts`) and the guild's preferred locale, builds an event embed with RSVP buttons, posts it to the group's configured Discord channel (or the guild system channel as fallback), saves the resulting message ID via `Event/SaveDiscordMessageId`, then re-orders all event messages in the channel by start time |
 | `event_updated` | `handleUpdated.ts` | Looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts, rebuilds the embed, edits the existing Discord message, then re-orders channel messages |
 | `event_cancelled` | `handleCancelled.ts` | Looks up the stored Discord message, replaces the embed content with a cancelled-state embed (no RSVP buttons), edits the existing Discord message |
-| `event_started` | `handleStarted.ts` | Two actions run in parallel. (1) In-place edit: looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts and embed info, rebuilds the embed without RSVP action-row buttons, and edits the existing Discord message. (2) New announcement post: posts a fresh "Starting now: {title}" message to the team's configured reminders channel (falls back to the guild system channel when no reminders channel is set). The announcement embed lists the going attendees filtered to the event's member group, includes a role @-mention (`<@&roleId>`) in the message `content` with `allowed_mentions.roles`, and is formatted in yellow. The `GetYesAttendeesForEmbed` RPC is called with `member_group_id` so only members in the event's member group (and their descendants, via `WITH RECURSIVE descendant_groups`) appear. Emitted by `EventStartCron` when an event's `start_at` time passes. |
+| `event_started` | `handleStarted.ts` | Two actions run in parallel. (1) In-place edit: looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts and embed info, rebuilds the embed without RSVP action-row buttons, and edits the existing Discord message. If Discord returns error 10008 (Unknown Message — the message was deleted), the embed is re-posted with `createMessage` and the new message ID is persisted via `Event/SaveDiscordMessageId`. After the in-place edit (or recreation) succeeds, `reorderChannelMessages` is called so the started event moves into the channel's "past" section. (2) New announcement post: posts a fresh "Starting now: {title}" message to the team's configured reminders channel (falls back to the guild system channel when no reminders channel is set). The announcement embed lists the going attendees filtered to the event's member group, includes a role @-mention (`<@&roleId>`) in the message `content` with `allowed_mentions.roles`, and is formatted in yellow. The `GetYesAttendeesForEmbed` RPC is called with `member_group_id` so only members in the event's member group (and their descendants, via `WITH RECURSIVE descendant_groups`) appear. Emitted by `EventStartCron` when an event's `start_at` time passes. |
 | `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the team's configured reminders channel (falls back to the owner-group's channel). No role @-mention is included in the message content — the reminder is embed-only. Non-responders and yes-attendees are filtered to the event's member group. Non-responders and yes-attendees are formatted as `**Name** (<@id>)` (dual format: bold name plus mention) when both are available; name-only when no Discord ID is linked; mention-only when only a Discord ID is known. The embed also includes a "Going" field listing current yes-attendees. Sends a direct message to each non-responder with a linked Discord account with a link to the voting message. |
 | `training_claim_request` | `handleTrainingClaimRequest.ts` | Posts a claim-board message to the event's owner-group channel (resolved from `discord_target_channel_id` in the sync event). The embed shows event details, an orange "Unclaimed" colour, and a "Claim" primary button. If a Discord role is set for the owner group, the message content @-mentions that role. After posting, saves the resulting message ID via `Event/SaveClaimDiscordMessageId` so future `training_claim_update` events know where to edit. |
 | `training_claim_update` | `handleTrainingClaimUpdate.ts` | Edits the existing claim-board message (located via `claim_discord_channel_id` / `claim_discord_message_id`). The updated embed reflects whether the training is now claimed (green, claimer shown as `**Name** (<@discordId>)` using the same `formatNameWithMention` helper as RSVP attendee lists, Unclaim button) or unclaimed (orange, Claim button). The claimer's identity fields (`discord_id`, `name`, `nickname`, `display_name`, `username`) are resolved at SELECT time via a LEFT JOIN to `team_members → users` rather than being stored in the outbox row. If the message has been deleted (404 response), the update is silently skipped. |
@@ -602,6 +604,18 @@ Channel sync mirrors each Sideline group that has a Discord channel mapping as a
 **Lifecycle RPCs:**
 - `Event/MarkEventProcessed`
 - `Event/MarkEventFailed`
+
+---
+
+## Startup Tasks
+
+In addition to the three poll loops, the bot runs one-off tasks at startup (after the gateway connection is established). These tasks are composed alongside the poll loops with `concurrency: 'unbounded'` in `Bot.ts`.
+
+### recoverDeletedMessages
+
+**Source file:** `applications/bot/src/rcp/event/recoverDeletedMessages.ts`
+
+On connect, the bot calls `Event/GetChannelsWithStoredMessages` to retrieve every `(discord_channel_id, guild_id)` pair for which at least one event message is currently stored in the database. For each channel it fetches the guild's preferred locale via the Discord REST API (defaults to `en` if the fetch fails), then runs `reorderChannelMessages`. Because `reorderChannelMessages` recovers from Discord 10008 errors by recreating any deleted messages (see "Message recovery" above), this single pass restores all event embeds that were removed from Discord while the bot was offline. Channels are processed with a concurrency of 3. Per-channel failures are logged as warnings and do not abort the remaining channels.
 
 ---
 
@@ -672,6 +686,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/UnclaimTraining` | Release a coach's claim on a training; returns `EventClaimInfo` or a typed error (`ClaimEventNotFound`, `ClaimEventInactive`, `ClaimNotClaimer`) |
 | `Event/SaveClaimDiscordMessageId` | Persist the Discord channel and message IDs for the claim-board message after posting |
 | `Event/GetClaimInfo` | Fetch current claim state (`EventClaimInfo`) for a training; returns `None` if the event does not exist |
+| `Event/GetChannelsWithStoredMessages` | Fetch all `(discord_channel_id, guild_id)` pairs for which at least one event message ID is stored; used by the `recoverDeletedMessages` startup task |
 
 ### Activity group (`Activity/`)
 

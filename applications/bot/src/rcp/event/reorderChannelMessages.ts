@@ -61,6 +61,7 @@ const editMessage = (
               counts,
               yesAttendees,
               locale,
+              isStarted: entry.status === 'started',
             });
       return rest
         .updateMessage(channelId, targetMessageId, {
@@ -74,6 +75,32 @@ const editMessage = (
               discord_channel_id: channelId,
               discord_message_id: targetMessageId,
             }),
+          ),
+          Effect.asVoid,
+          Effect.catchTag('ErrorResponse', (err) =>
+            err.data.code === 10008 // Unknown Message — message was deleted
+              ? rest
+                  .createMessage(channelId, {
+                    embeds: payload.embeds,
+                    components: payload.components,
+                  })
+                  .pipe(
+                    Effect.flatMap((msg) => decodeSnowflake(msg.id)),
+                    Effect.tap((newId) =>
+                      rpc['Event/SaveDiscordMessageId']({
+                        event_id: Event.EventId.makeUnsafe(entry.event_id),
+                        discord_channel_id: channelId,
+                        discord_message_id: newId,
+                      }),
+                    ),
+                    Effect.tap((newId) =>
+                      Effect.logInfo(
+                        `Recreated missing event message for "${entry.title}" in channel ${channelId}, new id ${newId}`,
+                      ),
+                    ),
+                    Effect.asVoid,
+                  )
+              : Effect.fail(err),
           ),
         );
     }),

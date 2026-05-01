@@ -55,7 +55,15 @@ const MockEventSyncServiceLayer = Layer.succeed(EventSyncService, {
   discord: undefined as never,
 } as never);
 
-const MockSyncRpcLayer = Layer.succeed(SyncRpc, undefined as never);
+const MockSyncRpcLayer = Layer.succeed(
+  SyncRpc,
+  new Proxy(
+    {},
+    {
+      get: () => () => Effect.succeed([]),
+    },
+  ) as never,
+);
 
 describe('Bot', () => {
   it('program composes and starts without error', async () => {

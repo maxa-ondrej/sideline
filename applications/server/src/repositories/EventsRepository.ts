@@ -300,6 +300,22 @@ const make = Effect.gen(function* () {
       sql`SELECT discord_channel_id, discord_message_id FROM events WHERE id = ${id}`,
   });
 
+  const findChannelsWithStoredMessages = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: Schema.Struct({
+      discord_channel_id: Discord.Snowflake,
+      guild_id: Discord.Snowflake,
+    }),
+    execute: () => sql`
+      SELECT DISTINCT e.discord_channel_id, t.guild_id
+      FROM events e
+      JOIN teams t ON t.id = e.team_id
+      WHERE e.discord_channel_id IS NOT NULL
+        AND e.discord_message_id IS NOT NULL
+        AND t.guild_id IS NOT NULL
+    `,
+  });
+
   const findByChannelId = SqlSchema.findAll({
     Request: Discord.Snowflake,
     Result: Schema.Struct({
@@ -693,6 +709,9 @@ const make = Effect.gen(function* () {
   const findEventsByChannelId = (channelId: Discord.Snowflake) =>
     findByChannelId(channelId).pipe(catchSqlErrors);
 
+  const findAllChannelsWithStoredMessages = () =>
+    findChannelsWithStoredMessages(undefined).pipe(catchSqlErrors);
+
   const markReminderSent = (eventId: Event.EventId) => markReminder(eventId).pipe(catchSqlErrors);
 
   const markTrainingAutoLogged = (eventId: Event.EventId) =>
@@ -783,6 +802,7 @@ const make = Effect.gen(function* () {
     saveDiscordMessageId,
     getDiscordMessageId,
     findEventsByChannelId,
+    findAllChannelsWithStoredMessages,
     markReminderSent,
     markTrainingAutoLogged,
     findEndedTrainingsForAutoLog,

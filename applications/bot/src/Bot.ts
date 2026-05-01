@@ -4,6 +4,7 @@ import { Effect, Schedule } from 'effect';
 import { commandBuilder } from '~/commands/index.js';
 import { eventHandlers } from '~/events/index.js';
 import { interactionBuilder } from '~/interactions/index.js';
+import { recoverDeletedMessages } from '~/rcp/event/recoverDeletedMessages.js';
 import type { SyncRpc } from '~/services/SyncRpc.js';
 import { ChannelSyncService, EventSyncService, RoleSyncService } from './index.js';
 
@@ -35,6 +36,7 @@ export const program = Effect.Do.pipe(
         pollLoop(roles.processTick),
         pollLoop(channels.processTick),
         pollLoop(eventSync.processTick),
+        recoverDeletedMessages,
       ],
       {
         concurrency: 'unbounded',
