@@ -1,5 +1,11 @@
 # @sideline/proxy
 
+## 0.2.10
+
+### Patch Changes
+
+- [`401065b`](https://github.com/maxa-ondrej/sideline/commit/401065b1d5751e28bdaaef5ec62f69a731217dd7) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Send SNI on the TLS handshake to HTTPS upstreams (`proxy_ssl_server_name on`, `proxy_ssl_name $proxy_host`). Without this, upstreams fronted by SNI-routing TLS terminators (Cloudflare, Coolify ingress, etc.) reject the handshake with `SSL alert number 40` because they can't pick the right certificate. No effect on plain-HTTP upstreams.
+
 ## 0.2.9
 
 ### Patch Changes
