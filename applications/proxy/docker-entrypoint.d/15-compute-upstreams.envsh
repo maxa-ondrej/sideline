@@ -1,0 +1,31 @@
+#!/bin/sh
+# Compose ${SCHEME}://${HOST}:${PORT} for each upstream so the nginx template
+# can reference a single ${*_UPSTREAM} variable. Default scheme to http and
+# elide :80 for http / :443 for https so logs and error pages don't show the
+# redundant default port.
+#
+# Sourced (not executed) by nginx's docker-entrypoint.sh because of the .envsh
+# suffix — exports must persist into the envsubst step that runs next.
+
+set -eu
+
+compute_upstream() {
+  scheme=${1:-http}
+  host=$2
+  port=${3:-}
+
+  case "${scheme}:${port}" in
+    http: | http:80 | https: | https:443)
+      printf '%s://%s' "$scheme" "$host"
+      ;;
+    *)
+      printf '%s://%s:%s' "$scheme" "$host" "$port"
+      ;;
+  esac
+}
+
+SERVER_UPSTREAM=$(compute_upstream "${SERVER_SCHEME:-http}" "${SERVER_HOST:-}" "${SERVER_PORT:-}")
+WEB_UPSTREAM=$(compute_upstream "${WEB_SCHEME:-http}" "${WEB_HOST:-}" "${WEB_PORT:-}")
+DOCS_UPSTREAM=$(compute_upstream "${DOCS_SCHEME:-http}" "${DOCS_HOST:-}" "${DOCS_PORT:-}")
+
+export SERVER_UPSTREAM WEB_UPSTREAM DOCS_UPSTREAM

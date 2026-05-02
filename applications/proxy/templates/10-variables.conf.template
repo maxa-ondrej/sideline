@@ -1,13 +1,13 @@
 map $host $var_server_upstream {
-  default "http://$SERVER_HOST:$SERVER_PORT";
+  default "${SERVER_UPSTREAM}";
 }
 
 map $host $var_web_upstream {
-  default "http://$WEB_HOST:$WEB_PORT";
+  default "${WEB_UPSTREAM}";
 }
 
 map $host $var_docs_upstream {
-  default "http://$DOCS_HOST:$DOCS_PORT";
+  default "${DOCS_UPSTREAM}";
 }
 
 map $host $var_frontend_url {
