@@ -64,7 +64,9 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
               members.findMembershipByIds(invite.team_id, user.id),
             ),
             Effect.tap(({ existing }) =>
-              Option.isSome(existing) ? Effect.fail(new Invite.AlreadyMember()) : Effect.void,
+              Option.isSome(existing) && existing.value.active
+                ? Effect.fail(new Invite.AlreadyMember())
+                : Effect.void,
             ),
             Effect.bind('playerRole', ({ invite }) =>
               members.getPlayerRoleId(invite.team_id).pipe(
@@ -76,13 +78,15 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
                 ),
               ),
             ),
-            Effect.bind('membership', ({ user, invite }) =>
-              members.addMember({
-                team_id: invite.team_id,
-                user_id: user.id,
-                active: true,
-                joined_at: undefined,
-              }),
+            Effect.bind('membership', ({ user, invite, existing }) =>
+              Option.isSome(existing)
+                ? members.reactivateMember(existing.value.id)
+                : members.addMember({
+                    team_id: invite.team_id,
+                    user_id: user.id,
+                    active: true,
+                    joined_at: undefined,
+                  }),
             ),
             Effect.tap(({ membership, playerRole }) =>
               members.assignRole(membership.id, playerRole.id),

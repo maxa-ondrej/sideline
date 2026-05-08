@@ -224,7 +224,9 @@ export const GuildsRpcLive = Effect.Do.pipe(
                           joined_at: undefined,
                         })
                         .pipe(Effect.map((m) => ({ id: m.id })))
-                    : Effect.succeed({ id: existingMembership.value.id });
+                    : deps.members
+                        .reactivateMember(existingMembership.value.id)
+                        .pipe(Effect.map((m) => ({ id: m.id })));
                   return resolveMemberId.pipe(
                     Effect.tap((newMember) => setupNewMember(team, newMember, payload.roles)),
                     Effect.tap(() =>
