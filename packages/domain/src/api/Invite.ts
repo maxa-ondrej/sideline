@@ -25,10 +25,11 @@ export class InviteCode extends Schema.Class<InviteCode>('InviteCode')({
   active: Schema.Boolean,
 }) {}
 
-export class CreateInviteInput extends Schema.Class<CreateInviteInput>('CreateInviteInput')({
+export const CreateInviteInput = Schema.Struct({
   groupId: Schema.OptionFromNullOr(GroupId),
   expiresAt: Schema.OptionFromNullOr(Schema.Date),
-}) {}
+});
+export type CreateInviteInput = typeof CreateInviteInput.Type;
 
 export class InviteListItem extends Schema.Class<InviteListItem>('InviteListItem')({
   id: TeamInviteId,

@@ -298,6 +298,25 @@ export const mockInviteInfo = {
   inviterName: null,
 };
 
+export const mockInviteList = [
+  {
+    id: 'test-invite-id-00001',
+    code: INVITE_CODE,
+    active: true,
+    groupId: null,
+    groupName: null,
+    inviterName: 'Test Captain',
+    expiresAt: null,
+    createdAt: '2026-04-01T00:00:00.000Z',
+    createdBy: USER_ID,
+  },
+];
+
+export const mockCreatedInvite = {
+  code: 'newly-created-code',
+  active: true,
+};
+
 export const mockTeamSettings = {
   teamId: TEAM_ID,
   eventHorizonDays: 30,
