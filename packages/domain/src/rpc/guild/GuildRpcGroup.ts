@@ -89,4 +89,20 @@ export const GuildRpcGroup = RpcGroup.make(
       }),
     ),
   }),
+  Rpc.make('PendingGuildJoins', {
+    success: Schema.Array(
+      Schema.Struct({
+        id: Schema.String.pipe(Schema.check(Schema.isUUID())),
+        guild_id: Discord.Snowflake,
+        discord_id: Schema.String,
+        access_token: Schema.String,
+      }),
+    ),
+  }),
+  Rpc.make('MarkGuildJoinDone', {
+    payload: { id: Schema.String.pipe(Schema.check(Schema.isUUID())) },
+  }),
+  Rpc.make('MarkGuildJoinFailed', {
+    payload: { id: Schema.String.pipe(Schema.check(Schema.isUUID())), error: Schema.String },
+  }),
 ).prefix('Guild/');

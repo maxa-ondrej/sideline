@@ -9,6 +9,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -285,6 +286,13 @@ const TestLayer = GuildsRpcLive.pipe(
       MockDiscordChannelsRepository,
       MockDiscordRoleMappingRepository,
       MockDiscordChannelMappingRepository,
+      Layer.succeed(PendingGuildJoinsRepository, {
+        _tag: 'api/PendingGuildJoinsRepository',
+        enqueue: () => Effect.void,
+        listPending: () => Effect.succeed([]),
+        markDone: () => Effect.void,
+        markFailed: () => Effect.void,
+      } as never),
     ),
   ),
 );

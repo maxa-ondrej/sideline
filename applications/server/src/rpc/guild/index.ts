@@ -6,6 +6,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -46,6 +47,7 @@ export const GuildsRpcLive = Effect.Do.pipe(
   Effect.bind('channelMappings', () => DiscordChannelMappingRepository.asEffect()),
   Effect.bind('groups', () => GroupsRepository.asEffect()),
   Effect.bind('invites', () => TeamInvitesRepository.asEffect()),
+  Effect.bind('pendingGuildJoins', () => PendingGuildJoinsRepository.asEffect()),
   Effect.map((deps) => {
     const setupNewMember = (
       team: { readonly id: Team.TeamId },
@@ -344,6 +346,19 @@ export const GuildsRpcLive = Effect.Do.pipe(
           Effect.tap(() => Effect.logInfo(`Reconciliation complete for guild ${guild_id}`)),
           Effect.asVoid,
         ),
+
+      'Guild/PendingGuildJoins': () => deps.pendingGuildJoins.listPending(),
+
+      'Guild/MarkGuildJoinDone': ({ id }: { readonly id: string }) =>
+        deps.pendingGuildJoins.markDone(id),
+
+      'Guild/MarkGuildJoinFailed': ({
+        id,
+        error,
+      }: {
+        readonly id: string;
+        readonly error: string;
+      }) => deps.pendingGuildJoins.markFailed(id, error),
     };
   }),
   (handlers) => GuildRpcGroup.GuildRpcGroup.toLayer(handlers),

@@ -5,6 +5,7 @@ import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
+import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -25,7 +26,8 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
     Effect.bind('members', () => TeamMembersRepository.asEffect()),
     Effect.bind('invites', () => TeamInvitesRepository.asEffect()),
     Effect.bind('groups', () => GroupsRepository.asEffect()),
-    Effect.map(({ teams, members, invites, groups }) =>
+    Effect.bind('pendingGuildJoins', () => PendingGuildJoinsRepository.asEffect()),
+    Effect.map(({ teams, members, invites, groups, pendingGuildJoins }) =>
       handlers
         .handle('getInvite', ({ params: { code } }) =>
           invites.findByCodeWithContext(code).pipe(
@@ -91,6 +93,7 @@ export const InviteApiLive = HttpApiBuilder.group(Api, 'invite', (handlers) =>
             Effect.tap(({ membership, playerRole }) =>
               members.assignRole(membership.id, playerRole.id),
             ),
+            Effect.tap(({ user, invite }) => pendingGuildJoins.enqueue(user.id, invite.team_id)),
             Effect.map(
               ({ user, invite }) =>
                 new Invite.JoinResult({
