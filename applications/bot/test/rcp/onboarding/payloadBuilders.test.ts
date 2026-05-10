@@ -237,7 +237,9 @@ describe('mergeOnboardingPayload', () => {
     const ourPrompt = merged.prompts.find((p: any) => p.title === makeRulesPromptStrings().title);
     expect(ourPrompt).toBeDefined();
     if (!ourPrompt) return;
-    expect(ourPrompt.id).toBeUndefined();
+    // Discord requires `id` on every prompt; for new prompts we supply a placeholder.
+    expect(typeof ourPrompt.id).toBe('string');
+    expect(ourPrompt.id).not.toBe('stale-id-999');
     // Merger always sets enabled=true, mode=1
     expect(merged.enabled).toBe(true);
     expect(merged.mode).toBe(1);
@@ -255,7 +257,9 @@ describe('mergeOnboardingPayload', () => {
     const ourPrompt = merged.prompts.find((p: any) => p.title === makeRulesPromptStrings().title);
     expect(ourPrompt).toBeDefined();
     if (!ourPrompt) return;
-    expect(ourPrompt.id).toBeUndefined();
+    // Discord requires `id` on every prompt; for new prompts we supply a placeholder.
+    expect(typeof ourPrompt.id).toBe('string');
+    expect(ourPrompt.id).not.toBe('px-id');
     // Merger always sets enabled=true, mode=1
     expect(merged.enabled).toBe(true);
     expect(merged.mode).toBe(1);

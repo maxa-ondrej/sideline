@@ -153,10 +153,16 @@ export const mergeOnboardingPayload = <
     return filtered;
   })();
 
+  // Discord PUT requires `id` on every prompt. For new prompts (no stored id, or stored id
+  // doesn't match anything in current.prompts), supply a placeholder; Discord replaces it
+  // with the real snowflake in the response, which we read via findNewPromptId.
+  const promptId =
+    usedExistingId && storedPromptId !== undefined ? storedPromptId : `new-${Date.now()}`;
+
   const sidelinePrompt: OnboardingPrompt | undefined =
     roleId !== undefined && channelId !== undefined
       ? {
-          ...(usedExistingId && storedPromptId !== undefined ? { id: storedPromptId } : {}),
+          id: promptId,
           title: rulesPromptStrings.title,
           type: 0,
           single_select: true,
