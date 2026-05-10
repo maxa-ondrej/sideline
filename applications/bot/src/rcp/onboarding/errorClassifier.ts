@@ -9,6 +9,7 @@ export type OnboardingErrorCode =
   | 'role_deleted'
   | 'channel_deleted'
   | 'community_not_enabled'
+  | 'requirements_not_met'
   | 'rate_limited'
   | 'discord_error'
   | 'network_error';
@@ -130,6 +131,13 @@ export const classifyOnboardingError = (error: unknown, team: TeamContext): Clas
     if (code === 50013 || message.toLowerCase().includes('community')) {
       return {
         code: 'community_not_enabled',
+        detail: `Discord error ${code}: ${message}`,
+      };
+    }
+
+    if (code === 350000) {
+      return {
+        code: 'requirements_not_met',
         detail: `Discord error ${code}: ${message}`,
       };
     }

@@ -1082,6 +1082,8 @@ function getOnboardingErrorMessage(syncError: string | null): string {
     if (parsed.code === 'channel_deleted') return m.teamSettings_onboardingErrorChannelDeleted();
     if (parsed.code === 'community_not_enabled' || parsed.code === 'community_disabled')
       return m.teamSettings_onboardingErrorCommunityDisabled();
+    if (parsed.code === 'requirements_not_met')
+      return m.teamSettings_onboardingErrorRequirementsNotMet();
     const detail = parsed.detail ?? syncError;
     const firstLine = detail.split('\n').find((l: string) => l.trim()) ?? detail;
     return m.teamSettings_onboardingErrorGeneric({ message: firstLine });

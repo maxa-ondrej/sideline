@@ -8,6 +8,7 @@ export type OnboardingSyncStatus = typeof OnboardingSyncStatus.Type;
 
 export const OnboardingSyncErrorCode = Schema.Literals([
   'community_not_enabled',
+  'requirements_not_met',
   'role_deleted',
   'channel_deleted',
   'rate_limited',

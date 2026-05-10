@@ -813,6 +813,7 @@
   "teamSettings_onboardingErrorRoleDeleted": "The configured Discord role no longer exists. Pick another role and re-save.",
   "teamSettings_onboardingErrorChannelDeleted": "The rules channel no longer exists. Pick another channel and re-save.",
   "teamSettings_onboardingErrorCommunityDisabled": "Discord Community features are no longer enabled in this server.",
+  "teamSettings_onboardingErrorRequirementsNotMet": "Discord refused to enable onboarding because your server doesn't meet the requirements yet. Make sure Community is enabled and your server has at least 7 channels that @everyone can see, then retry.",
   "teamSettings_onboardingErrorGeneric": "Couldn't sync to Discord: {message}",
   "teamSettings_onboardingNoRoles": "No Discord roles available yet. Create one in your Discord server first.",
   "teamSettings_onboardingNoChannels": "No Discord channels available yet. Create one in your Discord server first.",

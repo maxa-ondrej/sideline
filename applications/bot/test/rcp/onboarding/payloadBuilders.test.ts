@@ -368,4 +368,26 @@ describe('mergeOnboardingPayload', () => {
     expect(merged.mode).toBe(1);
     expect(merged.default_channel_ids).toHaveLength(0);
   });
+
+  it("preserves Discord's existing default_channel_ids and unions with captain channels", () => {
+    // Discord requires ≥7 channels viewable by @everyone. We must not shrink the set.
+    const EXISTING_1 = '1000000000000000001';
+    const EXISTING_2 = '1000000000000000002';
+    const current = {
+      prompts: [],
+      default_channel_ids: [EXISTING_1, EXISTING_2, RULES_CHANNEL_ID],
+    };
+    const team = makeTeam();
+    const { merged } = mergeOnboardingPayload(current, team, makeRulesPromptStrings());
+    expect(merged.default_channel_ids).toContain(EXISTING_1);
+    expect(merged.default_channel_ids).toContain(EXISTING_2);
+    expect(merged.default_channel_ids).toContain(RULES_CHANNEL_ID);
+    expect(merged.default_channel_ids).toContain(WELCOME_CHANNEL_ID);
+    expect(merged.default_channel_ids).toContain(TRAINING_CHANNEL_ID);
+    // RULES_CHANNEL_ID appears in both inputs but should be deduped.
+    const rulesCount = merged.default_channel_ids.filter(
+      (id: string) => id === RULES_CHANNEL_ID,
+    ).length;
+    expect(rulesCount).toBe(1);
+  });
 });

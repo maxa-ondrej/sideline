@@ -120,6 +120,13 @@ describe('classifyOnboardingError', () => {
     expect(typeof result.detail).toBe('string');
   });
 
+  it('ErrorResponse with code 350000 (Cannot enable onboarding) → requirements_not_met', () => {
+    const err = makeErrorResponse(350000, 'Cannot enable onboarding, requirements are not met');
+    const result = classifyOnboardingError(err, makeTeamCtx());
+    expect(result.code).toBe('requirements_not_met');
+    expect(result.detail).toContain('350000');
+  });
+
   it('generic ErrorResponse with unknown code → discord_error with raw message in detail', () => {
     const err = makeErrorResponse(99999, 'Some unknown Discord error');
     const result = classifyOnboardingError(err, makeTeamCtx());

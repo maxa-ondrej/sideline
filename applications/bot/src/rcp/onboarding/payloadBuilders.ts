@@ -124,7 +124,10 @@ export const mergeOnboardingPayload = <
     readonly options: ReadonlyArray<{ readonly role_ids?: ReadonlyArray<string> }>;
   },
 >(
-  current: { readonly prompts: ReadonlyArray<P> },
+  current: {
+    readonly prompts: ReadonlyArray<P>;
+    readonly default_channel_ids?: ReadonlyArray<string>;
+  },
   team: OnboardingTeamView,
   rulesPromptStrings: RulesPromptStrings,
 ): MergeResult => {
@@ -175,10 +178,15 @@ export const mergeOnboardingPayload = <
     ? [...otherPrompts, sidelinePrompt]
     : otherPrompts;
 
-  const defaultChannelIds: string[] = Arr.getSomes([
+  const ourChannelIds = Arr.getSomes([
     team.rules_channel_id,
     team.welcome_channel_id,
     team.training_channel_id,
+  ]);
+  const existingChannelIds = current.default_channel_ids ?? [];
+  const defaultChannelIds: ReadonlyArray<string> = Arr.dedupe([
+    ...existingChannelIds,
+    ...ourChannelIds,
   ]);
 
   return {
