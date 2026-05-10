@@ -220,8 +220,8 @@ describe('mergeOnboardingPayload', () => {
     // Merger always sets enabled=true, mode=1 (ONBOARDING_ADVANCED)
     expect(merged.enabled).toBe(true);
     expect(merged.mode).toBe(1);
-    // default_channel_ids includes at least the rules channel
-    expect(merged.default_channel_ids).toContain(RULES_CHANNEL_ID);
+    // Rules channel is private by design; never added to default_channel_ids.
+    expect(merged.default_channel_ids).not.toContain(RULES_CHANNEL_ID);
   });
 
   it('stored prompt_id is stale (no match in current) → omit id, Discord assigns new', () => {
@@ -243,8 +243,8 @@ describe('mergeOnboardingPayload', () => {
     // Merger always sets enabled=true, mode=1
     expect(merged.enabled).toBe(true);
     expect(merged.mode).toBe(1);
-    // default_channel_ids includes rules channel
-    expect(merged.default_channel_ids).toContain(RULES_CHANNEL_ID);
+    // Rules channel is private by design; never added to default_channel_ids.
+    expect(merged.default_channel_ids).not.toContain(RULES_CHANNEL_ID);
   });
 
   it('captain deleted our prompt (no match anywhere) → adds new prompt, preserves others', () => {
@@ -301,28 +301,17 @@ describe('mergeOnboardingPayload', () => {
     expect(Array.isArray(ourPrompt.options[0].channel_ids)).toBe(true);
   });
 
-  it('all three channels set → default_channel_ids includes rules, welcome, and training', () => {
-    const team = makeTeam(); // has all three channels
+  it('captain channels are never added to default_channel_ids (Discord requires @everyone access; rules channel is private)', () => {
+    // The rules channel is private by design. Welcome/training are surfaced via the
+    // Welcome Screen, not default channels. So when current.default_channel_ids is
+    // empty, ours stays empty too.
+    const team = makeTeam();
     const current = makeOnboardingResponse([]);
     const { merged } = mergeOnboardingPayload(current, team, makeRulesPromptStrings());
     expect(merged.enabled).toBe(true);
     expect(merged.mode).toBe(1);
-    expect(merged.default_channel_ids).toContain(RULES_CHANNEL_ID);
-    expect(merged.default_channel_ids).toContain(WELCOME_CHANNEL_ID);
-    expect(merged.default_channel_ids).toContain(TRAINING_CHANNEL_ID);
-  });
-
-  it('only welcome_channel_id set → default_channel_ids includes only welcome', () => {
-    const team = makeTeam({
-      rules_channel_id: Option.none(),
-      training_channel_id: Option.none(),
-    });
-    const current = makeOnboardingResponse([]);
-    const { merged } = mergeOnboardingPayload(current, team, makeRulesPromptStrings());
-    expect(merged.enabled).toBe(true);
-    expect(merged.mode).toBe(1);
-    expect(merged.default_channel_ids).toContain(WELCOME_CHANNEL_ID);
     expect(merged.default_channel_ids).not.toContain(RULES_CHANNEL_ID);
+    expect(merged.default_channel_ids).not.toContain(WELCOME_CHANNEL_ID);
     expect(merged.default_channel_ids).not.toContain(TRAINING_CHANNEL_ID);
   });
 
@@ -373,8 +362,9 @@ describe('mergeOnboardingPayload', () => {
     expect(merged.default_channel_ids).toHaveLength(0);
   });
 
-  it("preserves Discord's existing default_channel_ids and unions with captain channels", () => {
-    // Discord requires ≥7 channels viewable by @everyone. We must not shrink the set.
+  it("preserves Discord's existing default_channel_ids and strips the rules channel", () => {
+    // We trust the guild owner's curated default-channel list (all @everyone-visible)
+    // and just strip the rules channel if a prior sync mistakenly added it.
     const EXISTING_1 = '1000000000000000001';
     const EXISTING_2 = '1000000000000000002';
     const current = {
@@ -385,13 +375,9 @@ describe('mergeOnboardingPayload', () => {
     const { merged } = mergeOnboardingPayload(current, team, makeRulesPromptStrings());
     expect(merged.default_channel_ids).toContain(EXISTING_1);
     expect(merged.default_channel_ids).toContain(EXISTING_2);
-    expect(merged.default_channel_ids).toContain(RULES_CHANNEL_ID);
-    expect(merged.default_channel_ids).toContain(WELCOME_CHANNEL_ID);
-    expect(merged.default_channel_ids).toContain(TRAINING_CHANNEL_ID);
-    // RULES_CHANNEL_ID appears in both inputs but should be deduped.
-    const rulesCount = merged.default_channel_ids.filter(
-      (id: string) => id === RULES_CHANNEL_ID,
-    ).length;
-    expect(rulesCount).toBe(1);
+    expect(merged.default_channel_ids).not.toContain(RULES_CHANNEL_ID);
+    // Welcome and training stay out: we never add them.
+    expect(merged.default_channel_ids).not.toContain(WELCOME_CHANNEL_ID);
+    expect(merged.default_channel_ids).not.toContain(TRAINING_CHANNEL_ID);
   });
 });

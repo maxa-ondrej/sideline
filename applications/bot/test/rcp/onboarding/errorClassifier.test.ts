@@ -127,6 +127,26 @@ describe('classifyOnboardingError', () => {
     expect(result.detail).toContain('350000');
   });
 
+  it('50035 with DEFAULT_CHANNEL_REQUIRES_EVERYONE_ACCESS → default_channel_private', () => {
+    const err = {
+      _tag: 'ErrorResponse' as const,
+      code: 50035,
+      message: 'Invalid Form Body',
+      errors: {
+        default_channel_ids: {
+          _errors: [
+            {
+              code: 'DEFAULT_CHANNEL_REQUIRES_EVERYONE_ACCESS',
+              message: 'Default channel requires @everyone access.',
+            },
+          ],
+        },
+      },
+    };
+    const result = classifyOnboardingError(err, makeTeamCtx());
+    expect(result.code).toBe('default_channel_private');
+  });
+
   it('generic ErrorResponse with unknown code → discord_error with raw message in detail', () => {
     const err = makeErrorResponse(99999, 'Some unknown Discord error');
     const result = classifyOnboardingError(err, makeTeamCtx());

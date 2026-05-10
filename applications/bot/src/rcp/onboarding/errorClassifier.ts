@@ -10,6 +10,7 @@ export type OnboardingErrorCode =
   | 'channel_deleted'
   | 'community_not_enabled'
   | 'requirements_not_met'
+  | 'default_channel_private'
   | 'rate_limited'
   | 'discord_error'
   | 'network_error';
@@ -145,6 +146,14 @@ export const classifyOnboardingError = (error: unknown, team: TeamContext): Clas
     if (code === 50035) {
       const roleId = Option.getOrUndefined(team.onboarding_rules_role_id);
       const channelId = Option.getOrUndefined(team.rules_channel_id);
+
+      const serialized = JSON.stringify(error.errors ?? {});
+      if (serialized.includes('DEFAULT_CHANNEL_REQUIRES_EVERYONE_ACCESS')) {
+        return {
+          code: 'default_channel_private',
+          detail: `Discord error 50035: ${message}`,
+        };
+      }
 
       const match = walkErrors(error.errors, roleId, channelId, false, false);
       if (match === 'role') {

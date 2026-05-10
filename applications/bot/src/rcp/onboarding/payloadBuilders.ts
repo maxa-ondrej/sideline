@@ -185,16 +185,17 @@ export const mergeOnboardingPayload = <
     ? [...otherPrompts, sidelinePrompt]
     : otherPrompts;
 
-  const ourChannelIds = Arr.getSomes([
-    team.rules_channel_id,
-    team.welcome_channel_id,
-    team.training_channel_id,
-  ]);
+  // Discord requires every channel in default_channel_ids to be viewable by @everyone.
+  // The rules channel is private by design (the rules prompt is the gate that grants
+  // access), so it must NEVER appear here. Welcome/training are surfaced via the Welcome
+  // Screen, not default channels. We trust the guild owner's existing default-channel
+  // list and only strip the rules channel if a prior sync mistakenly added it.
+  const rulesChannelId = Option.getOrUndefined(team.rules_channel_id);
   const existingChannelIds = current.default_channel_ids ?? [];
-  const defaultChannelIds: ReadonlyArray<string> = Arr.dedupe([
-    ...existingChannelIds,
-    ...ourChannelIds,
-  ]);
+  const defaultChannelIds: ReadonlyArray<string> =
+    rulesChannelId !== undefined
+      ? Arr.filter(existingChannelIds, (id) => id !== rulesChannelId)
+      : existingChannelIds;
 
   return {
     merged: {

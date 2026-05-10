@@ -1084,6 +1084,8 @@ function getOnboardingErrorMessage(syncError: string | null): string {
       return m.teamSettings_onboardingErrorCommunityDisabled();
     if (parsed.code === 'requirements_not_met')
       return m.teamSettings_onboardingErrorRequirementsNotMet();
+    if (parsed.code === 'default_channel_private')
+      return m.teamSettings_onboardingErrorDefaultChannelPrivate();
     const detail = parsed.detail ?? syncError;
     const firstLine = detail.split('\n').find((l: string) => l.trim()) ?? detail;
     return m.teamSettings_onboardingErrorGeneric({ message: firstLine });
