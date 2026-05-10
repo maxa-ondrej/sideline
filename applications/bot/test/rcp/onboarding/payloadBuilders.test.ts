@@ -92,11 +92,15 @@ const makeRulesPromptStrings = (): RulesPromptStrings => ({
 // ---------------------------------------------------------------------------
 
 describe('buildWelcomeScreenPayload', () => {
-  it('all 3 channels set → Some with 3 welcome_channels', () => {
+  it('all 3 captain channels set → Some with 2 welcome_channels (rules excluded as private)', () => {
     const result = buildWelcomeScreenPayload(makeTeam(), makeStrings());
     expect(Option.isSome(result)).toBe(true);
     const payload = Option.getOrThrow(result) as any;
-    expect(payload.welcome_channels).toHaveLength(3);
+    expect(payload.welcome_channels).toHaveLength(2);
+    const channelIds = payload.welcome_channels.map((ch: any) => ch.channel_id);
+    expect(channelIds).not.toContain(RULES_CHANNEL_ID);
+    expect(channelIds).toContain(WELCOME_CHANNEL_ID);
+    expect(channelIds).toContain(TRAINING_CHANNEL_ID);
   });
 
   it('only welcome_channel_id set → Some with 1 channel', () => {
@@ -109,6 +113,15 @@ describe('buildWelcomeScreenPayload', () => {
     const payload = Option.getOrThrow(result) as any;
     expect(payload.welcome_channels).toHaveLength(1);
     expect(payload.welcome_channels[0].emoji_name).toBe('👋');
+  });
+
+  it("only rules channel set → None (rules is private, can't be featured)", () => {
+    const team = makeTeam({
+      welcome_channel_id: Option.none(),
+      training_channel_id: Option.none(),
+    });
+    const result = buildWelcomeScreenPayload(team, makeStrings());
+    expect(Option.isNone(result)).toBe(true);
   });
 
   it('no channels → None', () => {
@@ -152,14 +165,14 @@ describe('buildWelcomeScreenPayload', () => {
     }
   });
 
-  it('rules channel uses 📜 emoji', () => {
+  it('welcome channel uses 👋 emoji', () => {
     const result = buildWelcomeScreenPayload(makeTeam(), makeStrings());
     const payload = Option.getOrThrow(result) as any;
-    const rulesChannel = payload.welcome_channels.find(
-      (ch: any) => ch.channel_id === RULES_CHANNEL_ID,
+    const welcomeChannel = payload.welcome_channels.find(
+      (ch: any) => ch.channel_id === WELCOME_CHANNEL_ID,
     );
-    expect(rulesChannel).toBeDefined();
-    expect(rulesChannel?.emoji_name).toBe('📜');
+    expect(welcomeChannel).toBeDefined();
+    expect(welcomeChannel?.emoji_name).toBe('👋');
   });
 
   it('enabled === true', () => {
@@ -168,12 +181,13 @@ describe('buildWelcomeScreenPayload', () => {
     expect(payload.enabled).toBe(true);
   });
 
-  it('only rules + welcome set → 2 channels', () => {
+  it('rules + welcome set, no training → 1 channel (welcome only; rules excluded)', () => {
     const team = makeTeam({ training_channel_id: Option.none() });
     const result = buildWelcomeScreenPayload(team, makeStrings());
     expect(Option.isSome(result)).toBe(true);
     const payload = Option.getOrThrow(result) as any;
-    expect(payload.welcome_channels).toHaveLength(2);
+    expect(payload.welcome_channels).toHaveLength(1);
+    expect(payload.welcome_channels[0].channel_id).toBe(WELCOME_CHANNEL_ID);
   });
 });
 

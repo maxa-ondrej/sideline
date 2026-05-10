@@ -78,15 +78,10 @@ export const buildWelcomeScreenPayload = (
   team: OnboardingTeamView,
   strings: WelcomeScreenStrings,
 ): Option.Option<WelcomeScreenPatchRequestPartial> => {
+  // Welcome Screen channels are shown to users before they join, so each must be
+  // viewable by @everyone. The rules channel is private by design (the rules prompt
+  // is the gate that grants access), so it must never appear here.
   const channels: WelcomeChannelEntry[] = [];
-
-  if (Option.isSome(team.rules_channel_id)) {
-    channels.push({
-      channel_id: team.rules_channel_id.value,
-      description: truncate(strings.channels_rules, MAX_CHANNEL_DESC_LEN),
-      emoji_name: '📜',
-    });
-  }
 
   if (Option.isSome(team.welcome_channel_id)) {
     channels.push({

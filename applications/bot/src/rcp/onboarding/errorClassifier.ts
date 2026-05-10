@@ -148,7 +148,10 @@ export const classifyOnboardingError = (error: unknown, team: TeamContext): Clas
       const channelId = Option.getOrUndefined(team.rules_channel_id);
 
       const serialized = JSON.stringify(error.errors ?? {});
-      if (serialized.includes('DEFAULT_CHANNEL_REQUIRES_EVERYONE_ACCESS')) {
+      if (
+        serialized.includes('DEFAULT_CHANNEL_REQUIRES_EVERYONE_ACCESS') ||
+        serialized.includes('WELCOME_CHANNEL_PERMISSIONS_REQUIRED')
+      ) {
         return {
           code: 'default_channel_private',
           detail: `Discord error 50035: ${message}`,
