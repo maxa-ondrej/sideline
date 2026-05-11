@@ -10,6 +10,8 @@ import {
   ChannelSyncService,
   EventSyncService,
   GuildJoinSyncService,
+  InviteGeneratorService,
+  OnboardingSyncService,
   RoleSyncService,
 } from './index.js';
 
@@ -32,8 +34,10 @@ export const program = Effect.Do.pipe(
   Effect.bind('channels', () => ChannelSyncService.asEffect()),
   Effect.bind('eventSync', () => EventSyncService.asEffect()),
   Effect.bind('guildJoin', () => GuildJoinSyncService.asEffect()),
+  Effect.bind('inviteGenerator', () => InviteGeneratorService.asEffect()),
+  Effect.bind('onboarding', () => OnboardingSyncService.asEffect()),
   Effect.tap(() => Effect.logInfo('Bot connected to Discord')),
-  Effect.andThen(({ events, roles, channels, eventSync, guildJoin }) =>
+  Effect.andThen(({ events, roles, channels, eventSync, guildJoin, inviteGenerator, onboarding }) =>
     Effect.all(
       [
         ixProgram,
@@ -42,6 +46,8 @@ export const program = Effect.Do.pipe(
         pollLoop(channels.processTick),
         pollLoop(eventSync.processTick),
         pollLoop(guildJoin.processTick),
+        pollLoop(inviteGenerator.processTick),
+        pollLoop(onboarding.processTick),
         recoverDeletedMessages,
       ],
       {
@@ -60,4 +66,6 @@ export const program = Effect.Do.pipe(
   | ChannelSyncService
   | EventSyncService
   | GuildJoinSyncService
+  | InviteGeneratorService
+  | OnboardingSyncService
 >;

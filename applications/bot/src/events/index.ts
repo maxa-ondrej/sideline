@@ -4,14 +4,20 @@ import { DiscordGateway } from 'dfx/gateway';
 import * as DiscordTypes from 'dfx/types';
 import { Array as Arr, Effect, Metric, Option, Schema } from 'effect';
 import { discordEventsTotal } from '~/metrics.js';
-import { DfxGuildMember, DfxSyncableChannel, DfxUser } from '~/schemas.js';
+import { DfxSyncableChannel, DfxUser } from '~/schemas.js';
 import { InviteCache } from '~/services/InviteCache.js';
+import { OnboardingRoleCache } from '~/services/OnboardingRoleCache.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { buildSystemLogEmbed, buildWelcomeEmbed } from '~/services/welcomeRenderer.js';
+import { handleGuildCreate } from './guildCreate.js';
+import { handleGuildMemberUpdate } from './guildMemberUpdate.js';
+import { handleGuildRoleCreate } from './guildRoleCreate.js';
+import { handleGuildRoleDelete } from './guildRoleDelete.js';
+import { handleGuildRoleUpdate } from './guildRoleUpdate.js';
+import { handleReady } from './ready.js';
 
 const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
 const decodeSyncableChannel = Schema.decodeUnknownOption(DfxSyncableChannel);
-const decodeGuildMember = Schema.decodeUnknownOption(DfxGuildMember);
 const decodeUser = Schema.decodeUnknownSync(DfxUser);
 
 const DEFAULT_WELCOME_COLOR = 0x5865f2;
@@ -21,9 +27,50 @@ export const eventHandlers = Effect.Do.pipe(
   Effect.bind('rpc', () => SyncRpc.asEffect()),
   Effect.bind('rest', () => DiscordREST.asEffect()),
   Effect.bind('inviteCache', () => InviteCache.asEffect()),
-  Effect.let('guildCreate', ({ gateway, rpc, rest }) =>
-    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
-      Effect.Do.pipe(
+  Effect.bind('onboardingRoleCache', () => OnboardingRoleCache.asEffect()),
+  Effect.let('ready', ({ gateway }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.Ready, () =>
+      handleReady().pipe(Effect.withSpan('discord/ready')),
+    ),
+  ),
+  Effect.let('guildCreate', ({ gateway, rest, inviteCache }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) => {
+      // Seed InviteCache with existing invites so diffOnMemberJoin has a baseline.
+      // Without this, the first member who joins after bot startup never matches
+      // their invite code, and the welcome message never fires.
+      const seedInvites = rest.listGuildInvites(guild.id).pipe(
+        Effect.map((invites) =>
+          Arr.getSomes(
+            Arr.map(invites, (i) =>
+              i !== null && i.type === 0
+                ? Option.some({ code: i.code, uses: i.uses ?? 0 })
+                : Option.none(),
+            ),
+          ),
+        ),
+        Effect.tap((seeded) =>
+          Effect.all(
+            Arr.map(seeded, (s) => inviteCache.upsert(guild.id, s.code, s.uses)),
+            { concurrency: 'unbounded', discard: true },
+          ),
+        ),
+        Effect.tap((seeded) =>
+          Effect.logInfo(
+            `Seeded InviteCache for guild ${guild.id} with ${seeded.length} invite(s)`,
+          ),
+        ),
+        Effect.asVoid,
+        Effect.catchTags({
+          HttpClientError: (e) =>
+            Effect.logWarning(`Failed to seed InviteCache for guild ${guild.id}`, e),
+          RatelimitedResponse: (e) =>
+            Effect.logWarning(`Rate-limited seeding InviteCache for guild ${guild.id}`, e),
+          ErrorResponse: (e) =>
+            Effect.logWarning(`Error seeding InviteCache for guild ${guild.id}`, e),
+        }),
+      );
+
+      return Effect.Do.pipe(
         Effect.tap(() =>
           Metric.update(
             Metric.withAttributes(discordEventsTotal, { event_type: 'guild_create' }),
@@ -31,77 +78,11 @@ export const eventHandlers = Effect.Do.pipe(
           ),
         ),
         Effect.tap(() => Effect.logInfo(`Guild available: ${guild.name} (${guild.id})`)),
-        Effect.tap(() =>
-          rpc['Guild/RegisterGuild']({
-            guild_id: decodeSnowflake(guild.id),
-            guild_name: guild.name,
-          }),
-        ),
-        Effect.tap(() =>
-          rest.listGuildChannels(guild.id).pipe(
-            Effect.map((channels) =>
-              Arr.getSomes(
-                Arr.map(channels, (ch) =>
-                  Option.map(decodeSyncableChannel(ch), (decoded) => ({
-                    channel_id: decoded.id,
-                    name: decoded.name,
-                    type: decoded.type,
-                    parent_id: decoded.parent_id,
-                  })),
-                ),
-              ),
-            ),
-            Effect.tap((channels) =>
-              rpc['Guild/SyncGuildChannels']({
-                guild_id: decodeSnowflake(guild.id),
-                channels,
-              }),
-            ),
-            Effect.catchTag(
-              ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse', 'RpcClientError'],
-              (error) => Effect.logError(`Failed to sync channels for guild ${guild.id}`, error),
-            ),
-          ),
-        ),
-        Effect.tap(() =>
-          rest.listGuildMembers(guild.id, { limit: 1000 }).pipe(
-            Effect.map((guildMembers) =>
-              Arr.getSomes(
-                Arr.map(guildMembers, (m) =>
-                  Option.flatMap(
-                    Option.filter(decodeGuildMember(m), (decoded) => !decoded.user.bot),
-                    (decoded) =>
-                      Option.some({
-                        discord_id: decoded.user.id,
-                        username: decoded.user.username,
-                        avatar: decoded.user.avatar,
-                        roles: decoded.roles,
-                        nickname: decoded.nick,
-                        display_name: decoded.user.global_name,
-                      }),
-                  ),
-                ),
-              ),
-            ),
-            Effect.tap((members) =>
-              rpc['Guild/ReconcileMembers']({
-                guild_id: decodeSnowflake(guild.id),
-                members,
-              }),
-            ),
-            Effect.catchTag(
-              ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse', 'RpcClientError'],
-              (error) =>
-                Effect.logError(`Failed to reconcile members for guild ${guild.id}`, error),
-            ),
-          ),
-        ),
-        Effect.catchTag('RpcClientError', (error) =>
-          Effect.logError(`Failed to register guild ${guild.id}`, error),
-        ),
+        Effect.tap(() => handleGuildCreate(guild)),
+        Effect.tap(() => seedInvites),
         Effect.withSpan('discord/guild_create', { attributes: { 'guild.id': guild.id } }),
-      ),
-    ),
+      );
+    }),
   ),
   Effect.let('guildDelete', ({ gateway, rpc }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildDelete, (guild) =>
@@ -268,6 +249,14 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.bind('matchedCode', ({ invites }) =>
           inviteCache.diffOnMemberJoin(member.guild_id, invites),
         ),
+        Effect.tap(({ invites, matchedCode }) =>
+          Effect.logInfo(
+            `Invite match for ${user.username} in ${member.guild_id}: ${Option.match(matchedCode, {
+              onNone: () => 'no match',
+              onSome: (c) => `matched ${c}`,
+            })} (${invites.length} invite(s) seen)`,
+          ),
+        ),
         Effect.bind('welcomeMeta', ({ matchedCode }) =>
           rpc['Guild/RegisterMember']({
             guild_id: decodeSnowflake(member.guild_id),
@@ -338,8 +327,59 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.tap(() =>
           Effect.logInfo(`Member updated: ${member.user.username} in guild ${member.guild_id}`),
         ),
+        Effect.tap(() => handleGuildMemberUpdate(member)),
         Effect.withSpan('discord/guild_member_update', {
           attributes: { 'guild.id': member.guild_id },
+        }),
+      ),
+    ),
+  ),
+  Effect.let('guildRoleCreate', ({ gateway }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildRoleCreate, (payload) =>
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_role_create' }),
+            1,
+          ),
+        ),
+        Effect.tap(() => handleGuildRoleCreate(payload)),
+        Effect.withSpan('discord/guild_role_create', {
+          attributes: { 'guild.id': payload.guild_id },
+        }),
+      ),
+    ),
+  ),
+  Effect.let('guildRoleUpdate', ({ gateway }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildRoleUpdate, (payload) =>
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_role_update' }),
+            1,
+          ),
+        ),
+        Effect.tap(() => handleGuildRoleUpdate(payload)),
+        Effect.withSpan('discord/guild_role_update', {
+          attributes: { 'guild.id': payload.guild_id },
+        }),
+      ),
+    ),
+  ),
+  Effect.let('guildRoleDelete', ({ gateway }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildRoleDelete, (payload) =>
+      Effect.Do.pipe(
+        Effect.tap(() =>
+          Metric.update(
+            Metric.withAttributes(discordEventsTotal, { event_type: 'guild_role_delete' }),
+            1,
+          ),
+        ),
+        Effect.tap(() =>
+          handleGuildRoleDelete({ guild_id: payload.guild_id, role_id: payload.role_id }),
+        ),
+        Effect.withSpan('discord/guild_role_delete', {
+          attributes: { 'guild.id': payload.guild_id },
         }),
       ),
     ),
@@ -449,6 +489,7 @@ export const eventHandlers = Effect.Do.pipe(
   ),
   Effect.map(
     ({
+      ready,
       guildCreate,
       guildDelete,
       inviteCreate,
@@ -456,10 +497,14 @@ export const eventHandlers = Effect.Do.pipe(
       guildMemberAdd,
       guildMemberRemove,
       guildMemberUpdate,
+      guildRoleCreate,
+      guildRoleUpdate,
+      guildRoleDelete,
       channelCreate,
       channelDelete,
       channelUpdate,
     }) => [
+      ready,
       guildCreate,
       guildDelete,
       inviteCreate,
@@ -467,6 +512,9 @@ export const eventHandlers = Effect.Do.pipe(
       guildMemberAdd,
       guildMemberRemove,
       guildMemberUpdate,
+      guildRoleCreate,
+      guildRoleUpdate,
+      guildRoleDelete,
       channelCreate,
       channelDelete,
       channelUpdate,

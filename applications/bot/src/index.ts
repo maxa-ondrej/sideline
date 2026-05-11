@@ -7,6 +7,8 @@ export {
   ChannelSyncService,
   EventSyncService,
   GuildJoinSyncService,
+  InviteGeneratorService,
+  OnboardingSyncService,
   RoleSyncService,
 } from '~/rcp/index.js';
 export { SyncRpc } from '~/services/SyncRpc.js';

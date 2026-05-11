@@ -6,9 +6,12 @@ import {
   ChannelSyncService,
   EventSyncService,
   GuildJoinSyncService,
+  InviteGeneratorService,
+  OnboardingSyncService,
   RoleSyncService,
 } from '~/rcp/index.js';
 import { InviteCache } from '~/services/InviteCache.js';
+import { OnboardingRoleCache } from '~/services/OnboardingRoleCache.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 const SyncLive = Layer.mergeAll(
@@ -16,9 +19,12 @@ const SyncLive = Layer.mergeAll(
   ChannelSyncService.Default,
   EventSyncService.Default,
   GuildJoinSyncService.Default,
+  InviteGeneratorService.Default,
+  OnboardingSyncService.Default,
 ).pipe(
   Layer.provideMerge(ChannelReorderSemaphore.Live),
   Layer.provideMerge(InviteCache.Default),
+  Layer.provideMerge(OnboardingRoleCache.Default),
   Layer.provideMerge(SyncRpc.Default),
   Layer.provide(DiscordIxLive),
 );
