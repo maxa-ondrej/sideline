@@ -1074,6 +1074,44 @@ interface OnboardingCardProps {
   formatRelative: (date: Date) => string;
 }
 
+// Walk a Discord error tree looking for the deepest human-readable message.
+// Discord wraps validation errors as { errors: { <field>: { _errors: [{ code, message }] } } }
+// and we want the innermost `message`, not the top-level "Invalid Form Body".
+function extractDiscordMessage(node: unknown): string | undefined {
+  if (node === null || typeof node !== 'object') return undefined;
+  const obj = node as Record<string, unknown>;
+  if (Array.isArray(obj._errors)) {
+    for (const entry of obj._errors) {
+      if (entry && typeof entry === 'object') {
+        const msg = (entry as { message?: unknown }).message;
+        if (typeof msg === 'string' && msg.length > 0) return msg;
+      }
+    }
+  }
+  for (const value of Object.values(obj)) {
+    const found = extractDiscordMessage(value);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+function extractGenericDetail(detail: string): string {
+  // detail looks like: "Discord error 0: {"message":"Invalid Form Body",...}"
+  const jsonStart = detail.indexOf('{');
+  if (jsonStart >= 0) {
+    try {
+      const body = JSON.parse(detail.slice(jsonStart)) as Record<string, unknown>;
+      const inner = extractDiscordMessage(body.errors);
+      if (inner !== undefined) return inner;
+      const topMessage = (body as { message?: unknown }).message;
+      if (typeof topMessage === 'string' && topMessage.length > 0) return topMessage;
+    } catch {
+      /* fall through */
+    }
+  }
+  return detail.split('\n').find((l) => l.trim()) ?? detail;
+}
+
 function getOnboardingErrorMessage(syncError: string | null): string {
   if (!syncError) return '';
   try {
@@ -1086,12 +1124,11 @@ function getOnboardingErrorMessage(syncError: string | null): string {
       return m.teamSettings_onboardingErrorRequirementsNotMet();
     if (parsed.code === 'default_channel_private')
       return m.teamSettings_onboardingErrorDefaultChannelPrivate();
-    const detail = parsed.detail ?? syncError;
-    const firstLine = detail.split('\n').find((l: string) => l.trim()) ?? detail;
-    return m.teamSettings_onboardingErrorGeneric({ message: firstLine });
+    return m.teamSettings_onboardingErrorGeneric({
+      message: extractGenericDetail(parsed.detail ?? syncError),
+    });
   } catch {
-    const firstLine = syncError.split('\n').find((l) => l.trim()) ?? syncError;
-    return m.teamSettings_onboardingErrorGeneric({ message: firstLine });
+    return m.teamSettings_onboardingErrorGeneric({ message: extractGenericDetail(syncError) });
   }
 }
 
@@ -1167,7 +1204,9 @@ function OnboardingCard({
       <CardHeader>
         <div className='flex items-center gap-2'>
           <ShieldCheck className='size-4 text-muted-foreground' />
-          <CardTitle className='text-base'>{m.teamSettings_onboardingTitle()}</CardTitle>
+          <CardTitle className='text-base'>
+            <h3 className='m-0 text-inherit font-inherit'>{m.teamSettings_onboardingTitle()}</h3>
+          </CardTitle>
         </div>
         <CardDescription>{m.teamSettings_onboardingDescription()}</CardDescription>
       </CardHeader>
