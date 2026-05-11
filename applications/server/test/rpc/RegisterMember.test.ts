@@ -260,6 +260,7 @@ const MockInviteAcceptancesRepository = Layer.succeed(InviteAcceptancesRepositor
       }),
     );
   },
+  findRecentByUserAndGuildWithContext: () => Effect.succeed(Option.none()),
   create: () => Effect.die(new Error('Not implemented')),
   findById: () => Effect.succeed(Option.none()),
   findPending: () => Effect.succeed([]),

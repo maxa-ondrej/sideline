@@ -140,6 +140,59 @@ const make = SqlClient.SqlClient.asEffect().pipe(
       `,
     });
 
+    const RecentByUserAndGuildInput = Schema.Struct({
+      discord_id: Schema.String,
+      guild_id: Schema.String,
+    });
+
+    const findRecentByUserAndGuildWithContext = SqlSchema.findOneOption({
+      Request: RecentByUserAndGuildInput,
+      Result: AcceptanceWithContextRow,
+      execute: ({ discord_id, guild_id }) => sql`
+        SELECT
+          ti.id          AS ti_id,
+          ti.team_id     AS ti_team_id,
+          ti.code        AS ti_code,
+          ti.active      AS ti_active,
+          ti.created_by  AS ti_created_by,
+          ti.created_at  AS ti_created_at,
+          ti.expires_at  AS ti_expires_at,
+          g.id           AS ti_group_id,
+          g.name         AS group_name,
+          u.username     AS inviter_username,
+          u.discord_id   AS inviter_discord_id,
+          t.name         AS team_name
+        FROM invite_acceptances ia
+        JOIN team_invites ti ON ti.id = ia.team_invite_id
+        JOIN users joined    ON joined.id = ia.user_id
+        JOIN users u         ON u.id = ti.created_by
+        JOIN teams t         ON t.id = ti.team_id
+        LEFT JOIN groups g   ON g.id = ti.group_id AND g.is_archived = false
+        WHERE joined.discord_id = ${discord_id}
+          AND t.guild_id = ${guild_id}
+          AND ti.active = true
+          AND (ti.expires_at IS NULL OR ti.expires_at > now())
+          AND ia.created_at > now() - interval '15 minutes'
+        ORDER BY ia.created_at DESC
+        LIMIT 1
+      `,
+    });
+
+    const toContext = (row: AcceptanceWithContextRow) => ({
+      id: row.ti_id,
+      team_id: row.ti_team_id,
+      code: row.ti_code,
+      active: row.ti_active,
+      created_by: row.ti_created_by,
+      created_at: row.ti_created_at,
+      expires_at: row.ti_expires_at,
+      group_id: row.ti_group_id,
+      group_name: row.group_name,
+      inviter_username: row.inviter_username,
+      inviter_discord_id: row.inviter_discord_id,
+      team_name: row.team_name,
+    });
+
     return {
       create: (input: typeof CreateInput.Type) => create(input).pipe(catchSqlErrors),
       findById: (id: InviteAcceptance.InviteAcceptanceId) => findById(id).pipe(catchSqlErrors),
@@ -148,23 +201,10 @@ const make = SqlClient.SqlClient.asEffect().pipe(
         setDiscordCode(input).pipe(catchSqlErrors),
       markFailed: (input: typeof MarkFailedInput.Type) => markFailed(input).pipe(catchSqlErrors),
       findByDiscordCodeWithContext: (code: string) =>
-        findByDiscordCodeWithContext(code).pipe(
-          Effect.map(
-            Option.map((row) => ({
-              id: row.ti_id,
-              team_id: row.ti_team_id,
-              code: row.ti_code,
-              active: row.ti_active,
-              created_by: row.ti_created_by,
-              created_at: row.ti_created_at,
-              expires_at: row.ti_expires_at,
-              group_id: row.ti_group_id,
-              group_name: row.group_name,
-              inviter_username: row.inviter_username,
-              inviter_discord_id: row.inviter_discord_id,
-              team_name: row.team_name,
-            })),
-          ),
+        findByDiscordCodeWithContext(code).pipe(Effect.map(Option.map(toContext)), catchSqlErrors),
+      findRecentByUserAndGuildWithContext: (discordId: string, guildId: string) =>
+        findRecentByUserAndGuildWithContext({ discord_id: discordId, guild_id: guildId }).pipe(
+          Effect.map(Option.map(toContext)),
           catchSqlErrors,
         ),
     };

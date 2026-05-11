@@ -12,7 +12,7 @@ interface InvitePageProps {
   isAuthenticated: boolean;
   invite: Invite.InviteInfo;
   code: string;
-  onJoined: (teamId: string, isProfileComplete: boolean) => void;
+  onJoined: (result: Invite.JoinResult) => void;
   onSignIn: () => void;
   onReauth: () => void;
 }
@@ -28,11 +28,6 @@ export function InvitePage({
   const run = useRun();
   const [joining, setJoining] = React.useState(false);
   const [requiresReauth, setRequiresReauth] = React.useState(false);
-  const [joinResult, setJoinResult] = React.useState<Invite.JoinResult | null>(null);
-  const [discordInviteUrl, setDiscordInviteUrl] = React.useState<Option.Option<string>>(
-    Option.none(),
-  );
-  const [discordInviteFailed, setDiscordInviteFailed] = React.useState(false);
 
   const handleJoin = React.useCallback(async () => {
     setJoining(true);
@@ -43,7 +38,7 @@ export function InvitePage({
           if (result.requiresReauth) {
             setRequiresReauth(true);
           } else {
-            setJoinResult(result);
+            onJoined(result);
           }
         }),
       ),
@@ -57,46 +52,7 @@ export function InvitePage({
       run({ success: m.invite_teamJoined() }),
     );
     setJoining(false);
-  }, [code, run]);
-
-  const handleContinue = React.useCallback(() => {
-    if (joinResult === null) return;
-    onJoined(joinResult.teamId, joinResult.isProfileComplete);
-  }, [joinResult, onJoined]);
-
-  const acceptanceId = joinResult !== null ? joinResult.acceptanceId : Option.none();
-
-  React.useEffect(() => {
-    if (Option.isNone(acceptanceId)) return;
-    if (Option.isSome(discordInviteUrl) || discordInviteFailed) return;
-
-    let cancelled = false;
-    const accId = acceptanceId.value;
-
-    const poll = () =>
-      ApiClient.asEffect().pipe(
-        Effect.flatMap((api) => api.invite.getJoinStatus({ params: { acceptanceId: accId } })),
-        Effect.tap((status) =>
-          Effect.sync(() => {
-            if (cancelled) return;
-            if (Option.isSome(status.discordInviteUrl)) {
-              setDiscordInviteUrl(status.discordInviteUrl);
-            } else if (Option.isSome(status.errorCode)) {
-              setDiscordInviteFailed(true);
-            }
-          }),
-        ),
-        Effect.mapError(() => ClientError.make('')),
-        run(),
-      );
-
-    void poll();
-    const interval = window.setInterval(poll, 1500);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [acceptanceId, discordInviteUrl, discordInviteFailed, run]);
+  }, [code, run, onJoined]);
 
   return (
     <div className='flex min-h-screen flex-col'>
@@ -115,26 +71,7 @@ export function InvitePage({
                 <Users className='size-6 text-muted-foreground' />
               </div>
             </div>
-            {joinResult !== null ? (
-              Option.isSome(discordInviteUrl) ? (
-                <>
-                  <CardTitle>{m.invite_joinDiscordTitle()}</CardTitle>
-                  <CardDescription>
-                    {m.invite_joinDiscordDescription({ teamName: invite.teamName })}
-                  </CardDescription>
-                </>
-              ) : discordInviteFailed ? (
-                <>
-                  <CardTitle>{m.invite_discordInviteFailedTitle()}</CardTitle>
-                  <CardDescription>{m.invite_discordInviteFailedDescription()}</CardDescription>
-                </>
-              ) : (
-                <>
-                  <CardTitle>{m.invite_preparingDiscordInviteTitle()}</CardTitle>
-                  <CardDescription>{m.invite_preparingDiscordInviteDescription()}</CardDescription>
-                </>
-              )
-            ) : requiresReauth ? (
+            {requiresReauth ? (
               <>
                 <CardTitle>{m.invite_reauthTitle()}</CardTitle>
                 <CardDescription>{m.invite_reauthDescription()}</CardDescription>
@@ -165,27 +102,7 @@ export function InvitePage({
             )}
           </CardHeader>
           <CardContent className='flex flex-col gap-2'>
-            {joinResult !== null ? (
-              Option.isSome(discordInviteUrl) ? (
-                <>
-                  <a
-                    href={discordInviteUrl.value}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='w-full'
-                  >
-                    <Button className='w-full'>{m.invite_joinDiscordButton()}</Button>
-                  </a>
-                  <Button variant='ghost' onClick={handleContinue} className='w-full'>
-                    {m.invite_joinButton()}
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={handleContinue} className='w-full'>
-                  {m.invite_joinButton()}
-                </Button>
-              )
-            ) : requiresReauth ? (
+            {requiresReauth ? (
               <Button onClick={onReauth} className='w-full'>
                 {m.invite_reauthButton()}
               </Button>

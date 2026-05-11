@@ -823,6 +823,7 @@
   "invite_willJoinGroup": "Budeš přidán/a do skupiny",
   "invite_joinDiscordTitle": "Vítej v týmu!",
   "invite_joinDiscordDescription": "Jsi teď členem týmu {teamName}. Připoj se na Discord server, ať můžeš začít psát.",
+  "invite_joinDiscordBannerDescription": "Vítej v týmu! Otevři Discord server, ať můžeš začít psát.",
   "invite_joinDiscordButton": "Otevřít Discord server",
   "invite_preparingDiscordInviteTitle": "Připravujeme pozvánku",
   "invite_preparingDiscordInviteDescription": "Vydrž chvilku — generujeme ti jednorázovou pozvánku na Discord.",

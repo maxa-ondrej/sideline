@@ -823,6 +823,7 @@
   "invite_willJoinGroup": "You'll join",
   "invite_joinDiscordTitle": "Welcome aboard!",
   "invite_joinDiscordDescription": "You're now a member of {teamName}. Join the Discord server to start chatting.",
+  "invite_joinDiscordBannerDescription": "Welcome aboard! Open the Discord server to start chatting.",
   "invite_joinDiscordButton": "Open Discord server",
   "invite_preparingDiscordInviteTitle": "Preparing your Discord invite",
   "invite_preparingDiscordInviteDescription": "Hang tight — we're generating a one-time Discord invite for you.",
