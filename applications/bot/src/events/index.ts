@@ -33,9 +33,44 @@ export const eventHandlers = Effect.Do.pipe(
       handleReady().pipe(Effect.withSpan('discord/ready')),
     ),
   ),
-  Effect.let('guildCreate', ({ gateway }) =>
-    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) =>
-      Effect.Do.pipe(
+  Effect.let('guildCreate', ({ gateway, rest, inviteCache }) =>
+    gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildCreate, (guild) => {
+      // Seed InviteCache with existing invites so diffOnMemberJoin has a baseline.
+      // Without this, the first member who joins after bot startup never matches
+      // their invite code, and the welcome message never fires.
+      const seedInvites = rest.listGuildInvites(guild.id).pipe(
+        Effect.map((invites) =>
+          Arr.getSomes(
+            Arr.map(invites, (i) =>
+              i !== null && i.type === 0
+                ? Option.some({ code: i.code, uses: i.uses ?? 0 })
+                : Option.none(),
+            ),
+          ),
+        ),
+        Effect.tap((seeded) =>
+          Effect.all(
+            Arr.map(seeded, (s) => inviteCache.upsert(guild.id, s.code, s.uses)),
+            { concurrency: 'unbounded', discard: true },
+          ),
+        ),
+        Effect.tap((seeded) =>
+          Effect.logInfo(
+            `Seeded InviteCache for guild ${guild.id} with ${seeded.length} invite(s)`,
+          ),
+        ),
+        Effect.asVoid,
+        Effect.catchTags({
+          HttpClientError: (e) =>
+            Effect.logWarning(`Failed to seed InviteCache for guild ${guild.id}`, e),
+          RatelimitedResponse: (e) =>
+            Effect.logWarning(`Rate-limited seeding InviteCache for guild ${guild.id}`, e),
+          ErrorResponse: (e) =>
+            Effect.logWarning(`Error seeding InviteCache for guild ${guild.id}`, e),
+        }),
+      );
+
+      return Effect.Do.pipe(
         Effect.tap(() =>
           Metric.update(
             Metric.withAttributes(discordEventsTotal, { event_type: 'guild_create' }),
@@ -44,9 +79,10 @@ export const eventHandlers = Effect.Do.pipe(
         ),
         Effect.tap(() => Effect.logInfo(`Guild available: ${guild.name} (${guild.id})`)),
         Effect.tap(() => handleGuildCreate(guild)),
+        Effect.tap(() => seedInvites),
         Effect.withSpan('discord/guild_create', { attributes: { 'guild.id': guild.id } }),
-      ),
-    ),
+      );
+    }),
   ),
   Effect.let('guildDelete', ({ gateway, rpc }) =>
     gateway.handleDispatch(DiscordTypes.GatewayDispatchEvents.GuildDelete, (guild) =>
@@ -212,6 +248,14 @@ export const eventHandlers = Effect.Do.pipe(
         Effect.bind('invites', () => fetchInviteUsage),
         Effect.bind('matchedCode', ({ invites }) =>
           inviteCache.diffOnMemberJoin(member.guild_id, invites),
+        ),
+        Effect.tap(({ invites, matchedCode }) =>
+          Effect.logInfo(
+            `Invite match for ${user.username} in ${member.guild_id}: ${Option.match(matchedCode, {
+              onNone: () => 'no match',
+              onSome: (c) => `matched ${c}`,
+            })} (${invites.length} invite(s) seen)`,
+          ),
         ),
         Effect.bind('welcomeMeta', ({ matchedCode }) =>
           rpc['Guild/RegisterMember']({
