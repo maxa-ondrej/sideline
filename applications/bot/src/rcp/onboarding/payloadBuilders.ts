@@ -8,6 +8,7 @@ export interface OnboardingTeamView {
   readonly rules_channel_id: Option.Option<string>;
   readonly welcome_channel_id: Option.Option<string>;
   readonly training_channel_id: Option.Option<string>;
+  readonly overview_channel_id: Option.Option<string>;
   readonly onboarding_rules_role_id: Option.Option<string>;
   readonly onboarding_rules_prompt_id: Option.Option<string>;
   readonly is_community_enabled: boolean;
@@ -18,6 +19,7 @@ export interface WelcomeScreenStrings {
   readonly channels_rules: string;
   readonly channels_welcome: string;
   readonly channels_training: string;
+  readonly channels_overview: string;
 }
 
 export interface RulesPromptStrings {
@@ -96,6 +98,14 @@ export const buildWelcomeScreenPayload = (
       channel_id: team.training_channel_id.value,
       description: truncate(strings.channels_training, MAX_CHANNEL_DESC_LEN),
       emoji_name: '🏃',
+    });
+  }
+
+  if (Option.isSome(team.overview_channel_id)) {
+    channels.push({
+      channel_id: team.overview_channel_id.value,
+      description: truncate(strings.channels_overview, MAX_CHANNEL_DESC_LEN),
+      emoji_name: '📅',
     });
   }
 

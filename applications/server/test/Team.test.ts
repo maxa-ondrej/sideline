@@ -71,6 +71,7 @@ const testTeam = {
   system_log_channel_id: Option.none<Discord.Snowflake>(),
   welcome_message_template: Option.none<string>(),
   rules_channel_id: Option.none<Discord.Snowflake>(),
+  overview_channel_id: Option.none<Discord.Snowflake>(),
   onboarding_rules_role_id: Option.none<Discord.Snowflake>(),
   onboarding_rules_prompt_id: Option.none<Discord.Snowflake>(),
   onboarding_locale: 'en' as const,

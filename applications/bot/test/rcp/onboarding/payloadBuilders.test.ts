@@ -23,6 +23,7 @@ interface OnboardingTeamView {
   rules_channel_id: Option.Option<string>;
   welcome_channel_id: Option.Option<string>;
   training_channel_id: Option.Option<string>;
+  overview_channel_id: Option.Option<string>;
   onboarding_rules_role_id: Option.Option<string>;
   onboarding_rules_prompt_id: Option.Option<string>;
   is_community_enabled: boolean;
@@ -33,6 +34,7 @@ interface WelcomeScreenStrings {
   channels_rules: string;
   channels_welcome: string;
   channels_training: string;
+  channels_overview: string;
 }
 
 interface RulesPromptStrings {
@@ -60,6 +62,7 @@ const makeTeam = (overrides: Partial<OnboardingTeamView> = {}): OnboardingTeamVi
   rules_channel_id: Option.some(RULES_CHANNEL_ID),
   welcome_channel_id: Option.some(WELCOME_CHANNEL_ID),
   training_channel_id: Option.some(TRAINING_CHANNEL_ID),
+  overview_channel_id: Option.none(),
   onboarding_rules_role_id: Option.some(ROLE_ID),
   onboarding_rules_prompt_id: Option.none(),
   is_community_enabled: true,
@@ -79,6 +82,7 @@ const makeStrings = (locale: 'en' | 'cs' = 'en'): WelcomeScreenStrings => ({
     locale === 'cs' ? 'Pozdravte a seznamte se s týmem.' : 'Say hi and meet the team.',
   channels_training:
     locale === 'cs' ? 'Aktuální tréninky a oznámení.' : 'Latest training calls and announcements.',
+  channels_overview: locale === 'cs' ? 'Procházej všechny akce týmu.' : 'Browse all team events.',
 });
 
 const makeRulesPromptStrings = (): RulesPromptStrings => ({

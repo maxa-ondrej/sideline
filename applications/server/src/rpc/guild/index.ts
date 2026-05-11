@@ -400,6 +400,25 @@ export const GuildsRpcLive = Effect.Do.pipe(
       'Guild/MarkOnboardingSyncSkipped': ({ team_id }: { readonly team_id: Team.TeamId }) =>
         deps.teams.markOnboardingSyncSkippedIfSyncing(team_id),
 
+      'Guild/SetOverviewChannel': ({
+        guild_id,
+        channel_id,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly channel_id: Discord.Snowflake;
+      }) =>
+        deps.teams.setOverviewChannelByGuildId(guild_id, channel_id).pipe(
+          Effect.flatMap((rows) =>
+            rows.length === 0
+              ? Effect.void
+              : // Channel actually changed — re-trigger welcome-screen sync.
+                Effect.all(
+                  Array.map(rows, (row) => deps.teams.markOnboardingSyncPending(row.id)),
+                  { concurrency: 1, discard: true },
+                ),
+          ),
+        ),
+
       'Guild/GetOnboardingRulesRoleId': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
         deps.teams.getOnboardingRulesRoleIdByGuildId(guild_id),
 

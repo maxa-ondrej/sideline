@@ -122,6 +122,7 @@ export const GuildRpcGroup = RpcGroup.make(
         rules_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
         welcome_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
         training_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+        overview_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
         onboarding_rules_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
         onboarding_rules_prompt_id: Schema.OptionFromNullOr(Discord.Snowflake),
         is_community_enabled: Schema.Boolean,
@@ -145,6 +146,15 @@ export const GuildRpcGroup = RpcGroup.make(
   }),
   Rpc.make('RevertOnboardingSync', {
     payload: { team_id: TeamId },
+  }),
+  // Persists the channel where /event overview was invoked, so it can be featured
+  // alongside welcome/training in the Discord welcome screen. Flips onboarding sync to
+  // 'pending' when the channel actually changes.
+  Rpc.make('SetOverviewChannel', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      channel_id: Discord.Snowflake,
+    },
   }),
   Rpc.make('MarkOnboardingSyncSkipped', {
     payload: { team_id: TeamId },

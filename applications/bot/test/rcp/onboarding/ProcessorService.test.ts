@@ -28,6 +28,7 @@ const makePendingSync = (overrides: Record<string, unknown> = {}) => ({
   rules_channel_id: Option.some(RULES_CHANNEL_ID),
   welcome_channel_id: Option.some(WELCOME_CHANNEL_ID),
   training_channel_id: Option.none(),
+  overview_channel_id: Option.none(),
   onboarding_rules_role_id: Option.some(ROLE_ID),
   onboarding_rules_prompt_id: Option.none(),
   is_community_enabled: true,

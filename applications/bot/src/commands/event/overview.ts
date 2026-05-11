@@ -1,11 +1,13 @@
+import { Discord } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction } from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
-import { Effect, Metric } from 'effect';
+import { Effect, Metric, Schema } from 'effect';
 import { userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
+import { SyncRpc } from '~/services/SyncRpc.js';
 
 const MANAGE_GUILD = 0x20n;
 
@@ -49,6 +51,22 @@ export const overviewHandler = Interaction.asEffect().pipe(
       );
     }
 
+    const guildId = interaction.guild_id;
+    const decodeSnowflake = Schema.decodeSync(Discord.Snowflake);
+    const persistOverviewChannel = guildId
+      ? SyncRpc.asEffect().pipe(
+          Effect.flatMap((rpc) =>
+            rpc['Guild/SetOverviewChannel']({
+              guild_id: decodeSnowflake(guildId),
+              channel_id: decodeSnowflake(channelId),
+            }),
+          ),
+          Effect.catchTag('RpcClientError', (error) =>
+            Effect.logWarning('Failed to persist overview channel', error),
+          ),
+        )
+      : Effect.void;
+
     const work = DiscordREST.asEffect().pipe(
       Effect.flatMap((rest) =>
         rest
@@ -74,6 +92,7 @@ export const overviewHandler = Interaction.asEffect().pipe(
             ),
           ),
       ),
+      Effect.tap(() => persistOverviewChannel),
     );
 
     return Effect.as(
