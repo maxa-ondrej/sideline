@@ -21,6 +21,7 @@ import { AgeCheckService } from '~/services/AgeCheckService.js';
 const TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const GROUP_ID_BOYS = '00000000-0000-0000-0000-000000000030' as GroupModel.GroupId;
 const GROUP_ID_GIRLS = '00000000-0000-0000-0000-000000000031' as GroupModel.GroupId;
+const GROUP_ID_REQUIRED = '00000000-0000-0000-0000-000000000032' as GroupModel.GroupId;
 const MEMBER_ID_1 = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const USER_ID_1 = '00000000-0000-0000-0000-000000000001' as User.UserId;
 const DISCORD_ID = '111111111111111111' as Discord.Snowflake;
@@ -37,6 +38,7 @@ const makeRule = (overrides: {
   min_age?: Option.Option<number>;
   max_age?: Option.Option<number>;
   gender?: Option.Option<User.Gender>;
+  required_group_id?: Option.Option<GroupModel.GroupId>;
 }) => ({
   id: 'rule-001' as any,
   team_id: TEAM_ID,
@@ -45,6 +47,7 @@ const makeRule = (overrides: {
   min_age: overrides.min_age ?? Option.none(),
   max_age: overrides.max_age ?? Option.none(),
   gender: overrides.gender ?? Option.none(),
+  required_group_id: overrides.required_group_id ?? Option.none(),
 });
 
 const makeMember = (overrides: {
@@ -618,6 +621,203 @@ describe('AgeCheckService.evaluate — boundary conditions', () => {
       );
     },
   );
+});
+
+describe('AgeCheckService.evaluate — required-group rules', () => {
+  // Case 1: required-group-only rule, member in that group → 'added'
+  it.effect('required-group-only rule: member in required group → added', () => {
+    const rule = makeRule({ required_group_id: Option.some(GROUP_ID_REQUIRED) });
+    const member = makeMember({
+      group_ids: [GROUP_ID_REQUIRED],
+      birth_date: Option.none(),
+      gender: Option.none(),
+    });
+
+    return runEvaluate({ rules: [rule], members: [member] }).pipe(
+      Effect.tap((changes) =>
+        Effect.sync(() => {
+          expect(changes).toHaveLength(1);
+          expect(changes[0].action).toBe('added');
+          expect(addedCalls).toHaveLength(1);
+          expect(addedCalls[0].groupId).toBe(GROUP_ID_BOYS);
+          expect(addedCalls[0].memberId).toBe(MEMBER_ID_1);
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
+
+  // Case 2: required-group-only rule, member NOT in that group → no change
+  it.effect('required-group-only rule: member not in required group → no change', () => {
+    const rule = makeRule({ required_group_id: Option.some(GROUP_ID_REQUIRED) });
+    const member = makeMember({
+      group_ids: [],
+      birth_date: Option.none(),
+      gender: Option.none(),
+    });
+
+    return runEvaluate({ rules: [rule], members: [member] }).pipe(
+      Effect.tap((changes) =>
+        Effect.sync(() => {
+          expect(changes).toHaveLength(0);
+          expect(addedCalls).toHaveLength(0);
+          expect(removedCalls).toHaveLength(0);
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
+
+  // Case 3: required-group + gender combined, member meets both → 'added'
+  it.effect('required-group + gender combined: female member in required group → added', () => {
+    const rule = makeRule({
+      group_id: GROUP_ID_GIRLS,
+      gender: Option.some('female'),
+      required_group_id: Option.some(GROUP_ID_REQUIRED),
+    });
+    const member = makeMember({
+      gender: Option.some('female'),
+      group_ids: [GROUP_ID_REQUIRED],
+      birth_date: Option.none(),
+    });
+
+    return runEvaluate({ rules: [rule], members: [member] }).pipe(
+      Effect.tap((changes) =>
+        Effect.sync(() => {
+          expect(changes).toHaveLength(1);
+          expect(changes[0].action).toBe('added');
+          expect(addedCalls).toHaveLength(1);
+          expect(addedCalls[0].groupId).toBe(GROUP_ID_GIRLS);
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
+
+  // Case 4: required-group + gender combined, gender mismatch → no change
+  it.effect(
+    'required-group + gender combined: male member in required group (gender mismatch) → no change',
+    () => {
+      const rule = makeRule({
+        group_id: GROUP_ID_GIRLS,
+        gender: Option.some('female'),
+        required_group_id: Option.some(GROUP_ID_REQUIRED),
+      });
+      const member = makeMember({
+        gender: Option.some('male'),
+        group_ids: [GROUP_ID_REQUIRED],
+        birth_date: Option.none(),
+      });
+
+      return runEvaluate({ rules: [rule], members: [member] }).pipe(
+        Effect.tap((changes) =>
+          Effect.sync(() => {
+            expect(changes).toHaveLength(0);
+            expect(addedCalls).toHaveLength(0);
+          }),
+        ),
+        Effect.asVoid,
+      );
+    },
+  );
+
+  // Case 5: required-group + gender combined, not in required group → no change
+  it.effect(
+    'required-group + gender combined: female member not in required group → no change',
+    () => {
+      const rule = makeRule({
+        group_id: GROUP_ID_GIRLS,
+        gender: Option.some('female'),
+        required_group_id: Option.some(GROUP_ID_REQUIRED),
+      });
+      const member = makeMember({
+        gender: Option.some('female'),
+        group_ids: [],
+        birth_date: Option.none(),
+      });
+
+      return runEvaluate({ rules: [rule], members: [member] }).pipe(
+        Effect.tap((changes) =>
+          Effect.sync(() => {
+            expect(changes).toHaveLength(0);
+            expect(addedCalls).toHaveLength(0);
+          }),
+        ),
+        Effect.asVoid,
+      );
+    },
+  );
+
+  // Case 6: required-group + age combined, member matches both → 'added'
+  it.effect('required-group + age combined: age 12 in required group → added', () => {
+    const rule = makeRule({
+      min_age: Option.some(10),
+      max_age: Option.some(14),
+      required_group_id: Option.some(GROUP_ID_REQUIRED),
+    });
+    // DOB for age 12 on 2026-05-11: born 2014-01-01
+    const member = makeMember({
+      birth_date: Option.some('2014-01-01'),
+      group_ids: [GROUP_ID_REQUIRED],
+      gender: Option.none(),
+    });
+
+    return runEvaluate({ rules: [rule], members: [member] }).pipe(
+      Effect.tap((changes) =>
+        Effect.sync(() => {
+          expect(changes).toHaveLength(1);
+          expect(changes[0].action).toBe('added');
+          expect(addedCalls).toHaveLength(1);
+          expect(addedCalls[0].groupId).toBe(GROUP_ID_BOYS);
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
+
+  // Case 7: Member already in target group AND in required group AND rule still satisfied → no change (idempotency)
+  it.effect('idempotency: member already in target group AND in required group → no change', () => {
+    const rule = makeRule({ required_group_id: Option.some(GROUP_ID_REQUIRED) });
+    const member = makeMember({
+      group_ids: [GROUP_ID_REQUIRED, GROUP_ID_BOYS], // already in both groups
+      birth_date: Option.none(),
+      gender: Option.none(),
+    });
+
+    return runEvaluate({ rules: [rule], members: [member] }).pipe(
+      Effect.tap((changes) =>
+        Effect.sync(() => {
+          expect(changes).toHaveLength(0);
+          expect(addedCalls).toHaveLength(0);
+          expect(removedCalls).toHaveLength(0);
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
+
+  // Case 8: Member in target group but NOT in required group → 'removed'
+  it.effect('removal: member in target group but not in required group → removed', () => {
+    const rule = makeRule({ required_group_id: Option.some(GROUP_ID_REQUIRED) });
+    const member = makeMember({
+      group_ids: [GROUP_ID_BOYS], // in target group but missing required group
+      birth_date: Option.none(),
+      gender: Option.none(),
+    });
+
+    return runEvaluate({ rules: [rule], members: [member] }).pipe(
+      Effect.tap((changes) =>
+        Effect.sync(() => {
+          expect(changes).toHaveLength(1);
+          expect(changes[0].action).toBe('removed');
+          expect(removedCalls).toHaveLength(1);
+          expect(removedCalls[0].groupId).toBe(GROUP_ID_BOYS);
+          expect(removedCalls[0].memberId).toBe(MEMBER_ID_1);
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
 });
 
 describe('AgeCheckService.evaluate — notification copy', () => {

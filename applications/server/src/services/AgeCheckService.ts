@@ -77,7 +77,16 @@ const detectChanges = (
         onSome: (g) => Option.exists(member.gender, (mg) => mg === g),
       }),
     ),
-    Array.let('shouldBeInGroup', ({ ageOk, genderOk }) => ageOk && genderOk),
+    Array.let('requiredGroupOk', ({ rule, member }) =>
+      Option.match(rule.required_group_id, {
+        onNone: () => true,
+        onSome: (gid) => Array.contains(member.group_ids, gid),
+      }),
+    ),
+    Array.let(
+      'shouldBeInGroup',
+      ({ ageOk, genderOk, requiredGroupOk }) => ageOk && genderOk && requiredGroupOk,
+    ),
     Array.let('isInGroup', ({ member, rule }) => Array.contains(member.group_ids, rule.group_id)),
     Array.filter(({ shouldBeInGroup, isInGroup }) => shouldBeInGroup !== isInGroup),
     Array.let('displayName', ({ member }) =>

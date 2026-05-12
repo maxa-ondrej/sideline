@@ -15,6 +15,7 @@ export class AgeThresholdInfo extends Schema.Class<AgeThresholdInfo>('AgeThresho
   minAge: Schema.OptionFromNullOr(Schema.Number),
   maxAge: Schema.OptionFromNullOr(Schema.Number),
   gender: Schema.OptionFromNullOr(Gender),
+  requiredGroupId: Schema.OptionFromNullOr(GroupId),
 }) {}
 
 export class AgeGroupChange extends Schema.Class<AgeGroupChange>('AgeGroupChange')({
@@ -27,16 +28,18 @@ export class AgeGroupChange extends Schema.Class<AgeGroupChange>('AgeGroupChange
 
 export const CreateAgeThresholdRequest = Schema.Struct({
   groupId: GroupId,
-  minAge: Schema.OptionFromNullOr(Schema.Number),
-  maxAge: Schema.OptionFromNullOr(Schema.Number),
+  minAge: Schema.OptionFromOptionalKey(Schema.Number),
+  maxAge: Schema.OptionFromOptionalKey(Schema.Number),
   gender: Schema.OptionFromOptionalKey(Gender),
+  requiredGroupId: Schema.OptionFromOptionalKey(GroupId),
 });
 export type CreateAgeThresholdRequest = Schema.Schema.Type<typeof CreateAgeThresholdRequest>;
 
 export const UpdateAgeThresholdRequest = Schema.Struct({
-  minAge: Schema.OptionFromNullOr(Schema.Number),
-  maxAge: Schema.OptionFromNullOr(Schema.Number),
+  minAge: Schema.OptionFromOptionalKey(Schema.Number),
+  maxAge: Schema.OptionFromOptionalKey(Schema.Number),
   gender: Schema.OptionFromOptionalKey(Gender),
+  requiredGroupId: Schema.OptionFromOptionalKey(GroupId),
 });
 export type UpdateAgeThresholdRequest = Schema.Schema.Type<typeof UpdateAgeThresholdRequest>;
 
@@ -62,6 +65,11 @@ export class AgeThresholdEmptyCriteria extends Schema.TaggedErrorClass<AgeThresh
   {},
 ) {}
 
+export class AgeThresholdSelfRequired extends Schema.TaggedErrorClass<AgeThresholdSelfRequired>()(
+  'AgeThresholdSelfRequired',
+  {},
+) {}
+
 export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
   .add(
     HttpApiEndpoint.get('listAgeThresholds', '/teams/:teamId/age-thresholds', {
@@ -75,6 +83,7 @@ export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
       success: AgeThresholdInfo.pipe(HttpApiSchema.status(201)),
       error: [
         AgeThresholdEmptyCriteria.pipe(HttpApiSchema.status(400)),
+        AgeThresholdSelfRequired.pipe(HttpApiSchema.status(400)),
         Forbidden.pipe(HttpApiSchema.status(403)),
         GroupNotFound.pipe(HttpApiSchema.status(404)),
         AgeThresholdAlreadyExists.pipe(HttpApiSchema.status(409)),
@@ -88,8 +97,10 @@ export class AgeThresholdApiGroup extends HttpApiGroup.make('ageThreshold')
       success: AgeThresholdInfo,
       error: [
         AgeThresholdEmptyCriteria.pipe(HttpApiSchema.status(400)),
+        AgeThresholdSelfRequired.pipe(HttpApiSchema.status(400)),
         Forbidden.pipe(HttpApiSchema.status(403)),
         RuleNotFound.pipe(HttpApiSchema.status(404)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
         AgeThresholdAlreadyExists.pipe(HttpApiSchema.status(409)),
       ],
       payload: UpdateAgeThresholdRequest,

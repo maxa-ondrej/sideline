@@ -2328,7 +2328,7 @@ Deletes a training type.
 
 **Source:** `packages/domain/src/api/AgeThresholdApi.ts`
 
-Automatic group rules define which group a member should belong to based on automatic group criteria (age range, gender, or a combination). All criteria on a rule must match simultaneously (AND semantics). The `AgeCheckCron` runs daily and automatically adds or removes members from groups based on these rules.
+Automatic group rules define which group a member should belong to based on automatic group criteria (age range, gender, required pre-existing group membership, or any combination). All criteria on a rule must match simultaneously (AND semantics). The `AgeCheckCron` runs daily and automatically adds or removes members from groups based on these rules.
 
 ---
 
@@ -2356,6 +2356,7 @@ Lists all age threshold rules for a team.
 | `minAge` | `number \| null` | Yes | Minimum age (inclusive); null for no lower bound |
 | `maxAge` | `number \| null` | Yes | Maximum age (inclusive); null for no upper bound |
 | `gender` | `'male' \| 'female' \| 'other' \| null` | Yes | Gender filter; null means any gender matches |
+| `requiredGroupId` | `GroupId \| null` | Yes | If set, only members who are already in this group qualify; null means any member qualifies |
 
 **Errors:**
 
@@ -2383,11 +2384,12 @@ Creates a new automatic group rule.
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `groupId` | `GroupId` | Yes | Target group ID |
-| `minAge` | `number \| null` | Yes | Minimum age; null for no lower bound |
-| `maxAge` | `number \| null` | Yes | Maximum age; null for no upper bound |
+| `minAge` | `number` | No | Minimum age; omit (or send `undefined`) for no lower bound |
+| `maxAge` | `number` | No | Maximum age; omit (or send `undefined`) for no upper bound |
 | `gender` | `'male' \| 'female' \| 'other'` | No | Gender filter; omit (or send `undefined`) for any gender |
+| `requiredGroupId` | `GroupId` | No | Required pre-existing group; omit (or send `undefined`) for no group requirement |
 
-At least one of `minAge`, `maxAge`, or `gender` must be provided (non-null / present).
+At least one of `minAge`, `maxAge`, `gender`, or `requiredGroupId` must be provided (non-null / present).
 
 **Response:** `201 Created` — `AgeThresholdInfo`
 
@@ -2395,9 +2397,10 @@ At least one of `minAge`, `maxAge`, or `gender` must be provided (non-null / pre
 
 | Tag | Status | When |
 |---|---|---|
-| `AgeThresholdEmptyCriteria` | 400 | All criteria are absent (minAge, maxAge, and gender all null/omitted) |
+| `AgeThresholdEmptyCriteria` | 400 | All criteria are absent (minAge, maxAge, gender, and requiredGroupId all omitted) |
+| `AgeThresholdSelfRequired` | 400 | `requiredGroupId` equals `groupId` (a rule cannot require its own target group) |
 | `AgeThresholdForbidden` | 403 | Missing `team:manage` permission |
-| `AgeThresholdGroupNotFound` | 404 | Group does not exist |
+| `GroupNotFound` | 404 | Target group (`groupId`) or required group (`requiredGroupId`) does not exist or belongs to a different team |
 | `AgeThresholdAlreadyExists` | 409 | A rule with the same group and criteria tuple already exists |
 
 ---
@@ -2420,11 +2423,12 @@ Updates an automatic group rule's criteria.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `minAge` | `number \| null` | Yes | New minimum age; null for no lower bound |
-| `maxAge` | `number \| null` | Yes | New maximum age; null for no upper bound |
+| `minAge` | `number` | No | New minimum age; omit (or send `undefined`) for no lower bound |
+| `maxAge` | `number` | No | New maximum age; omit (or send `undefined`) for no upper bound |
 | `gender` | `'male' \| 'female' \| 'other'` | No | New gender filter; omit (or send `undefined`) for any gender |
+| `requiredGroupId` | `GroupId` | No | New required pre-existing group; omit (or send `undefined`) for no group requirement |
 
-At least one of `minAge`, `maxAge`, or `gender` must be provided (non-null / present).
+Any subset of fields may be provided — all fields are optional and the request is accepted as long as at least one criterion is non-null / present after the update. A field that is omitted keeps its current value (partial PATCH semantics).
 
 **Response:** `200 OK` — `AgeThresholdInfo`
 
@@ -2432,9 +2436,11 @@ At least one of `minAge`, `maxAge`, or `gender` must be provided (non-null / pre
 
 | Tag | Status | When |
 |---|---|---|
-| `AgeThresholdEmptyCriteria` | 400 | All criteria are absent (minAge, maxAge, and gender all null/omitted) |
+| `AgeThresholdEmptyCriteria` | 400 | All criteria are absent (minAge, maxAge, gender, and requiredGroupId all omitted) |
+| `AgeThresholdSelfRequired` | 400 | `requiredGroupId` equals the rule's target `groupId` |
 | `AgeThresholdForbidden` | 403 | Missing `team:manage` permission |
 | `AgeThresholdRuleNotFound` | 404 | Rule does not exist |
+| `GroupNotFound` | 404 | `requiredGroupId` does not exist or belongs to a different team |
 | `AgeThresholdAlreadyExists` | 409 | A rule with the same group and criteria tuple already exists |
 
 ---
@@ -3285,14 +3291,13 @@ The following table consolidates all error tags across all API groups.
 | `RosterNotFound` | 404 | Roster | Roster does not exist |
 | `RoleNotFound` | 404 | Role | Role does not exist |
 | `MemberNotFound` | 404 | Role | Team member does not exist |
-| `GroupNotFound` | 404 | Group | Group does not exist |
+| `GroupNotFound` | 404 | Group, Age Threshold | Group does not exist or (for Age Threshold) belongs to a different team |
 | `GroupMemberNotFound` | 404 | Group | Member not found in the group context |
 | `EventNotFound` | 404 | Event | Event does not exist |
 | `EventRsvpEventNotFound` | 404 | Event RSVP | Event does not exist |
 | `EventSeriesNotFound` | 404 | Event Series | Series does not exist |
 | `TrainingTypeNotFound` | 404 | Training Type | Training type does not exist |
 | `AgeThresholdRuleNotFound` | 404 | Age Threshold | Rule does not exist |
-| `AgeThresholdGroupNotFound` | 404 | Age Threshold | Target group does not exist |
 | `ActivityLogMemberNotFound` | 404 | Activity Log | Member does not exist |
 | `ActivityLogNotFound` | 404 | Activity Log | Log entry does not exist |
 | `ActivityStatsMemberNotFound` | 404 | Activity Stats | Member does not exist |
@@ -3303,6 +3308,7 @@ The following table consolidates all error tags across all API groups.
 | `EventCancelled` | 400 | Event | Attempted to update an already-cancelled event |
 | `EventSeriesCancelled` | 400 | Event Series | Attempted to update an already-cancelled series |
 | `RsvpDeadlinePassed` | 400 | Event RSVP | RSVP deadline has passed for this event |
+| `AgeThresholdSelfRequired` | 400 | Age Threshold | `requiredGroupId` equals the rule's target `groupId` |
 | `RoleNameAlreadyTaken` | 409 | Role | A role with this name already exists |
 | `GroupNameAlreadyTaken` | 409 | Group | A group with this name already exists |
 | `TrainingTypeNameAlreadyTaken` | 409 | Training Type | A training type with this name exists |

@@ -66,6 +66,9 @@ const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
 const OTHER_TEAM_ID = '00000000-0000-0000-0000-000000000011' as Team.TeamId;
 const TEST_MEMBER_ID = '00000000-0000-0000-0000-000000000020' as TeamMember.TeamMemberId;
 const TEST_GROUP_ID = '00000000-0000-0000-0000-000000000030' as GroupModel.GroupId;
+const TEST_REQUIRED_GROUP_ID = '00000000-0000-0000-0000-000000000031' as GroupModel.GroupId;
+const FOREIGN_TEAM_GROUP_ID = '00000000-0000-0000-0000-000000000032' as GroupModel.GroupId;
+const NONEXISTENT_GROUP_ID = '00000000-0000-0000-0000-000000000099' as GroupModel.GroupId;
 const TEST_PLAYER_ROLE_ID = '00000000-0000-0000-0000-000000000041' as Role.RoleId;
 
 const CAPTAIN_PERMISSIONS: readonly Role.Permission[] = [
@@ -95,6 +98,7 @@ type RuleRecord = {
   min_age: Option.Option<number>;
   max_age: Option.Option<number>;
   gender: Option.Option<'male' | 'female' | 'other'>;
+  required_group_id: Option.Option<GroupModel.GroupId>;
 };
 
 let rulesStore: Map<string, RuleRecord>;
@@ -244,19 +248,45 @@ const MockTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository, {
 
 const MockGroupsRepositoryLayer = Layer.succeed(GroupsRepository, {
   findGroupsByTeamId: () => Effect.succeed([]),
-  findGroupById: (id: GroupModel.GroupId) =>
-    id === TEST_GROUP_ID
-      ? Effect.succeed(
-          Option.some({
-            id: TEST_GROUP_ID,
-            team_id: TEST_TEAM_ID,
-            name: 'U12',
-            parent_id: Option.none(),
-            sort_order: 0,
-            archived: false,
-          }),
-        )
-      : Effect.succeed(Option.none()),
+  findGroupById: (id: GroupModel.GroupId) => {
+    if (id === TEST_GROUP_ID) {
+      return Effect.succeed(
+        Option.some({
+          id: TEST_GROUP_ID,
+          team_id: TEST_TEAM_ID,
+          name: 'U12',
+          parent_id: Option.none(),
+          sort_order: 0,
+          archived: false,
+        }),
+      );
+    }
+    if (id === TEST_REQUIRED_GROUP_ID) {
+      return Effect.succeed(
+        Option.some({
+          id: TEST_REQUIRED_GROUP_ID,
+          team_id: TEST_TEAM_ID,
+          name: 'U12 Required',
+          parent_id: Option.none(),
+          sort_order: 1,
+          archived: false,
+        }),
+      );
+    }
+    if (id === FOREIGN_TEAM_GROUP_ID) {
+      return Effect.succeed(
+        Option.some({
+          id: FOREIGN_TEAM_GROUP_ID,
+          team_id: OTHER_TEAM_ID,
+          name: 'Foreign Group',
+          parent_id: Option.none(),
+          sort_order: 0,
+          archived: false,
+        }),
+      );
+    }
+    return Effect.succeed(Option.none());
+  },
   insertGroup: () => Effect.die(new Error('Not implemented')),
   updateGroupById: () => Effect.die(new Error('Not implemented')),
   archiveGroupById: () => Effect.void,
@@ -284,10 +314,11 @@ const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
     gender: Option.Option<'male' | 'female' | 'other'>,
+    requiredGroupId: Option.Option<GroupModel.GroupId>,
   ) => {
     const id = crypto.randomUUID() as AgeThresholdRule.AgeThresholdRuleId;
-    // No fallback coercion: if gender is undefined here it is a type bug in
-    // the calling code and we want it to surface, not be silently coerced.
+    // No fallback coercion: if gender/requiredGroupId is undefined here it is
+    // a type bug in the calling code and we want it to surface, not be silently coerced.
     const rule: RuleRecord = {
       id,
       team_id: teamId,
@@ -296,6 +327,7 @@ const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
       min_age: minAge,
       max_age: maxAge,
       gender,
+      required_group_id: requiredGroupId,
     };
     rulesStore.set(id, rule);
     return Effect.succeed(rule);
@@ -305,10 +337,11 @@ const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
     gender: Option.Option<'male' | 'female' | 'other'>,
+    requiredGroupId: Option.Option<GroupModel.GroupId>,
   ) => {
     const existing = rulesStore.get(ruleId);
     if (!existing) return Effect.fail(new Error('Rule not found') as any);
-    // Detect unique-constraint collision: same (team_id, group_id, min_age, max_age, gender)
+    // Detect unique-constraint collision: same (team_id, group_id, min_age, max_age, gender, required_group_id)
     const collision = Array.from(rulesStore.values()).find(
       (r) =>
         r.id !== ruleId &&
@@ -316,16 +349,18 @@ const MockAgeThresholdRepositoryLayer = Layer.succeed(AgeThresholdRepository, {
         r.group_id === existing.group_id &&
         Option.getOrNull(r.min_age) === Option.getOrNull(minAge) &&
         Option.getOrNull(r.max_age) === Option.getOrNull(maxAge) &&
-        Option.getOrNull(r.gender) === Option.getOrNull(gender),
+        Option.getOrNull(r.gender) === Option.getOrNull(gender) &&
+        Option.getOrNull(r.required_group_id) === Option.getOrNull(requiredGroupId),
     );
     if (collision) return Effect.fail(new AgeThresholdAlreadyExistsError());
-    // No fallback coercion: if gender is undefined here it is a type bug in
-    // the calling code and we want it to surface, not be silently coerced.
+    // No fallback coercion: if gender/requiredGroupId is undefined here it is
+    // a type bug in the calling code and we want it to surface, not be silently coerced.
     const updated: RuleRecord = {
       ...existing,
       min_age: minAge,
       max_age: maxAge,
       gender,
+      required_group_id: requiredGroupId,
     };
     rulesStore.set(ruleId, updated);
     return Effect.succeed(updated);
@@ -693,9 +728,7 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         },
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
-          minAge: null,
-          maxAge: null,
-          // gender omitted
+          // minAge, maxAge, gender all omitted
         }),
       }),
     );
@@ -715,8 +748,6 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         },
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
-          minAge: null,
-          maxAge: null,
           gender: 'male',
         }),
       }),
@@ -741,7 +772,6 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
         }),
       }),
     );
@@ -763,7 +793,6 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
           gender: 'female',
         }),
       }),
@@ -788,7 +817,6 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
           // gender key is entirely omitted
         }),
       }),
@@ -813,12 +841,158 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
           gender: null, // explicitly null — schema decode error
         }),
       }),
     );
     expect(response.status).toBe(400);
+  });
+
+  // New Test RG-1: All four criteria absent (no gender, no requiredGroupId, no ages) → 400 AgeThresholdEmptyCriteria
+  it('returns 400 AgeThresholdEmptyCriteria when all criteria including requiredGroupId omitted', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          // minAge, maxAge, gender, requiredGroupId all omitted
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdEmptyCriteria');
+  });
+
+  // New Test RG-2: POST with only requiredGroupId → 201, body.requiredGroupId === TEST_REQUIRED_GROUP_ID
+  it('returns 201 with requiredGroupId-only rule', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          requiredGroupId: TEST_REQUIRED_GROUP_ID,
+        }),
+      }),
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.requiredGroupId).toBe(TEST_REQUIRED_GROUP_ID);
+    expect(body.minAge).toBeNull();
+    expect(body.maxAge).toBeNull();
+    expect(body.gender).toBeNull();
+  });
+
+  // New Test RG-3: POST with requiredGroupId === groupId (self-reference) → 400 AgeThresholdSelfRequired
+  it('returns 400 AgeThresholdSelfRequired when requiredGroupId equals groupId', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          requiredGroupId: TEST_GROUP_ID, // self-reference
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdSelfRequired');
+  });
+
+  // New Test RG-4: POST with requiredGroupId key absent (legacy bundle parity) → 201, body.requiredGroupId === null
+  it('returns 201 and requiredGroupId is null when key is completely absent (legacy bundle compatibility)', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          minAge: 10,
+          // requiredGroupId key is entirely omitted
+        }),
+      }),
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    // Absent key → Option.none → serialises as null in JSON
+    expect(body.requiredGroupId).toBeNull();
+  });
+
+  // New Test RG-5: POST with requiredGroupId: null explicitly → 400 decode error
+  // OptionFromOptionalKey is strict: explicit null is not the same as absent key.
+  it('returns 400 when requiredGroupId is explicitly null (not the same as absent)', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          minAge: 10,
+          requiredGroupId: null, // explicitly null — schema decode error
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  // RG-Validation A: POST with requiredGroupId pointing at a non-existent group → 404 GroupNotFound
+  it('returns 404 GroupNotFound when requiredGroupId points at non-existent group', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          minAge: 10,
+          requiredGroupId: NONEXISTENT_GROUP_ID,
+        }),
+      }),
+    );
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdGroupNotFound');
+  });
+
+  // RG-Validation B: POST with requiredGroupId pointing at another team's group → 404 GroupNotFound
+  it('returns 404 GroupNotFound when requiredGroupId points at another team’s group', async () => {
+    const response = await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          minAge: 10,
+          requiredGroupId: FOREIGN_TEAM_GROUP_ID,
+        }),
+      }),
+    );
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdGroupNotFound');
   });
 
   // Test 11 (permission): non-captain (missing group:manage) → 403 Forbidden
@@ -834,7 +1008,6 @@ describe('POST /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
         }),
       }),
     );
@@ -846,7 +1019,7 @@ describe('POST /teams/:teamId/age-thresholds', () => {
       new Request(BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groupId: TEST_GROUP_ID, minAge: 10, maxAge: null }),
+        body: JSON.stringify({ groupId: TEST_GROUP_ID, minAge: 10 }),
       }),
     );
     expect(response.status).toBe(401);
@@ -855,16 +1028,16 @@ describe('POST /teams/:teamId/age-thresholds', () => {
 
 describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
   const createRule = async (overrides: {
-    minAge?: number | null;
-    maxAge?: number | null;
-    gender?: string | null;
+    minAge?: number;
+    maxAge?: number;
+    gender?: string;
+    requiredGroupId?: string;
   }) => {
-    const body: Record<string, unknown> = {
-      groupId: TEST_GROUP_ID,
-      minAge: overrides.minAge ?? null,
-      maxAge: overrides.maxAge ?? null,
-    };
+    const body: Record<string, unknown> = { groupId: TEST_GROUP_ID };
+    if (overrides.minAge !== undefined) body.minAge = overrides.minAge;
+    if (overrides.maxAge !== undefined) body.maxAge = overrides.maxAge;
     if ('gender' in overrides) body.gender = overrides.gender;
+    if ('requiredGroupId' in overrides) body.requiredGroupId = overrides.requiredGroupId;
     const response = await handler(
       new Request(BASE, {
         method: 'POST',
@@ -881,7 +1054,7 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
 
   // Test 6: PATCH clearing all three fields → 400 AgeThresholdEmptyCriteria
   it('returns 400 AgeThresholdEmptyCriteria when PATCH clears all criteria', async () => {
-    const ruleId = await createRule({ minAge: 10, maxAge: null });
+    const ruleId = await createRule({ minAge: 10 });
 
     const response = await handler(
       new Request(`${BASE}/${ruleId}`, {
@@ -891,9 +1064,7 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          minAge: null,
-          maxAge: null,
-          // gender omitted (= Option.none)
+          // minAge, maxAge, gender all omitted (= Option.none each)
         }),
       }),
     );
@@ -904,7 +1075,7 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
 
   // Test 7: PATCH setting gender from None to 'male' on an age-only rule → 200
   it('returns 200 when PATCH adds gender to age-only rule', async () => {
-    const ruleId = await createRule({ minAge: 10, maxAge: null });
+    const ruleId = await createRule({ minAge: 10 });
 
     const response = await handler(
       new Request(`${BASE}/${ruleId}`, {
@@ -915,7 +1086,6 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
         },
         body: JSON.stringify({
           minAge: 10,
-          maxAge: null,
           gender: 'male',
         }),
       }),
@@ -929,7 +1099,7 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
 
   // Test 8: PATCH on a rule that belongs to a different team → 404 RuleNotFound
   it('returns 404 when rule belongs to a different team', async () => {
-    const ruleId = await createRule({ minAge: 10, maxAge: null });
+    const ruleId = await createRule({ minAge: 10 });
     const otherTeamBase = `http://localhost/teams/${OTHER_TEAM_ID}/age-thresholds`;
 
     const response = await handler(
@@ -941,7 +1111,6 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
         },
         body: JSON.stringify({
           minAge: 12,
-          maxAge: null,
         }),
       }),
     );
@@ -975,9 +1144,126 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
     expect(body._tag).toBe('AgeThresholdAlreadyExists');
   });
 
+  // New Test RG-6: PATCH adding requiredGroupId to an existing age-only rule → 200, body shows updated value
+  it('returns 200 when PATCH adds requiredGroupId to an existing age-only rule', async () => {
+    const ruleId = await createRule({ minAge: 10 });
+
+    const response = await handler(
+      new Request(`${BASE}/${ruleId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          minAge: 10,
+          requiredGroupId: TEST_REQUIRED_GROUP_ID,
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.requiredGroupId).toBe(TEST_REQUIRED_GROUP_ID);
+    expect(body.minAge).toBe(10);
+  });
+
+  // RG-Validation C: PATCH adding requiredGroupId for a non-existent group → 404 GroupNotFound
+  it('returns 404 GroupNotFound when PATCH sets requiredGroupId to a non-existent group', async () => {
+    const ruleId = await createRule({ minAge: 10 });
+
+    const response = await handler(
+      new Request(`${BASE}/${ruleId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          minAge: 10,
+          requiredGroupId: NONEXISTENT_GROUP_ID,
+        }),
+      }),
+    );
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdGroupNotFound');
+  });
+
+  // New Test RG-7: PATCH clearing all four criteria (omitting requiredGroupId from PATCH body) → 400 AgeThresholdEmptyCriteria
+  it('returns 400 AgeThresholdEmptyCriteria when PATCH clears all criteria including requiredGroupId', async () => {
+    const ruleId = await createRule({ requiredGroupId: TEST_REQUIRED_GROUP_ID });
+
+    const response = await handler(
+      new Request(`${BASE}/${ruleId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // minAge, maxAge, gender, requiredGroupId all omitted (= Option.none each)
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdEmptyCriteria');
+  });
+
+  // New Test RG-8: PATCH setting requiredGroupId === existing.group_id → 400 AgeThresholdSelfRequired
+  it('returns 400 AgeThresholdSelfRequired when PATCH sets requiredGroupId to same as groupId', async () => {
+    const ruleId = await createRule({ minAge: 10 });
+
+    const response = await handler(
+      new Request(`${BASE}/${ruleId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          minAge: 10,
+          requiredGroupId: TEST_GROUP_ID, // same as rule's group_id — self-reference
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdSelfRequired');
+  });
+
+  // New Test RG-10: Unique constraint includes required_group_id
+  // Seed rule A with requiredGroupId, rule B without (same other criteria) — both succeed;
+  // PATCH B adding the same requiredGroupId → 409 AgeThresholdAlreadyExists
+  it('returns 409 AgeThresholdAlreadyExists when PATCH adds requiredGroupId that creates unique collision', async () => {
+    // Rule A: minAge=10, maxAge=14, gender absent, requiredGroupId=TEST_REQUIRED_GROUP_ID
+    await createRule({ minAge: 10, maxAge: 14, requiredGroupId: TEST_REQUIRED_GROUP_ID });
+    // Rule B: same ages, no requiredGroupId
+    const ruleBId = await createRule({ minAge: 10, maxAge: 14 });
+
+    // PATCH rule B to add the same requiredGroupId — collides with rule A
+    const response = await handler(
+      new Request(`${BASE}/${ruleBId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          minAge: 10,
+          maxAge: 14,
+          requiredGroupId: TEST_REQUIRED_GROUP_ID,
+        }),
+      }),
+    );
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body._tag).toBe('AgeThresholdAlreadyExists');
+  });
+
   // Permission check for PATCH
   it('returns 403 for PATCH without group:manage permission', async () => {
-    const ruleId = await createRule({ minAge: 10, maxAge: null });
+    const ruleId = await createRule({ minAge: 10 });
     currentMembership = playerMembership;
 
     const response = await handler(
@@ -987,7 +1273,7 @@ describe('PATCH /teams/:teamId/age-thresholds/:ruleId', () => {
           Authorization: 'Bearer captain-token',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ minAge: 12, maxAge: null }),
+        body: JSON.stringify({ minAge: 12 }),
       }),
     );
     expect(response.status).toBe(403);
@@ -1006,7 +1292,6 @@ describe('DELETE /teams/:teamId/age-thresholds/:ruleId', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
         }),
       }),
     );
@@ -1066,7 +1351,6 @@ describe('GET /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 12,
-          maxAge: null,
           gender: 'female',
         }),
       }),
@@ -1098,7 +1382,6 @@ describe('GET /teams/:teamId/age-thresholds', () => {
         body: JSON.stringify({
           groupId: TEST_GROUP_ID,
           minAge: 10,
-          maxAge: null,
           // gender omitted
         }),
       }),
@@ -1115,6 +1398,59 @@ describe('GET /teams/:teamId/age-thresholds', () => {
     // The second rule (no gender) should have gender: null
     const noGenderRule = body2.find((r: any) => r.minAge === 10);
     expect(noGenderRule?.gender).toBeNull();
+  });
+
+  // New Test RG-9: GET list returns requiredGroupId field — non-null for one rule, null for another
+  it('returns requiredGroupId field in list response (non-null and null)', async () => {
+    // Rule with requiredGroupId set
+    await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          minAge: 12,
+          requiredGroupId: TEST_REQUIRED_GROUP_ID,
+        }),
+      }),
+    );
+
+    // Rule without requiredGroupId
+    await handler(
+      new Request(BASE, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId: TEST_GROUP_ID,
+          minAge: 10,
+          // requiredGroupId omitted
+        }),
+      }),
+    );
+
+    const response = await handler(
+      new Request(BASE, {
+        headers: { Authorization: 'Bearer captain-token' },
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body).toHaveLength(2);
+
+    const ruleWithRequired = body.find((r: any) => r.minAge === 12);
+    expect(ruleWithRequired).toBeDefined();
+    expect(ruleWithRequired.requiredGroupId).toBe(TEST_REQUIRED_GROUP_ID);
+
+    const ruleWithoutRequired = body.find((r: any) => r.minAge === 10);
+    expect(ruleWithoutRequired).toBeDefined();
+    expect(ruleWithoutRequired.requiredGroupId).toBeNull();
   });
 
   it('returns 401 without auth token', async () => {

@@ -1,6 +1,6 @@
-import { AgeThresholdApi, Auth, type User } from '@sideline/domain';
+import { AgeThresholdApi, Auth, type GroupModel, type Team, type User } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
-import { Array, Effect, Option } from 'effect';
+import { Array, Effect, Option, type ServiceMap } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
@@ -15,10 +15,43 @@ const requireNonEmptyCriteria = (
   minAge: Option.Option<number>,
   maxAge: Option.Option<number>,
   gender: Option.Option<User.Gender>,
+  requiredGroupId: Option.Option<GroupModel.GroupId>,
 ) =>
-  Option.isNone(minAge) && Option.isNone(maxAge) && Option.isNone(gender)
+  Option.isNone(minAge) &&
+  Option.isNone(maxAge) &&
+  Option.isNone(gender) &&
+  Option.isNone(requiredGroupId)
     ? Effect.fail(new AgeThresholdApi.AgeThresholdEmptyCriteria())
     : Effect.void;
+
+const requireDistinctRequiredGroup = (
+  targetGroupId: GroupModel.GroupId,
+  requiredGroupId: Option.Option<GroupModel.GroupId>,
+) =>
+  Option.exists(requiredGroupId, (g) => g === targetGroupId)
+    ? Effect.fail(new AgeThresholdApi.AgeThresholdSelfRequired())
+    : Effect.void;
+
+const validateRequiredGroup = (
+  teamId: Team.TeamId,
+  requiredGroupId: Option.Option<GroupModel.GroupId>,
+  groups: ServiceMap.Service.Shape<typeof GroupsRepository>,
+) =>
+  Option.match(requiredGroupId, {
+    onNone: () => Effect.void,
+    onSome: (gid) =>
+      groups.findGroupById(gid).pipe(
+        Effect.flatMap(
+          Option.match({
+            onNone: () => Effect.fail(new AgeThresholdApi.GroupNotFound()),
+            onSome: (group) =>
+              group.team_id !== teamId
+                ? Effect.fail(new AgeThresholdApi.GroupNotFound())
+                : Effect.void,
+          }),
+        ),
+      ),
+  });
 
 export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (handlers) =>
   Effect.Do.pipe(
@@ -50,6 +83,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                     minAge: r.min_age,
                     maxAge: r.max_age,
                     gender: r.gender,
+                    requiredGroupId: r.required_group_id,
                   }),
               ),
             ),
@@ -65,8 +99,17 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
               requirePermission(membership, 'group:manage', forbidden),
             ),
             Effect.tap(() =>
-              requireNonEmptyCriteria(payload.minAge, payload.maxAge, payload.gender),
+              requireNonEmptyCriteria(
+                payload.minAge,
+                payload.maxAge,
+                payload.gender,
+                payload.requiredGroupId,
+              ),
             ),
+            Effect.tap(() =>
+              requireDistinctRequiredGroup(payload.groupId, payload.requiredGroupId),
+            ),
+            Effect.tap(() => validateRequiredGroup(teamId, payload.requiredGroupId, groups)),
             Effect.bind('group', () =>
               groups.findGroupById(payload.groupId).pipe(
                 Effect.flatMap(
@@ -89,6 +132,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 payload.minAge,
                 payload.maxAge,
                 payload.gender,
+                payload.requiredGroupId,
               ),
             ),
             Effect.map(
@@ -101,6 +145,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   minAge: rule.min_age,
                   maxAge: rule.max_age,
                   gender: rule.gender,
+                  requiredGroupId: rule.required_group_id,
                 }),
             ),
             Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
@@ -122,7 +167,12 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
               requirePermission(membership, 'group:manage', forbidden),
             ),
             Effect.tap(() =>
-              requireNonEmptyCriteria(payload.minAge, payload.maxAge, payload.gender),
+              requireNonEmptyCriteria(
+                payload.minAge,
+                payload.maxAge,
+                payload.gender,
+                payload.requiredGroupId,
+              ),
             ),
             Effect.bind('existing', () =>
               thresholds.findRuleById(ruleId).pipe(
@@ -139,8 +189,18 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 ? Effect.fail(new AgeThresholdApi.RuleNotFound())
                 : Effect.void,
             ),
+            Effect.tap(({ existing }) =>
+              requireDistinctRequiredGroup(existing.group_id, payload.requiredGroupId),
+            ),
+            Effect.tap(() => validateRequiredGroup(teamId, payload.requiredGroupId, groups)),
             Effect.bind('updated', () =>
-              thresholds.updateRuleById(ruleId, payload.minAge, payload.maxAge, payload.gender),
+              thresholds.updateRuleById(
+                ruleId,
+                payload.minAge,
+                payload.maxAge,
+                payload.gender,
+                payload.requiredGroupId,
+              ),
             ),
             Effect.map(
               ({ updated }) =>
@@ -152,6 +212,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   minAge: updated.min_age,
                   maxAge: updated.max_age,
                   gender: updated.gender,
+                  requiredGroupId: updated.required_group_id,
                 }),
             ),
             Effect.catchTag('AgeThresholdAlreadyExistsError', () =>

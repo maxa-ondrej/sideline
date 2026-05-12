@@ -26,6 +26,7 @@ export class AgeThresholdWithGroupName extends Schema.Class<AgeThresholdWithGrou
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
   gender: Schema.OptionFromNullOr(User.Gender),
+  required_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
 export class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThresholdRow')({
@@ -35,6 +36,7 @@ export class AgeThresholdRow extends Schema.Class<AgeThresholdRow>('AgeThreshold
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
   gender: Schema.OptionFromNullOr(User.Gender),
+  required_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 }) {}
 
 const InsertInput = Schema.Struct({
@@ -43,6 +45,7 @@ const InsertInput = Schema.Struct({
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
   gender: Schema.OptionFromNullOr(User.Gender),
+  required_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 });
 
 const UpdateInput = Schema.Struct({
@@ -50,6 +53,7 @@ const UpdateInput = Schema.Struct({
   min_age: Schema.OptionFromNullOr(Schema.Number),
   max_age: Schema.OptionFromNullOr(Schema.Number),
   gender: Schema.OptionFromNullOr(User.Gender),
+  required_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
 });
 
 class TeamIdResult extends Schema.Class<TeamIdResult>('TeamIdResult')({
@@ -78,7 +82,7 @@ const make = Effect.gen(function* () {
     Result: AgeThresholdWithGroupName,
     execute: (teamId) => sql`
       SELECT atr.id, atr.team_id, atr.group_id, g.name AS group_name,
-             atr.min_age, atr.max_age, atr.gender
+             atr.min_age, atr.max_age, atr.gender, atr.required_group_id
       FROM age_threshold_rules atr
       JOIN groups g ON g.id = atr.group_id
       WHERE atr.team_id = ${teamId}
@@ -90,7 +94,7 @@ const make = Effect.gen(function* () {
     Request: AgeThreshold.AgeThresholdRuleId,
     Result: AgeThresholdRow,
     execute: (id) => sql`
-      SELECT id, team_id, group_id, min_age, max_age, gender
+      SELECT id, team_id, group_id, min_age, max_age, gender, required_group_id
       FROM age_threshold_rules WHERE id = ${id}
     `,
   });
@@ -100,11 +104,11 @@ const make = Effect.gen(function* () {
     Result: AgeThresholdWithGroupName,
     execute: (input) => sql`
       WITH inserted AS (
-        INSERT INTO age_threshold_rules (team_id, group_id, min_age, max_age, gender)
-        VALUES (${input.team_id}, ${input.group_id}, ${input.min_age}, ${input.max_age}, ${input.gender})
+        INSERT INTO age_threshold_rules (team_id, group_id, min_age, max_age, gender, required_group_id)
+        VALUES (${input.team_id}, ${input.group_id}, ${input.min_age}, ${input.max_age}, ${input.gender}, ${input.required_group_id})
         RETURNING *
       )
-      SELECT i.id, i.team_id, i.group_id, g.name AS group_name, i.min_age, i.max_age, i.gender
+      SELECT i.id, i.team_id, i.group_id, g.name AS group_name, i.min_age, i.max_age, i.gender, i.required_group_id
       FROM inserted i
       JOIN groups g ON g.id = i.group_id
     `,
@@ -116,11 +120,11 @@ const make = Effect.gen(function* () {
     execute: (input) => sql`
       WITH updated AS (
         UPDATE age_threshold_rules
-        SET min_age = ${input.min_age}, max_age = ${input.max_age}, gender = ${input.gender}
+        SET min_age = ${input.min_age}, max_age = ${input.max_age}, gender = ${input.gender}, required_group_id = ${input.required_group_id}
         WHERE id = ${input.id}
         RETURNING *
       )
-      SELECT u.id, u.team_id, u.group_id, g.name AS group_name, u.min_age, u.max_age, u.gender
+      SELECT u.id, u.team_id, u.group_id, g.name AS group_name, u.min_age, u.max_age, u.gender, u.required_group_id
       FROM updated u
       JOIN groups g ON g.id = u.group_id
     `,
@@ -171,6 +175,7 @@ const make = Effect.gen(function* () {
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
     gender: Option.Option<User.Gender>,
+    requiredGroupId: Option.Option<GroupModel.GroupId>,
   ) =>
     insertQuery({
       team_id: teamId,
@@ -178,6 +183,7 @@ const make = Effect.gen(function* () {
       min_age: minAge,
       max_age: maxAge,
       gender,
+      required_group_id: requiredGroupId,
     }).pipe(
       SqlErrors.catchUniqueViolation(() => new AgeThresholdAlreadyExistsError()),
       catchSqlErrors,
@@ -188,8 +194,15 @@ const make = Effect.gen(function* () {
     minAge: Option.Option<number>,
     maxAge: Option.Option<number>,
     gender: Option.Option<User.Gender>,
+    requiredGroupId: Option.Option<GroupModel.GroupId>,
   ) =>
-    updateQuery({ id: ruleId, min_age: minAge, max_age: maxAge, gender }).pipe(
+    updateQuery({
+      id: ruleId,
+      min_age: minAge,
+      max_age: maxAge,
+      gender,
+      required_group_id: requiredGroupId,
+    }).pipe(
       SqlErrors.catchUniqueViolation(() => new AgeThresholdAlreadyExistsError()),
       catchSqlErrors,
     );

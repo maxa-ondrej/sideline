@@ -11,6 +11,9 @@ This page lists user-visible changes to Sideline. For developer-level release no
 - A rule must now have at least one criterion set — rules with no age bounds and no gender are rejected.
 - The same group can have multiple rules with different criteria (e.g. a "Under-18 Male" rule and an "Under-18 Female" rule for the same group).
 - The **Automatic Groups** settings page now has a Gender column and a gender selector in the create-rule form.
+- Rules can now include a **Required group** condition: only members who are already in the specified group will be auto-assigned. This lets you combine group eligibility with age or gender criteria.
+- A rule cannot require its own target group — the form and the API both reject this configuration.
+- The settings page label has been renamed from "Age Thresholds" to "Automatic groups" (route URL and i18n key names are unchanged).
 
 ## 2026-05-11 — Personalised Discord invites per acceptance
 
