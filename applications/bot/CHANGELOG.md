@@ -1,5 +1,11 @@
 # @sideline/bot
 
+## 0.12.1
+
+### Patch Changes
+
+- [`ea68112`](https://github.com/maxa-ondrej/sideline/commit/ea68112e859e3f25407c8f0403e575d0be4f6144) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Trigger bot and server deploys to pick up `@sideline/domain@0.17.2`, which makes `is_community_enabled` optional in the `Guild/RegisterGuild` RPC payload (defaults to `false` when absent). Resolves the production `Missing key at ["is_community_enabled"]` decode errors caused by deploy-window skew between bot and server replicas.
+
 ## 0.12.0
 
 ### Minor Changes
