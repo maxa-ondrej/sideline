@@ -2328,7 +2328,7 @@ Deletes a training type.
 
 **Source:** `packages/domain/src/api/AgeThresholdApi.ts`
 
-Age threshold rules define which group a member should belong to based on their age. The `AgeCheckCron` runs daily and automatically moves members between groups based on these rules.
+Automatic group rules define which group a member should belong to based on automatic group criteria (age range, gender, or a combination). All criteria on a rule must match simultaneously (AND semantics). The `AgeCheckCron` runs daily and automatically adds or removes members from groups based on these rules.
 
 ---
 
@@ -2355,6 +2355,7 @@ Lists all age threshold rules for a team.
 | `groupName` | `string` | No | Target group name |
 | `minAge` | `number \| null` | Yes | Minimum age (inclusive); null for no lower bound |
 | `maxAge` | `number \| null` | Yes | Maximum age (inclusive); null for no upper bound |
+| `gender` | `'male' \| 'female' \| 'other' \| null` | Yes | Gender filter; null means any gender matches |
 
 **Errors:**
 
@@ -2366,7 +2367,7 @@ Lists all age threshold rules for a team.
 
 #### `POST /teams/:teamId/age-thresholds`
 
-Creates a new age threshold rule.
+Creates a new automatic group rule.
 
 **Auth:** Bearer token (AuthMiddleware)
 **Required Permission:** `team:manage`
@@ -2384,6 +2385,9 @@ Creates a new age threshold rule.
 | `groupId` | `GroupId` | Yes | Target group ID |
 | `minAge` | `number \| null` | Yes | Minimum age; null for no lower bound |
 | `maxAge` | `number \| null` | Yes | Maximum age; null for no upper bound |
+| `gender` | `'male' \| 'female' \| 'other'` | No | Gender filter; omit (or send `undefined`) for any gender |
+
+At least one of `minAge`, `maxAge`, or `gender` must be provided (non-null / present).
 
 **Response:** `201 Created` — `AgeThresholdInfo`
 
@@ -2391,15 +2395,16 @@ Creates a new age threshold rule.
 
 | Tag | Status | When |
 |---|---|---|
+| `AgeThresholdEmptyCriteria` | 400 | All criteria are absent (minAge, maxAge, and gender all null/omitted) |
 | `AgeThresholdForbidden` | 403 | Missing `team:manage` permission |
 | `AgeThresholdGroupNotFound` | 404 | Group does not exist |
-| `AgeThresholdAlreadyExists` | 409 | A rule already exists for this group |
+| `AgeThresholdAlreadyExists` | 409 | A rule with the same group and criteria tuple already exists |
 
 ---
 
 #### `PATCH /teams/:teamId/age-thresholds/:ruleId`
 
-Updates an age threshold rule's age bounds.
+Updates an automatic group rule's criteria.
 
 **Auth:** Bearer token (AuthMiddleware)
 **Required Permission:** `team:manage`
@@ -2417,6 +2422,9 @@ Updates an age threshold rule's age bounds.
 |---|---|---|---|
 | `minAge` | `number \| null` | Yes | New minimum age; null for no lower bound |
 | `maxAge` | `number \| null` | Yes | New maximum age; null for no upper bound |
+| `gender` | `'male' \| 'female' \| 'other'` | No | New gender filter; omit (or send `undefined`) for any gender |
+
+At least one of `minAge`, `maxAge`, or `gender` must be provided (non-null / present).
 
 **Response:** `200 OK` — `AgeThresholdInfo`
 
@@ -2424,8 +2432,10 @@ Updates an age threshold rule's age bounds.
 
 | Tag | Status | When |
 |---|---|---|
+| `AgeThresholdEmptyCriteria` | 400 | All criteria are absent (minAge, maxAge, and gender all null/omitted) |
 | `AgeThresholdForbidden` | 403 | Missing `team:manage` permission |
 | `AgeThresholdRuleNotFound` | 404 | Rule does not exist |
+| `AgeThresholdAlreadyExists` | 409 | A rule with the same group and criteria tuple already exists |
 
 ---
 

@@ -1,6 +1,6 @@
 import { standardSchemaResolver } from '@hookform/resolvers/standard-schema';
 import type { AgeThresholdApi, GroupApi } from '@sideline/domain';
-import { AgeThresholdRule, GroupModel, Team } from '@sideline/domain';
+import { AgeThresholdRule, GroupModel, Team, User } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema, SchemaGetter } from 'effect';
@@ -18,6 +18,14 @@ import {
   FormMessage,
 } from '~/components/ui/form';
 import { Input } from '~/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '~/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 
 const OptionalNumber = Schema.String.pipe(
@@ -31,8 +39,25 @@ const OptionalNumber = Schema.String.pipe(
   }),
 );
 
+type GenderFormValue = 'any' | User.Gender;
+
+const OptionalGender = Schema.Literals(['any', 'male', 'female', 'other']).pipe(
+  Schema.decodeTo(Schema.Option(User.Gender), {
+    decode: SchemaGetter.transform((s: GenderFormValue) =>
+      s === 'any' ? Option.none<User.Gender>() : Option.some(s),
+    ),
+    encode: SchemaGetter.transform(
+      Option.match<GenderFormValue, User.Gender>({
+        onNone: () => 'any' as const,
+        onSome: (g) => g,
+      }),
+    ),
+  }),
+);
+
 const CreateThresholdSchema = Schema.Struct({
   groupId: GroupModel.GroupId,
+  gender: OptionalGender,
   minAge: OptionalNumber,
   maxAge: OptionalNumber,
 });
@@ -54,14 +79,16 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
   >([]);
   const [evaluating, setEvaluating] = React.useState(false);
 
-  const usedGroupIds = new Set(rules.map((r) => r.groupId));
-  const availableGroups = groups.filter((g) => !usedGroupIds.has(g.groupId));
-
   const form = useForm({
     resolver: standardSchemaResolver(Schema.toStandardSchemaV1(CreateThresholdSchema)),
     mode: 'onChange',
-    defaultValues: { groupId: '', minAge: '', maxAge: '' },
+    defaultValues: { groupId: '', gender: 'any' as GenderFormValue, minAge: '', maxAge: '' },
   });
+
+  const watchedGender = form.watch('gender');
+  const watchedMinAge = form.watch('minAge');
+  const watchedMaxAge = form.watch('maxAge');
+  const isAllBlank = watchedGender === 'any' && watchedMinAge === '' && watchedMaxAge === '';
 
   const onSubmit = async (values: CreateThresholdValues) => {
     const result = await ApiClient.asEffect().pipe(
@@ -71,6 +98,12 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
           payload: values,
         }),
       ),
+      Effect.catchTags({
+        AgeThresholdEmptyCriteria: () =>
+          Effect.fail(ClientError.make(m.ageThreshold_emptyCriteria())),
+        AgeThresholdAlreadyExists: () =>
+          Effect.fail(ClientError.make(m.ageThreshold_alreadyExists())),
+      }),
       Effect.mapError(() => ClientError.make(m.ageThreshold_createFailed())),
       run({ success: m.ageThreshold_created() }),
     );
@@ -131,6 +164,16 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
     return m.ageThreshold_anyAge();
   };
 
+  const formatGender = (gender: Option.Option<User.Gender>) =>
+    Option.match(gender, {
+      onNone: () => '—',
+      onSome: (g) => {
+        if (g === 'male') return m.ageThreshold_genderMale();
+        if (g === 'female') return m.ageThreshold_genderFemale();
+        return m.ageThreshold_genderOther();
+      },
+    });
+
   return (
     <div>
       <header className='mb-8'>
@@ -140,12 +183,13 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
           </Link>
         </Button>
         <h1 className='text-2xl font-bold'>{m.ageThreshold_title()}</h1>
+        <p className='text-muted-foreground mt-1'>{m.ageThreshold_subtitle()}</p>
       </header>
 
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:max-w-lg'
+          className='flex flex-col gap-4 mb-6 sm:flex-row sm:items-end sm:max-w-2xl'
         >
           <FormField
             {...form.register('groupId')}
@@ -157,11 +201,33 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
                     value={field.value}
                     onValueChange={field.onChange}
                     placeholder={m.ageThreshold_selectGroup()}
-                    options={availableGroups.map((group) => ({
+                    options={groups.map((group) => ({
                       value: group.groupId,
                       label: group.name,
                     }))}
                   />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            {...form.register('gender')}
+            render={({ field }) => (
+              <FormItem className='w-32'>
+                <FormLabel>{m.ageThreshold_gender()}</FormLabel>
+                <FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className='w-32'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='any'>{m.ageThreshold_genderAny()}</SelectItem>
+                      <SelectItem value='male'>{m.ageThreshold_genderMale()}</SelectItem>
+                      <SelectItem value='female'>{m.ageThreshold_genderFemale()}</SelectItem>
+                      <SelectItem value='other'>{m.ageThreshold_genderOther()}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -201,37 +267,59 @@ export function AgeThresholdsPage({ teamId, rules, groups }: AgeThresholdsPagePr
               )}
             />
           </div>
-          <Button type='submit' disabled={form.formState.isSubmitting}>
+          <Button type='submit' disabled={form.formState.isSubmitting || isAllBlank}>
             {m.ageThreshold_create()}
           </Button>
         </form>
+        <p className='text-sm text-muted-foreground'>{m.ageThreshold_andSemantics()}</p>
       </Form>
 
       {rules.length === 0 ? (
         <p className='text-muted-foreground'>{m.ageThreshold_noRules()}</p>
       ) : (
-        <table className='w-full mb-6'>
-          <thead>
-            <tr className='border-b'>
-              <th className='py-2 px-4 text-left'>{m.group_groupName()}</th>
-              <th className='py-2 px-4 text-left'>{m.ageThreshold_ageRange()}</th>
-              <th className='py-2 px-4' />
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map((rule) => (
-              <tr key={rule.ruleId} className='border-b'>
-                <td className='py-2 px-4 font-medium'>{rule.groupName}</td>
-                <td className='py-2 px-4'>{formatAgeRange(rule.minAge, rule.maxAge)}</td>
-                <td className='py-2 px-4'>
-                  <Button variant='outline' size='sm' onClick={() => handleDelete(rule.ruleId)}>
-                    {m.ageThreshold_delete()}
-                  </Button>
-                </td>
+        <div className='overflow-x-auto'>
+          <table className='w-full mb-6'>
+            <thead>
+              <tr className='border-b'>
+                <th className='py-2 px-4 text-left'>{m.group_groupName()}</th>
+                <th className='py-2 px-4 text-left'>{m.ageThreshold_gender()}</th>
+                <th className='py-2 px-4 text-left'>{m.ageThreshold_ageRange()}</th>
+                <th className='py-2 px-4' />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rules.map((rule) => (
+                <tr key={rule.ruleId} className='border-b'>
+                  <td className='py-2 px-4 font-medium'>{rule.groupName}</td>
+                  <td className='py-2 px-4'>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button type='button' className='cursor-default'>
+                            {formatGender(rule.gender)}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {Option.isSome(rule.gender)
+                            ? m.ageThreshold_genderTooltipSpecific({
+                                gender: formatGender(rule.gender),
+                              })
+                            : m.ageThreshold_genderTooltipAny()}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </td>
+                  <td className='py-2 px-4'>{formatAgeRange(rule.minAge, rule.maxAge)}</td>
+                  <td className='py-2 px-4'>
+                    <Button variant='outline' size='sm' onClick={() => handleDelete(rule.ruleId)}>
+                      {m.ageThreshold_delete()}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <div className='flex flex-col gap-4'>

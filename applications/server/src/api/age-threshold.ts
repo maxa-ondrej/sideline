@@ -1,4 +1,4 @@
-import { AgeThresholdApi, Auth } from '@sideline/domain';
+import { AgeThresholdApi, Auth, type User } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
@@ -10,6 +10,15 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 
 const forbidden = new AgeThresholdApi.Forbidden();
+
+const requireNonEmptyCriteria = (
+  minAge: Option.Option<number>,
+  maxAge: Option.Option<number>,
+  gender: Option.Option<User.Gender>,
+) =>
+  Option.isNone(minAge) && Option.isNone(maxAge) && Option.isNone(gender)
+    ? Effect.fail(new AgeThresholdApi.AgeThresholdEmptyCriteria())
+    : Effect.void;
 
 export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (handlers) =>
   Effect.Do.pipe(
@@ -40,6 +49,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                     groupName: r.group_name,
                     minAge: r.min_age,
                     maxAge: r.max_age,
+                    gender: r.gender,
                   }),
               ),
             ),
@@ -53,6 +63,9 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             ),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'group:manage', forbidden),
+            ),
+            Effect.tap(() =>
+              requireNonEmptyCriteria(payload.minAge, payload.maxAge, payload.gender),
             ),
             Effect.bind('group', () =>
               groups.findGroupById(payload.groupId).pipe(
@@ -70,7 +83,13 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 : Effect.void,
             ),
             Effect.bind('rule', () =>
-              thresholds.insertRule(teamId, payload.groupId, payload.minAge, payload.maxAge),
+              thresholds.insertRule(
+                teamId,
+                payload.groupId,
+                payload.minAge,
+                payload.maxAge,
+                payload.gender,
+              ),
             ),
             Effect.map(
               ({ rule }) =>
@@ -81,6 +100,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   groupName: rule.group_name,
                   minAge: rule.min_age,
                   maxAge: rule.max_age,
+                  gender: rule.gender,
                 }),
             ),
             Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
@@ -101,6 +121,9 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'group:manage', forbidden),
             ),
+            Effect.tap(() =>
+              requireNonEmptyCriteria(payload.minAge, payload.maxAge, payload.gender),
+            ),
             Effect.bind('existing', () =>
               thresholds.findRuleById(ruleId).pipe(
                 Effect.flatMap(
@@ -117,7 +140,7 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                 : Effect.void,
             ),
             Effect.bind('updated', () =>
-              thresholds.updateRuleById(ruleId, payload.minAge, payload.maxAge),
+              thresholds.updateRuleById(ruleId, payload.minAge, payload.maxAge, payload.gender),
             ),
             Effect.map(
               ({ updated }) =>
@@ -128,7 +151,11 @@ export const AgeThresholdApiLive = HttpApiBuilder.group(Api, 'ageThreshold', (ha
                   groupName: updated.group_name,
                   minAge: updated.min_age,
                   maxAge: updated.max_age,
+                  gender: updated.gender,
                 }),
+            ),
+            Effect.catchTag('AgeThresholdAlreadyExistsError', () =>
+              Effect.fail(new AgeThresholdApi.AgeThresholdAlreadyExists()),
             ),
             Effect.catchTag(
               'NoSuchElementError',
