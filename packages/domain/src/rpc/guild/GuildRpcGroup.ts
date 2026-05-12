@@ -9,7 +9,8 @@ export const GuildRpcGroup = RpcGroup.make(
     payload: {
       guild_id: Discord.Snowflake,
       guild_name: Schema.String,
-      is_community_enabled: Schema.Boolean,
+      // Tolerate missing key from pre-0.12.0 bot replicas during deploy windows.
+      is_community_enabled: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(() => false)),
     },
   }),
   Rpc.make('UnregisterGuild', {
