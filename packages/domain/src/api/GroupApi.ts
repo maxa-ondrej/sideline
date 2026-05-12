@@ -74,7 +74,7 @@ export const MoveGroupRequest = Schema.Struct({
 export type MoveGroupRequest = Schema.Schema.Type<typeof MoveGroupRequest>;
 
 export class ChannelMappingInfo extends Schema.Class<ChannelMappingInfo>('ChannelMappingInfo')({
-  discordChannelId: Snowflake,
+  discordChannelId: Schema.OptionFromNullOr(Snowflake),
   discordChannelName: Schema.OptionFromNullOr(Schema.String),
   discordRoleId: Schema.OptionFromNullOr(Snowflake),
 }) {}

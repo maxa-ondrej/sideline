@@ -118,47 +118,33 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   group.emoji,
                 );
                 const discordRoleColor = Option.map(group.color, hexColorToDiscordInt);
-                return Option.match(settings, {
-                  onNone: () =>
-                    channelSync.emitChannelCreated(
-                      teamId,
-                      group.id,
-                      group.name,
-                      Option.none(),
-                      channelName,
-                      roleName,
-                      discordRoleColor,
-                    ),
-                  onSome: (s) =>
-                    s.create_discord_channel_on_group
-                      ? channelSync.emitChannelCreated(
-                          teamId,
-                          group.id,
-                          group.name,
-                          Option.none(),
-                          channelName,
-                          roleName,
-                          discordRoleColor,
-                        )
-                      : Effect.void,
-                });
-              }),
-              Effect.map(({ group, settings }) => {
-                const autoCreate = Option.match(settings, {
+                const createChannel = Option.match(settings, {
                   onNone: () => true,
                   onSome: (s) => s.create_discord_channel_on_group,
                 });
-                return new GroupApi.GroupInfo({
-                  groupId: group.id,
-                  teamId: group.team_id,
-                  parentId: group.parent_id,
-                  name: group.name,
-                  emoji: group.emoji,
-                  color: group.color,
-                  memberCount: 0,
-                  discordChannelProvisioning: autoCreate,
-                });
+                return channelSync.emitChannelCreated(
+                  teamId,
+                  group.id,
+                  group.name,
+                  Option.none(),
+                  createChannel ? channelName : undefined,
+                  roleName,
+                  discordRoleColor,
+                );
               }),
+              Effect.map(
+                ({ group }) =>
+                  new GroupApi.GroupInfo({
+                    groupId: group.id,
+                    teamId: group.team_id,
+                    parentId: group.parent_id,
+                    name: group.name,
+                    emoji: group.emoji,
+                    color: group.color,
+                    memberCount: 0,
+                    discordChannelProvisioning: true,
+                  }),
+              ),
               Effect.catchTag('GroupNameAlreadyTakenError', () =>
                 Effect.fail(new GroupApi.GroupNameAlreadyTaken()),
               ),
@@ -260,40 +246,32 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   ? Option.match(mapping, {
                       onNone: () => Effect.void,
                       onSome: (m) => {
-                        return Option.match(m.discord_role_id, {
-                          onNone: () => Effect.void,
-                          onSome: (discordRoleId) => {
-                            const channelName = applyDiscordFormat(
-                              Option.match(settings, {
-                                onNone: () => DEFAULT_CHANNEL_FORMAT,
-                                onSome: (s) => s.discord_channel_format,
-                              }),
-                              updated.name,
-                              updated.emoji,
-                            );
-                            const roleName = applyDiscordFormat(
-                              Option.match(settings, {
-                                onNone: () => DEFAULT_ROLE_FORMAT,
-                                onSome: (s) => s.discord_role_format,
-                              }),
-                              updated.name,
-                              updated.emoji,
-                            );
-                            const discordRoleColor = Option.map(
-                              updated.color,
-                              hexColorToDiscordInt,
-                            );
-                            return channelSync.emitGroupChannelUpdated(
-                              teamId,
-                              groupId,
-                              m.discord_channel_id,
-                              discordRoleId,
-                              channelName,
-                              roleName,
-                              discordRoleColor,
-                            );
-                          },
-                        });
+                        const channelName = applyDiscordFormat(
+                          Option.match(settings, {
+                            onNone: () => DEFAULT_CHANNEL_FORMAT,
+                            onSome: (s) => s.discord_channel_format,
+                          }),
+                          updated.name,
+                          updated.emoji,
+                        );
+                        const roleName = applyDiscordFormat(
+                          Option.match(settings, {
+                            onNone: () => DEFAULT_ROLE_FORMAT,
+                            onSome: (s) => s.discord_role_format,
+                          }),
+                          updated.name,
+                          updated.emoji,
+                        );
+                        const discordRoleColor = Option.map(updated.color, hexColorToDiscordInt);
+                        return channelSync.emitGroupChannelUpdated(
+                          teamId,
+                          groupId,
+                          m.discord_channel_id,
+                          m.discord_role_id,
+                          channelName,
+                          roleName,
+                          discordRoleColor,
+                        );
                       },
                     })
                   : Effect.void;
@@ -361,13 +339,19 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       }),
                     ).pipe(
                       Match.when('nothing', () =>
-                        channelSync.emitChannelDetached(
-                          teamId,
-                          groupId,
-                          existing.name,
-                          mapping.discord_channel_id,
-                          mapping.discord_role_id,
-                        ),
+                        channelMappings
+                          .clearGroupChannel(teamId, groupId)
+                          .pipe(
+                            Effect.tap(() =>
+                              channelSync.emitChannelDetached(
+                                teamId,
+                                groupId,
+                                existing.name,
+                                mapping.discord_channel_id,
+                                mapping.discord_role_id,
+                              ),
+                            ),
+                          ),
                       ),
                       Match.when('delete', () =>
                         channelSync.emitChannelDeleted(
@@ -382,20 +366,25 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                         Option.flatMap(settings, (s) => s.discord_archive_category_id).pipe(
                           Option.match({
                             onSome: (category) =>
-                              channelSync.emitChannelArchived(
-                                teamId,
-                                groupId,
-                                existing.name,
-                                mapping.discord_channel_id,
-                                mapping.discord_role_id,
-                                category,
-                              ),
+                              channelMappings
+                                .clearGroupChannel(teamId, groupId)
+                                .pipe(
+                                  Effect.tap(() =>
+                                    channelSync.emitChannelArchived(
+                                      teamId,
+                                      groupId,
+                                      existing.name,
+                                      mapping.discord_channel_id,
+                                      mapping.discord_role_id,
+                                      category,
+                                    ),
+                                  ),
+                                ),
                             onNone: () => Effect.void,
                           }),
                         ),
                       ),
                       Match.exhaustive,
-                      Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
                     ),
                 }),
               ),
@@ -676,9 +665,10 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     Option.some(
                       new GroupApi.ChannelMappingInfo({
                         discordChannelId: row.discord_channel_id,
-                        discordChannelName: Option.fromNullishOr(
-                          allChannels.find((ch) => ch.channel_id === row.discord_channel_id)
-                            ?.name ?? null,
+                        discordChannelName: Option.flatMap(row.discord_channel_id, (channelId) =>
+                          Option.fromNullishOr(
+                            allChannels.find((ch) => ch.channel_id === channelId)?.name ?? null,
+                          ),
                         ),
                         discordRoleId: row.discord_role_id,
                       }),
@@ -714,14 +704,18 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   .findAllByTeam(teamId)
                   .pipe(
                     Effect.flatMap((mappings) =>
-                      mappings.some((m) => m.discord_channel_id === payload.discordChannelId)
+                      mappings.some(
+                        (m) =>
+                          Option.isSome(m.discord_channel_id) &&
+                          m.discord_channel_id.value === payload.discordChannelId,
+                      )
                         ? Effect.fail(forbidden)
                         : Effect.void,
                     ),
                   ),
               ),
               Effect.tap(() =>
-                channelMappings.insertWithoutRole(teamId, groupId, payload.discordChannelId),
+                channelMappings.upsertGroupChannel(teamId, groupId, payload.discordChannelId),
               ),
               Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
               Effect.tap(({ _group, settings }) => {
@@ -761,7 +755,7 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.map(
                 ({ allChannels }) =>
                   new GroupApi.ChannelMappingInfo({
-                    discordChannelId: payload.discordChannelId,
+                    discordChannelId: Option.some(payload.discordChannelId),
                     discordChannelName: Option.fromNullishOr(
                       allChannels.find((ch) => ch.channel_id === payload.discordChannelId)?.name ??
                         null,
@@ -812,13 +806,19 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                   }),
                 ).pipe(
                   Match.when('nothing', () =>
-                    channelSync.emitChannelDetached(
-                      teamId,
-                      groupId,
-                      _group.name,
-                      mapping.discord_channel_id,
-                      mapping.discord_role_id,
-                    ),
+                    channelMappings
+                      .clearGroupChannel(teamId, groupId)
+                      .pipe(
+                        Effect.tap(() =>
+                          channelSync.emitChannelDetached(
+                            teamId,
+                            groupId,
+                            _group.name,
+                            mapping.discord_channel_id,
+                            mapping.discord_role_id,
+                          ),
+                        ),
+                      ),
                   ),
                   Match.when('delete', () =>
                     channelSync.emitChannelDeleted(
@@ -833,20 +833,25 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                     Option.flatMap(settings, (s) => s.discord_archive_category_id).pipe(
                       Option.match({
                         onSome: (category) =>
-                          channelSync.emitChannelArchived(
-                            teamId,
-                            groupId,
-                            _group.name,
-                            mapping.discord_channel_id,
-                            mapping.discord_role_id,
-                            category,
-                          ),
+                          channelMappings
+                            .clearGroupChannel(teamId, groupId)
+                            .pipe(
+                              Effect.tap(() =>
+                                channelSync.emitChannelArchived(
+                                  teamId,
+                                  groupId,
+                                  _group.name,
+                                  mapping.discord_channel_id,
+                                  mapping.discord_role_id,
+                                  category,
+                                ),
+                              ),
+                            ),
                         onNone: () => Effect.void,
                       }),
                     ),
                   ),
                   Match.exhaustive,
-                  Effect.tap(() => channelMappings.deleteByGroupId(teamId, groupId)),
                 ),
               ),
               Effect.asVoid,
@@ -921,7 +926,11 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
               Effect.bind('channels', ({ team }) => discordChannels.findByGuildId(team.guild_id)),
               Effect.bind('mappings', () => channelMappings.findAllByTeam(teamId)),
               Effect.map(({ channels, mappings }) => {
-                const mappedChannelIds = new Set(mappings.map((m) => m.discord_channel_id));
+                const mappedChannelIds = new Set(
+                  mappings.flatMap((m) =>
+                    Option.isSome(m.discord_channel_id) ? [m.discord_channel_id.value] : [],
+                  ),
+                );
                 return Array.filterMap(channels, (ch) =>
                   mappedChannelIds.has(ch.channel_id)
                     ? Result.failVoid

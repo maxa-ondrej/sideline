@@ -285,6 +285,7 @@
   "group_selectChannel": "Vyberte kanál",
   "group_linkChannel": "Propojit kanál",
   "group_unlinkChannel": "Odpojit",
+  "group_unlinkChannelHelp": "Discord role pro tuto skupinu zůstane zachována; odstraní se pouze kanál.",
   "group_channelLinked": "Discord kanál propojen.",
   "group_channelUnlinked": "Discord kanál odpojen.",
   "group_channelLinkFailed": "Propojení Discord kanálu selhalo.",
