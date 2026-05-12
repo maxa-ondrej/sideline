@@ -238,6 +238,48 @@ const make = Effect.gen(function* () {
       discordUserId: Option.some(discordUserId),
     });
 
+  type GroupMemberBatchEntry = {
+    groupId: GroupModel.GroupId;
+    groupName: string;
+    teamMemberId: TeamMember.TeamMemberId;
+    discordUserId: Discord.Snowflake;
+  };
+
+  const _emitGroupMembersBatch = (
+    eventType: 'member_added' | 'member_removed',
+    input: { teamId: Team.TeamId; entries: ReadonlyArray<GroupMemberBatchEntry> },
+  ) => {
+    if (input.entries.length === 0) return Effect.void;
+    return lookupGuildId(input.teamId).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            sql`
+              INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color)
+              VALUES ${sql.join(',')(
+                input.entries.map(
+                  (e) =>
+                    sql`(${input.teamId}, ${guild_id}, ${eventType}, ${'group'}, ${e.groupId}, ${e.groupName}, ${e.teamMemberId}, ${e.discordUserId}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null})`,
+                ),
+              )}
+            `.pipe(Effect.asVoid),
+        }),
+      ),
+      catchSqlErrors,
+    );
+  };
+
+  const emitMembersAddedBatch = (input: {
+    teamId: Team.TeamId;
+    entries: ReadonlyArray<GroupMemberBatchEntry>;
+  }) => _emitGroupMembersBatch('member_added', input);
+
+  const emitMembersRemovedBatch = (input: {
+    teamId: Team.TeamId;
+    entries: ReadonlyArray<GroupMemberBatchEntry>;
+  }) => _emitGroupMembersBatch('member_removed', input);
+
   const emitRosterMemberAdded = (
     teamId: Team.TeamId,
     rosterId: RosterModel.RosterId,
@@ -440,6 +482,8 @@ const make = Effect.gen(function* () {
     emitChannelCreated,
     emitChannelDeleted,
     emitMemberAdded,
+    emitMembersAddedBatch,
+    emitMembersRemovedBatch,
     emitRosterMemberAdded,
     emitMemberRemoved,
     emitRosterMemberRemoved,

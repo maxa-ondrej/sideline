@@ -2,9 +2,11 @@ import { Auth, GroupApi } from '@sideline/domain';
 import { LogicError, Options } from '@sideline/effect-lib';
 import { Array, Effect, Match, Option, pipe, Result } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
+import { SqlClient } from 'effect/unstable/sql';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRolesRepository } from '~/repositories/DiscordRolesRepository.js';
@@ -909,6 +911,91 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                 );
               }),
               Effect.asVoid,
+            ),
+          )
+          .handle('syncRoleMembers', ({ params: { teamId, groupId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, forbidden),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'group:manage', forbidden),
+              ),
+              Effect.bind('group', () =>
+                groups.findGroupById(groupId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new GroupApi.GroupNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(({ group }) =>
+                group.team_id !== teamId ? Effect.fail(new GroupApi.GroupNotFound()) : Effect.void,
+              ),
+              Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
+              Effect.flatMap(({ group, sql }) =>
+                sql
+                  .withTransaction(
+                    Effect.Do.pipe(
+                      Effect.bind('ancestors', () => groups.getAncestors(groupId)),
+                      Effect.bind('groupMembers', () =>
+                        groups.findMembersWithDiscordIdByGroupId(groupId),
+                      ),
+                      Effect.bind('roster', () => members.findRosterByTeam(teamId)),
+                      Effect.let('linked', ({ groupMembers }) =>
+                        Array.filterMap(groupMembers, (m) =>
+                          m.discordUserId !== null
+                            ? Result.succeed({
+                                teamMemberId: m.teamMemberId,
+                                discordUserId: m.discordUserId,
+                              })
+                            : Result.failVoid,
+                        ),
+                      ),
+                      Effect.let('extras', ({ groupMembers, roster }) => {
+                        const groupMemberIdSet = new Set(groupMembers.map((m) => m.teamMemberId));
+                        return roster.filter((r) => !groupMemberIdSet.has(r.member_id));
+                      }),
+                      Effect.let('addEntries', ({ ancestors, linked }) => {
+                        const allGroups = [group, ...ancestors];
+                        return linked.flatMap((m) =>
+                          allGroups.map((g) => ({
+                            groupId: g.id,
+                            groupName: g.name,
+                            teamMemberId: m.teamMemberId,
+                            discordUserId: m.discordUserId,
+                          })),
+                        );
+                      }),
+                      Effect.let('removeEntries', ({ extras }) =>
+                        extras.map((r) => ({
+                          groupId,
+                          groupName: group.name,
+                          teamMemberId: r.member_id,
+                          discordUserId: r.discord_id,
+                        })),
+                      ),
+                      Effect.tap(({ addEntries }) =>
+                        channelSync.emitMembersAddedBatch({ teamId, entries: addEntries }),
+                      ),
+                      Effect.tap(({ removeEntries }) =>
+                        channelSync.emitMembersRemovedBatch({ teamId, entries: removeEntries }),
+                      ),
+                      Effect.map(
+                        ({ groupMembers, linked, extras }) =>
+                          new GroupApi.SyncRoleMembersResult({
+                            addedCount: linked.length,
+                            removedCount: extras.length,
+                            skippedCount: groupMembers.length - linked.length,
+                          }),
+                      ),
+                    ),
+                  )
+                  .pipe(catchSqlErrors),
+              ),
             ),
           )
           .handle('listDiscordChannels', ({ params: { teamId } }) =>

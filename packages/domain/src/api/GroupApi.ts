@@ -99,6 +99,14 @@ export class DiscordRoleInfo extends Schema.Class<DiscordRoleInfo>('DiscordRoleI
   managed: Schema.Boolean,
 }) {}
 
+export class SyncRoleMembersResult extends Schema.Class<SyncRoleMembersResult>(
+  'SyncRoleMembersResult',
+)({
+  addedCount: Schema.Number,
+  removedCount: Schema.Number,
+  skippedCount: Schema.Number,
+}) {}
+
 export class GroupNotFound extends Schema.TaggedErrorClass<GroupNotFound>()('GroupNotFound', {}) {}
 
 export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('GroupForbidden', {}) {}
@@ -261,6 +269,16 @@ export class GroupApiGroup extends HttpApiGroup.make('group')
   .add(
     HttpApiEndpoint.post('createChannel', '/teams/:teamId/groups/:groupId/create-channel', {
       success: Schema.Void.pipe(HttpApiSchema.status(201)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        GroupNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, groupId: GroupId },
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('syncRoleMembers', '/teams/:teamId/groups/:groupId/sync-role-members', {
+      success: SyncRoleMembersResult,
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         GroupNotFound.pipe(HttpApiSchema.status(404)),
