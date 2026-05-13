@@ -357,7 +357,7 @@ describe('ActivityTypesRepository', () => {
               // Should fail with ActivityTypeNameAlreadyTaken error
               expect(result._tag).toBe('Failure');
               if (Result.isFailure(result)) {
-                expect((result.failure as any)._tag).toBe('ActivityTypeNameAlreadyTaken');
+                expect((result.failure as any)._tag).toBe('ActivityTypeNameAlreadyTakenError');
               }
             }),
           ),
