@@ -5,6 +5,12 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05-15 — Captains can now manage activity types
+
+- **Captains** can now create, update, and delete team-specific activity types, in addition to admins. No configuration required — the `activity-type:create` and `activity-type:delete` permissions are granted to all Captain roles automatically via a backfill migration.
+- The **Team → Activity types** page in the web app is now accessible to captains.
+- Custom types created or deleted by a captain follow the same rules as admin-managed ones: built-in global types cannot be modified, and types with existing log entries cannot be deleted.
+
 ## 2026-05-14 — Fee Management & Payment Tracking (MVP)
 
 - Admins and captains can now create **fees** (e.g. membership dues, kit fees, tournament entry) and assign them to individual members via the API. Full web UI is coming in a follow-up release.
@@ -24,9 +30,9 @@ This page lists user-visible changes to Sideline. For developer-level release no
 - Unknown keys are rejected with a clear error listing the bad keys so you can fix the file and retry.
 - Keys whose names start with `bot_` are used by the Discord bot. Override values are stored immediately, but the bot only picks them up after it is redeployed. These keys are marked with a warning badge in the CMS table.
 
-## 2026-05-13 — Custom activity types for admins
+## 2026-05-13 — Custom activity types
 
-- Team admins can now define **custom activity types** from the **Team → Activity types** page in the web app.
+- Team admins can now define **custom activity types** from the **Team → Activity types** page in the web app. (Captains gained the same access in the 2026-05-15 release.)
 - Each type has a name (unique within the team, max 50 characters), an optional emoji, and an optional short description.
 - Custom types appear alongside the four global built-ins (Gym, Running, Stretching, Training) in the activity log form and as autocomplete choices in the `/makanicko log` Discord command.
 - Built-in types now have their own emoji (🏋️ Gym, 🏃 Running, 🧘 Stretching, ⚽ Training).

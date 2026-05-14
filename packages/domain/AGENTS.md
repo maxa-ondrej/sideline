@@ -131,10 +131,29 @@ Rules:
 Rules when adding, renaming, or splitting permissions:
 
 1. **Append the new literal to `Permission.literals`** AND add it to the relevant entry of `defaultPermissions` (`Admin`, `Captain`, `Player`). `allPermissions` is derived from the literal union and updates automatically.
-2. **Splitting one permission into multiple (e.g. `finance:manage` → `finance:manage_fees` + `finance:record_payments`) is a breaking migration.** Existing `role_permissions` rows store the old string and will fail `Permission` decoding after the split. Ship a migration that rewrites stored rows to the new vocabulary in the same PR — never let a deploy land where the production DB carries a permission string that no longer parses.
-3. **Use `<domain>:<verb>` or `<domain>:<verb>_<noun>` snake_case after the colon.** Examples: `finance:manage_fees`, `member:remove`. Do not mix dialects (no `finance.manageFees`, no `manage-fees`).
-4. **Captain ≠ Admin by default.** When introducing a permission, decide explicitly whether each built-in role gets it. The "treasurer" pattern (Admin gets all three finance permissions; Captain gets `finance:view` + `finance:manage_fees` but NOT `finance:record_payments`) is intentional — it lets teams give a non-captain member the record-payments permission via a custom role without elevating them to Captain.
-5. **Server handlers gate every protected endpoint with `requirePermission(membership, '<perm>', forbidden)`** — the domain catalog is the only source of truth for permission strings; do not hard-code literal strings in server handlers, always reference `Permission.literals` or pass the literal through a typed parameter.
+2. **`defaultPermissions` only seeds permissions for newly-created teams.** Built-in roles (`Admin`, `Captain`, `Player`) on teams that already exist in production keep whatever `role_permissions` rows they were originally seeded with. When the goal is to grant an existing built-in role a brand-new permission (i.e. adding to `defaultPermissions[<role>]`, not splitting an existing one), ship a backfill migration in the same PR that inserts the new permission into the matching `is_built_in = true` rows. Reference template — copy the structure exactly, only changing the role name and the `VALUES` list:
+   ```typescript
+   // packages/migrations/src/before/<timestamp>_grant_<role>_<perms>.ts
+   import { Effect } from 'effect';
+   import { SqlClient } from 'effect/unstable/sql';
+
+   export default Effect.flatMap(
+     Effect.service(SqlClient.SqlClient),
+     (sql) => sql`
+       INSERT INTO role_permissions (role_id, permission)
+       SELECT r.id, perm
+       FROM roles r
+       CROSS JOIN (VALUES ('<perm-a>'), ('<perm-b>')) AS p(perm)
+       WHERE r.name = 'Captain' AND r.is_built_in = true
+       ON CONFLICT DO NOTHING
+     `,
+   );
+   ```
+   Reference migrations: `1746600000_grant_captain_team_invite.ts` (single permission), `1783100000_grant_captain_activity_type_perms.ts` (multiple permissions via `VALUES` list). `ON CONFLICT DO NOTHING` is required — re-running the migration on a DB that already has the row must be a no-op.
+3. **Splitting one permission into multiple (e.g. `finance:manage` → `finance:manage_fees` + `finance:record_payments`) is a breaking migration.** Existing `role_permissions` rows store the old string and will fail `Permission` decoding after the split. Ship a migration that rewrites stored rows to the new vocabulary in the same PR — never let a deploy land where the production DB carries a permission string that no longer parses.
+4. **Use `<domain>:<verb>` or `<domain>:<verb>_<noun>` snake_case after the colon.** Examples: `finance:manage_fees`, `member:remove`. Do not mix dialects (no `finance.manageFees`, no `manage-fees`).
+5. **Captain ≠ Admin by default.** When introducing a permission, decide explicitly whether each built-in role gets it. The "treasurer" pattern (Admin gets all three finance permissions; Captain gets `finance:view` + `finance:manage_fees` but NOT `finance:record_payments`) is intentional — it lets teams give a non-captain member the record-payments permission via a custom role without elevating them to Captain.
+6. **Server handlers gate every protected endpoint with `requirePermission(membership, '<perm>', forbidden)`** — the domain catalog is the only source of truth for permission strings; do not hard-code literal strings in server handlers, always reference `Permission.literals` or pass the literal through a typed parameter.
 
 ## HTTP API Error Tag Conventions
 

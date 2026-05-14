@@ -61,6 +61,8 @@ export const defaultPermissions: Record<string, ReadonlyArray<Permission>> = {
     'member:view',
     'member:edit',
     'role:view',
+    'activity-type:create',
+    'activity-type:delete',
     'training-type:create',
     'event:create',
     'event:edit',
