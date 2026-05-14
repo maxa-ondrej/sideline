@@ -418,7 +418,7 @@ flowchart LR
         UC_LEADERBOARD["View Leaderboard\n(GET /teams/:teamId/leaderboard)\nfilter: timeframe · activityTypeId"]
     end
 
-    subgraph AT["Activity Types (Admin)"]
+    subgraph AT["Activity Types (Admin, Captain)"]
         UC_GET_TYPE["Get Activity Type\n(GET /teams/:teamId/activity-types/:activityTypeId)"]
         UC_CREATE_TYPE["Create Activity Type\n(POST /teams/:teamId/activity-types)\nname · emoji · description"]
         UC_UPDATE_TYPE["Update Activity Type\n(PATCH /teams/:teamId/activity-types/:activityTypeId)\nnot allowed on global built-ins"]
@@ -437,6 +437,11 @@ flowchart LR
     AD --> UC_CREATE_TYPE
     AD --> UC_UPDATE_TYPE
     AD --> UC_DELETE_TYPE
+
+    CP --> UC_GET_TYPE
+    CP --> UC_CREATE_TYPE
+    CP --> UC_UPDATE_TYPE
+    CP --> UC_DELETE_TYPE
 
     BOT --> UC_CREATE_LOG
     SYS --> UC_CREATE_LOG

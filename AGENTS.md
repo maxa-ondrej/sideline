@@ -592,4 +592,4 @@ The `docs/thesis/` directory contains Mermaid diagrams and documentation for the
 
 ---
 
-**Last Updated**: 2026-05-14 (Fee Management MVP: domain models `Fee` / `FeeAssignment` / `Payment` with branded ids, `FinanceApi` HTTP group + `FinanceRpcGroup`, three permissions `finance:view` / `finance:manage_fees` / `finance:record_payments` (treasurer pattern), trigger-maintained `fee_assignments.paid_minor` with `FOR UPDATE` lock, `fee_assignment_status_v` view deriving status, cross-tenant `findActiveByIdAndTeam` lookup pattern via JOIN-to-team-scope, `ON DELETE RESTRICT` cascade discipline on financial records)
+**Last Updated**: 2026-05-15 (Permission Catalog backfill rule in `packages/domain/AGENTS.md`: granting an existing built-in role a brand-new permission requires a backfill migration in the same PR — `defaultPermissions` only seeds permissions for newly-created teams; reference template uses `INSERT INTO role_permissions ... CROSS JOIN VALUES ... WHERE r.name = '<Role>' AND r.is_built_in = true ON CONFLICT DO NOTHING`)

@@ -1,16 +1,5 @@
-/**
- * Integration tests for the Activity Types HTTP API handler.
- *
- * NOTE (TDD): These tests are written BEFORE the server implementation exists.
- * The ActivityTypeApiLive handler and Api registration are not yet implemented.
- * Tests will fail with 404 (route not found) or import errors until Phase 5 is complete.
- *
- * Required implementation before these tests pass:
- *   - applications/server/src/api/activity-type.ts (ActivityTypeApiLive)
- *   - api.ts must add ActivityTypeApi.ActivityTypeApiGroup
- *   - api/index.ts must provide ActivityTypeApiLive
- */
 import type { ActivityType, Auth, Discord, Role, Team, TeamMember } from '@sideline/domain';
+import { ActivityTypeApi } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from 'effect/unstable/http';
@@ -73,6 +62,7 @@ const GLOBAL_GYM_ID = '00000000-0000-0000-0000-000000000060' as ActivityType.Act
 const CUSTOM_TYPE_ID = '00000000-0000-0000-0000-000000000061' as ActivityType.ActivityTypeId;
 const OTHER_TEAM_CUSTOM_ID = '00000000-0000-0000-0000-000000000062' as ActivityType.ActivityTypeId;
 const CUSTOM_WITH_LOGS_ID = '00000000-0000-0000-0000-000000000063' as ActivityType.ActivityTypeId;
+const ADMIN_DELETE_ID = '00000000-0000-0000-0000-000000000064' as ActivityType.ActivityTypeId;
 
 const ADMIN_PERMISSIONS: readonly Role.Permission[] = [
   'team:manage',
@@ -95,6 +85,8 @@ const CAPTAIN_PERMISSIONS: readonly Role.Permission[] = [
   'member:view',
   'member:edit',
   'role:view',
+  'activity-type:create',
+  'activity-type:delete',
   'training-type:create',
 ];
 const PLAYER_PERMISSIONS: readonly Role.Permission[] = ['roster:view', 'member:view'];
@@ -247,6 +239,16 @@ const resetStores = () => {
     description: Option.none(),
     usageCount: 3,
   });
+  // Custom type for TEST_TEAM_ID used for admin DELETE happy-path
+  activityTypesStore.set(ADMIN_DELETE_ID, {
+    id: ADMIN_DELETE_ID,
+    team_id: Option.some(TEST_TEAM_ID),
+    name: 'Boxing',
+    slug: Option.none(),
+    emoji: Option.none(),
+    description: Option.none(),
+    usageCount: 0,
+  });
 };
 
 const buildRosterEntry = (
@@ -324,7 +326,6 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
         (Option.isNone(t.team_id) || Option.getOrNull(t.team_id) === input.team_id),
     );
     if (conflict) {
-      const { ActivityTypeApi } = require('@sideline/domain');
       return Effect.fail(new ActivityTypeApi.ActivityTypeNameAlreadyTaken({ name: input.name }));
     }
     const id = crypto.randomUUID() as ActivityType.ActivityTypeId;
@@ -343,9 +344,9 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
   updateCustom: (input: {
     id: ActivityType.ActivityTypeId;
     team_id: Team.TeamId;
-    name: Option.Option<string>;
-    emoji: Option.Option<Option.Option<string>>;
-    description: Option.Option<Option.Option<string>>;
+    name: string;
+    emoji: Option.Option<string>;
+    description: Option.Option<string>;
   }) => {
     const existing = activityTypesStore.get(input.id);
     if (!existing || Option.isNone(existing.team_id)) {
@@ -356,17 +357,9 @@ const MockActivityTypesRepositoryLayer = Layer.succeed(ActivityTypesRepository, 
     }
     const updated = {
       ...existing,
-      name: Option.isSome(input.name) ? input.name.value : existing.name,
-      emoji: Option.isSome(input.emoji)
-        ? Option.isSome(input.emoji.value)
-          ? input.emoji.value
-          : Option.none()
-        : existing.emoji,
-      description: Option.isSome(input.description)
-        ? Option.isSome(input.description.value)
-          ? input.description.value
-          : Option.none()
-        : existing.description,
+      name: input.name,
+      emoji: input.emoji,
+      description: input.description,
     };
     activityTypesStore.set(input.id, updated);
     return Effect.succeed(Option.some(updated));
@@ -898,13 +891,13 @@ describe('Activity Types API', () => {
       expect(body.activityTypes.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('returns 200 with canAdmin:false for Captain', async () => {
+    it('returns 200 with canAdmin:true for Captain', async () => {
       const response = await handler(
         new Request(BASE, { headers: { Authorization: 'Bearer captain-token' } }),
       );
       expect(response.status).toBe(200);
       const body = await response.json();
-      expect(body.canAdmin).toBe(false);
+      expect(body.canAdmin).toBe(true);
     });
 
     it('returns 200 with canAdmin:false for regular member (Player)', async () => {
@@ -934,7 +927,7 @@ describe('Activity Types API', () => {
       expect(body.name).toBe('Yoga');
     });
 
-    it('returns 403 for Captain trying to create an activity type', async () => {
+    it('returns 201 for Captain creating an activity type', async () => {
       const response = await handler(
         new Request(BASE, {
           method: 'POST',
@@ -942,7 +935,23 @@ describe('Activity Types API', () => {
             Authorization: 'Bearer captain-token',
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name: 'ShouldFail', emoji: null, description: null }),
+          body: JSON.stringify({ name: 'CaptainSport', emoji: null, description: null }),
+        }),
+      );
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.name).toBe('CaptainSport');
+    });
+
+    it('returns 403 Forbidden for Player attempting to create an activity type', async () => {
+      const response = await handler(
+        new Request(BASE, {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: 'PlayerSport', emoji: null, description: null }),
         }),
       );
       expect(response.status).toBe(403);
@@ -1007,6 +1016,22 @@ describe('Activity Types API', () => {
       );
       expect(response.status).toBe(404);
     });
+
+    it('returns 200 for Captain updating a custom activity type', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${CUSTOM_TYPE_ID}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: 'CaptainRenamed' }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.name).toBe('CaptainRenamed');
+    });
   });
 
   describe('DELETE /teams/:teamId/activity-types/:activityTypeId (delete)', () => {
@@ -1030,24 +1055,34 @@ describe('Activity Types API', () => {
       expect(response.status).toBe(422);
     });
 
-    it('returns 403 Forbidden for Captain trying to delete', async () => {
+    it('returns 204 for admin deleting a custom type with no logs', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${ADMIN_DELETE_ID}`, {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer admin-token' },
+        }),
+      );
+      expect(response.status).toBe(204);
+    });
+
+    it('returns 204 for Captain deleting a custom type with no logs', async () => {
       const response = await handler(
         new Request(`${BASE}/${CUSTOM_TYPE_ID}`, {
           method: 'DELETE',
           headers: { Authorization: 'Bearer captain-token' },
         }),
       );
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(204);
     });
 
-    it('returns 204 for admin deleting a custom type with no logs (happy path)', async () => {
+    it('returns 409 ActivityTypeHasLogs for Captain deleting a type with logs', async () => {
       const response = await handler(
-        new Request(`${BASE}/${CUSTOM_TYPE_ID}`, {
+        new Request(`${BASE}/${CUSTOM_WITH_LOGS_ID}`, {
           method: 'DELETE',
-          headers: { Authorization: 'Bearer admin-token' },
+          headers: { Authorization: 'Bearer captain-token' },
         }),
       );
-      expect(response.status).toBe(204);
+      expect(response.status).toBe(409);
     });
   });
 });

@@ -915,6 +915,8 @@ Manages roles and their permission assignments. Roles control what members can d
 | `member:remove` | Deactivate members |
 | `role:view` | View roles and their permissions |
 | `role:manage` | Create, edit, and delete custom roles; assign/unassign roles |
+| `activity-type:create` | Create team-specific activity types |
+| `activity-type:delete` | Delete team-specific activity types |
 | `training-type:create` | Create training types |
 | `training-type:delete` | Delete training types |
 | `event:create` | Create events |
@@ -927,8 +929,8 @@ Three roles are automatically created for every new team and cannot be deleted o
 
 | Role | Default Permissions |
 |---|---|
-| **Admin** | All 14 permissions |
-| **Captain** | `roster:view`, `roster:manage`, `member:view`, `member:edit`, `role:view`, `event:create`, `event:edit`, `event:cancel` |
+| **Admin** | All permissions |
+| **Captain** | `roster:view`, `roster:manage`, `member:view`, `member:edit`, `role:view`, `activity-type:create`, `activity-type:delete`, `training-type:create`, `event:create`, `event:edit`, `event:cancel`, `group:manage`, `finance:view`, `finance:manage_fees` |
 | **Player** | `roster:view`, `member:view` |
 
 ---
@@ -2667,7 +2669,7 @@ Deletes an activity log entry. Cannot delete auto-sourced entries.
 
 **Source:** `packages/domain/src/api/ActivityTypeApi.ts`
 
-Activity types are the catalogue of activity kinds members can log. The four global built-ins (gym, running, stretching, training) are seeded on installation and cannot be deleted. Team admins can define additional team-specific types. The `canAdmin` flag in list responses tells the caller whether the authenticated user has permission to create/update/delete types in this team.
+Activity types are the catalogue of activity kinds members can log. The four global built-ins (gym, running, stretching, training) are seeded on installation and cannot be deleted. Team admins and captains can define additional team-specific types. The `canAdmin` flag in list responses tells the caller whether the authenticated user has permission to create/update/delete types in this team.
 
 #### Schemas
 
@@ -2714,7 +2716,7 @@ Lists all activity types available in a team (global built-ins plus any team-spe
 
 #### `POST /teams/:teamId/activity-types`
 
-Creates a new team-specific activity type. Requires admin permission.
+Creates a new team-specific activity type. Requires `activity-type:create` permission (granted to Admin and Captain by default).
 
 **Auth:** Bearer token (AuthMiddleware)
 
@@ -2738,7 +2740,7 @@ Creates a new team-specific activity type. Requires admin permission.
 
 | Tag | Status | When |
 |---|---|---|
-| `ActivityTypeForbidden` | 403 | Not an admin of this team |
+| `ActivityTypeForbidden` | 403 | Missing `activity-type:create` permission |
 | `ActivityTypeNameAlreadyTaken` | 409 | Name already used in this team (case-insensitive) |
 
 ---
@@ -2794,7 +2796,7 @@ Updates a team-specific activity type. Global built-ins (`team_id IS NULL`) cann
 
 | Tag | Status | When |
 |---|---|---|
-| `ActivityTypeForbidden` | 403 | Not an admin of this team |
+| `ActivityTypeForbidden` | 403 | Missing `activity-type:create` permission |
 | `ActivityTypeNotFound` | 404 | Activity type does not exist |
 | `ActivityTypeProtected` | 422 | Cannot update a global built-in type |
 | `ActivityTypeNameAlreadyTaken` | 409 | Name already used in this team (case-insensitive) |
@@ -2822,7 +2824,7 @@ Deletes a team-specific activity type. Built-in types and types with existing lo
 
 | Tag | Status | When |
 |---|---|---|
-| `ActivityTypeForbidden` | 403 | Not an admin of this team |
+| `ActivityTypeForbidden` | 403 | Missing `activity-type:delete` permission |
 | `ActivityTypeNotFound` | 404 | Activity type does not exist |
 | `ActivityTypeProtected` | 422 | Cannot delete a global built-in type |
 | `ActivityTypeHasLogs` | 409 | Type has activity log entries and cannot be deleted |
