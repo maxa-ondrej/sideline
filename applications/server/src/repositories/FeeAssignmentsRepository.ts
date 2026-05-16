@@ -143,33 +143,35 @@ const make = Effect.gen(function* () {
       return Effect.succeed([] as AssignmentViewRow[]);
     }
 
+    // amountOverride / dueAtOverride are SINGLE values applied to ALL members
+    // (the input shape carries one override per call, not one per member).
+    // Use unnest() to expand the memberIds array, and bind the overrides once.
+    const memberIdsArray = input.memberIds as ReadonlyArray<string>;
+    const amountOverrideValue = Option.isSome(input.amountMinorOverride)
+      ? (input.amountMinorOverride.value as number)
+      : null;
+    const dueAtOverrideValue = Option.isSome(input.dueAtOverride)
+      ? (input.dueAtOverride.value as Date)
+      : null;
     return sql
       .withTransaction(
         Effect.Do.pipe(
-          Effect.tap(() => {
-            const valueRows = input.memberIds.map((memberId) => {
-              const amountFragment = Option.isSome(input.amountMinorOverride)
-                ? sql`${input.amountMinorOverride.value as number}::bigint`
-                : sql`NULL::bigint`;
-              const dueAtFragment = Option.isSome(input.dueAtOverride)
-                ? sql`${input.dueAtOverride.value as Date}::timestamptz`
-                : sql`NULL::timestamptz`;
-              return sql`(${memberId}::uuid, ${amountFragment}, ${dueAtFragment})`;
-            });
-            return sql`
+          Effect.tap(
+            () =>
+              sql`
               INSERT INTO fee_assignments (fee_id, team_member_id, amount_minor, due_at)
               SELECT
                 ${input.feeId},
-                v.member_id,
-                COALESCE(v.amount, f.amount_minor),
-                v.due_at
-              FROM (VALUES ${sql.join(',')(valueRows)}) AS v(member_id, amount, due_at)
-              JOIN team_members tm ON tm.id = v.member_id
+                u.member_id::uuid,
+                COALESCE(${amountOverrideValue}::bigint, f.amount_minor),
+                ${dueAtOverrideValue}::timestamptz
+              FROM unnest(${memberIdsArray}::uuid[]) AS u(member_id)
+              JOIN team_members tm ON tm.id = u.member_id::uuid
               JOIN fees f ON f.id = ${input.feeId}
               WHERE tm.team_id = f.team_id
               ON CONFLICT (fee_id, team_member_id) DO NOTHING
-            `;
-          }),
+            `,
+          ),
           // Then fetch all assignments for these members (existing or newly inserted)
           Effect.bind('results', () => {
             const memberTuples = input.memberIds.map((id) => sql`${id}`);
