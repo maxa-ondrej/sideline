@@ -1,5 +1,5 @@
 import * as Schemas from '@sideline/effect-lib/Schemas';
-import { Schema } from 'effect';
+import { Schema, SchemaGetter } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
 import { AmountMinor, CurrencyCode, FeeId, FeeRecurrence, FeeTargetScope } from '~/models/Fee.js';
@@ -154,6 +154,17 @@ export class FinanceForbidden extends Schema.TaggedErrorClass<FinanceForbidden>(
 export class FeeArchived extends Schema.TaggedErrorClass<FeeArchived>()('FeeArchived', {}) {}
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const BooleanFromString = Schema.Literals(['true', 'false']).pipe(
+  Schema.decodeTo(Schema.Boolean, {
+    decode: SchemaGetter.transform((s: 'true' | 'false') => s === 'true'),
+    encode: SchemaGetter.transform((b: boolean) => (b ? 'true' : 'false') as 'true' | 'false'),
+  }),
+);
+
+// ---------------------------------------------------------------------------
 // API group
 // ---------------------------------------------------------------------------
 
@@ -220,6 +231,13 @@ export class FinanceApiGroup extends HttpApiGroup.make('finance')
     }).middleware(AuthMiddleware),
   )
   .add(
+    HttpApiEndpoint.get('listMemberAssignments', '/teams/:teamId/members/:memberId/assignments', {
+      success: Schema.Array(FeeAssignmentView),
+      error: FinanceForbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId, memberId: TeamMemberId },
+    }).middleware(AuthMiddleware),
+  )
+  .add(
     HttpApiEndpoint.post('assignFee', '/teams/:teamId/fees/:feeId/assignments', {
       success: Schema.Array(FeeAssignmentView).pipe(HttpApiSchema.status(201)),
       error: [
@@ -255,6 +273,13 @@ export class FinanceApiGroup extends HttpApiGroup.make('finance')
       success: Schema.Array(PaymentView),
       error: FinanceForbidden.pipe(HttpApiSchema.status(403)),
       params: { teamId: TeamId },
+      query: {
+        memberId: Schema.OptionFromOptional(TeamMemberId),
+        feeId: Schema.OptionFromOptional(FeeId),
+        from: Schema.OptionFromOptional(Schemas.DateTimeFromIsoString),
+        to: Schema.OptionFromOptional(Schemas.DateTimeFromIsoString),
+        includeVoided: Schema.OptionFromOptional(BooleanFromString),
+      },
     }).middleware(AuthMiddleware),
   )
   .add(

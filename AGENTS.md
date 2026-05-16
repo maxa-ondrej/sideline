@@ -609,4 +609,4 @@ The `docs/thesis/` directory contains Mermaid diagrams and documentation for the
 
 ---
 
-**Last Updated**: 2026-05-15 (added `App Version (APP_VERSION)` section: every long-running app exposes `export const APP_VERSION: string`; Node apps read `package.json` at runtime via parent-walking from `import.meta.url` guarded by workspace-name match (max 5 parents, fall back to `'unknown'`); Vite-bundled apps inject via `define` block mirrored in both `vite.config.ts` and `vitest.config.ts`; never hard-code, never use `process.env.npm_package_version`)
+**Last Updated**: 2026-05-16 (domain AGENTS.md: documented `Schema.OptionFromOptional` for `HttpApiEndpoint` `query:` parameters and the canonical `BooleanFromString` helper for string-encoded boolean query params, both referencing `FinanceApi.listPayments`; web AGENTS.md: added "Submitting Branded Values to API Endpoints" section forbidding `as unknown as <BrandedType>` casts and mandating `Schema.decodeSync(<BrandedSchema>)(value)` at form-submit boundaries, referencing `FeeFormDialog`/`RecordPaymentDialog`)

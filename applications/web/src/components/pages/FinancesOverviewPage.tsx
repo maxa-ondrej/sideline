@@ -1,5 +1,7 @@
+import { Link } from '@tanstack/react-router';
 import React from 'react';
 import { PaymentStatusBadge } from '~/components/molecules/PaymentStatusBadge.js';
+import { Button } from '~/components/ui/button.js';
 import { formatMoney } from '~/lib/finance/formatMoney.js';
 import { tr } from '~/lib/translations.js';
 
@@ -25,6 +27,15 @@ interface FinancesOverviewPageProps {
    * Not required in test scenarios.
    */
   teamId?: string;
+  /**
+   * When provided, renders a tab bar with "By member" and "By assignment" tabs.
+   * The provided ReactNode is rendered when the "By assignment" tab is active.
+   */
+  assignmentsTabContent?: React.ReactNode;
+  /**
+   * When provided, the empty-state "Create a fee" button links to this href.
+   */
+  createFeeHref?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,24 +114,26 @@ const FILTERS: ReadonlyArray<{ value: FilterValue; labelKey: string }> = [
 ];
 
 // ---------------------------------------------------------------------------
-// Main component
+// By-member content
 // ---------------------------------------------------------------------------
 
-export function FinancesOverviewPage({ rows }: FinancesOverviewPageProps) {
+function ByMemberContent({
+  rows,
+  createFeeHref,
+}: {
+  rows: ReadonlyArray<MemberOverviewRow>;
+  createFeeHref?: string;
+}) {
   const [search, setSearch] = React.useState('');
   const [filter, setFilter] = React.useState<FilterValue>('all');
 
   const currency = pickDominantCurrency(rows);
-
-  // Filter rows to the dominant currency for KPI calculations (v1 single-currency display)
   const currencyRows = rows.filter((r) => r.currency === currency);
-
   const totalDueMinor = currencyRows.reduce((s, r) => s + r.totalDueMinor, 0);
   const totalPaidMinor = currencyRows.reduce((s, r) => s + r.totalPaidMinor, 0);
   const totalOutstandingMinor = totalDueMinor - totalPaidMinor;
   const overdueCount = currencyRows.filter((r) => r.overdueCount > 0).length;
 
-  // Filter + search
   const filtered = rows.filter((row) => {
     const name = (row.memberName ?? '').toLowerCase();
     if (search && !name.includes(search.toLowerCase())) return false;
@@ -139,16 +152,15 @@ export function FinancesOverviewPage({ rows }: FinancesOverviewPageProps) {
       <div className='flex flex-col items-center justify-center gap-4 py-16 text-center'>
         <p className='text-xl font-semibold'>{tr('finance_overview_noFees')}</p>
         <p className='text-sm text-muted-foreground'>{tr('finance_empty_noFeesBody')}</p>
-        <p className='text-sm text-muted-foreground italic'>
-          Create fees via API in this MVP. Full UI coming soon.
-        </p>
-        <button
-          type='button'
-          className='mt-2 inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium opacity-50 cursor-not-allowed'
-          disabled
-        >
-          {tr('finance_overview_createFee')}
-        </button>
+        {createFeeHref !== undefined ? (
+          <Button asChild className='mt-2'>
+            <Link to={createFeeHref}>{tr('finance_overview_createFee')}</Link>
+          </Button>
+        ) : (
+          <Button className='mt-2' disabled>
+            {tr('finance_overview_createFee')}
+          </Button>
+        )}
       </div>
     );
   }
@@ -251,6 +263,65 @@ export function FinancesOverviewPage({ rows }: FinancesOverviewPageProps) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+export function FinancesOverviewPage({
+  rows,
+  assignmentsTabContent,
+  createFeeHref,
+}: FinancesOverviewPageProps) {
+  const [activeTab, setActiveTab] = React.useState<'by-member' | 'by-assignment'>('by-member');
+
+  // When no tabs are requested, render the by-member content directly
+  if (!assignmentsTabContent) {
+    return <ByMemberContent rows={rows} createFeeHref={createFeeHref} />;
+  }
+
+  // Tab navigation
+  return (
+    <div>
+      {/* Tab bar */}
+      <div className='flex border-b mb-4' role='tablist'>
+        <button
+          type='button'
+          role='tab'
+          aria-selected={activeTab === 'by-member'}
+          onClick={() => setActiveTab('by-member')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'by-member'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {tr('finance_tab_byMember')}
+        </button>
+        <button
+          type='button'
+          role='tab'
+          aria-selected={activeTab === 'by-assignment'}
+          onClick={() => setActiveTab('by-assignment')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            activeTab === 'by-assignment'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {tr('finance_tab_byAssignment')}
+        </button>
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'by-member' ? (
+        <ByMemberContent rows={rows} createFeeHref={createFeeHref} />
+      ) : (
+        assignmentsTabContent
+      )}
     </div>
   );
 }

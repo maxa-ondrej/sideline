@@ -64,7 +64,7 @@ const make = Effect.gen(function* () {
         fa.id, fa.fee_id, fa.team_member_id, fa.amount_minor, fa.paid_minor,
         fa.due_at, fa.stored_status, fa.waived_reason, fa.created_at, fa.updated_at,
         v.fee_name, v.currency, v.due_minor, v.effective_due_at, v.status AS computed_status,
-        u.name AS member_name
+        COALESCE(u.name, u.discord_display_name, u.discord_nickname, u.username) AS member_name
       FROM fee_assignments fa
       JOIN fee_assignment_status_v v ON v.assignment_id = fa.id
       LEFT JOIN team_members tm ON tm.id = fa.team_member_id
@@ -82,7 +82,7 @@ const make = Effect.gen(function* () {
         fa.id, fa.fee_id, fa.team_member_id, fa.amount_minor, fa.paid_minor,
         fa.due_at, fa.stored_status, fa.waived_reason, fa.created_at, fa.updated_at,
         v.fee_name, v.currency, v.due_minor, v.effective_due_at, v.status AS computed_status,
-        u.name AS member_name
+        COALESCE(u.name, u.discord_display_name, u.discord_nickname, u.username) AS member_name
       FROM fee_assignments fa
       JOIN fee_assignment_status_v v ON v.assignment_id = fa.id
       LEFT JOIN team_members tm ON tm.id = fa.team_member_id
@@ -103,7 +103,7 @@ const make = Effect.gen(function* () {
         fa.id, fa.fee_id, fa.team_member_id, fa.amount_minor, fa.paid_minor,
         fa.due_at, fa.stored_status, fa.waived_reason, fa.created_at, fa.updated_at,
         v.fee_name, v.currency, v.due_minor, v.effective_due_at, v.status AS computed_status,
-        u.name AS member_name
+        COALESCE(u.name, u.discord_display_name, u.discord_nickname, u.username) AS member_name
       FROM fee_assignments fa
       JOIN fee_assignment_status_v v ON v.assignment_id = fa.id
       LEFT JOIN team_members tm ON tm.id = fa.team_member_id
@@ -143,33 +143,37 @@ const make = Effect.gen(function* () {
       return Effect.succeed([] as AssignmentViewRow[]);
     }
 
+    // amountOverride / dueAtOverride are SINGLE values applied to ALL members
+    // (the input shape carries one override per call, not one per member).
+    // Bind each member id individually via sql.join (the codebase's existing
+    // pattern, used in the SELECT below) to sidestep Postgres array-binding
+    // quirks where pg may serialize a JS array as a record/composite.
+    const amountOverrideValue = Option.isSome(input.amountMinorOverride)
+      ? (input.amountMinorOverride.value as number)
+      : null;
+    const dueAtOverrideValue = Option.isSome(input.dueAtOverride)
+      ? (input.dueAtOverride.value as Date)
+      : null;
+    const memberIdFragments = input.memberIds.map((id) => sql`${id}`);
     return sql
       .withTransaction(
         Effect.Do.pipe(
-          Effect.tap(() => {
-            const valueRows = input.memberIds.map((memberId) => {
-              const amount = Option.isSome(input.amountMinorOverride)
-                ? (input.amountMinorOverride.value as number)
-                : null;
-              const dueAt = Option.isSome(input.dueAtOverride)
-                ? (input.dueAtOverride.value as Date)
-                : null;
-              return sql`(${memberId}::uuid, ${amount}::bigint, ${dueAt}::timestamptz)`;
-            });
-            return sql`
+          Effect.tap(
+            () =>
+              sql`
               INSERT INTO fee_assignments (fee_id, team_member_id, amount_minor, due_at)
               SELECT
                 ${input.feeId},
-                v.member_id,
-                COALESCE(v.amount, f.amount_minor),
-                v.due_at
-              FROM (VALUES ${sql.join(',')(valueRows)}) AS v(member_id, amount, due_at)
-              JOIN team_members tm ON tm.id = v.member_id
+                tm.id,
+                COALESCE(${amountOverrideValue}::bigint, f.amount_minor),
+                ${dueAtOverrideValue}::timestamptz
+              FROM team_members tm
               JOIN fees f ON f.id = ${input.feeId}
-              WHERE tm.team_id = f.team_id
+              WHERE tm.id IN (${sql.csv(memberIdFragments)})
+                AND tm.team_id = f.team_id
               ON CONFLICT (fee_id, team_member_id) DO NOTHING
-            `;
-          }),
+            `,
+          ),
           // Then fetch all assignments for these members (existing or newly inserted)
           Effect.bind('results', () => {
             const memberTuples = input.memberIds.map((id) => sql`${id}`);
@@ -181,13 +185,13 @@ const make = Effect.gen(function* () {
                   fa.id, fa.fee_id, fa.team_member_id, fa.amount_minor, fa.paid_minor,
                   fa.due_at, fa.stored_status, fa.waived_reason, fa.created_at, fa.updated_at,
                   v.fee_name, v.currency, v.due_minor, v.effective_due_at, v.status AS computed_status,
-                  u.name AS member_name
+                  COALESCE(u.name, u.discord_display_name, u.discord_nickname, u.username) AS member_name
                 FROM fee_assignments fa
                 JOIN fee_assignment_status_v v ON v.assignment_id = fa.id
                 LEFT JOIN team_members tm ON tm.id = fa.team_member_id
                 LEFT JOIN users u ON u.id = tm.user_id
                 WHERE fa.fee_id = ${input.feeId}
-                  AND fa.team_member_id IN (${sql.join(',')(memberTuples)})
+                  AND fa.team_member_id IN (${sql.csv(memberTuples)})
                 ORDER BY fa.created_at ASC
               `,
             })(undefined);

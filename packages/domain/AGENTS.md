@@ -49,9 +49,31 @@ export class User extends Model.Class<User>('User')({
 
 ## Schema Patterns
 
-- **Never use `Schema.optional`** — always use `Schema.optionalWith({ as: 'Option' })`, `Schema.OptionFromNullOr(...)`, or `Schema.OptionFromOptionalKey(...)` so optional values are `Option<T>` instead of `T | undefined`
+- **Never use `Schema.optional`** — always use `Schema.optionalWith({ as: 'Option' })`, `Schema.OptionFromNullOr(...)`, `Schema.OptionFromOptionalKey(...)`, or `Schema.OptionFromOptional(...)` so optional values are `Option<T>` instead of `T | undefined`
 - **`Schema.OptionFromNullOr`** for nullable API/DB fields — decodes `null`/`undefined` → `Option.none()`, values → `Option.some(value)`. Use this when the field is always present in the wire format and `null` is the explicit "absent" marker (e.g. nullable DB columns, JOIN results).
 - **`Schema.OptionFromOptionalKey`** for tolerant struct fields where the key may be entirely **absent** from the input but `null` is **not** accepted as a value — decodes missing key → `Option.none()`, present value → `Option.some(value)`. Use this for forwards/backwards-compatible JSON payloads where older producers omit the key (e.g. extending an embedded state object with a new flag without breaking in-flight values).
+- **`Schema.OptionFromOptional`** for HTTP query-string parameters declared on an `HttpApiEndpoint`'s `query: { ... }` block — decodes missing key → `Option.none()`, present value → `Option.some(decoded)`. Query parameters are always either omitted entirely or present as a string; `null` is not a valid wire value. Reference: `packages/domain/src/api/FinanceApi.ts` `listPayments` (`memberId`, `feeId`, `from`, `to`, `includeVoided`). The handler receives `query.<param>: Option<T>` and threads each option directly into the repository call.
+
+### Query-String Boolean Helper
+
+HTTP query strings carry every value as a string, so booleans must be defined with an explicit string-to-boolean transform — never `Schema.Boolean` alone (it accepts the literal JS boolean only). Use this exact helper, defined once per API file that needs it:
+
+```typescript
+import { Schema, SchemaGetter } from 'effect';
+
+const BooleanFromString = Schema.Literals(['true', 'false']).pipe(
+  Schema.decodeTo(Schema.Boolean, {
+    decode: SchemaGetter.transform((s: 'true' | 'false') => s === 'true'),
+    encode: SchemaGetter.transform((b: boolean) => (b ? 'true' : 'false') as 'true' | 'false'),
+  }),
+);
+```
+
+Reference: `packages/domain/src/api/FinanceApi.ts` (`BooleanFromString` used as `Schema.OptionFromOptional(BooleanFromString)` for the `listPayments` `includeVoided` query parameter). Rules:
+
+1. **Restrict the wire vocabulary to exactly `'true'` and `'false'`.** `Schema.Literals(['true', 'false'])` rejects `'1'`, `'yes'`, `''`, and `'TRUE'` — clients must send the canonical lowercase form so the server cannot accept ambiguous values.
+2. **Wrap with `Schema.OptionFromOptional(...)` when the flag is optional.** Omit the query key entirely to mean "absent"; the handler then resolves the default with `Option.getOrElse(query.flag, () => false)` so the default lives in handler code, not in the wire schema.
+3. **Do not export `BooleanFromString` from the package barrel.** Define it once at the top of the API file that uses it (alongside the `HttpApiGroup`); other API files that need it should copy the four-line helper rather than depend on cross-file imports for a trivial primitive.
 
 ### Shared Schemas Across API Contracts
 
