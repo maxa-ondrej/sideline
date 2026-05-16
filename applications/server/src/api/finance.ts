@@ -443,9 +443,32 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
           ),
         )
         // ------------------------------------------------------------------
+        // listAssignments (by member)
+        // ------------------------------------------------------------------
+        .handle('listMemberAssignments', ({ params: { teamId, memberId } }) =>
+          Effect.Do.pipe(
+            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
+            Effect.bind('membership', ({ currentUser }) =>
+              requireMembership(members, teamId, currentUser.id, forbidden),
+            ),
+            Effect.tap(({ membership }) =>
+              requirePermission(membership, 'finance:view', forbidden),
+            ),
+            // Verify the requested member belongs to this team; return empty if not
+            Effect.bind('targetMember', () => members.findById(memberId)),
+            Effect.bind('list', ({ targetMember }) => {
+              if (Option.isNone(targetMember) || targetMember.value.team_id !== teamId) {
+                return Effect.succeed([]);
+              }
+              return assignments.findByTeamMember(memberId);
+            }),
+            Effect.map(({ list }) => Array.map(list, toAssignmentView)),
+          ),
+        )
+        // ------------------------------------------------------------------
         // listPayments
         // ------------------------------------------------------------------
-        .handle('listPayments', ({ params: { teamId } }) =>
+        .handle('listPayments', ({ params: { teamId }, query }) =>
           Effect.Do.pipe(
             Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
             Effect.bind('membership', ({ currentUser }) =>
@@ -456,10 +479,11 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
             ),
             Effect.bind('list', () =>
               payments.listByTeam(teamId, {
-                memberId: Option.none(),
-                feeId: Option.none(),
-                from: Option.none(),
-                to: Option.none(),
+                memberId: query.memberId,
+                feeId: query.feeId,
+                from: query.from as Option.Option<unknown>,
+                to: query.to as Option.Option<unknown>,
+                includeVoided: Option.getOrElse(query.includeVoided, () => false),
               }),
             ),
             Effect.map(({ list }) => Array.map(list, toPaymentView)),

@@ -4057,9 +4057,9 @@ Updates an individual fee assignment (amount, due date, or waiver state).
 
 ---
 
-#### `GET /teams/:teamId/payments`
+#### `GET /teams/:teamId/members/:memberId/assignments`
 
-Lists all payments for the team (including voided).
+Returns all fee assignments for a single team member.
 
 **Auth:** Bearer token (AuthMiddleware)
 **Required Permission:** `finance:view`
@@ -4069,6 +4069,42 @@ Lists all payments for the team (including voided).
 | Name | Type | Description |
 |---|---|---|
 | `teamId` | `TeamId` (string) | Team ID |
+| `memberId` | `TeamMemberId` (string) | Member ID |
+
+**Response:** `200 OK` — `FeeAssignmentView[]`
+
+Returns an empty array if `memberId` does not belong to `teamId`.
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `FinanceForbidden` | 403 | Missing `finance:view` permission |
+
+---
+
+#### `GET /teams/:teamId/payments`
+
+Lists payments for the team. By default returns all non-voided payments; use query parameters to narrow results.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `finance:view`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Query Parameters (all optional):**
+
+| Name | Type | Description |
+|---|---|---|
+| `memberId` | `TeamMemberId` (string) | Filter to payments whose assignment belongs to this member |
+| `feeId` | `FeeId` (string) | Filter to payments whose assignment belongs to this fee |
+| `from` | `DateTime` (ISO 8601) | Include only payments with `paidAt ≥ from` |
+| `to` | `DateTime` (ISO 8601) | Include only payments with `paidAt ≤ to` |
+| `includeVoided` | `'true' \| 'false'` | When `'true'`, include voided payments (default: `'false'`) |
 
 **Response:** `200 OK` — `PaymentView[]`
 

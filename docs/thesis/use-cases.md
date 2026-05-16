@@ -678,9 +678,9 @@ The following structured descriptions cover the most significant use cases in th
 |---|---|
 | **Actor** | Treasurer; Admin |
 | **Precondition** | The actor is authenticated and holds `finance:manage_fees` permission. |
-| **Main Flow** | 1. The actor calls `POST /teams/:teamId/fees` with a name, amount, currency, optional due date, and target scope. 2. The server creates a `fees` row and returns a `FeeView`. 3. The actor calls `POST /teams/:teamId/fees/:feeId/assignments` with a list of `memberIds` (and optional per-member amount or due date overrides). 4. The server inserts one `fee_assignments` row per member and returns `FeeAssignmentView[]`. |
+| **Main Flow** | 1. The actor navigates to **Team → Finances → Fees** (`/teams/:teamId/finances/fees`) and clicks **Create fee**. 2. The fee form dialog collects name, amount, currency, optional due date, and target scope; on submit the web app calls `POST /teams/:teamId/fees`. 3. The server creates a `fees` row and returns a `FeeView`. 4. The actor selects members to assign from the fee management page; the web app calls `POST /teams/:teamId/fees/:feeId/assignments` with the chosen member IDs and any per-member overrides. 5. The server inserts one `fee_assignments` row per member and returns `FeeAssignmentView[]`. |
 | **Postcondition** | Each target member has an assignment with status `pending`. |
-| **Alternate Flow** | If the fee's `target_scope` is `'all_members'`, the captain can assign all current team members in a single call by passing the full member ID list. |
+| **Alternate Flow** | If the fee's `target_scope` is `'all_members'`, the actor can assign all current team members in a single call. Actors with scripted workflows can also invoke the API directly (same endpoints). |
 | **Notes** | v1 only supports `recurrence = 'none'`. Auto-monthly recurrence is planned for a future release. |
 
 ---

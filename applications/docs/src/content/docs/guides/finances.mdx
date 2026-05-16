@@ -37,23 +37,22 @@ Finance permissions follow a treasurer-style split across four built-in roles. B
 
 \* Players do not have `finance:view` in the default role configuration. An admin can create a custom role that grants `finance:view` to specific members or groups.
 
-<Aside type="note" title="MVP limitations">
-The Finance module shipped as an MVP in May 2026. Several features are planned for follow-up releases:
+<Aside type="note" title="Planned features">
+Several Finance features are planned for follow-up releases:
 
 - **Automated reminders** — Discord DMs or channel pings when fees are approaching or past due.
 - **iCal payment events** — fees as calendar entries.
-- **Full web UI** — fee creation/editing form, fee detail page, payment log page, and a "my finances" self-service page are not yet available. For now, all write operations require the API (see [API reference](/api/overview/)).
 - **Monthly recurrence** — auto-generating monthly charges from a fee definition.
 - **Self-report "I've paid"** — a Discord interaction for members to notify captains of unrecorded payments.
-
-All features listed above are **not available in the current release**.
 </Aside>
 
 ## Finance overview page
 
-Go to **Team → Finances** (`/teams/:teamId/finances`) to see a summary table of all active members with their total amount due, total paid, and counts of pending/overdue/paid assignments. The page is visible to anyone holding `finance:view` (Admin, Captain, and Treasurer by default).
+Go to **Team → Finances** (`/teams/:teamId/finances`) to see a summary of all active members' fee status. The page is visible to anyone holding `finance:view` (Admin, Captain, and Treasurer by default).
 
-Each row shows:
+The page has two tabs:
+
+**Overview tab** — a summary table of all active members showing:
 - Member name
 - Currency
 - Total due (all active assignments combined)
@@ -61,6 +60,19 @@ Each row shows:
 - Number of overdue, pending, and paid assignments
 
 Use this view to quickly see who is behind on payments.
+
+**By assignment tab** — a flat list of individual payment records. Use the filter controls to narrow by member, fee, date range, or to include voided payments.
+
+## Fee management page
+
+Go to **Team → Finances → Fees** (`/teams/:teamId/finances/fees`) to create, edit, and archive fees and to assign fees to members. This page requires the `finance:manage_fees` permission (Admin or Treasurer by default).
+
+From this page you can:
+- Create a new fee (name, amount, currency, due date, scope).
+- Assign an existing fee to individual members, with optional per-member amount or due-date overrides.
+- Edit a fee's details or archive it when it is no longer needed.
+- Waive an individual assignment (e.g. hardship exemption).
+- Record a payment directly from the assignment list.
 
 ## Checking your own balance in Discord
 
@@ -88,7 +100,7 @@ Each outstanding fee appears as a field showing the fee name, amount still owed,
 
 ## Captain / admin workflows (via API)
 
-The full fee management UI is coming in a future release. In the meantime, admins, treasurers, and any member with the relevant `finance:*` permissions can manage finances via the REST API. See the [API overview](/api/overview/) for authentication instructions.
+Most fee management tasks are available through the web UI (see the [Fee management page](#fee-management-page) section above). For scripted or bulk operations, admins and treasurers can also use the REST API directly. See the [API overview](/api/overview/) for authentication instructions.
 
 ### Create a fee
 

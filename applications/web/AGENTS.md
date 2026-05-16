@@ -249,6 +249,31 @@ function MyForm({ onSuccess }: { onSuccess: () => void }) {
   />
   ```
 
+## Submitting Branded Values to API Endpoints
+
+API request payloads frequently contain branded types defined in `@sideline/domain` (e.g. `Fee.AmountMinor`, `Fee.CurrencyCode`, `Team.TeamId`, `FeeAssignment.FeeAssignmentId`). When a form computes a plain `number` or `string` and must pass it as a branded field, **never** use `as unknown as Fee.AmountMinor` (or any `as unknown as` double-cast). Always decode through the branded schema:
+
+```typescript
+import { Fee } from '@sideline/domain';
+import { Schema } from 'effect';
+
+// Correct: decode at the boundary so an invalid value throws synchronously.
+const brandedAmount = Schema.decodeSync(Fee.AmountMinor)(amountMinor);
+const brandedCurrency = Schema.decodeSync(Fee.CurrencyCode)(currencyString);
+
+// Wrong — bypasses every brand invariant and hides bugs.
+const brandedAmount = amountMinor as unknown as Fee.AmountMinor;
+```
+
+Reference: `applications/web/src/components/organisms/FeeFormDialog.tsx` (`brandedAmount`, `brandedCurrency`), `applications/web/src/components/organisms/RecordPaymentDialog.tsx` (`Schema.decodeSync(Fee.AmountMinor)(...)`).
+
+Rules:
+
+1. **Never write `as unknown as <BrandedType>` in web code.** The double-cast bypasses both TypeScript's brand enforcement and the schema's runtime check. The ESLint/Biome config does not currently forbid it — discipline is enforced by code review.
+2. **Use `Schema.decodeSync(<BrandedSchema>)(value)` for synchronous form submit handlers.** The cost is one decode per submit, which is negligible; the benefit is that invalid amounts/currencies throw locally instead of producing a 400 from the server with no actionable error.
+3. **For values that are already validated by the form schema** (e.g. a `Team.TeamId` extracted from a typed route param), prefer a `const x: Team.TeamId = value` annotation over a cast — if the value is already typed as the brand at the source, no decode is needed.
+4. **`.make()` is the right tool only for compile-time-known literals** (e.g. enum values from a `Schema.Literals([...])` union). Do not use it on user input.
+
 ## Auth Store — `lib/auth.ts`
 
 Wraps browser `localStorage` via `@effect/platform-browser` `BrowserKeyValueStore`. All auth functions return Effects with `never` error and `never` requirements.

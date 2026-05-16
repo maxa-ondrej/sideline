@@ -2,8 +2,15 @@
 // These tests WILL FAIL until the developer implements:
 //   - applications/web/src/components/pages/FinancesOverviewPage.tsx
 //   - applications/web/src/lib/finance/formatMoney.ts (or similar)
+//
+// Extended (2nd pass) to cover tab navigation and "By assignment" tab.
+// New tests expect the component to accept an optional `assignmentsTabContent` prop
+// (or render tabs internally) for the "By assignment" view.
+//
+// Additional components expected (will also fail until implemented):
+//   - The FinancesOverviewPage receives a `tabs` prop or renders "By member" + "By assignment" tabs
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('~/lib/translations.js', () => ({
@@ -20,6 +27,9 @@ vi.mock('~/lib/translations.js', () => ({
       finance_status_partial: 'Partial',
       finance_status_overdue: 'Overdue',
       finance_status_waived: 'Waived',
+      // Tab labels
+      finance_tab_byMember: 'By member',
+      finance_tab_byAssignment: 'By assignment',
     };
     return map[key] ?? key;
   },
@@ -111,6 +121,71 @@ describe('FinancesOverviewPage', () => {
     // Bob has overdueCount: 1 → should show overdue badge
     const overdueElements = document.querySelectorAll('[data-status="overdue"]');
     expect(overdueElements.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tab navigation tests (added in 2nd TDD pass)
+// ---------------------------------------------------------------------------
+//
+// These tests expect FinancesOverviewPage to accept an additional prop:
+//   assignmentsTabContent?: React.ReactNode
+//
+// When provided, the component should render two tabs:
+//   "By member" (default, active) and "By assignment"
+// Clicking "By assignment" renders the provided ReactNode in place of the member table.
+//
+// When canManageFees=false (or no action handlers), action buttons/dialogs
+// should not be present in the component's own toolbar.
+
+describe('FinancesOverviewPage — tab navigation', () => {
+  it('"By member" tab is selected by default when tabs are present', () => {
+    render(
+      <FinancesOverviewPage
+        rows={sampleRows}
+        assignmentsTabContent={<div data-testid='assignments-view'>Assignments here</div>}
+      />,
+    );
+    // The "By member" tab button should be visible
+    expect(screen.getByRole('tab', { name: /By member/i })).not.toBeNull();
+    // The assignments view should NOT be visible by default
+    expect(screen.queryByTestId('assignments-view')).toBeNull();
+  });
+
+  it('clicking "By assignment" tab renders the assignments tab content', () => {
+    render(
+      <FinancesOverviewPage
+        rows={sampleRows}
+        assignmentsTabContent={<div data-testid='assignments-view'>Assignments here</div>}
+      />,
+    );
+    const byAssignmentTab = screen.getByRole('tab', { name: /By assignment/i });
+    fireEvent.click(byAssignmentTab);
+    expect(screen.getByTestId('assignments-view')).not.toBeNull();
+  });
+
+  it('switching back to "By member" shows the overview content again', () => {
+    render(
+      <FinancesOverviewPage
+        rows={sampleRows}
+        assignmentsTabContent={<div data-testid='assignments-view'>Assignments here</div>}
+      />,
+    );
+    const byAssignmentTab = screen.getByRole('tab', { name: /By assignment/i });
+    fireEvent.click(byAssignmentTab);
+    const byMemberTab = screen.getByRole('tab', { name: /By member/i });
+    fireEvent.click(byMemberTab);
+    // Assignments view gone, member list back
+    expect(screen.queryByTestId('assignments-view')).toBeNull();
+    expect(screen.getByText('Alice')).not.toBeNull();
+  });
+
+  it('renders normally (single tab / no tabs) when no assignmentsTabContent provided', () => {
+    // Backwards compatible: existing props-only usage should still work
+    render(<FinancesOverviewPage rows={sampleRows} />);
+    expect(screen.getByText('Alice')).not.toBeNull();
+    // No tab buttons expected in the original single-pane layout
+    // (the component may add tabs in future — just verify member list is visible)
   });
 });
 

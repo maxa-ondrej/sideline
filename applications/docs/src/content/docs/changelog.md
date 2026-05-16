@@ -5,6 +5,13 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05-16 — Fee management web UI and payment filters
+
+- **Fee management page** (`/teams/:teamId/finances/fees`) is now available in the web app. Admins and Treasurers can create fees, assign them to members, edit or archive fees, waive individual assignments, and record payments — all without touching the API.
+- **By assignment tab** added to the Finance overview page. Displays a filterable flat list of payment records. Filter by member, fee, date range, or toggle to show voided payments.
+- **`GET /teams/:teamId/payments`** now accepts optional query parameters: `memberId`, `feeId`, `from`, `to`, and `includeVoided`.
+- **`GET /teams/:teamId/members/:memberId/assignments`** — new API endpoint returning all fee assignments for a single team member. Requires `finance:view`.
+
 ## 2026-05-15 — Built-in Treasurer role
 
 - Introduced a built-in `Treasurer` role available on every team. Treasurer holds `finance:view`, `finance:manage_fees`, and `finance:record_payments` by default. Use it to give a non-captain member finance authority without elevating them to Admin.
