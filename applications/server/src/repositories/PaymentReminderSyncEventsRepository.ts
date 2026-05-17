@@ -1,5 +1,5 @@
 import { Discord, Fee, FeeAssignment, PaymentReminder, Team } from '@sideline/domain';
-import { Effect, Layer, Schema, ServiceMap } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -70,12 +70,14 @@ const make = Effect.gen(function* () {
     `,
   });
 
-  const emit = (
-    assignmentId: FeeAssignment.FeeAssignmentId,
-    guildId: Discord.Snowflake,
-    kind: PaymentReminder.PaymentReminderKind,
-  ) =>
-    sql`
+  const _emitInsert = SqlSchema.findAll({
+    Request: Schema.Struct({
+      assignmentId: FeeAssignment.FeeAssignmentId,
+      guildId: Discord.Snowflake,
+      kind: PaymentReminder.PaymentReminderKind,
+    }),
+    Result: Schema.Struct({ id: Schema.String }),
+    execute: ({ assignmentId, guildId, kind }) => sql`
       INSERT INTO payment_reminder_sync_events
         (team_id, guild_id, assignment_id, kind, effective_due_at, fee_name, currency,
          amount_minor, paid_minor, user_discord_id)
@@ -95,7 +97,22 @@ const make = Effect.gen(function* () {
       JOIN team_members tm ON tm.id = fa.team_member_id
       JOIN users u ON u.id = tm.user_id
       WHERE fa.id = ${assignmentId}
-    `.pipe(catchSqlErrors);
+      ON CONFLICT DO NOTHING
+      RETURNING id
+    `,
+  });
+
+  // Returns Option.some(id) when a new row was inserted, or Option.none() when a
+  // pending sync for the same (assignment_id, kind) already exists (conflict skipped).
+  const emit = (
+    assignmentId: FeeAssignment.FeeAssignmentId,
+    guildId: Discord.Snowflake,
+    kind: PaymentReminder.PaymentReminderKind,
+  ) =>
+    _emitInsert({ assignmentId, guildId, kind }).pipe(
+      catchSqlErrors,
+      Effect.map((rows) => Option.fromNullishOr(rows[0]?.id)),
+    );
 
   const findUnprocessed = (limit: number) => _findUnprocessed(limit).pipe(catchSqlErrors);
 

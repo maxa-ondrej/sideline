@@ -73,7 +73,7 @@ Server, Bot, Web ────────────────────►
 
 ### 2.2 Server
 
-**Purpose:** The core HTTP API server. Exposes the REST API (under `$API_PREFIX`, default `/api`), an internal RPC endpoint for the bot (under `$RPC_PREFIX`, default `/rpc/sync`), and runs six background cron jobs.
+**Purpose:** The core HTTP API server. Exposes the REST API (under `$API_PREFIX`, default `/api`), an internal RPC endpoint for the bot (under `$RPC_PREFIX`, default `/rpc/sync`), and runs seven background cron jobs.
 
 **Dockerfile:** `applications/server/Dockerfile`
 

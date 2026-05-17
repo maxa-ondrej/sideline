@@ -93,9 +93,26 @@ type UnpaidAssignmentRow = {
   effective_due_at: Date;
   computed_status: FeeAssignment.FeeAssignmentStatus;
   stored_status: FeeAssignment.StoredAssignmentStatus;
+  team_name?: string;
 };
 
 let unpaidAssignmentsStore: UnpaidAssignmentRow[];
+
+// Events store (controlled per test; reset to testEvents in beforeEach)
+type EventRow = {
+  id: string;
+  title: string;
+  description: Option.Option<string>;
+  start_at: DateTime.DateTime;
+  end_at: Option.Option<DateTime.DateTime>;
+  location: Option.Option<string>;
+  location_url: Option.Option<string>;
+  status: string;
+  event_type: string;
+  team_name: string;
+  rsvp_response: string;
+};
+let eventsStore: EventRow[];
 
 const makeAssignmentRow = (
   id: FeeAssignment.FeeAssignmentId,
@@ -121,6 +138,7 @@ const resetStores = () => {
       computed_status: 'pending',
     }),
   ];
+  // eventsStore reset is deferred to beforeEach (after testEvents is defined)
 };
 
 // ---------------------------------------------------------------------------
@@ -227,7 +245,7 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   updateFutureUnmodifiedInSeries: () => Effect.void,
   findUpcomingByGuildId: () => Effect.succeed([]),
   countUpcomingByGuildId: () => Effect.succeed(0),
-  findEventsByUserId: () => Effect.succeed(testEvents),
+  findEventsByUserId: () => Effect.succeed(eventsStore),
 } as any);
 
 const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
@@ -578,6 +596,7 @@ beforeEach(() => {
     created_at: new Date(),
   };
   resetStores();
+  eventsStore = [...testEvents];
 });
 
 afterEach(() => {
@@ -718,5 +737,20 @@ describe('iCal Feed — payment VEVENTs', () => {
     expect(text).not.toMatch(/UID:payment-/);
     // Regular event VEVENTs still present
     expect(text).toContain('SUMMARY:Tuesday Training');
+  });
+
+  it('payment-only feed uses team name from payment rows', async () => {
+    // No calendar events — only a payment row with a team name
+    eventsStore = [];
+    unpaidAssignmentsStore = [
+      makeAssignmentRow(ASSIGNMENT_ID_UNPAID, {
+        team_name: 'Falcons',
+      }),
+    ];
+    const response = await handler(new Request('http://localhost/ical/payment-feed-token'));
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    // Calendar name should be derived from the payment row's team name
+    expect(text).toContain('X-WR-CALNAME:Falcons');
   });
 });

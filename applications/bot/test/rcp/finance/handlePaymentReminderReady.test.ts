@@ -46,7 +46,7 @@ const makeEvent = (
     assignment_id: ASSIGNMENT_ID,
     kind: 'due_today' as PaymentReminder.PaymentReminderKind,
     fee_name: 'Annual Fee',
-    effective_due_at: new Date().toISOString() as any,
+    effective_due_at: new Date().toISOString(),
     currency: 'CZK' as Fee.CurrencyCode,
     amount_minor: 5000 as Fee.AmountMinor,
     paid_minor: 0 as Fee.AmountMinor,

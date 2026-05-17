@@ -1155,7 +1155,7 @@ Idempotency guard that records the successful delivery of each reminder DM. The 
 
 ## Migration History
 
-All 52 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 77 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 

@@ -1,4 +1,4 @@
-import { Array, Effect, Schedule } from 'effect';
+import { Array, Effect, Option, Schedule } from 'effect';
 import { withCronMetrics } from '~/metrics.js';
 import { FeeAssignmentsRepository } from '~/repositories/FeeAssignmentsRepository.js';
 import { PaymentReminderSyncEventsRepository } from '~/repositories/PaymentReminderSyncEventsRepository.js';
@@ -20,10 +20,17 @@ export const paymentReminderCronEffect = Effect.Do.pipe(
     Effect.all(
       Array.map(candidates, (candidate) =>
         paymentSyncRepo.emit(candidate.assignment_id, candidate.guild_id, candidate.kind).pipe(
-          Effect.tap(() =>
-            Effect.logInfo(
-              `PaymentReminderCron: queued ${candidate.kind} reminder for assignment ${candidate.assignment_id}`,
-            ),
+          Effect.tap((result) =>
+            Option.match(result, {
+              onSome: () =>
+                Effect.logInfo(
+                  `PaymentReminderCron: queued ${candidate.kind} reminder for assignment ${candidate.assignment_id}`,
+                ),
+              onNone: () =>
+                Effect.logDebug(
+                  `PaymentReminderCron: skipped ${candidate.kind} for assignment ${candidate.assignment_id} — pending sync already exists`,
+                ),
+            }),
           ),
           Effect.tapError((e) =>
             Effect.logWarning(

@@ -1,7 +1,7 @@
 import type { FinanceRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Array, Effect, Match, Metric } from 'effect';
+import { Array, Cause, Effect, Match, Metric } from 'effect';
 import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
 import { POLL_BATCH_SIZE } from '../../rest/utils.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
@@ -33,7 +33,10 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            rpc['Finance/MarkPaymentReminderFailed']({ id: event.id, error: String(error) }).pipe(
+            rpc['Finance/MarkPaymentReminderFailed']({
+              id: event.id,
+              error: Cause.pretty(Cause.fail(error)),
+            }).pipe(
               Effect.tap(() =>
                 Effect.logWarning(`Failed to process finance sync event ${event.id}`, error),
               ),

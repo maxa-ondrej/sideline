@@ -126,7 +126,8 @@ const buildICalFeed = (
   paymentRows: ReadonlyArray<PaymentRow>,
   now: DateTime.Utc,
 ): string => {
-  const teamName = events.length > 0 ? events[0].team_name : 'Sideline';
+  const teamName =
+    events.length > 0 ? events[0].team_name : (paymentRows[0]?.team_name ?? 'Sideline');
   const calName = `${teamName} - Sideline events`;
   const dtstamp = formatDateTimeUtc(now);
   const lines: Array<string> = [

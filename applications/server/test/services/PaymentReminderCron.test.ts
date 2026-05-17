@@ -102,7 +102,7 @@ const makeMockPaymentReminderSyncEventsRepository = () =>
       kind: PaymentReminder.PaymentReminderKind,
     ) => {
       emittedSyncRows.push({ assignment_id: assignmentId, kind });
-      return Effect.void;
+      return Effect.succeed(Option.some('mock-id'));
     },
     findUnprocessed: () => Effect.succeed([]),
     markProcessed: () => Effect.void,
@@ -320,4 +320,55 @@ describe('paymentReminderCronEffect', () => {
       Effect.asVoid,
     );
   });
+
+  it.effect(
+    'conflict-safe emit: second call for same (assignment_id, kind) returns Option.none() and does not add a second sync row',
+    () => {
+      // Simulate the ON CONFLICT DO NOTHING behaviour at the mock level:
+      // the first emit returns Some(id), the second returns None (already enqueued).
+      const pendingKeys = new Set<string>();
+
+      const ConflictSafeEmitLayer = Layer.succeed(PaymentReminderSyncEventsRepository, {
+        emit: (
+          assignmentId: FeeAssignment.FeeAssignmentId,
+          _guildId: Discord.Snowflake,
+          kind: PaymentReminder.PaymentReminderKind,
+        ) => {
+          const key = `${assignmentId}:${kind}`;
+          if (pendingKeys.has(key)) {
+            // Conflict — row already exists with processed_at IS NULL
+            return Effect.succeed(Option.none<string>());
+          }
+          pendingKeys.add(key);
+          emittedSyncRows.push({ assignment_id: assignmentId, kind });
+          return Effect.succeed(Option.some('mock-id'));
+        },
+        findUnprocessed: () => Effect.succeed([]),
+        markProcessed: () => Effect.void,
+        markFailed: () => Effect.void,
+      } as any);
+
+      reminderCandidates = [makeReminderCandidate(ASSIGNMENT_ID_1, 'due_today')];
+
+      const layer = Layer.mergeAll(
+        makeMockFeeAssignmentsRepository(),
+        ConflictSafeEmitLayer,
+        makeMockPaymentRemindersSentRepository(),
+      );
+
+      return Effect.Do.pipe(
+        // First call: should insert and return Some
+        Effect.tap(() => paymentReminderCronEffect.pipe(Effect.provide(layer))),
+        // Second call with same candidate: emit returns None (conflict), no new row
+        Effect.tap(() => paymentReminderCronEffect.pipe(Effect.provide(layer))),
+        Effect.tap(() =>
+          Effect.sync(() => {
+            // Only one row was actually inserted despite two cron ticks
+            expect(emittedSyncRows).toHaveLength(1);
+          }),
+        ),
+        Effect.asVoid,
+      ) as Effect.Effect<void, never, never>;
+    },
+  );
 });
