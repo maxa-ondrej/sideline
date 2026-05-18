@@ -33,6 +33,7 @@ Sideline exposes a JSON REST API built with [`@effect/platform`](https://github.
    - [Translations](#22-translations)
    - [Finance](#23-finance)
    - [Version](#24-version)
+   - [Expenses](#25-expenses)
 4. [RPC API](#rpc-api)
 5. [Error Reference](#error-reference)
 
@@ -4286,6 +4287,210 @@ Returns the currently running server version and the most recently reported bot 
 
 ---
 
+### 25. Expenses
+
+**Source:** `packages/domain/src/api/ExpenseApi.ts`
+**Prefix:** `/teams/:teamId`
+
+The Expenses group lets authorised members record and manage team expenditures. Expenses are categorised as one of: `fields`, `equipment`, `travel`, `tournaments`, or `other`. Read operations require `finance:view`; write operations (create, update, delete) require `finance:manage_fees` — no new permission literal was introduced. The `balanceSummary` endpoint returns a per-currency breakdown that aggregates both fee income and expenses to produce a net figure.
+
+#### Shared types
+
+`ExpenseView` — a single expense record.
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `expenseId` | `ExpenseId` (string) | No | Expense ID |
+| `teamId` | `TeamId` (string) | No | Owning team |
+| `amountMinor` | `integer > 0` | No | Amount in minor currency units |
+| `currency` | `string (CHAR 3)` | No | ISO 4217 currency code |
+| `spentAt` | `DateTime` | No | When the expense was incurred |
+| `category` | `'fields' \| 'equipment' \| 'travel' \| 'tournaments' \| 'other'` | No | Expense category |
+| `description` | `string (max 500 chars)` | No | Free-text description |
+| `createdByUserId` | `UserId` (string) | No | User who created the record |
+| `createdByName` | `string \| null` | Yes | Display name of the creator |
+| `updatedByUserId` | `UserId` (string) | No | User who last modified the record |
+| `updatedByName` | `string \| null` | Yes | Display name of the last modifier |
+| `createdAt` | `DateTime` | No | Row creation timestamp |
+| `updatedAt` | `DateTime` | No | Row update timestamp |
+
+`BalanceSummary` — aggregated income vs. expenses for a team and optional date range.
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `currency` | `string (CHAR 3)` | No | ISO 4217 currency code |
+| `incomeMinor` | `integer ≥ 0` | No | Total payments received in this currency |
+| `expensesMinor` | `integer ≥ 0` | No | Total expenses recorded in this currency |
+| `netMinor` | `integer` | No | `incomeMinor − expensesMinor` (may be negative) |
+
+---
+
+#### `GET /teams/:teamId/expenses`
+
+Lists all expenses for the team.
+
+**Auth:** Bearer token required
+
+**Required Permission:** `finance:view`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `category` | `ExpenseCategory` | No | Filter by category |
+| `from` | `DateTime` | No | Include only expenses on or after this date |
+| `to` | `DateTime` | No | Include only expenses before or on this date |
+
+**Response:** `200 OK` — `ExpenseView[]`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ExpenseForbidden` | 403 | Missing `finance:view` permission |
+
+---
+
+#### `GET /teams/:teamId/expenses/:expenseId`
+
+Returns a single expense.
+
+**Auth:** Bearer token required
+
+**Required Permission:** `finance:view`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `expenseId` | `ExpenseId` (string) | Expense ID |
+
+**Response:** `200 OK` — `ExpenseView`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ExpenseForbidden` | 403 | Missing `finance:view` permission |
+| `ExpenseNotFound` | 404 | Expense does not exist or belongs to a different team |
+
+---
+
+#### `POST /teams/:teamId/expenses`
+
+Creates a new expense.
+
+**Auth:** Bearer token required
+
+**Required Permission:** `finance:manage_fees`
+
+**Request Body:** `CreateExpenseRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `amountMinor` | `integer > 0` | Yes | Amount in minor currency units |
+| `currency` | `string (CHAR 3)` | Yes | ISO 4217 currency code |
+| `spentAt` | `DateTime` | Yes | When the expense was incurred |
+| `category` | `ExpenseCategory` | Yes | One of `fields`, `equipment`, `travel`, `tournaments`, `other` |
+| `description` | `string (max 500 chars)` | Yes | Free-text description |
+
+**Response:** `201 Created` — `ExpenseView`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ExpenseForbidden` | 403 | Missing `finance:manage_fees` permission |
+| `InvalidExpenseAmount` | 400 | `amountMinor` is zero or negative |
+
+---
+
+#### `PATCH /teams/:teamId/expenses/:expenseId`
+
+Partially updates an existing expense. All body fields are optional; omitted fields are left unchanged. If `currency` is supplied, `amountMinor` must also be supplied.
+
+**Auth:** Bearer token required
+
+**Required Permission:** `finance:manage_fees`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `expenseId` | `ExpenseId` (string) | Expense ID |
+
+**Request Body:** `UpdateExpenseRequest` (all fields optional)
+
+| Field | Type | Description |
+|---|---|---|
+| `amountMinor` | `integer > 0` | New amount in minor currency units |
+| `currency` | `string (CHAR 3)` | New ISO 4217 currency code |
+| `spentAt` | `DateTime` | New expense date |
+| `category` | `ExpenseCategory` | New category |
+| `description` | `string (max 500 chars)` | New description |
+
+**Response:** `200 OK` — `ExpenseView`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ExpenseForbidden` | 403 | Missing `finance:manage_fees` permission |
+| `ExpenseNotFound` | 404 | Expense does not exist or belongs to a different team |
+| `InvalidExpenseAmount` | 400 | `amountMinor` is zero or negative, or `currency` supplied without `amountMinor` |
+
+---
+
+#### `DELETE /teams/:teamId/expenses/:expenseId`
+
+Permanently deletes an expense. The deletion is recorded in `expense_history` via a Postgres trigger before the row is removed.
+
+**Auth:** Bearer token required
+
+**Required Permission:** `finance:manage_fees`
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `expenseId` | `ExpenseId` (string) | Expense ID |
+
+**Response:** `204 No Content`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ExpenseForbidden` | 403 | Missing `finance:manage_fees` permission |
+| `ExpenseNotFound` | 404 | Expense does not exist or belongs to a different team |
+
+---
+
+#### `GET /teams/:teamId/finances/balance-summary`
+
+Returns a per-currency breakdown of total income (fee payments) versus total expenses and the resulting net balance. Accepts an optional date range to scope both sides of the summary.
+
+**Auth:** Bearer token required
+
+**Required Permission:** `finance:view`
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `from` | `DateTime` | No | Include only records on or after this date |
+| `to` | `DateTime` | No | Include only records before or on this date |
+
+**Response:** `200 OK` — `BalanceSummary[]` (one element per currency)
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ExpenseForbidden` | 403 | Missing `finance:view` permission |
+
+---
+
 ## RPC API
 
 The RPC API is an internal HTTP endpoint used exclusively for communication between the Discord bot and the server. It is not intended for external consumption.
@@ -4502,3 +4707,6 @@ The following table consolidates all error tags across all API groups.
 | `InvalidAmount` | 400 | Finance | Amount is negative (or zero for payments) |
 | `FeeArchived` | 409 | Finance | Fee is archived; the operation requires an active fee |
 | `UnknownTranslationKeys` | 400 | Translations | Import payload contains key(s) not present in the compiled message registry |
+| `ExpenseForbidden` | 403 | Expenses | Missing required finance permission (`finance:view` for reads, `finance:manage_fees` for writes) |
+| `ExpenseNotFound` | 404 | Expenses | Expense does not exist or does not belong to this team |
+| `InvalidExpenseAmount` | 400 | Expenses | `amountMinor` is zero or negative, or `currency` was supplied without `amountMinor` on a partial update |

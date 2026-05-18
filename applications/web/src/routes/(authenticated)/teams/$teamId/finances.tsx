@@ -1,5 +1,5 @@
 import { Fee, FeeAssignment, type FinanceApi, Team } from '@sideline/domain';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter, useSearch } from '@tanstack/react-router';
 import { Array, Effect, Option, Schema } from 'effect';
 import React from 'react';
 import type { FeeAssignmentView } from '~/components/organisms/AssignmentsTab.js';
@@ -20,8 +20,15 @@ import {
 import { ApiClient, ClientError, NotFound, useRun, warnAndCatchAll } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
+type FinancesTab = 'overview' | 'by-member' | 'by-assignment';
+
+const isFinancesTab = (value: unknown): value is FinancesTab =>
+  value === 'overview' || value === 'by-member' || value === 'by-assignment';
+
 export const Route = createFileRoute('/(authenticated)/teams/$teamId/finances')({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>): { tab?: FinancesTab } =>
+    isFinancesTab(search.tab) ? { tab: search.tab } : {},
   component: FinancesRoute,
   loader: async ({ params, context }) => {
     const teamId = await Schema.decodeEffect(Team.TeamId)(params.teamId).pipe(
@@ -34,11 +41,15 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/finances')(
     const canManageFees = permissions.includes('finance:manage_fees');
     const canRecordPayments = permissions.includes('finance:record_payments');
 
-    const [domainRows, fees] = await ApiClient.asEffect().pipe(
+    const [domainRows, fees, balanceSummaries] = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
         Effect.all([
           api.finance.overview({ params: { teamId } }),
           api.finance.listFees({ params: { teamId } }),
+          api.expenses.balanceSummary({
+            params: { teamId },
+            query: { from: Option.none(), to: Option.none() },
+          }),
         ]),
       ),
       warnAndCatchAll,
@@ -75,15 +86,27 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/finances')(
       paidCount: r.paidCount,
     }));
 
-    return { rows, fees, assignments, canManageFees, canRecordPayments, teamId };
+    return { rows, fees, assignments, canManageFees, canRecordPayments, teamId, balanceSummaries };
   },
 });
 
 function FinancesRoute() {
   const { teamId } = Route.useParams();
-  const { rows, fees, assignments, canManageFees, canRecordPayments } = Route.useLoaderData();
+  const { rows, fees, assignments, canManageFees, canRecordPayments, balanceSummaries } =
+    Route.useLoaderData();
+  const { user } = Route.useRouteContext();
   const router = useRouter();
   const run = useRun();
+  const { tab: searchTab } = useSearch({ from: Route.id });
+  const navigate = useNavigate({ from: Route.fullPath });
+
+  const hasOverviewTab = balanceSummaries !== undefined;
+  const defaultTab = hasOverviewTab ? 'overview' : 'by-member';
+  const activeTab = searchTab ?? defaultTab;
+
+  const handleTabChange = (tab: FinancesTab) => {
+    navigate({ search: { tab } });
+  };
 
   const [logPaymentAssignment, setLogPaymentAssignment] = React.useState<FeeAssignmentView | null>(
     null,
@@ -196,8 +219,12 @@ function FinancesRoute() {
       <FinancesOverviewPage
         rows={rows}
         teamId={teamId}
+        userId={user.id}
         assignmentsTabContent={assignmentsTabContent}
         createFeeHref={`/teams/${teamId}/finances/fees`}
+        balanceSummaries={balanceSummaries}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
       />
       {logPaymentAssignment !== null && (
         <RecordPaymentDialog

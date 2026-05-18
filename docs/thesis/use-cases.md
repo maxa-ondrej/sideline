@@ -103,7 +103,7 @@ flowchart LR
         UC_NOTIFICATIONS["View & Mark Notifications"]
     end
 
-    subgraph FINANCE["Finance (MVP)"]
+    subgraph FINANCE["Finance"]
         UC_VIEW_FINANCE["View Finance Overview"]
         UC_MANAGE_FEES["Create / Update / Archive Fees"]
         UC_ASSIGN_FEES["Assign Fee to Members"]
@@ -112,6 +112,8 @@ flowchart LR
         UC_VIEW_MY_STATUS["View Own Fee Status"]
         UC_PAYMENT_REMINDER["Receive Payment Reminder DM"]
         UC_PAYMENT_ICAL["View Payment in iCal Feed"]
+        UC_MANAGE_EXPENSES["Create / Update / Delete Expenses"]
+        UC_VIEW_BALANCE["View Balance Summary"]
     end
 
     UA --> UC_LOGIN
@@ -141,12 +143,15 @@ flowchart LR
     CP --> UC_CANCEL_EVENT
     CP --> UC_ASSIGN_ROLE
     CP --> UC_VIEW_FINANCE
+    CP --> UC_VIEW_BALANCE
 
     TR --> UC_VIEW_FINANCE
     TR --> UC_MANAGE_FEES
     TR --> UC_ASSIGN_FEES
     TR --> UC_RECORD_PAYMENT
     TR --> UC_VOID_PAYMENT
+    TR --> UC_MANAGE_EXPENSES
+    TR --> UC_VIEW_BALANCE
 
     AD --> UC_REMOVE_MEMBER
     AD --> UC_MANAGE_ROLES
@@ -159,6 +164,8 @@ flowchart LR
     AD --> UC_MANAGE_TRAINING_TYPES
     AD --> UC_RECORD_PAYMENT
     AD --> UC_VOID_PAYMENT
+    AD --> UC_MANAGE_EXPENSES
+    AD --> UC_VIEW_BALANCE
 
     BOT --> UC_BOT_LIST
     BOT --> UC_BOT_OVERVIEW
@@ -750,3 +757,29 @@ The following structured descriptions cover the most significant use cases in th
 | **Postcondition** | The member receives a DM. The `payment_reminders_sent` row prevents a repeat DM for the same assignment and cadence, even if the cron fires again or the bot restarts. |
 | **Alternate Flow** | If the Discord DM API call fails (e.g. the user has DMs disabled from non-friends), the bot calls `Finance/MarkPaymentReminderFailed`. The outbox row is marked `processed_at = now()` (permanent failure — no retry). The member does not receive that cadence's reminder. |
 | **Notes** | Reminders are silenced automatically once the assignment is paid or waived: the cron's candidate query filters on `computed_status NOT IN ('paid', 'waived')`. |
+
+---
+
+### UC-18: Create / Update / Delete a Team Expense (Treasurer/Admin)
+
+| Field | Detail |
+|---|---|
+| **Actor** | Treasurer or Admin |
+| **Precondition** | The actor is authenticated and holds `finance:manage_fees` permission. |
+| **Main Flow** | 1. The actor navigates to **Team → Finances → Expenses** (`/teams/:teamId/finances/expenses`) and clicks **Add expense**. 2. The expense form dialog collects category (fields, equipment, travel, tournaments, or other), amount, currency, date, and description; on submit the web app calls `POST /teams/:teamId/expenses`. 3. The server validates `amountMinor > 0` and inserts an `expenses` row; the `expenses_audit` trigger writes an `insert` row to `expense_history`. 4. The expense appears in the list on the Expenses page and is reflected immediately in the balance summary. 5. To edit, the actor clicks the expense row and modifies any field via `PATCH /teams/:teamId/expenses/:expenseId`. 6. To delete, the actor removes the record via `DELETE /teams/:teamId/expenses/:expenseId`; the trigger writes a `delete` snapshot to `expense_history` before the row is removed. |
+| **Postcondition** | The expense is stored (or updated/removed) and the `expense_history` audit log reflects the operation. The balance summary is recalculated on the next query. |
+| **Alternate Flow** | If `amountMinor ≤ 0` the server returns `400 InvalidExpenseAmount`. If `currency` is supplied without `amountMinor` on a PATCH, the server also returns `400 InvalidExpenseAmount`. |
+| **Notes** | Expenses are hard-deleted (no soft-archive). Historical context is preserved entirely through `expense_history`. |
+
+---
+
+### UC-19: View Balance Summary (Treasurer/Admin/Captain)
+
+| Field | Detail |
+|---|---|
+| **Actor** | Treasurer, Admin, or Captain (any member holding `finance:view`) |
+| **Precondition** | The actor is authenticated and holds `finance:view` permission. |
+| **Main Flow** | 1. The actor navigates to **Team → Finances** (`/teams/:teamId/finances`). The page loads with the **Overview** tab active by default. 2. The web app calls `GET /teams/:teamId/finances/balance-summary` (optionally with `from`/`to` query parameters). 3. The server aggregates total income (sum of non-voided payments) and total expenses (sum of expense `amount_minor`) per currency and returns a `BalanceSummary[]` array. 4. The page displays Income, Expenses, and Net balance KPI tiles per currency. |
+| **Postcondition** | The actor sees a per-currency breakdown of total income, total expenses, and the resulting net balance for the team. |
+| **Alternate Flow** | If the actor applies a date range filter, only payments and expenses within that range are included in the summary. |
+| **Notes** | The net figure may be negative when expenses exceed income. The balance summary does not filter on voided payments (they are excluded from income automatically by the underlying query). |

@@ -31,6 +31,7 @@ import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { ExpensesRepository } from '~/repositories/ExpensesRepository.js';
 import {
   type AssignmentViewRow,
   FeeAssignmentsRepository,
@@ -662,6 +663,7 @@ const TestLayer = ApiLive.pipe(
     ),
   ),
 )
+  .pipe(Layer.provide(Layer.succeed(ExpensesRepository, buildNoop('api/ExpensesRepository'))))
   .pipe(Layer.provide(MockTranslationsLayers))
   .pipe(Layer.provide(BotInfoStore.Default));
 

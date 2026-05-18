@@ -20,6 +20,8 @@ export * as EventRsvpApi from './api/EventRsvpApi.js';
 
 export * as EventSeriesApi from './api/EventSeriesApi.js';
 
+export * as ExpenseApi from './api/ExpenseApi.js';
+
 export * as FinanceApi from './api/FinanceApi.js';
 
 export * as GroupApi from './api/GroupApi.js';
@@ -86,6 +88,8 @@ export * as Event from './models/Event.js';
 export * as EventRsvp from './models/EventRsvp.js';
 
 export * as EventSeries from './models/EventSeries.js';
+
+export * as Expense from './models/Expense.js';
 
 export * as Fee from './models/Fee.js';
 

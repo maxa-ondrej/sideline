@@ -145,6 +145,44 @@ routes/(authenticated)/
         └── training-types.$trainingTypeId.tsx — /teams/:teamId/training-types/:trainingTypeId
 ```
 
+## URL-Synced Tabs Via `validateSearch`
+
+When a page renders a tab bar and the active tab must be deep-linkable (sharable URL, back/forward navigation, browser refresh preserves selection), sync the tab to a search param via TanStack Router's `validateSearch` instead of `React.useState`. The page component supports both modes (controlled URL-driven and uncontrolled local-state) via optional `activeTab` / `onTabChange` props so it stays testable in isolation.
+
+Reference implementation: `applications/web/src/routes/(authenticated)/teams/$teamId/finances.tsx` (route) + `applications/web/src/components/pages/FinancesOverviewPage.tsx` (page). URL form: `/teams/:teamId/finances?tab=overview` | `?tab=by-member` | `?tab=by-assignment`.
+
+### Route File Shape
+
+```typescript
+type FinancesTab = 'overview' | 'by-member' | 'by-assignment';
+
+const isFinancesTab = (value: unknown): value is FinancesTab =>
+  value === 'overview' || value === 'by-member' || value === 'by-assignment';
+
+export const Route = createFileRoute('/(authenticated)/teams/$teamId/finances')({
+  ssr: false,
+  validateSearch: (search: Record<string, unknown>): { tab?: FinancesTab } =>
+    isFinancesTab(search.tab) ? { tab: search.tab } : {},
+  // ...
+});
+
+function FinancesRoute() {
+  const { tab: searchTab } = useSearch({ from: Route.id });
+  const navigate = useNavigate({ from: Route.fullPath });
+  const activeTab = searchTab ?? defaultTab;
+  const handleTabChange = (tab: FinancesTab) => navigate({ search: { tab } });
+  return <FinancesOverviewPage activeTab={activeTab} onTabChange={handleTabChange} ... />;
+}
+```
+
+### Rules
+
+1. **The type guard MUST be a user-defined `(value: unknown) => value is T` predicate** (e.g. `isFinancesTab`) built from explicit `value === '<literal>'` comparisons. Do not use `Array.includes` on a `readonly` array of literals — its return type does not narrow `unknown` to the literal union.
+2. **`validateSearch` MUST return `{}` (not `{ tab: undefined }`) when the value is invalid.** Returning `undefined` for an unknown key keeps the URL clean; returning the explicit key spreads into `navigate({ search: { tab } })` calls and can re-introduce stale params.
+3. **The page component takes `activeTab?: ActiveTab` and `onTabChange?: (tab: ActiveTab) => void` as OPTIONAL props.** When both are provided the page is controlled (URL-driven); when omitted, it falls back to internal `React.useState`. The controlled-vs-uncontrolled branch lives in exactly one place: `const isControlled = controlledActiveTab !== undefined && onTabChange !== undefined;`. This keeps the page testable without mounting a router.
+4. **Define the tab literal union ONCE in the page component file** (`type ActiveTab = ...`) and re-declare an identical alias in the route file. Do not import the type across the page/route boundary — the route owns URL serialization, the page owns rendering; both keep their copy of the literal union so a rename touches both files and is visible in PR diffs.
+5. **The default tab is computed in the route, not in `validateSearch`.** `validateSearch` only narrows the parsed value; defaulting (`activeTab = searchTab ?? defaultTab`) happens in the component where `defaultTab` may depend on loader data (e.g. "show Overview tab only if `balanceSummaries` was fetched").
+
 ## Forms — React Hook Form + Effect Schema
 
 **Always use Shadcn Form (`components/ui/form`) with React Hook Form and Effect Schema** for any form that collects user input.
@@ -297,6 +335,20 @@ export const setLastTeamId = (teamId: string) => set(LAST_TEAM, teamId);
 
 **In React callbacks / `useEffect`**: use `Effect.runSync(...)` (localStorage is synchronous).
 **In `beforeLoad` / `loader`**: pipe auth effects directly into the Effect chain.
+
+### User-Scoped `localStorage` Keys for Per-User UX State
+
+When storing per-user UX state in `localStorage` (e.g. "has the user seen the new X badge yet?", "preferred view mode", "dismissed tip"), the key MUST include the authenticated user's id. Shared-device scenarios (one browser, multiple Sideline accounts) would otherwise leak one user's "seen" flag onto another user's session.
+
+Reference: `FinancesOverviewPage.tsx` — `const overviewTabSeenKey = (userId: string) => 'sideline:finances-overview-tab-seen:${userId}';`
+
+Rules:
+
+1. **Key format: `'sideline:<feature>-<state>:${userId}'`.** Always start with `sideline:` (prevents collision with embedded apps), then a kebab-case state identifier, then the user id segment. Never use a bare `'sideline:finances-overview-tab-seen'` constant — that key is global per device.
+2. **Build the key via a small helper function** (`const myKey = (userId: string) => '...';`) at the top of the component module so the format is defined once. Do not inline string concatenation at each `getItem`/`setItem` call site.
+3. **Wrap every `localStorage.getItem` / `localStorage.setItem` call in `try { ... } catch { ... }`.** Private-mode Safari and storage-quota-exceeded scenarios throw synchronously; the catch block must default to the "already seen" / no-op path so the UI never crashes.
+4. **The page component accepts `userId?: string` as an OPTIONAL prop** so tests can mount it without a user. When `userId` is omitted, behave as if the state is already "seen" (badge not shown) — this is the safe default that does not flash UI for test scenarios.
+5. **Do NOT migrate or back-fill old un-scoped keys.** A user encountering the new scoped key with no value sees the "new" badge once, then it persists. Renaming is acceptable; the worst case is one extra badge impression per user.
 
 ## `beforeLoad` Effect Pipe Pattern
 
@@ -602,7 +654,23 @@ Reusable label maps and option builders live in `src/lib/`. Always import from t
 | `src/lib/event-colors.ts` | `getEventColor`, color map utilities | Calendar view |
 | `src/lib/datetime.ts` | `formatLocalDate`, `formatLocalTime`, `formatUtcTime`, `localToUtc` | Event/training forms |
 | `src/lib/discord.ts` | `DISCORD_CHANNEL_TYPE_TEXT`, `DISCORD_CHANNEL_TYPE_CATEGORY` | Any page with Discord channel selects |
-| `src/lib/finance/` | `formatMoney`, `parseAmount`, `sortAssignments`, `computeKpis` | Finance pages, payment dialogs, "My Payments" page, dashboard banner |
+| `src/lib/finance/` | `formatMoney`, `parseAmount`, `sortAssignments`, `computeKpis`, `pickDominantCurrency` | Finance pages, payment dialogs, "My Payments" page, dashboard banner, balance dashboard |
+
+### Currency-Picker Helpers: `pickDominantCurrency` vs `pickMostFrequentCurrency`
+
+Two distinct helpers exist for collapsing a multi-currency dataset to a single display currency. They are NOT interchangeable — pick by what the user is interpreting:
+
+| Helper | Location | Metric | Use when |
+|--------|----------|--------|----------|
+| `pickDominantCurrency` | `src/lib/finance/pickDominantCurrency.ts` | Highest `incomeMinor + expensesMinor` (by **transaction volume**) | Aggregating money totals — KPI cards that show "Income" / "Expenses" / "Net". A team with 10 CZK rows of 100 each and 1 EUR row of 100,000 should display EUR. Reference: `BalanceDashboard.tsx`. |
+| `pickMostFrequentCurrency` | inline in `FinancesOverviewPage.tsx` | Highest **row count** | Aggregating per-member status — KPI cards showing "members overdue" / "members paid", where row count is the meaningful denominator. Reference: `FinancesOverviewPage.tsx` `ByMemberContent`. |
+
+Rules:
+
+1. **`pickDominantCurrency` is exported from `src/lib/finance/`** and has a co-located unit test (`pickDominantCurrency.test.ts`). It returns `null` on empty input; callers must `?? summaries[0].currency` or render an empty state.
+2. **`pickMostFrequentCurrency` stays inline in `FinancesOverviewPage.tsx`** — do NOT promote it to `src/lib/finance/`. It is a one-call helper tightly coupled to `MemberOverviewRow`; extracting it would require a mirror type and add no reuse.
+3. **Never substitute one for the other to "simplify".** A volume-based pick on row-count data underweights small-currency rows; a count-based pick on volume data treats a 1,000,000 EUR transaction the same as a 100 CZK transaction. The semantics are intentionally distinct.
+4. **When adding a third "pick by X" helper**, place it next to `pickDominantCurrency` if it consumes a domain shape used by multiple pages; keep it inline if it is a single-page derived metric. The threshold for promotion is "two or more pages consume it" — see "Pure Helpers in `src/lib/<feature>/`" above.
 
 ### Pure Helpers in `src/lib/<feature>/`
 

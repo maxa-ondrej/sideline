@@ -11,6 +11,7 @@ import { DashboardApiLive } from '~/api/dashboard.js';
 import { EventApiLive } from '~/api/event.js';
 import { EventRsvpApiLive } from '~/api/event-rsvp.js';
 import { EventSeriesApiLive } from '~/api/event-series.js';
+import { ExpenseApiLive } from '~/api/expenses.js';
 import { FinanceApiLive } from '~/api/finance.js';
 import { GroupApiLive } from '~/api/group.js';
 import { ICalApiLive } from '~/api/ical.js';
@@ -39,6 +40,7 @@ export const ApiLive = HttpApiBuilder.layer(Api, { openapiPath: '/docs/openapi.j
     Layer.provide(EventApiLive),
     Layer.provide(EventRsvpApiLive),
     Layer.provide(EventSeriesApiLive),
+    Layer.provide(ExpenseApiLive),
     Layer.provide(FinanceApiLive),
     Layer.provide(GroupApiLive),
     Layer.provide(ICalApiLive),
@@ -46,12 +48,14 @@ export const ApiLive = HttpApiBuilder.layer(Api, { openapiPath: '/docs/openapi.j
     Layer.provide(NotificationApiLive),
     Layer.provide(RosterApiLive),
     Layer.provide(RoleApiLive),
+  )
+  .pipe(
     Layer.provide(TeamApiLive),
     Layer.provide(TeamSettingsApiLive),
-  )
-  .pipe(Layer.provide(TrainingTypeApiLive))
-  .pipe(Layer.provide(TranslationsApiLive))
-  .pipe(Layer.provide(VersionApiLive))
-  .pipe(Layer.provide(WeeklySummaryApiLive));
+    Layer.provide(TrainingTypeApiLive),
+    Layer.provide(TranslationsApiLive),
+    Layer.provide(VersionApiLive),
+    Layer.provide(WeeklySummaryApiLive),
+  );
 
 export { Redirect } from '~/api/redirect.js';

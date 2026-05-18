@@ -707,6 +707,54 @@ const make = Effect.Do.pipe(
 5. **Always provide `findAll` + `getVersion` separately on the repository** (not a fused `findAllWithVersion`). The initial-load path and the refresh path call both; keeping them separate keeps each query indexable and lets unit tests stub them independently.
 6. **The `get()` method on the cache returns the in-memory snapshot synchronously** — handlers must not call `refresh()` on the read path. The only legitimate caller of `refresh()` outside the LISTEN fiber is a test that needs to force a re-read between mutations.
 
+## Application-Set Audit Actor For Hard Deletes
+
+When a table is hard-deleted (no `voided_at` / `archived_at` soft-delete) but an audit trail must record **who** performed the delete, the actor cannot be derived from the row itself — `OLD.updated_by_user_id` only captures the last editor, not the deleter. The pattern: the repository sets a Postgres **session-local** variable inside a transaction before issuing the DELETE; the audit trigger reads it via `current_setting('audit.user_id', true)` and falls back to `OLD.updated_by_user_id` if unset.
+
+Reference implementation: `ExpensesRepository.delete` + `expenses_audit` trigger (migration `1786000000_create_expenses.ts`).
+
+### Repository Shape
+
+```typescript
+const delete_ = (id: Expense.ExpenseId, teamId: Team.TeamId, userId: Auth.UserId) =>
+  sql
+    .withTransaction(
+      sql`SET LOCAL audit.user_id = ${String(userId)}`.pipe(
+        Effect.flatMap(() => deleteReturningQuery({ id, team_id: teamId })),
+        Effect.map(Option.isSome),
+        catchSqlErrors,
+      ),
+    )
+    .pipe(catchSqlErrors);
+```
+
+### Rules
+
+1. **Always wrap the `SET LOCAL` + DELETE in `sql.withTransaction(...)`.** `SET LOCAL` is scoped to the current transaction — without `withTransaction` the setting either has no effect (autocommit) or leaks across statements on a pooled connection.
+2. **Interpolate the user id with `${String(userId)}`, not as a raw SQL fragment.** The `sql` template tag binds the value as a parameter; `SET LOCAL audit.user_id = $1` is the correct form. Never concatenate the id into the SQL string.
+3. **The trigger must call `current_setting('audit.user_id', true)`** (note the `true` second argument — missing-key returns `NULL` instead of raising) and wrap the cast in a `BEGIN ... EXCEPTION WHEN OTHERS THEN audit_user_id := NULL; END` block so a malformed or absent setting falls back to `OLD.updated_by_user_id` rather than aborting the delete.
+4. **Do NOT add a `deleted_by_user_id` column to the parent table** — the parent row is gone after DELETE. The audit actor lives only on the history row (`expense_history.performed_by_user_id`).
+5. **Every repository method that hard-deletes a row from such a table MUST take `userId: Auth.UserId` as an argument and set the session var.** A repository method that omits the `SET LOCAL` will write the history row with `OLD.updated_by_user_id` as the actor — silently wrong, no error.
+
+## Hard-Delete + Audit Trigger vs Soft-Delete
+
+Pick one deletion strategy per entity at table-creation time; do not retrofit. Both are valid; the choice is per-table based on operational needs:
+
+| Strategy | Use when | Reference |
+|----------|---------|-----------|
+| **Soft-delete** (`archived_at` / `voided_at` column, never deleted from disk) | The row is read after "deletion" — e.g. financial transactions (`payments.voided_at`) must remain visible in payment history; archived fees (`fees.archived_at`) must remain listable so historical assignments still resolve. The application filters via `WHERE <column> IS NULL` in active-row queries. | `payments.voided_at`, `fees.archived_at`, `team_invites.deactivated_at` |
+| **Hard-delete + audit trigger** | The row is never read after "deletion" — e.g. expense entries (`expenses` table) have no downstream FKs (no payments reference them, no reports require the row to remain). Audit is satisfied by writing every insert/update/delete to a `<resource>_history` table via trigger. The hot path stays small (no `WHERE archived_at IS NULL` predicate on every read). | `expenses` + `expense_history` (trigger `expenses_audit`) |
+
+Rules:
+
+1. **Soft-delete is the default for any row that participates in a financial total, statement, or downstream computation.** Once a payment, fee, or assignment row exists, removing it from disk silently breaks every report that already summed it.
+2. **Hard-delete + audit trigger is only valid when no other table FKs to the deleted table with a non-NULL value.** Verify by grepping `REFERENCES <table>` across migrations: every FK must either not exist, be on a child that cascades, or be safely `ON DELETE RESTRICT` with no real-world rows that would block deletion.
+3. **The audit `<resource>_history` table stores a full JSONB snapshot per operation** (`snapshot JSONB NOT NULL` populated via `to_jsonb(NEW)` / `to_jsonb(OLD)` in the trigger). Do NOT denormalize fields onto history columns — the snapshot is the authoritative pre-delete record; the column projection is undefined for entries created before a schema change.
+4. **`expense_history.performed_by_user_id` is `ON DELETE RESTRICT`** so the audit row outlives the user account by default. GDPR-style anonymization is a separate per-PR story documented as a `COMMENT ON COLUMN` on the original table — see `1786000000_create_expenses.ts` for the comment template.
+5. **Never mix the two strategies on the same table.** A table with both `voided_at` AND an audit trigger that hard-deletes is a footgun — readers cannot tell which "delete" path was used. Pick one in the creating migration and stick to it.
+
+See `packages/migrations/AGENTS.md` → "Per-Row Audit Trigger With Application-Set Actor" for the trigger DDL.
+
 ## Testing
 
 Tests go in `test/` directory. When adding new repositories, add corresponding mock implementations to all test files that compose `AppLive` (e.g., `MockChannelSyncEventsRepository`).

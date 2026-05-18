@@ -1,4 +1,5 @@
 import { Effect, Layer, Option } from 'effect';
+import { ExpensesRepository } from '~/repositories/ExpensesRepository.js';
 import { FeeAssignmentsRepository } from '~/repositories/FeeAssignmentsRepository.js';
 import { FeesRepository } from '~/repositories/FeesRepository.js';
 import { FinanceOverviewRepository } from '~/repositories/FinanceOverviewRepository.js';
@@ -46,9 +47,21 @@ export const MockFinanceOverviewRepositoryLayer = Layer.succeed(FinanceOverviewR
   myStatus: () => Effect.succeed([]),
 } as never);
 
+export const MockExpensesRepositoryLayer = Layer.succeed(ExpensesRepository, {
+  _tag: 'api/ExpensesRepository' as const,
+  insert: () => Effect.die(new Error('Not implemented')),
+  findById: () => Effect.succeed(Option.none()),
+  listByTeam: () => Effect.succeed([]),
+  update: () => Effect.succeed(Option.none()),
+  delete: () => Effect.succeed(false),
+  balanceSummaryByTeam: () => Effect.succeed([]),
+  countHistoryRows: () => Effect.succeed(0),
+} as never);
+
 export const MockFinanceLayers = Layer.mergeAll(
   MockFeesRepositoryLayer,
   MockFeeAssignmentsRepositoryLayer,
   MockPaymentsRepositoryLayer,
   MockFinanceOverviewRepositoryLayer,
+  MockExpensesRepositoryLayer,
 );

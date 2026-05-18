@@ -82,6 +82,8 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
           }
         } else if (routeId.includes('/age-thresholds')) {
           crumbs.push({ label: tr('team_ageThresholds'), to: pathname });
+        } else if (routeId.includes('/finances/expenses')) {
+          crumbs.push({ label: tr('expenses_navTitle'), to: pathname });
         }
       } else if (routeId === '/(authenticated)/teams/$teamId/') {
         const teamId = (match.params as Record<string, string>).teamId;

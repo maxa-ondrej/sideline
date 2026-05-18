@@ -9,6 +9,7 @@ import {
   EventApi,
   EventRsvpApi,
   EventSeriesApi,
+  ExpenseApi,
   FinanceApi,
   GroupApi,
   ICalApi,
@@ -40,6 +41,7 @@ export const Api = HttpApi.make('api')
     EventApi.EventApiGroup,
     EventRsvpApi.EventRsvpApiGroup,
     EventSeriesApi.EventSeriesApiGroup,
+    ExpenseApi.ExpenseApiGroup,
     FinanceApi.FinanceApiGroup,
     GroupApi.GroupApiGroup,
     ICalApi.ICalApiGroup,
@@ -48,6 +50,8 @@ export const Api = HttpApi.make('api')
     Roster.RosterApiGroup,
     RoleApi.RoleApiGroup,
     TeamApi.TeamApiGroup,
+  )
+  .add(
     TeamSettingsApi.TeamSettingsApiGroup,
     TrainingTypeApi.TrainingTypeApiGroup,
     Translations.TranslationsApiGroup,

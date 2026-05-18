@@ -27,6 +27,7 @@ import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { ExpensesRepository } from '~/repositories/ExpensesRepository.js';
 import { FeeAssignmentsRepository } from '~/repositories/FeeAssignmentsRepository.js';
 import { FeesRepository } from '~/repositories/FeesRepository.js';
 import { FinanceOverviewRepository } from '~/repositories/FinanceOverviewRepository.js';
@@ -123,6 +124,7 @@ const Repositories = Layer.mergeAll(
   FeeAssignmentsRepository.Default,
   PaymentsRepository.Default,
   FinanceOverviewRepository.Default,
+  ExpensesRepository.Default,
   PaymentReminderSyncEventsRepository.Default,
   PaymentRemindersSentRepository.Default,
 );

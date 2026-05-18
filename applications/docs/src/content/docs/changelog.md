@@ -5,6 +5,14 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05-18 — Expense tracking
+
+- Admins and Treasurers can now record **team expenditures** — pitch hire, equipment purchases, travel costs, tournament entry fees, and other team spending.
+- Go to **Team → Finances** and open the **Expenses tab** to add, edit, or delete expenses. Each expense has a category (`fields`, `equipment`, `travel`, `tournaments`, or `other`), an amount, a currency, a date, and a free-text description.
+- The **Overview tab** on the Finances page now shows three balance KPI tiles — **Income** (total non-voided payments received), **Expenses** (total recorded expenditures), and **Net** (Income minus Expenses) — aggregated per currency. This tab is now the default when you open the Finances page.
+- Every change to an expense is written to an internal audit log; deletions are permanent from the UI but the audit record is retained.
+- API: six new endpoints under `/api/teams/{teamId}/expenses` (list, get, create, update, delete) and `GET /api/teams/{teamId}/finances/balance-summary`.
+
 ## 2026-05-17 — Payment reminders via Discord DM and iCal
 
 - Sideline now sends you a **Discord DM** when a fee assignment reaches a reminder threshold: 3 days before due, on the due date, then at 3, 10, and 21 days overdue. Each DM shows the fee name, amount, outstanding balance, and due date with a colour-coded embed (blue = due soon, yellow = due today, red = overdue).
