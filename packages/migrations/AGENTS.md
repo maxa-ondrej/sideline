@@ -112,6 +112,77 @@ Rules:
 2. **Only the soft-archive parent FK (e.g. `fee_assignments.fee_id → fees(id) ON DELETE CASCADE`) may cascade**, because deleting an unused `fees` row (no assignments yet) is a cleanup operation, not a financial event.
 3. **Document the cascade choice inline in the migration** with a one-line comment when it deviates from "default to RESTRICT" — future readers should not have to infer policy from column-by-column reading.
 
+### Per-Row Audit Trigger With Application-Set Actor
+
+When a table is hard-deleted (no `voided_at` / `archived_at` soft-delete column) but must still produce an audit trail per insert / update / delete, define an `AFTER INSERT OR UPDATE OR DELETE FOR EACH ROW` trigger in the same migration that creates the table. The trigger writes a JSONB snapshot row to a paired `<resource>_history` table. The DELETE actor is read from a session-local Postgres variable (`audit.user_id`) that the repository SETs inside the same transaction as the DELETE — `OLD.updated_by_user_id` is a fallback only.
+
+Reference implementation: `expenses` + `expense_history` + `expenses_audit` function + `expenses_audit_trg` trigger in `packages/migrations/src/before/1786000000_create_expenses.ts`. The repository side lives at `applications/server/src/repositories/ExpensesRepository.ts` — see "Application-Set Audit Actor For Hard Deletes" in `applications/server/AGENTS.md`.
+
+Schema contract (copy verbatim, only renaming `<resource>`):
+
+```typescript
+sql`
+  CREATE TABLE <resource>_history (
+    history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    <resource>_id UUID NOT NULL,
+    operation TEXT NOT NULL CHECK (operation IN ('insert','update','delete')),
+    performed_by_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    performed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    snapshot JSONB NOT NULL
+  )
+`,
+sql`CREATE INDEX idx_<resource>_history_<resource> ON <resource>_history (<resource>_id, performed_at DESC)`,
+sql`
+  CREATE FUNCTION <resource>_audit() RETURNS TRIGGER AS $$
+  DECLARE
+    audit_user_id UUID;
+  BEGIN
+    BEGIN
+      IF TG_OP = 'INSERT' THEN
+        INSERT INTO <resource>_history (<resource>_id, operation, performed_by_user_id, snapshot)
+        VALUES (NEW.id, 'insert', NEW.created_by_user_id, to_jsonb(NEW));
+        RETURN NEW;
+      ELSIF TG_OP = 'UPDATE' THEN
+        INSERT INTO <resource>_history (<resource>_id, operation, performed_by_user_id, snapshot)
+        VALUES (NEW.id, 'update', NEW.updated_by_user_id, to_jsonb(NEW));
+        RETURN NEW;
+      ELSIF TG_OP = 'DELETE' THEN
+        BEGIN
+          audit_user_id := current_setting('audit.user_id', true)::uuid;
+        EXCEPTION WHEN OTHERS THEN
+          audit_user_id := NULL;
+        END;
+        IF audit_user_id IS NULL THEN
+          audit_user_id := OLD.updated_by_user_id;
+        END IF;
+        INSERT INTO <resource>_history (<resource>_id, operation, performed_by_user_id, snapshot)
+        VALUES (OLD.id, 'delete', audit_user_id, to_jsonb(OLD));
+        RETURN OLD;
+      END IF;
+      RETURN NULL;
+    EXCEPTION WHEN OTHERS THEN
+      RAISE WARNING '<resource>_audit trigger failed: %', SQLERRM;
+      RETURN COALESCE(NEW, OLD);
+    END;
+  END;
+  $$ LANGUAGE plpgsql
+`,
+sql`
+  CREATE TRIGGER <resource>_audit_trg
+    AFTER INSERT OR UPDATE OR DELETE ON <resource>
+    FOR EACH ROW EXECUTE FUNCTION <resource>_audit()
+`,
+```
+
+Rules:
+
+1. **Define the table, history table, function, and trigger in the SAME migration.** Adding the trigger later requires backfilling missing INSERT history rows and there is no correct historical actor to use.
+2. **The trigger function MUST be wrapped in an outer `BEGIN ... EXCEPTION WHEN OTHERS THEN RAISE WARNING ...; RETURN COALESCE(NEW, OLD); END;` block** so a malformed snapshot or audit-table outage cannot abort the user's primary write. The history row is best-effort; the main row is the contract.
+3. **DELETE-actor lookup MUST use `current_setting('audit.user_id', true)`** (note the `true` second argument — without it, missing setting raises `42704` and aborts). The inner `BEGIN ... EXCEPTION WHEN OTHERS THEN audit_user_id := NULL; END;` block converts a missing or malformed setting into the `OLD.updated_by_user_id` fallback.
+4. **`performed_by_user_id` is `ON DELETE RESTRICT`**, not `CASCADE`. Audit rows must survive user-account deletion — GDPR anonymization is a separate per-PR story (document the obligation with `COMMENT ON COLUMN <resource>.created_by_user_id IS 'Author of the <resource>. Future GDPR-erasure stories must anonymize via SET NULL or separate anonymization.'`).
+5. **`snapshot` is `JSONB`, not denormalized columns.** Use `to_jsonb(NEW)` / `to_jsonb(OLD)` so the history row captures the full row shape at operation time. Schema migrations to the parent table do not require backfilling history columns.
+6. **The repository's DELETE method MUST set the actor before the DELETE using `yield* sql\`SELECT set_config('audit.user_id', ${userId}, true)\``** (not `SET LOCAL`, which cannot accept bind parameters in Postgres — `set_config(name, value, is_local=true)` is the equivalent function form and does accept them). See `applications/server/AGENTS.md` → "Application-Set Audit Actor For Hard Deletes".
+
 ### Unique Constraints with Nullable Columns
 
 The deployed PostgreSQL major version is 17 (see `applications/server/test/integration/globalSetup.ts`), so PostgreSQL 15+ syntax is available. When a composite `UNIQUE` constraint contains nullable columns and you want `NULL` values to collide (i.e. treat `NULL` as a regular distinct value for uniqueness), use `UNIQUE NULLS NOT DISTINCT`:

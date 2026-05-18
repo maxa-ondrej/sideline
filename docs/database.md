@@ -1004,7 +1004,7 @@ Single-row counter used for cache invalidation. Incremented by the application (
 
 ### 12. Finance
 
-The Finance subsystem tracks fee definitions, per-member fee assignments, and payment records. A PostgreSQL trigger automatically maintains the denormalised `fee_assignments.paid_minor` column so the server never needs to aggregate payments on read. A computed view (`fee_assignment_status_v`) derives the displayed status from stored data. Payment reminders are delivered asynchronously via two additional tables: `payment_reminder_sync_events` (outbox for the bot's Finance Sync worker) and `payment_reminders_sent` (idempotency guard so a reminder is never delivered twice for the same assignment/kind pair).
+The Finance subsystem tracks fee definitions, per-member fee assignments, payment records, and team expenditures. A PostgreSQL trigger automatically maintains the denormalised `fee_assignments.paid_minor` column so the server never needs to aggregate payments on read. A computed view (`fee_assignment_status_v`) derives the displayed status from stored data. Payment reminders are delivered asynchronously via two additional tables: `payment_reminder_sync_events` (outbox for the bot's Finance Sync worker) and `payment_reminders_sent` (idempotency guard so a reminder is never delivered twice for the same assignment/kind pair). Team expenditures are tracked in the `expenses` table; every change is journalled into `expense_history` by a Postgres trigger.
 
 #### `fees`
 
@@ -1153,9 +1153,52 @@ Idempotency guard that records the successful delivery of each reminder DM. The 
 
 ---
 
+#### `expenses`
+
+A team-level expenditure record (pitch hire, equipment purchase, travel cost, tournament entry fee, etc.). Expenses are hard-deleted (not soft-archived), but every write is journalled into `expense_history` by a Postgres trigger.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `id` | UUID | PK | `gen_random_uuid()` |
+| `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
+| `amount_minor` | BIGINT | NOT NULL, CHECK > 0 | — |
+| `currency` | CHAR(3) | NOT NULL | — |
+| `spent_at` | TIMESTAMPTZ | NOT NULL, CHECK (`> '1900-01-01'` AND `< now() + 365 days`) | — |
+| `category` | TEXT | NOT NULL, CHECK (`'fields'`, `'equipment'`, `'travel'`, `'tournaments'`, `'other'`) | — |
+| `description` | TEXT | NOT NULL | — |
+| `created_by_user_id` | UUID | NOT NULL, FK → `users(id)` ON DELETE RESTRICT | — |
+| `updated_by_user_id` | UUID | NOT NULL, FK → `users(id)` ON DELETE RESTRICT | — |
+| `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
+
+**Indexes**: `idx_expenses_team_spent_at` on `(team_id, spent_at DESC)`; `idx_expenses_team_category` on `(team_id, category)`
+
+**Notes**: `amount_minor > 0` — zero-amount expenses are rejected at the DB level. `spent_at` is constrained to be at most 365 days in the future (and after the year 1900) — this is a sanity bound against typos like year 20255, not a strict past-date rule. GDPR note: `created_by_user_id` and `updated_by_user_id` use `ON DELETE RESTRICT`; future anonymisation stories must handle these columns explicitly.
+
+---
+
+#### `expense_history`
+
+Append-only audit log for the `expenses` table. Populated automatically by the `expenses_audit` Postgres trigger (AFTER INSERT OR UPDATE OR DELETE on `expenses`). The `snapshot` column captures the full row as JSONB at the time of the operation.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `history_id` | UUID | PK | `gen_random_uuid()` |
+| `expense_id` | UUID | NOT NULL (no FK — row may be deleted) | — |
+| `operation` | TEXT | NOT NULL, CHECK (`'insert'`, `'update'`, `'delete'`) | — |
+| `performed_by_user_id` | UUID | NOT NULL, FK → `users(id)` ON DELETE RESTRICT | — |
+| `performed_at` | TIMESTAMPTZ | NOT NULL | `now()` |
+| `snapshot` | JSONB | NOT NULL | — |
+
+**Indexes**: `idx_expense_history_expense` on `(expense_id, performed_at DESC)`
+
+**Notes**: `expense_id` is stored as a plain UUID with no FK constraint so that history rows are retained after the expense row is hard-deleted. For DELETE operations the trigger reads the session-local `audit.user_id` setting (set by the application) and falls back to `OLD.updated_by_user_id` if the setting is absent or invalid. Trigger errors are non-fatal: a `RAISE WARNING` is emitted and the original DML is allowed to succeed.
+
+---
+
 ## Migration History
 
-All 77 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 78 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -1229,6 +1272,7 @@ All 77 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1783100000 | `grant_captain_activity_type_perms` | Backfills `activity-type:create` and `activity-type:delete` permissions to existing Captain built-in roles on all teams |
 | 1784000000 | `introduce_treasurer_role` | Creates a built-in Treasurer role on every existing team; grants Treasurer `finance:view`, `finance:manage_fees`, `finance:record_payments`; backfills Admin with any missing finance perms; backfills Captain with `finance:view` |
 | 1785000000 | `payment_reminders` | Creates `payment_reminder_sync_events` and `payment_reminders_sent` tables; adds `idx_fee_assignments_due_at` index on `fee_assignments(due_at)`; adds `idx_payment_reminder_sync_events_unprocessed` partial index on `payment_reminder_sync_events(created_at) WHERE processed_at IS NULL` |
+| 1786000000 | `create_expenses` | Creates `expenses` table with CHECK constraints on `amount_minor > 0`, `spent_at` range, and `category` enum; adds `idx_expenses_team_spent_at` and `idx_expenses_team_category` indexes; creates `expense_history` audit table with `idx_expense_history_expense` index; creates `expenses_audit` trigger function and `expenses_audit_trg` AFTER INSERT OR UPDATE OR DELETE trigger on `expenses` |
 
 ### After Migrations (seed data)
 
@@ -1261,7 +1305,7 @@ The server inserts rows when the relevant domain action occurs. The bot polls `W
 
 ### Cascading Deletes
 
-Team deletion cascades to all child tables (team_members, team_invites, invite_acceptances, team_settings, roles, groups, training_types, events, event_series, rosters, notifications, discord_role_mappings, discord_channel_mappings, role_sync_events, channel_sync_events, event_sync_events, age_threshold_rules, activity_types, achievement_role_mappings, achievement_sync_events, achievement_settings, custom_achievements, discord_role_provision_events, fees). Fee deletion cascades to fee_assignments. Fee assignment deletion cascades to `payment_reminder_sync_events` and `payment_reminders_sent`. Member deletion cascades to group_members, member_roles, roster_members, event_rsvps, activity_logs, earned_achievements, and achievement_sync_events. Member deletion is blocked (`ON DELETE RESTRICT`) when any fee_assignment or payment row references the member. `invite_acceptances` rows are also deleted when the referenced `team_invites` row is deleted (ON DELETE CASCADE on `team_invite_id`) and when the referenced `users` row is deleted (ON DELETE CASCADE on `user_id`).
+Team deletion cascades to all child tables (team_members, team_invites, invite_acceptances, team_settings, roles, groups, training_types, events, event_series, rosters, notifications, discord_role_mappings, discord_channel_mappings, role_sync_events, channel_sync_events, event_sync_events, age_threshold_rules, activity_types, achievement_role_mappings, achievement_sync_events, achievement_settings, custom_achievements, discord_role_provision_events, fees, expenses). Fee deletion cascades to fee_assignments. Fee assignment deletion cascades to `payment_reminder_sync_events` and `payment_reminders_sent`. Expense deletion does not cascade to `expense_history` (no FK constraint on `expense_history.expense_id`). Member deletion cascades to group_members, member_roles, roster_members, event_rsvps, activity_logs, earned_achievements, and achievement_sync_events. Member deletion is blocked (`ON DELETE RESTRICT`) when any fee_assignment or payment row references the member. User deletion is blocked (`ON DELETE RESTRICT`) when any expense or expense_history row references the user. `invite_acceptances` rows are also deleted when the referenced `team_invites` row is deleted (ON DELETE CASCADE on `team_invite_id`) and when the referenced `users` row is deleted (ON DELETE CASCADE on `user_id`).
 
 Role deletion uses `ON DELETE RESTRICT` on `member_roles` to prevent accidentally orphaning members. FK references from `role_sync_events.role_id` and `channel_sync_events.group_id` are stored as plain UUID (no FK constraint) so audit rows are retained after the referenced entity is deleted.
 

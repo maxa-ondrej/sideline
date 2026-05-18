@@ -1,9 +1,13 @@
+import type { ExpenseApi } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
 import React from 'react';
 import { PaymentStatusBadge } from '~/components/molecules/PaymentStatusBadge.js';
+import { BalanceDashboard } from '~/components/organisms/BalanceDashboard.js';
 import { Button } from '~/components/ui/button.js';
 import { formatMoney } from '~/lib/finance/formatMoney.js';
 import { tr } from '~/lib/translations.js';
+
+const overviewTabSeenKey = (userId: string) => `sideline:finances-overview-tab-seen:${userId}`;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,6 +32,11 @@ interface FinancesOverviewPageProps {
    */
   teamId?: string;
   /**
+   * The authenticated user's id, used to scope the "New" badge localStorage key.
+   * When omitted the badge is hidden (treated as already-seen — safe default for test scenarios).
+   */
+  userId?: string;
+  /**
    * When provided, renders a tab bar with "By member" and "By assignment" tabs.
    * The provided ReactNode is rendered when the "By assignment" tab is active.
    */
@@ -36,6 +45,17 @@ interface FinancesOverviewPageProps {
    * When provided, the empty-state "Create a fee" button links to this href.
    */
   createFeeHref?: string;
+  /**
+   * Balance summaries for the Overview tab. When provided, the Overview tab is shown.
+   */
+  balanceSummaries?: ReadonlyArray<ExpenseApi.BalanceSummary>;
+  /**
+   * Controlled active tab value. When provided together with onTabChange,
+   * the component operates in controlled mode (URL-synced).
+   */
+  activeTab?: ActiveTab;
+  /** Called when the user selects a different tab in controlled mode. */
+  onTabChange?: (tab: ActiveTab) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,13 +75,11 @@ function worstStatus(row: MemberOverviewRow): WorstStatus {
 }
 
 /**
- * For v1 KPIs we pick the most common currency across rows and only display
- * figures in that currency. Multi-currency teams will see a caveat in a future PR.
- *
- * TODO(finance-multi-currency): When we support multi-currency display, aggregate
- * KPI values should be shown per-currency or converted to a team base currency.
+ * For v1 KPIs we pick the most common currency across rows (by row count) and only
+ * display figures in that currency. See BalanceDashboard for the balance view which
+ * handles multi-currency display by picking the dominant currency by payment volume.
  */
-function pickDominantCurrency(rows: ReadonlyArray<MemberOverviewRow>): string {
+function pickMostFrequentCurrency(rows: ReadonlyArray<MemberOverviewRow>): string {
   if (rows.length === 0) return 'CZK';
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -127,7 +145,7 @@ function ByMemberContent({
   const [search, setSearch] = React.useState('');
   const [filter, setFilter] = React.useState<FilterValue>('all');
 
-  const currency = pickDominantCurrency(rows);
+  const currency = pickMostFrequentCurrency(rows);
   const currencyRows = rows.filter((r) => r.currency === currency);
   const totalDueMinor = currencyRows.reduce((s, r) => s + r.totalDueMinor, 0);
   const totalPaidMinor = currencyRows.reduce((s, r) => s + r.totalPaidMinor, 0);
@@ -271,15 +289,54 @@ function ByMemberContent({
 // Main component
 // ---------------------------------------------------------------------------
 
+type ActiveTab = 'overview' | 'by-member' | 'by-assignment';
+
 export function FinancesOverviewPage({
   rows,
+  userId,
   assignmentsTabContent,
   createFeeHref,
+  balanceSummaries,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }: FinancesOverviewPageProps) {
-  const [activeTab, setActiveTab] = React.useState<'by-member' | 'by-assignment'>('by-member');
+  const hasOverviewTab = balanceSummaries !== undefined;
+  const defaultTab: ActiveTab = hasOverviewTab ? 'overview' : 'by-member';
+  const [internalActiveTab, setInternalActiveTab] = React.useState<ActiveTab>(defaultTab);
 
-  // When no tabs are requested, render the by-member content directly
-  if (!assignmentsTabContent) {
+  // Support both controlled (URL-synced) and uncontrolled mode.
+  const isControlled = controlledActiveTab !== undefined && onTabChange !== undefined;
+  const activeTab = isControlled ? controlledActiveTab : internalActiveTab;
+
+  const [overviewTabSeen, setOverviewTabSeen] = React.useState(() => {
+    if (!userId) return true;
+    try {
+      return localStorage.getItem(overviewTabSeenKey(userId)) === 'true';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleTabChange = (tab: ActiveTab) => {
+    if (isControlled) {
+      onTabChange(tab);
+    } else {
+      setInternalActiveTab(tab);
+    }
+    if (tab === 'overview' && !overviewTabSeen) {
+      setOverviewTabSeen(true);
+      if (userId) {
+        try {
+          localStorage.setItem(overviewTabSeenKey(userId), 'true');
+        } catch {
+          // ignore
+        }
+      }
+    }
+  };
+
+  // When no tabs are requested and no overview, render the by-member content directly
+  if (!assignmentsTabContent && !hasOverviewTab) {
     return <ByMemberContent rows={rows} createFeeHref={createFeeHref} />;
   }
 
@@ -288,36 +345,57 @@ export function FinancesOverviewPage({
     <div>
       {/* Tab bar */}
       <div className='flex border-b mb-4' role='tablist'>
-        <button
+        {hasOverviewTab && (
+          <Button
+            type='button'
+            role='tab'
+            variant={activeTab === 'overview' ? 'secondary' : 'ghost'}
+            aria-selected={activeTab === 'overview'}
+            onClick={() => handleTabChange('overview')}
+            className={`rounded-none border-b-2 -mb-px transition-colors flex items-center gap-1.5 ${
+              activeTab === 'overview' ? 'border-primary' : 'border-transparent'
+            }`}
+          >
+            {tr('finance_overview_tab')}
+            {!overviewTabSeen && (
+              <span className='rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground'>
+                {tr('finance_overview_tab_new_badge')}
+              </span>
+            )}
+          </Button>
+        )}
+        <Button
           type='button'
           role='tab'
+          variant={activeTab === 'by-member' ? 'secondary' : 'ghost'}
           aria-selected={activeTab === 'by-member'}
-          onClick={() => setActiveTab('by-member')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'by-member'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
+          onClick={() => handleTabChange('by-member')}
+          className={`rounded-none border-b-2 -mb-px transition-colors ${
+            activeTab === 'by-member' ? 'border-primary' : 'border-transparent'
           }`}
         >
           {tr('finance_tab_byMember')}
-        </button>
-        <button
-          type='button'
-          role='tab'
-          aria-selected={activeTab === 'by-assignment'}
-          onClick={() => setActiveTab('by-assignment')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === 'by-assignment'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {tr('finance_tab_byAssignment')}
-        </button>
+        </Button>
+        {assignmentsTabContent && (
+          <Button
+            type='button'
+            role='tab'
+            variant={activeTab === 'by-assignment' ? 'secondary' : 'ghost'}
+            aria-selected={activeTab === 'by-assignment'}
+            onClick={() => handleTabChange('by-assignment')}
+            className={`rounded-none border-b-2 -mb-px transition-colors ${
+              activeTab === 'by-assignment' ? 'border-primary' : 'border-transparent'
+            }`}
+          >
+            {tr('finance_tab_byAssignment')}
+          </Button>
+        )}
       </div>
 
       {/* Tab content */}
-      {activeTab === 'by-member' ? (
+      {activeTab === 'overview' && hasOverviewTab ? (
+        <BalanceDashboard summaries={balanceSummaries ?? []} />
+      ) : activeTab === 'by-member' ? (
         <ByMemberContent rows={rows} createFeeHref={createFeeHref} />
       ) : (
         assignmentsTabContent

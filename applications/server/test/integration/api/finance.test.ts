@@ -15,6 +15,7 @@ import type {
   Team,
   TeamMember,
 } from '@sideline/domain';
+import { LogicError } from '@sideline/effect-lib';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from 'effect/unstable/http';
@@ -37,6 +38,7 @@ import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
 import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
+import { ExpensesRepository } from '~/repositories/ExpensesRepository.js';
 import { FeeAssignmentsRepository } from '~/repositories/FeeAssignmentsRepository.js';
 import { FeesRepository } from '~/repositories/FeesRepository.js';
 import { FinanceOverviewRepository } from '~/repositories/FinanceOverviewRepository.js';
@@ -469,6 +471,26 @@ const MockPaymentsRepositoryLayer = Layer.succeed(PaymentsRepository, {
 const MockFinanceOverviewRepositoryLayer = Layer.succeed(FinanceOverviewRepository, {
   _tag: 'api/FinanceOverviewRepository',
   overviewByTeam: () => Effect.succeed([]),
+} as any);
+
+const MockExpensesRepositoryLayer = Layer.succeed(ExpensesRepository, {
+  _tag: 'api/ExpensesRepository',
+  insert: () => LogicError.die('MockExpensesRepositoryLayer.insert not implemented'),
+  findById: () => Effect.succeed(Option.none()),
+  listByTeam: () => Effect.succeed([]),
+  update: () => Effect.succeed(Option.none()),
+  delete: () => Effect.succeed(false),
+  balanceSummaryByTeam: () =>
+    Effect.succeed([
+      {
+        currency: 'CZK',
+        incomeMinor: 0,
+        expensesMinor: 0,
+        netMinor: 0,
+        byCategory: [],
+      },
+    ]),
+  countHistoryRows: () => Effect.succeed(0),
 } as any);
 
 // ---------------------------------------------------------------------------
@@ -955,6 +977,7 @@ const TestLayer = ApiLive.pipe(
       MockFeeAssignmentsRepositoryLayer,
       MockPaymentsRepositoryLayer,
       MockFinanceOverviewRepositoryLayer,
+      MockExpensesRepositoryLayer,
     ),
   ),
 )

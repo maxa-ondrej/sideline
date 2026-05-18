@@ -1,11 +1,11 @@
 ---
 title: Finances
-description: Track team fees, record payments, and check your outstanding balance.
+description: Track team fees, record payments, manage team expenses, and check your outstanding balance.
 ---
 
 import { Aside, Steps, Badge } from '@astrojs/starlight/components';
 
-Sideline's Finance module lets admins and members with the Treasurer role define fees (membership dues, equipment levies, tournament entry costs), assign them to members, and record payments as they come in. Members can check their own balance at any time — in Discord or in the web app.
+Sideline's Finance module lets admins and members with the Treasurer role define fees (membership dues, equipment levies, tournament entry costs), assign them to members, record payments as they come in, and track team expenditures. Members can check their own balance at any time — in Discord or in the web app.
 
 ## Key concepts
 
@@ -30,9 +30,11 @@ Finance permissions follow a treasurer-style split across four built-in roles. B
 |---|---|---|---|---|
 | View fee list and assignments | Yes | Yes | Yes | No |
 | View finance overview (all members) | Yes | Yes | Yes | No |
+| View balance summary (Income / Expenses / Net) | Yes | Yes | Yes | No |
 | Create, edit, or archive fees | Yes | No | Yes | No |
 | Assign fees to members | Yes | No | Yes | No |
 | Record or void payments | Yes | No | Yes | No |
+| Create, edit, or delete expenses | Yes | No | Yes | No |
 | View own fee status (My Payments) | Yes | Yes | Yes | Yes |
 
 All team members can access their own My Payments page and check their own fee balance in Discord, regardless of role.
@@ -42,24 +44,25 @@ Several Finance features are planned for follow-up releases:
 
 - **Monthly recurrence** — auto-generating monthly charges from a fee definition.
 - **Self-report "I've paid"** — a Discord interaction for members to notify captains of unrecorded payments.
+- **Expense receipts** — attaching an image or document URL to an expense record.
 </Aside>
 
 ## Finance overview page
 
-Go to **Team → Finances** (`/teams/:teamId/finances`) to see a summary of all active members' fee status. The page is visible to anyone holding `finance:view` (Admin, Captain, and Treasurer by default).
+Go to **Team → Finances** (`/teams/:teamId/finances`) to see the full financial picture for your team. The page is visible to anyone holding `finance:view` (Admin, Captain, and Treasurer by default). The active tab is reflected in the URL so you can bookmark or share a specific view.
 
-The page has two tabs:
+The page has three tabs:
 
-**Overview tab** — a summary table of all active members showing:
-- Member name
-- Currency
-- Total due (all active assignments combined)
-- Total paid
-- Number of overdue, pending, and paid assignments
+**Overview tab** (default) — three KPI tiles showing team-wide totals per currency:
+- **Income** — sum of all non-voided payments received
+- **Expenses** — sum of all recorded expenditures
+- **Net** — Income minus Expenses (may be negative)
 
-Use this view to quickly see who is behind on payments.
+Below the tiles, a summary table lists all active members with their total due, total paid, and assignment status counts. Use this view to quickly see who is behind on payments.
 
 **By assignment tab** — a flat list of individual payment records. Use the filter controls to narrow by member, fee, date range, or to include voided payments.
+
+**Expenses tab** — a list of all team expenditures. From this tab you can add, edit, and delete expense records (requires `finance:manage_fees`).
 
 ## Fee management page
 
@@ -71,6 +74,107 @@ From this page you can:
 - Edit a fee's details or archive it when it is no longer needed.
 - Waive an individual assignment (e.g. hardship exemption).
 - Record a payment directly from the assignment list.
+
+## Expense tracking
+
+Use the **Expenses tab** on the Finances page (`/teams/:teamId/finances`) to record and manage team expenditures — pitch hire, equipment purchases, travel costs, tournament entry fees, and anything else the team spends money on.
+
+Expense management requires the `finance:manage_fees` permission (Admin or Treasurer by default). Members with only `finance:view` (Captain) can see the balance summary but cannot create or modify expenses.
+
+### Expense categories
+
+Every expense must be assigned one of the following categories:
+
+| Category | Typical use |
+|---|---|
+| **Fields** | Pitch or venue hire |
+| **Equipment** | Kit, cones, balls, bibs, and other gear |
+| **Travel** | Transport costs for away fixtures |
+| **Tournaments** | Entry fees for competitions |
+| **Other** | Anything that does not fit the above |
+
+### Recording an expense
+
+<Steps>
+
+1. Navigate to **Team → Finances** and open the **Expenses tab**.
+2. Click **Add expense**.
+3. Fill in the category, amount, currency, date, and a short description (max 500 characters).
+4. Click **Save**. The expense appears in the list and the balance summary updates immediately.
+
+</Steps>
+
+### Editing or deleting an expense
+
+Click any expense row to open the edit form. You can update any field. To remove the record, click **Delete** inside the form.
+
+<Aside type="caution" title="Deletions are permanent">
+  Expenses are hard-deleted — they cannot be restored from the UI once removed. An audit record is always kept internally, but it is not accessible through the web app.
+</Aside>
+
+### Balance summary
+
+The **Overview tab** on the Finances page shows three KPI tiles — **Income**, **Expenses**, and **Net** — aggregated per currency. Income is the total of all non-voided fee payments; Expenses is the total of all recorded expense amounts; Net is Income minus Expenses.
+
+You can filter the summary to a specific date range using the `from` and `to` query parameters via the API (see the [API section below](#captainadmin-workflows-via-api)).
+
+### Expense API (for automation)
+
+Admins and Treasurers can also manage expenses via the REST API.
+
+#### List expenses
+
+```http
+GET /api/teams/{teamId}/expenses
+```
+
+Optional query parameters: `category`, `from` (ISO 8601), `to` (ISO 8601).
+
+#### Create an expense
+
+```http
+POST /api/teams/{teamId}/expenses
+Content-Type: application/json
+
+{
+  "amountMinor": 15000,
+  "currency": "CZK",
+  "spentAt": "2026-05-10T00:00:00.000Z",
+  "category": "fields",
+  "description": "Pitch hire — spring season round 4"
+}
+```
+
+`amountMinor` must be a positive integer (minor currency units). The request returns `201 Created` with the full `ExpenseView` on success.
+
+#### Update an expense
+
+```http
+PATCH /api/teams/{teamId}/expenses/{expenseId}
+Content-Type: application/json
+
+{
+  "description": "Pitch hire — spring season round 4 (corrected)"
+}
+```
+
+All fields are optional. If you supply `currency` you must also supply `amountMinor`.
+
+#### Delete an expense
+
+```http
+DELETE /api/teams/{teamId}/expenses/{expenseId}
+```
+
+Returns `204 No Content` on success.
+
+#### Balance summary
+
+```http
+GET /api/teams/{teamId}/finances/balance-summary?from=2026-01-01T00:00:00.000Z&to=2026-12-31T23:59:59.000Z
+```
+
+Returns `BalanceSummary[]` — one element per currency — with `incomeMinor`, `expensesMinor`, and `netMinor` fields.
 
 ## My Payments page
 
@@ -148,9 +252,9 @@ Reminders are sent as Discord direct messages. If you have DMs from server membe
 
 Your personal iCal feed (see [Calendar subscription](/guides/calendar-subscription/)) also includes an all-day event for each unpaid or overdue fee assignment, with a built-in alarm that fires one day before the due date. This gives you a second reminder channel alongside the Discord DMs, and lets you see upcoming payment deadlines alongside team events.
 
-## Captain / admin workflows (via API)
+## Captain / admin fee workflows (via API)
 
-Most fee management tasks are available through the web UI (see the [Fee management page](#fee-management-page) section above). For scripted or bulk operations, admins and treasurers can also use the REST API directly. See the [API overview](/api/overview/) for authentication instructions.
+Most fee management tasks are available through the web UI (see the [Fee management page](#fee-management-page) section above). For scripted or bulk operations, admins and treasurers can also use the REST API directly. See the [API overview](/api/overview/) for authentication instructions. For expense API examples see the [Expense API](#expense-api-for-automation) section above.
 
 ### Create a fee
 

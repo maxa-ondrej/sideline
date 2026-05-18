@@ -9,6 +9,7 @@ import {
   EventApi,
   EventRsvpApi,
   EventSeriesApi,
+  ExpenseApi,
   FinanceApi,
   GroupApi,
   ICalApi,
@@ -53,6 +54,7 @@ class ClientApi extends HttpApi.make('api')
   .add(EventApi.EventApiGroup)
   .add(EventRsvpApi.EventRsvpApiGroup)
   .add(EventSeriesApi.EventSeriesApiGroup)
+  .add(ExpenseApi.ExpenseApiGroup)
   .add(FinanceApi.FinanceApiGroup)
   .add(GroupApi.GroupApiGroup)
   .add(ICalApi.ICalApiGroup)
