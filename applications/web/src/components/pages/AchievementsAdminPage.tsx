@@ -507,18 +507,36 @@ function CustomAchievementDialog({
       const customId = Schema.decodeSync(CustomAchievement.CustomAchievementId)(editing.keyOrId);
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
-          api.achievement.updateCustom({
-            params: { teamId, customId },
-            payload: {
-              name: Option.some(values.name),
-              description: Option.some(values.description),
-              emoji: emojiOption,
-              ruleKind: Option.some(values.ruleKind),
-              threshold: Option.some(thresholdNum),
-              activityTypeSlug,
-              discordRoleId,
-            },
-          }),
+          api.achievement
+            .updateCustom({
+              params: { teamId, customId },
+              payload: {
+                name: Option.some(values.name),
+                description: Option.some(values.description),
+                emoji: emojiOption,
+                ruleKind: Option.some(values.ruleKind),
+                threshold: Option.some(thresholdNum),
+                activityTypeSlug,
+                discordRoleId,
+              },
+            })
+            .pipe(
+              Effect.flatMap(() => {
+                if (values.roleSource === 'auto_create') {
+                  return api.achievement.setRoleMapping({
+                    params: { teamId, keyOrId: editing.keyOrId },
+                    payload: { source: 'auto_create' },
+                  });
+                }
+                if (values.roleSource === 'none') {
+                  return api.achievement.setRoleMapping({
+                    params: { teamId, keyOrId: editing.keyOrId },
+                    payload: { source: 'none' },
+                  });
+                }
+                return Effect.void;
+              }),
+            ),
         ),
         withFieldErrors(form, [
           {
@@ -538,18 +556,29 @@ function CustomAchievementDialog({
     } else {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
-          api.achievement.createCustom({
-            params: { teamId },
-            payload: {
-              name: values.name,
-              description: values.description,
-              emoji: emojiOption,
-              ruleKind: values.ruleKind,
-              threshold: thresholdNum,
-              activityTypeSlug,
-              discordRoleId,
-            },
-          }),
+          api.achievement
+            .createCustom({
+              params: { teamId },
+              payload: {
+                name: values.name,
+                description: values.description,
+                emoji: emojiOption,
+                ruleKind: values.ruleKind,
+                threshold: thresholdNum,
+                activityTypeSlug,
+                discordRoleId,
+              },
+            })
+            .pipe(
+              Effect.flatMap(({ id }) =>
+                values.roleSource === 'auto_create'
+                  ? api.achievement.setRoleMapping({
+                      params: { teamId, keyOrId: id },
+                      payload: { source: 'auto_create' },
+                    })
+                  : Effect.void,
+              ),
+            ),
         ),
         withFieldErrors(form, [
           {

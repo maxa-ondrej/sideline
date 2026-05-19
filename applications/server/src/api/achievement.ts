@@ -248,7 +248,7 @@ export const AchievementApiLive = HttpApiBuilder.group(Api, 'achievement', (hand
                 }
                 return Effect.void;
               }),
-              Effect.tap(() =>
+              Effect.bind('inserted', () =>
                 customs
                   .insert({
                     team_id: teamId,
@@ -266,7 +266,7 @@ export const AchievementApiLive = HttpApiBuilder.group(Api, 'achievement', (hand
                     ),
                   ),
               ),
-              Effect.asVoid,
+              Effect.map(({ inserted }) => ({ id: inserted.id })),
             ),
           )
           .handle('updateCustom', ({ params: { teamId, customId }, payload }) =>

@@ -812,8 +812,10 @@ describe('POST /teams/:teamId/achievements/custom', () => {
         }),
       }),
     );
-    // API spec says 201; body may contain the id
     expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(typeof body.id).toBe('string');
+    expect(body.id.length).toBeGreaterThan(0);
   });
 
   // Test 4: duplicate name → 409

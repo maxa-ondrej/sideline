@@ -153,7 +153,7 @@ export class AchievementApiGroup extends HttpApiGroup.make('achievement')
   )
   .add(
     HttpApiEndpoint.post('createCustom', '/teams/:teamId/achievements/custom', {
-      success: Schema.Void.pipe(HttpApiSchema.status(201)),
+      success: Schema.Struct({ id: CustomAchievementId }).pipe(HttpApiSchema.status(201)),
       error: [
         AchievementForbidden.pipe(HttpApiSchema.status(403)),
         CustomAchievementNameTaken.pipe(HttpApiSchema.status(409)),
