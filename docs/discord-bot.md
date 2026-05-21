@@ -30,7 +30,7 @@ The bot is built with **dfx**, an Effect-native Discord framework. It connects t
 
 ## Slash Commands
 
-Four top-level commands are registered globally: `/event`, `/finance`, `/info`, and `/makanicko`. `/event`, `/finance`, and `/makanicko` each have sub-commands.
+Five top-level commands are registered globally: `/event`, `/finance`, `/info`, `/makanicko`, and `/summon`. `/event`, `/finance`, and `/makanicko` each have sub-commands.
 
 ### /info
 
@@ -48,6 +48,52 @@ Four top-level commands are registered globally: `/event`, `/finance`, `/info`, 
    - Author credit with a link to [https://majksa.com](https://majksa.com).
 
 **Source file:** `applications/bot/src/commands/info/handler.ts`
+
+---
+
+### /summon
+
+**Description:** Add a user and/or a role's members to the Discord thread this command is invoked in.
+
+**Czech command name:** `přivolat`
+
+**Options:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `user` | User | No | The Discord user to add to the thread |
+| `role` | Role | No | A Discord role; all of its members are added to the thread |
+
+At least one of `user` or `role` must be supplied.
+
+**Constraints:**
+- `dm_permission: false` — the command cannot be used in DMs.
+- `default_member_permissions: ManageThreads` — Discord hides the command from members who lack the Manage Threads permission; the handler additionally re-checks at runtime.
+
+**Flow:**
+
+1. User invokes `/summon` (with `user`, `role`, or both) inside a Discord thread (PUBLIC_THREAD, PRIVATE_THREAD, or ANNOUNCEMENT_THREAD).
+2. The handler (`applications/bot/src/commands/summon/handler.ts`) checks the channel type. If the channel is not a thread, it replies ephemerally with "This command can only be used inside a thread."
+3. If neither option is provided, it replies ephemerally with "You must specify at least a user or a role."
+4. Otherwise it defers ephemerally and, in a forked fiber:
+   - If `role` is supplied, calls `rest.listGuildMembers(guild_id, { limit: 1000 })`, filters to members whose `roles` array contains the supplied role id, and dedupes against the explicit `user` (if any).
+   - Calls `rest.addThreadMember(channelId, userId)` for each target with bounded concurrency (5) to avoid Discord rate-limit storms.
+5. After all calls complete, it edits the original deferred message with a localized summary: per-user, per-role count, both, or "no members with role" / generic-error / forbidden as appropriate.
+
+**Errors:**
+
+| Condition | User-visible message |
+|-----------|----------------------|
+| Channel is not a thread | This command can only be used inside a thread. |
+| Invoker lacks Manage Threads | You need the Manage Threads permission to use this command. |
+| Neither option provided | You must specify at least a user or a role. |
+| Role expansion returns no members | No members found with role \<@&roleId\>. |
+| Discord HTTP 403 or JSON code 50013 on `addThreadMember` | I don't have permission to add members to this thread. |
+| Any other Discord error | Failed to add members to this thread. Please try again. |
+
+**Source files:**
+- `applications/bot/src/commands/summon/index.ts`
+- `applications/bot/src/commands/summon/handler.ts`
 
 ---
 
