@@ -60,6 +60,40 @@ describe('CreateActivityLogRequest', () => {
     });
     expect(Option.getOrNull(result.durationMinutes)).toBe(1440);
   });
+
+  it('decodes loggedAtDate: null to Option.none()', () => {
+    const result = Schema.decodeUnknownSync(ActivityLogApi.CreateActivityLogRequest)({
+      activityTypeId: MOCK_TYPE_ID,
+      durationMinutes: null,
+      note: null,
+      loggedAtDate: null,
+    });
+    expect(Option.isNone(result.loggedAtDate)).toBe(true);
+  });
+
+  it("decodes loggedAtDate: '2026-05-15' to Option.some('2026-05-15')", () => {
+    const result = Schema.decodeUnknownSync(ActivityLogApi.CreateActivityLogRequest)({
+      activityTypeId: MOCK_TYPE_ID,
+      durationMinutes: null,
+      note: null,
+      loggedAtDate: '2026-05-15',
+    });
+    expect(Option.isSome(result.loggedAtDate)).toBe(true);
+    if (Option.isSome(result.loggedAtDate)) {
+      expect(result.loggedAtDate.value).toBe('2026-05-15');
+    }
+  });
+
+  it("rejects loggedAtDate: '2026-5-15' (missing zero-padding)", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(ActivityLogApi.CreateActivityLogRequest)({
+        activityTypeId: MOCK_TYPE_ID,
+        durationMinutes: null,
+        note: null,
+        loggedAtDate: '2026-5-15',
+      }),
+    ).toThrow();
+  });
 });
 
 describe('UpdateActivityLogRequest', () => {
@@ -100,5 +134,10 @@ describe('UpdateActivityLogRequest', () => {
         durationMinutes: 1441,
       }),
     ).toThrow();
+  });
+
+  it('decodes absent loggedAtDate (omitted) to Option.none()', () => {
+    const result = Schema.decodeUnknownSync(ActivityLogApi.UpdateActivityLogRequest)({});
+    expect(Option.isNone(result.loggedAtDate)).toBe(true);
   });
 });

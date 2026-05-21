@@ -2625,7 +2625,7 @@ Updates an existing activity log entry. Cannot update auto-sourced entries.
 | `activityTypeId` | `ActivityTypeId` | No | — | New activity type |
 | `durationMinutes` | `integer \| null` | No | 1–1440 if provided | New duration |
 | `note` | `string \| null` | No | — | New note |
-| `loggedAtDate` | `string` | No | `YYYY-MM-DD`; within ±2 years of today | New date for the entry |
+| `loggedAtDate` | `string \| null` | No | `YYYY-MM-DD`; within ±2 years of today | New date for the entry (null or omit to keep existing) |
 
 **Response:** `200 OK` — `ActivityLogEntry`
 

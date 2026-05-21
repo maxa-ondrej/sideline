@@ -47,7 +47,7 @@ const UpdateInput = Schema.Struct({
   id: ActivityLog.ActivityLogId,
   team_member_id: TeamMember.TeamMemberId,
   activity_type_id: ActivityType.ActivityTypeId,
-  logged_at: Schema.Date,
+  logged_at: Schema.NullOr(Schema.Date),
   duration_minutes: Schema.OptionFromNullOr(Schema.Int),
   note: Schema.OptionFromNullOr(Schema.String),
 });
@@ -137,7 +137,7 @@ const make = Effect.gen(function* () {
       UPDATE activity_logs
       SET
         activity_type_id = ${input.activity_type_id},
-        logged_at = ${input.logged_at},
+        logged_at = COALESCE(${input.logged_at}, logged_at),
         duration_minutes = ${input.duration_minutes},
         note = ${input.note}
       WHERE id = ${input.id}
@@ -210,7 +210,7 @@ const make = Effect.gen(function* () {
             input.activity_type_id,
             () => existing.activity_type_id,
           ),
-          logged_at: Option.getOrElse(input.logged_at, () => new Date(existing.logged_at)),
+          logged_at: Option.getOrNull(input.logged_at),
           duration_minutes: Option.getOrElse(
             input.duration_minutes,
             () => existing.duration_minutes,

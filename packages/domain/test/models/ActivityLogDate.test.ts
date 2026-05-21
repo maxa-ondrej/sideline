@@ -1,6 +1,16 @@
-import { describe, expect, it } from '@effect/vitest';
+import { afterAll, beforeAll, describe, expect, it } from '@effect/vitest';
 import { Option } from 'effect';
+import { vi } from 'vitest';
 import { parseLoggedAtDateInPrague } from '~/models/ActivityLogDate.js';
+
+beforeAll(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-05-21T12:00:00Z'));
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 // ---------------------------------------------------------------------------
 // Helper
