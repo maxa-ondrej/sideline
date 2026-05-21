@@ -134,6 +134,7 @@ function MemberDetailRoute() {
       activityTypeId: ActivityType.ActivityTypeId;
       durationMinutes: Option.Option<number>;
       note: Option.Option<string>;
+      loggedAtDate: Option.Option<string>;
     }) => {
       const result = await ApiClient.asEffect().pipe(
         Effect.flatMap((api) =>
@@ -143,8 +144,12 @@ function MemberDetailRoute() {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
               note: input.note,
+              loggedAtDate: input.loggedAtDate,
             },
           }),
+        ),
+        Effect.catchTag('ActivityLogInvalidLoggedAtDate', () =>
+          Effect.fail(ClientError.make(tr('activityLog_invalidDate'))),
         ),
         Effect.mapError(() => ClientError.make(tr('activityLog_logFailed'))),
         run({ success: tr('activityLog_logged') }),
@@ -163,6 +168,7 @@ function MemberDetailRoute() {
         activityTypeId: Option.Option<ActivityType.ActivityTypeId>;
         durationMinutes: Option.Option<Option.Option<number>>;
         note: Option.Option<Option.Option<string>>;
+        loggedAtDate: Option.Option<string>;
       },
     ) => {
       const result = await ApiClient.asEffect().pipe(
@@ -173,8 +179,12 @@ function MemberDetailRoute() {
               activityTypeId: input.activityTypeId,
               durationMinutes: input.durationMinutes,
               note: input.note,
+              loggedAtDate: input.loggedAtDate,
             },
           }),
+        ),
+        Effect.catchTag('ActivityLogInvalidLoggedAtDate', () =>
+          Effect.fail(ClientError.make(tr('activityLog_invalidDate'))),
         ),
         Effect.mapError(() => ClientError.make(tr('activityLog_updateFailed'))),
         run({ success: tr('activityLog_updated') }),

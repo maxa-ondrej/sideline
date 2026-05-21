@@ -10,6 +10,7 @@ describe('CreateActivityLogRequest', () => {
       activityTypeId: MOCK_TYPE_ID,
       durationMinutes: null,
       note: null,
+      loggedAtDate: null,
     });
     expect(result.activityTypeId).toBe(MOCK_TYPE_ID);
     expect(Option.isNone(result.durationMinutes)).toBe(true);
@@ -21,6 +22,7 @@ describe('CreateActivityLogRequest', () => {
       activityTypeId: MOCK_TYPE_ID,
       durationMinutes: 45,
       note: 'Morning run',
+      loggedAtDate: null,
     });
     expect(result.activityTypeId).toBe(MOCK_TYPE_ID);
     expect(Option.getOrNull(result.durationMinutes)).toBe(45);
@@ -33,6 +35,7 @@ describe('CreateActivityLogRequest', () => {
         activityTypeId: MOCK_TYPE_ID,
         durationMinutes: 1441,
         note: null,
+        loggedAtDate: null,
       }),
     ).toThrow();
   });
@@ -43,6 +46,7 @@ describe('CreateActivityLogRequest', () => {
         activityTypeId: MOCK_TYPE_ID,
         durationMinutes: 0,
         note: null,
+        loggedAtDate: null,
       }),
     ).toThrow();
   });
@@ -52,6 +56,7 @@ describe('CreateActivityLogRequest', () => {
       activityTypeId: MOCK_TYPE_ID,
       durationMinutes: 1440,
       note: null,
+      loggedAtDate: null,
     });
     expect(Option.getOrNull(result.durationMinutes)).toBe(1440);
   });
