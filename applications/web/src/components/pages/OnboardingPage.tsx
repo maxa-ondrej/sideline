@@ -109,6 +109,20 @@ function GuildPicker({
     }
   }, [selectedGuild]);
 
+  // Refetch guilds when returning from the bot-invite sub-step (user may have just
+  // invited the bot or gained admin in Discord). Also refetch on window focus.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fire on showBotStep transitions only; onRefreshGuilds identity changes would over-fetch
+  React.useEffect(() => {
+    if (!showBotStep) onRefreshGuilds();
+  }, [showBotStep]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: focus listener registered once; refetch logic always uses current onRefreshGuilds via closure
+  React.useEffect(() => {
+    const onFocus = () => onRefreshGuilds();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
   if (showBotStep && selectedGuild) {
     return (
       <div className='space-y-3'>
