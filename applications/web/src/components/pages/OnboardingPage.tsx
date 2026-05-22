@@ -294,6 +294,12 @@ export function OnboardingPage({
     );
     if (Option.isSome(result)) {
       setGuilds(result.value);
+      // Re-sync the currently selected guild to its new representation in the
+      // fresh list — picks up bot presence / permission changes without
+      // forcing the user to re-select.
+      setSelectedGuild((current) =>
+        current ? (result.value.find((g) => g.id === current.id) ?? current) : current,
+      );
     }
     setLoadingGuilds(false);
   }, [run]);
