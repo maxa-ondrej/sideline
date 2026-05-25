@@ -38,11 +38,11 @@
     "@changesets/cli": "2.29.8",
     "@changesets/get-github-info": "0.6.0",
     "@effect/build-utils": "0.8.9",
-    "@effect/language-service": "0.86.1",
-    "@effect/vitest": "4.0.0-beta.67",
+    "@effect/language-service": "0.86.2",
+    "@effect/vitest": "4.0.0-beta.70",
     "@playwright/test": "^1.60",
-    "@types/node": "25.8.0",
-    "@vitest/ui": "4.1.6",
+    "@types/node": "25.9.1",
+    "@vitest/ui": "4.1.7",
     "babel-plugin-annotate-pure-calls": "0.5.0",
     "effect": "4.0.0-beta.40",
     "glob": "^13.0.6",
@@ -50,9 +50,9 @@
     "lint-staged": "17.0.5",
     "tsc-alias": "^1.8.17",
     "tsc-watch": "^7.2.0",
-    "tsx": "4.22.1",
+    "tsx": "4.22.3",
     "typescript": "5.9.3",
-    "vitest": "4.1.6"
+    "vitest": "4.1.7"
   },
   "pnpm": {
     "overrides": {
