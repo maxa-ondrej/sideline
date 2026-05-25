@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
       - name: Update PR
-        uses: StafflinePeoplePlus/dependabot-changesets@v0.1.0
+        uses: StafflinePeoplePlus/dependabot-changesets@v0.1.5
         with:
           owner: maxa-ondrej
           repo: sideline
