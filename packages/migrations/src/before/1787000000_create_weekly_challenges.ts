@@ -8,10 +8,10 @@ export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
       CREATE TABLE weekly_challenges (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-        week_start_date DATE NOT NULL,
+        week_start_date DATE NOT NULL CHECK (EXTRACT(ISODOW FROM week_start_date) = 1),
         kind TEXT NOT NULL CHECK (kind IN ('throwing','sport')),
-        title TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
-        description TEXT CHECK (description IS NULL OR char_length(description) <= 2000),
+        title VARCHAR(120) NOT NULL CHECK (char_length(title) >= 1),
+        description VARCHAR(2000),
         created_by UUID NOT NULL REFERENCES team_members(id) ON DELETE RESTRICT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -47,11 +47,11 @@ export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
     ),
     Effect.tap(
       () =>
-        sql`CREATE INDEX idx_weekly_challenges_team_week ON weekly_challenges (team_id, week_start_date DESC)`,
+        sql`CREATE INDEX IF NOT EXISTS idx_weekly_challenges_team_week ON weekly_challenges (team_id, week_start_date DESC)`,
     ),
     Effect.tap(
       () =>
-        sql`CREATE INDEX idx_weekly_challenge_sync_events_due ON weekly_challenge_sync_events (team_id, scheduled_for) WHERE processed_at IS NULL`,
+        sql`CREATE INDEX IF NOT EXISTS idx_weekly_challenge_sync_events_due ON weekly_challenge_sync_events (team_id, scheduled_for) WHERE processed_at IS NULL`,
     ),
   ),
 );

@@ -105,7 +105,7 @@ CREATE INDEX idx_wcse_due     ON weekly_challenge_sync_events (team_id) WHERE pr
 ## 7. Discord integration (hater BLOCKER fix)
 
 - Sync event enqueued at Create with `scheduled_for = week_start_date 09:00 team.tz`.
-- Processor (`applications/bot/src/rcp/weeklyChallenge/ProcessorService.ts`) drains rows where `processed_at IS NULL AND scheduled_for <= now()`.
+- Processor (`applications/bot/src/rpc/weeklyChallenge/ProcessorService.ts`) drains rows where `processed_at IS NULL AND scheduled_for <= now()`.
 - Catches Discord errors `10003 Unknown Channel`, `50001 Missing Access`, `50013 Missing Permissions` → records `last_error`, increments `attempts`, stops after 5.
 - Reuses team's existing announcement channel (no new `team_settings` column).
 
@@ -144,7 +144,7 @@ CREATE INDEX idx_wcse_due     ON weekly_challenge_sync_events (team_id) WHERE pr
 - `applications/server/src/repositories/WeeklyChallengeRepository.ts`
 - `applications/server/src/api/weekly-challenge.ts`
 - `applications/server/src/helpers/weeklyChallenge.ts` (`currentTeamMondayDate`, `assertActiveTeamMember`)
-- `applications/bot/src/rcp/weeklyChallenge/ProcessorService.ts`
+- `applications/bot/src/rpc/weeklyChallenge/ProcessorService.ts`
 - `applications/web/src/routes/teams/$teamId/challenges.tsx`
 - `applications/web/src/components/{pages/WeeklyChallengesPage, organisms/WeeklyChallengesGrid, organisms/WeeklyChallengesList, organisms/NewChallengeDialog, organisms/EditChallengeDialog, molecules/ChallengeKindBadge, molecules/ChallengeCompletionCell, atoms/WeekRangeLabel}.tsx`
 - Test files (see §10)
@@ -184,7 +184,7 @@ CREATE INDEX idx_wcse_due     ON weekly_challenge_sync_events (team_id) WHERE pr
 9. `UpdateTitleDescription` preserves completion count
 10. Captain Delete cascades
 
-### Bot (`applications/bot/test/rcp/weeklyChallenge/ProcessorService.test.ts`)
+### Bot (`applications/bot/test/rpc/weeklyChallenge/ProcessorService.test.ts`)
 1. Future `scheduled_for` event is skipped
 2. Discord error `10003` records `last_error`, increments `attempts`, doesn't crash
 3. After 5 attempts the event stops being retried

@@ -25,8 +25,25 @@ export const formatDateInTz = (date: Date, timezone: string): string => {
 };
 
 /**
- * Returns the Monday date string (YYYY-MM-DD) of the current ISO week in the
- * given team timezone.
+ * Formats a JS Date as 'YYYY-MM-DD' using its UTC components — i.e. the
+ * calendar day of the underlying UTC instant. This is the right helper for
+ * Postgres `DATE` columns, which `@effect/sql-pg` materialises as `Date`
+ * objects pinned to UTC midnight; reading them in a non-UTC timezone would
+ * shift the day for negative offsets (e.g. America/Los_Angeles would turn
+ * 2026-03-09 into 2026-03-08).
+ */
+export const formatDateUtc = (date: Date): string => {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+/**
+ * Returns the Monday date string (YYYY-MM-DD) of the current ISO week as it
+ * appears in the team's local timezone. The underlying `currentTeamMondayDate`
+ * is "Monday 00:00 in teamTz" expressed as a UTC instant, so we must format
+ * back through the team timezone to recover the calendar day.
  */
 export const currentTeamMondayDateString = (teamTz: string): string => {
   const monday = currentTeamMondayDate(teamTz);
@@ -34,19 +51,25 @@ export const currentTeamMondayDateString = (teamTz: string): string => {
 };
 
 /**
- * Given a week_start_date (as stored in DB, UTC midnight) and a team timezone,
- * returns the date string as it would appear in the team's local timezone.
+ * Given a `week_start_date` (loaded from a Postgres `DATE` column, i.e. JS
+ * `Date` pinned to UTC midnight of the stored calendar day), returns its
+ * calendar-day string. We read UTC components, NOT the team timezone — a
+ * `DATE` is timezone-agnostic, and reading it in a non-UTC zone would shift
+ * the day for negative offsets (e.g. `2026-03-09` would become `2026-03-08`
+ * in America/Los_Angeles).
  */
-export const weekStartDateString = (date: Date, teamTz: string): string =>
-  formatDateInTz(date, teamTz);
+export const weekStartDateString = (date: Date, _teamTz: string): string => formatDateUtc(date);
 
 /**
- * Combines a week_start_date (Date at UTC midnight) with 09:00 in the given
- * team timezone to produce a UTC timestamp for the announcement.
+ * Combines a `week_start_date` (UTC-midnight `DATE` value) with 09:00 in the
+ * given team timezone to produce a UTC timestamp for the announcement. The
+ * calendar day is taken from the value's UTC components so western-offset
+ * teams don't slip to the previous day.
  */
 export const scheduleAtNineAm = (weekStart: Date, teamTz: string): Date => {
-  const dateStr = formatDateInTz(weekStart, teamTz);
-  const [year, month, day] = dateStr.split('-').map(Number) as [number, number, number];
+  const year = weekStart.getUTCFullYear();
+  const month = weekStart.getUTCMonth() + 1;
+  const day = weekStart.getUTCDate();
   const tz = DateTime.zoneMakeNamedUnsafe(teamTz);
   const utcAtNoon = DateTime.makeUnsafe(Date.UTC(year, month - 1, day, 12, 0, 0));
   const zoned = DateTime.setZone(utcAtNoon, tz);

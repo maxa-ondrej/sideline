@@ -8,7 +8,11 @@ import {
 import { SqlErrors } from '@sideline/effect-lib';
 import { DateTime, Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
-import { currentTeamMondayDateString, weekStartDateString } from '~/helpers/weeklyChallenge.js';
+import {
+  currentTeamMondayDateString,
+  formatDateUtc,
+  weekStartDateString,
+} from '~/helpers/weeklyChallenge.js';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 const { WeeklyChallengeNotFound, WeeklyChallengeNotActive, WeeklyChallengeAlreadyExistsForWeek } =
@@ -287,12 +291,11 @@ const make = Effect.gen(function* () {
               byChallenge.set(c.challenge_id, existing);
             }
             return rows.map((row) => {
-              const rowDateStr = new Intl.DateTimeFormat('en-CA', {
-                timeZone: teamTz,
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-              }).format(row.week_start_date);
+              // `week_start_date` is a Postgres `DATE` (UTC-midnight when
+              // materialised as a JS Date). Compare its UTC calendar day to
+              // the team's current Monday — using the team timezone here
+              // would shift the day for western offsets.
+              const rowDateStr = formatDateUtc(row.week_start_date);
               const isActive = rowDateStr === currentMonday;
               return new WeeklyChallenge.WeeklyChallengeView({
                 challenge: toWeeklyChallenge(row),
