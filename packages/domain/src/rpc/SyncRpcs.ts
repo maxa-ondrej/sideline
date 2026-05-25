@@ -9,6 +9,8 @@ import { GuildRpcGroup } from './guild/GuildRpcGroup.js';
 import { InviteRpcGroup } from './invite/InviteRpcGroup.js';
 import { RoleRpcGroup } from './role/RoleRpcGroup.js';
 import { RoleProvisionRpcGroup } from './roleProvision/RoleProvisionRpcGroup.js';
+import { WeeklyChallengeRpcGroup } from './weeklyChallenge/WeeklyChallengeRpcGroup.js';
+import { WeeklyChallengeSyncEventsRpcGroup } from './weeklyChallenge/WeeklyChallengeSyncEvents.js';
 import { WeeklySummaryRpcGroup } from './weeklySummary/WeeklySummaryRpcGroup.js';
 
 export class SyncRpcs extends RpcGroup.make().merge(
@@ -21,6 +23,8 @@ export class SyncRpcs extends RpcGroup.make().merge(
   AchievementRpcGroup,
   RoleProvisionRpcGroup,
   WeeklySummaryRpcGroup,
+  WeeklyChallengeRpcGroup,
+  WeeklyChallengeSyncEventsRpcGroup,
   FinanceRpcGroup,
   BotInfoRpcGroup,
 ) {}

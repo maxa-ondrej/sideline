@@ -148,7 +148,7 @@ export * as TeamSettings from './models/TeamSettings.js';
 export * as TrainingType from './models/TrainingType.js';
 
 export * as User from './models/User.js';
-
+export * as WeeklyChallenge from './models/WeeklyChallenge.js';
 /**
  * Shared payload schema for the weekly_summary_sync_events queue.
  * The cron encodes this; the bot handler decodes it.
@@ -175,6 +175,10 @@ export * as RoleRpcGroup from './rpc/role/RoleRpcGroup.js';
 export * as RoleRpcModels from './rpc/role/RoleRpcModels.js';
 export * as RoleProvisionRpcGroup from './rpc/roleProvision/RoleProvisionRpcGroup.js';
 export * as SyncRpcs from './rpc/SyncRpcs.js';
+
+export * as WeeklyChallengeRpcGroup from './rpc/weeklyChallenge/WeeklyChallengeRpcGroup.js';
+
+export * as WeeklyChallengeSyncEvents from './rpc/weeklyChallenge/WeeklyChallengeSyncEvents.js';
 
 export * as WeeklySummaryRpcEvents from './rpc/weeklySummary/WeeklySummaryRpcEvents.js';
 
