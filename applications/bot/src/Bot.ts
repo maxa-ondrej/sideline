@@ -18,7 +18,6 @@ import {
   RoleProvisionSyncService,
   RoleSyncService,
   TeamChallengeSyncService,
-  WeeklyChallengeSyncService,
   WeeklySummarySyncService,
 } from './index.js';
 
@@ -57,7 +56,6 @@ export const program = Effect.Do.pipe(
   Effect.bind('achievements', () => AchievementSyncService.asEffect()),
   Effect.bind('roleProvision', () => RoleProvisionSyncService.asEffect()),
   Effect.bind('teamChallenge', () => TeamChallengeSyncService.asEffect()),
-  Effect.bind('weeklyChallenge', () => WeeklyChallengeSyncService.asEffect()),
   Effect.bind('weeklySummary', () => WeeklySummarySyncService.asEffect()),
   Effect.bind('finance', () => FinanceSyncService.asEffect()),
   Effect.tap(() => Effect.logInfo('Bot connected to Discord')),
@@ -73,7 +71,6 @@ export const program = Effect.Do.pipe(
       achievements,
       roleProvision,
       teamChallenge,
-      weeklyChallenge,
       weeklySummary,
       finance,
     }) =>
@@ -90,7 +87,6 @@ export const program = Effect.Do.pipe(
           pollLoop(achievements.processTick),
           pollLoop(roleProvision.processTick),
           pollLoop(teamChallenge.processTick),
-          pollLoop(weeklyChallenge.processTick),
           pollLoop(weeklySummary.processTick),
           pollLoop(finance.processTick),
           recoverDeletedMessages,
@@ -117,6 +113,5 @@ export const program = Effect.Do.pipe(
   | AchievementSyncService
   | RoleProvisionSyncService
   | TeamChallengeSyncService
-  | WeeklyChallengeSyncService
   | WeeklySummarySyncService
 >;

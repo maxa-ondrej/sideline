@@ -54,7 +54,6 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
-import { WeeklyChallengeRepository } from '~/repositories/WeeklyChallengeRepository.js';
 import { AchievementPreview } from '~/services/AchievementPreview.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { BotInfoStore } from '~/services/BotInfoStore.js';
@@ -616,10 +615,6 @@ const StubRepositoriesLayer = Layer.mergeAll(
     evaluateTeam: () => Effect.succeed([]),
     evaluate: () => Effect.succeed([]),
   } as any),
-  Layer.succeed(
-    WeeklyChallengeRepository,
-    new Proxy({} as any, { get: () => () => Effect.void }) as any,
-  ),
   Layer.succeed(
     TeamChallengeRepository,
     new Proxy({} as any, { get: () => () => Effect.void }) as any,

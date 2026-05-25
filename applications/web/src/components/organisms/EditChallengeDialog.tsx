@@ -67,9 +67,9 @@ export function EditChallengeDialog({
           ? String((err as { _tag: unknown })._tag)
           : null;
       const message =
-        tag === 'WeeklyChallengeNotFound'
+        tag === 'TeamChallengeNotFound'
           ? tr('challenges_error_notFound')
-          : tag === 'WeeklyChallengeForbidden'
+          : tag === 'TeamChallengeForbidden'
             ? tr('challenges_error_forbidden')
             : tr('challenges_error_generic');
       setSubmitError(message);

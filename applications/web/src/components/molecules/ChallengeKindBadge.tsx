@@ -1,11 +1,11 @@
-import type { WeeklyChallenge } from '@sideline/domain';
+import type { TeamChallenge } from '@sideline/domain';
 import { tr } from '~/lib/translations.js';
 import { cn } from '~/lib/utils';
 
-type WeeklyChallengeKind = WeeklyChallenge.WeeklyChallengeKind;
+type TeamChallengeKind = TeamChallenge.TeamChallengeKind;
 
 interface ChallengeKindBadgeProps {
-  kind: WeeklyChallengeKind;
+  kind: TeamChallengeKind;
   className?: string;
 }
 
@@ -20,7 +20,7 @@ const kindConfig = {
     labelKey: 'challenges_kind_sport' as const,
     colorClass: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
   },
-} satisfies Record<WeeklyChallengeKind, { emoji: string; labelKey: string; colorClass: string }>;
+} satisfies Record<TeamChallengeKind, { emoji: string; labelKey: string; colorClass: string }>;
 
 export function ChallengeKindBadge({ kind, className }: ChallengeKindBadgeProps) {
   const config = kindConfig[kind];

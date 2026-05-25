@@ -49,7 +49,7 @@ interface Member {
   name: string;
 }
 
-export interface WeeklyChallengesGridProps {
+export interface TeamChallengesGridProps {
   teamId: string;
   canCreate: boolean;
   currentMemberId: string | null;
@@ -66,11 +66,11 @@ export interface WeeklyChallengesGridProps {
 }
 
 /**
- * WeeklyChallengesGrid — desktop matrix: members × weeks.
- * Columns: sticky member name, then up to 12 weeks (oldest left, newest right).
- * Current week highlighted with bg-primary/5 border-x border-primary/30 + badge.
+ * TeamChallengesGrid — desktop matrix: members × challenges.
+ * Columns: sticky member name, then up to 12 challenges (oldest left, newest right).
+ * Active challenge highlighted with bg-primary/5 border-x border-primary/30 + badge.
  */
-export function WeeklyChallengesGrid({
+export function TeamChallengesGrid({
   teamId: _teamId,
   canCreate,
   currentMemberId,
@@ -81,7 +81,7 @@ export function WeeklyChallengesGrid({
   onDeleteChallenge,
   onUpdateChallenge,
   onError,
-}: WeeklyChallengesGridProps) {
+}: TeamChallengesGridProps) {
   const [deletingChallengeId, setDeletingChallengeId] = React.useState<string | null>(null);
   const [editingChallenge, setEditingChallenge] = React.useState<ChallengeView | null>(null);
 

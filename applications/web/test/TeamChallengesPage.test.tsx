@@ -1,20 +1,12 @@
-// TDD mode — tests written BEFORE production code exists.
-// These tests WILL FAIL until:
-//   - applications/web/src/components/pages/WeeklyChallengesPage.tsx
-//   - applications/web/src/components/organisms/WeeklyChallengesGrid.tsx
-//   - applications/web/src/components/organisms/WeeklyChallengesList.tsx
-//   - applications/web/src/components/organisms/NewChallengeDialog.tsx
-//   - applications/web/src/components/molecules/ChallengeCompletionCell.tsx
-//   - applications/web/src/components/molecules/MondayPicker.tsx
-//   are implemented.
+// Tests for TeamChallengesPage, TeamChallengesGrid, TeamChallengesList,
+// ChallengeCompletionCell, and NewChallengeDialog.
 //
 // Coverage:
 //   - §7.3 Web component unit tests (selected high-value cases)
 //   Two component families:
-//     1. WeeklyChallengesPage / WeeklyChallengesGrid / WeeklyChallengesList
+//     1. TeamChallengesPage / TeamChallengesGrid / TeamChallengesList
 //     2. ChallengeCompletionCell (toggle, debounce, optimistic, stale response)
 //     3. NewChallengeDialog (form validation)
-//     4. MondayPicker (disabled dates)
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type React from 'react';
@@ -27,9 +19,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('~/lib/translations.js', () => ({
   tr: (key: string) => {
     const map: Record<string, string> = {
-      challenges_pageTitle: 'Týdenní výzvy',
-      challenges_subtitle: 'Jedna výzva týdně, kterou tým plní společně.',
-      challenges_thisWeekBadge: 'tento týden',
+      challenges_pageTitle: 'Výzvy',
+      challenges_subtitle: 'Výzvy pro tým — splňujte je společně.',
+      challenges_thisWeekBadge: 'aktivní',
       challenges_emptyTitle: 'Zatím tu nic není.',
       challenges_emptySubtitle_captain: 'Pro kapitány: založte první výzvu.',
       challenges_emptySubtitle_member: 'Až kapitán vyhlásí výzvu, objeví se tady.',
@@ -53,16 +45,16 @@ vi.mock('~/lib/translations.js', () => ({
       challenges_actions_cancelCta: 'Zrušit',
       challenges_error_forbidden: 'Na tuto akci nemáte oprávnění.',
       challenges_error_notFound: 'Výzva už neexistuje.',
-      challenges_error_notActive: 'Označit splnění jde jen u aktuálního týdne.',
+      challenges_error_notActive: 'Označit splnění jde jen u aktivní výzvy.',
       challenges_error_alreadyExists: 'Pro tento týden už výzva existuje.',
-      challenges_error_outOfRange: 'Datum musí být v rozsahu aktuální týden … +8 týdnů.',
+      challenges_error_outOfRange: 'Datum musí být v rozsahu dnešek … +8 týdnů.',
       challenges_success_created: 'Výzva vytvořena.',
       challenges_success_updated: 'Výzva upravena.',
       challenges_success_deleted: 'Výzva smazána.',
-      challenges_newDialog_title: 'Nová týdenní výzva',
+      challenges_newDialog_title: 'Nová výzva',
       challenges_newDialog_kindLabel: 'Druh',
-      challenges_newDialog_weekLabel: 'Týden (pondělí)',
-      challenges_newDialog_weekHelp: 'Vyberte pondělí — od něho se výzva ohlásí v Discordu.',
+      challenges_newDialog_weekLabel: 'Začátek',
+      challenges_newDialog_weekHelp: 'Vyberte datum začátku výzvy.',
       challenges_newDialog_titleLabel: 'Název',
       challenges_newDialog_titlePlaceholder: 'Např. 30 bekhendů denně',
       challenges_newDialog_descLabel: 'Popis (nepovinné)',
@@ -73,6 +65,7 @@ vi.mock('~/lib/translations.js', () => ({
       challenges_newDialog_descCounter: '{n}/2000',
       challenges_editDialog_title: 'Upravit výzvu',
       challenges_editDialog_submit: 'Uložit',
+      challenges_badge_active: 'aktivní',
     };
     return map[key] ?? key;
   },
@@ -105,15 +98,15 @@ vi.mock('@tanstack/react-router', () => ({
 // ---------------------------------------------------------------------------
 
 type TeamMemberId = string;
-type WeeklyChallengeId = string;
-type WeeklyChallengeKind = 'throwing' | 'sport';
+type TeamChallengeId = string;
+type TeamChallengeKind = 'throwing' | 'sport';
 
 type Challenge = {
-  id: WeeklyChallengeId;
+  id: TeamChallengeId;
   teamId: string;
   startDate: string;
   endDate: string;
-  kind: WeeklyChallengeKind;
+  kind: TeamChallengeKind;
   title: string;
   description: string | null;
   createdBy: TeamMemberId;
@@ -130,7 +123,7 @@ type Member = {
   name: string;
 };
 
-type WeeklyChallengesPageProps = {
+type TeamChallengesPageProps = {
   teamId: string;
   canCreate: boolean;
   currentMemberId: TeamMemberId | null;
@@ -143,7 +136,7 @@ type WeeklyChallengesPageProps = {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const TEAM_ID = 'team-wc-001';
+const TEAM_ID = 'team-tc-001';
 const CAPTAIN_MEMBER_ID = 'member-captain-001';
 const OTHER_MEMBER_ID = 'member-player-002';
 
@@ -181,15 +174,13 @@ const mockMembers: Member[] = [
 // Dynamic imports (after mocks are set up)
 // ---------------------------------------------------------------------------
 
-const { WeeklyChallengesPage } = await import('~/components/pages/WeeklyChallengesPage.js');
+const { TeamChallengesPage } = await import('~/components/pages/TeamChallengesPage.js');
 
 const { ChallengeCompletionCell } = await import(
   '~/components/molecules/ChallengeCompletionCell.js'
 );
 
 const { NewChallengeDialog } = await import('~/components/organisms/NewChallengeDialog.js');
-
-const { MondayPicker } = await import('~/components/molecules/MondayPicker.js');
 
 // ---------------------------------------------------------------------------
 // Reset between tests
@@ -204,11 +195,11 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// WeeklyChallengesPage tests
+// TeamChallengesPage tests
 // ---------------------------------------------------------------------------
 
-describe('WeeklyChallengesPage', () => {
-  const defaultProps: WeeklyChallengesPageProps = {
+describe('TeamChallengesPage', () => {
+  const defaultProps: TeamChallengesPageProps = {
     teamId: TEAM_ID,
     canCreate: false,
     currentMemberId: null,
@@ -217,29 +208,29 @@ describe('WeeklyChallengesPage', () => {
     members: mockMembers,
   };
 
-  it('renders page heading "Týdenní výzvy"', () => {
-    render(<WeeklyChallengesPage {...defaultProps} />);
-    expect(screen.getByText('Týdenní výzvy')).not.toBeNull();
+  it('renders page heading "Výzvy"', () => {
+    render(<TeamChallengesPage {...defaultProps} />);
+    expect(screen.getByText('Výzvy')).not.toBeNull();
   });
 
   it('empty state shown when no challenges exist', () => {
-    render(<WeeklyChallengesPage {...defaultProps} />);
+    render(<TeamChallengesPage {...defaultProps} />);
     expect(screen.getByText('Zatím tu nic není.')).not.toBeNull();
   });
 
   it('captain sees "+ Nová výzva" button, non-captain does not', () => {
     // Non-captain
-    const { rerender } = render(<WeeklyChallengesPage {...defaultProps} canCreate={false} />);
+    const { rerender } = render(<TeamChallengesPage {...defaultProps} canCreate={false} />);
     expect(screen.queryByText('+ Nová výzva')).toBeNull();
 
     // Captain
-    rerender(<WeeklyChallengesPage {...defaultProps} canCreate={true} />);
+    rerender(<TeamChallengesPage {...defaultProps} canCreate={true} />);
     expect(screen.getByText('+ Nová výzva')).not.toBeNull();
   });
 
   it('shows challenges when non-empty', () => {
     const challenge = makeChallengeView();
-    render(<WeeklyChallengesPage {...defaultProps} challenges={[challenge]} />);
+    render(<TeamChallengesPage {...defaultProps} challenges={[challenge]} />);
     expect(screen.getByText('Test Challenge')).not.toBeNull();
   });
 
@@ -247,7 +238,7 @@ describe('WeeklyChallengesPage', () => {
     const { useIsMobile } = await import('~/hooks/use-mobile.js');
     vi.mocked(useIsMobile).mockReturnValue(true);
 
-    render(<WeeklyChallengesPage {...defaultProps} challenges={[makeChallengeView()]} />);
+    render(<TeamChallengesPage {...defaultProps} challenges={[makeChallengeView()]} />);
 
     // When mobile, the grid should not be rendered
     expect(document.querySelector('[data-testid="challenges-grid"]')).toBeNull();
@@ -419,7 +410,7 @@ describe('ChallengeCompletionCell', () => {
   it('error reverts optimistic state and shows error signal', async () => {
     vi.useFakeTimers();
 
-    const onMark = vi.fn().mockRejectedValue(new Error('WeeklyChallengeNotActive'));
+    const onMark = vi.fn().mockRejectedValue(new Error('TeamChallengeNotActive'));
     const onUnmark = vi.fn().mockResolvedValue(undefined);
 
     render(
@@ -526,7 +517,7 @@ describe('ChallengeCompletionCell', () => {
 
     // Reject click 2 at t=1000ms (the latest request)
     await act(async () => {
-      rejectClick2?.(new Error('WeeklyChallengeNotActive'));
+      rejectClick2?.(new Error('TeamChallengeNotActive'));
     });
     await act(async () => Promise.resolve());
 
@@ -588,77 +579,24 @@ describe('NewChallengeDialog', () => {
 
     // Type a short valid title
     const titleInput = screen.getByPlaceholderText('Např. 30 bekhendů denně');
-    fireEvent.change(titleInput, { target: { value: 'Výzva na tento týden' } });
+    fireEvent.change(titleInput, { target: { value: 'Výzva pro tým' } });
 
     // Kind should default or be selectable — assume 'throwing' is default or first option
-    // Monday should auto-select to the next available Monday
+    // Start date should auto-select
 
     // Submit button should be enabled
     const submitBtn = screen.getByText('Vytvořit výzvu').closest('button');
     expect(submitBtn?.disabled).toBeFalsy();
   });
 
-  it('only Mondays are selectable in date picker (non-Mondays have disabled class)', () => {
+  it('only valid dates are selectable in date picker (invalid dates have disabled class)', () => {
     render(<NewChallengeDialog {...defaultDialogProps} />);
 
-    // Calendar days should show — find disabled non-Monday days
-    // Days with aria-disabled="true" should exist (non-Mondays, past Mondays, far future)
+    // Calendar days should show — find disabled days
     const disabledDays = document.querySelectorAll(
       '[aria-disabled="true"], button[disabled], .rdp-day_disabled',
     );
-    // There should be disabled days (non-Mondays)
+    // There should be disabled days
     expect(disabledDays.length).toBeGreaterThan(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// MondayPicker tests
-// ---------------------------------------------------------------------------
-
-describe('MondayPicker', () => {
-  type MondayPickerProps = {
-    teamTz: string;
-    existingWeekStarts: string[];
-    value: Date | undefined;
-    onChange: (d: Date) => void;
-  };
-
-  const defaultPickerProps: MondayPickerProps = {
-    teamTz: 'Europe/Prague',
-    existingWeekStarts: [],
-    value: undefined,
-    onChange: vi.fn(),
-  };
-
-  it('renders without throwing', () => {
-    expect(() => render(<MondayPicker {...defaultPickerProps} />)).not.toThrow();
-  });
-
-  it('non-Monday days have disabled attribute', () => {
-    render(<MondayPicker {...defaultPickerProps} />);
-    // Look for any day cell in the calendar — non-Mondays should be disabled
-    const allDayButtons = document.querySelectorAll('button[data-day]');
-    if (allDayButtons.length > 0) {
-      // At least some should be disabled (non-Mondays)
-      const disabledDays = document.querySelectorAll(
-        'button[data-day][disabled], button[data-day][aria-disabled="true"]',
-      );
-      expect(disabledDays.length).toBeGreaterThan(0);
-    }
-    // If no day buttons found, the calendar might render differently — just ensure no throw
-  });
-
-  it('past Mondays are disabled', () => {
-    // Freeze time: use a fixed "today" so past Mondays are deterministic
-    vi.setSystemTime(new Date('2026-03-09T08:00:00Z'));
-    render(<MondayPicker {...defaultPickerProps} />);
-    // Past Monday: 2026-03-02 — should be disabled
-    const pastMonday = document.querySelector('[data-date="2026-03-02"]');
-    if (pastMonday) {
-      expect(
-        pastMonday.hasAttribute('disabled') || pastMonday.getAttribute('aria-disabled') === 'true',
-      ).toBe(true);
-    }
-    vi.useRealTimers();
   });
 });

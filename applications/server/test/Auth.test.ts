@@ -46,7 +46,6 @@ import { MockFinanceLayers } from './mocks/financeMocks.js';
 import { MockTeamOnboardingTokensRepositoryLayer } from './mocks/onboardingMocks.js';
 import { MockTeamChallengeRepositoryLayer } from './mocks/teamChallengeMocks.js';
 import { MockTranslationsLayers } from './mocks/translationMocks.js';
-import { MockWeeklyChallengeRepositoryLayer } from './mocks/weeklyChallengeMocks.js';
 
 const TEST_USER_ID = '00000000-0000-0000-0000-000000000001' as Auth.UserId;
 const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000010' as Team.TeamId;
@@ -569,7 +568,6 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockFinanceLayers))
   .pipe(Layer.provide(MockTranslationsLayers))
   .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
-  .pipe(Layer.provide(MockWeeklyChallengeRepositoryLayer))
   .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
   .pipe(Layer.provide(BotInfoStore.Default));
 

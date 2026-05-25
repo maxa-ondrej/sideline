@@ -13,7 +13,6 @@ import {
   RoleProvisionSyncService,
   RoleSyncService,
   TeamChallengeSyncService,
-  WeeklyChallengeSyncService,
   WeeklySummarySyncService,
 } from '~/rcp/index.js';
 import { InviteCache } from '~/services/InviteCache.js';
@@ -31,7 +30,6 @@ const SyncLive = Layer.mergeAll(
   InviteGeneratorService.Default,
   OnboardingSyncService.Default,
   TeamChallengeSyncService.Default,
-  WeeklyChallengeSyncService.Default,
   WeeklySummarySyncService.Default,
 ).pipe(
   Layer.provideMerge(ChannelReorderSemaphore.Live),

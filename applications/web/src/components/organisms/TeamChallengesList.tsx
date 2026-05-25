@@ -50,7 +50,7 @@ interface Member {
   name: string;
 }
 
-export interface WeeklyChallengesListProps {
+export interface TeamChallengesListProps {
   teamId: string;
   canCreate: boolean;
   currentMemberId: string | null;
@@ -67,10 +67,10 @@ export interface WeeklyChallengesListProps {
 }
 
 /**
- * WeeklyChallengesList — mobile vertical card list, one card per week.
- * Current week is pinned to the top.
+ * TeamChallengesList — mobile vertical card list, one card per challenge.
+ * Active challenge is pinned to the top.
  */
-export function WeeklyChallengesList({
+export function TeamChallengesList({
   teamId: _teamId,
   canCreate,
   currentMemberId,
@@ -81,7 +81,7 @@ export function WeeklyChallengesList({
   onDeleteChallenge,
   onUpdateChallenge,
   onError,
-}: WeeklyChallengesListProps) {
+}: TeamChallengesListProps) {
   const [deletingChallengeId, setDeletingChallengeId] = React.useState<string | null>(null);
   const [editingChallenge, setEditingChallenge] = React.useState<ChallengeView | null>(null);
 

@@ -25,7 +25,6 @@ import {
   TrainingTypeApi,
   Translations,
   VersionApi,
-  WeeklyChallengeApi,
   WeeklySummaryApi,
 } from '@sideline/domain';
 import { Effect, Option, ServiceMap } from 'effect';
@@ -68,7 +67,6 @@ class ClientApi extends HttpApi.make('api')
   .add(VersionApi.VersionApiGroup)
   .add(OnboardingApi.OnboardingApiGroup)
   .add(WeeklySummaryApi.WeeklySummaryApiGroup)
-  .add(WeeklyChallengeApi.WeeklyChallengeApiGroup)
   .add(TeamChallengeApi.TeamChallengeApiGroup) {}
 
 export const client = ClientConfig.asEffect().pipe(

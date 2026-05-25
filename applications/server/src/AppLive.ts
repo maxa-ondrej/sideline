@@ -54,7 +54,6 @@ import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { TranslationsRepository } from '~/repositories/TranslationsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
-import { WeeklyChallengeRepository } from '~/repositories/WeeklyChallengeRepository.js';
 import {
   WeeklySummaryRepository,
   WeeklySummarySyncEventsRepository,
@@ -122,7 +121,6 @@ const Repositories = Layer.mergeAll(
   CustomAchievementsRepository.Default,
   DiscordRoleProvisionEventsRepository.Default,
   TeamChallengeRepository.Default,
-  WeeklyChallengeRepository.Default,
   WeeklySummaryRepository.Default,
   WeeklySummarySyncEventsRepository.Default,
   TranslationsRepository.Default,

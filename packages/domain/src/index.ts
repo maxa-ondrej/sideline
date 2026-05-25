@@ -61,8 +61,6 @@ export * as Translations from './api/Translations.js';
 
 export * as VersionApi from './api/VersionApi.js';
 
-export * as WeeklyChallengeApi from './api/WeeklyChallengeApi.js';
-
 export * as WeeklySummaryApi from './api/WeeklySummaryApi.js';
 
 export * as Achievement from './models/Achievement.js';
@@ -155,8 +153,6 @@ export * as TrainingType from './models/TrainingType.js';
 
 export * as User from './models/User.js';
 
-export * as WeeklyChallenge from './models/WeeklyChallenge.js';
-
 /**
  * Shared payload schema for the weekly_summary_sync_events queue.
  * The cron encodes this; the bot handler decodes it.
@@ -187,10 +183,6 @@ export * as SyncRpcs from './rpc/SyncRpcs.js';
 export * as TeamChallengeRpcGroup from './rpc/teamChallenge/TeamChallengeRpcGroup.js';
 
 export * as TeamChallengeSyncEvents from './rpc/teamChallenge/TeamChallengeSyncEvents.js';
-
-export * as WeeklyChallengeRpcGroup from './rpc/weeklyChallenge/WeeklyChallengeRpcGroup.js';
-
-export * as WeeklyChallengeSyncEvents from './rpc/weeklyChallenge/WeeklyChallengeSyncEvents.js';
 
 export * as WeeklySummaryRpcEvents from './rpc/weeklySummary/WeeklySummaryRpcEvents.js';
 

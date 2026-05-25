@@ -3,8 +3,8 @@ import { useRouter } from '@tanstack/react-router';
 import React from 'react';
 import { toast } from 'sonner';
 import { NewChallengeDialog } from '~/components/organisms/NewChallengeDialog.js';
-import { WeeklyChallengesGrid } from '~/components/organisms/WeeklyChallengesGrid.js';
-import { WeeklyChallengesList } from '~/components/organisms/WeeklyChallengesList.js';
+import { TeamChallengesGrid } from '~/components/organisms/TeamChallengesGrid.js';
+import { TeamChallengesList } from '~/components/organisms/TeamChallengesList.js';
 import { Button } from '~/components/ui/button';
 import { useIsMobile } from '~/hooks/use-mobile.js';
 import { tr } from '~/lib/translations.js';
@@ -33,7 +33,7 @@ interface Member {
   name: string;
 }
 
-export interface WeeklyChallengesPageProps {
+export interface TeamChallengesPageProps {
   teamId: string;
   canCreate: boolean;
   currentMemberId: string | null;
@@ -56,7 +56,7 @@ export interface WeeklyChallengesPageProps {
   }) => Promise<{ _tag?: string } | undefined>;
 }
 
-export function WeeklyChallengesPage({
+export function TeamChallengesPage({
   teamId,
   canCreate,
   currentMemberId,
@@ -68,7 +68,7 @@ export function WeeklyChallengesPage({
   onDeleteChallenge,
   onUpdateChallenge,
   onCreateChallenge,
-}: WeeklyChallengesPageProps) {
+}: TeamChallengesPageProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
   const [newDialogOpen, setNewDialogOpen] = React.useState(false);
@@ -121,7 +121,7 @@ export function WeeklyChallengesPage({
           </p>
         </div>
       ) : isMobile ? (
-        <WeeklyChallengesList
+        <TeamChallengesList
           teamId={teamId}
           canCreate={canCreate}
           currentMemberId={currentMemberId}
@@ -134,7 +134,7 @@ export function WeeklyChallengesPage({
           onError={handleCellError}
         />
       ) : (
-        <WeeklyChallengesGrid
+        <TeamChallengesGrid
           teamId={teamId}
           canCreate={canCreate}
           currentMemberId={currentMemberId}

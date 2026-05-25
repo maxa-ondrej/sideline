@@ -1,18 +1,5 @@
-// TDD mode — tests written BEFORE the WeeklyChallengeApiLive handler exists.
-// These tests WILL FAIL until:
-//   1. packages/domain/src/api/WeeklyChallengeApi.ts exports WeeklyChallengeApiGroup
-//      (already done as of Part 1 / the domain file was written)
-//   2. applications/server/src/api/weekly-challenge.ts is implemented
-//   3. WeeklyChallengeApiGroup is added to api.ts + ApiLive in index.ts
-//
-// Expected failure modes (TDD state):
-//   - "Cannot resolve module ~/api/weekly-challenge.js" until the handler is written
-//   - 404 responses until WeeklyChallengeApiGroup is wired into Api
-//   - WeeklyChallengeRepository mock is not in the global noop layer, so
-//     ApiLive construction may fail with a missing-service error
-
 import type { Auth, Role, Team, TeamMember } from '@sideline/domain';
-import { WeeklyChallenge, WeeklyChallengeApi } from '@sideline/domain';
+import { TeamChallenge, TeamChallengeApi } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from 'effect/unstable/http';
@@ -59,7 +46,6 @@ import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
-import { WeeklyChallengeRepository } from '~/repositories/WeeklyChallengeRepository.js';
 import { AchievementPreview } from '~/services/AchievementPreview.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { BotInfoStore } from '~/services/BotInfoStore.js';
@@ -68,24 +54,24 @@ import { MockTeamOnboardingTokensRepositoryLayer } from '../mocks/onboardingMock
 import { MockTranslationsLayers } from '../mocks/translationMocks.js';
 
 // ---------------------------------------------------------------------------
-// Time control: freeze to a known Monday so current-week checks are deterministic
-// The anchor instant is: 2026-03-09T08:00:00Z (Monday 2026-03-09 09:00 CET)
+// Time control: freeze to a known date so date-range checks are deterministic
+// The anchor instant is: 2026-03-09T08:00:00Z
 // ---------------------------------------------------------------------------
 
 const FROZEN_UTC = new Date('2026-03-09T08:00:00Z');
-const CURRENT_MONDAY_DATE = new Date('2026-03-09T00:00:00Z'); // UTC midnight Monday
+const TODAY_DATE_STR = '2026-03-09'; // today in Europe/Prague at frozen time
 
 // ---------------------------------------------------------------------------
 // Test IDs
 // ---------------------------------------------------------------------------
 
-const TEST_CAPTAIN_USER_ID = '00000000-0000-0000-0002-000000000001' as Auth.UserId;
-const TEST_MEMBER_USER_ID = '00000000-0000-0000-0002-000000000002' as Auth.UserId;
-const TEST_OUTSIDER_USER_ID = '00000000-0000-0000-0002-000000000099' as Auth.UserId;
-const TEST_TEAM_A_ID = '00000000-0000-0000-0002-000000000010' as Team.TeamId;
-const TEST_TEAM_B_ID = '00000000-0000-0000-0002-000000000020' as Team.TeamId;
-const TEST_CAPTAIN_MEMBER_ID = '00000000-0000-0000-0002-000000000011' as TeamMember.TeamMemberId;
-const TEST_MEMBER_MEMBER_ID = '00000000-0000-0000-0002-000000000012' as TeamMember.TeamMemberId;
+const TEST_CAPTAIN_USER_ID = '00000000-0000-0000-0003-000000000001' as Auth.UserId;
+const TEST_MEMBER_USER_ID = '00000000-0000-0000-0003-000000000002' as Auth.UserId;
+const TEST_OUTSIDER_USER_ID = '00000000-0000-0000-0003-000000000099' as Auth.UserId;
+const TEST_TEAM_A_ID = '00000000-0000-0000-0003-000000000010' as Team.TeamId;
+const TEST_TEAM_B_ID = '00000000-0000-0000-0003-000000000020' as Team.TeamId;
+const TEST_CAPTAIN_MEMBER_ID = '00000000-0000-0000-0003-000000000011' as TeamMember.TeamMemberId;
+const TEST_MEMBER_MEMBER_ID = '00000000-0000-0000-0003-000000000012' as TeamMember.TeamMemberId;
 
 const CAPTAIN_PERMISSIONS: readonly Role.Permission[] = [
   'team:manage',
@@ -101,7 +87,8 @@ const MEMBER_PERMISSIONS: readonly Role.Permission[] = ['member:view'];
 type ChallengeRow = {
   id: string;
   team_id: string;
-  week_start_date: Date;
+  start_date: Date;
+  end_date: Date;
   kind: 'throwing' | 'sport';
   title: string;
   description: string | null;
@@ -117,7 +104,7 @@ let nextChallengeIdx = 1;
 const now = DateTime.nowUnsafe();
 
 const makeChallengeId = () =>
-  `00000000-0000-0000-0002-${String(nextChallengeIdx++).padStart(12, '0')}`;
+  `00000000-0000-0000-0003-${String(nextChallengeIdx++).padStart(12, '0')}`;
 
 const resetStores = () => {
   challengesStore = new Map();
@@ -125,23 +112,25 @@ const resetStores = () => {
   nextChallengeIdx = 1;
 };
 
-const makeWeeklyChallengeView = (row: ChallengeRow): WeeklyChallenge.WeeklyChallengeView => {
-  const currentMondayStr = '2026-03-09'; // frozen Monday
-  const rowDateStr = row.week_start_date.toISOString().slice(0, 10);
-  const isActive = rowDateStr === currentMondayStr;
+const makeTeamChallengeView = (row: ChallengeRow): TeamChallenge.TeamChallengeView => {
+  const todayStr = TODAY_DATE_STR;
+  const startStr = row.start_date.toISOString().slice(0, 10);
+  const endStr = row.end_date.toISOString().slice(0, 10);
+  const isActive = todayStr >= startStr && todayStr <= endStr;
   const completed = Array.from(
     completionsStore.get(row.id) ?? [],
-  ) as WeeklyChallenge.WeeklyChallengeCompletion['member_id'][];
-  return new WeeklyChallenge.WeeklyChallengeView({
-    challenge: new WeeklyChallenge.WeeklyChallenge({
-      id: row.id as WeeklyChallenge.WeeklyChallengeId,
+  ) as TeamChallenge.TeamChallenge['created_by'][];
+  return new TeamChallenge.TeamChallengeView({
+    challenge: new TeamChallenge.TeamChallenge({
+      id: row.id as TeamChallenge.TeamChallengeId,
       team_id: row.team_id as Team.TeamId,
-      week_start_date: row.week_start_date,
+      start_date: row.start_date,
+      end_date: row.end_date,
       kind: row.kind,
-      title: row.title as WeeklyChallenge.WeeklyChallengeTitle,
+      title: row.title as TeamChallenge.TeamChallengeTitle,
       description:
         row.description !== null
-          ? Option.some(row.description as WeeklyChallenge.WeeklyChallengeDescription)
+          ? Option.some(row.description as TeamChallenge.TeamChallengeDescription)
           : Option.none(),
       created_by: row.created_by as TeamMember.TeamMemberId,
       created_at: DateTime.makeUnsafe(row.created_at),
@@ -167,7 +156,7 @@ const usersMap = new Map<Auth.UserId, any>([
     TEST_CAPTAIN_USER_ID,
     {
       id: TEST_CAPTAIN_USER_ID,
-      discord_id: '211',
+      discord_id: '311',
       username: 'captain',
       avatar: Option.none(),
       is_profile_complete: true,
@@ -184,7 +173,7 @@ const usersMap = new Map<Auth.UserId, any>([
     TEST_MEMBER_USER_ID,
     {
       id: TEST_MEMBER_USER_ID,
-      discord_id: '212',
+      discord_id: '312',
       username: 'member',
       avatar: Option.none(),
       is_profile_complete: true,
@@ -201,7 +190,7 @@ const usersMap = new Map<Auth.UserId, any>([
     TEST_OUTSIDER_USER_ID,
     {
       id: TEST_OUTSIDER_USER_ID,
-      discord_id: '299',
+      discord_id: '399',
       username: 'outsider',
       avatar: Option.none(),
       is_profile_complete: true,
@@ -216,8 +205,6 @@ const usersMap = new Map<Auth.UserId, any>([
   ],
 ]);
 
-// membersStore: (teamId, userId) -> MembershipWithRole
-// Team A members: captain + member; Team B: none for these users
 const membersStore = new Map<string, MembershipWithRole>([
   [
     `${TEST_TEAM_A_ID}:${TEST_CAPTAIN_USER_ID}`,
@@ -241,7 +228,6 @@ const membersStore = new Map<string, MembershipWithRole>([
       permissions: MEMBER_PERMISSIONS as any,
     } as MembershipWithRole,
   ],
-  // Outsider has no membership in team A or B
 ]);
 
 // ---------------------------------------------------------------------------
@@ -254,16 +240,16 @@ const buildNoop = (tag: string, extra: Record<string, any> = {}): never =>
   }) as never;
 
 // ---------------------------------------------------------------------------
-// Mock WeeklyChallengeRepository
+// Mock TeamChallengeRepository
 // ---------------------------------------------------------------------------
 
-const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeRepository, {
-  _tag: 'api/WeeklyChallengeRepository' as const,
+const MockTeamChallengeRepositoryLayer = Layer.succeed(TeamChallengeRepository, {
+  _tag: 'api/TeamChallengeRepository' as const,
 
   listForTeam: (teamId: string, teamTz: string, limit?: number) => {
     const all = Array.from(challengesStore.values()).filter((r) => r.team_id === teamId);
     const rows = limit !== undefined ? all.slice(0, limit) : all;
-    const views = rows.map(makeWeeklyChallengeView);
+    const views = rows.map(makeTeamChallengeView);
     return Effect.succeed({
       team: { id: teamId as Team.TeamId, timezone: teamTz },
       challenges: views,
@@ -272,7 +258,26 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
 
   findById: (challengeId: string) => {
     const row = challengesStore.get(challengeId);
-    return Effect.succeed(row ? Option.some(row) : Option.none());
+    if (!row) return Effect.succeed(Option.none());
+    return Effect.succeed(
+      Option.some(
+        new TeamChallenge.TeamChallenge({
+          id: row.id as TeamChallenge.TeamChallengeId,
+          team_id: row.team_id as Team.TeamId,
+          start_date: row.start_date,
+          end_date: row.end_date,
+          kind: row.kind,
+          title: row.title as TeamChallenge.TeamChallengeTitle,
+          description:
+            row.description !== null
+              ? Option.some(row.description as TeamChallenge.TeamChallengeDescription)
+              : Option.none(),
+          created_by: row.created_by as TeamMember.TeamMemberId,
+          created_at: DateTime.makeUnsafe(row.created_at),
+          updated_at: DateTime.makeUnsafe(row.updated_at),
+        }),
+      ),
+    );
   },
 
   create: (input: any) => {
@@ -280,7 +285,8 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
     const row: ChallengeRow = {
       id,
       team_id: input.team_id,
-      week_start_date: input.week_start_date,
+      start_date: input.start_date,
+      end_date: input.end_date,
       kind: input.kind,
       title: input.title,
       description: Option.isSome(input.description) ? (input.description.value as string) : null,
@@ -288,23 +294,30 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
       created_at: FROZEN_UTC,
       updated_at: FROZEN_UTC,
     };
-    // Check for duplicate week
-    const duplicate = Array.from(challengesStore.values()).find(
-      (r) =>
-        r.team_id === input.team_id &&
-        r.week_start_date.getTime() === input.week_start_date.getTime(),
-    );
-    if (duplicate) {
-      return Effect.fail(new WeeklyChallengeApi.WeeklyChallengeAlreadyExistsForWeek());
-    }
     challengesStore.set(id, row);
-    return Effect.succeed(row);
+    return Effect.succeed(
+      new TeamChallenge.TeamChallenge({
+        id: id as TeamChallenge.TeamChallengeId,
+        team_id: row.team_id as Team.TeamId,
+        start_date: row.start_date,
+        end_date: row.end_date,
+        kind: row.kind,
+        title: row.title as TeamChallenge.TeamChallengeTitle,
+        description:
+          row.description !== null
+            ? Option.some(row.description as TeamChallenge.TeamChallengeDescription)
+            : Option.none(),
+        created_by: row.created_by as TeamMember.TeamMemberId,
+        created_at: DateTime.makeUnsafe(row.created_at),
+        updated_at: DateTime.makeUnsafe(row.updated_at),
+      }),
+    );
   },
 
   updateTitleDescription: (challengeId: string, title: string, description: any) => {
     const row = challengesStore.get(challengeId);
     if (!row) {
-      return Effect.fail(new WeeklyChallengeApi.WeeklyChallengeNotFound());
+      return Effect.fail(new TeamChallengeApi.TeamChallengeNotFound());
     }
     const updated = {
       ...row,
@@ -313,7 +326,7 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
       updated_at: FROZEN_UTC,
     };
     challengesStore.set(challengeId, updated);
-    return Effect.succeed(makeWeeklyChallengeView(updated).challenge);
+    return Effect.succeed(makeTeamChallengeView(updated).challenge);
   },
 
   delete: (challengeId: string) => {
@@ -323,16 +336,17 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
   },
 
   markCompleted: (challengeId: string, memberId: string, teamTz: string) => {
-    void teamTz; // accepted but unused in mock — real repo uses it for active-week check
+    void teamTz;
     const row = challengesStore.get(challengeId);
     if (!row) {
-      return Effect.fail(new WeeklyChallengeApi.WeeklyChallengeNotFound());
+      return Effect.fail(new TeamChallengeApi.TeamChallengeNotFound());
     }
-    // Active check: compare row's week_start_date to the frozen current Monday
-    const rowDateStr = row.week_start_date.toISOString().slice(0, 10);
-    const currentMondayStr = '2026-03-09';
-    if (rowDateStr !== currentMondayStr) {
-      return Effect.fail(new WeeklyChallengeApi.WeeklyChallengeNotActive());
+    // Active check: today must be within [start_date, end_date]
+    const todayStr = TODAY_DATE_STR;
+    const startStr = row.start_date.toISOString().slice(0, 10);
+    const endStr = row.end_date.toISOString().slice(0, 10);
+    if (todayStr < startStr || todayStr > endStr) {
+      return Effect.fail(new TeamChallengeApi.TeamChallengeNotActive());
     }
     const members = completionsStore.get(challengeId) ?? new Set<string>();
     members.add(memberId);
@@ -341,15 +355,16 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
   },
 
   unmarkCompleted: (challengeId: string, memberId: string, teamTz: string) => {
-    void teamTz; // accepted but unused in mock — real repo uses it for active-week check
+    void teamTz;
     const row = challengesStore.get(challengeId);
     if (!row) {
-      return Effect.fail(new WeeklyChallengeApi.WeeklyChallengeNotFound());
+      return Effect.fail(new TeamChallengeApi.TeamChallengeNotFound());
     }
-    const rowDateStr = row.week_start_date.toISOString().slice(0, 10);
-    const currentMondayStr = '2026-03-09';
-    if (rowDateStr !== currentMondayStr) {
-      return Effect.fail(new WeeklyChallengeApi.WeeklyChallengeNotActive());
+    const todayStr = TODAY_DATE_STR;
+    const startStr = row.start_date.toISOString().slice(0, 10);
+    const endStr = row.end_date.toISOString().slice(0, 10);
+    if (todayStr < startStr || todayStr > endStr) {
+      return Effect.fail(new TeamChallengeApi.TeamChallengeNotActive());
     }
     const members = completionsStore.get(challengeId);
     if (members) {
@@ -358,20 +373,14 @@ const MockWeeklyChallengeRepositoryLayer = Layer.succeed(WeeklyChallengeReposito
     return Effect.void;
   },
 
-  enqueueAnnouncementEvent: (
-    _challengeId: string,
-    _teamId: string,
-    _channelId: string,
-    _scheduledFor: Date,
-  ) => Effect.void,
-
+  enqueueAnnouncementEvent: () => Effect.void,
   listUnprocessedDueEvents: () => Effect.succeed([]),
   markProcessed: () => Effect.void,
   markFailed: () => Effect.void,
 } as never);
 
 // ---------------------------------------------------------------------------
-// Mock ExpensesRepository (noop — expenses not tested here)
+// Mock ExpensesRepository (noop)
 // ---------------------------------------------------------------------------
 
 const MockExpensesRepositoryLayer = Layer.succeed(ExpensesRepository, {
@@ -386,7 +395,7 @@ const MockExpensesRepositoryLayer = Layer.succeed(ExpensesRepository, {
 } as never);
 
 // ---------------------------------------------------------------------------
-// Standard mocks (mirror expenses.test.ts)
+// Standard mocks
 // ---------------------------------------------------------------------------
 
 const MockDiscordOAuthLayer = Layer.succeed(DiscordOAuth, {
@@ -415,7 +424,7 @@ const MockSessionsRepositoryLayer = Layer.succeed(SessionsRepository, {
     const userId = sessionsStore.get(token);
     if (!userId) return Effect.succeed(Option.none());
     return Effect.succeed(
-      Option.some({ id: 'session-wc', user_id: userId, token, expires_at: now, created_at: now }),
+      Option.some({ id: 'session-tc', user_id: userId, token, expires_at: now, created_at: now }),
     );
   },
   deleteByToken: () => Effect.void,
@@ -502,30 +511,8 @@ const MockHttpClientLayer = Layer.succeed(
 );
 
 // ---------------------------------------------------------------------------
-// Full test layer (mirrors expenses.test.ts)
+// Full test layer
 // ---------------------------------------------------------------------------
-
-const MockTeamChallengeRepositoryLayer = Layer.succeed(TeamChallengeRepository, {
-  _tag: 'api/TeamChallengeRepository' as const,
-  listForTeam: () => Effect.succeed({ team: { id: 'noop', timezone: 'UTC' }, challenges: [] }),
-  findById: () => Effect.succeed(Option.none()),
-  create: () => Effect.die(new Error('MockTeamChallengeRepository.create not implemented')),
-  updateTitleDescription: () =>
-    Effect.die(new Error('MockTeamChallengeRepository.updateTitleDescription not implemented')),
-  delete: () =>
-    Effect.die(new Error('MockTeamChallengeRepositoryLayer: delete called unexpectedly')),
-  markCompleted: () =>
-    Effect.die(new Error('MockTeamChallengeRepositoryLayer: markCompleted called unexpectedly')),
-  unmarkCompleted: () =>
-    Effect.die(new Error('MockTeamChallengeRepositoryLayer: unmarkCompleted called unexpectedly')),
-  enqueueAnnouncementEvent: () =>
-    Effect.die(
-      new Error('MockTeamChallengeRepositoryLayer: enqueueAnnouncementEvent called unexpectedly'),
-    ),
-  listUnprocessedDueEvents: () => Effect.succeed([]),
-  markProcessed: () => Effect.void,
-  markFailed: () => Effect.void,
-} as never);
 
 const MockCoreLayers = Layer.mergeAll(
   MockDiscordOAuthLayer,
@@ -535,7 +522,6 @@ const MockCoreLayers = Layer.mergeAll(
   MockTeamMembersRepositoryLayer,
   MockTeamSettingsRepositoryLayer,
   MockHttpClientLayer,
-  MockWeeklyChallengeRepositoryLayer,
   MockTeamChallengeRepositoryLayer,
   MockExpensesRepositoryLayer,
 );
@@ -864,7 +850,6 @@ let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
 
 beforeAll(() => {
-  // Freeze time so current-week checks are deterministic
   vi.useFakeTimers();
   vi.setSystemTime(FROZEN_UTC);
 
@@ -886,23 +871,33 @@ beforeEach(() => {
 // URL helpers
 // ---------------------------------------------------------------------------
 
-const listUrl = `http://localhost/teams/${TEST_TEAM_A_ID}/weekly-challenges`;
-const createUrl = `http://localhost/teams/${TEST_TEAM_A_ID}/weekly-challenges`;
+const listUrl = `http://localhost/teams/${TEST_TEAM_A_ID}/challenges`;
+const createUrl = `http://localhost/teams/${TEST_TEAM_A_ID}/challenges`;
 
 const challengeUrl = (challengeId: string) =>
-  `http://localhost/teams/${TEST_TEAM_A_ID}/weekly-challenges/${challengeId}`;
+  `http://localhost/teams/${TEST_TEAM_A_ID}/challenges/${challengeId}`;
 
 const completeUrl = (challengeId: string) =>
-  `http://localhost/teams/${TEST_TEAM_A_ID}/weekly-challenges/${challengeId}/complete`;
+  `http://localhost/teams/${TEST_TEAM_A_ID}/challenges/${challengeId}/complete`;
 
-// Current week is 2026-03-09 (Monday). Next week = 2026-03-16.
-const WEEK_NEXT = '2026-03-16T00:00:00.000Z';
-const WEEK_PAST = '2026-03-02T00:00:00.000Z'; // previous Monday
-const WEEK_9W_AHEAD = '2026-05-11T00:00:00.000Z'; // 9 weeks ahead
-const WEEK_8W_AHEAD = '2026-05-04T00:00:00.000Z'; // 8 weeks ahead
+// today is 2026-03-09. Valid range: [today, today + 56 days] = [2026-03-09, 2026-05-04]
+// 8 weeks from today = 2026-05-04 (56 days)
+// 9 weeks from today = 2026-05-11 (63 days) → out of range
+
+const START_FUTURE = '2026-03-16T00:00:00.000Z'; // 7 days ahead (valid)
+const END_FUTURE = '2026-03-22T00:00:00.000Z';
+const START_PAST = '2026-03-02T00:00:00.000Z'; // 7 days before today (allowed — past OK)
+const END_PAST = '2026-03-08T00:00:00.000Z';
+const START_9W_AHEAD = '2026-05-11T00:00:00.000Z'; // 63 days = 9 weeks (out of range)
+const END_9W_AHEAD = '2026-05-17T00:00:00.000Z';
+const START_8W_AHEAD = '2026-05-04T00:00:00.000Z'; // 56 days = 8 weeks (boundary, valid)
+const END_8W_AHEAD = '2026-05-10T00:00:00.000Z';
+const START_ACTIVE = '2026-03-09T00:00:00.000Z'; // today = active
+const END_ACTIVE = '2026-03-15T00:00:00.000Z';
 
 const validCreateBody = JSON.stringify({
-  weekStart: WEEK_NEXT,
+  startDate: START_FUTURE,
+  endDate: END_FUTURE,
   kind: 'throwing',
   title: 'Test Challenge',
   description: null,
@@ -912,8 +907,8 @@ const validCreateBody = JSON.stringify({
 // Test 1: Non-captain Create → 403
 // ---------------------------------------------------------------------------
 
-describe('Weekly Challenge API — createChallenge', () => {
-  it('non-captain POST /weekly-challenges → 403 WeeklyChallengeForbidden', async () => {
+describe('Team Challenge API — createChallenge', () => {
+  it('non-captain POST /challenges → 403 TeamChallengeForbidden', async () => {
     const response = await handler(
       new Request(createUrl, {
         method: 'POST',
@@ -926,11 +921,11 @@ describe('Weekly Challenge API — createChallenge', () => {
     );
     expect(response.status).toBe(403);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeForbidden/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeForbidden/i);
   });
 
   // Test 2: Captain Create → 201 + sync event enqueued
-  it('captain POST /weekly-challenges → 201 with WeeklyChallenge; enqueue event called', async () => {
+  it('captain POST /challenges → 201 with TeamChallenge', async () => {
     const response = await handler(
       new Request(createUrl, {
         method: 'POST',
@@ -947,8 +942,8 @@ describe('Weekly Challenge API — createChallenge', () => {
     expect(body).toHaveProperty('kind', 'throwing');
   });
 
-  // Test 3a: Create with weekStart 9 weeks ahead → 422
-  it('POST with weekStart 9 weeks ahead → 422 WeeklyChallengeWeekOutOfRange', async () => {
+  // Test 3a: Create with startDate 9 weeks ahead → 422
+  it('POST with startDate 9 weeks ahead → 422 TeamChallengeStartDateOutOfRange', async () => {
     const response = await handler(
       new Request(createUrl, {
         method: 'POST',
@@ -957,7 +952,8 @@ describe('Weekly Challenge API — createChallenge', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          weekStart: WEEK_9W_AHEAD,
+          startDate: START_9W_AHEAD,
+          endDate: END_9W_AHEAD,
           kind: 'sport',
           title: '9w',
           description: null,
@@ -966,11 +962,11 @@ describe('Weekly Challenge API — createChallenge', () => {
     );
     expect(response.status).toBe(422);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeWeekOutOfRange/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeStartDateOutOfRange/i);
   });
 
-  // Test 3b: Create with weekStart 8 weeks ahead → 201
-  it('POST with weekStart 8 weeks ahead → 201', async () => {
+  // Test 3b: Create with startDate 8 weeks ahead → 201 (boundary ok)
+  it('POST with startDate 8 weeks ahead → 201', async () => {
     const response = await handler(
       new Request(createUrl, {
         method: 'POST',
@@ -979,7 +975,8 @@ describe('Weekly Challenge API — createChallenge', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          weekStart: WEEK_8W_AHEAD,
+          startDate: START_8W_AHEAD,
+          endDate: END_8W_AHEAD,
           kind: 'sport',
           title: '8w',
           description: null,
@@ -989,8 +986,8 @@ describe('Weekly Challenge API — createChallenge', () => {
     expect(response.status).toBe(201);
   });
 
-  // Test 4: Create in past → 422
-  it('POST with weekStart in the past → 422 WeeklyChallengeWeekOutOfRange', async () => {
+  // Test 4: Create with startDate in the past → 201 (allowed)
+  it('POST with startDate in the past → 201 (past dates allowed)', async () => {
     const response = await handler(
       new Request(createUrl, {
         method: 'POST',
@@ -999,31 +996,96 @@ describe('Weekly Challenge API — createChallenge', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          weekStart: WEEK_PAST,
+          startDate: START_PAST,
+          endDate: END_PAST,
           kind: 'throwing',
           title: 'past',
           description: null,
         }),
       }),
     );
-    expect(response.status).toBe(422);
-    const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeWeekOutOfRange/i);
+    expect(response.status).toBe(201);
+  });
+
+  // Test 13: Two overlapping challenges → both succeed (overlap allowed)
+  it('two overlapping challenges from same team → both succeed 201', async () => {
+    const first = await handler(
+      new Request(createUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: START_FUTURE,
+          endDate: END_FUTURE,
+          kind: 'throwing',
+          title: 'First challenge',
+          description: null,
+        }),
+      }),
+    );
+    expect(first.status).toBe(201);
+
+    // Second challenge with overlapping dates
+    const second = await handler(
+      new Request(createUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer captain-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: START_FUTURE,
+          endDate: END_FUTURE,
+          kind: 'sport',
+          title: 'Second (overlapping) challenge',
+          description: null,
+        }),
+      }),
+    );
+    expect(second.status).toBe(201);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Tests 5–6: markCompleted
+// Tests: markCompleted
 // ---------------------------------------------------------------------------
 
-describe('Weekly Challenge API — markCompleted', () => {
-  it('POST .../complete on past-week challenge → 409 WeeklyChallengeNotActive', async () => {
-    // Seed a challenge with a past week_start_date
+describe('Team Challenge API — markCompleted', () => {
+  it('POST .../complete on future challenge → 409 TeamChallengeNotActive', async () => {
+    const futureId = makeChallengeId();
+    challengesStore.set(futureId, {
+      id: futureId,
+      team_id: TEST_TEAM_A_ID,
+      start_date: new Date(START_FUTURE),
+      end_date: new Date(END_FUTURE),
+      kind: 'throwing',
+      title: 'Future Challenge',
+      description: null,
+      created_by: TEST_CAPTAIN_MEMBER_ID,
+      created_at: FROZEN_UTC,
+      updated_at: FROZEN_UTC,
+    });
+
+    const response = await handler(
+      new Request(completeUrl(futureId), {
+        method: 'POST',
+        headers: { Authorization: 'Bearer member-token' },
+      }),
+    );
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeNotActive/i);
+  });
+
+  it('POST .../complete on past challenge → 409 TeamChallengeNotActive', async () => {
     const pastId = makeChallengeId();
     challengesStore.set(pastId, {
       id: pastId,
       team_id: TEST_TEAM_A_ID,
-      week_start_date: new Date(WEEK_PAST),
+      start_date: new Date(START_PAST),
+      end_date: new Date(END_PAST),
       kind: 'throwing',
       title: 'Past Challenge',
       description: null,
@@ -1040,18 +1102,18 @@ describe('Weekly Challenge API — markCompleted', () => {
     );
     expect(response.status).toBe(409);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeNotActive/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeNotActive/i);
   });
 
-  it('POST .../complete on current week → 204; second call also 204 (idempotent)', async () => {
-    // Seed a challenge for the current week
-    const currentId = makeChallengeId();
-    challengesStore.set(currentId, {
-      id: currentId,
+  it('POST .../complete on active challenge → 204; second call also 204 (idempotent)', async () => {
+    const activeId = makeChallengeId();
+    challengesStore.set(activeId, {
+      id: activeId,
       team_id: TEST_TEAM_A_ID,
-      week_start_date: CURRENT_MONDAY_DATE,
+      start_date: new Date(START_ACTIVE),
+      end_date: new Date(END_ACTIVE),
       kind: 'throwing',
-      title: 'Current Week Challenge',
+      title: 'Active Challenge',
       description: null,
       created_by: TEST_CAPTAIN_MEMBER_ID,
       created_at: FROZEN_UTC,
@@ -1059,7 +1121,7 @@ describe('Weekly Challenge API — markCompleted', () => {
     });
 
     const first = await handler(
-      new Request(completeUrl(currentId), {
+      new Request(completeUrl(activeId), {
         method: 'POST',
         headers: { Authorization: 'Bearer member-token' },
       }),
@@ -1067,30 +1129,31 @@ describe('Weekly Challenge API — markCompleted', () => {
     expect(first.status).toBe(204);
 
     const second = await handler(
-      new Request(completeUrl(currentId), {
+      new Request(completeUrl(activeId), {
         method: 'POST',
         headers: { Authorization: 'Bearer member-token' },
       }),
     );
     expect(second.status).toBe(204);
 
-    // Exactly 1 completion in the store
-    const members = completionsStore.get(currentId);
+    // Exactly 1 completion in the store (idempotent)
+    const members = completionsStore.get(activeId);
     expect(members?.size).toBe(1);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Test 8: Non-member calling MarkCompleted → 403
+// Non-member calling MarkCompleted → 403
 // ---------------------------------------------------------------------------
 
-describe('Weekly Challenge API — markCompleted authorization', () => {
-  it('non-member POST .../complete → 403 WeeklyChallengeForbidden', async () => {
+describe('Team Challenge API — markCompleted authorization', () => {
+  it('non-member POST .../complete → 403 TeamChallengeForbidden', async () => {
     const id = makeChallengeId();
     challengesStore.set(id, {
       id,
       team_id: TEST_TEAM_A_ID,
-      week_start_date: CURRENT_MONDAY_DATE,
+      start_date: new Date(START_ACTIVE),
+      end_date: new Date(END_ACTIVE),
       kind: 'throwing',
       title: 'Challenge',
       description: null,
@@ -1107,22 +1170,22 @@ describe('Weekly Challenge API — markCompleted authorization', () => {
     );
     expect(response.status).toBe(403);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeForbidden/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeForbidden/i);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Test 9: UpdateTitleDescription preserves completion count
+// UpdateTitleDescription preserves completion count
 // ---------------------------------------------------------------------------
 
-describe('Weekly Challenge API — updateChallenge', () => {
+describe('Team Challenge API — updateChallenge', () => {
   it('PATCH preserves completedMemberIds after title update', async () => {
-    // Seed a challenge with 3 completions
     const id = makeChallengeId();
     challengesStore.set(id, {
       id,
       team_id: TEST_TEAM_A_ID,
-      week_start_date: CURRENT_MONDAY_DATE,
+      start_date: new Date(START_ACTIVE),
+      end_date: new Date(END_ACTIVE),
       kind: 'throwing',
       title: 'Original Title',
       description: null,
@@ -1132,9 +1195,9 @@ describe('Weekly Challenge API — updateChallenge', () => {
     });
 
     const memberIds = [
-      '00000000-0000-0000-0002-000000000021' as TeamMember.TeamMemberId,
-      '00000000-0000-0000-0002-000000000022' as TeamMember.TeamMemberId,
-      '00000000-0000-0000-0002-000000000023' as TeamMember.TeamMemberId,
+      '00000000-0000-0000-0003-000000000021' as TeamMember.TeamMemberId,
+      '00000000-0000-0000-0003-000000000022' as TeamMember.TeamMemberId,
+      '00000000-0000-0000-0003-000000000023' as TeamMember.TeamMemberId,
     ];
     completionsStore.set(id, new Set(memberIds));
 
@@ -1166,16 +1229,17 @@ describe('Weekly Challenge API — updateChallenge', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Test 10: Captain Delete cascades
+// Captain Delete cascades
 // ---------------------------------------------------------------------------
 
-describe('Weekly Challenge API — deleteChallenge', () => {
+describe('Team Challenge API — deleteChallenge', () => {
   it('captain DELETE → 204; challenge and completions removed', async () => {
     const id = makeChallengeId();
     challengesStore.set(id, {
       id,
       team_id: TEST_TEAM_A_ID,
-      week_start_date: CURRENT_MONDAY_DATE,
+      start_date: new Date(START_ACTIVE),
+      end_date: new Date(END_ACTIVE),
       kind: 'sport',
       title: 'Delete Me',
       description: null,
@@ -1193,19 +1257,18 @@ describe('Weekly Challenge API — deleteChallenge', () => {
     );
     expect(deleteResponse.status).toBe(204);
 
-    // Challenge and completions gone from store
     expect(challengesStore.has(id)).toBe(false);
     expect(completionsStore.has(id)).toBe(false);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Test 11: Cross-team isolation
+// Cross-team isolation
 // ---------------------------------------------------------------------------
 
-describe('Weekly Challenge API — cross-team isolation', () => {
-  it('captain of team A POST to team B URL → 403 WeeklyChallengeForbidden', async () => {
-    const teamBCreateUrl = `http://localhost/teams/${TEST_TEAM_B_ID}/weekly-challenges`;
+describe('Team Challenge API — cross-team isolation', () => {
+  it('captain of team A POST to team B URL → 403 TeamChallengeForbidden', async () => {
+    const teamBCreateUrl = `http://localhost/teams/${TEST_TEAM_B_ID}/challenges`;
     const response = await handler(
       new Request(teamBCreateUrl, {
         method: 'POST',
@@ -1214,7 +1277,8 @@ describe('Weekly Challenge API — cross-team isolation', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          weekStart: WEEK_NEXT,
+          startDate: START_FUTURE,
+          endDate: END_FUTURE,
           kind: 'throwing',
           title: 'Cross-team',
           description: null,
@@ -1223,17 +1287,16 @@ describe('Weekly Challenge API — cross-team isolation', () => {
     );
     expect(response.status).toBe(403);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeForbidden/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeForbidden/i);
   });
 
-  // B1: cross-team mark — member of team A uses team-A challenge id but via team B URL
-  it('member of team A POST mark via team B URL with team-A challenge → 403 WeeklyChallengeNotFound (no leak)', async () => {
-    // Seed a challenge owned by team A
+  it('member of team A POST mark via team B URL → 403 TeamChallengeForbidden', async () => {
     const teamAId = makeChallengeId();
     challengesStore.set(teamAId, {
       id: teamAId,
       team_id: TEST_TEAM_A_ID,
-      week_start_date: CURRENT_MONDAY_DATE,
+      start_date: new Date(START_ACTIVE),
+      end_date: new Date(END_ACTIVE),
       kind: 'throwing',
       title: 'Team A Challenge',
       description: null,
@@ -1242,31 +1305,25 @@ describe('Weekly Challenge API — cross-team isolation', () => {
       updated_at: FROZEN_UTC,
     });
 
-    // Try to mark it via team B's URL — captain is not a member of team B
-    const teamBCompleteUrl = `http://localhost/teams/${TEST_TEAM_B_ID}/weekly-challenges/${teamAId}/complete`;
+    const teamBCompleteUrl = `http://localhost/teams/${TEST_TEAM_B_ID}/challenges/${teamAId}/complete`;
     const response = await handler(
       new Request(teamBCompleteUrl, {
         method: 'POST',
         headers: { Authorization: 'Bearer captain-token' },
       }),
     );
-    // Captain is not a member of team B → 403
     expect(response.status).toBe(403);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeForbidden/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeForbidden/i);
   });
 
-  // B1: cross-team mark — captain seeds a challenge for team A, then a MEMBER (who has access
-  // to team B if team B existed) tries to mark team-A's challenge via a different team URL.
-  // In our test setup we only have team A members, so we test the findById ownership check
-  // by seeding a challenge with team_id = TEST_TEAM_B_ID but accessing via team A URL.
   it('member POST mark via team A URL with team-B challenge id → 404 (no cross-team leak)', async () => {
-    // Seed a challenge owned by team B in the store
     const teamBChallengeId = makeChallengeId();
     challengesStore.set(teamBChallengeId, {
       id: teamBChallengeId,
       team_id: TEST_TEAM_B_ID,
-      week_start_date: CURRENT_MONDAY_DATE,
+      start_date: new Date(START_ACTIVE),
+      end_date: new Date(END_ACTIVE),
       kind: 'throwing',
       title: 'Team B Challenge',
       description: null,
@@ -1275,17 +1332,15 @@ describe('Weekly Challenge API — cross-team isolation', () => {
       updated_at: FROZEN_UTC,
     });
 
-    // Member of team A tries to mark team B's challenge via team A's URL
-    const crossTeamCompleteUrl = `http://localhost/teams/${TEST_TEAM_A_ID}/weekly-challenges/${teamBChallengeId}/complete`;
+    const crossTeamCompleteUrl = `http://localhost/teams/${TEST_TEAM_A_ID}/challenges/${teamBChallengeId}/complete`;
     const response = await handler(
       new Request(crossTeamCompleteUrl, {
         method: 'POST',
         headers: { Authorization: 'Bearer member-token' },
       }),
     );
-    // Should be 404 — existence not leaked with a different error
     expect(response.status).toBe(404);
     const body = await response.json();
-    expect(JSON.stringify(body)).toMatch(/WeeklyChallengeNotFound/i);
+    expect(JSON.stringify(body)).toMatch(/TeamChallengeNotFound/i);
   });
 });

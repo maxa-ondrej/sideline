@@ -1,7 +1,7 @@
 import { type Roster, Team, TeamChallenge, type TeamChallengeApi } from '@sideline/domain';
 import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
-import { WeeklyChallengesPage } from '~/components/pages/WeeklyChallengesPage';
+import { TeamChallengesPage } from '~/components/pages/TeamChallengesPage';
 import { ApiClient, ClientError, SilentClientError, useRun, warnAndCatchAll } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
@@ -228,7 +228,7 @@ function ChallengesRoute() {
   };
 
   return (
-    <WeeklyChallengesPage
+    <TeamChallengesPage
       teamId={teamId}
       canCreate={challengeList.canCreate}
       currentMemberId={currentMemberId}

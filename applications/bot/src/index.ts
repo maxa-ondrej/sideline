@@ -14,7 +14,6 @@ export {
   RoleProvisionSyncService,
   RoleSyncService,
   TeamChallengeSyncService,
-  WeeklyChallengeSyncService,
   WeeklySummarySyncService,
 } from '~/rcp/index.js';
 export { SyncRpc } from '~/services/SyncRpc.js';

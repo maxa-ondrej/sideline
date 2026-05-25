@@ -69,7 +69,6 @@ import { MockFinanceLayers } from './mocks/financeMocks.js';
 import { MockTeamOnboardingTokensRepositoryLayer } from './mocks/onboardingMocks.js';
 import { MockTeamChallengeRepositoryLayer } from './mocks/teamChallengeMocks.js';
 import { MockTranslationsLayers } from './mocks/translationMocks.js';
-import { MockWeeklyChallengeRepositoryLayer } from './mocks/weeklyChallengeMocks.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -960,7 +959,6 @@ const buildTestLayer = (
     .pipe(Layer.provide(MockFinanceLayers))
     .pipe(Layer.provide(MockTranslationsLayers))
     .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
-    .pipe(Layer.provide(MockWeeklyChallengeRepositoryLayer))
     .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
     .pipe(Layer.provide(BotInfoStore.Default));
 
@@ -1187,7 +1185,6 @@ describe('B2 — createGroup emits channel_created regardless of create_discord_
       .pipe(Layer.provide(MockFinanceLayers))
       .pipe(Layer.provide(MockTranslationsLayers))
       .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
-      .pipe(Layer.provide(MockWeeklyChallengeRepositoryLayer))
       .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
       .pipe(Layer.provide(BotInfoStore.Default));
 

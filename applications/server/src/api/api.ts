@@ -25,7 +25,6 @@ import {
   TrainingTypeApi,
   Translations,
   VersionApi,
-  WeeklyChallengeApi,
   WeeklySummaryApi,
 } from '@sideline/domain';
 import { HttpApi } from 'effect/unstable/httpapi';
@@ -61,7 +60,6 @@ export const Api = HttpApi.make('api')
     TrainingTypeApi.TrainingTypeApiGroup,
     Translations.TranslationsApiGroup,
     VersionApi.VersionApiGroup,
-    WeeklyChallengeApi.WeeklyChallengeApiGroup,
     WeeklySummaryApi.WeeklySummaryApiGroup,
   )
   .prefix(env.API_PREFIX as '/${string}');
