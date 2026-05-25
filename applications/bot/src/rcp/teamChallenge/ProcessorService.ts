@@ -1,29 +1,17 @@
-import type { WeeklyChallengeSyncEvents } from '@sideline/domain';
+import type { TeamChallengeSyncEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Metric } from 'effect';
 import { env } from '../../env.js';
 import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
-import { handleWeeklyChallengeReady } from './handleWeeklyChallengeReady.js';
+import { handleTeamChallengeReady } from './handleTeamChallengeReady.js';
 
-// Structural narrowing helper — same pattern as errorClassifier.ts across the
-// bot codebase. Avoids an `as` cast: TypeScript narrows to `object` first, then
-// property access via the typed helper is safe.
+// Structural narrowing helper — avoids an `as` cast.
 const isRec = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 // Converts an unknown error from the Discord REST layer into a loggable string.
-// Extracts structured fields (_tag, response.status, code) when present so
-// operators can correlate errors to specific Discord API failure modes.
-//
-// Check order:
-//   1. string  → return as-is
-//   2. Error   → name + message (+ cause). JSON.stringify(new Error) returns '{}'
-//                because Error.message/stack are non-enumerable — avoid it.
-//   3. tagged object with response.status (ErrorResponse) → structured path
-//   4. tagged object (other Effect error) → tag + JSON
-//   5. fallback → String()
 const formatError = (err: unknown): string => {
   if (typeof err === 'string') return err;
   if (err instanceof Error) {
@@ -48,12 +36,10 @@ const processEvent = Effect.Do.pipe(
   Effect.bind('discord', () => DiscordREST.asEffect()),
   Effect.map(
     ({ rpc, discord }) =>
-      (event: WeeklyChallengeSyncEvents.UnprocessedWeeklyChallengeEvent) => {
-        // NOTE: UnprocessedWeeklyChallengeEvent is a plain Schema.Class (no _tag).
-        // Single event type — no Match.tag dispatch. Call the handler directly.
-        return handleWeeklyChallengeReady(event, env.WEB_URL).pipe(
+      (event: TeamChallengeSyncEvents.UnprocessedTeamChallengeEvent) => {
+        return handleTeamChallengeReady(event, env.WEB_URL).pipe(
           Effect.flatMap(() =>
-            rpc['WeeklyChallenge/MarkWeeklyChallengeProcessed']({
+            rpc['TeamChallenge/MarkTeamChallengeProcessed']({
               eventId: event.id,
               deliveredAt: DateTime.nowUnsafe(),
             }),
@@ -61,26 +47,23 @@ const processEvent = Effect.Do.pipe(
           Effect.tap(() =>
             Metric.update(
               Metric.withAttributes(syncEventsProcessedTotal, {
-                sync_type: 'weekly_challenge',
+                sync_type: 'team_challenge',
               }),
               1,
             ),
           ),
           Effect.catch((error) =>
-            rpc['WeeklyChallenge/MarkWeeklyChallengeFailed']({
+            rpc['TeamChallenge/MarkTeamChallengeFailed']({
               eventId: event.id,
               error: formatError(error),
             }).pipe(
               Effect.tap(() =>
-                Effect.logWarning(
-                  `Failed to process weekly challenge sync event ${event.id}`,
-                  error,
-                ),
+                Effect.logWarning(`Failed to process team challenge sync event ${event.id}`, error),
               ),
               Effect.tap(() =>
                 Metric.update(
                   Metric.withAttributes(syncEventsFailedTotal, {
-                    sync_type: 'weekly_challenge',
+                    sync_type: 'team_challenge',
                   }),
                   1,
                 ),
@@ -89,7 +72,7 @@ const processEvent = Effect.Do.pipe(
           ),
           Effect.provideService(SyncRpc, rpc),
           Effect.provideService(DiscordREST, discord),
-          Effect.withSpan('sync/weekly_challenge/ready', {
+          Effect.withSpan('sync/team_challenge/ready', {
             attributes: { 'event.id': String(event.id) },
           }),
         );
@@ -106,27 +89,24 @@ export const ProcessorService = Effect.Do.pipe(
       Effect.provideService(DiscordREST, discord),
     ),
   ),
-  Effect.tap(() => Effect.logInfo('WeeklyChallengeSyncService initialized')),
+  Effect.tap(() => Effect.logInfo('TeamChallengeSyncService initialized')),
   Effect.let('processTick', ({ rpc, processEvent }) =>
-    // NOTE: server-side query is currently unbounded (no LIMIT). Acceptable
-    // because at most one challenge per team per week bounds the backlog.
-    // Follow-up: add LIMIT in Part 1 follow-up; bot adds no client-side cap.
-    rpc['WeeklyChallenge/GetUnprocessedWeeklyChallengeEvents']().pipe(
+    rpc['TeamChallenge/GetUnprocessedTeamChallengeEvents']().pipe(
       Effect.tap((events) =>
-        Effect.logDebug(`Weekly challenge sync poll: ${events.length} event(s)`),
+        Effect.logDebug(`Team challenge sync poll: ${events.length} event(s)`),
       ),
       Effect.flatMap((events) =>
         events.length === 0
           ? Effect.void
           : Effect.all(Array.map(events, processEvent), { concurrency: 1 }).pipe(
               Effect.tap(() =>
-                Effect.logInfo(`Processed ${events.length} weekly challenge sync event(s)`),
+                Effect.logInfo(`Processed ${events.length} team challenge sync event(s)`),
               ),
               Effect.asVoid,
             ),
       ),
       Effect.tapError((error) =>
-        Effect.logError('Error polling weekly challenge sync events', error),
+        Effect.logError('Error polling team challenge sync events', error),
       ),
     ),
   ),

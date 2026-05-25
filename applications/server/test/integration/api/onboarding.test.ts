@@ -45,6 +45,7 @@ import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepositor
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { TeamChallengeRepository } from '~/repositories/TeamChallengeRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -614,6 +615,10 @@ const StubRepositoriesLayer = Layer.mergeAll(
     evaluateTeam: () => Effect.succeed([]),
     evaluate: () => Effect.succeed([]),
   } as any),
+  Layer.succeed(
+    TeamChallengeRepository,
+    new Proxy({} as any, { get: () => () => Effect.void }) as any,
+  ),
 );
 
 // ---------------------------------------------------------------------------

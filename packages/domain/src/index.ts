@@ -51,6 +51,8 @@ export * as Roster from './api/Roster.js';
 
 export * as TeamApi from './api/TeamApi.js';
 
+export * as TeamChallengeApi from './api/TeamChallengeApi.js';
+
 export * as TeamSettingsApi from './api/TeamSettingsApi.js';
 
 export * as TrainingTypeApi from './api/TrainingTypeApi.js';
@@ -137,6 +139,8 @@ export * as Session from './models/Session.js';
 
 export * as Team from './models/Team.js';
 
+export * as TeamChallenge from './models/TeamChallenge.js';
+
 export * as TeamInvite from './models/TeamInvite.js';
 
 export * as TeamMember from './models/TeamMember.js';
@@ -148,8 +152,6 @@ export * as TeamSettings from './models/TeamSettings.js';
 export * as TrainingType from './models/TrainingType.js';
 
 export * as User from './models/User.js';
-
-export * as WeeklyChallenge from './models/WeeklyChallenge.js';
 
 /**
  * Shared payload schema for the weekly_summary_sync_events queue.
@@ -178,9 +180,9 @@ export * as RoleRpcModels from './rpc/role/RoleRpcModels.js';
 export * as RoleProvisionRpcGroup from './rpc/roleProvision/RoleProvisionRpcGroup.js';
 export * as SyncRpcs from './rpc/SyncRpcs.js';
 
-export * as WeeklyChallengeRpcGroup from './rpc/weeklyChallenge/WeeklyChallengeRpcGroup.js';
+export * as TeamChallengeRpcGroup from './rpc/teamChallenge/TeamChallengeRpcGroup.js';
 
-export * as WeeklyChallengeSyncEvents from './rpc/weeklyChallenge/WeeklyChallengeSyncEvents.js';
+export * as TeamChallengeSyncEvents from './rpc/teamChallenge/TeamChallengeSyncEvents.js';
 
 export * as WeeklySummaryRpcEvents from './rpc/weeklySummary/WeeklySummaryRpcEvents.js';
 

@@ -1,12 +1,12 @@
-// Tests for WeeklyChallenge ProcessorService — processTick behavior.
+// Tests for TeamChallenge ProcessorService — processTick behavior.
 // Bot-side ProcessorService is stateless w.r.t. attempt counting; the server
 // query already filters attempts < 5 before returning events.
 
 import {
   type Discord,
   type Team,
-  type WeeklyChallenge,
-  WeeklyChallengeSyncEvents,
+  type TeamChallenge,
+  TeamChallengeSyncEvents,
 } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DateTime, Effect, Layer, Logger, Option } from 'effect';
@@ -30,7 +30,7 @@ vi.mock('~/env.js', () => ({
   }),
 }));
 
-import { ProcessorService } from '~/rcp/weeklyChallenge/ProcessorService.js';
+import { ProcessorService } from '~/rcp/teamChallenge/ProcessorService.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 // ---------------------------------------------------------------------------
 
 const TEAM_ID = '00000000-0000-4000-8000-000000000010' as Team.TeamId;
-const CHALLENGE_ID = 'chal-001' as WeeklyChallenge.WeeklyChallengeId;
+const CHALLENGE_ID = 'chal-001' as TeamChallenge.TeamChallengeId;
 const CHANNEL_ID = '333333333333333333' as Discord.Snowflake;
 const EVENT_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -53,19 +53,19 @@ const makeEvent = (
     channelId: Discord.Snowflake;
     teamId: Team.TeamId;
   }> = {},
-): WeeklyChallengeSyncEvents.UnprocessedWeeklyChallengeEvent =>
-  new WeeklyChallengeSyncEvents.UnprocessedWeeklyChallengeEvent({
+): TeamChallengeSyncEvents.UnprocessedTeamChallengeEvent =>
+  new TeamChallengeSyncEvents.UnprocessedTeamChallengeEvent({
     id: overrides.id ?? EVENT_ID,
     teamId: overrides.teamId ?? TEAM_ID,
     challengeId: CHALLENGE_ID,
     channelId: overrides.channelId ?? CHANNEL_ID,
     scheduledFor: DateTime.makeUnsafe('2026-03-10T08:00:00.000Z'),
     attempts: 0,
-    title: 'Test Challenge Title' as WeeklyChallenge.WeeklyChallengeTitle,
+    title: 'Test Challenge Title' as TeamChallenge.TeamChallengeTitle,
     kind: overrides.kind ?? 'throwing',
     description: Option.none(),
-    weekStartDate: '2026-03-09',
-    weekEndDate: '2026-03-15',
+    startDate: '2026-03-09',
+    endDate: '2026-03-15',
   });
 
 // ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ type RpcCalls = {
 };
 
 const makeRpc = (
-  events: WeeklyChallengeSyncEvents.UnprocessedWeeklyChallengeEvent[] = [],
+  events: TeamChallengeSyncEvents.UnprocessedTeamChallengeEvent[] = [],
   overrides: Partial<Record<string, (...args: any[]) => Effect.Effect<any, any, any>>> = {},
 ): { calls: RpcCalls; layer: Layer.Layer<SyncRpc> } => {
   const calls: RpcCalls = {
@@ -89,15 +89,15 @@ const makeRpc = (
   };
 
   const defaults: Record<string, (...args: any[]) => Effect.Effect<any, any, any>> = {
-    'WeeklyChallenge/GetUnprocessedWeeklyChallengeEvents': (...args: any[]) => {
+    'TeamChallenge/GetUnprocessedTeamChallengeEvents': (...args: any[]) => {
       calls.GetUnprocessed.push(args);
       return Effect.succeed(events);
     },
-    'WeeklyChallenge/MarkWeeklyChallengeProcessed': (args: any) => {
+    'TeamChallenge/MarkTeamChallengeProcessed': (args: any) => {
       calls.MarkProcessed.push(args);
       return Effect.void;
     },
-    'WeeklyChallenge/MarkWeeklyChallengeFailed': (args: any) => {
+    'TeamChallenge/MarkTeamChallengeFailed': (args: any) => {
       calls.MarkFailed.push(args);
       return Effect.void;
     },
@@ -200,7 +200,7 @@ const runProcessTick = (
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('WeeklyChallenge ProcessorService — processTick', () => {
+describe('TeamChallenge ProcessorService — processTick', () => {
   afterEach(() => {
     mockWebUrl = Option.none();
   });
@@ -353,7 +353,7 @@ describe('WeeklyChallenge ProcessorService — processTick', () => {
     expect(rpcCalls.MarkProcessed).toHaveLength(0);
   }, 15_000);
 
-  it('MarkWeeklyChallengeProcessed receives a deliveredAt DateTime.Utc value close to now', async () => {
+  it('MarkTeamChallengeProcessed receives a deliveredAt DateTime.Utc value close to now', async () => {
     const beforeMs = Date.now();
     const event = makeEvent({ kind: 'throwing' });
     const { calls: rpcCalls, layer: rpcLayer } = makeRpc([event]);

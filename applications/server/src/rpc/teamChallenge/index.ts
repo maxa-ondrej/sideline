@@ -1,28 +1,27 @@
-import { WeeklyChallengeSyncEvents } from '@sideline/domain';
+import { TeamChallengeSyncEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DateTime, Effect } from 'effect';
-import { WeeklyChallengeRepository } from '~/repositories/WeeklyChallengeRepository.js';
+import { formatDateUtc } from '~/helpers/teamChallenge.js';
+import { TeamChallengeRepository } from '~/repositories/TeamChallengeRepository.js';
 
 // ---------------------------------------------------------------------------
-// Sync events RPC handlers (WeeklyChallengeSyncEventsRpcGroup)
+// Sync events RPC handlers (TeamChallengeSyncEventsRpcGroup)
 //
-// Only the outbox-drain group is exposed on the internal bot↔server channel.
-// User-facing CRUD (List/Create/UpdateTitleDescription/Delete/Mark/Unmark)
-// will be wired through the HTTP API in a follow-up PR (Part 2/3), with
-// session-based authentication and captain-only authorisation.
+// Handles outbox-drain for team challenge announcement events consumed by the
+// bot. User-facing CRUD is handled through the HTTP API.
 // ---------------------------------------------------------------------------
 
-export const WeeklyChallengeSyncEventsRpcLive = Effect.Do.pipe(
-  Effect.bind('challenges', () => WeeklyChallengeRepository.asEffect()),
+export const TeamChallengeSyncEventsRpcLive = Effect.Do.pipe(
+  Effect.bind('challenges', () => TeamChallengeRepository.asEffect()),
   Effect.let(
-    'WeeklyChallenge/GetUnprocessedWeeklyChallengeEvents',
+    'TeamChallenge/GetUnprocessedTeamChallengeEvents',
     ({ challenges }) =>
       () =>
         challenges.listUnprocessedDueEvents().pipe(
           Effect.map((rows) =>
             rows.map(
               (row) =>
-                new WeeklyChallengeSyncEvents.UnprocessedWeeklyChallengeEvent({
+                new TeamChallengeSyncEvents.UnprocessedTeamChallengeEvent({
                   id: row.id,
                   teamId: row.team_id,
                   challengeId: row.challenge_id,
@@ -32,18 +31,15 @@ export const WeeklyChallengeSyncEventsRpcLive = Effect.Do.pipe(
                   title: row.title,
                   kind: row.kind,
                   description: row.description,
-                  weekStartDate: row.week_start_date.toISOString().split('T')[0] ?? '',
-                  weekEndDate:
-                    new Date(row.week_start_date.getTime() + 6 * 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .split('T')[0] ?? '',
+                  startDate: formatDateUtc(row.start_date),
+                  endDate: formatDateUtc(row.end_date),
                 }),
             ),
           ),
         ),
   ),
   Effect.let(
-    'WeeklyChallenge/MarkWeeklyChallengeProcessed',
+    'TeamChallenge/MarkTeamChallengeProcessed',
     ({ challenges }) =>
       ({
         eventId,
@@ -55,11 +51,11 @@ export const WeeklyChallengeSyncEventsRpcLive = Effect.Do.pipe(
         challenges.markProcessed(eventId, new Date(deliveredAt.epochMilliseconds)),
   ),
   Effect.let(
-    'WeeklyChallenge/MarkWeeklyChallengeFailed',
+    'TeamChallenge/MarkTeamChallengeFailed',
     ({ challenges }) =>
       ({ eventId, error }: { readonly eventId: string; readonly error: string }) =>
         challenges.markFailed(eventId, error),
   ),
   Bind.remove('challenges'),
-  (handlers) => WeeklyChallengeSyncEvents.WeeklyChallengeSyncEventsRpcGroup.toLayer(handlers),
+  (handlers) => TeamChallengeSyncEvents.TeamChallengeSyncEventsRpcGroup.toLayer(handlers),
 );

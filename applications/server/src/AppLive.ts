@@ -45,6 +45,7 @@ import { RoleSyncEventsRepository } from '~/repositories/RoleSyncEventsRepositor
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
 import { SessionsRepository } from '~/repositories/SessionsRepository.js';
+import { TeamChallengeRepository } from '~/repositories/TeamChallengeRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamOnboardingTokensRepository } from '~/repositories/TeamOnboardingTokensRepository.js';
@@ -53,7 +54,6 @@ import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { TranslationsRepository } from '~/repositories/TranslationsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
-import { WeeklyChallengeRepository } from '~/repositories/WeeklyChallengeRepository.js';
 import {
   WeeklySummaryRepository,
   WeeklySummarySyncEventsRepository,
@@ -120,7 +120,7 @@ const Repositories = Layer.mergeAll(
   AchievementSettingsRepository.Default,
   CustomAchievementsRepository.Default,
   DiscordRoleProvisionEventsRepository.Default,
-  WeeklyChallengeRepository.Default,
+  TeamChallengeRepository.Default,
   WeeklySummaryRepository.Default,
   WeeklySummarySyncEventsRepository.Default,
   TranslationsRepository.Default,

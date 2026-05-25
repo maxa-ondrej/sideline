@@ -1,4 +1,4 @@
-// Unit tests for the WeeklyChallenge helpers (timezone-aware date math).
+// Unit tests for the TeamChallenge helpers (timezone-aware date math).
 //
 // Key invariant: a Postgres `DATE` column materialises as a JS `Date` pinned
 // to UTC midnight. We must read its calendar day from UTC components, not
@@ -7,12 +7,11 @@
 
 import { describe, expect, it } from '@effect/vitest';
 import {
-  currentTeamMondayDateString,
   formatDateInTz,
   formatDateUtc,
   scheduleAtNineAm,
-  weekStartDateString,
-} from '~/helpers/weeklyChallenge.js';
+  todayInTzString,
+} from '~/helpers/teamChallenge.js';
 
 describe('formatDateInTz', () => {
   it('formats a UTC date as YYYY-MM-DD in the given timezone', () => {
@@ -44,26 +43,9 @@ describe('formatDateUtc', () => {
   });
 });
 
-describe('weekStartDateString', () => {
-  it('returns the UTC calendar day of a DATE value', () => {
-    // 2026-03-09 UTC midnight stays on the 9th regardless of team tz.
-    const date = new Date('2026-03-09T00:00:00Z');
-    expect(weekStartDateString(date, 'Europe/Prague')).toBe('2026-03-09');
-    expect(weekStartDateString(date, 'America/Los_Angeles')).toBe('2026-03-09');
-    expect(weekStartDateString(date, 'Pacific/Auckland')).toBe('2026-03-09');
-  });
-
-  it('does NOT shift the day for western offsets (regression: DATE timezone bug)', () => {
-    // Before the fix, formatting 2026-03-09T00:00:00Z in America/Los_Angeles
-    // would return 2026-03-08, breaking current-week marking for LA teams.
-    const date = new Date('2026-03-09T00:00:00Z');
-    expect(weekStartDateString(date, 'America/Los_Angeles')).toBe('2026-03-09');
-  });
-});
-
-describe('currentTeamMondayDateString', () => {
+describe('todayInTzString', () => {
   it('returns a YYYY-MM-DD string', () => {
-    const result = currentTeamMondayDateString('Europe/Prague');
+    const result = todayInTzString('Europe/Prague');
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
@@ -71,8 +53,8 @@ describe('currentTeamMondayDateString', () => {
 describe('scheduleAtNineAm', () => {
   it('produces a timestamp at 09:00 in the team timezone', () => {
     // Monday 2026-03-09 at 09:00 Europe/Prague is 08:00 UTC (winter, CET = UTC+1).
-    const weekStart = new Date('2026-03-09T00:00:00Z');
-    const result = scheduleAtNineAm(weekStart, 'Europe/Prague');
+    const startDate = new Date('2026-03-09T00:00:00Z');
+    const result = scheduleAtNineAm(startDate, 'Europe/Prague');
     const iso = result.toISOString();
     expect(iso).toBe('2026-03-09T08:00:00.000Z');
   });
@@ -82,8 +64,8 @@ describe('scheduleAtNineAm', () => {
     // America/Los_Angeles team must result in 09:00 on March 9 LA wall-clock,
     // NOT 09:00 on March 8 LA (the previous-day slip a tz-format helper would
     // produce when reading UTC-midnight 2026-03-09 in LA).
-    const weekStart = new Date('2026-03-09T00:00:00Z');
-    const result = scheduleAtNineAm(weekStart, 'America/Los_Angeles');
+    const startDate = new Date('2026-03-09T00:00:00Z');
+    const result = scheduleAtNineAm(startDate, 'America/Los_Angeles');
     const formatter = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Los_Angeles',
       year: 'numeric',

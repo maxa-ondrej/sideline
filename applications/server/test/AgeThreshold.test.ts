@@ -64,6 +64,7 @@ import { BotInfoStore } from '~/services/BotInfoStore.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
 import { MockFinanceLayers } from './mocks/financeMocks.js';
 import { MockTeamOnboardingTokensRepositoryLayer } from './mocks/onboardingMocks.js';
+import { MockTeamChallengeRepositoryLayer } from './mocks/teamChallengeMocks.js';
 import { MockTranslationsLayers } from './mocks/translationMocks.js';
 
 // ---------------------------------------------------------------------------
@@ -724,6 +725,7 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockFinanceLayers))
   .pipe(Layer.provide(MockTranslationsLayers))
   .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
+  .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
   .pipe(Layer.provide(BotInfoStore.Default));
 
 // ---------------------------------------------------------------------------

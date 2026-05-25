@@ -20,6 +20,7 @@ import {
   RoleApi,
   Roster,
   TeamApi,
+  TeamChallengeApi,
   TeamSettingsApi,
   TrainingTypeApi,
   Translations,
@@ -54,6 +55,7 @@ export const Api = HttpApi.make('api')
     TeamApi.TeamApiGroup,
   )
   .add(
+    TeamChallengeApi.TeamChallengeApiGroup,
     TeamSettingsApi.TeamSettingsApiGroup,
     TrainingTypeApi.TrainingTypeApiGroup,
     Translations.TranslationsApiGroup,
