@@ -24,12 +24,17 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
           ),
           Effect.tap(() => clearLastTeamId),
           Effect.flatMap((wasViewing) =>
-            Effect.fail(
-              Redirect.make({
-                to: '/no-team',
-                search: wasViewing ? { removed: 1 } : {},
-              }),
-            ),
+            // If the user still belongs to other teams, send them back to the
+            // index route so it can pick a valid team. Redirecting to /no-team
+            // would show "You're not on a team yet", which is misleading.
+            context.teams.length > 0
+              ? Effect.fail(Redirect.make({ to: '/' }))
+              : Effect.fail(
+                  Redirect.make({
+                    to: '/no-team',
+                    search: wasViewing ? { removed: 1 } : {},
+                  }),
+                ),
           ),
         ),
       ),
