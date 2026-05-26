@@ -23,19 +23,22 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
             (lastTeamId) => Option.isSome(lastTeamId) && lastTeamId.value === params.teamId,
           ),
           Effect.tap(() => clearLastTeamId),
-          Effect.flatMap((wasViewing) =>
-            // If the user still belongs to other teams, send them back to the
-            // index route so it can pick a valid team. Redirecting to /no-team
-            // would show "You're not on a team yet", which is misleading.
-            context.teams.length > 0
-              ? Effect.fail(Redirect.make({ to: '/' }))
-              : Effect.fail(
-                  Redirect.make({
+          // If the user still belongs to other teams, send them back to the
+          // index route so it can pick a valid team. Redirecting to /no-team
+          // would show "You're not on a team yet", which is misleading.
+          // The redirect target is resolved to a single `Redirect` value before
+          // `Effect.fail` so TanStack's generic `Redirect.make` overloads don't
+          // collapse the loader's inferred error channel to `unknown`.
+          Effect.flatMap((wasViewing) => {
+            const target: Redirect =
+              context.teams.length > 0
+                ? Redirect.make({ to: '/' })
+                : Redirect.make({
                     to: '/no-team',
                     search: wasViewing ? { removed: 1 } : {},
-                  }),
-                ),
-          ),
+                  });
+            return Effect.fail(target);
+          }),
         ),
       ),
       context.run,
