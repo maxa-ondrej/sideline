@@ -5,6 +5,13 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05-26 — Graceful handling when a member is removed from a team
+
+- When a captain removes you from a team, navigating to that team's URL now shows a **"You're no longer a member of your team"** notice page instead of a generic error. You can log out or wait to be re-invited.
+- If you are no longer an active member of a team, notifications for that team are now inaccessible — list, mark-as-read, and mark-all-as-read requests return a 403 error, preventing stale notification access after removal.
+- Payment reminder DMs and iCal fee events now only target active members — removed members stop receiving reminders and their payment entries disappear from the shared iCal feed on the next refresh.
+- Logging in via Discord OAuth no longer accidentally reactivates a previously removed membership; inactive memberships stay inactive unless a captain explicitly re-invites the member.
+
 ## 2026-05-25 — Weekly challenges web UI and HTTP API
 
 - **Captains** can now create, edit, and delete weekly challenges directly from the web app. Go to **Team → Weekly challenges** (`/teams/{teamId}/challenges`) and click **Nová týdenní výzva**.

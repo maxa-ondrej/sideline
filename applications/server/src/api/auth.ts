@@ -581,7 +581,7 @@ export const AuthApiLive = HttpApiBuilder.group(Api, 'auth', (handlers) =>
           )
           .handle('autoJoinTeams', () => {
             const tryJoinTeam = (team: Team.Team, userId: User.UserId) =>
-              members.findMembershipByIds(team.id, userId).pipe(
+              members.findMembershipByIds(team.id, userId, { includeInactive: true }).pipe(
                 Effect.flatMap(
                   Option.match({
                     onNone: () =>

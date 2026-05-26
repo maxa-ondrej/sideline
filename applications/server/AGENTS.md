@@ -627,6 +627,31 @@ Rules:
 
 Reference: `applications/server/src/api/finance.ts` (`myStatus`, `myPaymentHistory`).
 
+## Membership Lookups Default To Active-Only
+
+`TeamMembersRepository.findMembershipByIds(teamId, userId, options?)` and `TeamMembersRepository.findByUser(userId)` filter `AND tm.active = true` in their SQL by default. A row with `active = false` (a removed user) is invisible to every caller that does not explicitly opt in.
+
+```typescript
+// ✓ Default — active-only. `requireMembership`, every notification/fee/permission gate.
+members.findMembershipByIds(teamId, userId)
+// → Option.none() when the row exists but is inactive.
+
+// ✓ Opt-in — inactive rows visible. Use ONLY for reactivation-or-create flows.
+members.findMembershipByIds(teamId, userId, { includeInactive: true })
+// → Option.some(membership) where `membership.active === false` for a removed user.
+```
+
+Rules:
+
+1. **The default `findMembershipByIds(teamId, userId)` (no options) is the correct call for every authorization gate** — `requireMembership`, every `requirePermission`, every "is this caller a member" check. A removed user must surface as `Option.none()` so the gate returns `forbidden` (403).
+2. **Pass `{ includeInactive: true }` only when the handler's purpose is to decide between addMember / reactivateMember / reject.** Currently exactly three call sites need this: `invite.joinViaInvite`, `auth.autoJoinTeams`, and `rpc/guild.RegisterMember`. Do not add a fourth without documenting why the reactivation branch belongs there.
+3. **`findByUser(userId)` has no `includeInactive` option and never will.** It backs `GET /auth/me/teams` (the team switcher), which must hide teams the user has been removed from. Add a new method (e.g. `findAllByUserIncludingInactive`) before relaxing the SQL filter on `findByUser`.
+4. **`requireMembership` (`src/api/permissions.ts`) calls `findMembershipByIds` without options.** Every endpoint that gates on membership inherits the active-only filter for free — never re-implement the gate by calling `findMembershipByIds(..., { includeInactive: true })` and then checking `membership.active` in handler code.
+5. **The deactivation-is-terminal invariant in `auth.autoJoinTeams`.** When `findMembershipByIds(..., { includeInactive: true })` returns `Some` (active OR inactive), the handler returns `Option.none<Auth.UserTeam>()` and does NOT call `addMember` or `reactivateMember`. A user who was removed from a team is NEVER silently auto-rejoined on the next OAuth login — re-entry must go through an explicit invite via `invite.joinViaInvite`, which is the only path that calls `reactivateMember`.
+6. **Fee/payment queries that JOIN `team_members` filter `AND tm.active = true` directly in SQL** (see `FeeAssignmentsRepository.findReminderCandidates` and `findUnpaidAssignmentsForUser`). A removed member's outstanding fees must not appear in payment reminders, my-payments lists, or unpaid-assignment scans. When adding a new repository query that JOINs `team_members` to surface user-facing data, add the same predicate.
+
+Reference: `applications/server/src/repositories/TeamMembersRepository.ts` (`findMembershipQuery`, `findByUserQuery`), `applications/server/src/api/auth.ts` (`autoJoinTeams`), `applications/server/src/api/invite.ts` (`joinViaInvite`), `applications/server/src/rpc/guild/index.ts` (`RegisterMember`).
+
 ## PATCH Payload Merge: `Option.getOrElse` Over `Option.match`
 
 PATCH handlers that build a "full row to UPDATE" from `Schema.OptionFromOptional(...)` payload fields plus the existing DB row MUST use `Option.getOrElse(payload.x, () => existing.x)` — never the verbose `Option.match(payload.x, { onNone: () => existing.x, onSome: (v) => v })`. The two are semantically identical when the `onSome` branch is the identity function, but `getOrElse` is one line, reads top-down ("the value, falling back to existing"), and removes the visual noise that obscures which payload fields the handler actually touches.

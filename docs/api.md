@@ -3252,7 +3252,7 @@ Marks a single notification as read.
 
 | Tag | Status | When |
 |---|---|---|
-| `NotificationForbidden` | 403 | Notification does not belong to the authenticated user |
+| `NotificationForbidden` | 403 | Notification does not belong to the authenticated user, or the user is no longer an active member of the notification's team |
 | `NotificationNotFound` | 404 | Notification does not exist |
 
 ---

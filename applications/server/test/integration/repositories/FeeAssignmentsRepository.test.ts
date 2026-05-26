@@ -484,3 +484,109 @@ describe('FeeAssignmentsRepository — findByTeamMember', () => {
     ),
   );
 });
+
+// ---------------------------------------------------------------------------
+// TDD: Handle removing user — findUnpaidAssignmentsForUser active-only filter
+// ---------------------------------------------------------------------------
+// These tests verify that after the bug fix, findUnpaidAssignmentsForUser
+// does NOT return unpaid assignments for deactivated members.
+
+const deactivateTeamMember = (teamId: Team.TeamId, memberId: string) =>
+  TeamMembersRepository.asEffect().pipe(
+    Effect.andThen((repo) =>
+      repo.deactivateMemberByIds(
+        teamId,
+        memberId as import('@sideline/domain').TeamMember.TeamMemberId,
+      ),
+    ),
+  );
+
+describe('FeeAssignmentsRepository — findUnpaidAssignmentsForUser (Handle removing user)', () => {
+  it.effect(
+    'unpaid assignments excluded when membership is inactive — returns empty array after deactivation',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('userId', () => createUser('920000000000000001', 'inactive-fee-user-1')),
+        Effect.bind('team', ({ userId }) =>
+          createTeam('920100000000000000' as Discord.Snowflake, userId),
+        ),
+        Effect.bind('fee', ({ team }) => createFee(team.id, 1000)),
+        Effect.bind('member', ({ team, userId }) => addMember(team.id, userId)),
+        // Assign the fee
+        Effect.tap(({ fee, member }) =>
+          FeeAssignmentsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              repo.bulkInsert({
+                feeId: fee.id,
+                memberIds: [(member as any).id],
+                amountMinorOverride: Option.none(),
+                dueAtOverride: Option.some(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+              }),
+            ),
+          ),
+        ),
+        // Verify assignment is visible while active
+        Effect.bind('beforeDeactivation', ({ userId }) =>
+          FeeAssignmentsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.findUnpaidAssignmentsForUser(userId)),
+          ),
+        ),
+        Effect.tap(({ beforeDeactivation }) =>
+          Effect.sync(() => {
+            // Before deactivation: assignment must be visible
+            expect(beforeDeactivation.length).toBeGreaterThanOrEqual(1);
+          }),
+        ),
+        // Deactivate the membership
+        Effect.tap(({ team, member }) => deactivateTeamMember(team.id, (member as any).id)),
+        // After deactivation: assignment must be hidden
+        Effect.bind('afterDeactivation', ({ userId }) =>
+          FeeAssignmentsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.findUnpaidAssignmentsForUser(userId)),
+          ),
+        ),
+        Effect.tap(({ afterDeactivation }) =>
+          Effect.sync(() => {
+            // After the fix: inactive member's fees must NOT appear
+            expect(afterDeactivation).toHaveLength(0);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  it.effect('unpaid assignments included when membership is active — regression guard', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId', () => createUser('920000000000000002', 'active-fee-user-2')),
+      Effect.bind('team', ({ userId }) =>
+        createTeam('920200000000000000' as Discord.Snowflake, userId),
+      ),
+      Effect.bind('fee', ({ team }) => createFee(team.id, 2000)),
+      Effect.bind('member', ({ team, userId }) => addMember(team.id, userId)),
+      Effect.tap(({ fee, member }) =>
+        FeeAssignmentsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.bulkInsert({
+              feeId: fee.id,
+              memberIds: [(member as any).id],
+              amountMinorOverride: Option.none(),
+              dueAtOverride: Option.some(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('result', ({ userId }) =>
+        FeeAssignmentsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findUnpaidAssignmentsForUser(userId)),
+        ),
+      ),
+      Effect.tap(({ result }) =>
+        Effect.sync(() => {
+          // Active member's unpaid fees should be visible
+          expect(result.length).toBeGreaterThanOrEqual(1);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});

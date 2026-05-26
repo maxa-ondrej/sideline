@@ -151,29 +151,39 @@ Routes use a **hybrid directory + flat-file** layout. Top-level groupings (`prof
 ```
 routes/(authenticated)/
 ├── route.tsx                      — layout wrapper (auth guard)
-├── dashboard.tsx                  — /dashboard
-├── notifications.tsx              — /notifications
-├── profile/
-│   ├── index.tsx                  — /profile
-│   └── complete.tsx               — /profile/complete
+├── (no-team)/                     — authenticated-but-no-team-context pages
+│   ├── no-team.tsx                — /no-team
+│   ├── create-team.tsx            — /create-team
+│   └── profile/
+│       ├── index.tsx              — /profile
+│       └── complete.tsx           — /profile/complete
 └── teams/
-    ├── index.tsx                  — /teams
-    └── $teamId/
+    └── $teamId/                   — team-context pages (every route below requires membership)
+        ├── route.tsx              — layout (redirects to /no-team on `NoSuchElementError`)
         ├── index.tsx              — /teams/:teamId
         ├── age-thresholds.tsx     — /teams/:teamId/age-thresholds
         ├── members.index.tsx      — /teams/:teamId/members
-        ├── members.$memberId.tsx  — /teams/:teamId/members/:memberId
-        ├── roles.index.tsx        — /teams/:teamId/roles
-        ├── roles.$roleId.tsx      — /teams/:teamId/roles/:roleId
-        ├── rosters.index.tsx      — /teams/:teamId/rosters
-        ├── rosters.$rosterId.tsx  — /teams/:teamId/rosters/:rosterId
-        ├── groups.index.tsx       — /teams/:teamId/groups
-        ├── groups.$groupId.tsx    — /teams/:teamId/groups/:groupId
-        ├── events.index.tsx       — /teams/:teamId/events
-        ├── events.$eventId.tsx    — /teams/:teamId/events/:eventId
-        ├── training-types.index.tsx      — /teams/:teamId/training-types
-        └── training-types.$trainingTypeId.tsx — /teams/:teamId/training-types/:trainingTypeId
+        └── ...                    — see directory listing for full list
 ```
+
+### `(no-team)` Route Group Convention
+
+The `(no-team)/` parenthesised group holds every authenticated route that **must not require an active team membership**. Any page reachable when the caller is logged in but has zero active memberships belongs here. Pages requiring a team context live under `teams/$teamId/`.
+
+Current `(no-team)` members:
+
+| Route | Purpose |
+|-------|---------|
+| `/no-team` | Landing page shown when the user has no active team. Renders a `justRemoved` banner when `?removed=1` is present (set by `teams/$teamId/route.tsx` after detecting the user was removed mid-session). |
+| `/create-team` | Onboarding entry that provisions a new team. |
+| `/profile`, `/profile/complete` | Per-user settings that have no team scope. |
+
+Rules:
+
+1. **A new authenticated route that has no `teamId` in its URL path belongs under `(no-team)/`.** Routes scoped to a team go under `teams/$teamId/`. The two groups never overlap.
+2. **The `teams/$teamId/route.tsx` loader redirects to `/no-team`** (not `/create-team`, not `/`) when the user's membership for `params.teamId` is missing (e.g. removed mid-session). The redirect carries `search: { removed: 1 }` when `getLastTeamId()` matches the current `params.teamId`, so the landing page knows to show the removal banner.
+3. **The root `/` route redirects to `/no-team`** (not `/create-team`) when `findFirstTeam` returns `NoSuchElementError`. `/no-team` is the single entry point for the "user has no team" UX; `/create-team` is reached only via an explicit CTA from `/no-team`.
+4. **`clearLastTeamId()` (`~/lib/auth`) must be called before redirecting to `/no-team`.** Leaving the stale `lastTeamId` in localStorage would cause subsequent loads of `/` to redirect back to a team the user no longer belongs to, producing a redirect loop.
 
 ## URL-Synced Tabs Via `validateSearch`
 

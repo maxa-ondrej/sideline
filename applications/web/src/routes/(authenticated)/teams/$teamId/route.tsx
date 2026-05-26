@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { Array, Effect, Equal, flow, Struct } from 'effect';
+import { Array, Effect, Equal, flow, Option, Struct } from 'effect';
 import React from 'react';
 import { AuthenticatedLayout } from '~/components/layouts/AuthenticatedLayout';
-import { logout, setLastTeamId } from '~/lib/auth';
-import { NotFound } from '~/lib/runtime';
+import { clearLastTeamId, getLastTeamId, logout, setLastTeamId } from '~/lib/auth';
+import { Redirect } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
   component: AuthenticatedLayoutRoute,
@@ -17,7 +17,22 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
         ),
       ),
       Effect.tap(() => setLastTeamId(params.teamId)),
-      Effect.catchTag('NoSuchElementError', () => Effect.fail(NotFound.make())),
+      Effect.catchTag('NoSuchElementError', () =>
+        getLastTeamId.pipe(
+          Effect.map(
+            (lastTeamId) => Option.isSome(lastTeamId) && lastTeamId.value === params.teamId,
+          ),
+          Effect.tap(() => clearLastTeamId),
+          Effect.flatMap((wasViewing) =>
+            Effect.fail(
+              Redirect.make({
+                to: '/no-team',
+                search: wasViewing ? { removed: 1 } : {},
+              }),
+            ),
+          ),
+        ),
+      ),
       context.run,
     ),
 });

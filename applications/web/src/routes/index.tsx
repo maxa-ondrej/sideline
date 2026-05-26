@@ -80,9 +80,7 @@ export const Route = createFileRoute('/')({
       Effect.flatMap((team) =>
         Effect.fail(Redirect.make({ to: '/teams/$teamId', params: { teamId: team.teamId } })),
       ),
-      Effect.catchTag('NoSuchElementError', () =>
-        Effect.fail(Redirect.make({ to: '/create-team' })),
-      ),
+      Effect.catchTag('NoSuchElementError', () => Effect.fail(Redirect.make({ to: '/no-team' }))),
       Effect.catchTag('SkipError', () => Effect.void),
       context.run,
     ),
