@@ -729,23 +729,26 @@ Rules:
 2. The handler that consumes the `Option` must, on `None`, re-read the row to distinguish which precondition failed and map to the appropriate typed error (e.g. `ClaimEventNotFound` vs `ClaimAlreadyClaimed` vs `ClaimEventInactive`)
 3. Used by: `EventsRepository.claimTraining` / `unclaimTraining` (claim race), `EventsRepository.markEventStarted` (start race), `EventRsvpsRepository` upserts
 
-## Global Admin Authorization (`APP_GLOBAL_ADMIN_DISCORD_IDS`)
+## Global Admin Authorization (`users.is_global_admin` + `APP_GLOBAL_ADMIN_DISCORD_IDS`)
 
-Some HTTP endpoints (translations CMS, future cross-team operator tools) must be restricted to a small allow-list of Sideline operators that is **not** modelled per-team in the database. The mechanism is an env-driven Discord-id allow-list materialized into a per-request boolean on `CurrentUser`.
+Some HTTP endpoints (translations CMS, onboarding-token tools, future cross-team operator tools) must be restricted to Sideline operators that are **not** modelled per-team in the database. Global-admin status has two additive sources, OR-combined into a per-request boolean on `CurrentUser`: a persisted `users.is_global_admin` DB flag and an env-driven Discord-id allow-list.
 
 | Component | File | Behaviour |
 |-----------|------|-----------|
-| Env var | `APP_GLOBAL_ADMIN_DISCORD_IDS` | Comma-separated list of Discord user ids. Empty / unset → no global admins. |
+| DB column | `users.is_global_admin` (`packages/migrations/src/before/1787300000_add_user_global_admin.ts`) | Persisted `boolean`. Bootstrapped to `true` for the first registered user (see below); otherwise `false`. |
+| Env var | `APP_GLOBAL_ADMIN_DISCORD_IDS` | Comma-separated list of Discord user ids. Empty / unset → no env-granted global admins. Additive OR on top of the DB flag, kept for backward compatibility. |
 | Parsed set | `globalAdminDiscordIds` in `src/env.ts` | `ReadonlySet<string>` materialized once at module load — trimmed entries, empty strings filtered. |
-| Per-request flag | `Auth.CurrentUser.isGlobalAdmin` | Set in `AuthMiddlewareLive` by checking `globalAdminDiscordIds.has(user.discord_id)`. |
+| Resolution helper | `toCurrentUser(user)` in `src/utils/toCurrentUser.ts` | Single source that builds `Auth.CurrentUser` from a `User.User` row, setting `isGlobalAdmin = user.is_global_admin \|\| globalAdminDiscordIds.has(user.discord_id)`. |
+| Per-request flag | `Auth.CurrentUser.isGlobalAdmin` | Produced by `toCurrentUser` at every `CurrentUser` construction site: `AuthMiddlewareLive` and the three `src/api/auth.ts` handlers (locale update, admin profile update, profile completion). Never construct `Auth.CurrentUser` inline. |
+| First-user bootstrap | `UsersRepository.upsertFromDiscord` | The insert sets `is_global_admin = (NOT EXISTS (SELECT 1 FROM users))`, so the first registered user becomes a global admin. `ON CONFLICT` omits `is_global_admin`, so subsequent logins never promote/demote it. |
 | Handler guard | `requireGlobalAdmin(forbidden)` in `src/utils/requireGlobalAdmin.ts` | Reads `Auth.CurrentUserContext`; on `isGlobalAdmin === false`, fails with the caller-supplied `forbidden` error. |
 
 Rules:
 
 1. **Use `requireGlobalAdmin(new <Resource>Forbidden())` as the FIRST step** of any admin-only handler — before reading payload, before DB lookups. Returning 403 on permission must not leak existence information about the target row.
 2. **The endpoint's domain error must be a dedicated `<Resource>Forbidden` tag bound to HTTP 403** via `HttpApiSchema.status(403)`. Do not reuse `Auth.Unauthorized` — that is reserved for "no valid session" (401), not "session valid but insufficient privilege".
-3. **Never check `discord_id` against the env set inside a handler.** Always go through `currentUser.isGlobalAdmin` (set by middleware) so the resolution rule lives in exactly one place.
-4. **Changing the allow-list is a redeploy.** `globalAdminDiscordIds` is computed at module load from `process.env` — there is no hot-reload path. Document the env var in `docs/deployment.md` when adding a new admin-only endpoint.
+3. **Never check `discord_id` against the env set inside a handler, and never construct `Auth.CurrentUser` inline.** Always build it via `toCurrentUser` and always read `currentUser.isGlobalAdmin`, so the resolution rule (DB flag OR env allow-list) lives in exactly one place.
+4. **Env allow-list changes require a redeploy; DB-flag changes take effect on the user's next request.** `globalAdminDiscordIds` is computed at module load from `process.env` — there is no hot-reload path. `users.is_global_admin` is read per-request via `toCurrentUser`. Document the env var in `docs/deployment.md` when adding a new admin-only endpoint.
 5. **Do not use the global-admin flag for team-scoped operations.** Captain/member permissions on a team are checked via `requirePermission(membership, '<perm>', forbidden)` from the membership repository — global admin does NOT implicitly grant team permissions and must not be made to.
 
 Reference: `src/api/translations.ts` (every mutating endpoint starts with `Effect.tap(() => requireGlobalAdmin(forbidden))`).

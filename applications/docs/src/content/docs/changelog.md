@@ -5,6 +5,12 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-05-26 — Automatic global-admin promotion for first registered user
+
+- The very first person to sign in to a fresh Sideline installation is now automatically granted **global-admin** access. No environment variable change is needed for self-hosted deployments — the bootstrap admin can immediately mint onboarding links and access the admin pages.
+- Global admins who are not yet a member of any team are now redirected to **Administration → Team onboarding** (`/admin/onboarding-tokens`) instead of the "no team" error page.
+- Global-admin access continues to work via the `APP_GLOBAL_ADMIN_DISCORD_IDS` environment allowlist (unchanged). Both sources are combined: you are a global admin if either your account has the DB flag set or your Discord ID appears in the env list.
+
 ## 2026-05-26 — Graceful handling when a member is removed from a team
 
 - When a captain removes you from a team, navigating to that team's URL now shows a **"You're no longer a member of your team"** notice page instead of a generic error. You can log out or wait to be re-invited.

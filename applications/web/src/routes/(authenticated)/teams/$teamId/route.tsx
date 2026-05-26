@@ -3,6 +3,7 @@ import { Array, Effect, Equal, flow, Option, Struct } from 'effect';
 import React from 'react';
 import { AuthenticatedLayout } from '~/components/layouts/AuthenticatedLayout';
 import { clearLastTeamId, getLastTeamId, logout, setLastTeamId } from '~/lib/auth';
+import { resolveNoTeamRedirect } from '~/lib/auth/resolveNoTeamRedirect.js';
 import { Redirect } from '~/lib/runtime';
 
 export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
@@ -23,20 +24,21 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId')({
             (lastTeamId) => Option.isSome(lastTeamId) && lastTeamId.value === params.teamId,
           ),
           Effect.tap(() => clearLastTeamId),
-          // If the user still belongs to other teams, send them back to the
-          // index route so it can pick a valid team. Redirecting to /no-team
-          // would show "You're not on a team yet", which is misleading.
+          // Route global admins with no teams to the onboarding-tokens page,
+          // other users with remaining teams back to `/`, and users with no
+          // remaining teams to `/no-team` (with `removed=1` if they were
+          // actively viewing this team).
           // The redirect target is resolved to a single `Redirect` value before
           // `Effect.fail` so TanStack's generic `Redirect.make` overloads don't
           // collapse the loader's inferred error channel to `unknown`.
           Effect.flatMap((wasViewing) => {
-            const target: Redirect =
-              context.teams.length > 0
-                ? Redirect.make({ to: '/' })
-                : Redirect.make({
-                    to: '/no-team',
-                    search: wasViewing ? { removed: 1 } : {},
-                  });
+            const target: Redirect = Redirect.make(
+              resolveNoTeamRedirect({
+                isGlobalAdmin: context.user.isGlobalAdmin,
+                hasOtherTeams: context.teams.length > 0,
+                wasViewing,
+              }),
+            );
             return Effect.fail(target);
           }),
         ),
