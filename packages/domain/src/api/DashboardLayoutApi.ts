@@ -36,12 +36,16 @@ export interface DefaultLayoutEntry {
   h: number;
 }
 
-// 12-column grid defaults
+// 12-column grid defaults (rowHeight=80px)
+// stats:          h=3 → 240px  (4 stat tiles)
+// upcomingEvents: h=6 → 480px  (event list)
+// activity:       h=3 → 240px  (3 detail rows)
+// teamManagement: h=4 → 320px  (8 nav links)
 export const DEFAULT_LAYOUT: ReadonlyArray<DefaultLayoutEntry> = [
-  { id: 'stats', visible: true, x: 0, y: 0, w: 12, h: 2 },
-  { id: 'upcomingEvents', visible: true, x: 0, y: 2, w: 8, h: 4 },
-  { id: 'activity', visible: true, x: 8, y: 2, w: 4, h: 2 },
-  { id: 'teamManagement', visible: true, x: 8, y: 4, w: 4, h: 2 },
+  { id: 'stats', visible: true, x: 0, y: 0, w: 12, h: 3 },
+  { id: 'upcomingEvents', visible: true, x: 0, y: 3, w: 8, h: 6 },
+  { id: 'activity', visible: true, x: 8, y: 3, w: 4, h: 3 },
+  { id: 'teamManagement', visible: true, x: 8, y: 6, w: 4, h: 4 },
 ] as const;
 
 export class DashboardLayout extends Schema.Class<DashboardLayout>('DashboardLayout')({

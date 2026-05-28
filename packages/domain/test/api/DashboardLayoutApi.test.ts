@@ -11,61 +11,65 @@ import * as DashboardLayoutApi from '~/api/DashboardLayoutApi.js';
 // ---------------------------------------------------------------------------
 
 describe('DashboardWidget — decode', () => {
-  it('decodes a fully valid widget {id:"stats",visible:true,x:0,y:0,w:12,h:2}', () => {
+  it('decodes a fully valid widget using DEFAULT_LAYOUT stats entry', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
     const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
       id: 'stats',
       visible: true,
-      x: 0,
-      y: 0,
-      w: 12,
-      h: 2,
+      x: entry.x,
+      y: entry.y,
+      w: entry.w,
+      h: entry.h,
     });
     expect(result.id).toBe('stats');
     expect(result.visible).toBe(true);
-    expect(result.x).toBe(0);
-    expect(result.y).toBe(0);
-    expect(result.w).toBe(12);
-    expect(result.h).toBe(2);
+    expect(result.x).toBe(entry.x);
+    expect(result.y).toBe(entry.y);
+    expect(result.w).toBe(entry.w);
+    expect(result.h).toBe(entry.h);
   });
 
-  it('decodes {id:"upcomingEvents",visible:false,x:0,y:2,w:8,h:4} successfully', () => {
+  it('decodes {id:"upcomingEvents"} using DEFAULT_LAYOUT entry successfully', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'upcomingEvents')!;
     const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
       id: 'upcomingEvents',
       visible: false,
-      x: 0,
-      y: 2,
-      w: 8,
-      h: 4,
+      x: entry.x,
+      y: entry.y,
+      w: entry.w,
+      h: entry.h,
     });
     expect(result.id).toBe('upcomingEvents');
     expect(result.visible).toBe(false);
-    expect(result.x).toBe(0);
-    expect(result.y).toBe(2);
-    expect(result.w).toBe(8);
-    expect(result.h).toBe(4);
+    expect(result.x).toBe(entry.x);
+    expect(result.y).toBe(entry.y);
+    expect(result.w).toBe(entry.w);
+    expect(result.h).toBe(entry.h);
   });
 
-  it('decodes {id:"activity",visible:true,x:8,y:2,w:4,h:2} successfully', () => {
+  it('decodes {id:"activity"} using DEFAULT_LAYOUT entry successfully', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity')!;
     const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
       id: 'activity',
       visible: true,
-      x: 8,
-      y: 2,
-      w: 4,
-      h: 2,
+      x: entry.x,
+      y: entry.y,
+      w: entry.w,
+      h: entry.h,
     });
     expect(result.id).toBe('activity');
     expect(result.visible).toBe(true);
   });
 
-  it('decodes {id:"teamManagement",visible:true,x:8,y:4,w:4,h:2} successfully', () => {
+  it('decodes {id:"teamManagement"} using DEFAULT_LAYOUT entry successfully', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'teamManagement')!;
     const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
       id: 'teamManagement',
       visible: true,
-      x: 8,
-      y: 4,
-      w: 4,
-      h: 2,
+      x: entry.x,
+      y: entry.y,
+      w: entry.w,
+      h: entry.h,
     });
     expect(result.id).toBe('teamManagement');
     expect(result.visible).toBe(true);
@@ -176,13 +180,17 @@ describe('DashboardWidget — decode', () => {
 
 describe('DashboardLayout — round-trip encode/decode', () => {
   it('round-trips a DashboardLayout with all 4 valid widgets including x/y/w/h', () => {
+    // Use DEFAULT_LAYOUT values so the test stays in sync with the canonical defaults
+    const entries = DashboardLayoutApi.DEFAULT_LAYOUT;
     const input = {
-      widgets: [
-        { id: 'stats', visible: true, x: 0, y: 0, w: 12, h: 2 },
-        { id: 'upcomingEvents', visible: true, x: 0, y: 2, w: 8, h: 4 },
-        { id: 'activity', visible: false, x: 8, y: 2, w: 4, h: 2 },
-        { id: 'teamManagement', visible: true, x: 8, y: 4, w: 4, h: 2 },
-      ],
+      widgets: entries.map((e, idx) => ({
+        id: e.id,
+        visible: idx !== 2, // activity hidden for variety
+        x: e.x,
+        y: e.y,
+        w: e.w,
+        h: e.h,
+      })),
     };
 
     const decoded = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardLayout)(input);
@@ -192,17 +200,17 @@ describe('DashboardLayout — round-trip encode/decode', () => {
     expect(encoded.widgets).toHaveLength(4);
     expect(encoded.widgets[0].id).toBe('stats');
     expect(encoded.widgets[0].visible).toBe(true);
-    expect(encoded.widgets[0].x).toBe(0);
-    expect(encoded.widgets[0].y).toBe(0);
-    expect(encoded.widgets[0].w).toBe(12);
-    expect(encoded.widgets[0].h).toBe(2);
+    expect(encoded.widgets[0].x).toBe(entries[0].x);
+    expect(encoded.widgets[0].y).toBe(entries[0].y);
+    expect(encoded.widgets[0].w).toBe(entries[0].w);
+    expect(encoded.widgets[0].h).toBe(entries[0].h);
     expect(encoded.widgets[1].id).toBe('upcomingEvents');
     expect(encoded.widgets[2].id).toBe('activity');
     expect(encoded.widgets[2].visible).toBe(false);
-    expect(encoded.widgets[2].x).toBe(8);
+    expect(encoded.widgets[2].x).toBe(entries[2].x);
     expect(encoded.widgets[3].id).toBe('teamManagement');
-    expect(encoded.widgets[3].x).toBe(8);
-    expect(encoded.widgets[3].y).toBe(4);
+    expect(encoded.widgets[3].x).toBe(entries[3].x);
+    expect(encoded.widgets[3].y).toBe(entries[3].y);
   });
 
   it('round-trips an empty widgets array', () => {
@@ -248,40 +256,40 @@ describe('DEFAULT_LAYOUT', () => {
     expect(DashboardLayoutApi.DEFAULT_LAYOUT).toHaveLength(4);
   });
 
-  it('stats is full-width at top (x:0,y:0,w:12,h:2)', () => {
+  it('stats is full-width at top (x:0,y:0,w:12,h:3)', () => {
     const stats = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats');
     expect(stats).toBeDefined();
     expect(stats?.x).toBe(0);
     expect(stats?.y).toBe(0);
     expect(stats?.w).toBe(12);
-    expect(stats?.h).toBe(2);
+    expect(stats?.h).toBe(3);
   });
 
-  it('upcomingEvents spans 8 columns at y:2 (x:0,y:2,w:8,h:4)', () => {
+  it('upcomingEvents spans 8 columns at y:3 (x:0,y:3,w:8,h:6)', () => {
     const ev = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'upcomingEvents');
     expect(ev).toBeDefined();
     expect(ev?.x).toBe(0);
-    expect(ev?.y).toBe(2);
+    expect(ev?.y).toBe(3);
     expect(ev?.w).toBe(8);
-    expect(ev?.h).toBe(4);
+    expect(ev?.h).toBe(6);
   });
 
-  it('activity spans 4 columns at x:8 (x:8,y:2,w:4,h:2)', () => {
+  it('activity spans 4 columns at x:8 (x:8,y:3,w:4,h:3)', () => {
     const act = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity');
     expect(act).toBeDefined();
     expect(act?.x).toBe(8);
-    expect(act?.y).toBe(2);
+    expect(act?.y).toBe(3);
     expect(act?.w).toBe(4);
-    expect(act?.h).toBe(2);
+    expect(act?.h).toBe(3);
   });
 
-  it('teamManagement spans 4 columns at x:8,y:4 (x:8,y:4,w:4,h:2)', () => {
+  it('teamManagement spans 4 columns at x:8,y:6 (x:8,y:6,w:4,h:4)', () => {
     const tm = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'teamManagement');
     expect(tm).toBeDefined();
     expect(tm?.x).toBe(8);
-    expect(tm?.y).toBe(4);
+    expect(tm?.y).toBe(6);
     expect(tm?.w).toBe(4);
-    expect(tm?.h).toBe(2);
+    expect(tm?.h).toBe(4);
   });
 
   it('all entries are visible by default', () => {
@@ -321,10 +329,26 @@ describe('DashboardWidgetId — literal set', () => {
 
 describe('UpdateDashboardLayoutPayload — decode', () => {
   it('decodes a valid payload with 2 widgets (including x/y/w/h)', () => {
+    const statsEntry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+    const activityEntry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity')!;
     const result = Schema.decodeUnknownSync(DashboardLayoutApi.UpdateDashboardLayoutPayload)({
       widgets: [
-        { id: 'stats', visible: true, x: 0, y: 0, w: 12, h: 2 },
-        { id: 'activity', visible: false, x: 8, y: 2, w: 4, h: 2 },
+        {
+          id: 'stats',
+          visible: true,
+          x: statsEntry.x,
+          y: statsEntry.y,
+          w: statsEntry.w,
+          h: statsEntry.h,
+        },
+        {
+          id: 'activity',
+          visible: false,
+          x: activityEntry.x,
+          y: activityEntry.y,
+          w: activityEntry.w,
+          h: activityEntry.h,
+        },
       ],
     });
     expect(result.widgets).toHaveLength(2);

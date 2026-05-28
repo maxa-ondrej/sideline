@@ -85,17 +85,28 @@ const makeWidgets = (): ReadonlyArray<DashboardLayoutApi.DashboardWidget> =>
       }),
   );
 
-const makePartialWidgets = (): ReadonlyArray<DashboardLayoutApi.DashboardWidget> => [
-  new DashboardLayoutApi.DashboardWidget({
-    id: 'teamManagement',
-    visible: false,
-    x: 8,
-    y: 4,
-    w: 4,
-    h: 2,
-  }),
-  new DashboardLayoutApi.DashboardWidget({ id: 'stats', visible: true, x: 0, y: 0, w: 12, h: 2 }),
-];
+const makePartialWidgets = (): ReadonlyArray<DashboardLayoutApi.DashboardWidget> => {
+  const tm = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'teamManagement')!;
+  const stats = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+  return [
+    new DashboardLayoutApi.DashboardWidget({
+      id: 'teamManagement',
+      visible: false,
+      x: tm.x,
+      y: tm.y,
+      w: tm.w,
+      h: tm.h,
+    }),
+    new DashboardLayoutApi.DashboardWidget({
+      id: 'stats',
+      visible: true,
+      x: stats.x,
+      y: stats.y,
+      w: stats.w,
+      h: stats.h,
+    }),
+  ];
+};
 
 // ---------------------------------------------------------------------------
 // findByUserTeam — no row

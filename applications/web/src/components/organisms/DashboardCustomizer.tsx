@@ -1,8 +1,10 @@
 import { DashboardLayoutApi } from '@sideline/domain';
+import { LayoutDashboard } from 'lucide-react';
 import React from 'react';
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { GridLayout, useContainerWidth } from 'react-grid-layout';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent } from '~/components/ui/card';
 import { Switch } from '~/components/ui/switch';
 import { DEFAULT_LAYOUT } from '~/lib/dashboardLayout.js';
 import { tr } from '~/lib/translations.js';
@@ -10,7 +12,8 @@ import { tr } from '~/lib/translations.js';
 interface DashboardCustomizerProps {
   teamId: string;
   layout: DashboardLayoutApi.DashboardLayout;
-  onSave: (widgets: DashboardLayoutApi.DashboardWidget[]) => Promise<void>;
+  /** When undefined, the Customize button is not rendered (read-only mode). */
+  onSave?: (widgets: DashboardLayoutApi.DashboardWidget[]) => Promise<void>;
   widgetRegistry: Record<string, React.ReactNode>;
 }
 
@@ -66,45 +69,50 @@ interface DashboardGridProps {
 }
 
 function DashboardGrid({ working, widgetRegistry, isEditing, onLayoutChange }: DashboardGridProps) {
-  const { width, containerRef, mounted } = useContainerWidth();
+  const { width, containerRef } = useContainerWidth({
+    initialWidth: 1200,
+    measureBeforeMount: false,
+  });
   const rglLayout = widgetsToLayout(working.filter((w) => w.visible));
 
   return (
     <div ref={containerRef} className='w-full'>
-      {mounted && (
-        <GridLayout
-          layout={rglLayout}
-          width={width}
-          gridConfig={{ cols: 12, rowHeight: 80 }}
-          dragConfig={{ enabled: isEditing, bounded: false, threshold: 3 }}
-          resizeConfig={{ enabled: isEditing, handles: ['se'] }}
-          onLayoutChange={onLayoutChange}
-          className={isEditing ? 'rgl-edit-mode' : undefined}
-        >
-          {working
-            .filter((w) => w.visible)
-            .map((w) => (
-              <div key={w.id}>{widgetRegistry[w.id]}</div>
-            ))}
-        </GridLayout>
-      )}
+      <GridLayout
+        layout={rglLayout}
+        width={width}
+        gridConfig={{ cols: 12, rowHeight: 80 }}
+        dragConfig={{ enabled: isEditing, bounded: false, threshold: 3 }}
+        resizeConfig={{ enabled: isEditing, handles: ['se'] }}
+        onLayoutChange={onLayoutChange}
+        className={isEditing ? 'rgl-edit-mode' : undefined}
+      >
+        {working
+          .filter((w) => w.visible)
+          .map((w) => (
+            <div key={w.id}>{widgetRegistry[w.id]}</div>
+          ))}
+      </GridLayout>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main component
+// Main component — owns the full configurable region
 // ---------------------------------------------------------------------------
 
-export function DashboardCustomizer({ layout, onSave, widgetRegistry }: DashboardCustomizerProps) {
+export function DashboardCustomizer({
+  layout,
+  onSave = undefined,
+  widgetRegistry,
+}: DashboardCustomizerProps) {
   const [editMode, setEditMode] = React.useState(false);
   const [working, setWorking] = React.useState<DashboardLayoutApi.DashboardWidget[]>([]);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
-  const allHidden = editMode
-    ? working.every((w) => !w.visible)
-    : layout.widgets.every((w) => !w.visible);
+  // Visible widgets derived from the appropriate source
+  const activeWidgets = editMode ? working : [...layout.widgets];
+  const allHidden = activeWidgets.every((w) => !w.visible);
 
   const enterEditMode = () => {
     setWorking([...layout.widgets]);
@@ -143,6 +151,7 @@ export function DashboardCustomizer({ layout, onSave, widgetRegistry }: Dashboar
   };
 
   const handleSave = async () => {
+    if (onSave === undefined) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -155,14 +164,49 @@ export function DashboardCustomizer({ layout, onSave, widgetRegistry }: Dashboar
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // Render: configurable region wrapper
+  // ---------------------------------------------------------------------------
+
+  const emptyState = (
+    <Card data-testid='dashboard-empty-state'>
+      <CardContent className='flex flex-col items-center justify-center gap-3 py-10 text-center'>
+        <LayoutDashboard className='size-8 text-muted-foreground/40' />
+        <p className='text-sm text-muted-foreground'>{tr('dashboard_allWidgetsHidden')}</p>
+      </CardContent>
+    </Card>
+  );
+
   if (!editMode) {
     return (
-      <Button variant='outline' size='sm' onClick={enterEditMode}>
-        {tr('dashboard_customize')}
-      </Button>
+      <div className='flex flex-col gap-4'>
+        {/* Customize entry point — only shown when editing is allowed */}
+        {onSave !== undefined && (
+          <div className='flex justify-end'>
+            <Button variant='outline' size='sm' onClick={enterEditMode}>
+              {tr('dashboard_customize')}
+            </Button>
+          </div>
+        )}
+
+        {/* Read-only grid or empty state */}
+        {allHidden ? (
+          emptyState
+        ) : (
+          <DashboardGrid
+            working={activeWidgets as DashboardLayoutApi.DashboardWidget[]}
+            widgetRegistry={widgetRegistry}
+            isEditing={false}
+            onLayoutChange={() => {
+              /* read-only: no-op */
+            }}
+          />
+        )}
+      </div>
     );
   }
 
+  // Edit mode: grid + aside panel side-by-side (stacked on mobile)
   return (
     <div className='flex flex-col gap-6 lg:flex-row'>
       {/* Grid area */}
@@ -182,7 +226,7 @@ export function DashboardCustomizer({ layout, onSave, widgetRegistry }: Dashboar
       </div>
 
       {/* Aside panel */}
-      <aside className='lg:w-56 flex flex-col gap-4 rounded-lg border bg-card p-4'>
+      <aside className='lg:w-64 flex flex-col gap-4 rounded-lg border bg-card p-4'>
         <h2 className='font-semibold text-sm'>{tr('dashboard_customizer_panelTitle')}</h2>
         <div className='flex flex-col gap-3'>
           {working.map((widget) => {
