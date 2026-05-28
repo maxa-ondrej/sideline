@@ -34,6 +34,10 @@ vi.mock('~/lib/translations.js', () => ({
       dashboard_customizer_cancel: 'Cancel',
       dashboard_customizer_reset: 'Reset layout',
       dashboard_customizer_saveError: 'Failed to save layout',
+      dashboard_customizer_widthFor: 'Width for {widget}',
+      dashboard_customizer_widthOption1: 'Narrow',
+      dashboard_customizer_widthOption2: 'Medium',
+      dashboard_customizer_widthOption3: 'Wide',
       dashboard_widget_stats: 'Stats',
       dashboard_widget_upcomingEvents: 'Upcoming events',
       dashboard_widget_activity: 'Activity',
@@ -66,16 +70,16 @@ const { DashboardCustomizer } = await import('~/components/organisms/DashboardCu
 // Helpers / fixtures
 // ---------------------------------------------------------------------------
 
-type DashboardWidget = { id: string; visible: boolean; height: number };
+type DashboardWidget = { id: string; visible: boolean; height: number; colSpan: number };
 type DashboardLayout = { widgets: ReadonlyArray<DashboardWidget> };
 
 function makeDefaultLayout(): DashboardLayout {
   return {
     widgets: [
-      { id: 'stats', visible: true, height: 140 },
-      { id: 'upcomingEvents', visible: true, height: 280 },
-      { id: 'activity', visible: true, height: 200 },
-      { id: 'teamManagement', visible: true, height: 260 },
+      { id: 'stats', visible: true, height: 140, colSpan: 3 },
+      { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2 },
+      { id: 'activity', visible: true, height: 200, colSpan: 1 },
+      { id: 'teamManagement', visible: true, height: 260, colSpan: 1 },
     ],
   };
 }
@@ -83,10 +87,10 @@ function makeDefaultLayout(): DashboardLayout {
 function makePartialLayout(): DashboardLayout {
   return {
     widgets: [
-      { id: 'stats', visible: false, height: 140 },
-      { id: 'upcomingEvents', visible: true, height: 280 },
-      { id: 'activity', visible: false, height: 200 },
-      { id: 'teamManagement', visible: true, height: 260 },
+      { id: 'stats', visible: false, height: 140, colSpan: 3 },
+      { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2 },
+      { id: 'activity', visible: false, height: 200, colSpan: 1 },
+      { id: 'teamManagement', visible: true, height: 260, colSpan: 1 },
     ],
   };
 }
@@ -572,14 +576,146 @@ describe('DashboardCustomizer — Cancel', () => {
   });
 });
 
+describe('DashboardCustomizer — colSpan grid classes', () => {
+  it('stats widget cell has lg:col-span-3 class in idle mode', () => {
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        widgetRegistry={WIDGET_REGISTRY}
+      />,
+    );
+
+    // stats has colSpan:3, so it should have lg:col-span-3
+    const statsEl = screen.getByText('Stats Widget');
+    // Walk up to find the grid cell div
+    const cellDiv = statsEl.closest('.lg\\:col-span-3');
+    expect(cellDiv).not.toBeNull();
+  });
+
+  it('upcomingEvents widget cell has lg:col-span-2 class in idle mode', () => {
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        widgetRegistry={WIDGET_REGISTRY}
+      />,
+    );
+
+    const upcomingEl = screen.getByText('Upcoming Events Widget');
+    const cellDiv = upcomingEl.closest('.lg\\:col-span-2');
+    expect(cellDiv).not.toBeNull();
+  });
+
+  it('activity widget cell has lg:col-span-1 class in idle mode', () => {
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        widgetRegistry={WIDGET_REGISTRY}
+      />,
+    );
+
+    const activityEl = screen.getByText('Activity Widget');
+    const cellDiv = activityEl.closest('.lg\\:col-span-1');
+    expect(cellDiv).not.toBeNull();
+  });
+});
+
+describe('DashboardCustomizer — colSpan width selector', () => {
+  it('renders width toggle groups for each widget in edit mode', async () => {
+    const onSave = vi.fn();
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        onSave={onSave}
+        widgetRegistry={WIDGET_REGISTRY}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Customize'));
+    });
+
+    // Each widget should have width option buttons
+    expect(screen.getAllByText('Narrow').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Medium').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Wide').length).toBeGreaterThan(0);
+  });
+
+  it('clicking a width option updates working colSpan and does not call onSave', async () => {
+    const onSave = vi.fn();
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        onSave={onSave}
+        widgetRegistry={WIDGET_REGISTRY}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Customize'));
+    });
+
+    // Click the first "Narrow" option (stats widget, currently colSpan 3 = Wide)
+    const narrowButtons = screen.getAllByText('Narrow');
+    await act(async () => {
+      fireEvent.click(narrowButtons[0]);
+    });
+
+    // onSave should NOT have been called
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('Save passes updated colSpan to onSave', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        onSave={onSave}
+        widgetRegistry={WIDGET_REGISTRY}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Customize'));
+    });
+
+    // Click "Narrow" for stats (first widget, currently Wide=3)
+    const narrowButtons = screen.getAllByText('Narrow');
+    await act(async () => {
+      fireEvent.click(narrowButtons[0]);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+    });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    const savedWidgets = onSave.mock.calls[0][0] as DashboardWidget[];
+    const statsWidget = savedWidgets.find((w) => w.id === 'stats');
+    expect(statsWidget?.colSpan).toBe(1);
+  });
+});
+
+// TODO: Drag-and-drop keyboard reorder tests are skipped because testing dnd-kit
+// in jsdom is fragile — pointer/keyboard events do not reliably simulate sortable
+// drag operations. Cover with Playwright E2E tests instead.
+
 describe('DashboardCustomizer — all-hidden empty state', () => {
   it('shows empty state when all widgets are hidden', () => {
     const allHiddenLayout: DashboardLayout = {
       widgets: [
-        { id: 'stats', visible: false, height: 140 },
-        { id: 'upcomingEvents', visible: false, height: 280 },
-        { id: 'activity', visible: false, height: 200 },
-        { id: 'teamManagement', visible: false, height: 260 },
+        { id: 'stats', visible: false, height: 140, colSpan: 3 },
+        { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1 },
       ],
     };
     render(

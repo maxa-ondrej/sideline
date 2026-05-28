@@ -79,6 +79,7 @@ const makeWidgets = (): ReadonlyArray<DashboardLayoutApi.DashboardWidget> =>
         id: entry.id,
         visible: entry.visible,
         height: entry.height,
+        colSpan: entry.colSpan,
       }),
   );
 
@@ -90,11 +91,13 @@ const makePartialWidgets = (): ReadonlyArray<DashboardLayoutApi.DashboardWidget>
       id: 'teamManagement',
       visible: false,
       height: tm.height,
+      colSpan: tm.colSpan,
     }),
     new DashboardLayoutApi.DashboardWidget({
       id: 'stats',
       visible: true,
       height: stats.height,
+      colSpan: stats.colSpan,
     }),
   ];
 };
@@ -156,6 +159,7 @@ describe('DashboardLayoutsRepository — upsert then findByUserTeam', () => {
             expect(row.widgets[i].id).toBe(widgets[i].id);
             expect(row.widgets[i].visible).toBe(widgets[i].visible);
             expect(row.widgets[i].height).toBe(widgets[i].height);
+            expect(row.widgets[i].colSpan).toBe(widgets[i].colSpan);
           }
         }),
       ),

@@ -19,6 +19,7 @@ class LegacyDashboardWidgetRow extends Schema.Class<LegacyDashboardWidgetRow>(
   id: DashboardLayoutApi.DashboardWidgetId,
   visible: Schema.Boolean,
   height: Schema.OptionFromOptionalKey(Schema.Number),
+  colSpan: Schema.OptionFromOptionalKey(Schema.Number),
 }) {}
 
 class DashboardLayoutLegacyRow extends Schema.Class<DashboardLayoutLegacyRow>(
@@ -34,6 +35,11 @@ class DashboardLayoutRow extends Schema.Class<DashboardLayoutRow>('DashboardLayo
 // Default height lookup for legacy backfill
 const defaultHeightById = new Map<DashboardLayoutApi.DashboardWidgetId, number>(
   DashboardLayoutApi.DEFAULT_LAYOUT.map((entry) => [entry.id, entry.height]),
+);
+
+// Default colSpan lookup for legacy backfill
+const defaultColSpanById = new Map<DashboardLayoutApi.DashboardWidgetId, number>(
+  DashboardLayoutApi.DEFAULT_LAYOUT.map((entry) => [entry.id, entry.colSpan]),
 );
 
 // ---------------------------------------------------------------------------
@@ -77,6 +83,8 @@ const make = Effect.gen(function* () {
                 visible: w.visible,
                 // Backfill height for legacy rows that stored x/y/w/h instead
                 height: Option.getOrElse(w.height, () => defaultHeightById.get(w.id) ?? 200),
+                // Backfill colSpan for legacy rows that predate this field
+                colSpan: Option.getOrElse(w.colSpan, () => defaultColSpanById.get(w.id) ?? 1),
               }),
           ),
         })),
@@ -97,6 +105,7 @@ const make = Effect.gen(function* () {
           id: w.id,
           visible: w.visible,
           height: w.height,
+          colSpan: w.colSpan,
         })),
       ),
     }).pipe(

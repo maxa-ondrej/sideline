@@ -1,9 +1,27 @@
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { DashboardLayoutApi } from '@sideline/domain';
 import { LayoutDashboard } from 'lucide-react';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { Switch } from '~/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group';
 import { DEFAULT_LAYOUT } from '~/lib/dashboardLayout.js';
 import { tr } from '~/lib/translations.js';
 
@@ -22,32 +40,34 @@ const WIDGET_LABELS: Record<string, string> = {
   teamManagement: 'dashboard_widget_teamManagement',
 };
 
-// Grid span classes per widget id
-const WIDGET_SPAN: Record<DashboardLayoutApi.DashboardWidgetId, string> = {
-  stats: 'lg:col-span-3',
-  upcomingEvents: 'lg:col-span-2',
-  activity: 'lg:col-span-1',
-  teamManagement: 'lg:col-span-1',
+/** Map a colSpan value (1–3) to the corresponding Tailwind col-span class. */
+const colSpanClass = (colSpan: number): string => {
+  if (colSpan >= 3) return 'lg:col-span-3';
+  if (colSpan === 2) return 'lg:col-span-2';
+  return 'lg:col-span-1';
 };
 
 // ---------------------------------------------------------------------------
-// ResizableWidgetContainer
+// SortableWidgetCell — wraps a single grid cell with dnd-kit sortable hooks
 // ---------------------------------------------------------------------------
 
-interface ResizableWidgetContainerProps {
+interface SortableWidgetCellProps {
   widget: DashboardLayoutApi.DashboardWidget;
   isEditing: boolean;
   onHeightChange: (height: number) => void;
   children: React.ReactNode;
 }
 
-function ResizableWidgetContainer({
+function SortableWidgetCell({
   widget,
   isEditing,
   onHeightChange,
   children,
-}: ResizableWidgetContainerProps) {
+}: SortableWidgetCellProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: widget.id,
+  });
 
   React.useEffect(() => {
     if (!isEditing) return;
@@ -61,17 +81,34 @@ function ResizableWidgetContainer({
     return () => observer.disconnect();
   }, [isEditing, onHeightChange]);
 
+  const style: React.CSSProperties = isEditing
+    ? {
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }
+    : {};
+
+  // Only attach dnd attributes/listeners in edit mode
+  const dndProps = isEditing ? { ...attributes, ...listeners } : {};
+
   return (
     <div
-      ref={containerRef}
-      style={{
-        height: `${widget.height}px`,
-        overflow: 'hidden',
-        resize: isEditing ? 'vertical' : 'none',
-      }}
-      className={`w-full h-full ${isEditing ? 'dashboard-resizable' : ''}`}
+      ref={isEditing ? setNodeRef : undefined}
+      style={style}
+      className={colSpanClass(widget.colSpan)}
+      {...dndProps}
     >
-      {children}
+      <div
+        ref={containerRef}
+        style={{
+          height: `${widget.height}px`,
+          overflow: 'hidden',
+          resize: isEditing ? 'vertical' : 'none',
+        }}
+        className={`w-full h-full ${isEditing ? 'dashboard-resizable' : ''}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -93,6 +130,11 @@ export function DashboardCustomizer({
   const activeWidgets = editMode ? working : [...layout.widgets];
   const allHidden = activeWidgets.every((w) => !w.visible);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const enterEditMode = () => {
     setWorking([...layout.widgets]);
     setSaveError(null);
@@ -112,6 +154,7 @@ export function DashboardCustomizer({
               id: w.id,
               visible: !w.visible,
               height: w.height,
+              colSpan: w.colSpan,
             })
           : w,
       ),
@@ -122,10 +165,41 @@ export function DashboardCustomizer({
     setWorking((prev) =>
       prev.map((w) =>
         w.id === id
-          ? new DashboardLayoutApi.DashboardWidget({ id: w.id, visible: w.visible, height })
+          ? new DashboardLayoutApi.DashboardWidget({
+              id: w.id,
+              visible: w.visible,
+              height,
+              colSpan: w.colSpan,
+            })
           : w,
       ),
     );
+  };
+
+  const handleColSpanChange = (id: string, colSpan: number) => {
+    setWorking((prev) =>
+      prev.map((w) =>
+        w.id === id
+          ? new DashboardLayoutApi.DashboardWidget({
+              id: w.id,
+              visible: w.visible,
+              height: w.height,
+              colSpan,
+            })
+          : w,
+      ),
+    );
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over === null || active.id === over.id) return;
+    setWorking((prev) => {
+      const oldIndex = prev.findIndex((w) => w.id === active.id);
+      const newIndex = prev.findIndex((w) => w.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
   };
 
   const resetLayout = () => {
@@ -163,20 +237,31 @@ export function DashboardCustomizer({
     const visibleWidgets = widgets.filter((w) => w.visible);
     if (visibleWidgets.length === 0) return emptyState;
 
-    return (
+    const visibleIds = visibleWidgets.map((w) => w.id);
+
+    const gridContent = (
       <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
         {visibleWidgets.map((w) => (
-          <div key={w.id} className={WIDGET_SPAN[w.id]}>
-            <ResizableWidgetContainer
-              widget={w}
-              isEditing={isEditing}
-              onHeightChange={(h) => handleHeightChange(w.id, h)}
-            >
-              {widgetRegistry[w.id]}
-            </ResizableWidgetContainer>
-          </div>
+          <SortableWidgetCell
+            key={w.id}
+            widget={w}
+            isEditing={isEditing}
+            onHeightChange={(h) => handleHeightChange(w.id, h)}
+          >
+            {widgetRegistry[w.id]}
+          </SortableWidgetCell>
         ))}
       </div>
+    );
+
+    if (!isEditing) return gridContent;
+
+    return (
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={visibleIds} strategy={rectSortingStrategy}>
+          {gridContent}
+        </SortableContext>
+      </DndContext>
     );
   };
 
@@ -211,13 +296,38 @@ export function DashboardCustomizer({
       {/* Aside panel */}
       <aside className='lg:w-64 flex flex-col gap-4 rounded-lg border bg-card p-4'>
         <h2 className='font-semibold text-sm'>{tr('dashboard_customizer_panelTitle')}</h2>
-        <div className='flex flex-col gap-3'>
+        <div className='flex flex-col gap-4'>
           {working.map((widget) => {
             const widgetName = tr(WIDGET_LABELS[widget.id] ?? widget.id);
             return (
-              <div key={widget.id} className='flex items-center gap-2 justify-between'>
-                <span className='text-sm'>{widgetName}</span>
-                <Switch checked={widget.visible} onCheckedChange={() => toggleVisible(widget.id)} />
+              <div key={widget.id} className='flex flex-col gap-1'>
+                <div className='flex items-center gap-2 justify-between'>
+                  <span className='text-sm'>{widgetName}</span>
+                  <Switch
+                    checked={widget.visible}
+                    onCheckedChange={() => toggleVisible(widget.id)}
+                  />
+                </div>
+                <ToggleGroup
+                  type='single'
+                  value={String(widget.colSpan)}
+                  onValueChange={(val) => {
+                    if (val) handleColSpanChange(widget.id, Number(val));
+                  }}
+                  size='sm'
+                  variant='outline'
+                  aria-label={tr('dashboard_customizer_widthFor', { widget: widgetName })}
+                >
+                  <ToggleGroupItem value='1' aria-label={tr('dashboard_customizer_widthOption1')}>
+                    {tr('dashboard_customizer_widthOption1')}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value='2' aria-label={tr('dashboard_customizer_widthOption2')}>
+                    {tr('dashboard_customizer_widthOption2')}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value='3' aria-label={tr('dashboard_customizer_widthOption3')}>
+                    {tr('dashboard_customizer_widthOption3')}
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </div>
             );
           })}

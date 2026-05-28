@@ -26,6 +26,7 @@ const w = (
     id,
     visible,
     height: entry.height,
+    colSpan: entry.colSpan,
   });
 };
 
@@ -184,6 +185,7 @@ describe('normalizeWidgets — height field preserved', () => {
         id: 'stats',
         visible: true,
         height: customHeight,
+        colSpan: 3,
       }),
     ];
     const result = normalizeWidgets(input);
@@ -200,6 +202,67 @@ describe('normalizeWidgets — height field preserved', () => {
       if (widget.id !== 'stats') {
         // Appended widgets should use default height
         expect(widget.height).toBe(defaultH);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeWidgets — colSpan field
+// ---------------------------------------------------------------------------
+
+describe('normalizeWidgets — colSpan field', () => {
+  it('preserves a valid colSpan (1) from input', () => {
+    const input = [w('activity', true)]; // activity has colSpan 1 in DEFAULT_LAYOUT
+    const result = normalizeWidgets(input);
+    const activity = result.find((r) => r.id === 'activity');
+    expect(activity?.colSpan).toBe(1);
+  });
+
+  it('preserves a valid colSpan (2) from input', () => {
+    const input = [w('upcomingEvents', true)]; // upcomingEvents has colSpan 2
+    const result = normalizeWidgets(input);
+    const upcoming = result.find((r) => r.id === 'upcomingEvents');
+    expect(upcoming?.colSpan).toBe(2);
+  });
+
+  it('clamps colSpan 0 to 1', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+    // Use a plain object cast to bypass Schema validation (simulates a drifted stored value)
+    const input = [
+      {
+        id: 'stats',
+        visible: true,
+        height: entry.height,
+        colSpan: 0,
+      } as unknown as DashboardLayoutApi.DashboardWidget,
+    ];
+    const result = normalizeWidgets(input);
+    expect(result.find((r) => r.id === 'stats')?.colSpan).toBe(1);
+  });
+
+  it('clamps colSpan 5 to 3', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+    // Use a plain object cast to bypass Schema validation (simulates a drifted stored value)
+    const input = [
+      {
+        id: 'stats',
+        visible: true,
+        height: entry.height,
+        colSpan: 5,
+      } as unknown as DashboardLayoutApi.DashboardWidget,
+    ];
+    const result = normalizeWidgets(input);
+    expect(result.find((r) => r.id === 'stats')?.colSpan).toBe(3);
+  });
+
+  it('appended missing widgets use DEFAULT_LAYOUT colSpan', () => {
+    const input = [w('stats', true)];
+    const result = normalizeWidgets(input);
+    for (const widget of result) {
+      const defaultEntry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === widget.id);
+      if (widget.id !== 'stats') {
+        expect(widget.colSpan).toBe(defaultEntry?.colSpan);
       }
     }
   });

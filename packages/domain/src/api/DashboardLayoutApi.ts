@@ -22,24 +22,26 @@ export class DashboardWidget extends Schema.Class<DashboardWidget>('DashboardWid
   id: DashboardWidgetId,
   visible: Schema.Boolean,
   height: Schema.Number,
+  colSpan: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 3 }))),
 }) {}
 
 export interface DefaultLayoutEntry {
   id: DashboardWidgetId;
   visible: boolean;
   height: number;
+  colSpan: number;
 }
 
 // Sensible pixel-height defaults for the vertical-stack layout.
-// stats:          140px  (4 stat tiles)
-// upcomingEvents: 280px  (event list)
-// activity:       200px  (3 detail rows)
-// teamManagement: 260px  (8 nav links)
+// stats:          140px  (4 stat tiles)   — full width (3 cols)
+// upcomingEvents: 280px  (event list)     — 2 cols
+// activity:       200px  (3 detail rows)  — 1 col
+// teamManagement: 260px  (8 nav links)    — 1 col
 export const DEFAULT_LAYOUT: ReadonlyArray<DefaultLayoutEntry> = [
-  { id: 'stats', visible: true, height: 140 },
-  { id: 'upcomingEvents', visible: true, height: 280 },
-  { id: 'activity', visible: true, height: 200 },
-  { id: 'teamManagement', visible: true, height: 260 },
+  { id: 'stats', visible: true, height: 140, colSpan: 3 },
+  { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2 },
+  { id: 'activity', visible: true, height: 200, colSpan: 1 },
+  { id: 'teamManagement', visible: true, height: 260, colSpan: 1 },
 ] as const;
 
 export class DashboardLayout extends Schema.Class<DashboardLayout>('DashboardLayout')({

@@ -26,10 +26,12 @@ describe('DashboardWidget — decode', () => {
       id: 'stats',
       visible: true,
       height: entry.height,
+      colSpan: entry.colSpan,
     });
     expect(result.id).toBe('stats');
     expect(result.visible).toBe(true);
     expect(result.height).toBe(entry.height);
+    expect(result.colSpan).toBe(entry.colSpan);
   });
 
   it('decodes {id:"upcomingEvents"} using DEFAULT_LAYOUT entry successfully', () => {
@@ -38,10 +40,12 @@ describe('DashboardWidget — decode', () => {
       id: 'upcomingEvents',
       visible: false,
       height: entry.height,
+      colSpan: entry.colSpan,
     });
     expect(result.id).toBe('upcomingEvents');
     expect(result.visible).toBe(false);
     expect(result.height).toBe(entry.height);
+    expect(result.colSpan).toBe(entry.colSpan);
   });
 
   it('decodes {id:"activity"} using DEFAULT_LAYOUT entry successfully', () => {
@@ -50,10 +54,12 @@ describe('DashboardWidget — decode', () => {
       id: 'activity',
       visible: true,
       height: entry.height,
+      colSpan: entry.colSpan,
     });
     expect(result.id).toBe('activity');
     expect(result.visible).toBe(true);
     expect(result.height).toBe(entry.height);
+    expect(result.colSpan).toBe(entry.colSpan);
   });
 
   it('decodes {id:"teamManagement"} using DEFAULT_LAYOUT entry successfully', () => {
@@ -62,10 +68,64 @@ describe('DashboardWidget — decode', () => {
       id: 'teamManagement',
       visible: true,
       height: entry.height,
+      colSpan: entry.colSpan,
     });
     expect(result.id).toBe('teamManagement');
     expect(result.visible).toBe(true);
     expect(result.height).toBe(entry.height);
+    expect(result.colSpan).toBe(entry.colSpan);
+  });
+
+  it('decodes colSpan 1 (minimum valid)', () => {
+    const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+      id: 'stats',
+      visible: true,
+      height: 140,
+      colSpan: 1,
+    });
+    expect(result.colSpan).toBe(1);
+  });
+
+  it('decodes colSpan 3 (maximum valid)', () => {
+    const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+      id: 'stats',
+      visible: true,
+      height: 140,
+      colSpan: 3,
+    });
+    expect(result.colSpan).toBe(3);
+  });
+
+  it('FAILS to decode when colSpan is 0 (below minimum)', () => {
+    expect(() =>
+      Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+        id: 'stats',
+        visible: true,
+        height: 140,
+        colSpan: 0,
+      }),
+    ).toThrow();
+  });
+
+  it('FAILS to decode when colSpan is 4 (above maximum)', () => {
+    expect(() =>
+      Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+        id: 'stats',
+        visible: true,
+        height: 140,
+        colSpan: 4,
+      }),
+    ).toThrow();
+  });
+
+  it('FAILS to decode when colSpan is missing', () => {
+    expect(() =>
+      Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+        id: 'stats',
+        visible: true,
+        height: 140,
+      }),
+    ).toThrow();
   });
 
   it('FAILS to decode {id:"awaitingRsvp",visible:true,...} — not a valid widget id', () => {
@@ -74,6 +134,7 @@ describe('DashboardWidget — decode', () => {
         id: 'awaitingRsvp',
         visible: true,
         height: 200,
+        colSpan: 1,
       }),
     ).toThrow();
   });
@@ -84,6 +145,7 @@ describe('DashboardWidget — decode', () => {
         id: 'unknown',
         visible: true,
         height: 200,
+        colSpan: 1,
       }),
     ).toThrow();
   });
@@ -93,6 +155,7 @@ describe('DashboardWidget — decode', () => {
       Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
         id: 'stats',
         visible: true,
+        colSpan: 3,
       }),
     ).toThrow();
   });
@@ -102,6 +165,7 @@ describe('DashboardWidget — decode', () => {
       Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
         id: 'stats',
         height: 140,
+        colSpan: 3,
       }),
     ).toThrow();
   });
@@ -111,6 +175,7 @@ describe('DashboardWidget — decode', () => {
       Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
         visible: true,
         height: 140,
+        colSpan: 3,
       }),
     ).toThrow();
   });
@@ -121,13 +186,14 @@ describe('DashboardWidget — decode', () => {
 // ---------------------------------------------------------------------------
 
 describe('DashboardLayout — round-trip encode/decode', () => {
-  it('round-trips a DashboardLayout with all 4 valid widgets including height', () => {
+  it('round-trips a DashboardLayout with all 4 valid widgets including height and colSpan', () => {
     const entries = DashboardLayoutApi.DEFAULT_LAYOUT;
     const input = {
       widgets: entries.map((e, idx) => ({
         id: e.id,
         visible: idx !== 2, // activity hidden for variety
         height: e.height,
+        colSpan: e.colSpan,
       })),
     };
 
@@ -139,13 +205,17 @@ describe('DashboardLayout — round-trip encode/decode', () => {
     expect(encoded.widgets[0].id).toBe('stats');
     expect(encoded.widgets[0].visible).toBe(true);
     expect(encoded.widgets[0].height).toBe(entries[0].height);
+    expect(encoded.widgets[0].colSpan).toBe(entries[0].colSpan);
     expect(encoded.widgets[1].id).toBe('upcomingEvents');
     expect(encoded.widgets[1].height).toBe(entries[1].height);
+    expect(encoded.widgets[1].colSpan).toBe(entries[1].colSpan);
     expect(encoded.widgets[2].id).toBe('activity');
     expect(encoded.widgets[2].visible).toBe(false);
     expect(encoded.widgets[2].height).toBe(entries[2].height);
+    expect(encoded.widgets[2].colSpan).toBe(entries[2].colSpan);
     expect(encoded.widgets[3].id).toBe('teamManagement');
     expect(encoded.widgets[3].height).toBe(entries[3].height);
+    expect(encoded.widgets[3].colSpan).toBe(entries[3].colSpan);
   });
 
   it('round-trips an empty widgets array', () => {
@@ -220,6 +290,26 @@ describe('DEFAULT_LAYOUT', () => {
       expect(entry.visible).toBe(true);
     }
   });
+
+  it('stats has colSpan 3 (full width)', () => {
+    const stats = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats');
+    expect(stats?.colSpan).toBe(3);
+  });
+
+  it('upcomingEvents has colSpan 2', () => {
+    const ev = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'upcomingEvents');
+    expect(ev?.colSpan).toBe(2);
+  });
+
+  it('activity has colSpan 1', () => {
+    const act = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity');
+    expect(act?.colSpan).toBe(1);
+  });
+
+  it('teamManagement has colSpan 1', () => {
+    const tm = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'teamManagement');
+    expect(tm?.colSpan).toBe(1);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -251,7 +341,7 @@ describe('DashboardWidgetId — literal set', () => {
 // ---------------------------------------------------------------------------
 
 describe('UpdateDashboardLayoutPayload — decode', () => {
-  it('decodes a valid payload with 2 widgets (including height)', () => {
+  it('decodes a valid payload with 2 widgets (including height and colSpan)', () => {
     const statsEntry = defaultEntry('stats');
     const activityEntry = defaultEntry('activity');
     const result = Schema.decodeUnknownSync(DashboardLayoutApi.UpdateDashboardLayoutPayload)({
@@ -260,11 +350,13 @@ describe('UpdateDashboardLayoutPayload — decode', () => {
           id: 'stats',
           visible: true,
           height: statsEntry.height,
+          colSpan: statsEntry.colSpan,
         },
         {
           id: 'activity',
           visible: false,
           height: activityEntry.height,
+          colSpan: activityEntry.colSpan,
         },
       ],
     });
@@ -274,7 +366,7 @@ describe('UpdateDashboardLayoutPayload — decode', () => {
   it('rejects a payload with an invalid widget id', () => {
     expect(() =>
       Schema.decodeUnknownSync(DashboardLayoutApi.UpdateDashboardLayoutPayload)({
-        widgets: [{ id: 'awaitingRsvp', visible: true, height: 200 }],
+        widgets: [{ id: 'awaitingRsvp', visible: true, height: 200, colSpan: 1 }],
       }),
     ).toThrow();
   });

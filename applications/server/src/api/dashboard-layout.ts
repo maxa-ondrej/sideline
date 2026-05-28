@@ -20,12 +20,20 @@ export const DEFAULT_LAYOUT: ReadonlyArray<DashboardLayoutApi.DashboardWidget> =
         id: entry.id,
         visible: entry.visible,
         height: entry.height,
+        colSpan: entry.colSpan,
       }),
   );
 
 // ---------------------------------------------------------------------------
 // normalizeWidgets
 // ---------------------------------------------------------------------------
+
+/** Clamp colSpan to the valid [1, 3] range. */
+const clampColSpan = (value: number): 1 | 2 | 3 => {
+  if (value <= 1) return 1;
+  if (value >= 3) return 3;
+  return 2;
+};
 
 export const normalizeWidgets = (
   input: ReadonlyArray<DashboardLayoutApi.DashboardWidget>,
@@ -40,10 +48,17 @@ export const normalizeWidgets = (
     if (!validIds.has(widget.id)) continue;
     if (seen.has(widget.id)) continue;
     seen.add(widget.id);
-    result.push(widget);
+    result.push(
+      new DashboardLayoutApi.DashboardWidget({
+        id: widget.id,
+        visible: widget.visible,
+        height: widget.height,
+        colSpan: clampColSpan(widget.colSpan),
+      }),
+    );
   }
 
-  // Append any missing canonical widgets using DEFAULT_LAYOUT heights
+  // Append any missing canonical widgets using DEFAULT_LAYOUT heights and colSpan
   for (const defaultEntry of DashboardLayoutApi.DEFAULT_LAYOUT) {
     if (!seen.has(defaultEntry.id)) {
       result.push(
@@ -51,6 +66,7 @@ export const normalizeWidgets = (
           id: defaultEntry.id,
           visible: defaultEntry.visible,
           height: defaultEntry.height,
+          colSpan: defaultEntry.colSpan,
         }),
       );
       seen.add(defaultEntry.id);
