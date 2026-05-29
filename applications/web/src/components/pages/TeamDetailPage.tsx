@@ -13,7 +13,7 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import type React from 'react';
+import React from 'react';
 import { EventLocation } from '~/components/atoms/EventLocation.js';
 import { DashboardCustomizer } from '~/components/organisms/DashboardCustomizer.js';
 import type { MyFinanceStatus } from '~/components/organisms/OutstandingPaymentsBanner.js';
@@ -424,6 +424,8 @@ export function TeamDetailPage({
   layout,
   onSaveLayout,
 }: TeamDetailPageProps) {
+  const [editMode, setEditMode] = React.useState(false);
+
   if (!dashboard) {
     return (
       <div className='space-y-6'>
@@ -447,8 +449,15 @@ export function TeamDetailPage({
 
   return (
     <div className='space-y-6'>
-      {/* Page header */}
-      <h1 className='text-2xl font-bold'>{tr('dashboard_title')}</h1>
+      {/* Page header with Customize button */}
+      <div className='flex items-center justify-between gap-4'>
+        <h1 className='text-2xl font-bold'>{tr('dashboard_title')}</h1>
+        {userId !== undefined && onSaveLayout !== undefined && (
+          <Button variant='outline' size='sm' onClick={() => setEditMode(true)}>
+            {tr('dashboard_customize')}
+          </Button>
+        )}
+      </div>
 
       {/* Pinned banners - always rendered regardless of layout */}
       <AwaitingRsvpBanner teamId={teamId} events={awaitingRsvp} />
@@ -456,12 +465,14 @@ export function TeamDetailPage({
       {/* Outstanding payments banner - shown when player has outstanding fees */}
       <OutstandingPaymentsBanner teamId={teamId} groups={myStatus} />
 
-      {/* Configurable widget region — DashboardCustomizer owns the grid + customize button */}
+      {/* Configurable widget region */}
       <DashboardCustomizer
         teamId={teamId}
         layout={effectiveLayout}
         onSave={userId !== undefined ? onSaveLayout : undefined}
         widgetRegistry={widgetRegistry}
+        editMode={editMode}
+        onEditModeChange={setEditMode}
       />
     </div>
   );

@@ -16,9 +16,12 @@ const ROW_HEIGHT = 10;
 interface DashboardCustomizerProps {
   teamId: string;
   layout: DashboardLayoutApi.DashboardLayout;
-  /** When undefined, the Customize button is not rendered (read-only mode). */
+  /** When undefined, edit mode cannot be entered (read-only mode). */
   onSave?: (widgets: DashboardLayoutApi.DashboardWidget[]) => Promise<void>;
   widgetRegistry: Record<string, React.ReactNode>;
+  /** Controlled edit mode — owned by the parent (TeamDetailPage). */
+  editMode: boolean;
+  onEditModeChange: (next: boolean) => void;
 }
 
 const WIDGET_LABELS: Record<string, string> = {
@@ -82,36 +85,43 @@ function applyLayoutToWidgets(
 }
 
 // ---------------------------------------------------------------------------
-// Main component — owns the full configurable region
+// Main component — owns the configurable grid region
 // ---------------------------------------------------------------------------
 
 export function DashboardCustomizer({
   layout,
   onSave = undefined,
   widgetRegistry,
+  editMode,
+  onEditModeChange,
 }: DashboardCustomizerProps) {
-  const [editMode, setEditMode] = React.useState(false);
   const [working, setWorking] = React.useState<DashboardLayoutApi.DashboardWidget[]>([]);
+  const [editLayout, setEditLayout] = React.useState<Layout>([]);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
+
+  // When edit mode is turned ON by the parent, initialize working copy + editLayout
+  React.useEffect(() => {
+    if (editMode) {
+      setWorking([...layout.widgets]);
+      setEditLayout(widgetsToLayout(layout.widgets));
+      setSaveError(null);
+    }
+  }, [editMode, layout.widgets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeWidgets = editMode ? working : [...layout.widgets];
   const allHidden = activeWidgets.every((w) => !w.visible);
 
-  const enterEditMode = () => {
-    setWorking([...layout.widgets]);
-    setSaveError(null);
-    setEditMode(true);
-  };
-
   const cancelEditMode = () => {
-    setEditMode(false);
+    onEditModeChange(false);
     setSaveError(null);
   };
 
   const toggleVisible = (id: string) => {
-    setWorking((prev) =>
-      prev.map((w) =>
+    setWorking((prev) => {
+      const widget = prev.find((w) => w.id === id);
+      if (!widget) return prev;
+      return prev.map((w) =>
         w.id === id
           ? new DashboardLayoutApi.DashboardWidget({
               id: w.id,
@@ -120,21 +130,35 @@ export function DashboardCustomizer({
               colSpan: w.colSpan,
             })
           : w,
-      ),
-    );
+      );
+    });
+    setEditLayout((prev) => {
+      const widget = working.find((w) => w.id === id);
+      if (!widget) return prev;
+      // Currently visible → becoming hidden → drop from layout
+      if (widget.visible) return prev.filter((item) => item.i !== id);
+      // Currently hidden → becoming visible → append at bottom of grid
+      const itemW = Math.max(1, Math.min(12, widget.colSpan * 4));
+      const itemH = Math.max(1, Math.round(widget.height / ROW_HEIGHT));
+      const maxY = prev.length === 0 ? 0 : Math.max(...prev.map((item) => item.y + item.h));
+      return [...prev, { i: id, x: 0, y: maxY, w: itemW, h: itemH }];
+    });
   };
 
   const resetLayout = () => {
     setWorking([...DEFAULT_LAYOUT.widgets]);
+    setEditLayout(widgetsToLayout(DEFAULT_LAYOUT.widgets));
   };
 
   const handleSave = async () => {
     if (onSave === undefined) return;
     setSaving(true);
     setSaveError(null);
+    // Use editLayout (RGL's authoritative positions) when computing the final widgets
+    const finalWidgets = applyLayoutToWidgets(working, editLayout);
     try {
-      await onSave(working);
-      setEditMode(false);
+      await onSave(finalWidgets);
+      onEditModeChange(false);
     } catch {
       setSaveError(tr('dashboard_customizer_saveError'));
     } finally {
@@ -161,22 +185,25 @@ export function DashboardCustomizer({
 
     return (
       <SizedGridLayout
-        layout={widgetsToLayout(widgets)}
+        layout={isEditing ? editLayout : widgetsToLayout(widgets)}
         cols={12}
         rowHeight={ROW_HEIGHT}
-        margin={[16, 16]}
+        margin={[12, 12]}
         isDraggable={isEditing}
         isResizable={isEditing}
         resizeHandles={['se']}
         draggableCancel='button, a, input, [role="switch"], select'
         onLayoutChange={(newLayout) => {
           if (isEditing) {
-            setWorking((prev) => applyLayoutToWidgets(prev, newLayout));
+            setEditLayout(newLayout);
           }
         }}
       >
         {visibleWidgets.map((w) => (
-          <div key={w.id} className='rounded-lg'>
+          <div
+            key={w.id}
+            className='h-full w-full overflow-hidden rounded-lg box-border [&>*]:h-full [&>*]:w-full'
+          >
             {widgetRegistry[w.id]}
           </div>
         ))}
@@ -191,13 +218,6 @@ export function DashboardCustomizer({
   if (!editMode) {
     return (
       <div className='flex flex-col gap-4'>
-        {onSave !== undefined && (
-          <div className='flex justify-end'>
-            <Button variant='outline' size='sm' onClick={enterEditMode}>
-              {tr('dashboard_customize')}
-            </Button>
-          </div>
-        )}
         {allHidden ? emptyState : renderGrid(activeWidgets, false)}
       </div>
     );

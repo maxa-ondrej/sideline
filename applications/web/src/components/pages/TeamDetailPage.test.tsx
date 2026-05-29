@@ -15,7 +15,7 @@
 //   - All configurable hidden → empty-state element present inside configurable region
 //   - layout undefined → falls back to DEFAULT (all 4 visible)
 
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DateTime, Option } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -51,6 +51,15 @@ vi.mock('~/lib/translations.js', () => ({
       dashboard_allWidgetsHidden: 'All widgets hidden',
       dashboard_noWidgets: 'No widgets visible',
       dashboard_customize: 'Customize',
+      dashboard_customizer_panelTitle: 'Widgets',
+      dashboard_customizer_save: 'Save',
+      dashboard_customizer_cancel: 'Cancel',
+      dashboard_customizer_reset: 'Reset layout',
+      dashboard_customizer_saveError: 'Failed to save layout',
+      dashboard_widget_stats: 'Stats',
+      dashboard_widget_upcomingEvents: 'Upcoming events',
+      dashboard_widget_activity: 'Activity',
+      dashboard_widget_teamManagement: 'Team management',
       team_members: 'Members',
       team_rosters: 'Rosters',
       team_roles: 'Roles',
@@ -367,5 +376,70 @@ describe('TeamDetailPage — configurable layout', () => {
     expect(screen.getByText('Upcoming events')).not.toBeNull();
     expect(screen.getByText('Activity summary')).not.toBeNull();
     expect(screen.getByText('Team management')).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NEW: Customize button in page header
+// ---------------------------------------------------------------------------
+
+describe('TeamDetailPage — Customize button in page header', () => {
+  it('Customize button renders in page header when userId and onSaveLayout are provided', () => {
+    const onSaveLayout = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TeamDetailPage
+        teamId={TEAM_ID}
+        userId='user-1'
+        dashboard={makeDashboard()}
+        onSaveLayout={onSaveLayout}
+      />,
+    );
+
+    expect(screen.getByText('Customize')).not.toBeNull();
+    // The button should be alongside the Dashboard title (in the same header row)
+    expect(screen.getByText('Dashboard')).not.toBeNull();
+  });
+
+  it('Customize button does NOT render when userId is undefined', () => {
+    const onSaveLayout = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} onSaveLayout={onSaveLayout} />,
+    );
+
+    expect(screen.queryByText('Customize')).toBeNull();
+  });
+
+  it('Customize button does NOT render when onSaveLayout is undefined', () => {
+    render(<TeamDetailPage teamId={TEAM_ID} userId='user-1' dashboard={makeDashboard()} />);
+
+    expect(screen.queryByText('Customize')).toBeNull();
+  });
+
+  it('clicking Customize button in header transitions customizer to edit mode (aside panel appears)', async () => {
+    const onSaveLayout = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TeamDetailPage
+        teamId={TEAM_ID}
+        userId='user-1'
+        dashboard={makeDashboard()}
+        onSaveLayout={onSaveLayout}
+      />,
+    );
+
+    // Aside panel should NOT be visible yet
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByText('Widgets')).toBeNull();
+
+    const customizeBtn = screen.getByText('Customize');
+    await act(async () => {
+      fireEvent.click(customizeBtn);
+    });
+
+    // Aside panel should now be visible with widget switches (wait for effect to flush)
+    await waitFor(() => {
+      expect(screen.getByText('Widgets')).not.toBeNull();
+    });
+    const switches = screen.getAllByRole('switch');
+    expect(switches.length).toBe(4);
   });
 });

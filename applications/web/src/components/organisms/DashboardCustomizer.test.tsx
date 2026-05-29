@@ -6,16 +6,19 @@
 //     layout: DashboardLayout;                 ← current persisted layout
 //     onSave: (widgets: DashboardWidget[]) => Promise<void>  ← calls updateDashboardLayout API
 //     widgetRegistry: Record<string, React.ReactNode>
+//     editMode: boolean;                       ← controlled by parent (TeamDetailPage)
+//     onEditModeChange: (next: boolean) => void;
 //   })
 //
 // Behaviour:
-//   - "Customize" button enters edit mode; aside panel appears with one Switch per widget
+//   - In idle mode (editMode=false): grid renders, aside panel NOT shown
+//   - In edit mode (editMode=true): aside panel appears with one Switch per widget
 //   - No width selectors — width is controlled by dragging RGL resize handle
 //   - Toggling a Switch updates local working copy but does NOT call onSave
 //   - Reset sets working copy back to DEFAULT (4 visible with default heights)
-//   - Save calls onSave exactly once then exits edit mode
+//   - Save calls onSave exactly once then calls onEditModeChange(false)
 //   - Save failure stays in edit mode (error state shown)
-//   - Cancel exits edit mode without calling onSave
+//   - Cancel calls onEditModeChange(false) without calling onSave
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -112,7 +115,7 @@ const WIDGET_REGISTRY = {
 // ---------------------------------------------------------------------------
 
 describe('DashboardCustomizer — initial state (not in edit mode)', () => {
-  it('renders a "Customize" button in idle state', () => {
+  it('does not render aside panel in idle state', () => {
     const onSave = vi.fn();
     render(
       <DashboardCustomizer
@@ -120,11 +123,12 @@ describe('DashboardCustomizer — initial state (not in edit mode)', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={false}
+        onEditModeChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByText('Customize')).not.toBeNull();
-    // Aside panel should NOT be visible yet
+    // Aside panel should NOT be visible in idle mode
     expect(screen.queryByRole('switch')).toBeNull();
     expect(screen.queryByText('Widgets')).toBeNull();
   });
@@ -137,6 +141,8 @@ describe('DashboardCustomizer — initial state (not in edit mode)', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={false}
+        onEditModeChange={vi.fn()}
       />,
     );
 
@@ -150,6 +156,8 @@ describe('DashboardCustomizer — initial state (not in edit mode)', () => {
         teamId={TEAM_ID}
         layout={makePartialLayout() as any}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={false}
+        onEditModeChange={vi.fn()}
       />,
     );
 
@@ -165,6 +173,8 @@ describe('DashboardCustomizer — initial state (not in edit mode)', () => {
         teamId={TEAM_ID}
         layout={makeDefaultLayout() as any}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={false}
+        onEditModeChange={vi.fn()}
       />,
     );
 
@@ -177,7 +187,7 @@ describe('DashboardCustomizer — initial state (not in edit mode)', () => {
 });
 
 describe('DashboardCustomizer — entering edit mode', () => {
-  it('clicking "Customize" enters edit mode with the aside panel and one Switch per widget', async () => {
+  it('edit mode with aside panel and one Switch per widget', () => {
     const onSave = vi.fn();
     render(
       <DashboardCustomizer
@@ -185,13 +195,10 @@ describe('DashboardCustomizer — entering edit mode', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    const customizeBtn = screen.getByText('Customize');
-    await act(async () => {
-      fireEvent.click(customizeBtn);
-    });
 
     // Aside panel title should be visible
     expect(screen.getByText('Widgets')).not.toBeNull();
@@ -201,7 +208,7 @@ describe('DashboardCustomizer — entering edit mode', () => {
     expect(switches.length).toBe(4);
   });
 
-  it('Save and Cancel buttons are visible in edit mode', async () => {
+  it('Save and Cancel buttons are visible in edit mode', () => {
     const onSave = vi.fn();
     render(
       <DashboardCustomizer
@@ -209,18 +216,16 @@ describe('DashboardCustomizer — entering edit mode', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     expect(screen.getByText('Save')).not.toBeNull();
     expect(screen.getByText('Cancel')).not.toBeNull();
   });
 
-  it('Reset layout button is visible in edit mode', async () => {
+  it('Reset layout button is visible in edit mode', () => {
     const onSave = vi.fn();
     render(
       <DashboardCustomizer
@@ -228,12 +233,10 @@ describe('DashboardCustomizer — entering edit mode', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     expect(screen.getByText('Reset layout')).not.toBeNull();
   });
@@ -248,12 +251,10 @@ describe('DashboardCustomizer — toggling a Switch', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     const switches = screen.getAllByRole('switch');
     await act(async () => {
@@ -272,12 +273,10 @@ describe('DashboardCustomizer — toggling a Switch', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     const switches = screen.getAllByRole('switch');
     const firstSwitchBefore =
@@ -295,7 +294,7 @@ describe('DashboardCustomizer — toggling a Switch', () => {
     expect(firstSwitchAfter).not.toBe(firstSwitchBefore);
   });
 
-  it('a widget that starts as visible:false has an unchecked switch', async () => {
+  it('a widget that starts as visible:false has an unchecked switch', () => {
     const onSave = vi.fn();
     render(
       <DashboardCustomizer
@@ -303,12 +302,10 @@ describe('DashboardCustomizer — toggling a Switch', () => {
         layout={makePartialLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     const switches = screen.getAllByRole('switch');
     // First switch corresponds to 'stats' which has visible:false → unchecked
@@ -327,12 +324,10 @@ describe('DashboardCustomizer — Reset', () => {
         layout={makePartialLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     // Verify partial layout: first switch should be unchecked (stats visible:false)
     let switches = screen.getAllByRole('switch');
@@ -364,12 +359,10 @@ describe('DashboardCustomizer — Reset', () => {
         layout={makePartialLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     await act(async () => {
       fireEvent.click(screen.getByText('Reset layout'));
@@ -393,20 +386,19 @@ describe('DashboardCustomizer — Reset', () => {
 });
 
 describe('DashboardCustomizer — Save', () => {
-  it('clicking Save calls onSave exactly once then exits edit mode', async () => {
+  it('clicking Save calls onSave exactly once then calls onEditModeChange(false)', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
+    const onEditModeChange = vi.fn();
     render(
       <DashboardCustomizer
         teamId={TEAM_ID}
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={onEditModeChange}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
@@ -416,10 +408,9 @@ describe('DashboardCustomizer — Save', () => {
       expect(onSave).toHaveBeenCalledTimes(1);
     });
 
-    // After successful save, edit mode should be exited (Save button gone, Customize visible)
+    // After successful save, onEditModeChange(false) should have been called
     await waitFor(() => {
-      expect(screen.queryByText('Save')).toBeNull();
-      expect(screen.getByText('Customize')).not.toBeNull();
+      expect(onEditModeChange).toHaveBeenCalledWith(false);
     });
   });
 
@@ -431,12 +422,10 @@ describe('DashboardCustomizer — Save', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     // Toggle the first widget off
     const switches = screen.getAllByRole('switch');
@@ -466,12 +455,10 @@ describe('DashboardCustomizer — Save', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
@@ -495,12 +482,10 @@ describe('DashboardCustomizer — Save', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     // Toggle the first switch off
     const switches = screen.getAllByRole('switch');
@@ -525,20 +510,19 @@ describe('DashboardCustomizer — Save', () => {
 });
 
 describe('DashboardCustomizer — Cancel', () => {
-  it('Cancel discards changes and exits edit mode without calling onSave', async () => {
+  it('Cancel calls onEditModeChange(false) without calling onSave', async () => {
     const onSave = vi.fn();
+    const onEditModeChange = vi.fn();
     render(
       <DashboardCustomizer
         teamId={TEAM_ID}
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={onEditModeChange}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     // Toggle a switch to make a change
     const switches = screen.getAllByRole('switch');
@@ -550,9 +534,8 @@ describe('DashboardCustomizer — Cancel', () => {
       fireEvent.click(screen.getByText('Cancel'));
     });
 
-    // Should exit edit mode
-    expect(screen.queryByText('Save')).toBeNull();
-    expect(screen.getByText('Customize')).not.toBeNull();
+    // onEditModeChange(false) must have been called
+    expect(onEditModeChange).toHaveBeenCalledWith(false);
 
     // onSave must NOT have been called
     expect(onSave).not.toHaveBeenCalled();
@@ -574,6 +557,8 @@ describe('DashboardCustomizer — all-hidden empty state', () => {
         teamId={TEAM_ID}
         layout={allHiddenLayout as any}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={false}
+        onEditModeChange={vi.fn()}
       />,
     );
 
@@ -591,12 +576,10 @@ describe('DashboardCustomizer — all-hidden empty state', () => {
         layout={makeDefaultLayout() as any}
         onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
       />,
     );
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Customize'));
-    });
 
     // Toggle all switches off
     const switches = screen.getAllByRole('switch');
