@@ -280,7 +280,7 @@ const putLayoutUrl = (teamId: string = TEST_TEAM_ID) =>
 // ---------------------------------------------------------------------------
 
 describe('DashboardLayout API — getDashboardLayout', () => {
-  it('GET → 200 with DEFAULT 4 widgets all visible when no stored row', async () => {
+  it('GET → 200 with DEFAULT 6 widgets all visible when no stored row', async () => {
     const response = await handler(
       new Request(getLayoutUrl(), {
         headers: { Authorization: 'Bearer member-token' },
@@ -289,35 +289,45 @@ describe('DashboardLayout API — getDashboardLayout', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(Array.isArray(body.widgets)).toBe(true);
-    expect(body.widgets).toHaveLength(4);
+    expect(body.widgets).toHaveLength(6);
     for (const widget of body.widgets) {
       expect(widget.visible).toBe(true);
     }
     // Canonical order
-    expect(body.widgets[0].id).toBe('stats');
-    expect(body.widgets[1].id).toBe('upcomingEvents');
-    expect(body.widgets[2].id).toBe('activity');
-    expect(body.widgets[3].id).toBe('teamManagement');
+    expect(body.widgets[0].id).toBe('awaitingRsvp');
+    expect(body.widgets[1].id).toBe('outstandingPayments');
+    expect(body.widgets[2].id).toBe('stats');
+    expect(body.widgets[3].id).toBe('upcomingEvents');
+    expect(body.widgets[4].id).toBe('activity');
+    expect(body.widgets[5].id).toBe('teamManagement');
     // Height field present
     expect(typeof body.widgets[0].height).toBe('number');
-    expect(body.widgets[0].height).toBe(140);
-    expect(body.widgets[1].height).toBe(280);
-    expect(body.widgets[2].height).toBe(200);
-    expect(body.widgets[3].height).toBe(260);
+    expect(body.widgets[0].height).toBe(80);
+    expect(body.widgets[1].height).toBe(80);
+    expect(body.widgets[2].height).toBe(140);
+    expect(body.widgets[3].height).toBe(280);
+    expect(body.widgets[4].height).toBe(200);
+    expect(body.widgets[5].height).toBe(260);
     // colSpan fields match DEFAULT_LAYOUT
-    expect(body.widgets[0].colSpan).toBe(3); // stats
-    expect(body.widgets[1].colSpan).toBe(2); // upcomingEvents
-    expect(body.widgets[2].colSpan).toBe(1); // activity
-    expect(body.widgets[3].colSpan).toBe(1); // teamManagement
+    expect(body.widgets[0].colSpan).toBe(3); // awaitingRsvp
+    expect(body.widgets[1].colSpan).toBe(3); // outstandingPayments
+    expect(body.widgets[2].colSpan).toBe(3); // stats
+    expect(body.widgets[3].colSpan).toBe(2); // upcomingEvents
+    expect(body.widgets[4].colSpan).toBe(1); // activity
+    expect(body.widgets[5].colSpan).toBe(1); // teamManagement
     // x/y fields match DEFAULT_LAYOUT positions
-    expect(body.widgets[0].x).toBe(0); // stats x
-    expect(body.widgets[0].y).toBe(0); // stats y
-    expect(body.widgets[1].x).toBe(0); // upcomingEvents x
-    expect(body.widgets[1].y).toBe(14); // upcomingEvents y
-    expect(body.widgets[2].x).toBe(8); // activity x
-    expect(body.widgets[2].y).toBe(14); // activity y
-    expect(body.widgets[3].x).toBe(8); // teamManagement x
-    expect(body.widgets[3].y).toBe(34); // teamManagement y
+    expect(body.widgets[0].x).toBe(0); // awaitingRsvp x
+    expect(body.widgets[0].y).toBe(0); // awaitingRsvp y
+    expect(body.widgets[1].x).toBe(0); // outstandingPayments x
+    expect(body.widgets[1].y).toBe(8); // outstandingPayments y
+    expect(body.widgets[2].x).toBe(0); // stats x
+    expect(body.widgets[2].y).toBe(16); // stats y
+    expect(body.widgets[3].x).toBe(0); // upcomingEvents x
+    expect(body.widgets[3].y).toBe(30); // upcomingEvents y
+    expect(body.widgets[4].x).toBe(8); // activity x
+    expect(body.widgets[4].y).toBe(30); // activity y
+    expect(body.widgets[5].x).toBe(8); // teamManagement x
+    expect(body.widgets[5].y).toBe(50); // teamManagement y
   });
 
   it('GET → 200 with normalized result when stored partial/legacy row exists', async () => {
@@ -333,8 +343,8 @@ describe('DashboardLayout API — getDashboardLayout', () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    // normalizeWidgets should fill in the missing 3 widgets
-    expect(body.widgets).toHaveLength(4);
+    // normalizeWidgets should fill in the missing 5 widgets
+    expect(body.widgets).toHaveLength(6);
     // The stored widget comes first
     expect(body.widgets[0].id).toBe('teamManagement');
     expect(body.widgets[0].visible).toBe(false);
@@ -367,10 +377,12 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
   it('PUT → 200 persists & returns normalized widgets with height fields', async () => {
     const payload = {
       widgets: [
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 8, y: 14 },
-        { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 0 },
-        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 14 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 34 },
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 0, y: 0 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 0, y: 8 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 8, y: 30 },
+        { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 16 },
+        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 30 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 50 },
       ],
     };
 
@@ -387,8 +399,8 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(Array.isArray(body.widgets)).toBe(true);
-    // Should contain all 4 widgets
-    expect(body.widgets).toHaveLength(4);
+    // Should contain all 6 widgets
+    expect(body.widgets).toHaveLength(6);
     // Height fields present
     for (const w of body.widgets) {
       expect(typeof w.height).toBe('number');
@@ -400,7 +412,7 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
 
   it('PUT → 200 normalizes partial payload (fills in missing widgets)', async () => {
     const payload = {
-      widgets: [{ id: 'stats', visible: false, height: 140, colSpan: 3, x: 0, y: 0 }],
+      widgets: [{ id: 'stats', visible: false, height: 140, colSpan: 3, x: 0, y: 16 }],
     };
 
     const response = await handler(
@@ -416,7 +428,7 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     // normalizeWidgets fills in missing widgets
-    expect(body.widgets).toHaveLength(4);
+    expect(body.widgets).toHaveLength(6);
     const statsWidget = body.widgets.find((w: any) => w.id === 'stats');
     expect(statsWidget).toBeDefined();
     expect(statsWidget.visible).toBe(false);
@@ -425,10 +437,12 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
   it('PUT persists custom height values', async () => {
     const payload = {
       widgets: [
-        { id: 'stats', visible: true, height: 350, colSpan: 3, x: 0, y: 0 },
-        { id: 'upcomingEvents', visible: true, height: 500, colSpan: 2, x: 0, y: 14 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 14 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 34 },
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 0, y: 0 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 0, y: 8 },
+        { id: 'stats', visible: true, height: 350, colSpan: 3, x: 0, y: 16 },
+        { id: 'upcomingEvents', visible: true, height: 500, colSpan: 2, x: 0, y: 30 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 30 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 50 },
       ],
     };
 
@@ -453,10 +467,12 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
   it('PUT persists custom colSpan values', async () => {
     const payload = {
       widgets: [
-        { id: 'stats', visible: true, height: 140, colSpan: 1, x: 0, y: 0 },
-        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 3, x: 0, y: 14 },
-        { id: 'activity', visible: true, height: 200, colSpan: 2, x: 8, y: 14 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 2, x: 8, y: 34 },
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 0, y: 0 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 0, y: 8 },
+        { id: 'stats', visible: true, height: 140, colSpan: 1, x: 0, y: 16 },
+        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 3, x: 0, y: 30 },
+        { id: 'activity', visible: true, height: 200, colSpan: 2, x: 8, y: 30 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 2, x: 8, y: 50 },
       ],
     };
 
@@ -481,10 +497,12 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
   it('PUT → 403 DashboardLayoutForbidden for non-member of team', async () => {
     const payload = {
       widgets: [
-        { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 0 },
-        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 14 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 14 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 34 },
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 0, y: 0 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 0, y: 8 },
+        { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 16 },
+        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 30 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 30 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 50 },
       ],
     };
 
@@ -520,7 +538,7 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
 
   it('PUT → 400 when payload contains an invalid widget id', async () => {
     const payload = {
-      widgets: [{ id: 'awaitingRsvp', visible: true, height: 200, colSpan: 1, x: 0, y: 0 }],
+      widgets: [{ id: 'fakeUnknown', visible: true, height: 200, colSpan: 1, x: 0, y: 0 }],
     };
 
     const response = await handler(
@@ -533,7 +551,7 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
         body: JSON.stringify(payload),
       }),
     );
-    // Schema validation should reject 'awaitingRsvp' → 400 ParseError
+    // Schema validation should reject 'fakeUnknown' → 400 ParseError
     expect(response.status).toBe(400);
   });
 });

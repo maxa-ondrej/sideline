@@ -4,6 +4,8 @@ import { AuthMiddleware } from '~/api/Auth.js';
 import { TeamId } from '~/models/Team.js';
 
 export const DashboardWidgetId = Schema.Literals([
+  'awaitingRsvp',
+  'outstandingPayments',
   'stats',
   'upcomingEvents',
   'activity',
@@ -12,6 +14,8 @@ export const DashboardWidgetId = Schema.Literals([
 export type DashboardWidgetId = typeof DashboardWidgetId.Type;
 
 export const DASHBOARD_WIDGET_ORDER = [
+  'awaitingRsvp',
+  'outstandingPayments',
   'stats',
   'upcomingEvents',
   'activity',
@@ -37,16 +41,20 @@ export interface DefaultLayoutEntry {
 }
 
 // Sensible pixel-height defaults for the vertical-stack layout.
-// stats:          x=0,  y=0,  colSpan=3, height=140  — full width (3 cols)
-// upcomingEvents: x=0,  y=14, colSpan=2, height=280  — 2 cols
-// activity:       x=8,  y=14, colSpan=1, height=200  — 1 col
-// teamManagement: x=8,  y=34, colSpan=1, height=260  — 1 col
+// awaitingRsvp:        x=0,  y=0,  colSpan=3, height=80   — full width (3 cols), banner-style
+// outstandingPayments: x=0,  y=8,  colSpan=3, height=80   — full width, slim, below RSVP
+// stats:               x=0,  y=16, colSpan=3, height=140  — full width (3 cols)
+// upcomingEvents:      x=0,  y=30, colSpan=2, height=280  — 2 cols
+// activity:            x=8,  y=30, colSpan=1, height=200  — 1 col
+// teamManagement:      x=8,  y=50, colSpan=1, height=260  — 1 col
 // (12-column grid, rowHeight=10)
 export const DEFAULT_LAYOUT: ReadonlyArray<DefaultLayoutEntry> = [
-  { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 0 },
-  { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 14 },
-  { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 14 },
-  { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 34 },
+  { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 0, y: 0 },
+  { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 0, y: 8 },
+  { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 16 },
+  { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 30 },
+  { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 30 },
+  { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 50 },
 ] as const;
 
 export class DashboardLayout extends Schema.Class<DashboardLayout>('DashboardLayout')({

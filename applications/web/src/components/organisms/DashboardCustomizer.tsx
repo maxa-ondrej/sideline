@@ -25,6 +25,8 @@ interface DashboardCustomizerProps {
 }
 
 const WIDGET_LABELS: Record<string, string> = {
+  awaitingRsvp: 'dashboard_widget_awaitingRsvp',
+  outstandingPayments: 'dashboard_widget_outstandingPayments',
   stats: 'dashboard_widget_stats',
   upcomingEvents: 'dashboard_widget_upcomingEvents',
   activity: 'dashboard_widget_activity',

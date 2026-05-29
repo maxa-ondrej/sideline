@@ -27,7 +27,13 @@ import { formatLocalTime } from '~/lib/datetime';
 import { tr } from '~/lib/translations.js';
 
 // WidgetId mirrors DashboardLayoutApi.DashboardWidgetId
-type WidgetId = 'stats' | 'upcomingEvents' | 'activity' | 'teamManagement';
+type WidgetId =
+  | 'awaitingRsvp'
+  | 'outstandingPayments'
+  | 'stats'
+  | 'upcomingEvents'
+  | 'activity'
+  | 'teamManagement';
 
 interface TeamDetailPageProps {
   teamId: string;
@@ -438,7 +444,16 @@ export function TeamDetailPage({
   const { upcomingEvents, awaitingRsvp, activitySummary } = dashboard;
   const effectiveLayout = layout ?? DEFAULT_LAYOUT;
 
+  // NOTE: Banners are now part of the widget registry and can be toggled/repositioned
+  // by the user via the customizer. This means a user who deliberately hides the
+  // awaitingRsvp or outstandingPayments widget via the aside panel will NOT see
+  // those banners even when there is actionable data (pending RSVPs / unpaid fees).
+  // This is a deliberate user choice — they opted out of the reminder.
   const widgetRegistry: Record<WidgetId, React.ReactNode> = {
+    awaitingRsvp: <AwaitingRsvpBanner key='awaitingRsvp' teamId={teamId} events={awaitingRsvp} />,
+    outstandingPayments: (
+      <OutstandingPaymentsBanner key='outstandingPayments' teamId={teamId} groups={myStatus} />
+    ),
     stats: <StatCards key='stats' activitySummary={activitySummary} />,
     upcomingEvents: (
       <UpcomingEventsCard key='upcomingEvents' teamId={teamId} events={upcomingEvents} />
@@ -459,13 +474,7 @@ export function TeamDetailPage({
         )}
       </div>
 
-      {/* Pinned banners - always rendered regardless of layout */}
-      <AwaitingRsvpBanner teamId={teamId} events={awaitingRsvp} />
-
-      {/* Outstanding payments banner - shown when player has outstanding fees */}
-      <OutstandingPaymentsBanner teamId={teamId} groups={myStatus} />
-
-      {/* Configurable widget region */}
+      {/* Configurable widget region — banners are now part of the grid */}
       <DashboardCustomizer
         teamId={teamId}
         layout={effectiveLayout}

@@ -37,13 +37,15 @@ const w = (
 // ---------------------------------------------------------------------------
 
 describe('normalizeWidgets — empty input', () => {
-  it('empty [] → all 4 canonical widgets visible with DEFAULT_LAYOUT heights', () => {
+  it('empty [] → all 6 canonical widgets visible with DEFAULT_LAYOUT heights', () => {
     const result = normalizeWidgets([]);
-    expect(result).toHaveLength(4);
-    expect(result[0].id).toBe('stats');
-    expect(result[1].id).toBe('upcomingEvents');
-    expect(result[2].id).toBe('activity');
-    expect(result[3].id).toBe('teamManagement');
+    expect(result).toHaveLength(6);
+    expect(result[0].id).toBe('awaitingRsvp');
+    expect(result[1].id).toBe('outstandingPayments');
+    expect(result[2].id).toBe('stats');
+    expect(result[3].id).toBe('upcomingEvents');
+    expect(result[4].id).toBe('activity');
+    expect(result[5].id).toBe('teamManagement');
     for (const widget of result) {
       expect(widget.visible).toBe(true);
       expect(typeof widget.height).toBe('number');
@@ -58,32 +60,39 @@ describe('normalizeWidgets — full valid scrambled input', () => {
       w('activity', false),
       w('upcomingEvents', true),
       w('stats', false),
+      w('awaitingRsvp', true),
+      w('outstandingPayments', false),
     ];
     const result = normalizeWidgets(input);
-    // All 4 present, no extras appended
-    expect(result).toHaveLength(4);
+    // All 6 present, no extras appended
+    expect(result).toHaveLength(6);
     // Order is preserved from input
     expect(result[0].id).toBe('teamManagement');
     expect(result[1].id).toBe('activity');
     expect(result[2].id).toBe('upcomingEvents');
     expect(result[3].id).toBe('stats');
+    expect(result[4].id).toBe('awaitingRsvp');
+    expect(result[5].id).toBe('outstandingPayments');
     // Visibility preserved
     expect(result[0].visible).toBe(true);
     expect(result[1].visible).toBe(false);
     expect(result[3].visible).toBe(false);
+    expect(result[5].visible).toBe(false);
   });
 });
 
 describe('normalizeWidgets — partial input', () => {
-  it('[teamManagement hidden] → first, then other 3 appended visible below existing', () => {
+  it('[teamManagement hidden] → first, then other 5 appended visible below existing', () => {
     const input = [w('teamManagement', false)];
     const result = normalizeWidgets(input);
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(6);
     // First: the given widget, hidden
     expect(result[0].id).toBe('teamManagement');
     expect(result[0].visible).toBe(false);
-    // Appended missing: stats, upcomingEvents, activity (from DEFAULT_LAYOUT order)
+    // Appended missing: awaitingRsvp, outstandingPayments, stats, upcomingEvents, activity (from DEFAULT_LAYOUT order)
     const appendedIds = result.slice(1).map((r) => r.id);
+    expect(appendedIds).toContain('awaitingRsvp');
+    expect(appendedIds).toContain('outstandingPayments');
     expect(appendedIds).toContain('stats');
     expect(appendedIds).toContain('upcomingEvents');
     expect(appendedIds).toContain('activity');
@@ -93,16 +102,18 @@ describe('normalizeWidgets — partial input', () => {
     }
   });
 
-  it('[stats, activity] → stats first, activity second, upcomingEvents + teamManagement appended visible', () => {
+  it('[stats, activity] → stats first, activity second, 4 others appended visible', () => {
     const input = [w('stats', false), w('activity', false)];
     const result = normalizeWidgets(input);
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(6);
     expect(result[0].id).toBe('stats');
     expect(result[0].visible).toBe(false);
     expect(result[1].id).toBe('activity');
     expect(result[1].visible).toBe(false);
     // Appended from DEFAULT_LAYOUT order
     const appendedIds = result.slice(2).map((r) => r.id);
+    expect(appendedIds).toContain('awaitingRsvp');
+    expect(appendedIds).toContain('outstandingPayments');
     expect(appendedIds).toContain('upcomingEvents');
     expect(appendedIds).toContain('teamManagement');
     for (const widget of result.slice(2)) {
@@ -129,8 +140,10 @@ describe('normalizeWidgets — deduplicate', () => {
     expect(statsEntries[0].visible).toBe(false);
   });
 
-  it('all four present but stats duplicated → result length 4, not 5', () => {
+  it('all six present but stats duplicated → result length 6, not 7', () => {
     const input = [
+      w('awaitingRsvp', true),
+      w('outstandingPayments', true),
       w('stats', true),
       w('upcomingEvents', true),
       w('activity', true),
@@ -138,7 +151,7 @@ describe('normalizeWidgets — deduplicate', () => {
       w('stats', false),
     ];
     const result = normalizeWidgets(input);
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(6);
   });
 });
 
@@ -147,7 +160,7 @@ describe('normalizeWidgets — drop unknown ids', () => {
     // Cast to bypass TypeScript; at runtime normalizeWidgets receives arbitrary data.
     const input = [
       {
-        id: 'awaitingRsvp',
+        id: 'fakeUnknown',
         visible: true,
         height: 200,
         colSpan: 1,
@@ -157,11 +170,11 @@ describe('normalizeWidgets — drop unknown ids', () => {
       w('stats', true),
     ];
     const result = normalizeWidgets(input);
-    // 'awaitingRsvp' is not a valid DashboardWidgetId → dropped
-    const awaitingEntries = result.filter((r) => r.id === ('awaitingRsvp' as any));
-    expect(awaitingEntries).toHaveLength(0);
-    // The valid ones (stats) plus the 3 missing appended
-    expect(result).toHaveLength(4);
+    // 'fakeUnknown' is not a valid DashboardWidgetId → dropped
+    const fakeEntries = result.filter((r) => r.id === ('fakeUnknown' as any));
+    expect(fakeEntries).toHaveLength(0);
+    // The valid ones (stats) plus the 5 missing appended
+    expect(result).toHaveLength(6);
     expect(result.some((r) => r.id === 'stats')).toBe(true);
   });
 });
@@ -169,13 +182,15 @@ describe('normalizeWidgets — drop unknown ids', () => {
 describe('normalizeWidgets — preserves visible:false', () => {
   it('does not force-enable a widget that is explicitly hidden', () => {
     const input = [
+      w('awaitingRsvp', false),
+      w('outstandingPayments', false),
       w('stats', false),
       w('upcomingEvents', false),
       w('activity', false),
       w('teamManagement', false),
     ];
     const result = normalizeWidgets(input);
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(6);
     for (const widget of result) {
       expect(widget.visible).toBe(false);
     }

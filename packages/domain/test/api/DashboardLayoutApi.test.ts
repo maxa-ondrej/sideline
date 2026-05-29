@@ -154,10 +154,46 @@ describe('DashboardWidget — decode', () => {
     ).toThrow();
   });
 
-  it('FAILS to decode {id:"awaitingRsvp",visible:true,...} — not a valid widget id', () => {
+  it('decodes {id:"awaitingRsvp"} using DEFAULT_LAYOUT entry successfully', () => {
+    const entry = defaultEntry('awaitingRsvp');
+    const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+      id: 'awaitingRsvp',
+      visible: true,
+      height: entry.height,
+      colSpan: entry.colSpan,
+      x: entry.x,
+      y: entry.y,
+    });
+    expect(result.id).toBe('awaitingRsvp');
+    expect(result.visible).toBe(true);
+    expect(result.height).toBe(entry.height);
+    expect(result.colSpan).toBe(entry.colSpan);
+    expect(result.x).toBe(entry.x);
+    expect(result.y).toBe(entry.y);
+  });
+
+  it('decodes {id:"outstandingPayments"} using DEFAULT_LAYOUT entry successfully', () => {
+    const entry = defaultEntry('outstandingPayments');
+    const result = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
+      id: 'outstandingPayments',
+      visible: true,
+      height: entry.height,
+      colSpan: entry.colSpan,
+      x: entry.x,
+      y: entry.y,
+    });
+    expect(result.id).toBe('outstandingPayments');
+    expect(result.visible).toBe(true);
+    expect(result.height).toBe(entry.height);
+    expect(result.colSpan).toBe(entry.colSpan);
+    expect(result.x).toBe(entry.x);
+    expect(result.y).toBe(entry.y);
+  });
+
+  it('FAILS to decode {id:"fakeUnknown",visible:true,...} — not a valid widget id', () => {
     expect(() =>
       Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidget)({
-        id: 'awaitingRsvp',
+        id: 'fakeUnknown',
         visible: true,
         height: 200,
         colSpan: 1,
@@ -222,12 +258,12 @@ describe('DashboardWidget — decode', () => {
 // ---------------------------------------------------------------------------
 
 describe('DashboardLayout — round-trip encode/decode', () => {
-  it('round-trips a DashboardLayout with all 4 valid widgets including height and colSpan', () => {
+  it('round-trips a DashboardLayout with all 6 valid widgets including height and colSpan', () => {
     const entries = DashboardLayoutApi.DEFAULT_LAYOUT;
     const input = {
       widgets: entries.map((e, idx) => ({
         id: e.id,
-        visible: idx !== 2, // activity hidden for variety
+        visible: idx !== 4, // activity hidden for variety
         height: e.height,
         colSpan: e.colSpan,
         x: e.x,
@@ -236,32 +272,43 @@ describe('DashboardLayout — round-trip encode/decode', () => {
     };
 
     const decoded = Schema.decodeUnknownSync(DashboardLayoutApi.DashboardLayout)(input);
-    expect(decoded.widgets).toHaveLength(4);
+    expect(decoded.widgets).toHaveLength(6);
 
     const encoded = Schema.encodeSync(DashboardLayoutApi.DashboardLayout)(decoded);
-    expect(encoded.widgets).toHaveLength(4);
-    expect(encoded.widgets[0].id).toBe('stats');
+    expect(encoded.widgets).toHaveLength(6);
+    expect(encoded.widgets[0].id).toBe('awaitingRsvp');
     expect(encoded.widgets[0].visible).toBe(true);
     expect(encoded.widgets[0].height).toBe(entries[0].height);
     expect(encoded.widgets[0].colSpan).toBe(entries[0].colSpan);
     expect(encoded.widgets[0].x).toBe(entries[0].x);
     expect(encoded.widgets[0].y).toBe(entries[0].y);
-    expect(encoded.widgets[1].id).toBe('upcomingEvents');
+    expect(encoded.widgets[1].id).toBe('outstandingPayments');
     expect(encoded.widgets[1].height).toBe(entries[1].height);
     expect(encoded.widgets[1].colSpan).toBe(entries[1].colSpan);
     expect(encoded.widgets[1].x).toBe(entries[1].x);
     expect(encoded.widgets[1].y).toBe(entries[1].y);
-    expect(encoded.widgets[2].id).toBe('activity');
-    expect(encoded.widgets[2].visible).toBe(false);
+    expect(encoded.widgets[2].id).toBe('stats');
+    expect(encoded.widgets[2].visible).toBe(true);
     expect(encoded.widgets[2].height).toBe(entries[2].height);
     expect(encoded.widgets[2].colSpan).toBe(entries[2].colSpan);
     expect(encoded.widgets[2].x).toBe(entries[2].x);
     expect(encoded.widgets[2].y).toBe(entries[2].y);
-    expect(encoded.widgets[3].id).toBe('teamManagement');
+    expect(encoded.widgets[3].id).toBe('upcomingEvents');
     expect(encoded.widgets[3].height).toBe(entries[3].height);
     expect(encoded.widgets[3].colSpan).toBe(entries[3].colSpan);
     expect(encoded.widgets[3].x).toBe(entries[3].x);
     expect(encoded.widgets[3].y).toBe(entries[3].y);
+    expect(encoded.widgets[4].id).toBe('activity');
+    expect(encoded.widgets[4].visible).toBe(false);
+    expect(encoded.widgets[4].height).toBe(entries[4].height);
+    expect(encoded.widgets[4].colSpan).toBe(entries[4].colSpan);
+    expect(encoded.widgets[4].x).toBe(entries[4].x);
+    expect(encoded.widgets[4].y).toBe(entries[4].y);
+    expect(encoded.widgets[5].id).toBe('teamManagement');
+    expect(encoded.widgets[5].height).toBe(entries[5].height);
+    expect(encoded.widgets[5].colSpan).toBe(entries[5].colSpan);
+    expect(encoded.widgets[5].x).toBe(entries[5].x);
+    expect(encoded.widgets[5].y).toBe(entries[5].y);
   });
 
   it('round-trips an empty widgets array', () => {
@@ -276,8 +323,10 @@ describe('DashboardLayout — round-trip encode/decode', () => {
 // ---------------------------------------------------------------------------
 
 describe('DASHBOARD_WIDGET_ORDER', () => {
-  it('deep-equals ["stats","upcomingEvents","activity","teamManagement"]', () => {
+  it('deep-equals ["awaitingRsvp","outstandingPayments","stats","upcomingEvents","activity","teamManagement"]', () => {
     expect(DashboardLayoutApi.DASHBOARD_WIDGET_ORDER).toEqual([
+      'awaitingRsvp',
+      'outstandingPayments',
       'stats',
       'upcomingEvents',
       'activity',
@@ -285,8 +334,8 @@ describe('DASHBOARD_WIDGET_ORDER', () => {
     ]);
   });
 
-  it('has exactly 4 entries', () => {
-    expect(DashboardLayoutApi.DASHBOARD_WIDGET_ORDER).toHaveLength(4);
+  it('has exactly 6 entries', () => {
+    expect(DashboardLayoutApi.DASHBOARD_WIDGET_ORDER).toHaveLength(6);
   });
 
   it('every entry is a valid DashboardWidgetId', () => {
@@ -303,8 +352,20 @@ describe('DASHBOARD_WIDGET_ORDER', () => {
 // ---------------------------------------------------------------------------
 
 describe('DEFAULT_LAYOUT', () => {
-  it('has exactly 4 entries', () => {
-    expect(DashboardLayoutApi.DEFAULT_LAYOUT).toHaveLength(4);
+  it('has exactly 6 entries', () => {
+    expect(DashboardLayoutApi.DEFAULT_LAYOUT).toHaveLength(6);
+  });
+
+  it('awaitingRsvp has height 80', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'awaitingRsvp');
+    expect(entry).toBeDefined();
+    expect(entry?.height).toBe(80);
+  });
+
+  it('outstandingPayments has height 80', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'outstandingPayments');
+    expect(entry).toBeDefined();
+    expect(entry?.height).toBe(80);
   });
 
   it('stats has height 140', () => {
@@ -337,6 +398,16 @@ describe('DEFAULT_LAYOUT', () => {
     }
   });
 
+  it('awaitingRsvp has colSpan 3 (full width)', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'awaitingRsvp');
+    expect(entry?.colSpan).toBe(3);
+  });
+
+  it('outstandingPayments has colSpan 3 (full width)', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'outstandingPayments');
+    expect(entry?.colSpan).toBe(3);
+  });
+
   it('stats has colSpan 3 (full width)', () => {
     const stats = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats');
     expect(stats?.colSpan).toBe(3);
@@ -357,28 +428,40 @@ describe('DEFAULT_LAYOUT', () => {
     expect(tm?.colSpan).toBe(1);
   });
 
-  it('stats has x=0, y=0', () => {
+  it('awaitingRsvp has x=0, y=0', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'awaitingRsvp');
+    expect(entry?.x).toBe(0);
+    expect(entry?.y).toBe(0);
+  });
+
+  it('outstandingPayments has x=0, y=8', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'outstandingPayments');
+    expect(entry?.x).toBe(0);
+    expect(entry?.y).toBe(8);
+  });
+
+  it('stats has x=0, y=16', () => {
     const stats = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats');
     expect(stats?.x).toBe(0);
-    expect(stats?.y).toBe(0);
+    expect(stats?.y).toBe(16);
   });
 
-  it('upcomingEvents has x=0, y=14', () => {
+  it('upcomingEvents has x=0, y=30', () => {
     const ev = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'upcomingEvents');
     expect(ev?.x).toBe(0);
-    expect(ev?.y).toBe(14);
+    expect(ev?.y).toBe(30);
   });
 
-  it('activity has x=8, y=14', () => {
+  it('activity has x=8, y=30', () => {
     const act = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity');
     expect(act?.x).toBe(8);
-    expect(act?.y).toBe(14);
+    expect(act?.y).toBe(30);
   });
 
-  it('teamManagement has x=8, y=34', () => {
+  it('teamManagement has x=8, y=50', () => {
     const tm = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'teamManagement');
     expect(tm?.x).toBe(8);
-    expect(tm?.y).toBe(34);
+    expect(tm?.y).toBe(50);
   });
 });
 
@@ -387,8 +470,15 @@ describe('DEFAULT_LAYOUT', () => {
 // ---------------------------------------------------------------------------
 
 describe('DashboardWidgetId — literal set', () => {
-  it('accepts all four valid ids', () => {
-    for (const id of ['stats', 'upcomingEvents', 'activity', 'teamManagement']) {
+  it('accepts all six valid ids', () => {
+    for (const id of [
+      'awaitingRsvp',
+      'outstandingPayments',
+      'stats',
+      'upcomingEvents',
+      'activity',
+      'teamManagement',
+    ]) {
       expect(() =>
         Schema.decodeUnknownSync(DashboardLayoutApi.DashboardWidgetId)(id),
       ).not.toThrow();
@@ -440,7 +530,7 @@ describe('UpdateDashboardLayoutPayload — decode', () => {
   it('rejects a payload with an invalid widget id', () => {
     expect(() =>
       Schema.decodeUnknownSync(DashboardLayoutApi.UpdateDashboardLayoutPayload)({
-        widgets: [{ id: 'awaitingRsvp', visible: true, height: 200, colSpan: 1, x: 0, y: 0 }],
+        widgets: [{ id: 'fakeUnknown', visible: true, height: 200, colSpan: 1, x: 0, y: 0 }],
       }),
     ).toThrow();
   });

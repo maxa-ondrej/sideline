@@ -37,6 +37,8 @@ vi.mock('~/lib/translations.js', () => ({
       dashboard_customizer_cancel: 'Cancel',
       dashboard_customizer_reset: 'Reset layout',
       dashboard_customizer_saveError: 'Failed to save layout',
+      dashboard_widget_awaitingRsvp: 'Awaiting RSVP',
+      dashboard_widget_outstandingPayments: 'Outstanding payments',
       dashboard_widget_stats: 'Stats',
       dashboard_widget_upcomingEvents: 'Upcoming events',
       dashboard_widget_activity: 'Activity',
@@ -89,10 +91,12 @@ type DashboardLayout = { widgets: ReadonlyArray<DashboardWidget> };
 function makeDefaultLayout(): DashboardLayout {
   return {
     widgets: [
-      { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 0 },
-      { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 14 },
-      { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 14 },
-      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 34 },
+      { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 0, y: 0 },
+      { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 0, y: 8 },
+      { id: 'stats', visible: true, height: 140, colSpan: 3, x: 0, y: 16 },
+      { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 30 },
+      { id: 'activity', visible: true, height: 200, colSpan: 1, x: 8, y: 30 },
+      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 50 },
     ],
   };
 }
@@ -100,10 +104,12 @@ function makeDefaultLayout(): DashboardLayout {
 function makePartialLayout(): DashboardLayout {
   return {
     widgets: [
-      { id: 'stats', visible: false, height: 140, colSpan: 3, x: 0, y: 0 },
-      { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 14 },
-      { id: 'activity', visible: false, height: 200, colSpan: 1, x: 8, y: 14 },
-      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 34 },
+      { id: 'awaitingRsvp', visible: false, height: 80, colSpan: 3, x: 0, y: 0 },
+      { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 0, y: 8 },
+      { id: 'stats', visible: false, height: 140, colSpan: 3, x: 0, y: 16 },
+      { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 0, y: 30 },
+      { id: 'activity', visible: false, height: 200, colSpan: 1, x: 8, y: 30 },
+      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 8, y: 50 },
     ],
   };
 }
@@ -111,6 +117,8 @@ function makePartialLayout(): DashboardLayout {
 const TEAM_ID = 'team-customizer-001';
 
 const WIDGET_REGISTRY = {
+  awaitingRsvp: <div>Awaiting RSVP Widget</div>,
+  outstandingPayments: <div>Outstanding Payments Widget</div>,
   stats: <div>Stats Widget</div>,
   upcomingEvents: <div>Upcoming Events Widget</div>,
   activity: <div>Activity Widget</div>,
@@ -210,9 +218,9 @@ describe('DashboardCustomizer — entering edit mode', () => {
     // Aside panel title should be visible
     expect(screen.getByText('Widgets')).not.toBeNull();
 
-    // In edit mode, Switches should render (one per widget = 4)
+    // In edit mode, Switches should render (one per widget = 6)
     const switches = screen.getAllByRole('switch');
-    expect(switches.length).toBe(4);
+    expect(switches.length).toBe(6);
   });
 
   it('Save and Cancel buttons are visible in edit mode', () => {
@@ -323,7 +331,7 @@ describe('DashboardCustomizer — toggling a Switch', () => {
 });
 
 describe('DashboardCustomizer — Reset', () => {
-  it('Reset button sets working copy back to DEFAULT (4 visible)', async () => {
+  it('Reset button sets working copy back to DEFAULT (6 visible)', async () => {
     const onSave = vi.fn();
     render(
       <DashboardCustomizer
@@ -553,10 +561,12 @@ describe('DashboardCustomizer — all-hidden empty state', () => {
   it('shows empty state when all widgets are hidden', () => {
     const allHiddenLayout: DashboardLayout = {
       widgets: [
-        { id: 'stats', visible: false, height: 140, colSpan: 3, x: 0, y: 0 },
-        { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 0, y: 14 },
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 8, y: 14 },
-        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 8, y: 34 },
+        { id: 'awaitingRsvp', visible: false, height: 80, colSpan: 3, x: 0, y: 0 },
+        { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 0, y: 8 },
+        { id: 'stats', visible: false, height: 140, colSpan: 3, x: 0, y: 16 },
+        { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 0, y: 30 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 8, y: 30 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 8, y: 50 },
       ],
     };
     render(

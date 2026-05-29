@@ -209,3 +209,21 @@ code {
   z-index: 5;
   cursor: grabbing;
 }
+
+/* Force the widget content to obey the grid item's configured height.
+ * Without this, widgets whose natural content is taller than the user's chosen
+ * height stretch the grid item back out (min-content / flex-min-height
+ * behavior) — making the height the user dragged to "snap back" larger.
+ * The grid item box and its content are pinned to the exact height RGL sets,
+ * and any overflow is clipped. */
+.react-grid-item {
+  overflow: hidden;
+}
+.react-grid-item > *:not(.react-resizable-handle) {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}

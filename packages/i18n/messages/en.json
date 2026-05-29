@@ -1415,6 +1415,8 @@
   "dashboard_customizer_cancel": "Cancel",
   "dashboard_customizer_reset": "Reset layout",
   "dashboard_customizer_saveError": "Failed to save layout",
+  "dashboard_widget_awaitingRsvp": "Awaiting RSVP",
+  "dashboard_widget_outstandingPayments": "Outstanding payments",
   "dashboard_widget_stats": "Stats",
   "dashboard_widget_upcomingEvents": "Upcoming events",
   "dashboard_widget_activity": "Activity",
