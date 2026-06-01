@@ -1,10 +1,19 @@
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { DashboardLayoutApi } from '@sideline/domain';
 import { LayoutDashboard } from 'lucide-react';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { Switch } from '~/components/ui/switch';
-import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group';
 import { DEFAULT_LAYOUT } from '~/lib/dashboardLayout.js';
 import { tr } from '~/lib/translations.js';
 
@@ -39,8 +48,8 @@ const WIDGET_LABELS: Record<string, string> = {
 
 type RenderedWidget = {
   widget: DashboardLayoutApi.DashboardWidget;
-  colStart: number; // 1..12
-  colSpanCols: number; // 4, 8, or 12
+  colStart: number; // 1..3
+  colEnd: number; // colStart + colSpan (2..4)
   row: number; // 1..N (compacted)
 };
 
@@ -55,10 +64,160 @@ function renderableWidgets(
   const yMap = new Map(usedY.map((y, i) => [y, i + 1]));
   return visible.map((w) => ({
     widget: w,
-    colStart: Math.max(1, Math.min(12, w.x)),
-    colSpanCols: Math.max(1, Math.min(12, w.colSpan * 4)),
+    colStart: Math.max(1, Math.min(3, w.x)),
+    colEnd: Math.max(1, Math.min(3, w.x)) + Math.max(1, Math.min(3, w.colSpan)),
     row: yMap.get(w.y) ?? 1,
   }));
+}
+
+/** Compute maximum row number used by visible renderable widgets. */
+function maxRow(
+  widgets: ReadonlyArray<DashboardLayoutApi.DashboardWidget>,
+  widgetRegistry: Record<string, React.ReactNode | null>,
+): number {
+  const rendered = renderableWidgets(widgets, widgetRegistry);
+  if (rendered.length === 0) return 0;
+  return Math.max(...rendered.map((r) => r.row));
+}
+
+// ---------------------------------------------------------------------------
+// Push-down placement helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Move widget `draggedId` to (newCol, newRow). For each other visible widget
+ * that would now overlap, shift its row down by one and recurse.
+ * Two widgets overlap iff their row is the same AND their column ranges intersect.
+ */
+function placeAt(
+  working: DashboardLayoutApi.DashboardWidget[],
+  draggedId: string,
+  newCol: number,
+  newRow: number,
+): DashboardLayoutApi.DashboardWidget[] {
+  const dragged = working.find((w) => w.id === draggedId);
+  if (!dragged) return working;
+
+  const draggedColSpan = dragged.colSpan;
+  const draggedColEnd = newCol + draggedColSpan;
+
+  let result = working.map((w) =>
+    w.id === draggedId
+      ? new DashboardLayoutApi.DashboardWidget({
+          id: w.id,
+          visible: w.visible,
+          colSpan: w.colSpan,
+          height: w.height,
+          x: newCol as 1 | 2 | 3,
+          y: newRow,
+        })
+      : w,
+  );
+
+  // Push down any visible widget that now overlaps with the placed widget
+  for (const w of working) {
+    if (w.id === draggedId || !w.visible) continue;
+    const wColEnd = w.x + w.colSpan;
+    const overlapsRow = w.y === newRow;
+    const overlapsCol = w.x < draggedColEnd && wColEnd > newCol;
+    if (overlapsRow && overlapsCol) {
+      result = placeAt(result, w.id, w.x, newRow + 1);
+    }
+  }
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Drop zone cell (useDroppable)
+// ---------------------------------------------------------------------------
+
+function DropCell({ row, col }: { row: number; col: number }) {
+  const id = `cell-${row}-${col}`;
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ '--dash-col-start': col, '--dash-row-start': row } as React.CSSProperties}
+      className={`dashboard-grid-cell pointer-events-auto min-h-8 rounded-md border-2 border-dashed transition-colors ${isOver ? 'border-primary/60 bg-primary/10' : 'border-primary/20 bg-transparent'}`}
+      data-cell-id={id}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Draggable widget cell (useDraggable)
+// ---------------------------------------------------------------------------
+
+function DraggableWidget({
+  pos,
+  isEditing,
+  widgetRegistry,
+  onStartResize,
+}: {
+  pos: RenderedWidget;
+  isEditing: boolean;
+  widgetRegistry: Record<string, React.ReactNode | null>;
+  onStartResize: (id: string, e: React.PointerEvent) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: pos.widget.id,
+    disabled: !isEditing,
+  });
+
+  const style = {
+    '--dash-col-start': pos.colStart,
+    '--dash-col-end': pos.colEnd,
+    '--dash-row-start': pos.row,
+    transform: transform ? CSS.Translate.toString(transform) : undefined,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  } as React.CSSProperties;
+
+  const widgetName = tr(WIDGET_LABELS[pos.widget.id] ?? pos.widget.id);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`dashboard-grid-item relative${isEditing ? ' rounded-lg outline outline-1 outline-dashed outline-primary outline-offset-[-2px]' : ''}`}
+    >
+      {isEditing && (
+        <button
+          type='button'
+          {...listeners}
+          {...attributes}
+          className='absolute top-1 left-1 z-10 flex size-6 cursor-grab items-center justify-center rounded bg-primary/20 hover:bg-primary/40 transition-colors active:cursor-grabbing'
+          aria-label={tr('dashboard_customizer_dragHandle', { widget: widgetName })}
+        >
+          <svg
+            xmlns='http://www.w3.org/2000/svg'
+            width='12'
+            height='12'
+            viewBox='0 0 24 24'
+            fill='currentColor'
+            aria-hidden='true'
+          >
+            <circle cx='9' cy='5' r='1.5' />
+            <circle cx='15' cy='5' r='1.5' />
+            <circle cx='9' cy='12' r='1.5' />
+            <circle cx='15' cy='12' r='1.5' />
+            <circle cx='9' cy='19' r='1.5' />
+            <circle cx='15' cy='19' r='1.5' />
+          </svg>
+        </button>
+      )}
+      {widgetRegistry[pos.widget.id]}
+      {isEditing && (
+        <button
+          type='button'
+          onPointerDown={(e) => onStartResize(pos.widget.id, e)}
+          className='absolute top-0 right-0 h-full w-2 cursor-col-resize bg-primary/30 hover:bg-primary/60 transition-colors'
+          aria-label={tr('dashboard_customizer_resizeFor', { widget: widgetName })}
+        />
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -84,6 +243,12 @@ export function DashboardCustomizer({
       setSaveError(null);
     }
   }, [editMode]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  );
 
   const toggleVisible = (id: string) => {
     setWorking((prev) =>
@@ -119,38 +284,48 @@ export function DashboardCustomizer({
     );
   };
 
-  const handleXChange = (id: string, x: number) => {
-    setWorking((prev) =>
-      prev.map((w) =>
-        w.id === id
-          ? new DashboardLayoutApi.DashboardWidget({
-              id: w.id,
-              visible: w.visible,
-              colSpan: w.colSpan,
-              height: w.height,
-              x: Math.max(1, Math.min(12, x)),
-              y: w.y,
-            })
-          : w,
-      ),
-    );
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { over, active } = event;
+    if (!over) return;
+    const overId = String(over.id);
+    const match = /^cell-(\d+)-(\d+)$/.exec(overId);
+    if (!match) return;
+    const newRow = Number.parseInt(match[1], 10);
+    const newCol = Number.parseInt(match[2], 10) as 1 | 2 | 3;
+    setWorking((prev) => placeAt([...prev], String(active.id), newCol, newRow));
   };
 
-  const handleYChange = (id: string, y: number) => {
-    setWorking((prev) =>
-      prev.map((w) =>
-        w.id === id
-          ? new DashboardLayoutApi.DashboardWidget({
-              id: w.id,
-              visible: w.visible,
-              colSpan: w.colSpan,
-              height: w.height,
-              x: w.x,
-              y: Math.max(1, Math.min(999, y)),
-            })
-          : w,
-      ),
-    );
+  const startResize = (id: string, downEvent: React.PointerEvent) => {
+    downEvent.preventDefault();
+    downEvent.stopPropagation();
+    const target = downEvent.currentTarget as HTMLElement;
+    target.setPointerCapture(downEvent.pointerId);
+    const startX = downEvent.clientX;
+    const grid = target.closest('.dashboard-grid') as HTMLElement | null;
+    if (!grid) return;
+    const gridRect = grid.getBoundingClientRect();
+    const colWidth = gridRect.width / 3;
+    const initial = working.find((w) => w.id === id);
+    if (!initial) return;
+    const startSpan = initial.colSpan;
+    const initialX = initial.x;
+    const maxSpan = 4 - initialX; // 3 - x + 1
+
+    const handleMove = (e: PointerEvent) => {
+      const delta = e.clientX - startX;
+      const spanDelta = Math.round(delta / colWidth);
+      const newSpan = Math.max(1, Math.min(maxSpan, startSpan + spanDelta)) as 1 | 2 | 3;
+      handleColSpanChange(id, newSpan);
+    };
+
+    const handleUp = () => {
+      target.releasePointerCapture(downEvent.pointerId);
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
   };
 
   const resetLayout = () => {
@@ -191,29 +366,78 @@ export function DashboardCustomizer({
     </Card>
   );
 
-  const renderGrid = (widgets: DashboardLayoutApi.DashboardWidget[]) => {
+  const renderGrid = (widgets: DashboardLayoutApi.DashboardWidget[], isEditing: boolean) => {
     const rendered = renderableWidgets(widgets, widgetRegistry);
-    if (rendered.length === 0) return emptyState;
+    if (rendered.length === 0 && !isEditing) return emptyState;
 
+    // In edit mode with no visible renderable widgets, still show the empty state
+    // (wrapped in DndContext so drop zones work for dragging widgets back in via toggle)
+    if (rendered.length === 0 && isEditing) {
+      return (
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          {emptyState}
+        </DndContext>
+      );
+    }
+
+    const rows = isEditing ? maxRow(widgets, widgetRegistry) + 2 : 0;
+
+    // Build drop zone cells (only in edit mode). Use a pre-built coord array
+    // so the JSX key is derived from {row, col} object identity, not array index.
+    const cellCoords: Array<{ row: number; col: number }> = [];
+    if (isEditing) {
+      for (let r = 1; r <= rows; r++) {
+        for (let c = 1; c <= 3; c++) {
+          cellCoords.push({ row: r, col: c });
+        }
+      }
+    }
+    const dropZones = cellCoords.map(({ row, col }) => (
+      <DropCell key={`cell-${row}-${col}`} row={row} col={col} />
+    ));
+
+    const widgetCells = rendered.map((pos) =>
+      isEditing ? (
+        <DraggableWidget
+          key={pos.widget.id}
+          pos={pos}
+          isEditing={isEditing}
+          widgetRegistry={widgetRegistry}
+          onStartResize={startResize}
+        />
+      ) : (
+        <div
+          key={pos.widget.id}
+          style={
+            {
+              '--dash-col-start': pos.colStart,
+              '--dash-col-end': pos.colEnd,
+              '--dash-row-start': pos.row,
+            } as React.CSSProperties
+          }
+          className='dashboard-grid-item'
+        >
+          {widgetRegistry[pos.widget.id]}
+        </div>
+      ),
+    );
+
+    if (!isEditing) {
+      return (
+        <div className='dashboard-grid grid grid-cols-1 lg:grid-cols-3 gap-4 relative'>
+          {widgetCells}
+        </div>
+      );
+    }
+
+    // In edit mode: show drop zones under widgets
     return (
-      <div className='grid grid-cols-1 lg:grid-cols-12 gap-4'>
-        {rendered.map((pos) => {
-          const style = {
-            '--dash-col-start': pos.colStart,
-            '--dash-col-end': pos.colStart + pos.colSpanCols,
-            '--dash-row-start': pos.row,
-          } as React.CSSProperties;
-          return (
-            <div
-              key={pos.widget.id}
-              style={style}
-              className={`dashboard-grid-item${editMode ? ' rounded-lg outline outline-1 outline-dashed outline-primary outline-offset-[-2px]' : ''}`}
-            >
-              {widgetRegistry[pos.widget.id]}
-            </div>
-          );
-        })}
-      </div>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className='dashboard-grid grid grid-cols-1 lg:grid-cols-3 gap-4 relative'>
+          {dropZones}
+          {widgetCells}
+        </div>
+      </DndContext>
     );
   };
 
@@ -222,7 +446,7 @@ export function DashboardCustomizer({
   // ---------------------------------------------------------------------------
 
   if (!editMode) {
-    return <div className='flex flex-col gap-4'>{renderGrid(activeWidgets)}</div>;
+    return <div className='flex flex-col gap-4'>{renderGrid(activeWidgets, false)}</div>;
   }
 
   // ---------------------------------------------------------------------------
@@ -232,7 +456,7 @@ export function DashboardCustomizer({
   return (
     <div className='flex flex-col gap-6 lg:flex-row'>
       {/* Grid area */}
-      <div className='flex-1 min-w-0'>{renderGrid(working)}</div>
+      <div className='flex-1 min-w-0'>{renderGrid(working, true)}</div>
 
       {/* Aside panel */}
       <aside className='lg:w-64 flex flex-col gap-4 rounded-lg border bg-card p-4'>
@@ -241,95 +465,9 @@ export function DashboardCustomizer({
           {working.map((widget) => {
             const widgetName = tr(WIDGET_LABELS[widget.id] ?? widget.id);
             return (
-              <div key={widget.id} className='flex flex-col gap-2'>
-                <div className='flex items-center gap-2 justify-between'>
-                  <span className='text-sm'>{widgetName}</span>
-                  <Switch
-                    checked={widget.visible}
-                    onCheckedChange={() => toggleVisible(widget.id)}
-                  />
-                </div>
-                {widget.visible && (
-                  <>
-                    {/* Row number input */}
-                    <div className='flex items-center gap-2'>
-                      <label
-                        htmlFor={`dashboard-row-${widget.id}`}
-                        className='text-xs text-muted-foreground shrink-0'
-                      >
-                        {tr('dashboard_customizer_rowFor', { widget: widgetName })}
-                      </label>
-                      <input
-                        id={`dashboard-row-${widget.id}`}
-                        type='number'
-                        min={1}
-                        max={20}
-                        value={widget.y}
-                        onChange={(e) => {
-                          const val = Number.parseInt(e.target.value, 10);
-                          if (!Number.isNaN(val)) handleYChange(widget.id, val);
-                        }}
-                        className='w-16 rounded-md border bg-background px-2 py-1 text-xs'
-                      />
-                    </div>
-                    {/* Column segmented control */}
-                    <ToggleGroup
-                      type='single'
-                      value={String(widget.x)}
-                      onValueChange={(val) => {
-                        const num = Number.parseInt(val, 10);
-                        if (val === '1' || val === '5' || val === '9') {
-                          handleXChange(widget.id, num);
-                        }
-                      }}
-                      aria-label={tr('dashboard_customizer_columnFor', { widget: widgetName })}
-                      className='justify-start'
-                      size='sm'
-                    >
-                      <ToggleGroupItem value='1' aria-label='1'>
-                        1
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value='5' aria-label='5'>
-                        5
-                      </ToggleGroupItem>
-                      <ToggleGroupItem value='9' aria-label='9'>
-                        9
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                    {/* Width segmented control */}
-                    <ToggleGroup
-                      type='single'
-                      value={String(widget.colSpan)}
-                      onValueChange={(val) => {
-                        if (val === '1' || val === '2' || val === '3') {
-                          handleColSpanChange(widget.id, Number(val) as 1 | 2 | 3);
-                        }
-                      }}
-                      aria-label={tr('dashboard_customizer_widthFor', { widget: widgetName })}
-                      className='justify-start'
-                      size='sm'
-                    >
-                      <ToggleGroupItem
-                        value='1'
-                        aria-label={tr('dashboard_customizer_widthOption1')}
-                      >
-                        {tr('dashboard_customizer_widthOption1')}
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value='2'
-                        aria-label={tr('dashboard_customizer_widthOption2')}
-                      >
-                        {tr('dashboard_customizer_widthOption2')}
-                      </ToggleGroupItem>
-                      <ToggleGroupItem
-                        value='3'
-                        aria-label={tr('dashboard_customizer_widthOption3')}
-                      >
-                        {tr('dashboard_customizer_widthOption3')}
-                      </ToggleGroupItem>
-                    </ToggleGroup>
-                  </>
-                )}
+              <div key={widget.id} className='flex items-center gap-2 justify-between'>
+                <span className='text-sm'>{widgetName}</span>
+                <Switch checked={widget.visible} onCheckedChange={() => toggleVisible(widget.id)} />
               </div>
             );
           })}

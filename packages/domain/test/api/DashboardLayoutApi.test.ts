@@ -452,15 +452,15 @@ describe('DEFAULT_LAYOUT', () => {
     expect(ev?.y).toBe(4);
   });
 
-  it('activity has x=9, y=4', () => {
+  it('activity has x=3, y=4', () => {
     const act = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity');
-    expect(act?.x).toBe(9);
+    expect(act?.x).toBe(3);
     expect(act?.y).toBe(4);
   });
 
-  it('teamManagement has x=9, y=5', () => {
+  it('teamManagement has x=3, y=5', () => {
     const tm = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'teamManagement');
-    expect(tm?.x).toBe(9);
+    expect(tm?.x).toBe(3);
     expect(tm?.y).toBe(5);
   });
 });

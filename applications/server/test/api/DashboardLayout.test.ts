@@ -315,7 +315,7 @@ describe('DashboardLayout API — getDashboardLayout', () => {
     expect(body.widgets[3].colSpan).toBe(2); // upcomingEvents
     expect(body.widgets[4].colSpan).toBe(1); // activity
     expect(body.widgets[5].colSpan).toBe(1); // teamManagement
-    // x/y fields match DEFAULT_LAYOUT positions (1-indexed)
+    // x/y fields match DEFAULT_LAYOUT positions (1-indexed 3-column grid)
     expect(body.widgets[0].x).toBe(1); // awaitingRsvp x
     expect(body.widgets[0].y).toBe(1); // awaitingRsvp y
     expect(body.widgets[1].x).toBe(1); // outstandingPayments x
@@ -324,9 +324,9 @@ describe('DashboardLayout API — getDashboardLayout', () => {
     expect(body.widgets[2].y).toBe(3); // stats y
     expect(body.widgets[3].x).toBe(1); // upcomingEvents x
     expect(body.widgets[3].y).toBe(4); // upcomingEvents y
-    expect(body.widgets[4].x).toBe(9); // activity x
+    expect(body.widgets[4].x).toBe(3); // activity x
     expect(body.widgets[4].y).toBe(4); // activity y
-    expect(body.widgets[5].x).toBe(9); // teamManagement x
+    expect(body.widgets[5].x).toBe(3); // teamManagement x
     expect(body.widgets[5].y).toBe(5); // teamManagement y
   });
 
@@ -379,10 +379,10 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
       widgets: [
         { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 1, y: 1 },
         { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 9, y: 4 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
         { id: 'stats', visible: true, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
 
@@ -441,8 +441,8 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
         { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: true, height: 350, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: true, height: 500, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
 
@@ -471,8 +471,8 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
         { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: true, height: 140, colSpan: 1, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: true, height: 280, colSpan: 3, x: 1, y: 4 },
-        { id: 'activity', visible: true, height: 200, colSpan: 2, x: 9, y: 4 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 2, x: 9, y: 5 },
+        { id: 'activity', visible: true, height: 200, colSpan: 2, x: 1, y: 4 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 2, x: 1, y: 5 },
       ],
     };
 
@@ -501,8 +501,8 @@ describe('DashboardLayout API — updateDashboardLayout', () => {
         { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: true, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
 

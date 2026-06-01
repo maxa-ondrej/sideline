@@ -252,8 +252,8 @@ describe('TeamDetailPage — configurable layout', () => {
   it('renders 6 widgets in layout.widgets order when all are visible', () => {
     const layout: DashboardLayout = {
       widgets: [
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
         { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
         { id: 'stats', visible: true, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 1, y: 1 },
@@ -276,8 +276,8 @@ describe('TeamDetailPage — configurable layout', () => {
         { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
     render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} layout={layout as any} />);
@@ -297,8 +297,8 @@ describe('TeamDetailPage — configurable layout', () => {
         { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
     const dashboard = {
@@ -329,8 +329,8 @@ describe('TeamDetailPage — configurable layout', () => {
         { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
     const myStatus: MyFinanceStatus[] = [
@@ -362,8 +362,8 @@ describe('TeamDetailPage — configurable layout', () => {
         { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
     render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} layout={layout as any} />);

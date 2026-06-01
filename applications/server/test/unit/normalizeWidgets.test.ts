@@ -293,3 +293,73 @@ describe('normalizeWidgets — colSpan field', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// normalizeWidgets — legacy x migration (12-column → 3-column)
+// ---------------------------------------------------------------------------
+
+describe('normalizeWidgets — legacy x migration', () => {
+  it('maps old x=5 (12-col center start) → new x=2', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+    const input = [
+      {
+        id: 'stats',
+        visible: true,
+        height: entry.height,
+        colSpan: 1,
+        x: 5,
+        y: entry.y,
+      } as unknown as DashboardLayoutApi.DashboardWidget,
+    ];
+    const result = normalizeWidgets(input);
+    expect(result.find((r) => r.id === 'stats')?.x).toBe(2);
+  });
+
+  it('maps old x=9 (12-col right start) → new x=3', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'activity')!;
+    const input = [
+      {
+        id: 'activity',
+        visible: true,
+        height: entry.height,
+        colSpan: 1,
+        x: 9,
+        y: entry.y,
+      } as unknown as DashboardLayoutApi.DashboardWidget,
+    ];
+    const result = normalizeWidgets(input);
+    expect(result.find((r) => r.id === 'activity')?.x).toBe(3);
+  });
+
+  it('keeps x=1 (valid new-style) as 1', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+    const input = [
+      {
+        id: 'stats',
+        visible: true,
+        height: entry.height,
+        colSpan: 3,
+        x: 1,
+        y: entry.y,
+      } as unknown as DashboardLayoutApi.DashboardWidget,
+    ];
+    const result = normalizeWidgets(input);
+    expect(result.find((r) => r.id === 'stats')?.x).toBe(1);
+  });
+
+  it('clamps unknown x values (e.g. 7) to 1', () => {
+    const entry = DashboardLayoutApi.DEFAULT_LAYOUT.find((e) => e.id === 'stats')!;
+    const input = [
+      {
+        id: 'stats',
+        visible: true,
+        height: entry.height,
+        colSpan: 1,
+        x: 7,
+        y: entry.y,
+      } as unknown as DashboardLayoutApi.DashboardWidget,
+    ];
+    const result = normalizeWidgets(input);
+    expect(result.find((r) => r.id === 'stats')?.x).toBe(1);
+  });
+});

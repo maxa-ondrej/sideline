@@ -1,4 +1,4 @@
-// Tests for the redesigned DashboardCustomizer (explicit row/column placement).
+// Tests for the redesigned DashboardCustomizer (3-column grid, drag-and-drop placement).
 //
 // Component contract:
 //   DashboardCustomizer({
@@ -10,13 +10,11 @@
 //     onEditModeChange: (next: boolean) => void;
 //   })
 //
-// Behaviour:
+// New behaviour (3-column grid with drag-and-drop & resize):
 //   - In idle mode (editMode=false): grid renders, aside panel NOT shown
-//   - In edit mode (editMode=true): aside panel appears with one Switch + row/col/width controls per widget
+//   - In edit mode (editMode=true): aside panel appears with one Switch per widget only
+//   - No row/column/width input controls in the aside panel (replaced by D&D + resize)
 //   - Toggling a Switch updates local working copy but does NOT call onSave
-//   - Width selector buttons change colSpan in working copy
-//   - Row input updates y in working copy
-//   - Column segmented control updates x in working copy
 //   - Reset sets working copy back to DEFAULT
 //   - Save calls onSave exactly once then calls onEditModeChange(false)
 //   - Save failure stays in edit mode (error state shown)
@@ -24,6 +22,12 @@
 //   - Null-registry widget is skipped from grid but still in aside panel
 //   - Two widgets at same y end up in the same renumbered row
 //   - A widget with visible=false doesn't render in the grid
+//   - Widget CSS variables reflect (x, y, colSpan) correctly
+//
+// NOTE: Drag-and-drop interaction tests and pointer-based resize tests are not
+// practical in jsdom because @dnd-kit/core relies on pointer events and
+// getBoundingClientRect which are not fully simulated by jsdom. Those interaction
+// paths are covered by the model logic (placeAt) rather than render tests.
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
@@ -42,12 +46,8 @@ vi.mock('~/lib/translations.js', () => ({
       dashboard_customizer_cancel: 'Cancel',
       dashboard_customizer_reset: 'Reset layout',
       dashboard_customizer_saveError: 'Failed to save layout',
-      dashboard_customizer_rowFor: 'Row for {widget}',
-      dashboard_customizer_columnFor: 'Column for {widget}',
-      dashboard_customizer_widthFor: 'Width for {widget}',
-      dashboard_customizer_widthOption1: 'Narrow',
-      dashboard_customizer_widthOption2: 'Medium',
-      dashboard_customizer_widthOption3: 'Wide',
+      dashboard_customizer_dragHandle: 'Drag {widget}',
+      dashboard_customizer_resizeFor: 'Resize {widget}',
       dashboard_widget_awaitingRsvp: 'Awaiting RSVP',
       dashboard_widget_outstandingPayments: 'Outstanding payments',
       dashboard_widget_stats: 'Stats',
@@ -99,8 +99,8 @@ function makeDefaultLayout(): DashboardLayout {
       { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
       { id: 'stats', visible: true, height: 140, colSpan: 3, x: 1, y: 3 },
       { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-      { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
-      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+      { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
     ],
   };
 }
@@ -112,8 +112,8 @@ function makePartialLayout(): DashboardLayout {
       { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 1, y: 2 },
       { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
       { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-      { id: 'activity', visible: false, height: 200, colSpan: 1, x: 9, y: 4 },
-      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+      { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+      { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
     ],
   };
 }
@@ -248,7 +248,7 @@ describe('DashboardCustomizer — entering edit mode', () => {
     expect(switches.length).toBe(6);
   });
 
-  it('edit mode shows width selector (ToggleGroup) for each visible widget', () => {
+  it('edit mode does NOT show row/column/width input controls (replaced by D&D)', () => {
     render(
       <DashboardCustomizer
         teamId={TEAM_ID}
@@ -259,9 +259,14 @@ describe('DashboardCustomizer — entering edit mode', () => {
       />,
     );
 
-    // 6 widgets all visible → 6 sets of Narrow/Medium/Wide buttons
-    const narrowBtns = screen.getAllByText('Narrow');
-    expect(narrowBtns.length).toBe(6);
+    // Row spinbutton inputs should NOT exist
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    // Column radio buttons (old 1/5/9) should NOT exist
+    expect(screen.queryByRole('radio')).toBeNull();
+    // Old width buttons (Narrow/Medium/Wide) should NOT exist
+    expect(screen.queryByText('Narrow')).toBeNull();
+    expect(screen.queryByText('Medium')).toBeNull();
+    expect(screen.queryByText('Wide')).toBeNull();
   });
 
   it('Save and Cancel buttons are visible in edit mode', () => {
@@ -369,112 +374,38 @@ describe('DashboardCustomizer — toggling a Switch', () => {
       switches[0].getAttribute('aria-checked') ?? switches[0].getAttribute('data-state');
     expect(['false', 'unchecked']).toContain(firstState);
   });
-
-  it('toggling a visible widget off hides its width selector', async () => {
-    render(
-      <DashboardCustomizer
-        teamId={TEAM_ID}
-        layout={makeDefaultLayout() as any}
-        widgetRegistry={WIDGET_REGISTRY}
-        editMode={true}
-        onEditModeChange={vi.fn()}
-      />,
-    );
-
-    // All 6 visible → 6 sets of width selectors
-    expect(screen.getAllByText('Narrow').length).toBe(6);
-
-    // Toggle first widget off
-    const switches = screen.getAllByRole('switch');
-    await act(async () => {
-      fireEvent.click(switches[0]);
-    });
-
-    // Now 5 visible → 5 sets of width selectors
-    expect(screen.getAllByText('Narrow').length).toBe(5);
-  });
 });
 
-describe('DashboardCustomizer — width selector', () => {
-  it('width selector buttons change colSpan in working copy', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
+describe('DashboardCustomizer — explicit grid placement (x/y/colSpan from widget data)', () => {
+  it('default layout places upcomingEvents at colStart=1 and activity at colStart=3', () => {
     render(
       <DashboardCustomizer
         teamId={TEAM_ID}
         layout={makeDefaultLayout() as any}
-        onSave={onSave}
         widgetRegistry={WIDGET_REGISTRY}
-        editMode={true}
+        editMode={false}
         onEditModeChange={vi.fn()}
       />,
     );
 
-    // Activity widget starts at colSpan=1 (Narrow active).
-    // Click "Medium" (colSpan=2) for the first width-selector group.
-    // Each visible widget has 3 toggle items; we pick the first group's Medium.
-    const mediumBtns = screen.getAllByText('Medium');
-    await act(async () => {
-      fireEvent.click(mediumBtns[0]);
-    });
+    const getColStart = (label: string) => {
+      const content = screen.getByText(`${label} Widget`);
+      const container = content.closest('.dashboard-grid-item') as HTMLElement;
+      expect(container).not.toBeNull();
+      return container.style.getPropertyValue('--dash-col-start');
+    };
 
-    // Save and verify colSpan changed
-    await act(async () => {
-      fireEvent.click(screen.getByText('Save'));
-    });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-    });
-
-    const savedWidgets = onSave.mock.calls[0][0] as DashboardWidget[];
-    expect(Array.isArray(savedWidgets)).toBe(true);
-    // At least one widget should now have colSpan=2 (changed from colSpan=3 to 2)
-    const changed = savedWidgets.some((w) => w.colSpan === 2);
-    expect(changed).toBe(true);
-  });
-});
-
-describe('DashboardCustomizer — row control', () => {
-  it('changing the row input updates y in the working copy', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    render(
-      <DashboardCustomizer
-        teamId={TEAM_ID}
-        layout={makeDefaultLayout() as any}
-        onSave={onSave}
-        widgetRegistry={WIDGET_REGISTRY}
-        editMode={true}
-        onEditModeChange={vi.fn()}
-      />,
-    );
-
-    // Find the first row input (for awaitingRsvp, y=1)
-    const rowInputs = screen.getAllByRole('spinbutton');
-    expect(rowInputs.length).toBeGreaterThan(0);
-
-    await act(async () => {
-      fireEvent.change(rowInputs[0], { target: { value: '7' } });
-    });
-
-    // Save and verify y changed
-    await act(async () => {
-      fireEvent.click(screen.getByText('Save'));
-    });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-    });
-
-    const savedWidgets = onSave.mock.calls[0][0] as DashboardWidget[];
-    const awaitingRsvp = savedWidgets.find((w) => w.id === 'awaitingRsvp');
-    expect(awaitingRsvp?.y).toBe(7);
+    expect(getColStart('Stats')).toBe('1');
+    expect(getColStart('Upcoming Events')).toBe('1');
+    expect(getColStart('Activity')).toBe('3');
+    expect(getColStart('Team Management')).toBe('3');
   });
 
   it('two widgets at same y end up in the same renumbered row', () => {
     const sameRowLayout: DashboardLayout = {
       widgets: [
         { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
       ],
     };
     render(
@@ -500,74 +431,35 @@ describe('DashboardCustomizer — row control', () => {
     expect(upcomingContainer.style.getPropertyValue('--dash-row-start')).toBe('1');
     expect(activityContainer.style.getPropertyValue('--dash-row-start')).toBe('1');
   });
-});
 
-describe('DashboardCustomizer — column control', () => {
-  it('changing the column segmented control updates x in working copy', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
+  it('widget CSS variables reflect colSpan correctly via colEnd', () => {
+    const layout: DashboardLayout = {
+      widgets: [{ id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 1 }],
+    };
     render(
       <DashboardCustomizer
         teamId={TEAM_ID}
-        layout={makeDefaultLayout() as any}
-        onSave={onSave}
-        widgetRegistry={WIDGET_REGISTRY}
-        editMode={true}
-        onEditModeChange={vi.fn()}
-      />,
-    );
-
-    // awaitingRsvp starts at x=1; click the "9" column button for the first widget
-    const nineButtons = screen.getAllByRole('radio', { name: '9' });
-    await act(async () => {
-      fireEvent.click(nineButtons[0]);
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Save'));
-    });
-
-    await waitFor(() => {
-      expect(onSave).toHaveBeenCalledTimes(1);
-    });
-
-    const savedWidgets = onSave.mock.calls[0][0] as DashboardWidget[];
-    const awaitingRsvp = savedWidgets.find((w) => w.id === 'awaitingRsvp');
-    expect(awaitingRsvp?.x).toBe(9);
-  });
-});
-
-describe('DashboardCustomizer — explicit grid placement (x/y from widget data)', () => {
-  it('default layout places upcomingEvents at colStart=1 and activity at colStart=9', () => {
-    render(
-      <DashboardCustomizer
-        teamId={TEAM_ID}
-        layout={makeDefaultLayout() as any}
+        layout={layout as any}
         widgetRegistry={WIDGET_REGISTRY}
         editMode={false}
         onEditModeChange={vi.fn()}
       />,
     );
 
-    const getColStart = (label: string) => {
-      const content = screen.getByText(`${label} Widget`);
-      const container = content.closest('.dashboard-grid-item') as HTMLElement;
-      expect(container).not.toBeNull();
-      return container.style.getPropertyValue('--dash-col-start');
-    };
-
-    expect(getColStart('Stats')).toBe('1');
-    expect(getColStart('Upcoming Events')).toBe('1');
-    expect(getColStart('Activity')).toBe('9');
-    expect(getColStart('Team Management')).toBe('9');
+    const content = screen.getByText('Upcoming Events Widget');
+    const container = content.closest('.dashboard-grid-item') as HTMLElement;
+    expect(container).not.toBeNull();
+    // colStart=1, colSpan=2 → colEnd=3
+    expect(container.style.getPropertyValue('--dash-col-start')).toBe('1');
+    expect(container.style.getPropertyValue('--dash-col-end')).toBe('3');
   });
 
   it('hiding a widget with visible=false leaves the other widget column unchanged', async () => {
-    // Two narrow widgets (colSpan=1 → span=4) side by side in the same row.
-    // Widget A: x=1, widget B: x=5
+    // Two widgets side by side in the same row.
     const twoWidgetLayout: DashboardLayout = {
       widgets: [
         { id: 'activity', visible: true, height: 200, colSpan: 1, x: 1, y: 1 },
-        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 5, y: 1 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 2, y: 1 },
       ],
     };
     const twoWidgetRegistry = {
@@ -590,8 +482,8 @@ describe('DashboardCustomizer — explicit grid placement (x/y from widget data)
     expect(widgetBContainer).not.toBeNull();
 
     const colStartBefore = widgetBContainer.style.getPropertyValue('--dash-col-start');
-    // B has x=5 → colStart=5
-    expect(colStartBefore).toBe('5');
+    // B has x=2 → colStart=2
+    expect(colStartBefore).toBe('2');
 
     // Hide widget A by clicking its toggle switch.
     const switches = screen.getAllByRole('switch');
@@ -607,7 +499,7 @@ describe('DashboardCustomizer — explicit grid placement (x/y from widget data)
     expect(widgetBContainerAfter).not.toBeNull();
 
     const colStartAfter = widgetBContainerAfter.style.getPropertyValue('--dash-col-start');
-    expect(colStartAfter).toBe('5');
+    expect(colStartAfter).toBe('2');
   });
 });
 
@@ -678,6 +570,40 @@ describe('DashboardCustomizer — Reset', () => {
     expect(statsWidget?.height).toBe(140);
     const upcomingWidget = savedWidgets.find((w) => w.id === 'upcomingEvents');
     expect(upcomingWidget?.height).toBe(280);
+  });
+
+  it('Reset restores DEFAULT x/y/colSpan values (activity=col3, upcomingEvents=colSpan2)', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makePartialLayout() as any}
+        onSave={onSave}
+        widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Reset layout'));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+    });
+
+    await waitFor(() => {
+      expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
+    const savedWidgets = onSave.mock.calls[0][0] as DashboardWidget[];
+    const activity = savedWidgets.find((w) => w.id === 'activity');
+    expect(activity?.x).toBe(3);
+    expect(activity?.colSpan).toBe(1);
+    const upcoming = savedWidgets.find((w) => w.id === 'upcomingEvents');
+    expect(upcoming?.x).toBe(1);
+    expect(upcoming?.colSpan).toBe(2);
   });
 });
 
@@ -907,31 +833,6 @@ describe('DashboardCustomizer — null registry entries (no data)', () => {
     // But the widget content is not in the grid
     expect(screen.queryByText('Awaiting RSVP Widget')).toBeNull();
   });
-
-  it('null-registry widget does NOT show width selector in edit mode', () => {
-    const registryWithNull = {
-      ...WIDGET_REGISTRY,
-      awaitingRsvp: null,
-    };
-    render(
-      <DashboardCustomizer
-        teamId={TEAM_ID}
-        layout={makeDefaultLayout() as any}
-        widgetRegistry={registryWithNull}
-        editMode={true}
-        onEditModeChange={vi.fn()}
-      />,
-    );
-
-    // awaitingRsvp is visible:true but null in registry → its switch is checked
-    // and its width selector IS shown (it's visible:true in the layout working copy,
-    // so the aside panel shows the ToggleGroup for it — the null check only
-    // applies to the CSS grid rendering, not the aside panel width control).
-    // All 6 visible widgets → 6 width selectors (registry null doesn't hide
-    // the aside control, only the grid tile).
-    const narrowBtns = screen.getAllByText('Narrow');
-    expect(narrowBtns.length).toBe(6);
-  });
 });
 
 describe('DashboardCustomizer — all-hidden empty state', () => {
@@ -942,8 +843,8 @@ describe('DashboardCustomizer — all-hidden empty state', () => {
         { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 1, y: 2 },
         { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
         { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
-        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 9, y: 4 },
-        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 9, y: 5 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
       ],
     };
     render(
@@ -987,5 +888,62 @@ describe('DashboardCustomizer — all-hidden empty state', () => {
       document.querySelector('[data-testid="dashboard-empty-state"]') ??
       screen.queryByText('All widgets hidden');
     expect(emptyState).not.toBeNull();
+  });
+});
+
+describe('DashboardCustomizer — drag-and-drop and resize (jsdom limitations)', () => {
+  // NOTE: Full drag-and-drop interaction tests are not practical in jsdom because
+  // @dnd-kit/core relies on pointer events and getBoundingClientRect which are
+  // not fully simulated by jsdom. The placeAt logic is tested via the server unit
+  // tests and the placement is verified via CSS variable checks in other test suites.
+  // Resize tests using pointer capture are also not practical in jsdom.
+
+  it('drag handle buttons are present in edit mode for visible widgets', () => {
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
+      />,
+    );
+
+    // Each visible widget in edit mode should have a drag handle button
+    // (aria-label matches "Drag {widgetName}")
+    const dragHandles = screen.getAllByRole('button', { name: /^Drag / });
+    // All 6 widgets are visible and registered, so 6 drag handles
+    expect(dragHandles.length).toBe(6);
+  });
+
+  it('resize handles are present in edit mode for visible widgets', () => {
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        widgetRegistry={WIDGET_REGISTRY}
+        editMode={true}
+        onEditModeChange={vi.fn()}
+      />,
+    );
+
+    // Each visible widget in edit mode should have a resize handle button
+    const resizeHandles = screen.getAllByRole('button', { name: /^Resize / });
+    expect(resizeHandles.length).toBe(6);
+  });
+
+  it('drag handle and resize handles are NOT present in idle mode', () => {
+    render(
+      <DashboardCustomizer
+        teamId={TEAM_ID}
+        layout={makeDefaultLayout() as any}
+        widgetRegistry={WIDGET_REGISTRY}
+        editMode={false}
+        onEditModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: /^Drag / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Resize / })).toBeNull();
   });
 });

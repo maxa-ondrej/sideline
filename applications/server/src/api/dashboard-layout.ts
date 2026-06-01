@@ -37,8 +37,19 @@ const clampColSpan = (value: number): 1 | 2 | 3 => {
   return 2;
 };
 
-/** Clamp x to [1, 12]. */
-const clampX = (value: number): number => Math.max(1, Math.min(12, value));
+/**
+ * Map old 12-column x values to new 3-column x values, then clamp to [1, 3].
+ * Legacy mapping:
+ *   x=1 → col 1, x=5 → col 2, x=9 → col 3
+ *   x in [1, 3] → use as-is (new-style)
+ *   otherwise → clamp to 1
+ */
+const clampX = (value: number): 1 | 2 | 3 => {
+  if (value === 5) return 2;
+  if (value === 9) return 3;
+  if (value >= 1 && value <= 3) return value as 1 | 2 | 3;
+  return 1;
+};
 
 /** Clamp y to [1, 999]. */
 const clampY = (value: number): number => Math.max(1, Math.min(999, value));

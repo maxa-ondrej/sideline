@@ -27,7 +27,7 @@ export class DashboardWidget extends Schema.Class<DashboardWidget>('DashboardWid
   visible: Schema.Boolean,
   height: Schema.Number,
   colSpan: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 3 }))),
-  x: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
+  x: Schema.Int.pipe(Schema.check(Schema.isBetween({ minimum: 1, maximum: 3 }))),
   y: Schema.Int.pipe(Schema.check(Schema.isGreaterThanOrEqualTo(1))),
 }) {}
 
@@ -40,20 +40,20 @@ export interface DefaultLayoutEntry {
   y: number;
 }
 
-// Explicit grid positions (1-indexed CSS grid column lines, 1-indexed rows).
-// awaitingRsvp:        x=1,  y=1,  colSpan=3 — full width (3×4=12 cols), row 1
-// outstandingPayments: x=1,  y=2,  colSpan=3 — full width, row 2
-// stats:               x=1,  y=3,  colSpan=3 — full width, row 3
-// upcomingEvents:      x=1,  y=4,  colSpan=2 — cols 1-8, row 4
-// activity:            x=9,  y=4,  colSpan=1 — cols 9-12, row 4
-// teamManagement:      x=9,  y=5,  colSpan=1 — cols 9-12, row 5
+// Explicit grid positions (1-indexed 3-column grid, 1-indexed rows).
+// awaitingRsvp:        col=1, row=1, colSpan=3 — full width, row 1
+// outstandingPayments: col=1, row=2, colSpan=3 — full width, row 2
+// stats:               col=1, row=3, colSpan=3 — full width, row 3
+// upcomingEvents:      col=1, row=4, colSpan=2 — cols 1-2, row 4
+// activity:            col=3, row=4, colSpan=1 — col 3, row 4
+// teamManagement:      col=3, row=5, colSpan=1 — col 3, row 5
 export const DEFAULT_LAYOUT: ReadonlyArray<DefaultLayoutEntry> = [
   { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 1, y: 1 },
   { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
   { id: 'stats', visible: true, height: 140, colSpan: 3, x: 1, y: 3 },
   { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
-  { id: 'activity', visible: true, height: 200, colSpan: 1, x: 9, y: 4 },
-  { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 9, y: 5 },
+  { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+  { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
 ] as const;
 
 export class DashboardLayout extends Schema.Class<DashboardLayout>('DashboardLayout')({
