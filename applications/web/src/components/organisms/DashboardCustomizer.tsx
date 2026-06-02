@@ -326,9 +326,29 @@ export function DashboardCustomizer({
     const overId = String(over.id);
     const match = /^cell-(\d+)-(\d+)$/.exec(overId);
     if (!match) return;
-    const newRow = Number.parseInt(match[1], 10);
+    const visualRow = Number.parseInt(match[1], 10);
     const newCol = Number.parseInt(match[2], 10) as 1 | 2 | 3;
-    setWorking((prev) => placeAt([...prev], String(active.id), newCol, newRow));
+
+    setWorking((prev) => {
+      // The drop cells are labeled by VISUAL row (after the render-time
+      // renumbering that collapses empty rows). Translate the visual row the
+      // user clicked into the underlying y-value the placement algorithm needs.
+      const distinctVisibleYs = Array.from(
+        new Set(prev.filter((w) => w.visible && widgetRegistry[w.id] != null).map((w) => w.y)),
+      ).sort((a, b) => a - b);
+
+      const targetY =
+        distinctVisibleYs.length === 0
+          ? visualRow
+          : visualRow <= distinctVisibleYs.length
+            ? // biome-ignore lint/style/noNonNullAssertion: visualRow in [1..length]
+              distinctVisibleYs[visualRow - 1]!
+            : // biome-ignore lint/style/noNonNullAssertion: length > 0
+              distinctVisibleYs[distinctVisibleYs.length - 1]! +
+              (visualRow - distinctVisibleYs.length);
+
+      return placeAt([...prev], String(active.id), newCol, targetY);
+    });
   };
 
   const startResize = (id: string, downEvent: React.PointerEvent) => {
