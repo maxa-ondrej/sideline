@@ -81,18 +81,18 @@ function maxRow(
 }
 
 // ---------------------------------------------------------------------------
-// Snap-to-empty placement helper
+// Placement helper — hybrid snap-up / push-down
 // ---------------------------------------------------------------------------
 
 /**
- * Move widget `draggedId` to the target column. The row is auto-determined:
- * widget gravitates UP to the first row where its column range doesn't
- * collide with any other visible widget. Existing widgets are NEVER moved.
+ * Move widget `draggedId` to (newCol, targetRow).
  *
- * `targetRow` is the user's drop hint — we'll never place the dragged widget
- * below this row, but we'll happily place it ABOVE in any vacant slot.
- * If there's no vacant slot at or above targetRow, we walk DOWN from
- * targetRow until we find one.
+ * - If the target cell is EMPTY for the dragged widget's column range:
+ *   gravitate UP and place at the first empty row from the top. Don't move
+ *   any existing widget.
+ * - If the target cell is OCCUPIED: place the dragged widget at `targetRow`
+ *   exactly, and push each colliding sibling down by one row, recursively
+ *   cascading further collisions below.
  */
 function placeAt(
   working: DashboardLayoutApi.DashboardWidget[],
@@ -106,34 +106,41 @@ function placeAt(
   const draggedColSpan = dragged.colSpan;
   const draggedColEnd = newCol + draggedColSpan;
 
-  const collidesAt = (row: number) =>
-    working.some((w) => {
+  const collidersAt = (workingSet: DashboardLayoutApi.DashboardWidget[], row: number) =>
+    workingSet.filter((w) => {
       if (w.id === draggedId || !w.visible) return false;
       const wColEnd = w.x + w.colSpan;
       return w.y === row && w.x < draggedColEnd && wColEnd > newCol;
     });
 
-  // Start at row 1 and find the FIRST empty row in this column range.
-  // If we reach the user's drop hint without finding one, walk past it
-  // to find the next vacant row instead.
+  const targetOccupied = collidersAt(working, targetRow).length > 0;
+
+  if (targetOccupied) {
+    // OCCUPIED case: place at the exact target row and push colliders down recursively.
+    let result = working.map((w) =>
+      w.id === draggedId
+        ? new DashboardLayoutApi.DashboardWidget({
+            id: w.id,
+            visible: w.visible,
+            colSpan: w.colSpan,
+            height: w.height,
+            x: newCol as 1 | 2 | 3,
+            y: targetRow,
+          })
+        : w,
+    );
+    for (const collider of collidersAt(working, targetRow)) {
+      result = placeAt(result, collider.id, collider.x, targetRow + 1);
+    }
+    return result;
+  }
+
+  // EMPTY case: gravity-up to the first empty row from row 1.
   let row = 1;
-  while (collidesAt(row)) {
+  while (collidersAt(working, row).length > 0) {
     row += 1;
-    // safety stop — shouldn't really hit
     if (row > 999) break;
   }
-  // Honour the user's drop hint as a *minimum* — if they wanted to drop on
-  // row 4 and the first empty slot was row 2, we still place at row 2
-  // (gravity-up). That's the desired "snap to empty" behaviour.
-  // (If row > targetRow, that's fine — keep it as is.)
-  // Note: we DON'T clamp `row` to targetRow on the high side; if the column
-  // is fully occupied up to and beyond targetRow, the widget lands wherever
-  // the first empty slot is past the existing widgets.
-  // Keeping `targetRow` as a hint avoids surprising users who drop way below
-  // the existing stack — they implicitly want "at the bottom" and we still
-  // give them the first empty row from the top, which is sensible.
-  void targetRow;
-
   return working.map((w) =>
     w.id === draggedId
       ? new DashboardLayoutApi.DashboardWidget({
