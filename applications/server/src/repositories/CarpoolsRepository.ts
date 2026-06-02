@@ -2,7 +2,6 @@ import { Carpool, CarpoolRpcModels, Discord, Event, Team, TeamMember } from '@si
 import { LogicError, SqlErrors } from '@sideline/effect-lib';
 import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
-import { SqlError } from 'effect/unstable/sql/SqlError';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
 // ---------------------------------------------------------------------------
@@ -488,7 +487,34 @@ const make = Effect.gen(function* () {
               ? Effect.fail(new CarpoolRpcModels.CarpoolOwnerCannotReserve())
               : Effect.void,
           ),
-          Effect.bind('seatCount', ({ car }) =>
+          // Proactive duplicate check — runs while the transaction is still clean
+          // (before any INSERT that could abort it). This handles the deterministic
+          // cases: same-car duplicate and already-in-another-car.
+          Effect.tap(({ car }) =>
+            findExistingSeatQuery({
+              carpool_id: car.carpool_id,
+              team_member_id: input.teamMemberId,
+            }).pipe(
+              catchSqlErrors,
+              Effect.flatMap(
+                (
+                  opt,
+                ): Effect.Effect<
+                  void,
+                  | CarpoolRpcModels.CarpoolAlreadyInThisCar
+                  | CarpoolRpcModels.CarpoolAlreadyInAnotherCar
+                > => {
+                  if (Option.isNone(opt)) return Effect.void;
+                  const existingSeat = opt.value;
+                  if (existingSeat.car_id === input.carId) {
+                    return Effect.fail(new CarpoolRpcModels.CarpoolAlreadyInThisCar());
+                  }
+                  return Effect.fail(new CarpoolRpcModels.CarpoolAlreadyInAnotherCar());
+                },
+              ),
+            ),
+          ),
+          Effect.bind('seatCount', () =>
             countSeatsQuery(input.carId).pipe(
               catchSqlErrors,
               Effect.catchTag('NoSuchElementError', () =>
@@ -511,46 +537,14 @@ const make = Effect.gen(function* () {
               team_member_id: input.teamMemberId,
               assigned_by: input.assignedBy,
             }).pipe(
-              // Catch unique violation and distinguish same-car vs another-car
-              Effect.catchIf(
-                (e): e is SqlError => e instanceof SqlError && SqlErrors.isUniqueViolation(e),
-                (): Effect.Effect<
-                  void,
-                  | CarpoolRpcModels.CarpoolAlreadyInThisCar
-                  | CarpoolRpcModels.CarpoolAlreadyInAnotherCar
-                > => {
-                  const uniqueError: Effect.Effect<
-                    void,
-                    | CarpoolRpcModels.CarpoolAlreadyInThisCar
-                    | CarpoolRpcModels.CarpoolAlreadyInAnotherCar
-                  > = findExistingSeatQuery({
-                    carpool_id: car.carpool_id,
-                    team_member_id: input.teamMemberId,
-                  }).pipe(
-                    catchSqlErrors,
-                    Effect.flatMap(
-                      (
-                        opt,
-                      ): Effect.Effect<
-                        void,
-                        | CarpoolRpcModels.CarpoolAlreadyInThisCar
-                        | CarpoolRpcModels.CarpoolAlreadyInAnotherCar
-                      > => {
-                        if (Option.isNone(opt)) {
-                          return LogicError.die(
-                            'Expected seat after unique violation but found none',
-                          );
-                        }
-                        const existingSeat = opt.value;
-                        if (existingSeat.car_id === input.carId) {
-                          return Effect.fail(new CarpoolRpcModels.CarpoolAlreadyInThisCar());
-                        }
-                        return Effect.fail(new CarpoolRpcModels.CarpoolAlreadyInAnotherCar());
-                      },
-                    ),
-                  );
-                  return uniqueError;
-                },
+              // The proactive check above handles deterministic duplicates.
+              // This catches the rare concurrent-insert race where two parallel
+              // transactions for the same member slip past each other's proactive
+              // checks. In that race both insert into different cars, so map to
+              // CarpoolAlreadyInAnotherCar without running a follow-up SELECT
+              // (which would fail because the transaction is now aborted).
+              SqlErrors.catchUniqueViolation(
+                () => new CarpoolRpcModels.CarpoolAlreadyInAnotherCar(),
               ),
               catchSqlErrors,
             ),
