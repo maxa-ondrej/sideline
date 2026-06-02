@@ -1,4 +1,4 @@
-import type { DashboardApi } from '@sideline/domain';
+import type { DashboardApi, DashboardLayoutApi } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
 import { DateTime, Option } from 'effect';
 import {
@@ -13,20 +13,35 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import React from 'react';
 import { EventLocation } from '~/components/atoms/EventLocation.js';
+import { DashboardCustomizer } from '~/components/organisms/DashboardCustomizer.js';
 import type { MyFinanceStatus } from '~/components/organisms/OutstandingPaymentsBanner.js';
 import { OutstandingPaymentsBanner } from '~/components/organisms/OutstandingPaymentsBanner.js';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
+import { DEFAULT_LAYOUT } from '~/lib/dashboardLayout.js';
 import { formatLocalTime } from '~/lib/datetime';
 import { tr } from '~/lib/translations.js';
 
+// WidgetId mirrors DashboardLayoutApi.DashboardWidgetId
+type WidgetId =
+  | 'awaitingRsvp'
+  | 'outstandingPayments'
+  | 'stats'
+  | 'upcomingEvents'
+  | 'activity'
+  | 'teamManagement';
+
 interface TeamDetailPageProps {
   teamId: string;
+  userId?: string;
   dashboard: DashboardApi.DashboardResponse | undefined;
   myStatus?: ReadonlyArray<MyFinanceStatus>;
+  layout?: DashboardLayoutApi.DashboardLayout;
+  onSaveLayout?: (widgets: DashboardLayoutApi.DashboardWidget[]) => Promise<void>;
 }
 
 const formatDuration = (minutes: number): string => {
@@ -407,7 +422,16 @@ function TeamManagementCard({ teamId }: { teamId: string }) {
 
 // -- Main page component --
 
-export function TeamDetailPage({ teamId, dashboard, myStatus = [] }: TeamDetailPageProps) {
+export function TeamDetailPage({
+  teamId,
+  userId,
+  dashboard,
+  myStatus = [],
+  layout,
+  onSaveLayout,
+}: TeamDetailPageProps) {
+  const [editMode, setEditMode] = React.useState(false);
+
   if (!dashboard) {
     return (
       <div className='space-y-6'>
@@ -418,31 +442,55 @@ export function TeamDetailPage({ teamId, dashboard, myStatus = [] }: TeamDetailP
   }
 
   const { upcomingEvents, awaitingRsvp, activitySummary } = dashboard;
+  const effectiveLayout = layout ?? DEFAULT_LAYOUT;
+
+  // Determine whether each banner has actionable data. When there is no data
+  // the registry entry is set to null so the DashboardCustomizer excludes the
+  // widget from the RGL grid entirely (no empty rectangle left behind).
+  const hasRsvp = awaitingRsvp.length > 0;
+  const hasOutstandingPayments = myStatus.some((g) => g.totalOutstandingMinor > 0);
+
+  // NOTE: Banners are now part of the widget registry and can be toggled/repositioned
+  // by the user via the customizer. This means a user who deliberately hides the
+  // awaitingRsvp or outstandingPayments widget via the aside panel will NOT see
+  // those banners even when there is actionable data (pending RSVPs / unpaid fees).
+  // This is a deliberate user choice — they opted out of the reminder.
+  const widgetRegistry: Record<WidgetId, React.ReactNode | null> = {
+    awaitingRsvp: hasRsvp ? (
+      <AwaitingRsvpBanner key='awaitingRsvp' teamId={teamId} events={awaitingRsvp} />
+    ) : null,
+    outstandingPayments: hasOutstandingPayments ? (
+      <OutstandingPaymentsBanner key='outstandingPayments' teamId={teamId} groups={myStatus} />
+    ) : null,
+    stats: <StatCards key='stats' activitySummary={activitySummary} />,
+    upcomingEvents: (
+      <UpcomingEventsCard key='upcomingEvents' teamId={teamId} events={upcomingEvents} />
+    ),
+    activity: <ActivityCard key='activity' activitySummary={activitySummary} teamId={teamId} />,
+    teamManagement: <TeamManagementCard key='teamManagement' teamId={teamId} />,
+  };
 
   return (
     <div className='space-y-6'>
-      {/* Top stats row - always visible, gives instant overview */}
-      <StatCards activitySummary={activitySummary} />
-
-      {/* Awaiting RSVP banner - urgent items at the top, visually distinct */}
-      <AwaitingRsvpBanner teamId={teamId} events={awaitingRsvp} />
-
-      {/* Outstanding payments banner - shown when player has outstanding fees */}
-      <OutstandingPaymentsBanner teamId={teamId} groups={myStatus} />
-
-      {/* Main content grid */}
-      <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
-        {/* Upcoming events takes 2/3 on large screens - primary content */}
-        <div className='lg:col-span-2'>
-          <UpcomingEventsCard teamId={teamId} events={upcomingEvents} />
-        </div>
-
-        {/* Sidebar column - activity + management */}
-        <div className='flex flex-col gap-6'>
-          <ActivityCard activitySummary={activitySummary} teamId={teamId} />
-          <TeamManagementCard teamId={teamId} />
-        </div>
+      {/* Page header with Customize button */}
+      <div className='flex items-center justify-between gap-4'>
+        <h1 className='text-2xl font-bold'>{tr('dashboard_title')}</h1>
+        {userId !== undefined && onSaveLayout !== undefined && (
+          <Button variant='outline' size='sm' onClick={() => setEditMode(true)}>
+            {tr('dashboard_customize')}
+          </Button>
+        )}
       </div>
+
+      {/* Configurable widget region — banners are now part of the grid */}
+      <DashboardCustomizer
+        teamId={teamId}
+        layout={effectiveLayout}
+        onSave={userId !== undefined ? onSaveLayout : undefined}
+        widgetRegistry={widgetRegistry}
+        editMode={editMode}
+        onEditModeChange={setEditMode}
+      />
     </div>
   );
 }

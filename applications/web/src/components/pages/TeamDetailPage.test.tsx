@@ -1,21 +1,21 @@
-// TDD mode — tests written BEFORE TeamDetailPage.tsx is updated to accept myStatus.
-// These tests WILL FAIL until:
-//   - TeamDetailPage.tsx is updated to accept myStatus prop and render OutstandingPaymentsBanner
-//   - OutstandingPaymentsBanner.tsx is implemented
+// Tests for TeamDetailPage with configurable dashboard layout.
 //
-// Component contract (updated):
+// New TeamDetailPage contract:
 //   TeamDetailPage({
 //     teamId: string;
 //     dashboard: DashboardApi.DashboardResponse | undefined;
-//     myStatus?: ReadonlyArray<MyFinanceStatus>;   ← NEW prop
+//     myStatus?: ReadonlyArray<MyFinanceStatus>;
+//     layout?: DashboardLayoutApi.DashboardLayout;   ← NEW prop
 //   })
 //
-// New behaviour:
-//   - Renders <OutstandingPaymentsBanner> after <AwaitingRsvpBanner>
-//   - Banner absent when myStatus is empty or undefined
-//   - Existing dashboard widgets still render (smoke test)
+// Behaviour:
+//   - Renders configurable widgets in layout order when visible:true
+//   - A widget with visible:false is NOT rendered
+//   - Pinned banners (AwaitingRsvp, OutstandingPayments) render regardless of layout
+//   - All configurable hidden → empty-state element present inside configurable region
+//   - layout undefined → falls back to DEFAULT (all 4 visible)
 
-import { render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DateTime, Option } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -48,6 +48,20 @@ vi.mock('~/lib/translations.js', () => ({
       dashboard_notRanked: 'Not ranked',
       dashboard_longestStreak: 'Longest streak',
       dashboard_totalDuration: 'Total duration',
+      dashboard_allWidgetsHidden: 'All widgets hidden',
+      dashboard_noWidgets: 'No widgets visible',
+      dashboard_customize: 'Customize',
+      dashboard_customizer_panelTitle: 'Widgets',
+      dashboard_customizer_save: 'Save',
+      dashboard_customizer_cancel: 'Cancel',
+      dashboard_customizer_reset: 'Reset layout',
+      dashboard_customizer_saveError: 'Failed to save layout',
+      dashboard_widget_awaitingRsvp: 'Awaiting RSVP widget',
+      dashboard_widget_outstandingPayments: 'Outstanding payments widget',
+      dashboard_widget_stats: 'Stats',
+      dashboard_widget_upcomingEvents: 'Upcoming events',
+      dashboard_widget_activity: 'Activity',
+      dashboard_widget_teamManagement: 'Team management',
       team_members: 'Members',
       team_rosters: 'Rosters',
       team_roles: 'Roles',
@@ -132,6 +146,16 @@ type MyFinanceStatus = {
   totalOutstandingMinor: number;
 };
 
+type DashboardWidget = {
+  id: string;
+  visible: boolean;
+  height: number;
+  colSpan: number;
+  x: number;
+  y: number;
+};
+type DashboardLayout = { widgets: ReadonlyArray<DashboardWidget> };
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -172,14 +196,13 @@ function makePendingAssignment(id: string): FeeAssignmentView {
 const TEAM_ID = 'team-1';
 
 // ---------------------------------------------------------------------------
-// Tests
+// Existing banner integration tests (preserved unchanged)
 // ---------------------------------------------------------------------------
 
 describe('TeamDetailPage — banner integration', () => {
   it('banner absent when myStatus is empty', () => {
     render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} myStatus={[]} />);
 
-    // The outstanding payments banner should NOT be present
     const banner =
       document.querySelector('[data-variant="amber"]') ??
       document.querySelector('[data-variant="red"]');
@@ -203,11 +226,9 @@ describe('TeamDetailPage — banner integration', () => {
         totalOutstandingMinor: 5000,
       },
     ];
-    const dashboard = makeDashboard();
 
-    render(<TeamDetailPage teamId={TEAM_ID} dashboard={dashboard} myStatus={myStatus} />);
+    render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} myStatus={myStatus} />);
 
-    // Outstanding banner should be rendered
     const banner =
       document.querySelector('[data-variant="amber"]') ??
       document.querySelector('[data-variant="red"]');
@@ -217,11 +238,215 @@ describe('TeamDetailPage — banner integration', () => {
   it('existing dashboard widgets still render (smoke test)', () => {
     render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} myStatus={[]} />);
 
-    // Activity summary section should render
     expect(screen.getByText('Activity summary')).not.toBeNull();
-    // Team management section
     expect(screen.getByText('Team management')).not.toBeNull();
-    // Stat cards
     expect(screen.getByText('Current streak')).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NEW: configurable layout tests
+// ---------------------------------------------------------------------------
+
+describe('TeamDetailPage — configurable layout', () => {
+  it('renders 6 widgets in layout.widgets order when all are visible', () => {
+    const layout: DashboardLayout = {
+      widgets: [
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
+        { id: 'stats', visible: true, height: 140, colSpan: 3, x: 1, y: 3 },
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 1, y: 1 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
+      ],
+    };
+    render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} layout={layout as any} />);
+
+    // All 6 should be present in DOM
+    expect(screen.getByText('Team management')).not.toBeNull();
+    expect(screen.getByText('Activity summary')).not.toBeNull();
+    expect(screen.getByText('Upcoming events')).not.toBeNull();
+    expect(screen.getByText('Current streak')).not.toBeNull();
+  });
+
+  it('a widget with visible:false is NOT rendered', () => {
+    const layout: DashboardLayout = {
+      widgets: [
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 1, y: 1 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
+        { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
+        { id: 'upcomingEvents', visible: true, height: 280, colSpan: 2, x: 1, y: 4 },
+        { id: 'activity', visible: true, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: true, height: 260, colSpan: 1, x: 3, y: 5 },
+      ],
+    };
+    render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} layout={layout as any} />);
+
+    // 'stats' widget (Current streak label) should NOT be rendered
+    expect(screen.queryByText('Current streak')).toBeNull();
+    // Others still render
+    expect(screen.getByText('Upcoming events')).not.toBeNull();
+    expect(screen.getByText('Activity summary')).not.toBeNull();
+    expect(screen.getByText('Team management')).not.toBeNull();
+  });
+
+  it('AwaitingRsvp banner renders when its widget is visible in the layout', () => {
+    const layout: DashboardLayout = {
+      widgets: [
+        { id: 'awaitingRsvp', visible: true, height: 80, colSpan: 3, x: 1, y: 1 },
+        { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 1, y: 2 },
+        { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
+        { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
+      ],
+    };
+    const dashboard = {
+      ...makeDashboard(),
+      awaitingRsvp: [
+        {
+          eventId: 'evt-1' as any,
+          title: 'Training Session',
+          eventType: 'training' as any,
+          startAt: DateTime.fromDateUnsafe(new Date('2025-12-01T10:00:00Z')),
+          endAt: Option.none(),
+          location: Option.none(),
+          locationUrl: Option.none(),
+          myRsvp: Option.none(),
+        },
+      ],
+    };
+    render(<TeamDetailPage teamId={TEAM_ID} dashboard={dashboard as any} layout={layout as any} />);
+
+    // AwaitingRsvp banner must be present (widget is visible and has data)
+    expect(screen.getByText('Awaiting RSVP')).not.toBeNull();
+  });
+
+  it('OutstandingPayments banner renders when its widget is visible in the layout', () => {
+    const layout: DashboardLayout = {
+      widgets: [
+        { id: 'awaitingRsvp', visible: false, height: 80, colSpan: 3, x: 1, y: 1 },
+        { id: 'outstandingPayments', visible: true, height: 80, colSpan: 3, x: 1, y: 2 },
+        { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
+        { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
+      ],
+    };
+    const myStatus: MyFinanceStatus[] = [
+      {
+        currency: 'CZK',
+        assignments: [makePendingAssignment('x')],
+        totalOutstandingMinor: 5000,
+      },
+    ];
+    render(
+      <TeamDetailPage
+        teamId={TEAM_ID}
+        dashboard={makeDashboard()}
+        layout={layout as any}
+        myStatus={myStatus}
+      />,
+    );
+
+    const banner =
+      document.querySelector('[data-variant="amber"]') ??
+      document.querySelector('[data-variant="red"]');
+    expect(banner).not.toBeNull();
+  });
+
+  it('all configurable widgets hidden → empty-state element inside configurable region', () => {
+    const layout: DashboardLayout = {
+      widgets: [
+        { id: 'awaitingRsvp', visible: false, height: 80, colSpan: 3, x: 1, y: 1 },
+        { id: 'outstandingPayments', visible: false, height: 80, colSpan: 3, x: 1, y: 2 },
+        { id: 'stats', visible: false, height: 140, colSpan: 3, x: 1, y: 3 },
+        { id: 'upcomingEvents', visible: false, height: 280, colSpan: 2, x: 1, y: 4 },
+        { id: 'activity', visible: false, height: 200, colSpan: 1, x: 3, y: 4 },
+        { id: 'teamManagement', visible: false, height: 260, colSpan: 1, x: 3, y: 5 },
+      ],
+    };
+    render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} layout={layout as any} />);
+
+    // An empty-state element should exist inside the configurable region
+    const emptyState =
+      document.querySelector('[data-testid="dashboard-empty-state"]') ??
+      screen.queryByText('All widgets hidden');
+    expect(emptyState).not.toBeNull();
+  });
+
+  it('layout undefined → falls back to DEFAULT (all 4 visible in canonical order)', () => {
+    render(<TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} />);
+
+    // All 4 configurable widgets should be visible (DEFAULT)
+    expect(screen.getByText('Current streak')).not.toBeNull();
+    expect(screen.getByText('Upcoming events')).not.toBeNull();
+    expect(screen.getByText('Activity summary')).not.toBeNull();
+    expect(screen.getByText('Team management')).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NEW: Customize button in page header
+// ---------------------------------------------------------------------------
+
+describe('TeamDetailPage — Customize button in page header', () => {
+  it('Customize button renders in page header when userId and onSaveLayout are provided', () => {
+    const onSaveLayout = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TeamDetailPage
+        teamId={TEAM_ID}
+        userId='user-1'
+        dashboard={makeDashboard()}
+        onSaveLayout={onSaveLayout}
+      />,
+    );
+
+    expect(screen.getByText('Customize')).not.toBeNull();
+    // The button should be alongside the Dashboard title (in the same header row)
+    expect(screen.getByText('Dashboard')).not.toBeNull();
+  });
+
+  it('Customize button does NOT render when userId is undefined', () => {
+    const onSaveLayout = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TeamDetailPage teamId={TEAM_ID} dashboard={makeDashboard()} onSaveLayout={onSaveLayout} />,
+    );
+
+    expect(screen.queryByText('Customize')).toBeNull();
+  });
+
+  it('Customize button does NOT render when onSaveLayout is undefined', () => {
+    render(<TeamDetailPage teamId={TEAM_ID} userId='user-1' dashboard={makeDashboard()} />);
+
+    expect(screen.queryByText('Customize')).toBeNull();
+  });
+
+  it('clicking Customize button in header transitions customizer to edit mode (aside panel appears)', async () => {
+    const onSaveLayout = vi.fn().mockResolvedValue(undefined);
+    render(
+      <TeamDetailPage
+        teamId={TEAM_ID}
+        userId='user-1'
+        dashboard={makeDashboard()}
+        onSaveLayout={onSaveLayout}
+      />,
+    );
+
+    // Aside panel should NOT be visible yet
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByText('Widgets')).toBeNull();
+
+    const customizeBtn = screen.getByText('Customize');
+    await act(async () => {
+      fireEvent.click(customizeBtn);
+    });
+
+    // Aside panel should now be visible with widget switches (wait for effect to flush)
+    await waitFor(() => {
+      expect(screen.getByText('Widgets')).not.toBeNull();
+    });
+    const switches = screen.getAllByRole('switch');
+    expect(switches.length).toBe(6);
   });
 });
