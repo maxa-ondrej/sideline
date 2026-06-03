@@ -95,6 +95,12 @@ export * as DiscordChannelMapping from './models/DiscordChannelMapping.js';
 
 export * as DiscordRoleMapping from './models/DiscordRoleMapping.js';
 
+/**
+ * The four name slots used to resolve a display name.
+ * Precedence: profile name → Discord nickname → Discord display name → username.
+ */
+export * as DisplayName from './models/DisplayName.js';
+
 export * as EarnedAchievement from './models/EarnedAchievement.js';
 
 export * as Event from './models/Event.js';

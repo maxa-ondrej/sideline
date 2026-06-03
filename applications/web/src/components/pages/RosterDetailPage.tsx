@@ -393,7 +393,7 @@ export function RosterDetailPage({
             placeholder={tr('roster_addMember')}
             options={availableMembers.map((member) => ({
               value: member.memberId,
-              label: Option.getOrElse(member.name, () => member.username),
+              label: member.displayName,
             }))}
             className='flex-1'
           />
@@ -409,7 +409,7 @@ export function RosterDetailPage({
         <table className='w-full'>
           <tbody>
             {rosterDetail.members.map((player) => {
-              const displayName = Option.getOrElse(player.name, () => player.username);
+              const displayName = player.displayName;
               const jerseyNumber = player.jerseyNumber.pipe(
                 Option.map((v) => `#${v}`),
                 Option.getOrElse(() => '—'),

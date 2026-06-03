@@ -1,6 +1,5 @@
 import type { Roster } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
-import { Option } from 'effect';
 import React from 'react';
 import { PlayerRow } from '~/components/organisms/PlayerRow';
 import { Button } from '~/components/ui/button';
@@ -25,7 +24,7 @@ export function TeamMembersPage({
   const [search, setSearch] = React.useState('');
 
   const filtered = players.filter((p) => {
-    const name = Option.getOrElse(p.name, () => p.username).toLowerCase();
+    const name = p.displayName.toLowerCase();
     return name.includes(search.toLowerCase());
   });
 

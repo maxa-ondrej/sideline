@@ -112,6 +112,7 @@ const usersMap = new Map<Auth.UserId, any>([
       gender: Option.none(),
       locale: 'en',
       discord_display_name: Option.none(),
+      discord_nickname: Option.none(),
       created_at: now,
       updated_at: now,
     },

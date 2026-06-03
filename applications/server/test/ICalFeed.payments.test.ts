@@ -160,6 +160,7 @@ const testUser = {
   gender: Option.some('male' as const),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };

@@ -33,6 +33,8 @@ class GroupMemberRow extends Schema.Class<GroupMemberRow>('GroupMemberRow')({
   member_id: TeamMember.TeamMemberId,
   name: Schema.OptionFromNullOr(Schema.String),
   username: Schema.String,
+  nickname: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class GroupRoleRow extends Schema.Class<GroupRoleRow>('GroupRoleRow')({
@@ -153,7 +155,8 @@ const make = Effect.gen(function* () {
     Request: GroupModel.GroupId,
     Result: GroupMemberRow,
     execute: (groupId) => sql`
-            SELECT tm.id AS member_id, u.name, u.username
+            SELECT tm.id AS member_id, u.name, u.username,
+                   u.discord_nickname AS nickname, u.discord_display_name AS display_name
             FROM group_members gm
             JOIN team_members tm ON tm.id = gm.team_member_id
             JOIN users u ON u.id = tm.user_id

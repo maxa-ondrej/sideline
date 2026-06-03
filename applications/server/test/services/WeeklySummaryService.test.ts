@@ -552,4 +552,60 @@ describe('buildTeamSummary', () => {
       Effect.asVoid,
     );
   });
+
+  it.effect('TopContributor.displayName carries the resolved name, not a stringified id', () => {
+    const weekRows: WeekActivityRow[] = [
+      {
+        team_member_id: MEMBER_A,
+        activity_type_id: GYM_TYPE_ID,
+        activity_type_name: 'Gym',
+        logged_at: DateTime.makeUnsafe('2026-01-06T10:00:00Z'),
+        duration_minutes: Option.some(60),
+      },
+      {
+        team_member_id: MEMBER_B,
+        activity_type_id: GYM_TYPE_ID,
+        activity_type_name: 'Gym',
+        logged_at: DateTime.makeUnsafe('2026-01-06T11:00:00Z'),
+        duration_minutes: Option.some(30),
+      },
+      {
+        team_member_id: MEMBER_B,
+        activity_type_id: GYM_TYPE_ID,
+        activity_type_name: 'Gym',
+        logged_at: DateTime.makeUnsafe('2026-01-07T11:00:00Z'),
+        duration_minutes: Option.some(30),
+      },
+    ];
+
+    const members = [
+      { id: MEMBER_A, displayName: 'Alice Smith' },
+      { id: MEMBER_B, displayName: 'Bob Jones' },
+    ];
+
+    return callBuildTeamSummary({
+      weekStart: WEEK_START,
+      weekEnd: WEEK_END,
+      weekRows,
+      previousWeekRows: [],
+      members,
+      newAchievementsCount: 0,
+    }).pipe(
+      Effect.tap((result) =>
+        Effect.sync(() => {
+          expect(result.topContributors).toHaveLength(2);
+          // Top contributor is Bob (2 activities)
+          expect(result.topContributors[0].teamMemberId).toBe(MEMBER_B);
+          expect(result.topContributors[0].displayName).toBe('Bob Jones');
+          // NOT a stringified member id
+          expect(result.topContributors[0].displayName).not.toBe(String(MEMBER_B));
+          // Second is Alice (1 activity)
+          expect(result.topContributors[1].teamMemberId).toBe(MEMBER_A);
+          expect(result.topContributors[1].displayName).toBe('Alice Smith');
+          expect(result.topContributors[1].displayName).not.toBe(String(MEMBER_A));
+        }),
+      ),
+      Effect.asVoid,
+    );
+  });
 });

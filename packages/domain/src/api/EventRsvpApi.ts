@@ -12,6 +12,8 @@ export class RsvpEntry extends Schema.Class<RsvpEntry>('RsvpEntry')({
   username: Schema.OptionFromNullOr(Schema.String),
   response: RsvpResponse,
   message: Schema.OptionFromNullOr(Schema.String),
+  /** Resolved display name (profile name → Discord nickname → Discord display name → username). */
+  displayName: Schema.String,
 }) {}
 
 export class EventRsvpDetail extends Schema.Class<EventRsvpDetail>('EventRsvpDetail')({
@@ -47,6 +49,8 @@ export class NonResponderEntry extends Schema.Class<NonResponderEntry>('NonRespo
   teamMemberId: TeamMemberId,
   memberName: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
+  /** Resolved display name (profile name → Discord nickname → Discord display name → username). */
+  displayName: Schema.String,
 }) {}
 
 export class NonRespondersResponse extends Schema.Class<NonRespondersResponse>(

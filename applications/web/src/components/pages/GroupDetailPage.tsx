@@ -516,7 +516,7 @@ export function GroupDetailPage({
               placeholder={tr('group_addMember')}
               options={availableMembers.map((member) => ({
                 value: member.memberId,
-                label: Option.getOrElse(member.name, () => member.username),
+                label: member.displayName,
               }))}
             />
             <Button onClick={handleAddMember} disabled={!selectedMemberId}>
@@ -531,9 +531,7 @@ export function GroupDetailPage({
               <tbody>
                 {groupDetail.members.map((member) => (
                   <tr key={member.memberId} className='border-b'>
-                    <td className='py-2 px-4'>
-                      {Option.getOrElse(member.name, () => member.username)}
-                    </td>
+                    <td className='py-2 px-4'>{member.displayName}</td>
                     <td className='py-2 px-4'>
                       <Button
                         variant='outline'

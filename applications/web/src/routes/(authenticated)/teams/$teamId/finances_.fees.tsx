@@ -47,7 +47,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/finances_/f
 
     const memberList = members.map((m) => ({
       teamMemberId: m.memberId,
-      name: Option.getOrElse(m.name, () => m.username),
+      name: m.displayName,
     }));
 
     return { fees, canManageFees, teamId, members: memberList };

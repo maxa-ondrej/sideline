@@ -14,7 +14,7 @@ interface PlayerRowProps {
 }
 
 export function PlayerRow({ player, teamId, canEdit, canRemove, onDeactivate }: PlayerRowProps) {
-  const displayName = Option.getOrElse(player.name, () => player.username);
+  const displayName = player.displayName;
   const roleLabel = player.roleNames.join(', ') || '—';
   const jerseyNumber = player.jerseyNumber.pipe(
     Option.map((v) => `#${v}`),

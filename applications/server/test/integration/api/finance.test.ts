@@ -525,6 +525,7 @@ const MockUsersRepositoryLayer = Layer.succeed(UsersRepository, {
             gender: Option.none(),
             locale: 'en',
             discord_display_name: Option.none(),
+            discord_nickname: Option.none(),
             created_at: DateTime.nowUnsafe(),
             updated_at: DateTime.nowUnsafe(),
           })

@@ -1,4 +1,4 @@
-import { Auth, GroupApi } from '@sideline/domain';
+import { Auth, DisplayName, GroupApi } from '@sideline/domain';
 import { LogicError, Options } from '@sideline/effect-lib';
 import { Array, Effect, Match, Option, pipe, Result } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
@@ -201,6 +201,15 @@ export const GroupApiLive = HttpApiBuilder.group(Api, 'group', (handlers) =>
                       memberId: m.member_id,
                       name: m.name,
                       username: m.username,
+                      displayName: Option.getOrElse(
+                        DisplayName.pickDisplayName({
+                          name: m.name,
+                          nickname: m.nickname,
+                          displayName: m.display_name,
+                          username: Option.some(m.username),
+                        }),
+                        () => m.username,
+                      ),
                     })),
                   }),
               ),

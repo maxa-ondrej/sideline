@@ -155,6 +155,7 @@ Returns the currently authenticated user's profile.
 | `gender` | `"male" \| "female" \| "other" \| null` | Yes | Gender |
 | `locale` | `"en" \| "cs"` | No | Preferred locale |
 | `isGlobalAdmin` | `boolean` | No | Whether the user is a global admin (Discord ID listed in `APP_GLOBAL_ADMIN_DISCORD_IDS`). Global admins can manage translation overrides. |
+| `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
 
@@ -575,6 +576,7 @@ Lists all active members of a team with their profile and role information.
 | `jerseyNumber` | `number \| null` | Yes | Jersey number |
 | `username` | `string` | No | Discord username |
 | `avatar` | `string \| null` | Yes | Discord avatar hash |
+| `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
 
@@ -1264,7 +1266,7 @@ Returns full group details including members and assigned roles.
 | `emoji` | `string \| null` | Yes | Optional emoji |
 | `color` | `string \| null` | Yes | Hex colour string (e.g. `#3498db`) |
 | `roles` | `{ roleId: RoleId, roleName: string }[]` | No | Roles assigned to this group |
-| `members` | `{ memberId: TeamMemberId, name: string \| null, username: string }[]` | No | Members in this group |
+| `members` | `{ memberId: TeamMemberId, name: string \| null, username: string, displayName: string }[]` | No | Members in this group. `displayName` is server-resolved (profile name → Discord nickname → Discord display name → username). |
 
 **Errors:**
 
@@ -1886,6 +1888,7 @@ Returns RSVP details for an event including all responses and counts.
 | `username` | `string \| null` | Yes | Discord username |
 | `response` | `RsvpResponse` | No | RSVP response |
 | `message` | `string \| null` | Yes | Optional message |
+| `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
 
@@ -1954,6 +1957,7 @@ Returns the list of eligible members who have not yet submitted an RSVP.
 | `teamMemberId` | `TeamMemberId` | No | Member ID |
 | `memberName` | `string \| null` | Yes | Display name |
 | `username` | `string \| null` | Yes | Discord username |
+| `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
 
@@ -2932,6 +2936,7 @@ Returns the activity leaderboard for a team. Members are ranked by total activit
 | `totalDurationMinutes` | `integer` | No | Total duration in minutes |
 | `currentStreak` | `integer` | No | Current streak |
 | `longestStreak` | `integer` | No | Longest streak |
+| `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
 

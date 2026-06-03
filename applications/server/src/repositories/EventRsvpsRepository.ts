@@ -11,6 +11,8 @@ class RsvpWithMemberName extends Schema.Class<RsvpWithMemberName>('RsvpWithMembe
   message: Schema.OptionFromNullOr(Schema.String),
   member_name: Schema.OptionFromNullOr(Schema.String),
   username: Schema.OptionFromNullOr(Schema.String),
+  nickname: Schema.OptionFromNullOr(Schema.String),
+  display_name: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 class RsvpRow extends Schema.Class<RsvpRow>('RsvpRow')({
@@ -70,7 +72,8 @@ const make = Effect.gen(function* () {
     Result: RsvpWithMemberName,
     execute: (eventId) => sql`
       SELECT r.id, r.event_id, r.team_member_id, r.response, r.message,
-             u.name AS member_name, u.username
+             u.name AS member_name, u.username,
+             u.discord_nickname AS nickname, u.discord_display_name AS display_name
       FROM event_rsvps r
       JOIN team_members tm ON tm.id = r.team_member_id
       LEFT JOIN users u ON u.id = tm.user_id

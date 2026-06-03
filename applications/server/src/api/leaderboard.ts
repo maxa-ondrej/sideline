@@ -1,5 +1,5 @@
-import { ActivityStats, Auth, Leaderboard, LeaderboardApi } from '@sideline/domain';
-import { Effect, Option } from 'effect';
+import { ActivityStats, Auth, DisplayName, Leaderboard, LeaderboardApi } from '@sideline/domain';
+import { Array, Effect, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership } from '~/api/permissions.js';
@@ -45,14 +45,27 @@ export const LeaderboardApiLive = HttpApiBuilder.group(Api, 'leaderboard', (hand
               const ranked = Leaderboard.rankLeaderboard(memberData);
 
               const entries = ranked.map((entry) => {
-                const row = rows.find((r) => r.team_member_id === entry.teamMemberId);
+                const row = Array.findFirst(rows, (r) => r.team_member_id === entry.teamMemberId);
                 return new LeaderboardApi.LeaderboardEntry({
                   rank: entry.rank,
                   teamMemberId: entry.teamMemberId,
                   userId: entry.userId,
                   username: entry.username,
-                  name: row ? row.name : Option.none(),
-                  avatar: row ? row.avatar : Option.none(),
+                  name: Option.flatMap(row, (r) => r.name),
+                  avatar: Option.flatMap(row, (r) => r.avatar),
+                  displayName: Option.match(row, {
+                    onNone: () => entry.username,
+                    onSome: (r) =>
+                      Option.getOrElse(
+                        DisplayName.pickDisplayName({
+                          name: r.name,
+                          nickname: r.discord_nickname,
+                          displayName: r.discord_display_name,
+                          username: Option.some(entry.username),
+                        }),
+                        () => entry.username,
+                      ),
+                  }),
                   totalActivities: entry.totalActivities,
                   totalDurationMinutes: entry.totalDurationMinutes,
                   currentStreak: entry.currentStreak,

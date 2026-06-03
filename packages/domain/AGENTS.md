@@ -134,6 +134,30 @@ Rules:
 6. **Re-export from `packages/domain/src/index.ts` as `export * as <Resource>Date from './models/<Resource>Date.js';`** (namespace export) — consumers then write `<Resource>Date.parseLoggedAtDateInPrague(...)` and `<Resource>Date.formatPragueDate(...)`. Do not flat-export the function names; the namespace prefix prevents collisions when multiple resources have their own date helpers.
 7. **The matching wire-format schema lives in the same API/RPC file as the endpoint** (e.g. `LoggedAtDate = Schema.String.pipe(Schema.check(Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)))` in `ActivityLogApi.ts`) — the schema enforces the wire pattern at the HTTP boundary; the `parse...` helper does the calendar + bounds validation and the timezone-aware anchoring. Both layers are required: the schema rejects obvious garbage early; the helper handles the semantic checks the schema cannot express.
 
+## User Display-Name Resolution (`src/models/DisplayName.ts`)
+
+`DisplayName.pickDisplayName(parts)` is the **single source of truth** for resolving a user's display name from their four name slots. Never re-implement this precedence inline (no ad-hoc `Option.getOrElse(name, () => username)`, no per-call `Array.make(...).pipe(Array.getSomes, Array.head)`) anywhere in the server, bot, or web.
+
+```typescript
+import { DisplayName } from '@sideline/domain';
+
+DisplayName.pickDisplayName({
+  name,        // Option<string> — profile name
+  nickname,    // Option<string> — Discord server nickname
+  displayName, // Option<string> — Discord global display name
+  username,    // Option<string> — Discord username
+}); // => Option<string>
+```
+
+Rules:
+
+1. **Precedence is `name → nickname → displayName → username`, first non-blank wins.** Blank/whitespace-only slots are skipped (the picker trims and filters `length > 0`).
+2. **Returns `Option<string>` with NO terminal fallback.** The picker returns `Option.none()` only when all four slots are absent or blank — it never invents `"Unknown"` or echoes the username. Each caller chooses its own terminal fallback (the server uses `Option.getOrElse(..., () => entry.username)`; the bot returns `"Unknown"`).
+3. **The module is pure** — no Effect, no I/O, only `Array`/`Option`/`pipe` from `effect`. It is consumed by browser (web), Node (bot), and Node (server).
+4. **Re-exported from `index.ts` as `export * as DisplayName from './models/DisplayName.js';`** (namespace export).
+
+See `applications/server/AGENTS.md` ("Display Names Are Computed Server-Side") for the convention that API responses carry a resolved `displayName` field, and `applications/bot/AGENTS.md` ("`formatName`") for the Discord-markdown layer built on top of this picker.
+
 ## Code-Defined Catalogs
 
 Some domain enumerations ship as a **code-defined catalog** in `src/models/` rather than as DB-seeded rows. Use this pattern when every entry needs structured per-entry metadata (predicates, flags, thresholds) that is consumed identically by server, bot, and web, and the list is small + change-controlled (PR-only, not user-editable at runtime).

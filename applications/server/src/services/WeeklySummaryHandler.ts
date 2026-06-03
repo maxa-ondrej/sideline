@@ -1,4 +1,10 @@
-import { type Auth, type Team, WeeklySummary, WeeklySummaryApi } from '@sideline/domain';
+import {
+  type Auth,
+  DisplayName,
+  type Team,
+  WeeklySummary,
+  WeeklySummaryApi,
+} from '@sideline/domain';
 import { DateTime, Effect, Option } from 'effect';
 import { hasPermission, requireMembership } from '~/api/permissions.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -136,9 +142,22 @@ export const getWeeklySummaryHandler = (
 
       return Effect.Do.pipe(
         Effect.bind('teamMembers', () =>
-          members
-            .findByTeam(teamId)
-            .pipe(Effect.map((rows) => rows.map((m) => ({ id: m.id, displayName: String(m.id) })))),
+          members.findTeamMembersWithNames(teamId).pipe(
+            Effect.map((rows) =>
+              rows.map((m) => ({
+                id: m.member_id,
+                displayName: Option.getOrElse(
+                  DisplayName.pickDisplayName({
+                    name: m.name,
+                    nickname: m.discord_nickname,
+                    displayName: m.discord_display_name,
+                    username: Option.some(m.username),
+                  }),
+                  () => m.username,
+                ),
+              })),
+            ),
+          ),
         ),
         Effect.bind('teamWeekRows', () =>
           summaryRepo.findTeamWeekActivity(teamId, weekRange.startAt, weekRange.endAt),

@@ -23,6 +23,8 @@ export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   jerseyNumber: Schema.OptionFromNullOr(Schema.Number),
   username: Schema.String,
   avatar: Schema.OptionFromNullOr(Schema.String),
+  /** Resolved display name (profile name → Discord nickname → Discord display name → username). */
+  displayName: Schema.String,
 }) {}
 
 export const UpdatePlayerRequest = Schema.Struct({

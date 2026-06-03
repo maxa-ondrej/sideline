@@ -86,6 +86,7 @@ const MockPlayerTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepository
   findByUser: () => Effect.succeed([]),
   findRosterByTeam: () => Effect.succeed([]),
   findRosterMemberByIds: () => Effect.succeed(Option.none()),
+  findTeamMembersWithNames: () => Effect.succeed([]),
   addMember: () => Effect.die(new Error('Not implemented')),
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
   getPlayerRoleId: () => Effect.succeed(Option.none()),
@@ -122,6 +123,23 @@ const MockCaptainTeamMembersRepositoryLayer = Layer.succeed(TeamMembersRepositor
   findByUser: () => Effect.succeed([]),
   findRosterByTeam: () => Effect.succeed([]),
   findRosterMemberByIds: () => Effect.succeed(Option.none()),
+  findTeamMembersWithNames: (_teamId: Team.TeamId) =>
+    Effect.succeed([
+      {
+        member_id: TEST_MEMBER_ID,
+        name: Option.some('Test User'),
+        discord_nickname: Option.none(),
+        discord_display_name: Option.none(),
+        username: 'testuser',
+      },
+      {
+        member_id: TEST_MEMBER_ID_2,
+        name: Option.none(),
+        discord_nickname: Option.none(),
+        discord_display_name: Option.none(),
+        username: 'testuser2',
+      },
+    ]),
   addMember: () => Effect.die(new Error('Not implemented')),
   deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
   getPlayerRoleId: () => Effect.succeed(Option.none()),

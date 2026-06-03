@@ -376,6 +376,21 @@ export const setLastTeamId = (teamId: string) => set(LAST_TEAM, teamId);
 **In React callbacks / `useEffect`**: use `Effect.runSync(...)` (localStorage is synchronous).
 **In `beforeLoad` / `loader`**: pipe auth effects directly into the Effect chain.
 
+### User Display Names — Read `displayName`, Never Re-Derive
+
+Any API response carrying a user identity exposes a fully-resolved `displayName: string` (computed server-side via `DisplayName.pickDisplayName` — see `applications/server/AGENTS.md`). The web reads `displayName` directly.
+
+```typescript
+const displayName = user.displayName;        // correct
+const displayName = Option.getOrElse(user.name, () => user.username); // WRONG — re-derives
+```
+
+Rules:
+
+1. **Never re-implement the name fallback in the web.** `Option.getOrElse(x.name, () => x.username)` is forbidden — it skips the Discord nickname and global display name that the server already accounts for, producing a name that disagrees with the bot and the rest of the UI.
+2. **`displayName` is always a plain non-`Option` `string`** — render it directly; derive initials/avatars from it (`user.displayName.split(' ')...`), not from `user.name`.
+3. Reference: `NavUser.tsx`, `PlayerRow.tsx`. Applies to `Auth.CurrentUser`, roster players, RSVP attendees, group members, leaderboard rows.
+
 ### User-Scoped `localStorage` Keys for Per-User UX State
 
 When storing per-user UX state in `localStorage` (e.g. "has the user seen the new X badge yet?", "preferred view mode", "dismissed tip"), the key MUST include the authenticated user's id. Shared-device scenarios (one browser, multiple Sideline accounts) would otherwise leak one user's "seen" flag onto another user's session.

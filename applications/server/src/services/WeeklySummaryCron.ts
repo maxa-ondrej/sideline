@@ -1,4 +1,4 @@
-import { WeeklySummary } from '@sideline/domain';
+import { DisplayName, WeeklySummary } from '@sideline/domain';
 import { Array, Data, DateTime, Effect, Option, Schedule, Schema } from 'effect';
 import { withCronMetrics } from '~/metrics.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -86,11 +86,22 @@ export const weeklySummaryCronEffect = Effect.Do.pipe(
           ),
           // Fetch team members for topContributors / activeMemberCount
           Effect.bind('members', () =>
-            membersRepo
-              .findByTeam(team.team_id)
-              .pipe(
-                Effect.map((rows) => rows.map((m) => ({ id: m.id, displayName: String(m.id) }))),
+            membersRepo.findTeamMembersWithNames(team.team_id).pipe(
+              Effect.map((rows) =>
+                rows.map((m) => ({
+                  id: m.member_id,
+                  displayName: Option.getOrElse(
+                    DisplayName.pickDisplayName({
+                      name: m.name,
+                      nickname: m.discord_nickname,
+                      displayName: m.discord_display_name,
+                      username: Option.some(m.username),
+                    }),
+                    () => m.username,
+                  ),
+                })),
               ),
+            ),
           ),
           // Fetch this week's activity rows for team
           Effect.bind('weekRows', ({ currentWeek }) =>

@@ -63,6 +63,7 @@ const makeTestUser = (overrides?: Record<string, unknown>) => ({
   gender: Option.none(),
   locale: 'en' as const,
   discord_display_name: Option.none(),
+  discord_nickname: Option.none(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
   ...overrides,

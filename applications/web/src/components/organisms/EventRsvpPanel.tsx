@@ -162,9 +162,7 @@ export function EventRsvpPanel({
                         ? tr('rsvp_maybe')
                         : tr('rsvp_no')}
                   </span>
-                  <span>
-                    {Option.getOrElse(r.memberName, () => Option.getOrElse(r.username, () => '—'))}
-                  </span>
+                  <span>{r.displayName}</span>
                   {Option.isSome(r.message) && (
                     <span className='text-muted-foreground'>— {r.message.value}</span>
                   )}
@@ -180,9 +178,7 @@ export function EventRsvpPanel({
             <h3 className='text-sm font-semibold mb-2'>{tr('rsvp_nonRespondersTitle')}</h3>
             <ul className='space-y-1 text-sm text-muted-foreground'>
               {nonResponders.map((nr) => (
-                <li key={nr.teamMemberId}>
-                  {Option.getOrElse(nr.memberName, () => Option.getOrElse(nr.username, () => '—'))}
-                </li>
+                <li key={nr.teamMemberId}>{nr.displayName}</li>
               ))}
             </ul>
           </div>
