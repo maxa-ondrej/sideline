@@ -80,6 +80,7 @@ const testUser = {
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -95,6 +96,7 @@ const testAdmin = {
   gender: Option.some('male' as const),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -168,6 +170,8 @@ const buildRosterEntry = (
     jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
+    discord_nickname: Option.none(),
+    discord_display_name: Option.none(),
   });
 };
 

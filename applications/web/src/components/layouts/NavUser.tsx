@@ -66,15 +66,12 @@ function discordAvatarUrl(discordId: string, avatar: string): string {
 }
 
 function userInitials(user: Auth.CurrentUser): string {
-  if (Option.isSome(user.name)) {
-    return user.name.value
-      .split(' ')
-      .map((part: string) => part[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  }
-  return user.username.slice(0, 2).toUpperCase();
+  return user.displayName
+    .split(' ')
+    .map((part: string) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 interface NavUserProps {
@@ -97,7 +94,7 @@ const themeOptions = [
 export function NavUser({ user, activeTeamId, onLogout }: NavUserProps) {
   const { isMobile } = useSidebar();
   const run = useRun();
-  const displayName = Option.getOrElse(user.name, () => user.username);
+  const displayName = user.displayName;
   const currentLocale = getLocale();
   const { theme, setTheme } = useTheme();
   const serverUrl = useServerUrl();

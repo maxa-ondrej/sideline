@@ -100,6 +100,7 @@ const testUser = {
   gender: Option.some('male' as const),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -116,6 +117,7 @@ const testAdmin = {
   gender: Option.some('male' as const),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -206,6 +208,8 @@ type RsvpRecord = {
   message: Option.Option<string>;
   member_name: Option.Option<string>;
   username: Option.Option<string>;
+  nickname: Option.Option<string>;
+  display_name: Option.Option<string>;
 };
 
 let rsvpsStore: Map<string, RsvpRecord>;
@@ -323,6 +327,8 @@ const buildRosterEntry = (
     jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
+    discord_nickname: Option.none(),
+    discord_display_name: Option.none(),
   });
 };
 
@@ -496,6 +502,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       message: input.message,
       member_name: Option.none(),
       username: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
     };
     rsvpsStore.set(key, record);
     return Effect.succeed({
@@ -529,6 +537,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       message: resolvedMessage,
       member_name: Option.none(),
       username: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
     };
     rsvpsStore.set(key, record);
     return Effect.succeed({
@@ -1275,6 +1285,8 @@ type RpcRsvpRecord = {
   message: Option.Option<string>;
   member_name: Option.Option<string>;
   username: Option.Option<string>;
+  nickname: Option.Option<string>;
+  display_name: Option.Option<string>;
 };
 
 let rpcEventsStore: Map<Event.EventId, RpcEventRecord>;
@@ -1430,6 +1442,8 @@ const MockRpcEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       message: resolvedMessage,
       member_name: Option.none(),
       username: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
     };
     rpcRsvpsStore.set(key, record);
     return Effect.succeed(record);
@@ -1678,6 +1692,8 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
       message: Option.none(),
       member_name: Option.none(),
       username: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
     });
 
     // Mark the event as having had the reminder sent
@@ -1712,6 +1728,8 @@ describe('Event/SubmitRsvp RPC — late RSVP detection', () => {
       message: Option.none(),
       member_name: Option.none(),
       username: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
     });
 
     // Mark the event as having had the reminder sent

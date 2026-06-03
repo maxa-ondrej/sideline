@@ -77,6 +77,7 @@ const makeMockWeeklySummarySyncEventsRepository = () =>
 const makeMockTeamMembersRepository = () =>
   Layer.succeed(TeamMembersRepository, {
     findByTeam: () => Effect.succeed([]),
+    findTeamMembersWithNames: () => Effect.succeed([]),
   } as any);
 
 const buildMockLayer = () =>

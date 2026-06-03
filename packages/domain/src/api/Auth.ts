@@ -35,6 +35,8 @@ export class CurrentUser extends Schema.Class<CurrentUser>('CurrentUser')({
   gender: Schema.OptionFromNullOr(Gender),
   locale: Locale,
   isGlobalAdmin: Schema.Boolean,
+  /** Resolved display name (profile name → Discord nickname → Discord display name → username). */
+  displayName: Schema.String,
 }) {}
 
 export const UpdateLocaleRequest = Schema.Struct({

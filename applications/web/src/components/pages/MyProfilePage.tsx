@@ -22,9 +22,7 @@ interface MyProfilePageProps {
 export function MyProfilePage({ user, onUpdated }: MyProfilePageProps) {
   const router = useRouter();
 
-  const initials = Option.getOrElse(user.name, () => user.username)
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = user.displayName.slice(0, 2).toUpperCase();
 
   return (
     <div className='flex min-h-screen flex-col'>

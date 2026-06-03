@@ -118,6 +118,7 @@ const testAdmin = {
   gender: Option.some('male' as const),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -133,6 +134,7 @@ const testUserA = {
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -148,6 +150,7 @@ const testUserB = {
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -163,6 +166,7 @@ const testUserC = {
   gender: Option.none<'male' | 'female' | 'other'>(),
   locale: 'en' as const,
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -429,6 +433,8 @@ const makeTeamMembersRepositoryLayer = () =>
               jersey_number: Option.none(),
               username: user.username,
               avatar: Option.none(),
+              discord_nickname: Option.none(),
+              discord_display_name: Option.none(),
             });
           })
           .filter(Boolean) as RosterEntry[],
@@ -452,6 +458,8 @@ const makeTeamMembersRepositoryLayer = () =>
             jersey_number: Option.none(),
             username: 'user',
             avatar: Option.none(),
+            discord_nickname: Option.none(),
+            discord_display_name: Option.none(),
           }),
         ),
       );

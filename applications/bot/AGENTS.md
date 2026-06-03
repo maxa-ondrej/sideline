@@ -521,15 +521,15 @@ All Discord embeds that display user/member names must use the **bold name + men
 
 #### `formatName` — Canonical Name Resolver
 
-`formatName` in `src/rest/utils.ts` is the single implementation for resolving a user's display name. Always use it instead of building name resolution inline.
+`formatName` in `src/rest/utils.ts` is the single implementation for resolving a user's display name **in the bot**. Always use it instead of building name resolution inline. Its precedence is delegated to the shared `DisplayName.pickDisplayName` picker in `@sideline/domain` (see `packages/domain/AGENTS.md`); the bot only layers Discord markdown (`**bold**`, `<@id>`) on top of the picker's `Option<string>` result.
 
-**Fallback priority** (first `Some` wins):
+**Fallback priority** (first non-blank `Some` wins — owned by `DisplayName.pickDisplayName`):
 1. `name` — user's real name (from profile)
 2. `nickname` — Discord server nickname
 3. `display_name` — Discord global display name (`global_name`)
 4. `username` — Discord username (always present)
 
-If all are `None`, returns `"Unknown"`.
+The bot maps the entry's `display_name` field to the picker's `displayName` slot. If the picker returns `Option.none()` (all slots blank), `formatName` returns `"Unknown"` — the picker itself never invents a fallback. Never re-implement the precedence inline (no `Array.make(...).pipe(Array.getSomes, Array.head)`); call `DisplayName.pickDisplayName` and add the markdown.
 
 `formatName` accepts a **structural type** — any object with `{ name, nickname, display_name, username }` as `Option<string>` fields. `formatNameWithMention` additionally requires `discord_id: Option<string>`. This five-field tuple `{ discord_id, name, nickname, display_name, username }` (all `Option<string>`) is the **canonical identity-tuple** for any embed/message that mentions a user. `RsvpAttendeeEntry` and `NonResponderRpcEntry` already match it; new RPC event payloads that carry a user identity (e.g. `TrainingClaimUpdateEvent.claimed_by_*`) MUST use the same five field names so call sites can pass the payload directly to `formatNameWithMention` without per-call adapters.
 

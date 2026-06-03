@@ -18,6 +18,8 @@ export class LeaderboardEntry extends Schema.Class<LeaderboardEntry>('Leaderboar
   totalDurationMinutes: Schema.Int,
   currentStreak: Schema.Int,
   longestStreak: Schema.Int,
+  /** Resolved display name (profile name → Discord nickname → Discord display name → username). */
+  displayName: Schema.String,
 }) {}
 
 export class LeaderboardResponse extends Schema.Class<LeaderboardResponse>('LeaderboardResponse')({

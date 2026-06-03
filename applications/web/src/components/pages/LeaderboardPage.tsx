@@ -79,7 +79,7 @@ export function LeaderboardPage({ entries, currentUserId }: LeaderboardPageProps
                 <p
                   className={`text-sm truncate ${isCurrentUser ? 'font-semibold' : 'font-medium'}`}
                 >
-                  {entry.username}
+                  {entry.displayName}
                 </p>
                 <p className='text-xs text-muted-foreground'>
                   {entry.totalActivities} {tr('leaderboard_activities')} ·{' '}

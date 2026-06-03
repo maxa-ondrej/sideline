@@ -14,6 +14,7 @@ describe('LeaderboardEntry', () => {
       teamMemberId: MOCK_MEMBER_ID,
       userId: MOCK_USER_ID,
       username: 'alice',
+      displayName: 'Alice Smith',
       totalActivities: 10,
       totalDurationMinutes: 300,
       currentStreak: 5,
@@ -23,6 +24,7 @@ describe('LeaderboardEntry', () => {
     expect(result.teamMemberId).toBe(MOCK_MEMBER_ID);
     expect(result.userId).toBe(MOCK_USER_ID);
     expect(result.username).toBe('alice');
+    expect(result.displayName).toBe('Alice Smith');
     expect(result.totalActivities).toBe(10);
     expect(result.totalDurationMinutes).toBe(300);
     expect(result.currentStreak).toBe(5);
@@ -36,6 +38,7 @@ describe('LeaderboardEntry', () => {
         teamMemberId: MOCK_MEMBER_ID,
         userId: MOCK_USER_ID,
         username: 'alice',
+        displayName: 'alice',
         totalActivities: 10,
         totalDurationMinutes: 300,
         currentStreak: 5,
@@ -54,6 +57,7 @@ describe('LeaderboardResponse', () => {
           teamMemberId: MOCK_MEMBER_ID,
           userId: MOCK_USER_ID,
           username: 'alice',
+          displayName: 'Alice Smith',
           totalActivities: 10,
           totalDurationMinutes: 300,
           currentStreak: 5,
@@ -64,6 +68,7 @@ describe('LeaderboardResponse', () => {
           teamMemberId: '00000000-0000-0000-0000-000000000002' as TeamMemberId,
           userId: '00000000-0000-0000-0000-000000000020' as UserId,
           username: 'bob',
+          displayName: 'bob',
           totalActivities: 6,
           totalDurationMinutes: 120,
           currentStreak: 2,

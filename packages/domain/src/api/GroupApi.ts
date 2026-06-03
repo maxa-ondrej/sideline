@@ -38,6 +38,8 @@ export class GroupDetail extends Schema.Class<GroupDetail>('GroupDetail')({
       memberId: TeamMemberId,
       name: Schema.OptionFromNullOr(Schema.String),
       username: Schema.String,
+      /** Resolved display name (profile name → Discord nickname → Discord display name → username). */
+      displayName: Schema.String,
     }),
   ),
   discordChannelProvisioning: Schema.Boolean,

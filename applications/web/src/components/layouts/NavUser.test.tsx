@@ -87,6 +87,7 @@ const mockUser = {
   id: 'user-id',
   discordId: 'discord-id',
   username: 'testuser',
+  displayName: 'Test User',
   name: Option.some('Test User'),
   avatar: Option.none(),
   locale: Option.some('en' as const),

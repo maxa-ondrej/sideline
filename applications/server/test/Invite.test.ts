@@ -73,6 +73,7 @@ const testUser = {
   gender: Option.none(),
   locale: 'en' as const,
   discord_display_name: Option.none(),
+  discord_nickname: Option.none(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -88,6 +89,7 @@ const testAdmin = {
   gender: Option.some('male' as const),
   locale: 'en' as const,
   discord_display_name: Option.none(),
+  discord_nickname: Option.none(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -1015,6 +1017,7 @@ describe('Invite API — removed-user re-join (TDD: Handle removing user)', () =
     gender: Option.none(),
     locale: 'en' as const,
     discord_display_name: Option.none(),
+    discord_nickname: Option.none(),
     created_at: DateTime.nowUnsafe(),
     updated_at: DateTime.nowUnsafe(),
   };

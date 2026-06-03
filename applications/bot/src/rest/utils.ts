@@ -1,4 +1,5 @@
-import { Array, Option, pipe, Schedule } from 'effect';
+import { DisplayName } from '@sideline/domain';
+import { Option, pipe, Schedule } from 'effect';
 import type { Permission } from './permissions.js';
 
 export const POLL_BATCH_SIZE = 50;
@@ -15,12 +16,12 @@ const pickName = (entry: {
   readonly display_name: Option.Option<string>;
   readonly username: Option.Option<string>;
 }): Option.Option<string> =>
-  pipe(
-    Array.make(entry.name, entry.nickname, entry.display_name, entry.username),
-    Array.getSomes,
-    Array.head,
-    Option.map((u) => `**${u}**`),
-  );
+  DisplayName.pickDisplayName({
+    name: entry.name,
+    nickname: entry.nickname,
+    displayName: entry.display_name,
+    username: entry.username,
+  }).pipe(Option.map((u) => `**${u}**`));
 
 export const formatName = (entry: {
   readonly name: Option.Option<string>;

@@ -22,6 +22,7 @@ export const mockCurrentUser = {
   gender: null,
   locale: 'en',
   isGlobalAdmin: false,
+  displayName: 'Test User',
 };
 
 export const mockIncompleteUser = {
@@ -189,6 +190,7 @@ export const mockEventRsvpDetail = {
       username: 'testuser',
       response: 'yes',
       message: null,
+      displayName: 'Test User',
     },
   ],
   yesCount: 1,
@@ -211,6 +213,7 @@ export const mockMembers = [
     jerseyNumber: 7,
     username: 'testuser',
     avatar: null,
+    displayName: 'Test User',
   },
   {
     memberId: 'test-member-00000002',
@@ -224,6 +227,7 @@ export const mockMembers = [
     jerseyNumber: 11,
     username: 'janeplayer',
     avatar: null,
+    displayName: 'Jane Player',
   },
 ];
 
@@ -380,6 +384,7 @@ export const mockLeaderboard = {
       totalDurationMinutes: 1260,
       currentStreak: 5,
       longestStreak: 10,
+      displayName: 'Test User',
     },
   ],
 };

@@ -1,4 +1,10 @@
-import { Achievement, ActivityStats, type Team, type TeamMember } from '@sideline/domain';
+import {
+  Achievement,
+  ActivityStats,
+  DisplayName,
+  type Team,
+  type TeamMember,
+} from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Effect, Layer, Option, ServiceMap } from 'effect';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
@@ -94,7 +100,15 @@ const make = Effect.Do.pipe(
                   users.findById(member.user_id).pipe(
                     Effect.map((userOpt) => {
                       const displayName = Option.isSome(userOpt)
-                        ? Option.getOrElse(userOpt.value.name, () => userOpt.value.username)
+                        ? Option.getOrElse(
+                            DisplayName.pickDisplayName({
+                              name: userOpt.value.name,
+                              nickname: userOpt.value.discord_nickname,
+                              displayName: userOpt.value.discord_display_name,
+                              username: Option.some(userOpt.value.username),
+                            }),
+                            () => userOpt.value.username,
+                          )
                         : String(member.user_id);
                       return {
                         teamMemberId: member.id,

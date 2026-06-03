@@ -5,6 +5,12 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-03 — Consistent display names across the app
+
+- All name fields across the app now follow a single precedence rule: **profile name → Discord server nickname → Discord display name → Discord username**. Whichever is set and non-blank is shown first.
+- The leaderboard, RSVP attendee lists, event non-responder lists, group member lists, roster member lists, and the nav user menu all benefit from this change — names are now consistent everywhere.
+- API integrators: a new `displayName` field (always a non-empty string) is now included on `CurrentUser`, `RosterPlayer`, `LeaderboardEntry`, `RsvpEntry`, `NonResponderEntry`, and group member objects inside `GroupDetail`. The existing `name` / `memberName` fields are unchanged.
+
 ## 2026-06-02 — Discord carpool board (/doprava)
 
 - Captains and admins can now post a live-updating **carpool board** in any Discord channel with the `/doprava` command (English alias: `/carpool`).

@@ -87,6 +87,7 @@ type UserLike = {
   gender: Option.Option<'male' | 'female' | 'other'>;
   locale: 'en' | 'cs';
   discord_display_name: Option.Option<string>;
+  discord_nickname: Option.Option<string>;
   created_at: DateTime.Utc;
   updated_at: DateTime.Utc;
 };
@@ -102,6 +103,7 @@ const testUser: UserLike = {
   gender: Option.some('male' as const),
   locale: 'en',
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -117,6 +119,7 @@ const testAdmin: UserLike = {
   gender: Option.some('male' as const),
   locale: 'en',
   discord_display_name: Option.none<string>(),
+  discord_nickname: Option.none<string>(),
   created_at: DateTime.nowUnsafe(),
   updated_at: DateTime.nowUnsafe(),
 };
@@ -155,6 +158,8 @@ type RsvpRecord = {
   message: Option.Option<string>;
   member_name: Option.Option<string>;
   username: Option.Option<string>;
+  nickname: Option.Option<string>;
+  display_name: Option.Option<string>;
 };
 
 let rsvpsStore: Map<string, RsvpRecord>;
@@ -205,6 +210,8 @@ const buildRosterEntry = (
     jersey_number: Option.none(),
     username: user.username,
     avatar: user.avatar,
+    discord_nickname: Option.none(),
+    discord_display_name: Option.none(),
   });
 };
 
@@ -427,6 +434,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
       message,
       member_name: Option.none(),
       username: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
     };
     rsvpsStore.set(key, record);
     return Effect.succeed(record);
@@ -487,6 +496,8 @@ const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
           member_name: user ? user.name : Option.none(),
           username: user ? Option.some(user.username) : Option.none(),
           discord_id: user ? Option.some(user.discord_id) : Option.none(),
+          nickname: user ? user.discord_nickname : Option.none(),
+          display_name: user ? user.discord_display_name : Option.none(),
         };
       });
     return Effect.succeed(nonResponders);

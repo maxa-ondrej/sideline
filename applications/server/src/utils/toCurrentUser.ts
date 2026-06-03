@@ -1,4 +1,4 @@
-import { Auth, type User } from '@sideline/domain';
+import { Auth, DisplayName, type User } from '@sideline/domain';
 import { DateTime, Option } from 'effect';
 import { globalAdminDiscordIds } from '~/env.js';
 
@@ -21,4 +21,13 @@ export const toCurrentUser = (user: User.User): Auth.CurrentUser =>
     gender: user.gender,
     locale: user.locale,
     isGlobalAdmin: user.is_global_admin || globalAdminDiscordIds.has(user.discord_id),
+    displayName: Option.getOrElse(
+      DisplayName.pickDisplayName({
+        name: user.name,
+        nickname: user.discord_nickname,
+        displayName: user.discord_display_name,
+        username: Option.some(user.username),
+      }),
+      () => user.username,
+    ),
   });

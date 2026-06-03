@@ -258,6 +258,33 @@ When emitting `channel_created`, `roster_channel_created`, or `channel_updated` 
 5. Pass the formatted names as `discordChannelName` and `discordRoleName` to the emit method
 6. For entities with a `color` field (hex string like `#FF0000`), convert to Discord integer using `hexColorToDiscordInt` from `src/utils/hexColorToDiscordInt.ts` and pass as `discordRoleColor`
 
+## Display Names Are Computed Server-Side
+
+Any HTTP API response that carries a user identity MUST resolve and return a fully-computed `displayName: string` field. The web NEVER re-derives a display name from the raw name slots — it reads `displayName` directly. Compute it via the shared `DisplayName.pickDisplayName` picker from `@sideline/domain` (see `packages/domain/AGENTS.md`), then apply the server's terminal fallback to the username:
+
+```typescript
+import { DisplayName } from '@sideline/domain';
+
+displayName: Option.getOrElse(
+  DisplayName.pickDisplayName({
+    name: entry.name,                     // Option<string>
+    nickname: entry.discord_nickname,     // Option<string>
+    displayName: entry.discord_display_name, // Option<string>
+    username: Option.some(entry.username),   // username is always present
+  }),
+  () => entry.username,
+),
+```
+
+Rules:
+
+1. **`displayName` is a non-`Option` `string` on the wire** — the server resolves it; web/bot never see the raw four-slot tuple for display purposes.
+2. **The terminal fallback is `() => <username>`** — `pickDisplayName` returns `Option.none()` only when every slot is blank, but `username` is always present, so the resolved string is non-empty.
+3. **Resolve at the API-handler / mapper layer, not in the repository** — repositories still SELECT the raw `name`, `discord_nickname`, `discord_display_name`, `username` columns; the handler maps them to `displayName`.
+4. **Never re-implement the precedence inline.** `Option.getOrElse(entry.name, () => entry.username)` is wrong — it skips nickname and Discord display name.
+
+Reference: `src/utils/toCurrentUser.ts` (`Auth.CurrentUser.displayName`) and `src/api/roster.ts` (`toRosterPlayer`). Other handlers that already emit `displayName`: `event-rsvp.ts`, `group.ts`, `leaderboard.ts`.
+
 ## Before/After State Detection in Upsert Handlers
 
 When an RPC handler must detect whether an upsert changed meaningful state (e.g. "was this RSVP submitted after a reminder?"), read the prior record **before** the upsert and compare afterward:

@@ -1,4 +1,10 @@
-import { Auth, EventRsvpApi, type GroupModel, type TeamMember } from '@sideline/domain';
+import {
+  Auth,
+  DisplayName,
+  EventRsvpApi,
+  type GroupModel,
+  type TeamMember,
+} from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Metric, Option, pipe, type ServiceMap } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
@@ -59,6 +65,15 @@ const buildRsvpDetail = (
                 username: r.username,
                 response: r.response,
                 message: r.message,
+                displayName: Option.getOrElse(
+                  DisplayName.pickDisplayName({
+                    name: r.member_name,
+                    nickname: r.nickname,
+                    displayName: r.display_name,
+                    username: r.username,
+                  }),
+                  () => '—',
+                ),
               }),
           ),
           yesCount: pipe(
@@ -227,6 +242,15 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                         teamMemberId: nr.team_member_id,
                         memberName: nr.member_name,
                         username: nr.username,
+                        displayName: Option.getOrElse(
+                          DisplayName.pickDisplayName({
+                            name: nr.member_name,
+                            nickname: nr.nickname,
+                            displayName: nr.display_name,
+                            username: nr.username,
+                          }),
+                          () => '—',
+                        ),
                       }),
                   ),
                 }),

@@ -64,7 +64,7 @@ function ChallengesRoute() {
   // Map roster members to page Member shape
   const memberList = members.map((m) => ({
     memberId: m.memberId,
-    name: Option.getOrElse(m.name, () => m.username),
+    name: m.displayName,
   }));
 
   const currentMemberId: string | null = Option.getOrNull(challengeList.currentMemberId);

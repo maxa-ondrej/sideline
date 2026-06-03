@@ -122,7 +122,7 @@ export function PlayerDetailPage({
     },
   });
 
-  const displayName = Option.getOrElse(player.name, () => player.username);
+  const displayName = player.displayName;
 
   return (
     <div>

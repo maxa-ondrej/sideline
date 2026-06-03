@@ -51,6 +51,8 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   jersey_number: Schema.OptionFromNullOr(Schema.Number),
   username: Schema.String,
   avatar: Schema.OptionFromNullOr(Schema.String),
+  discord_nickname: Schema.OptionFromNullOr(Schema.String),
+  discord_display_name: Schema.OptionFromNullOr(Schema.String),
 }) {}
 
 const make = Effect.gen(function* () {
@@ -199,6 +201,28 @@ const make = Effect.gen(function* () {
 
   const findByTeam = (teamId: string) => findByTeamQuery(teamId).pipe(catchSqlErrors);
 
+  const TeamMemberWithNameRow = Schema.Struct({
+    member_id: TeamMember.TeamMemberId,
+    name: Schema.OptionFromNullOr(Schema.String),
+    discord_nickname: Schema.OptionFromNullOr(Schema.String),
+    discord_display_name: Schema.OptionFromNullOr(Schema.String),
+    username: Schema.String,
+  });
+
+  const findTeamMembersWithNamesQuery = SqlSchema.findAll({
+    Request: Schema.String,
+    Result: TeamMemberWithNameRow,
+    execute: (teamId) => sql`
+      SELECT tm.id AS member_id, u.name, u.discord_nickname, u.discord_display_name, u.username
+      FROM team_members tm
+      JOIN users u ON u.id = tm.user_id
+      WHERE tm.team_id = ${teamId} AND tm.active = true
+    `,
+  });
+
+  const findTeamMembersWithNames = (teamId: string) =>
+    findTeamMembersWithNamesQuery(teamId).pipe(catchSqlErrors);
+
   const findByUserQuery = SqlSchema.findAll({
     Request: Schema.String,
     Result: MembershipWithRole,
@@ -265,7 +289,7 @@ const make = Effect.gen(function* () {
                 WHERE mr.team_member_id = tm.id), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name
       FROM team_members tm
       JOIN users u ON u.id = tm.user_id
       WHERE tm.team_id = ${teamId} AND tm.active = true
@@ -290,7 +314,7 @@ const make = Effect.gen(function* () {
                 WHERE mr.team_member_id = tm.id), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name
       FROM team_members tm
       JOIN users u ON u.id = tm.user_id
       WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id} AND tm.active = true
@@ -402,6 +426,7 @@ const make = Effect.gen(function* () {
     findByTeam,
     findByUser,
     findRosterByTeam,
+    findTeamMembersWithNames,
     findMembershipByIds,
     findMembershipByDiscordAndTeam,
     findRosterMemberByIds,

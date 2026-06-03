@@ -1,4 +1,4 @@
-import { Auth, type Discord, Roster, type RosterModel } from '@sideline/domain';
+import { Auth, type Discord, DisplayName, Roster, type RosterModel } from '@sideline/domain';
 import { LogicError, Options } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Match, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
@@ -33,6 +33,15 @@ const toRosterPlayer = (entry: RosterEntry) =>
     jerseyNumber: entry.jersey_number,
     username: entry.username,
     avatar: entry.avatar,
+    displayName: Option.getOrElse(
+      DisplayName.pickDisplayName({
+        name: entry.name,
+        nickname: entry.discord_nickname,
+        displayName: entry.discord_display_name,
+        username: Option.some(entry.username),
+      }),
+      () => entry.username,
+    ),
   });
 
 type ChannelLike = { readonly channel_id: Discord.Snowflake; readonly name: string };
@@ -166,6 +175,15 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     jerseyNumber: payload.jerseyNumber,
                     username: entry.username,
                     avatar: entry.avatar,
+                    displayName: Option.getOrElse(
+                      DisplayName.pickDisplayName({
+                        name: updated.name,
+                        nickname: entry.discord_nickname,
+                        displayName: entry.discord_display_name,
+                        username: Option.some(entry.username),
+                      }),
+                      () => entry.username,
+                    ),
                   }),
               ),
               Effect.catchTag(

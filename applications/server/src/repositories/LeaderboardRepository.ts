@@ -10,6 +10,8 @@ class LeaderboardRow extends Schema.Class<LeaderboardRow>('LeaderboardRow')({
   username: Schema.String,
   name: Schema.OptionFromNullOr(Schema.String),
   avatar: Schema.OptionFromNullOr(Schema.String),
+  discord_nickname: Schema.OptionFromNullOr(Schema.String),
+  discord_display_name: Schema.OptionFromNullOr(Schema.String),
   total_activities: Schema.Int,
   total_duration_minutes: Schema.Int,
   activity_dates: Schema.Array(Schema.String),
@@ -45,6 +47,8 @@ const make = Effect.gen(function* () {
         u.username,
         u.name,
         u.avatar,
+        u.discord_nickname,
+        u.discord_display_name,
         COUNT(al.id)::int AS total_activities,
         COALESCE(SUM(al.duration_minutes), 0)::int AS total_duration_minutes,
         ARRAY(
@@ -61,7 +65,7 @@ const make = Effect.gen(function* () {
         ${timeframeFilter}
       WHERE tm.team_id = ${teamId}
         AND tm.active = true
-      GROUP BY tm.id, u.id, u.username, u.name, u.avatar
+      GROUP BY tm.id, u.id, u.username, u.name, u.avatar, u.discord_nickname, u.discord_display_name
       HAVING COUNT(al.id) > 0
       ORDER BY total_activities DESC, total_duration_minutes DESC
     `;
