@@ -7,6 +7,7 @@ import { CreateInviteDialog } from '~/components/organisms/CreateInviteDialog';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { useFormatDate } from '~/hooks/useFormatDate';
+import { copyToClipboard } from '~/lib/clipboard';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
@@ -32,7 +33,8 @@ export function TeamInvitesPage({
 
   const handleCopy = React.useCallback((code: string) => {
     const link = `${window.location.origin}/invite/${code}`;
-    navigator.clipboard.writeText(link).then(() => {
+    copyToClipboard(link).then((ok) => {
+      if (!ok) return;
       setCopied(code);
       setTimeout(() => setCopied(null), 2000);
     });

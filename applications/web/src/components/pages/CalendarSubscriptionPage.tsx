@@ -6,6 +6,7 @@ import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
 import { Separator } from '~/components/ui/separator';
+import { copyToClipboard } from '~/lib/clipboard';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
@@ -22,7 +23,8 @@ export function CalendarSubscriptionPage({ teamId, icalToken }: CalendarSubscrip
   const [regenerating, setRegenerating] = React.useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(url);
+    if (!url) return;
+    void copyToClipboard(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

@@ -27,6 +27,7 @@ import {
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { useFormatDate } from '~/hooks/useFormatDate';
+import { copyToClipboard } from '~/lib/clipboard';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
@@ -88,7 +89,7 @@ interface MintedLinkDialogProps {
   discordId: string;
 }
 
-function MintedLinkDialog({
+export function MintedLinkDialog({
   open,
   onOpenChange,
   url,
@@ -96,16 +97,25 @@ function MintedLinkDialog({
   discordId,
 }: MintedLinkDialogProps) {
   const [copied, setCopied] = React.useState(false);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleCopy = React.useCallback(() => {
-    navigator.clipboard.writeText(url).then(() => {
+    copyToClipboard(url).then((ok) => {
+      if (!ok) return;
+      if (timerRef.current) clearTimeout(timerRef.current);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     });
   }, [url]);
 
   React.useEffect(() => {
-    if (!open) setCopied(false);
+    if (!open) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setCopied(false);
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [open]);
 
   return (
@@ -132,15 +142,15 @@ function MintedLinkDialog({
               onClick={handleCopy}
               title={tr('admin_onboarding_copyLink')}
             >
-              {copied ? (
-                <span className='text-green-600 dark:text-green-400 text-xs'>
-                  {tr('admin_onboarding_copied')}
-                </span>
-              ) : (
-                <Copy className='size-4' />
-              )}
+              <Copy className='size-4' />
+              <span className='sr-only'>{tr('admin_onboarding_copyLink')}</span>
             </Button>
           </div>
+          {copied && (
+            <p className='text-xs text-green-600 dark:text-green-400'>
+              {tr('admin_onboarding_copied')}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
@@ -220,10 +230,12 @@ export function AdminOnboardingTokensPage({ tokens }: AdminOnboardingTokensPageP
     [run, router],
   );
 
-  const handleMintDialogClose = React.useCallback(async (open: boolean) => {
+  const handleMintDialogClose = React.useCallback((open: boolean) => {
     setMintDialogOpen(open);
     if (!open) {
       setMintedUrl(null);
+      setMintedProposedName('');
+      setMintedDiscordId('');
     }
   }, []);
 
@@ -379,15 +391,13 @@ export function AdminOnboardingTokensPage({ tokens }: AdminOnboardingTokensPageP
         </CardContent>
       </Card>
 
-      {mintedUrl !== null && (
-        <MintedLinkDialog
-          open={mintDialogOpen}
-          onOpenChange={handleMintDialogClose}
-          url={mintedUrl}
-          proposedName={mintedProposedName}
-          discordId={mintedDiscordId}
-        />
-      )}
+      <MintedLinkDialog
+        open={mintDialogOpen}
+        onOpenChange={handleMintDialogClose}
+        url={mintedUrl ?? ''}
+        proposedName={mintedProposedName}
+        discordId={mintedDiscordId}
+      />
     </div>
   );
 }

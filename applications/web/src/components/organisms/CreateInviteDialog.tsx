@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { copyToClipboard } from '~/lib/clipboard';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
@@ -87,8 +88,8 @@ export function CreateInviteDialog({
   }, [teamId, groupMode, selectedGroupId, expiry, run]);
 
   const handleCopy = React.useCallback(() => {
-    if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(() => {
+    copyToClipboard(inviteLink ?? '').then((ok) => {
+      if (!ok) return;
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
