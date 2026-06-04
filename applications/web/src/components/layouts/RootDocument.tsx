@@ -5,16 +5,12 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 import React from 'react';
 import { Toaster } from '~/components/ui/sonner';
 import TanStackQueryDevtools from '~/integrations/tanstack-query/devtools';
-import { type Run, RunProvider } from '~/lib/runtime';
-import { TranslationOverridesProvider } from '~/lib/translation-overrides-context.js';
 
 interface RootDocumentProps {
-  run: Run;
   children: React.ReactNode;
-  serverUrl: string;
 }
 
-export function RootDocument({ run, children, serverUrl }: RootDocumentProps) {
+export function RootDocument({ children }: RootDocumentProps) {
   const locale = getLocale();
 
   React.useEffect(() => {
@@ -31,11 +27,7 @@ export function RootDocument({ run, children, serverUrl }: RootDocumentProps) {
         <HeadContent />
       </head>
       <body>
-        <RunProvider value={run}>
-          <TranslationOverridesProvider serverUrl={serverUrl}>
-            {children}
-          </TranslationOverridesProvider>
-        </RunProvider>
+        {children}
         <TanStackDevtools
           config={{
             position: 'bottom-right',

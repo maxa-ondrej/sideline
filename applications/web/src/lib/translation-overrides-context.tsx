@@ -71,8 +71,11 @@ export function TranslationOverridesProvider({
   serverUrl,
 }: TranslationOverridesProviderProps) {
   const { data } = useQuery({
-    queryKey: ['translations'],
+    // Key by serverUrl so the query refetches against the correct API base URL
+    // once it resolves (an empty base URL would silently target the page origin).
+    queryKey: ['translations', serverUrl],
     queryFn: () => fetchTranslations(serverUrl),
+    enabled: serverUrl.length > 0,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
     staleTime: 0,

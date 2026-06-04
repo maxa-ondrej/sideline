@@ -1,6 +1,6 @@
 import { setLocale } from '@sideline/i18n/runtime';
 import type { QueryClient } from '@tanstack/react-query';
-import { createRootRouteWithContext } from '@tanstack/react-router';
+import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import { Effect, Option } from 'effect';
 import type React from 'react';
 import { RootDocument } from '~/components/layouts/RootDocument';
@@ -8,8 +8,9 @@ import { RouteErrorComponent } from '~/components/layouts/RouteErrorComponent';
 import { RouteNotFoundComponent } from '~/components/layouts/RouteNotFoundComponent';
 import { RoutePendingComponent } from '~/components/layouts/RoutePendingComponent';
 import { fetchEnv } from '~/env.js';
-import { ApiClient, runPromiseClient, runPromiseServer } from '~/lib/runtime';
+import { ApiClient, RunProvider, runPromiseClient, runPromiseServer } from '~/lib/runtime';
 import { ThemeProvider } from '~/lib/theme.js';
+import { TranslationOverridesProvider } from '~/lib/translation-overrides-context.js';
 import appCss from '../styles.css?url';
 
 const getCurrentUser = ApiClient.asEffect().pipe(
@@ -99,6 +100,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   wrapInSuspense: true,
   ssr: false,
   shellComponent: RootDocumentRoute,
+  component: RootComponent,
   errorComponent: RouteErrorComponent,
   pendingComponent: RoutePendingComponent,
   notFoundComponent: RouteNotFoundComponent,
@@ -120,14 +122,30 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   },
 });
 
+// The document shell renders ABOVE the root match's context provider (see
+// @tanstack/react-router Match.js), so `Route.useRouteContext()` is NOT
+// available here — anything that depends on the loaded route context (e.g.
+// `serverUrl` from `beforeLoad`) must live in `RootComponent` instead.
 function RootDocumentRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider>
+      <RootDocument>{children}</RootDocument>
+    </ThemeProvider>
+  );
+}
+
+// Rendered inside the root match's context provider, so `serverUrl` (resolved
+// in `beforeLoad`) is reliably available — unlike in the shell. The API base
+// URL flows from here into every client call via `RunProvider` /
+// `TranslationOverridesProvider`.
+function RootComponent() {
   const { serverUrl } = Route.useRouteContext();
 
   return (
-    <ThemeProvider>
-      <RootDocument run={runPromiseClient(serverUrl)} serverUrl={serverUrl}>
-        {children}
-      </RootDocument>
-    </ThemeProvider>
+    <RunProvider value={runPromiseClient(serverUrl)}>
+      <TranslationOverridesProvider serverUrl={serverUrl}>
+        <Outlet />
+      </TranslationOverridesProvider>
+    </RunProvider>
   );
 }

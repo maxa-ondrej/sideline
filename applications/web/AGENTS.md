@@ -185,6 +185,21 @@ Rules:
 3. **`teams/$teamId/route.tsx` passes `wasViewing: getLastTeamId() === params.teamId`** so the removal banner (`?removed=1`) only shows when the user was actively viewing the team they were removed from. **The root `/` loader passes `hasOtherTeams: false, wasViewing: false`**, since it only reaches the helper after `findFirstTeam` returns `NoSuchElementError`. `/no-team` remains the single entry point for the non-admin "user has no team" UX; `/create-team` is reached only via an explicit CTA from `/no-team`.
 4. **`clearLastTeamId()` (`~/lib/auth`) must be called before redirecting to `/no-team`.** Leaving the stale `lastTeamId` in localStorage would cause subsequent loads of `/` to redirect back to a team the user no longer belongs to, producing a redirect loop.
 
+## Root Route: `shellComponent` vs `component`
+
+The root route (`src/routes/__root.tsx`) defines BOTH a `shellComponent` (`RootDocumentRoute`) and a `component` (`RootComponent`). They are NOT interchangeable:
+
+| Slot | Component | Renders | May call `Route.useRouteContext()`? |
+|------|-----------|---------|-------------------------------------|
+| `shellComponent` | `RootDocumentRoute` | The `<html>`/`<head>`/`<body>` document shell + `ThemeProvider` | **No** — renders ABOVE the root match's context provider; `Route.useRouteContext()` returns `undefined` |
+| `component` | `RootComponent` | `RunProvider` + `TranslationOverridesProvider` + `<Outlet />` | **Yes** — renders INSIDE the root match's context provider |
+
+Rules:
+
+1. **Anything that depends on loaded route context (e.g. `serverUrl` from the root `beforeLoad`) MUST live in `RootComponent`, never in `RootDocumentRoute`.** The shell renders above the root match's context provider (see `@tanstack/react-router` `Match.js`), so `Route.useRouteContext()` is `undefined` there. Reading `serverUrl` in the shell silently yields `undefined`, which makes client API calls target the page origin instead of the API base URL.
+2. **The shell receives only `{ children }`.** Do not add context-derived props (`run`, `serverUrl`) to `RootDocument` — it is a pure document wrapper. Context-dependent providers belong in `RootComponent`.
+3. **Guard any `useQuery` that consumes `serverUrl` against the empty/unresolved base URL.** `TranslationOverridesProvider` sets `enabled: serverUrl.length > 0` and keys its query by `serverUrl` (`queryKey: ['translations', serverUrl]`) so it refetches against the correct base once resolved. An empty base URL would silently target the page origin.
+
 ## URL-Synced Tabs Via `validateSearch`
 
 When a page renders a tab bar and the active tab must be deep-linkable (sharable URL, back/forward navigation, browser refresh preserves selection), sync the tab to a search param via TanStack Router's `validateSearch` instead of `React.useState`. The page component supports both modes (controlled URL-driven and uncontrolled local-state) via optional `activeTab` / `onTabChange` props so it stays testable in isolation.
@@ -495,7 +510,7 @@ type Run = (
 
 `Run` is curried: call it with optional `RunOptions` first, then pass the Effect. When `success` is provided, a success toast is shown automatically. When `loading` is provided, a loading toast is shown until the Effect completes.
 
-**Wiring**: The root loader creates `runPromiseClient(url)` and passes it to `RootDocument` as the `run` prop, which puts it in `RunProvider`. All organisms access it via `useRun()`.
+**Wiring**: `RootComponent` (the root route `component`, NOT the shell) creates `runPromiseClient(serverUrl)` and provides it via `RunProvider`. All organisms access it via `useRun()`. See "Root Route: `shellComponent` vs `component`" below for why this must not live in the shell.
 
 ### Server Runners: AbortController Wiring And Exit Handling
 
