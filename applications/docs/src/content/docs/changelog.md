@@ -5,6 +5,19 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-04 — Web-based Discord channel management
+
+- Admins and captains with the `group:manage` permission can now create, rename, archive, and control access for **managed Discord text channels** directly from the web app — no manual Discord configuration needed.
+- Open **Team → Channels** to see the full channel list. Channels show their name, Sideline-side category, current Discord link status, and the number of access grants.
+- **Create a channel:** click **New channel**, enter a name and an optional category, then save. Sideline queues the Discord channel for creation; the bot provisions it within seconds and writes the Discord link back automatically.
+- **Control access:** open a channel's detail sheet and use the **Access** panel to grant groups one of three permission tiers:
+  - **View** — members can read the channel but not write.
+  - **Edit** — members can send messages, react, attach files, and use threads.
+  - **Admin** — all Edit permissions plus the ability to manage messages, threads, and pin messages. Does _not_ grant Discord's Manage Channel permission.
+- **Rename a channel:** updates the Sideline label. Discord channel rename is planned for a future release.
+- **Archive a channel:** removes it from the active list and, if an archive category is configured in team settings, moves the Discord channel to that category. Falls back to deleting the Discord channel when no archive category is set.
+- Access changes take effect in Discord within seconds via the existing channel-sync pipeline.
+
 ## 2026-06-04 — Fix crash immediately after Discord login
 
 - Fixed an `Uncaught undefined` error that appeared in the browser immediately after completing Discord OAuth login. The crash was caused by the post-login redirect (which strips the `?token=` parameter from the URL) interrupting an in-flight page load, allowing a bare `undefined` to escape to the router.

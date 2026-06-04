@@ -932,6 +932,21 @@ Channel sync manages Discord channels and roles for Sideline groups. The Discord
 | `group_member_added` | `handleMemberAdded.ts` | Resolves the group's Discord role, creating one if absent (role-only via `createRoleOnly`, or paired with an existing channel via `createRoleForChannel`), then assigns it to the guild member via REST. Never creates a Discord channel. |
 | `roster_member_added` | `handleRosterMemberAdded.ts` | Looks up the roster's Discord role via `Channel/GetRosterMapping`; assigns it to the guild member if found; silently skips if no mapping or role exists. |
 | `channel_member_removed` | `handleMemberRemoved.ts` | Looks up the mapping via `Channel/GetMapping`, then removes the channel's Discord role from the guild member via REST |
+| `managed_channel_created` | `handleManagedCreated.ts` | Creates a Discord text channel in the guild (`createChannelOnly`), then calls `Channel/UpsertManagedChannel` with the new channel ID. `UpsertManagedChannel` persists the ID and back-fills any access grants that were recorded before the channel existed. |
+| `managed_channel_archived` | `handleManagedArchived.ts` | If a Discord channel ID is present, moves the Discord channel to the configured archive category (`updateChannel parent_id`); falls back to deleting the channel if the move fails. Then calls `Channel/ClearManagedChannel` to clear the stored ID. |
+| `managed_channel_deleted` | `handleManagedDeleted.ts` | If a Discord channel ID is present, deletes the Discord channel via REST. Then calls `Channel/ClearManagedChannel`. (No HTTP endpoint currently emits this event in v1; handler kept for future use.) |
+| `managed_access_granted` | `handleManagedAccess.ts` (`handleManagedAccessGranted`) | Calls `setChannelAccessOverwrite` to apply a Discord permission overwrite on the channel for the given role at the specified `access_level` tier. |
+| `managed_access_revoked` | `handleManagedAccess.ts` (`handleManagedAccessRevoked`) | Calls `removeChannelAccessOverwrite` to delete the Discord permission overwrite for the given role on the channel. |
+
+**Managed channel access tiers** (`applications/bot/src/rest/permissions.ts`):
+
+| Level | Allow | Deny |
+|---|---|---|
+| `VIEW` | ViewChannel, ReadMessageHistory | SendMessages, AddReactions, all thread-write permissions |
+| `EDIT` | ViewChannel, ReadMessageHistory, SendMessages, AddReactions, AttachFiles, EmbedLinks, all thread-write permissions | — |
+| `ADMIN` | All EDIT permissions + ManageMessages, ManageThreads, PinMessages | — |
+
+`ADMIN` intentionally excludes `ManageChannels` — that permission is reserved for bot management only.
 
 **Lifecycle RPCs:**
 - `Channel/MarkEventProcessed`
@@ -1199,6 +1214,10 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Channel/UpsertRosterMapping` | Save or update the Discord channel+role mapping for a roster |
 | `Channel/DeleteRosterMapping` | Remove the mapping when a roster channel is deleted |
 | `Channel/UpdateRosterChannel` | Update the `discord_channel_id` on a roster's Sideline record |
+| `Channel/GetManagedChannel` | Look up the `team_id` and current `discord_channel_id` for a `team_channels` row |
+| `Channel/UpsertManagedChannel` | Persist the bot-provisioned Discord channel ID and back-fill any access grants that existed before the channel was provisioned |
+| `Channel/ClearManagedChannel` | Clear `discord_channel_id` on the `team_channels` row after archive or delete |
+| `Channel/DeleteManagedChannel` | Hard-delete a `team_channels` row (reserved for future use; not yet emitted) |
 
 ### Event group (`Event/`)
 

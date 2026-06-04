@@ -223,6 +223,8 @@ Syncs groups to private Discord text channels with per-user permission overwrite
 | Bot service | `src/services/ChannelSyncService.ts` |
 | Mapping table | `discord_channel_mappings` (team_id + group_id → discord_channel_id) |
 
+`channel_sync_events.entity_type` is one of `group`, `roster`, or `managed`. The same `event_type` literals (`channel_created`, `channel_archived`, `channel_deleted`, `member_added`, `member_removed`) carry a different RPC event class per `entity_type` — `ProcessorService.ts` dispatches on the decoded RPC event `_tag`, not on `event_type`. `entity_type='managed'` events decode to the `Managed*` RPC event classes (see "Managed Channels" below); `channel_updated` and `channel_detached` are **never** emitted with `entity_type='managed'` (those `Match.when('managed', ...)` branches in `src/rpc/channel/events.ts` are impossible-state guards that fail with `EventPropertyMissing`).
+
 Event types: `channel_created`, `channel_updated`, `channel_deleted`, `channel_archived`, `channel_detached`, `member_added`, `member_removed`
 
 **Name fields on `channel_created` and `channel_updated` events**: The server pre-formats Discord names using team settings. Events carry separate `discord_channel_name` (`Option<string>`; `None` means "do not create a channel, role-only mapping") and `discord_role_name` (`string`, always present). Bot handlers must use these fields instead of deriving names from `group_name`/`roster_name`. `member_added` is the only handler permitted to fall back to `group_name` when lazily provisioning a role for an existing channel-only mapping.
@@ -296,6 +298,27 @@ When a team has `discord_archive_category_id` set, deleting a group or deactivat
 2. If `discord_channel_id = Some` — move the channel to the archive category via `updateChannel({ parent_id })`. On failure, fall back to `deleteChannelAndRole(guild_id, channelId, Option.none())` (channel only — never the role).
 3. On success, delete the role's permission overwrite for the archive channel.
 4. Never call `Channel/DeleteMapping` — the mapping row stays so the (now role-only) presence is preserved.
+
+#### Managed Channels
+
+"Managed channels" are Sideline-authoritative Discord text channels (name/category/position/archived owned by the `team_channels` table, NOT by Discord). They are a third `entity_type` (`managed`) on `channel_sync_events`, distinct from the `group`/`roster` mapping flows above. Managed channels do NOT use `discord_channel_mappings` and do NOT have a per-channel role — access is enforced entirely via per-group Discord permission overwrites.
+
+Bot handlers (registered in `ProcessorService.ts` via `Match.tag`):
+
+| RPC event `_tag` | Handler file | Behavior |
+|------------------|--------------|----------|
+| `managed_channel_created` | `src/rcp/channel/handleManagedCreated.ts` | `createChannelOnly(guild_id, discord_channel_name)`, then `Channel/UpsertManagedChannel` to persist the new `discord_channel_id`. No role, no permission overwrite. |
+| `managed_channel_archived` | `src/rcp/channel/handleManagedArchived.ts` | Move channel to `archive_category_id` via `updateChannel({ parent_id })`; on failure fall back to `deleteChannel`. Then call `Channel/ClearManagedChannel`. |
+| `managed_channel_deleted` | `src/rcp/channel/handleManagedDeleted.ts` | `deleteChannel`, then `Channel/ClearManagedChannel`. No endpoint currently emits this event (v1) — the handler exists for future use. |
+| `managed_access_granted` | `src/rcp/channel/handleManagedAccess.ts` (`handleManagedAccessGranted`) | `setChannelAccessOverwrite(discord_channel_id, discord_role_id, access_level)`. |
+| `managed_access_revoked` | `src/rcp/channel/handleManagedAccess.ts` (`handleManagedAccessRevoked`) | `removeChannelAccessOverwrite(discord_channel_id, discord_role_id)`. |
+
+Access tiers and Discord permission overwrites:
+
+1. **`access_level` is `'VIEW' | 'EDIT' | 'ADMIN'`** (`packages/domain/src/models/TeamChannelAccess.ts`). Each tier maps to a fixed `allow`/`deny` permission bitset via `accessLevelPermission(level)` in `src/rest/permissions.ts`.
+2. **`ADMIN` never includes `ManageChannels`.** The admin tier grants message/thread moderation (`ManageMessages`, `ManageThreads`, `PinMessages`) but never channel rename or delete — Sideline owns channel name/category/position, so a Discord ADMIN must not be able to mutate them.
+3. **Overwrites target Discord role ids, one per granted group.** The server resolves each group's `discord_role_id` at emit time; the bot's `setChannelAccessOverwrite` writes a `ROLE`-type overwrite via `rest.setChannelPermissionOverwrite`, and `removeChannelAccessOverwrite` deletes it via `rest.deleteChannelPermissionOverwrite`.
+4. **Never derive permission bitsets inline in a handler.** Always go through `accessLevelPermission(level)` so the three tiers stay defined in exactly one place.
 
 ### Event Sync (events → Discord messages)
 

@@ -102,6 +102,8 @@ The `Guild/UpdateChannelName` RPC updates the `discord_channels` table when the 
 
 The `Guild/UpsertChannel` and `Guild/DeleteChannel` RPCs are called by the bot's gateway event handlers (`ChannelCreate`, `ChannelUpdate`, `ChannelDelete`) to keep the `discord_channels` table in sync with real-time Discord channel changes. `UpsertChannel` inserts or updates a channel row (using `ON CONFLICT DO UPDATE`), and `DeleteChannel` removes a channel row by `guild_id` + `channel_id`.
 
+The `Channel/GetManagedChannel`, `Channel/UpsertManagedChannel`, `Channel/ClearManagedChannel`, and `Channel/DeleteManagedChannel` RPCs back the managed-channel flow (see "Managed Channels" below). They read/write `team_channels.discord_channel_id` (NOT `discord_channel_mappings`). `Channel/UpsertManagedChannel` also reconciles any access grants created before the channel was provisioned: it resolves each granted group's `discord_role_id` and emits `emitManagedAccessGrantedBatch`, so do not duplicate that reconcile logic at other call sites.
+
 ### `Guild/RegisterMember` and Welcome Metadata
 
 `Guild/RegisterMember` (`src/rpc/guild/index.ts`) is called by the bot's `GuildMemberAdd` handler. It upserts the user, creates or reactivates the team membership, applies role/group mappings, and returns `Option<WelcomeMeta>`. The bot uses the returned metadata to send a system-log message and (optionally) a welcome message — see `applications/bot/AGENTS.md` for the bot side.
@@ -224,6 +226,26 @@ Rules:
 3. **`emitChannel{Deleted,Archived,Detached,Updated}` accept `discordChannelId: Option<Snowflake>` and `discordRoleId: Option<Snowflake>`.** Do not wrap the channel id in `Option.some(...)` at call sites — pass the mapping field through unchanged.
 4. **`emitChannelCreated` accepts `discordChannelName?: string`.** Pass `undefined` when the group is configured for role-only provisioning (`settings.create_discord_channel_on_group = false`); the wire field decodes to `Option<string>` on the bot side and triggers the role-only branch in `handleCreated`.
 5. **When checking "is this channel already linked?"** (e.g. in `LinkChannelToGroup`), filter mappings with `Option.isSome(m.discord_channel_id) && m.discord_channel_id.value === payload.discordChannelId`. The mapping may exist with `discord_channel_id = None` for a role-only group — that is not a conflict.
+
+### Managed Channels (`team_channels` + `team_channel_access`)
+
+Managed channels are a third `channel_sync_events.entity_type` (`managed`, alongside `group` and `roster`) for Sideline-authoritative Discord text channels. Unlike group/roster channels, managed channels do NOT use `discord_channel_mappings` and have NO per-channel role — access is granted per-group via Discord permission overwrites whose role ids are resolved at emit time.
+
+Table ownership:
+
+| Table | Authoritative for | Notes |
+|-------|-------------------|-------|
+| `team_channels` | Channel name, category, position, archived, and the linked `discord_channel_id` | Sideline-owned. Created by migration `1789000000_create_team_channels.ts`. Has a partial unique index on `(team_id, name) WHERE archived = false`. Repository: `TeamChannelsRepository`. |
+| `team_channel_access` | Per-group `VIEW`/`EDIT`/`ADMIN` grant per channel | PK `(team_channel_id, group_id)`, `access_level` CHECK in `('VIEW','EDIT','ADMIN')`. Repository: `TeamChannelAccessRepository`. |
+| `discord_channels` | Raw Discord channel mirror | Unchanged — remains the bot-synced mirror of real Discord channels (see "RPC Transport"). Do NOT conflate with `team_channels`. |
+
+Outbox columns: migration `1789000001_add_channel_sync_managed_columns.ts` adds `team_channel_id` and `access_level` to `channel_sync_events`. Both are nullable and populated only for `entity_type='managed'` rows. The `ChannelSyncEvent` model decodes them via `Schema.OptionFromNullOr`.
+
+Rules:
+
+1. **Channel management is gated by the existing `group:manage` permission** — no new permission was introduced. API handlers in `src/api/channel.ts` call `requirePermission(membership, 'group:manage', forbidden)` (or `hasPermission(membership, 'group:manage')` for read-only capability flags).
+2. **`managed` events reuse existing `event_type` literals.** `entity_type='managed'` rows carry `event_type` ∈ `channel_created`, `channel_archived`, `channel_deleted`, `member_added` (access granted), `member_removed` (access revoked). `events.ts` decodes them to the `Managed*` RPC event classes. `channel_updated` and `channel_detached` are never emitted for `managed` — those branches fail with `EventPropertyMissing` as impossible-state guards.
+3. **Resolving `(groupId, accessLevel)` grants into emit entries lives in exactly one place.** Both `src/api/channel.ts` (setAccess) and `Channel/UpsertManagedChannel` (reconcile) call `buildManagedAccessGrantEntries` from `src/utils/managedAccessEntries.ts`. It is a pure function that maps each grant's group to its `discord_role_id` via a `roleMap`, returning resolvable `entries` plus `unresolvableGroupIds`; the caller logs a warning for each unresolvable group before emitting. Never duplicate this `flatMap`/`filter` logic at a call site.
 
 ### Resolving identity fields on outbox reads
 

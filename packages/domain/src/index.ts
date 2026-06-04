@@ -12,6 +12,8 @@ export * as AgeThresholdApi from './api/AgeThresholdApi.js';
 
 export * as Auth from './api/Auth.js';
 
+export * as ChannelApi from './api/ChannelApi.js';
+
 export * as DashboardApi from './api/DashboardApi.js';
 
 export * as DashboardLayoutApi from './api/DashboardLayoutApi.js';
@@ -150,6 +152,10 @@ export * as Session from './models/Session.js';
 export * as Team from './models/Team.js';
 
 export * as TeamChallenge from './models/TeamChallenge.js';
+
+export * as TeamChannel from './models/TeamChannel.js';
+
+export * as TeamChannelAccess from './models/TeamChannelAccess.js';
 
 export * as TeamInvite from './models/TeamInvite.js';
 

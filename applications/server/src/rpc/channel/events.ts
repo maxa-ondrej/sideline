@@ -88,6 +88,22 @@ const channelCreatedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('discord_channel_name', () => nullable(r, 'discord_channel_name')),
+        Effect.map(
+          ({ team_channel_id, discord_channel_name }) =>
+            new ChannelRpcEvents.ManagedChannelCreatedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_name,
+            }),
+        ),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -122,6 +138,21 @@ const channelDeletedFromSql = (r: EventRow) =>
               roster_id,
               discord_channel_id,
               discord_role_id: r.discord_role_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.map(
+          ({ team_channel_id }) =>
+            new ChannelRpcEvents.ManagedChannelDeletedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id: r.existing_channel_id,
             }),
         ),
       ),
@@ -171,6 +202,26 @@ const memberAddedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.bind('discord_role_id', () => nullable(r, 'discord_role_id')),
+        Effect.bind('access_level', () => nullable(r, 'access_level')),
+        Effect.map(
+          ({ team_channel_id, discord_channel_id, discord_role_id, access_level }) =>
+            new ChannelRpcEvents.ManagedChannelAccessGrantedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id,
+              discord_role_id,
+              access_level,
+            }),
+        ),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -208,6 +259,22 @@ const memberRemovedFromSql = (r: EventRow) =>
               roster_id,
               team_member_id,
               discord_user_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.bind('discord_role_id', () => nullable(r, 'discord_role_id')),
+        Effect.map(
+          ({ discord_channel_id, discord_role_id }) =>
+            new ChannelRpcEvents.ManagedChannelAccessRevokedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              discord_channel_id,
+              discord_role_id,
             }),
         ),
       ),
@@ -254,6 +321,23 @@ const channelArchivedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('archive_category_id', () => nullable(r, 'archive_category_id')),
+        Effect.map(
+          ({ team_channel_id, archive_category_id }) =>
+            new ChannelRpcEvents.ManagedChannelArchivedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id: r.existing_channel_id,
+              archive_category_id,
+            }),
+        ),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -290,6 +374,17 @@ const channelDetachedFromSql = (r: EventRow) =>
               discord_role_id: r.discord_role_id,
             }),
         ),
+      ),
+    ),
+    // 'managed' entity_type never produces channel_detached events — this branch is an impossible
+    // state guard added only to satisfy Match.exhaustive after ChannelSyncEntityType was widened.
+    Match.when('managed', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(managed) is not valid for channel_detached',
+        }),
       ),
     ),
     Match.exhaustive,
@@ -345,6 +440,17 @@ const channelUpdatedFromSql = (r: EventRow) =>
               discord_role_color: r.discord_role_color,
             }),
         ),
+      ),
+    ),
+    // 'managed' entity_type never produces channel_updated events — this branch is an impossible
+    // state guard added only to satisfy Match.exhaustive after ChannelSyncEntityType was widened.
+    Match.when('managed', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(managed) is not valid for channel_updated',
+        }),
       ),
     ),
     Match.exhaustive,

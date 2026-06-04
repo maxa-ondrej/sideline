@@ -5,6 +5,7 @@ import {
   ActivityTypeApi,
   AgeThresholdApi,
   Auth,
+  ChannelApi,
   DashboardApi,
   DashboardLayoutApi,
   EventApi,
@@ -69,7 +70,8 @@ class ClientApi extends HttpApi.make('api')
   .add(VersionApi.VersionApiGroup)
   .add(OnboardingApi.OnboardingApiGroup)
   .add(WeeklySummaryApi.WeeklySummaryApiGroup)
-  .add(TeamChallengeApi.TeamChallengeApiGroup) {}
+  .add(TeamChallengeApi.TeamChallengeApiGroup)
+  .add(ChannelApi.ChannelApiGroup) {}
 
 export const client = ClientConfig.asEffect().pipe(
   Effect.flatMap(({ baseUrl }) =>

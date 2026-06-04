@@ -80,6 +80,8 @@ function useBreadcrumbs(): ReadonlyArray<BreadcrumbEntry> {
           if (routeId.includes('$groupId')) {
             crumbs.push({ label: tr('breadcrumb_details'), to: pathname });
           }
+        } else if (routeId.includes('/channels')) {
+          crumbs.push({ label: tr('channels_title'), to: pathname });
         } else if (routeId.includes('/age-thresholds')) {
           crumbs.push({ label: tr('team_ageThresholds'), to: pathname });
         } else if (routeId.includes('/finances/expenses')) {

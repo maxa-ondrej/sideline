@@ -683,13 +683,15 @@ Outbox table driving channel-membership changes in Discord. Polled by the bot's 
 | `discord_role_name` | TEXT | — | — |
 | `discord_role_color` | INTEGER | — | — |
 | `archive_category_id` | TEXT | — | — |
+| `team_channel_id` | UUID | — | — |
+| `access_level` | TEXT | CHECK (`'VIEW'`, `'EDIT'`, `'ADMIN'`) | — |
 | `processed_at` | TIMESTAMPTZ | — | — |
 | `error` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
 **Indexes**: `idx_channel_sync_events_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
-**Notes**: `entity_type` is `'group'` or `'roster'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set. `existing_channel_id` and `discord_role_id` hold the Discord channel and role IDs for delete, archive, detach, and update events. `discord_channel_name` and `discord_role_name` carry the pre-formatted names the bot should use when creating or updating the channel and role; they are derived from the team's `discord_channel_format` and `discord_role_format` templates at the time the event is enqueued. `discord_role_color` carries the group/roster colour as a Discord integer (converted from the hex colour) for `channel_created` and `channel_updated` events. `archive_category_id` is set for `channel_archived` events and holds the Discord category to move the channel into. `channel_detached` events represent the `'nothing'` cleanup mode: the channel is kept in Discord but the permission overwrite and mapping are updated. For `group_channel_created` events, `discord_channel_name` is nullable — a null value means role-only provisioning (no channel is created). Permanent processing failures (Discord 403/404, parse errors) set both `processed_at` and `error`, preventing the event from being retried; transient failures set only `error` and leave `processed_at` null so the event is retried on the next poll.
+**Notes**: `entity_type` is `'group'`, `'roster'`, or `'managed'`. For group events, `group_id`/`group_name` are set; for roster events, `roster_id`/`roster_name` are set; for managed-channel events, `team_channel_id` identifies the `team_channels` row. `existing_channel_id` and `discord_role_id` hold the Discord channel and role IDs for delete, archive, detach, update, and managed-access events. `discord_channel_name` and `discord_role_name` carry the pre-formatted names the bot should use when creating or updating the channel and role; they are derived from the team's `discord_channel_format` and `discord_role_format` templates at the time the event is enqueued. `discord_role_color` carries the group/roster colour as a Discord integer (converted from the hex colour) for `channel_created` and `channel_updated` events. `archive_category_id` is set for `channel_archived` events and holds the Discord category to move the channel into. `channel_detached` events represent the `'nothing'` cleanup mode: the channel is kept in Discord but the permission overwrite and mapping are updated. For `group_channel_created` events, `discord_channel_name` is nullable — a null value means role-only provisioning (no channel is created). `team_channel_id` is set on all `managed` entity-type events; `access_level` (`'VIEW'`, `'EDIT'`, or `'ADMIN'`) is set on managed `member_added` events carrying a permission-grant. Permanent processing failures (Discord 403/404, parse errors) set both `processed_at` and `error`, preventing the event from being retried; transient failures set only `error` and leave `processed_at` null so the event is retried on the next poll. `team_channel_id` and `access_level` columns added in migration `1789000001_add_channel_sync_managed_columns`.
 
 ---
 
@@ -723,6 +725,59 @@ Outbox table driving event announcements, edits, cancellations, and RSVP reminde
 **Indexes**: `idx_event_sync_unprocessed` — partial index on `(created_at) WHERE processed_at IS NULL`
 
 **Notes**: Snapshot columns (`event_title`, `event_start_at`, etc.) are denormalised copies of the event data at the time of the sync event, ensuring the bot can post the embed even if the event is later modified. `rsvp_reminder` event type and `discord_target_channel_id` added in migration `1742500000` and `1742100000` respectively. `event_started` event type added in migration `1744000000`; emitted by `EventStartCron` when an event's `start_at` time passes. `member_group_id` and `discord_role_id` added in migration `1745800000`; `member_group_id` stores the UUID of the member group whose attendee list the bot should display (no FK constraint by design, to preserve rows after group deletion); `discord_role_id` is the Discord role to @-mention in the reminder or start-announcement message. `training_claim_request`, `training_claim_update`, and `unclaimed_training_reminder` event types added in migration `1745900000` to drive the training-claim board in Discord; `claimed_by_member_id` carries the current claimer's team-member ID for `training_claim_update` events (no FK constraint by design, to preserve rows after member deletion); the claimer's identity fields (`discord_id`, `name`, `nickname`, `discord_display_name`, `username`) are resolved at SELECT time via a LEFT JOIN to `team_members → users` — they are not stored as columns in the table. `event_location_url` added in migration `1746100000`; snapshot of the event's optional location URL at sync time.
+
+---
+
+#### `team_channels`
+
+Admin-managed Discord text channels. Each row represents a named channel that Sideline creates and owns in the team's Discord guild. The bot provisions the actual Discord channel and writes back the resulting `discord_channel_id`.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `id` | UUID | PK | `gen_random_uuid()` |
+| `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
+| `name` | TEXT | NOT NULL | — |
+| `category` | TEXT | — | — |
+| `position` | INT | NOT NULL | `0` |
+| `archived` | BOOLEAN | NOT NULL | `false` |
+| `discord_channel_id` | TEXT | — | — |
+| `discord_role_id` | TEXT | — | — |
+| `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
+
+**Indexes**:
+- `uq_team_channels_team_name_active` — unique partial index on `(team_id, name) WHERE archived = false`. Enforces name uniqueness among active channels; archived channels are exempt so the name can be reused.
+- `idx_team_channels_team_position` — on `(team_id, position)` for ordered listing.
+
+**Notes**: `category` and `position` are Sideline-side metadata used for display ordering; there is no Discord-side reordering in v1. `discord_channel_id` is null until the bot processes the `channel_created` sync event and writes the provisioned Discord channel snowflake back via the `Channel/UpsertManagedChannel` RPC. `discord_role_id` is reserved for future use. Added in migration `1789000000_create_team_channels`.
+
+---
+
+#### `team_channel_access`
+
+Access grants scoping which groups can see or interact with a managed channel. Each row grants a specific group one of three access tiers on a given channel.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `team_channel_id` | UUID | NOT NULL, FK → `team_channels(id)` ON DELETE CASCADE | — |
+| `group_id` | UUID | NOT NULL, FK → `groups(id)` ON DELETE CASCADE | — |
+| `access_level` | TEXT | NOT NULL, CHECK (`'VIEW'`, `'EDIT'`, `'ADMIN'`) | — |
+| `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
+
+**Primary Key**: `(team_channel_id, group_id)`
+
+**Indexes**: `idx_team_channel_access_group` on `(group_id)`
+
+**Access level semantics** (mapped to Discord permission overwrites):
+
+| Level | Discord permissions granted | Discord permissions denied |
+|---|---|---|
+| `VIEW` | ViewChannel, ReadMessageHistory | SendMessages, AddReactions, thread permissions |
+| `EDIT` | ViewChannel, ReadMessageHistory, SendMessages, AddReactions, AttachFiles, EmbedLinks, thread permissions | — |
+| `ADMIN` | All EDIT permissions + ManageMessages, ManageThreads, PinMessages | — |
+
+`ADMIN` intentionally excludes `ManageChannels` — that permission is reserved for bot management only.
+
+**Notes**: Changes to access grants trigger `member_added` (for new or changed grants) and `member_removed` (for revoked grants) events in `channel_sync_events` with `entity_type = 'managed'`. The bot translates these events into Discord permission overwrites on the channel. Added in migration `1789000000_create_team_channels`.
 
 ---
 

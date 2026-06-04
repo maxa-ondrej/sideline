@@ -3,6 +3,8 @@ import { Model } from 'effect/unstable/schema';
 import { GroupId } from '~/models/GroupModel.js';
 import { RosterId } from '~/models/RosterModel.js';
 import { TeamId } from '~/models/Team.js';
+import { TeamChannelId } from '~/models/TeamChannel.js';
+import { AccessLevel } from '~/models/TeamChannelAccess.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 
 export const ChannelSyncEventId = Schema.String.pipe(Schema.brand('ChannelSyncEventId'));
@@ -22,7 +24,7 @@ export const ChannelCleanupMode = Schema.Literals(['nothing', 'delete', 'archive
 export type ChannelCleanupMode = typeof ChannelCleanupMode.Type;
 export type ChannelSyncEventType = typeof ChannelSyncEventType.Type;
 
-export const ChannelSyncEntityType = Schema.Literals(['group', 'roster']);
+export const ChannelSyncEntityType = Schema.Literals(['group', 'roster', 'managed']);
 export type ChannelSyncEntityType = typeof ChannelSyncEntityType.Type;
 
 export class ChannelSyncEvent extends Model.Class<ChannelSyncEvent>('ChannelSyncEvent')({
@@ -45,4 +47,6 @@ export class ChannelSyncEvent extends Model.Class<ChannelSyncEvent>('ChannelSync
   processed_at: Schema.OptionFromNullOr(Schema.String),
   error: Schema.OptionFromNullOr(Schema.String),
   created_at: Model.DateTimeInsertFromDate,
+  team_channel_id: Schema.OptionFromNullOr(TeamChannelId),
+  access_level: Schema.OptionFromNullOr(AccessLevel),
 }) {}

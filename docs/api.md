@@ -37,6 +37,7 @@ Sideline exposes a JSON REST API built with [`@effect/platform`](https://github.
    - [Team Onboarding](#26-team-onboarding)
    - [Weekly Challenge](#27-weekly-challenge)
    - [Dashboard Layout](#28-dashboard-layout)
+   - [Channel](#29-channel)
 4. [RPC API](#rpc-api)
 5. [Error Reference](#error-reference)
 
@@ -4948,6 +4949,243 @@ Saves the authenticated user's dashboard widget layout for the team.
 
 ---
 
+### 29. Channel
+
+**Source:** `packages/domain/src/api/ChannelApi.ts`
+
+Manages admin-controlled Discord text channels (`managed` entity type). All endpoints require the `group:manage` permission. Creating a channel triggers bot provisioning via the channel-sync pipeline; archiving moves or deletes the Discord channel; setting access configures per-group Discord permission overwrites.
+
+---
+
+#### `GET /teams/:teamId/channels`
+
+Lists all managed channels for a team. Available to any team member; the `canManage` flag in the response indicates whether the caller can mutate channels.
+
+**Auth:** Bearer token (AuthMiddleware)
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Response:** `200 OK` — `ChannelListResponse`
+
+| Field | Type | Description |
+|---|---|---|
+| `canManage` | `boolean` | Whether the authenticated user has `group:manage` |
+| `guildLinked` | `boolean` | Whether the team's Discord guild is currently linked to the bot |
+| `channels` | `ChannelInfo[]` | List of channels (active and archived) |
+
+`ChannelInfo`:
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `channelId` | `TeamChannelId` | No | Channel ID |
+| `name` | `string` | No | Channel name |
+| `category` | `string \| null` | Yes | Sideline-side category label (display only) |
+| `position` | `number` | No | Sideline-side sort position (display only) |
+| `archived` | `boolean` | No | Whether the channel is archived |
+| `discordChannelId` | `string \| null` | Yes | Discord channel snowflake; `null` until the bot provisions it |
+| `accessCount` | `number` | No | Number of group access grants |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Not a member of this team |
+
+---
+
+#### `POST /teams/:teamId/channels`
+
+Creates a new managed channel. Emits a `channel_created` / `managed` sync event; the bot creates the Discord channel and writes back the snowflake.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Request Body:** `CreateChannelRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | Yes | Non-empty channel name (must be unique among active channels for this team) |
+| `category` | `string \| null` | Yes | Sideline-side category label (null for no category) |
+
+**Response:** `201 Created` — `ChannelDetail`
+
+`ChannelDetail` extends `ChannelInfo` with:
+
+| Field | Type | Description |
+|---|---|---|
+| `grants` | `ChannelAccessGrant[]` | Current access grants |
+
+`ChannelAccessGrant`:
+
+| Field | Type | Description |
+|---|---|---|
+| `groupId` | `GroupId` | Group ID |
+| `accessLevel` | `'VIEW' \| 'EDIT' \| 'ADMIN'` | Access tier |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNameAlreadyTaken` | 409 | Active channel with this name already exists |
+
+---
+
+#### `GET /teams/:teamId/channels/:channelId`
+
+Returns full details for a single managed channel, including all access grants.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
+#### `PATCH /teams/:teamId/channels/:channelId/name`
+
+Renames a managed channel (Sideline read-model only; no Discord sync in v1 — a bot-side rename handler is planned but not yet implemented).
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Request Body:** `RenameChannelRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | Yes | New non-empty channel name |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+| `ChannelNameAlreadyTaken` | 409 | Active channel with this name already exists |
+
+---
+
+#### `PATCH /teams/:teamId/channels/:channelId/organization`
+
+Updates the Sideline-side category and position of a channel. These fields are display-only metadata; there is no Discord-side reordering in v1.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Request Body:** `UpdateOrganizationRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `category` | `string \| null` | Yes | Category label (null clears) |
+| `position` | `number` | Yes | Sort position |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
+#### `POST /teams/:teamId/channels/:channelId/archive`
+
+Archives a channel. Sets `archived = true`; if a Discord archive category is configured in team settings, emits a `channel_archived` / `managed` sync event that moves the Discord channel to that category (falling back to deletion on failure). The `discord_channel_id` is cleared from the Sideline record after the bot processes the event.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Response:** `204 No Content`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
+#### `PUT /teams/:teamId/channels/:channelId/access`
+
+Replaces the complete set of access grants for a channel. Groups in the payload are upserted; groups absent from the payload have their grant revoked. Emits `member_added` / `managed` events for new or changed grants and `member_removed` / `managed` events for revoked grants; the bot translates these into Discord permission overwrites on the channel.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Request Body:** `SetChannelAccessRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `grants` | `ChannelAccessGrant[]` | Yes | Complete desired access list; empty array revokes all grants |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
 ## RPC API
 
 The RPC API is an internal HTTP endpoint used exclusively for communication between the Discord bot and the server. It is not intended for external consumption.
@@ -5029,6 +5267,10 @@ Manages Discord channel mappings and channel sync outbox processing.
 | `Channel/GetMapping` | `team_id`, `group_id` → `ChannelMapping \| null` | Gets the Discord channel mapping for a group |
 | `Channel/UpsertMapping` | `team_id`, `group_id`, `discord_channel_id`, `discord_role_id` | Creates or updates a channel mapping |
 | `Channel/DeleteMapping` | `team_id`, `group_id` | Removes a channel mapping |
+| `Channel/GetManagedChannel` | `team_channel_id` → `ManagedChannelMapping \| null` | Returns the `team_id` and current `discord_channel_id` for a managed channel row |
+| `Channel/UpsertManagedChannel` | `team_channel_id`, `discord_channel_id` | Writes the provisioned Discord channel ID to `team_channels`; then replays any access grants that were created before the channel was provisioned |
+| `Channel/ClearManagedChannel` | `team_channel_id` | Clears the `discord_channel_id` column on the managed channel row (called after archive or delete) |
+| `Channel/DeleteManagedChannel` | `team_channel_id` | Hard-deletes the `team_channels` row (reserved for future delete endpoint) |
 
 #### Activity
 
@@ -5193,3 +5435,6 @@ The following table consolidates all error tags across all API groups.
 | `WeeklyChallengeAlreadyExistsForWeek` | 409 | Weekly Challenge | A challenge already exists for the given `weekStart` |
 | `WeeklyChallengeWeekOutOfRange` | 422 | Weekly Challenge | `weekStart` is not a Monday, or is more than one week outside the allowed window |
 | `DashboardLayoutForbidden` | 403 | Dashboard Layout | Not a member of this team |
+| `ChannelForbidden` | 403 | Channel | Not a member of this team, or missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel | Channel does not exist or belongs to a different team |
+| `ChannelNameAlreadyTaken` | 409 | Channel | An active channel with this name already exists for this team |

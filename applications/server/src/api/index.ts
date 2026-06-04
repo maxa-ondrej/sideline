@@ -7,6 +7,7 @@ import { ActivityTypeApiLive } from '~/api/activity-type.js';
 import { AgeThresholdApiLive } from '~/api/age-threshold.js';
 import { Api } from '~/api/api.js';
 import { AuthApiLive } from '~/api/auth.js';
+import { ChannelApiLive } from '~/api/channel.js';
 import { DashboardApiLive } from '~/api/dashboard.js';
 import { DashboardLayoutApiLive } from '~/api/dashboard-layout.js';
 import { EventApiLive } from '~/api/event.js';
@@ -40,6 +41,7 @@ export const ApiLive = HttpApiBuilder.layer(Api, { openapiPath: '/docs/openapi.j
     Layer.provide(LeaderboardApiLive),
     Layer.provide(AgeThresholdApiLive),
     Layer.provide(AuthApiLive),
+    Layer.provide(ChannelApiLive),
     Layer.provide(EventApiLive),
     Layer.provide(EventRsvpApiLive),
     Layer.provide(EventSeriesApiLive),
@@ -50,10 +52,10 @@ export const ApiLive = HttpApiBuilder.layer(Api, { openapiPath: '/docs/openapi.j
     Layer.provide(InviteApiLive),
     Layer.provide(NotificationApiLive),
     Layer.provide(OnboardingApiLive),
-    Layer.provide(RosterApiLive),
-    Layer.provide(RoleApiLive),
   )
   .pipe(
+    Layer.provide(RosterApiLive),
+    Layer.provide(RoleApiLive),
     Layer.provide(TeamApiLive),
     Layer.provide(TeamChallengeApiLive),
     Layer.provide(TeamSettingsApiLive),

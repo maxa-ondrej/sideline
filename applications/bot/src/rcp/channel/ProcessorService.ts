@@ -9,6 +9,10 @@ import { handleGroupArchived, handleRosterArchived } from './handleArchived.js';
 import { handleCreated } from './handleCreated.js';
 import { handleDeleted, handleRosterDeleted } from './handleDeleted.js';
 import { handleGroupDetached, handleRosterDetached } from './handleDetached.js';
+import { handleManagedAccessGranted, handleManagedAccessRevoked } from './handleManagedAccess.js';
+import { handleManagedArchived } from './handleManagedArchived.js';
+import { handleManagedCreated } from './handleManagedCreated.js';
+import { handleManagedDeleted } from './handleManagedDeleted.js';
 import { handleMemberAdded, handleRosterMemberAdded } from './handleMemberAdded.js';
 import { handleMemberRemoved, handleRosterMemberRemoved } from './handleMemberRemoved.js';
 import { handleRosterChannelCreated } from './handleRosterChannelCreated.js';
@@ -32,6 +36,11 @@ const action: (
     Match.tag('roster_member_added', handleRosterMemberAdded),
     Match.tag('group_member_removed', handleMemberRemoved),
     Match.tag('roster_member_removed', handleRosterMemberRemoved),
+    Match.tag('managed_channel_created', handleManagedCreated),
+    Match.tag('managed_channel_archived', handleManagedArchived),
+    Match.tag('managed_channel_deleted', handleManagedDeleted),
+    Match.tag('managed_access_granted', handleManagedAccessGranted),
+    Match.tag('managed_access_revoked', handleManagedAccessRevoked),
     Match.exhaustive,
   );
 
