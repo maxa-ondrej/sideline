@@ -36,6 +36,8 @@ erDiagram
     teams ||--o{ notifications : "scopes"
     teams ||--o{ discord_role_mappings : "maps"
     teams ||--o{ discord_channel_mappings : "maps"
+    teams ||--o{ team_channels : "manages"
+    team_channels ||--o{ team_channel_access : "grants"
     teams ||--o{ role_sync_events : "logs"
     teams ||--o{ channel_sync_events : "logs"
     teams ||--o{ event_sync_events : "logs"
@@ -506,7 +508,7 @@ erDiagram
 
 ### Discord Integration
 
-This domain bridges the application to a Discord bot. `bot_guilds` tracks which Discord servers the bot has joined. `discord_channels` caches the channel list for each guild. `discord_role_mappings` and `discord_channel_mappings` link application roles and groups to their Discord counterparts. In `discord_channel_mappings`, the `discord_channel_id` column is nullable — a group always receives a Discord role, but a Discord channel is only created when explicitly requested (via the `create_discord_channel_on_group` team setting or a manual "Create channel" action). The three sync-event tables (`role_sync_events`, `channel_sync_events`, `event_sync_events`) are outbox tables consumed by the bot worker to propagate state changes to Discord. `channel_event_dividers` tracks the single divider message posted in each event channel to visually separate past events from upcoming ones.
+This domain bridges the application to a Discord bot. `bot_guilds` tracks which Discord servers the bot has joined. `discord_channels` caches the channel list for each guild. `discord_role_mappings` and `discord_channel_mappings` link application roles and groups to their Discord counterparts. In `discord_channel_mappings`, the `discord_channel_id` column is nullable — a group always receives a Discord role, but a Discord channel is only created when explicitly requested (via the `create_discord_channel_on_group` team setting or a manual "Create channel" action). `team_channels` stores admin-managed Discord text channels (the `managed` entity type); each row represents a channel whose lifecycle Sideline fully controls. A fourth entity type `'discord'` is used in `channel_sync_events` for archive operations on Discord-native channels (channels not created by Sideline); these events carry no `team_channel_id`. `team_channel_access` records per-group access grants (`VIEW`, `EDIT`, or `ADMIN`) for managed channels; these grants are translated into Discord permission overwrites by the bot. The three sync-event tables (`role_sync_events`, `channel_sync_events`, `event_sync_events`) are outbox tables consumed by the bot worker to propagate state changes to Discord. `channel_event_dividers` tracks the single divider message posted in each event channel to visually separate past events from upcoming ones.
 
 ```mermaid
 erDiagram
@@ -581,6 +583,8 @@ erDiagram
         TEXT discord_role_name
         INTEGER discord_role_color
         TEXT archive_category_id
+        UUID team_channel_id "nullable"
+        TEXT access_level "nullable"
         TIMESTAMPTZ processed_at
         TEXT error
         TIMESTAMPTZ created_at
@@ -609,9 +613,31 @@ erDiagram
         TIMESTAMPTZ created_at
     }
 
+    team_channels {
+        UUID id PK
+        UUID team_id FK
+        TEXT name
+        TEXT category
+        INT position
+        BOOLEAN archived
+        TEXT discord_channel_id "nullable"
+        TEXT discord_role_id "nullable"
+        TIMESTAMPTZ created_at
+    }
+
+    team_channel_access {
+        UUID team_channel_id FK
+        UUID group_id FK
+        TEXT access_level
+        TIMESTAMPTZ created_at
+    }
+
     bot_guilds ||--o{ discord_channels : "hosts"
     teams ||--o{ discord_role_mappings : "maps"
     teams ||--o{ discord_channel_mappings : "maps"
+    teams ||--o{ team_channels : "manages"
+    team_channels ||--o{ team_channel_access : "grants"
+    groups ||--o{ team_channel_access : "granted via"
     teams ||--o{ role_sync_events : "logs"
     teams ||--o{ channel_sync_events : "logs"
     teams ||--o{ event_sync_events : "logs"

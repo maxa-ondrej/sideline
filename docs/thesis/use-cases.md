@@ -136,6 +136,16 @@ flowchart LR
         UC_SAVE_LAYOUT["Save Dashboard Layout\n(PUT /teams/:teamId/dashboard-layout)"]
     end
 
+    subgraph MANAGED_CHANNELS["Managed Channels"]
+        UC_LIST_CHANNELS["List Managed Channels\n(GET /teams/:teamId/channels)"]
+        UC_CREATE_CHANNEL_MANAGED["Create Managed Channel\n(POST /teams/:teamId/channels)\nrequires: group:manage"]
+        UC_GET_CHANNEL["Get Channel Detail\n(GET /teams/:teamId/channels/:channelId)\nrequires: group:manage"]
+        UC_RENAME_CHANNEL["Rename Channel\n(PATCH /teams/:teamId/channels/:channelId/name)\nrequires: group:manage"]
+        UC_UPDATE_CHANNEL_ORG["Update Channel Organisation\n(PATCH /teams/:teamId/channels/:channelId/organization)\nrequires: group:manage"]
+        UC_ARCHIVE_CHANNEL["Archive Channel\n(POST /teams/:teamId/channels/:channelId/archive)\nrequires: group:manage"]
+        UC_SET_CHANNEL_ACCESS["Set Channel Access\n(PUT /teams/:teamId/channels/:channelId/access)\nrequires: group:manage"]
+    end
+
     subgraph FINANCE["Finance"]
         UC_VIEW_FINANCE["View Finance Overview"]
         UC_MANAGE_FEES["Create / Update / Archive Fees"]
@@ -221,6 +231,23 @@ flowchart LR
     AD --> UC_CARPOOL_ADD_CAR
     AD --> UC_CARPOOL_ASSIGN_SEAT
     AD --> UC_CARPOOL_REMOVE_CAR
+    AD --> UC_LIST_CHANNELS
+    AD --> UC_CREATE_CHANNEL_MANAGED
+    AD --> UC_GET_CHANNEL
+    AD --> UC_RENAME_CHANNEL
+    AD --> UC_UPDATE_CHANNEL_ORG
+    AD --> UC_ARCHIVE_CHANNEL
+    AD --> UC_SET_CHANNEL_ACCESS
+
+    CP --> UC_LIST_CHANNELS
+    CP --> UC_CREATE_CHANNEL_MANAGED
+    CP --> UC_GET_CHANNEL
+    CP --> UC_RENAME_CHANNEL
+    CP --> UC_UPDATE_CHANNEL_ORG
+    CP --> UC_ARCHIVE_CHANNEL
+    CP --> UC_SET_CHANNEL_ACCESS
+
+    PL --> UC_LIST_CHANNELS
 
     BOT --> UC_BOT_LIST
     BOT --> UC_BOT_OVERVIEW

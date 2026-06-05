@@ -5,6 +5,7 @@ import {
   ActivityTypeApi,
   AgeThresholdApi,
   Auth,
+  ChannelApi,
   DashboardApi,
   DashboardLayoutApi,
   EventApi,
@@ -40,6 +41,7 @@ export const Api = HttpApi.make('api')
     LeaderboardApi.LeaderboardApiGroup,
     AgeThresholdApi.AgeThresholdApiGroup,
     Auth.AuthApiGroup,
+    ChannelApi.ChannelApiGroup,
     DashboardApi.DashboardApiGroup,
     EventApi.EventApiGroup,
     EventRsvpApi.EventRsvpApiGroup,
@@ -52,10 +54,10 @@ export const Api = HttpApi.make('api')
     NotificationApi.NotificationApiGroup,
     OnboardingApi.OnboardingApiGroup,
     Roster.RosterApiGroup,
-    RoleApi.RoleApiGroup,
-    TeamApi.TeamApiGroup,
   )
   .add(
+    RoleApi.RoleApiGroup,
+    TeamApi.TeamApiGroup,
     TeamChallengeApi.TeamChallengeApiGroup,
     TeamSettingsApi.TeamSettingsApiGroup,
     TrainingTypeApi.TrainingTypeApiGroup,

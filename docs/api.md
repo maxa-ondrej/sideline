@@ -37,6 +37,7 @@ Sideline exposes a JSON REST API built with [`@effect/platform`](https://github.
    - [Team Onboarding](#26-team-onboarding)
    - [Weekly Challenge](#27-weekly-challenge)
    - [Dashboard Layout](#28-dashboard-layout)
+   - [Channel](#29-channel)
 4. [RPC API](#rpc-api)
 5. [Error Reference](#error-reference)
 
@@ -4948,6 +4949,385 @@ Saves the authenticated user's dashboard widget layout for the team.
 
 ---
 
+### 29. Channel
+
+**Source:** `packages/domain/src/api/ChannelApi.ts`
+
+Manages Discord text channels for a team. The channel list merges two sources: Sideline-managed channels (`managed = true`, `team_channels` rows) and any other Discord channels already present in the guild (`managed = false`, from the `discord_channels` mirror), grouped by their Discord category. Creating, renaming, and access management only apply to managed channels; archiving is available for all channels. All write endpoints require the `group:manage` permission.
+
+---
+
+#### `GET /teams/:teamId/channels`
+
+Lists all channels for a team — both managed (Sideline-created) and unmanaged (synced from Discord). Available to any team member; the `canManage` flag indicates whether the caller can mutate channels.
+
+**Auth:** Bearer token (AuthMiddleware)
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Response:** `200 OK` — `ChannelListResponse`
+
+| Field | Type | Description |
+|---|---|---|
+| `canManage` | `boolean` | Whether the authenticated user has `group:manage` |
+| `guildLinked` | `boolean` | Whether the team's Discord guild is currently linked to the bot |
+| `archiveCategoryId` | `Snowflake \| null` | The team's configured Discord archive category ID (`team_settings.discord_archive_category_id`); `null` when not set |
+| `channelFormat` | `string` | The team's current `discordChannelFormat` template string (e.g. `{emoji}│{name}`). Clients can use this to preview how a channel name will appear in Discord. |
+| `channels` | `ChannelInfo[]` | All channels — active managed, archived managed, and Discord-only channels |
+
+`ChannelInfo`:
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `discordChannelId` | `Snowflake \| null` | Yes | Discord channel snowflake; `null` for managed channels not yet provisioned by the bot |
+| `teamChannelId` | `TeamChannelId \| null` | Yes | Sideline channel ID; `null` for Discord-only (unmanaged) channels |
+| `name` | `string` | No | Logical channel name (clean, without emoji or format prefix). The Discord channel name is composed from this plus `emoji` via the team format template. |
+| `emoji` | `string \| null` | Yes | Optional emoji stored alongside the logical name; `null` for channels without an emoji or for Discord-only channels |
+| `category` | `string \| null` | Yes | Category label — for managed channels this is the Sideline-side category; for Discord channels this is the parent Discord category name |
+| `managed` | `boolean` | No | `true` for Sideline-created channels; `false` for Discord-only channels shown for visibility |
+| `type` | `number` | No | Discord channel type integer (e.g. `0` = text channel, `4` = category) |
+| `archived` | `boolean` | No | Whether the channel is archived; channels under the team's archive category are shown as archived |
+| `accessCount` | `number` | No | Number of group access grants (always `0` for unmanaged channels) |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Not a member of this team |
+
+---
+
+#### `POST /teams/:teamId/channels`
+
+Creates a new managed channel. Emits a `channel_created` / `managed` sync event; the bot creates the Discord channel and writes back the snowflake.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Request Body:** `CreateChannelRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | Yes | Non-empty logical channel name (must be unique among active channels for this team). The actual Discord channel name is composed server-side from this name and the team's `discordChannelFormat` template (via `applyDiscordFormat`). |
+| `emoji` | `string \| null` | Yes | Optional emoji used to compose the Discord channel name via the format template; stored separately from the logical name (null for none) |
+| `category` | `string \| null` | Yes | Sideline-side category label (null for no category) |
+
+**Response:** `201 Created` — `ChannelDetail`
+
+`ChannelDetail` extends `ChannelInfo` (all fields above, including `emoji`) with:
+
+| Field | Type | Description |
+|---|---|---|
+| `grants` | `ChannelAccessGrant[]` | Current access grants (always empty for unmanaged channels) |
+
+`ChannelAccessGrant`:
+
+| Field | Type | Description |
+|---|---|---|
+| `groupId` | `GroupId` | Group ID |
+| `accessLevel` | `'VIEW' \| 'EDIT' \| 'ADMIN'` | Access tier |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNameAlreadyTaken` | 409 | Active channel with this name already exists |
+
+---
+
+#### `GET /teams/:teamId/channels/:channelId`
+
+Returns full details for a single managed channel, including all access grants.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
+#### `PATCH /teams/:teamId/channels/:channelId/name`
+
+Renames a managed channel (Sideline read-model only; no Discord sync in v1 — a bot-side rename handler is planned but not yet implemented).
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Request Body:** `RenameChannelRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | Yes | New non-empty channel name |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+| `ChannelNameAlreadyTaken` | 409 | Active channel with this name already exists |
+
+---
+
+#### `POST /teams/:teamId/channels/:channelId/archive`
+
+Archives a managed channel. Sets `archived = true`; emits a `channel_archived` / `managed` sync event. If an archive category is configured in team settings the bot moves the Discord channel there; otherwise the bot deletes the Discord channel (delete-fallback). The `discord_channel_id` is **preserved** on the Sideline record after archiving — this allows the restore endpoint to re-activate the channel without reprovisioning it.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Response:** `204 No Content`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
+#### `POST /teams/:teamId/discord-channels/:discordChannelId/archive`
+
+Archives any Discord channel that belongs to this team's guild — not just Sideline-managed ones. Requires the team's archive category to be configured in team settings. Emits a `channel_archived` / `discord` sync event; the bot moves the channel to the archive category. Unlike the managed-channel archive, there is no delete-fallback — the bot will never delete a Discord-native channel.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `discordChannelId` | `Snowflake` (string) | Discord channel snowflake |
+
+**Response:** `204 No Content`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | The Discord channel is not found in this team's guild |
+| `ArchiveCategoryNotConfigured` | 409 | `team_settings.discord_archive_category_id` is not set |
+| `ChannelNotArchivable` | 409 | The channel is already in the archive category or is itself a category channel |
+
+---
+
+#### `POST /teams/:teamId/discord-channels/:discordChannelId/adopt`
+
+Adopts a previously-unmanaged Discord channel into Sideline management. Creates a `team_channels` row for the channel and emits a `channel_updated` / `managed` sync event; the bot does a full permission-overwrite replace on the Discord channel, setting `@everyone deny ViewChannel` (wiping any existing overwrites), and then applies the group access grants via the existing `setAccess` pipeline. The operation is text-only (type `0`) and idempotent — calling it again on an already-managed channel returns the existing `ChannelDetail` without emitting a duplicate event.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `discordChannelId` | `Snowflake` (string) | Discord channel snowflake to adopt |
+
+**Response:** `200 OK` — `ChannelDetail` (same shape as `POST /teams/:teamId/channels`; see above for field descriptions)
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | The Discord channel is not found in this team's guild |
+| `ChannelNotAdoptable` | 409 | The channel is not a text channel (type ≠ 0); categories, voice channels, and other types cannot be adopted |
+| `ChannelAdoptionNameConflict` | 409 | An active managed channel with the same name already exists for this team |
+
+---
+
+#### `POST /teams/:teamId/discord-channels/bulk-archive`
+
+Archives multiple Discord channels in a single call. Each channel is processed independently; failures for individual channels do not abort the remaining ones. Requires the team's archive category to be configured. Duplicate IDs in the payload are de-duped before processing.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Request Body:** `BulkArchiveDiscordChannelsRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `discordChannelIds` | `Snowflake[]` | Yes | IDs of the Discord channels to archive |
+
+**Response:** `200 OK` — `ChannelBulkArchiveResult`
+
+| Field | Type | Description |
+|---|---|---|
+| `archived` | `Snowflake[]` | IDs of channels successfully queued for archiving |
+| `skipped` | `{ discordChannelId: Snowflake, reason: string }[]` | Channels skipped without error; see skip reasons below |
+| `failed` | `{ discordChannelId: Snowflake }[]` | Channels that encountered an unexpected error during processing |
+
+**Skip reasons:**
+
+| Reason | When |
+|---|---|
+| `already_archived` | Channel is already in the archive category, or the managed row is already marked archived |
+| `is_category` | Channel is a category (type 4) |
+| `is_archive_category` | Channel is the configured archive category itself |
+| `not_found` | Channel ID is not present in this guild's channel mirror |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ArchiveCategoryNotConfigured` | 409 | `team_settings.discord_archive_category_id` is not set |
+
+---
+
+#### `POST /teams/:teamId/discord-channels/:discordChannelId/restore`
+
+Restores a single archived Discord channel — moves it out of the archive category back to uncategorized (`parent_id = null`). Emits a `channel_restored` / `discord` sync event (or `channel_restored` / `managed` for managed channels) that the bot handles by calling `updateChannel { parent_id: null }`. The `discord_channel_id` link on the managed-channel row is preserved through archive and restore, so this endpoint re-activates an already-linked channel without reprovisioning it.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `discordChannelId` | `Snowflake` (string) | Discord channel snowflake to restore |
+
+**Response:** `204 No Content`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | The Discord channel is not found in this team's guild |
+| `ChannelNotRestorable` | 409 | The channel is not currently in the archive category (already active), is a category channel, or cannot be found |
+
+---
+
+#### `POST /teams/:teamId/discord-channels/bulk-restore`
+
+Restores multiple archived Discord channels in a single call. Each channel is processed independently; failures for individual channels do not abort the remaining ones. Duplicate IDs in the payload are de-duped before processing.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+
+**Request Body:** `BulkArchiveDiscordChannelsRequest` (same shape as bulk-archive)
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `discordChannelIds` | `Snowflake[]` | Yes | IDs of the Discord channels to restore |
+
+**Response:** `200 OK` — `ChannelBulkRestoreResult`
+
+| Field | Type | Description |
+|---|---|---|
+| `restored` | `Snowflake[]` | IDs of channels successfully queued for restore |
+| `skipped` | `{ discordChannelId: Snowflake, reason: string }[]` | Channels skipped without error; see skip reasons below |
+| `failed` | `{ discordChannelId: Snowflake }[]` | Channels that encountered an unexpected error during processing |
+
+**Skip reasons:**
+
+| Reason | When |
+|---|---|
+| `already_active` | Channel is not in the archive category (already active) |
+| `not_archived` | Channel row exists but is not marked archived |
+| `is_category` | Channel is a category (type 4) |
+| `not_found` | Channel ID is not present in this guild's channel mirror |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+
+---
+
+#### `PUT /teams/:teamId/channels/:channelId/access`
+
+Replaces the complete set of access grants for a channel. Groups in the payload are upserted; groups absent from the payload have their grant revoked. Emits `member_added` / `managed` events for new or changed grants and `member_removed` / `managed` events for revoked grants; the bot translates these into Discord permission overwrites on the channel.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `group:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `channelId` | `TeamChannelId` (string) | Channel ID |
+
+**Request Body:** `SetChannelAccessRequest`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `grants` | `ChannelAccessGrant[]` | Yes | Complete desired access list; empty array revokes all grants |
+
+**Response:** `200 OK` — `ChannelDetail`
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `ChannelForbidden` | 403 | Missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel does not exist or belongs to a different team |
+
+---
+
 ## RPC API
 
 The RPC API is an internal HTTP endpoint used exclusively for communication between the Discord bot and the server. It is not intended for external consumption.
@@ -5019,7 +5399,7 @@ Manages Discord role mappings and role sync outbox processing.
 
 #### Channel
 
-Manages Discord channel mappings and channel sync outbox processing.
+Manages Discord channel mappings and channel sync outbox processing. The outbox uses `entity_type` values `'group'`, `'roster'`, `'managed'`, and `'discord'`. The `'discord'` entity type is emitted for `channel_archived` events triggered by `POST /teams/:teamId/discord-channels/:discordChannelId/archive` (carrying a `discord_channel_archived` event tag) and for `channel_restored` events triggered by `POST /teams/:teamId/discord-channels/:discordChannelId/restore` or the bulk-restore endpoint (carrying a `discord_channel_restored` event tag) — neither type sets `team_channel_id`. The `'managed'` entity type with `event_type = 'channel_updated'` is emitted by `POST /teams/:teamId/discord-channels/:discordChannelId/adopt` (`managed_channel_adopted` event). The `'managed'` entity type with `event_type = 'channel_restored'` is emitted when a managed channel is restored (`managed_channel_restored` event tag). Note: `Channel/ClearManagedChannel` is **not** called after `managed_channel_archived` — the `discord_channel_id` is preserved so that restore can re-activate the link without reprovisioning.
 
 | Method | Payload / Returns | Description |
 |---|---|---|
@@ -5029,6 +5409,10 @@ Manages Discord channel mappings and channel sync outbox processing.
 | `Channel/GetMapping` | `team_id`, `group_id` → `ChannelMapping \| null` | Gets the Discord channel mapping for a group |
 | `Channel/UpsertMapping` | `team_id`, `group_id`, `discord_channel_id`, `discord_role_id` | Creates or updates a channel mapping |
 | `Channel/DeleteMapping` | `team_id`, `group_id` | Removes a channel mapping |
+| `Channel/GetManagedChannel` | `team_channel_id` → `ManagedChannelMapping \| null` | Returns the `team_id` and current `discord_channel_id` for a managed channel row |
+| `Channel/UpsertManagedChannel` | `team_channel_id`, `discord_channel_id` | Writes the provisioned Discord channel ID to `team_channels`; then replays any access grants that were created before the channel was provisioned |
+| `Channel/ClearManagedChannel` | `team_channel_id` | Clears the `discord_channel_id` column on the managed channel row (called after delete only; **not** called after archive — the link is preserved so that restore can re-activate the same Discord channel without reprovisioning) |
+| `Channel/DeleteManagedChannel` | `team_channel_id` | Hard-deletes the `team_channels` row (reserved for future delete endpoint) |
 
 #### Activity
 
@@ -5193,3 +5577,11 @@ The following table consolidates all error tags across all API groups.
 | `WeeklyChallengeAlreadyExistsForWeek` | 409 | Weekly Challenge | A challenge already exists for the given `weekStart` |
 | `WeeklyChallengeWeekOutOfRange` | 422 | Weekly Challenge | `weekStart` is not a Monday, or is more than one week outside the allowed window |
 | `DashboardLayoutForbidden` | 403 | Dashboard Layout | Not a member of this team |
+| `ChannelForbidden` | 403 | Channel | Not a member of this team, or missing `group:manage` permission |
+| `ChannelNotFound` | 404 | Channel | Channel does not exist or belongs to a different team |
+| `ChannelNameAlreadyTaken` | 409 | Channel | An active channel with this name already exists for this team |
+| `ArchiveCategoryNotConfigured` | 409 | Channel | `archiveDiscordChannel` or `bulkArchiveDiscordChannels` was called but `team_settings.discord_archive_category_id` is not set |
+| `ChannelNotArchivable` | 409 | Channel | The target Discord channel is already in the archive category or is a category channel |
+| `ChannelNotAdoptable` | 409 | Channel | `adoptDiscordChannel` was called on a non-text channel (type ≠ 0) |
+| `ChannelAdoptionNameConflict` | 409 | Channel | `adoptDiscordChannel` would create a name conflict with an existing active managed channel |
+| `ChannelNotRestorable` | 409 | Channel | `restoreDiscordChannel` was called on a channel that is not in the archive category, is already active, or is a category channel |

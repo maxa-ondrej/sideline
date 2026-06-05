@@ -1,8 +1,9 @@
 import { Schema } from 'effect';
 import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import { ChannelSyncEvent, Discord, GroupModel, RosterModel, Team } from '~/index.js';
+import { TeamChannelId } from '~/models/TeamChannel.js';
 import { UnprocessedChannelEvent } from './ChannelRpcEvents.js';
-import { ChannelMapping } from './ChannelRpcModels.js';
+import { ChannelMapping, ManagedChannelMapping } from './ChannelRpcModels.js';
 
 export const ChannelRpcGroup = RpcGroup.make(
   Rpc.make('GetUnprocessedEvents', {
@@ -70,5 +71,22 @@ export const ChannelRpcGroup = RpcGroup.make(
       roster_id: RosterModel.RosterId,
       discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     },
+  }),
+  // Managed channel mappings
+  Rpc.make('GetManagedChannel', {
+    payload: { team_channel_id: TeamChannelId },
+    success: Schema.OptionFromNullOr(ManagedChannelMapping),
+  }),
+  Rpc.make('UpsertManagedChannel', {
+    payload: {
+      team_channel_id: TeamChannelId,
+      discord_channel_id: Discord.Snowflake,
+    },
+  }),
+  Rpc.make('ClearManagedChannel', {
+    payload: { team_channel_id: TeamChannelId },
+  }),
+  Rpc.make('DeleteManagedChannel', {
+    payload: { team_channel_id: TeamChannelId },
   }),
 ).prefix('Channel/');

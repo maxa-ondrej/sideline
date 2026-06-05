@@ -4,6 +4,8 @@ import {
   GroupModel,
   RosterModel,
   Team,
+  TeamChannel,
+  TeamChannelAccess,
   TeamMember,
 } from '@sideline/domain';
 import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
@@ -27,6 +29,8 @@ const InsertInput = Schema.Struct({
   discord_channel_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_color: Schema.OptionFromNullOr(Schema.Number),
+  team_channel_id: Schema.OptionFromNullOr(TeamChannel.TeamChannelId),
+  access_level: Schema.OptionFromNullOr(TeamChannelAccess.AccessLevel),
 });
 
 class GuildLookupResult extends Schema.Class<GuildLookupResult>('GuildLookupResult')({
@@ -51,6 +55,8 @@ export class EventRow extends Schema.Class<EventRow>('EventRow')({
   discord_channel_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_name: Schema.OptionFromNullOr(Schema.String),
   discord_role_color: Schema.OptionFromNullOr(Schema.Number),
+  team_channel_id: Schema.OptionFromNullOr(TeamChannel.TeamChannelId),
+  access_level: Schema.OptionFromNullOr(TeamChannelAccess.AccessLevel),
 }) {}
 
 const MarkProcessedInput = Schema.Struct({
@@ -76,8 +82,8 @@ const make = Effect.gen(function* () {
   const insertEvent = SqlSchema.void({
     Request: InsertInput,
     execute: (input) => sql`
-      INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color)
-      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.entity_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id}, ${input.roster_id}, ${input.roster_name}, ${input.existing_channel_id}, ${input.discord_role_id}, ${input.archive_category_id}, ${input.discord_channel_name}, ${input.discord_role_name}, ${input.discord_role_color})
+      INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color, team_channel_id, access_level)
+      VALUES (${input.team_id}, ${input.guild_id}, ${input.event_type}, ${input.entity_type}, ${input.group_id}, ${input.group_name}, ${input.team_member_id}, ${input.discord_user_id}, ${input.roster_id}, ${input.roster_name}, ${input.existing_channel_id}, ${input.discord_role_id}, ${input.archive_category_id}, ${input.discord_channel_name}, ${input.discord_role_name}, ${input.discord_role_color}, ${input.team_channel_id}, ${input.access_level})
     `,
   });
 
@@ -91,7 +97,7 @@ const make = Effect.gen(function* () {
     Request: Schema.Number,
     Result: EventRow,
     execute: (limit) => sql`
-      SELECT id, team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color
+      SELECT id, team_id, guild_id, event_type, entity_type, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, existing_channel_id, discord_role_id, archive_category_id, discord_channel_name, discord_role_name, discord_role_color, team_channel_id, access_level
       FROM channel_sync_events
       WHERE processed_at IS NULL
       ORDER BY created_at ASC
@@ -161,6 +167,8 @@ const make = Effect.gen(function* () {
       discordChannelName?: Option.Option<string>;
       discordRoleName?: Option.Option<string>;
       discordRoleColor?: Option.Option<number>;
+      teamChannelId?: Option.Option<TeamChannel.TeamChannelId>;
+      accessLevel?: Option.Option<TeamChannelAccess.AccessLevel>;
     } = {},
   ) =>
     lookupGuildId(teamId).pipe(
@@ -185,6 +193,8 @@ const make = Effect.gen(function* () {
               discord_channel_name: fields.discordChannelName ?? Option.none(),
               discord_role_name: fields.discordRoleName ?? Option.none(),
               discord_role_color: fields.discordRoleColor ?? Option.none(),
+              team_channel_id: fields.teamChannelId ?? Option.none(),
+              access_level: fields.accessLevel ?? Option.none(),
             }),
         }),
       ),
@@ -451,6 +461,169 @@ const make = Effect.gen(function* () {
       discordRoleColor,
     });
 
+  // Managed channel emitters
+
+  const emitManagedChannelCreated = ({
+    teamId,
+    teamChannelId,
+    discordChannelName,
+  }: {
+    teamId: Team.TeamId;
+    teamChannelId: TeamChannel.TeamChannelId;
+    discordChannelName: string;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_created', 'managed', {
+      teamChannelId: Option.some(teamChannelId),
+      discordChannelName: Option.some(discordChannelName),
+    });
+
+  const emitManagedChannelArchived = ({
+    teamId,
+    teamChannelId,
+    discordChannelId,
+    archiveCategoryId,
+  }: {
+    teamId: Team.TeamId;
+    teamChannelId: TeamChannel.TeamChannelId;
+    discordChannelId: Option.Option<Discord.Snowflake>;
+    archiveCategoryId: Discord.Snowflake;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_archived', 'managed', {
+      teamChannelId: Option.some(teamChannelId),
+      existingChannelId: discordChannelId,
+      archiveCategoryId: Option.some(archiveCategoryId),
+    });
+
+  const emitDiscordChannelArchived = ({
+    teamId,
+    discordChannelId,
+    archiveCategoryId,
+  }: {
+    teamId: Team.TeamId;
+    discordChannelId: Discord.Snowflake;
+    archiveCategoryId: Discord.Snowflake;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_archived', 'discord', {
+      existingChannelId: Option.some(discordChannelId),
+      archiveCategoryId: Option.some(archiveCategoryId),
+    });
+
+  const emitManagedChannelRestored = ({
+    teamId,
+    teamChannelId,
+    discordChannelId,
+  }: {
+    teamId: Team.TeamId;
+    teamChannelId: TeamChannel.TeamChannelId;
+    discordChannelId: Discord.Snowflake;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_restored', 'managed', {
+      teamChannelId: Option.some(teamChannelId),
+      existingChannelId: Option.some(discordChannelId),
+    });
+
+  const emitDiscordChannelRestored = ({
+    teamId,
+    discordChannelId,
+  }: {
+    teamId: Team.TeamId;
+    discordChannelId: Discord.Snowflake;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_restored', 'discord', {
+      existingChannelId: Option.some(discordChannelId),
+    });
+
+  const emitManagedChannelAdopted = ({
+    teamId,
+    teamChannelId,
+    discordChannelId,
+  }: {
+    teamId: Team.TeamId;
+    teamChannelId: TeamChannel.TeamChannelId;
+    discordChannelId: Discord.Snowflake;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_updated', 'managed', {
+      teamChannelId: Option.some(teamChannelId),
+      existingChannelId: Option.some(discordChannelId),
+    });
+
+  // NOTE: no delete endpoint currently emits `managed_channel_deleted` (v1); emitter kept for future.
+  const emitManagedChannelDeleted = ({
+    teamId,
+    teamChannelId,
+    discordChannelId,
+  }: {
+    teamId: Team.TeamId;
+    teamChannelId: TeamChannel.TeamChannelId;
+    discordChannelId: Option.Option<Discord.Snowflake>;
+  }) =>
+    _emitIfGuildLinked(teamId, 'channel_deleted', 'managed', {
+      teamChannelId: Option.some(teamChannelId),
+      existingChannelId: discordChannelId,
+    });
+
+  type ManagedAccessEntry = {
+    teamChannelId: TeamChannel.TeamChannelId;
+    discordChannelId: Discord.Snowflake;
+    discordRoleId: Discord.Snowflake;
+    accessLevel: TeamChannelAccess.AccessLevel;
+  };
+
+  type ManagedRevokeEntry = {
+    discordChannelId: Discord.Snowflake;
+    discordRoleId: Discord.Snowflake;
+  };
+
+  const emitManagedAccessGrantedBatch = (input: {
+    teamId: Team.TeamId;
+    entries: ReadonlyArray<ManagedAccessEntry>;
+  }) => {
+    if (input.entries.length === 0) return Effect.void;
+    return lookupGuildId(input.teamId).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            sql`
+              INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, existing_channel_id, discord_role_id, team_channel_id, access_level, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, archive_category_id, discord_channel_name, discord_role_name, discord_role_color)
+              VALUES ${sql.join(',')(
+                input.entries.map(
+                  (e) =>
+                    sql`(${input.teamId}, ${guild_id}, ${'member_added'}, ${'managed'}, ${e.discordChannelId}, ${e.discordRoleId}, ${e.teamChannelId}, ${e.accessLevel}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null})`,
+                ),
+              )}
+            `.pipe(Effect.asVoid),
+        }),
+      ),
+      catchSqlErrors,
+    );
+  };
+
+  const emitManagedAccessRevokedBatch = (input: {
+    teamId: Team.TeamId;
+    entries: ReadonlyArray<ManagedRevokeEntry>;
+  }) => {
+    if (input.entries.length === 0) return Effect.void;
+    return lookupGuildId(input.teamId).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            sql`
+              INSERT INTO channel_sync_events (team_id, guild_id, event_type, entity_type, existing_channel_id, discord_role_id, team_channel_id, access_level, group_id, group_name, team_member_id, discord_user_id, roster_id, roster_name, archive_category_id, discord_channel_name, discord_role_name, discord_role_color)
+              VALUES ${sql.join(',')(
+                input.entries.map(
+                  (e) =>
+                    sql`(${input.teamId}, ${guild_id}, ${'member_removed'}, ${'managed'}, ${e.discordChannelId}, ${e.discordRoleId}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null})`,
+                ),
+              )}
+            `.pipe(Effect.asVoid),
+        }),
+      ),
+      catchSqlErrors,
+    );
+  };
+
   const findUnprocessed = (limit: number) => findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
   const markProcessed = (id: ChannelSyncEvent.ChannelSyncEventId) =>
@@ -495,6 +668,15 @@ const make = Effect.gen(function* () {
     emitRosterChannelDetached,
     emitGroupChannelUpdated,
     emitRosterChannelUpdated,
+    emitManagedChannelCreated,
+    emitManagedChannelAdopted,
+    emitManagedChannelArchived,
+    emitManagedChannelRestored,
+    emitDiscordChannelRestored,
+    emitManagedChannelDeleted,
+    emitDiscordChannelArchived,
+    emitManagedAccessGrantedBatch,
+    emitManagedAccessRevokedBatch,
     findUnprocessed,
     markProcessed,
     markFailed,

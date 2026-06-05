@@ -88,6 +88,32 @@ const channelCreatedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('discord_channel_name', () => nullable(r, 'discord_channel_name')),
+        Effect.map(
+          ({ team_channel_id, discord_channel_name }) =>
+            new ChannelRpcEvents.ManagedChannelCreatedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_name,
+            }),
+        ),
+      ),
+    ),
+    // 'discord' entity_type never produces channel_created events — impossible-state guard.
+    Match.when('discord', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(discord) is not valid for channel_created',
+        }),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -124,6 +150,31 @@ const channelDeletedFromSql = (r: EventRow) =>
               discord_role_id: r.discord_role_id,
             }),
         ),
+      ),
+    ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.map(
+          ({ team_channel_id }) =>
+            new ChannelRpcEvents.ManagedChannelDeletedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id: r.existing_channel_id,
+            }),
+        ),
+      ),
+    ),
+    // 'discord' entity_type never produces channel_deleted events — impossible-state guard.
+    Match.when('discord', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(discord) is not valid for channel_deleted',
+        }),
       ),
     ),
     Match.exhaustive,
@@ -171,6 +222,36 @@ const memberAddedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.bind('discord_role_id', () => nullable(r, 'discord_role_id')),
+        Effect.bind('access_level', () => nullable(r, 'access_level')),
+        Effect.map(
+          ({ team_channel_id, discord_channel_id, discord_role_id, access_level }) =>
+            new ChannelRpcEvents.ManagedChannelAccessGrantedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id,
+              discord_role_id,
+              access_level,
+            }),
+        ),
+      ),
+    ),
+    // 'discord' entity_type never produces member_added events — impossible-state guard.
+    Match.when('discord', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(discord) is not valid for member_added',
+        }),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -210,6 +291,32 @@ const memberRemovedFromSql = (r: EventRow) =>
               discord_user_id,
             }),
         ),
+      ),
+    ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.bind('discord_role_id', () => nullable(r, 'discord_role_id')),
+        Effect.map(
+          ({ discord_channel_id, discord_role_id }) =>
+            new ChannelRpcEvents.ManagedChannelAccessRevokedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              discord_channel_id,
+              discord_role_id,
+            }),
+        ),
+      ),
+    ),
+    // 'discord' entity_type never produces member_removed events — impossible-state guard.
+    Match.when('discord', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(discord) is not valid for member_removed',
+        }),
       ),
     ),
     Match.exhaustive,
@@ -254,6 +361,38 @@ const channelArchivedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('archive_category_id', () => nullable(r, 'archive_category_id')),
+        Effect.map(
+          ({ team_channel_id, archive_category_id }) =>
+            new ChannelRpcEvents.ManagedChannelArchivedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id: r.existing_channel_id,
+              archive_category_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('discord', () =>
+      Effect.Do.pipe(
+        Effect.bind('archive_category_id', () => nullable(r, 'archive_category_id')),
+        Effect.map(
+          ({ archive_category_id }) =>
+            new ChannelRpcEvents.DiscordChannelArchivedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              discord_channel_id: r.existing_channel_id,
+              archive_category_id,
+            }),
+        ),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -290,6 +429,27 @@ const channelDetachedFromSql = (r: EventRow) =>
               discord_role_id: r.discord_role_id,
             }),
         ),
+      ),
+    ),
+    // 'managed' entity_type never produces channel_detached events — this branch is an impossible
+    // state guard added only to satisfy Match.exhaustive after ChannelSyncEntityType was widened.
+    Match.when('managed', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(managed) is not valid for channel_detached',
+        }),
+      ),
+    ),
+    // 'discord' entity_type never produces channel_detached events — impossible-state guard.
+    Match.when('discord', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(discord) is not valid for channel_detached',
+        }),
       ),
     ),
     Match.exhaustive,
@@ -347,6 +507,81 @@ const channelUpdatedFromSql = (r: EventRow) =>
         ),
       ),
     ),
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.bind('discord_channel_id', () => nullable(r, 'existing_channel_id')),
+        Effect.map(
+          ({ team_channel_id, discord_channel_id }) =>
+            new ChannelRpcEvents.ManagedChannelAdoptedEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id,
+            }),
+        ),
+      ),
+    ),
+    // 'discord' entity_type never produces channel_updated events — impossible-state guard.
+    Match.when('discord', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(discord) is not valid for channel_updated',
+        }),
+      ),
+    ),
+    Match.exhaustive,
+  );
+
+const channelRestoredFromSql = (r: EventRow) =>
+  Match.value(r.entity_type).pipe(
+    Match.when('managed', () =>
+      Effect.Do.pipe(
+        Effect.bind('team_channel_id', () => nullable(r, 'team_channel_id')),
+        Effect.map(
+          ({ team_channel_id }) =>
+            new ChannelRpcEvents.ManagedChannelRestoredEvent({
+              id: r.id,
+              team_id: r.team_id,
+              guild_id: r.guild_id,
+              team_channel_id,
+              discord_channel_id: r.existing_channel_id,
+            }),
+        ),
+      ),
+    ),
+    Match.when('discord', () =>
+      Effect.succeed(
+        new ChannelRpcEvents.DiscordChannelRestoredEvent({
+          id: r.id,
+          team_id: r.team_id,
+          guild_id: r.guild_id,
+          discord_channel_id: r.existing_channel_id,
+        }),
+      ),
+    ),
+    // 'group' and 'roster' entity types never produce channel_restored events.
+    Match.when('group', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(group) is not valid for channel_restored',
+        }),
+      ),
+    ),
+    Match.when('roster', () =>
+      Effect.fail(
+        new EventPropertyMissing({
+          event_type: r.event_type,
+          id: r.id,
+          property: 'entity_type(roster) is not valid for channel_restored',
+        }),
+      ),
+    ),
     Match.exhaustive,
   );
 
@@ -355,6 +590,7 @@ export const constructEvent = Match.type<EventRow>().pipe(
   Match.when({ event_type: 'channel_updated' }, channelUpdatedFromSql),
   Match.when({ event_type: 'channel_deleted' }, channelDeletedFromSql),
   Match.when({ event_type: 'channel_archived' }, channelArchivedFromSql),
+  Match.when({ event_type: 'channel_restored' }, channelRestoredFromSql),
   Match.when({ event_type: 'channel_detached' }, channelDetachedFromSql),
   Match.when({ event_type: 'member_added' }, memberAddedFromSql),
   Match.when({ event_type: 'member_removed' }, memberRemovedFromSql),

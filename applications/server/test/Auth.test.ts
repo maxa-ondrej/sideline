@@ -43,6 +43,7 @@ import { AchievementPreview } from '~/services/AchievementPreview.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { BotInfoStore } from '~/services/BotInfoStore.js';
 import { DiscordOAuth, DiscordOAuthError } from '~/services/DiscordOAuth.js';
+import { MockChannelManagementLayers } from './mocks/channelMocks.js';
 import { MockDashboardLayoutsRepositoryLayer } from './mocks/dashboardLayoutMocks.js';
 import { MockFinanceLayers } from './mocks/financeMocks.js';
 import { MockTeamOnboardingTokensRepositoryLayer } from './mocks/onboardingMocks.js';
@@ -574,6 +575,7 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
   .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
   .pipe(Layer.provide(MockDashboardLayoutsRepositoryLayer))
+  .pipe(Layer.provide(MockChannelManagementLayers))
   .pipe(Layer.provide(BotInfoStore.Default));
 
 let handler: (...args: any) => Promise<Response>;
@@ -768,6 +770,7 @@ describe('Auth API — isGlobalAdmin flag on GET /auth/me (TDD: first registered
       .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
       .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
       .pipe(Layer.provide(MockDashboardLayoutsRepositoryLayer))
+      .pipe(Layer.provide(MockChannelManagementLayers))
       .pipe(Layer.provide(BotInfoStore.Default));
   };
 
@@ -1081,6 +1084,7 @@ describe('Auth API — removed-user behaviour (TDD: Handle removing user)', () =
       .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
       .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
       .pipe(Layer.provide(MockDashboardLayoutsRepositoryLayer))
+      .pipe(Layer.provide(MockChannelManagementLayers))
       .pipe(Layer.provide(BotInfoStore.Default));
   };
 

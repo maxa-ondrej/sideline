@@ -7,12 +7,16 @@ import {
   type GroupModel,
   type RosterModel,
   type Team,
+  type TeamChannel,
 } from '@sideline/domain';
 import { Bind, LogicError } from '@sideline/effect-lib';
 import { Array, Cause, Data, Effect, flow, Option, Result } from 'effect';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { RostersRepository } from '~/repositories/RostersRepository.js';
+import { TeamChannelAccessRepository } from '~/repositories/TeamChannelAccessRepository.js';
+import { TeamChannelsRepository } from '~/repositories/TeamChannelsRepository.js';
+import { buildManagedAccessGrantEntries } from '~/utils/managedAccessEntries.js';
 import { constructEvent, EventPropertyMissing } from './events.js';
 
 class NoChanges extends Data.TaggedError('NoChanges')<{
@@ -38,6 +42,17 @@ const toChannelMapping = (m: {
     roster_id: m.roster_id,
     discord_channel_id: m.discord_channel_id,
     discord_role_id: m.discord_role_id,
+  });
+
+const toManagedChannelMapping = (m: {
+  readonly id: TeamChannel.TeamChannelId;
+  readonly team_id: Team.TeamId;
+  readonly discord_channel_id: Option.Option<Discord.Snowflake>;
+}) =>
+  new ChannelRpcModels.ManagedChannelMapping({
+    team_channel_id: m.id,
+    team_id: m.team_id,
+    discord_channel_id: m.discord_channel_id,
   });
 
 export const ChannelsRpcLive = Effect.Do.pipe(
@@ -172,6 +187,7 @@ export const ChannelsRpcLive = Effect.Do.pipe(
       }) =>
         mappings.deleteByGroupId(team_id, group_id),
   ),
+).pipe(
   // Roster mapping RPCs
   Effect.let(
     'Channel/GetRosterMapping',
@@ -244,6 +260,116 @@ export const ChannelsRpcLive = Effect.Do.pipe(
             LogicError.withMessage(() => `Roster ${roster_id} not found when updating channel`),
           ),
           Effect.asVoid,
+        ),
+  ),
+  // Managed channel mappings — acquire TeamChannelsRepository lazily inside each handler
+  // to avoid TypeScript pipe-depth inference issues with too many accumulated bound fields.
+  Effect.let(
+    'Channel/GetManagedChannel',
+    () =>
+      ({ team_channel_id }: { readonly team_channel_id: TeamChannel.TeamChannelId }) =>
+        TeamChannelsRepository.asEffect().pipe(
+          Effect.flatMap((repo) =>
+            repo.findById(team_channel_id).pipe(Effect.map(Option.map(toManagedChannelMapping))),
+          ),
+        ),
+  ),
+  Effect.let(
+    'Channel/UpsertManagedChannel',
+    () =>
+      ({
+        team_channel_id,
+        discord_channel_id,
+      }: {
+        readonly team_channel_id: TeamChannel.TeamChannelId;
+        readonly discord_channel_id: Discord.Snowflake;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('channelsRepo', () => TeamChannelsRepository.asEffect()),
+          Effect.bind('accessRepo', () => TeamChannelAccessRepository.asEffect()),
+          Effect.bind('channelSync', () => ChannelSyncEventsRepository.asEffect()),
+          // 1. Persist the discord_channel_id
+          Effect.tap(({ channelsRepo }) =>
+            channelsRepo.upsertDiscordChannelId(team_channel_id, discord_channel_id),
+          ),
+          // 2. Reconcile any grants that were created before the channel was provisioned
+          Effect.bind('channel', ({ channelsRepo }) =>
+            channelsRepo.findById(team_channel_id).pipe(
+              Effect.map(
+                Option.match({
+                  onNone: () => Option.none<{ team_id: Team.TeamId }>(),
+                  onSome: (ch) => Option.some({ team_id: ch.team_id }),
+                }),
+              ),
+            ),
+          ),
+          Effect.tap(({ channel, accessRepo, channelSync }) =>
+            Option.match(channel, {
+              onNone: () => Effect.void,
+              onSome: ({ team_id }) =>
+                Effect.Do.pipe(
+                  Effect.bind('grants', () => accessRepo.findByChannel(team_channel_id)),
+                  Effect.bind('roleMap', ({ grants }) =>
+                    grants.length === 0
+                      ? Effect.succeed(new Map<GroupModel.GroupId, Discord.Snowflake | null>())
+                      : accessRepo
+                          .findGroupRoleIds(grants.map((g) => g.group_id))
+                          .pipe(
+                            Effect.map(
+                              (rows) =>
+                                new Map(
+                                  rows.map((r) => [
+                                    r.group_id,
+                                    Option.getOrNull(r.discord_role_id),
+                                  ]),
+                                ),
+                            ),
+                          ),
+                  ),
+                  Effect.tap(({ grants, roleMap }) => {
+                    const { entries, unresolvableGroupIds } = buildManagedAccessGrantEntries(
+                      grants.map((g) => ({ groupId: g.group_id, accessLevel: g.access_level })),
+                      roleMap,
+                      {
+                        teamChannelId: team_channel_id,
+                        discordChannelId: discord_channel_id,
+                      },
+                    );
+                    return Effect.forEach(unresolvableGroupIds, (groupId) =>
+                      Effect.logWarning(
+                        `UpsertManagedChannel reconcile: skipping grant for group ${groupId} on channel ${team_channel_id} — no discord_role_id resolved`,
+                      ),
+                    ).pipe(
+                      Effect.flatMap(() => {
+                        if (entries.length === 0) return Effect.void;
+                        return channelSync.emitManagedAccessGrantedBatch({
+                          teamId: team_id,
+                          entries,
+                        });
+                      }),
+                    );
+                  }),
+                  Effect.asVoid,
+                ),
+            }),
+          ),
+          Effect.asVoid,
+        ),
+  ),
+  Effect.let(
+    'Channel/ClearManagedChannel',
+    () =>
+      ({ team_channel_id }: { readonly team_channel_id: TeamChannel.TeamChannelId }) =>
+        TeamChannelsRepository.asEffect().pipe(
+          Effect.flatMap((repo) => repo.clearDiscordChannelId(team_channel_id)),
+        ),
+  ),
+  Effect.let(
+    'Channel/DeleteManagedChannel',
+    () =>
+      ({ team_channel_id }: { readonly team_channel_id: TeamChannel.TeamChannelId }) =>
+        TeamChannelsRepository.asEffect().pipe(
+          Effect.flatMap((repo) => repo.delete(team_channel_id)),
         ),
   ),
   Bind.remove('syncEvents'),

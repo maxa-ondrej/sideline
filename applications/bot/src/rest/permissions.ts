@@ -1,4 +1,7 @@
+import type { TeamChannelAccess } from '@sideline/domain';
 import { Discord } from 'dfx';
+
+type AccessLevel = TeamChannelAccess.AccessLevel;
 
 export interface Permission {
   allow?: bigint;
@@ -22,3 +25,51 @@ export const MANAGE: Permission = {
   allow: Discord.Permissions.ViewChannel,
   deny: Discord.Permissions.SendMessages,
 };
+
+// --- Managed channel access tiers ---
+
+export const CHANNEL_ACCESS_VIEW: Permission = {
+  allow: Discord.Permissions.ViewChannel | Discord.Permissions.ReadMessageHistory,
+  deny:
+    Discord.Permissions.SendMessages |
+    Discord.Permissions.AddReactions |
+    Discord.Permissions.SendMessagesInThreads |
+    Discord.Permissions.CreatePublicThreads |
+    Discord.Permissions.CreatePrivateThreads,
+};
+
+export const CHANNEL_ACCESS_EDIT: Permission = {
+  allow:
+    Discord.Permissions.ViewChannel |
+    Discord.Permissions.ReadMessageHistory |
+    Discord.Permissions.SendMessages |
+    Discord.Permissions.AddReactions |
+    Discord.Permissions.AttachFiles |
+    Discord.Permissions.EmbedLinks |
+    Discord.Permissions.SendMessagesInThreads |
+    Discord.Permissions.CreatePublicThreads |
+    Discord.Permissions.CreatePrivateThreads,
+};
+
+export const CHANNEL_ACCESS_ADMIN: Permission = {
+  allow:
+    Discord.Permissions.ViewChannel |
+    Discord.Permissions.ReadMessageHistory |
+    Discord.Permissions.SendMessages |
+    Discord.Permissions.AddReactions |
+    Discord.Permissions.AttachFiles |
+    Discord.Permissions.EmbedLinks |
+    Discord.Permissions.SendMessagesInThreads |
+    Discord.Permissions.CreatePublicThreads |
+    Discord.Permissions.CreatePrivateThreads |
+    Discord.Permissions.ManageMessages |
+    Discord.Permissions.ManageThreads |
+    Discord.Permissions.PinMessages,
+};
+
+export const accessLevelPermission = (level: AccessLevel): Permission =>
+  level === 'VIEW'
+    ? CHANNEL_ACCESS_VIEW
+    : level === 'EDIT'
+      ? CHANNEL_ACCESS_EDIT
+      : CHANNEL_ACCESS_ADMIN;

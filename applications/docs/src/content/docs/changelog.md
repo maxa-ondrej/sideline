@@ -5,6 +5,36 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-05 — Channel management: restore archived channels + channel emoji
+
+- **Restore archived channels:** archived channels can now be moved back out of the archive category directly from Sideline. Open the channel's detail sheet and click **Restore**, or use multi-select to **Restore selected** channels in bulk. For Sideline-managed channels the existing Discord link is re-used — no new channel is created. Channels that are already active, are categories, or cannot be found are listed as skipped.
+- **Channel emoji:** when creating a managed channel you can now set an optional emoji. The emoji is stored separately from the logical channel name and composed into the Discord channel name via the team's channel format template (e.g. `{emoji}│{name}`). The team's current format is shown on the **Team → Channels** page.
+
+## 2026-06-05 — Channel management: take over any Discord channel + bulk archive
+
+- **Take over any Discord channel:** you can now bring an existing Discord text channel under Sideline management without recreating it. Open the channel's detail sheet and click **Take over channel**. The bot makes the channel private (replaces all existing Discord permission overwrites with `@everyone deny ViewChannel`), then you control access from the **Access** panel as usual. Only text channels (type 0) can be adopted; categories and voice channels are not supported.
+- **Bulk archive:** select multiple channels on the **Team → Channels** page and archive them all in one action. Channels that are already archived, are categories, or cannot be found are skipped with a reason; unexpected errors for individual channels are reported without blocking the rest. Requires the archive category to be configured in **Team settings → Discord integration**.
+
+## 2026-06-04 — Channel management: full Discord channel list + archive any channel
+
+- **Team → Channels** now shows your team's _entire_ Discord channel list — not just channels Sideline created. Every text channel in your server is visible, grouped by its Discord category, so you can see and act on your whole Discord structure from one place.
+- Channels under the team's configured **archive category** are automatically shown with an *Archived* badge.
+- **Archive any Discord channel:** you can now move any channel — including ones you created manually in Discord — to the archive category directly from Sideline. The channel is moved, never deleted. Requires the archive category to be configured in **Team settings → Discord integration**.
+- The original channel management features remain: create, rename, control access, and archive Sideline-managed channels. Access management (per-group permission overwrites) is still limited to managed channels only.
+
+## 2026-06-04 — Web-based Discord channel management
+
+- Admins and captains with the `group:manage` permission can now create, rename, archive, and control access for **managed Discord text channels** directly from the web app — no manual Discord configuration needed.
+- Open **Team → Channels** to see the full channel list. Channels show their name, Sideline-side category, current Discord link status, and the number of access grants.
+- **Create a channel:** click **New channel**, enter a name and an optional category, then save. Sideline queues the Discord channel for creation; the bot provisions it within seconds and writes the Discord link back automatically.
+- **Control access:** open a channel's detail sheet and use the **Access** panel to grant groups one of three permission tiers:
+  - **View** — members can read the channel but not write.
+  - **Edit** — members can send messages, react, attach files, and use threads.
+  - **Admin** — all Edit permissions plus the ability to manage messages, threads, and pin messages. Does _not_ grant Discord's Manage Channel permission.
+- **Rename a channel:** updates the Sideline label. Discord channel rename is planned for a future release.
+- **Archive a channel:** removes it from the active list and, if an archive category is configured in team settings, moves the Discord channel to that category. Falls back to deleting the Discord channel when no archive category is set.
+- Access changes take effect in Discord within seconds via the existing channel-sync pipeline.
+
 ## 2026-06-04 — Fix crash immediately after Discord login
 
 - Fixed an `Uncaught undefined` error that appeared in the browser immediately after completing Discord OAuth login. The crash was caused by the post-login redirect (which strips the `?token=` parameter from the URL) interrupting an in-flight page load, allowing a bare `undefined` to escape to the router.
