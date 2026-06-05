@@ -229,7 +229,7 @@ export function ChannelAccessSheet({
                 <AccessLevelSelect
                   value={selectedLevel}
                   onValueChange={setSelectedLevel}
-                  disabled={!selectedGroupId || submitting}
+                  disabled={submitting}
                   className='w-36'
                 />
                 <Button
