@@ -301,7 +301,7 @@ const make = Effect.gen(function* () {
                ts.discord_channel_training,
                e.owner_group_id,
                e.claimed_by,
-               COALESCE(u.name, u.nickname, u.display_name, u.username) AS claimer_display_name,
+               u.name AS claimer_display_name,
                u.discord_id AS claimer_discord_id
         FROM events e
         JOIN team_settings ts ON ts.team_id = e.team_id
