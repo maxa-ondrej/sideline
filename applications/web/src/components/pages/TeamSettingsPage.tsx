@@ -1147,6 +1147,13 @@ export function TeamSettingsPage({
           </CardContent>
         </Card>
 
+        {/* Email Forwarding */}
+        <EmailForwardingCard
+          teamId={teamId}
+          discordChannels={discordChannels}
+          initialConfig={emailForwardingConfig}
+        />
+
         {/* Onboarding */}
         <OnboardingCard
           teamInfo={teamInfo}
@@ -1165,13 +1172,6 @@ export function TeamSettingsPage({
           handleSaveOnboarding={handleSaveOnboarding}
           handleRetryOnboarding={handleRetryOnboarding}
           formatRelative={formatRelative}
-        />
-
-        {/* Email Forwarding */}
-        <EmailForwardingCard
-          teamId={teamId}
-          discordChannels={discordChannels}
-          initialConfig={emailForwardingConfig}
         />
       </div>
     </div>
