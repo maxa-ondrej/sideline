@@ -1,5 +1,15 @@
 # @sideline/web
 
+## 0.18.2
+
+### Patch Changes
+
+- [#371](https://github.com/maxa-ondrej/sideline/pull/371) [`8d5c386`](https://github.com/maxa-ondrej/sideline/commit/8d5c38680e82293b1bca226da837be0749115c66) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Expose the training claim-request lead time (`claim_request_days_before`) in the web Team Settings UI. Captains can now configure, in a new "Coach assignment" card, how many days before a training the coach claim request is posted (0–30, default 3) — previously only changeable directly in the database. Adds the field to the team-settings API contract (response + partial-update request, bounded 0–30), maps it through the server handler, and renders a number input that is independent of the RSVP reminder toggle.
+
+- Updated dependencies [[`8d5c386`](https://github.com/maxa-ondrej/sideline/commit/8d5c38680e82293b1bca226da837be0749115c66), [`7479b19`](https://github.com/maxa-ondrej/sideline/commit/7479b1992514f9eec87456e09ad93e4ebb2f754e)]:
+  - @sideline/domain@0.24.0
+  - @sideline/i18n@0.10.0
+
 ## 0.18.1
 
 ### Patch Changes

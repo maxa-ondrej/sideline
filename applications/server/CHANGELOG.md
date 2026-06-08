@@ -1,5 +1,27 @@
 # @sideline/server
 
+## 0.24.0
+
+### Minor Changes
+
+- [#367](https://github.com/maxa-ondrej/sideline/pull/367) [`7479b19`](https://github.com/maxa-ondrej/sideline/commit/7479b1992514f9eec87456e09ad93e4ebb2f754e) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Improve the coach assigning feature:
+  - **Configurable claim lead-time** — training claim-request messages now post a configurable number of days before the training (new per-team setting `claim_request_days_before`, default 3) instead of at event creation time, which could be up to the event horizon (~2 weeks) ahead. A new `TrainingClaimRequestCron` drives the scheduled posting; the on-creation emitter only fires immediately when the training already falls inside the lead-time window.
+  - **Training-day coaching status** — a new `CoachingStatusCron` posts a "today's coach is X" announcement to the member-visible training channel on the training day, only when the training is already claimed (to avoid notification spam).
+  - **Thread-based claim management** — the claim message now spawns a Discord thread (tracked via the new `events.claim_thread_id` column); the claim embed and buttons remain on the starter message.
+
+  Includes an idempotent migration adding `team_settings.claim_request_days_before`, `events.claim_request_sent_at`, `events.coaching_status_sent_at`, and `events.claim_thread_id`, extending the `event_sync_events` type check with `coaching_status`, partial indexes for the new cron scans, and a backfill that marks existing trainings as already-handled so there is no first-deploy notification blast.
+
+### Patch Changes
+
+- [#371](https://github.com/maxa-ondrej/sideline/pull/371) [`8d5c386`](https://github.com/maxa-ondrej/sideline/commit/8d5c38680e82293b1bca226da837be0749115c66) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Expose the training claim-request lead time (`claim_request_days_before`) in the web Team Settings UI. Captains can now configure, in a new "Coach assignment" card, how many days before a training the coach claim request is posted (0–30, default 3) — previously only changeable directly in the database. Adds the field to the team-settings API contract (response + partial-update request, bounded 0–30), maps it through the server handler, and renders a number input that is independent of the RSVP reminder toggle.
+
+- [#372](https://github.com/maxa-ondrej/sideline/pull/372) [`0a44ff1`](https://github.com/maxa-ondrej/sideline/commit/0a44ff16bfe8506ec0b1544a4b41e452163834d6) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Grant global admins read-only access to any team without requiring membership. Adds a `requireReadAccess` helper that returns a synthetic membership with view permissions when a global admin is not a member, and unions view permissions onto the real membership when they are. Swapped into all read-only handlers across roster, role, finance, activity-stats, and team endpoints.
+
+- Updated dependencies [[`8d5c386`](https://github.com/maxa-ondrej/sideline/commit/8d5c38680e82293b1bca226da837be0749115c66), [`7479b19`](https://github.com/maxa-ondrej/sideline/commit/7479b1992514f9eec87456e09ad93e4ebb2f754e)]:
+  - @sideline/domain@0.24.0
+  - @sideline/i18n@0.10.0
+  - @sideline/migrations@0.19.0
+
 ## 0.23.1
 
 ### Patch Changes
