@@ -1231,3 +1231,236 @@ describe('Auth API — removed-user behaviour (TDD: Handle removing user)', () =
     expect(hasTeamA).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TDD: Global admin read access
+// ---------------------------------------------------------------------------
+// These tests verify that a global admin user who is NOT a member of a team
+// can still access read-only endpoints (member:view, roster:view, role:view)
+// but is denied access to write endpoints.
+
+describe('Global admin read access', () => {
+  const globalAdminUser = {
+    ...testUser,
+    is_global_admin: true,
+    discord_id: 'global-admin-discord-id',
+  };
+
+  const GlobalAdminUsersRepositoryLayer = Layer.succeed(UsersRepository, {
+    _tag: 'api/UsersRepository',
+    findById: (id: Auth.UserId) =>
+      Effect.succeed(id === TEST_USER_ID ? Option.some(globalAdminUser) : Option.none()),
+    findByDiscordId: () => Effect.succeed(Option.none()),
+    upsertFromDiscord: () => Effect.succeed(globalAdminUser),
+    completeProfile: () => Effect.succeed(globalAdminUser),
+    updateLocale: () => Effect.succeed(globalAdminUser),
+    updateAdminProfile: () => Effect.succeed(globalAdminUser),
+  } as any);
+
+  // TeamMembersRepository where the global admin is NOT a member
+  const GlobalAdminNonMemberLayer = Layer.succeed(TeamMembersRepository, {
+    _tag: 'api/TeamMembersRepository',
+    addMember: () => Effect.die(new Error('Not implemented')),
+    findMembershipByIds: () => Effect.succeed(Option.none()),
+    findByTeam: () => Effect.succeed([]),
+    findByUser: () => Effect.succeed([]),
+    findRosterByTeam: () => Effect.succeed([]),
+    findRosterMemberByIds: () => Effect.succeed(Option.none()),
+    deactivateMemberByIds: () => Effect.die(new Error('Not implemented')),
+    getPlayerRoleId: () => Effect.succeed(Option.some({ id: TEST_ROLE_ID })),
+    assignRole: () => Effect.void,
+    unassignRole: () => Effect.void,
+    setJerseyNumber: () => Effect.void,
+  } as any);
+
+  const buildGlobalAdminLayer = () =>
+    ApiLive.pipe(
+      Layer.provideMerge(AuthMiddlewareLive),
+      Layer.provideMerge(HttpServer.layerServices),
+      Layer.provide(MockDiscordOAuthLayer),
+      Layer.provide(GlobalAdminUsersRepositoryLayer),
+      Layer.provide(MockSessionsRepositoryLayer),
+      Layer.provide(MockTeamsRepositoryLayer),
+      Layer.provide(GlobalAdminNonMemberLayer),
+      Layer.provide(
+        Layer.merge(
+          Layer.merge(
+            Layer.merge(MockRostersRepositoryLayer, MockActivityLogsRepositoryLayer),
+            MockActivityTypesRepositoryLayer,
+          ),
+          MockLeaderboardRepositoryLayer,
+        ),
+      ),
+      Layer.provide(MockRolesRepositoryLayer),
+      Layer.provide(MockGroupsRepositoryLayer),
+      Layer.provide(MockTrainingTypesRepositoryLayer),
+      Layer.provide(
+        Layer.merge(
+          MockTeamInvitesRepositoryLayer,
+          Layer.merge(
+            Layer.succeed(PendingGuildJoinsRepository, {
+              _tag: 'api/PendingGuildJoinsRepository',
+              enqueue: () => Effect.void,
+              listPending: () => Effect.succeed([]),
+              markDone: () => Effect.void,
+              markFailed: () => Effect.void,
+              requeueFailedForUser: () => Effect.void,
+            } as never),
+            Layer.succeed(InviteAcceptancesRepository, {
+              _tag: 'api/InviteAcceptancesRepository',
+            } as never),
+          ),
+        ),
+      ),
+      Layer.provide(MockHttpClientLayer),
+      Layer.provide(MockAgeCheckServiceLayer),
+      Layer.provide(MockAgeThresholdRepositoryLayer),
+      Layer.provide(
+        Layer.merge(MockNotificationsRepositoryLayer, MockRoleSyncEventsRepositoryLayer),
+      ),
+      Layer.provide(
+        Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+      ),
+      Layer.provide(
+        Layer.merge(MockDiscordChannelMappingRepositoryLayer, MockICalTokensRepositoryLayer),
+      ),
+      Layer.provide(
+        Layer.merge(
+          Layer.merge(
+            Layer.merge(
+              Layer.merge(
+                Layer.merge(
+                  Layer.merge(MockEventsRepositoryLayer, MockEventRsvpsRepositoryLayer),
+                  MockBotGuildsRepositoryLayer,
+                ),
+                Layer.merge(MockDiscordChannelsRepositoryLayer, MockDiscordRolesRepositoryLayer),
+              ),
+              MockEventSeriesRepositoryLayer,
+            ),
+            Layer.succeed(TeamSettingsRepository, {
+              _tag: 'api/TeamSettingsRepository',
+              findByTeam: () => Effect.succeed(Option.none()),
+              findByTeamId: () => Effect.succeed(Option.none()),
+              upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+              upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+              getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+              getHorizonDays: () => Effect.succeed(30),
+            } as any),
+          ),
+          MockOAuthConnectionsRepositoryLayer,
+        ),
+      ),
+      Layer.provide(MockAchievementAdminLayers),
+    )
+      .pipe(Layer.provide(MockFinanceLayers))
+      .pipe(Layer.provide(MockTranslationsLayers))
+      .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
+      .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
+      .pipe(Layer.provide(MockDashboardLayoutsRepositoryLayer))
+      .pipe(Layer.provide(MockChannelManagementLayers))
+      .pipe(Layer.provide(BotInfoStore.Default));
+
+  it('global admin non-member can GET /teams/:id/members → 200', async () => {
+    const testLayer = buildGlobalAdminLayer();
+    const app = HttpRouter.toWebHandler(testLayer);
+    const h = app.handler as (...args: any[]) => Promise<Response>;
+
+    const response = await h(
+      new Request(`http://localhost/teams/${TEST_TEAM_ID}/members`, {
+        headers: { Authorization: 'Bearer pre-existing-token' },
+      }),
+    );
+    await app.dispose();
+
+    expect(response.status).toBe(200);
+  });
+
+  it('non-admin non-member → 403 (regression guard)', async () => {
+    // The base TestLayer uses MockTeamMembersRepositoryLayer which returns Option.none() for findMembershipByIds
+    // and testUser has is_global_admin: false → should get 403
+    const response = await handler(
+      new Request(`http://localhost/teams/${TEST_TEAM_ID}/members`, {
+        headers: { Authorization: 'Bearer pre-existing-token' },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it('global admin non-member calling write endpoint POST /teams/:id/roles → 403', async () => {
+    const testLayer = buildGlobalAdminLayer();
+    const app = HttpRouter.toWebHandler(testLayer);
+    const h = app.handler as (...args: any[]) => Promise<Response>;
+
+    const response = await h(
+      new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer pre-existing-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: 'Test Role', permissions: [] }),
+      }),
+    );
+    await app.dispose();
+
+    expect(response.status).toBe(403);
+  });
+
+  it('global admin non-member can GET /teams/:id/roles → 200', async () => {
+    const testLayer = buildGlobalAdminLayer();
+    const app = HttpRouter.toWebHandler(testLayer);
+    const h = app.handler as (...args: any[]) => Promise<Response>;
+
+    const response = await h(
+      new Request(`http://localhost/teams/${TEST_TEAM_ID}/roles`, {
+        headers: { Authorization: 'Bearer pre-existing-token' },
+      }),
+    );
+    await app.dispose();
+
+    expect(response.status).toBe(200);
+  });
+
+  it('global admin non-member can GET /teams/:id/fees → 200', async () => {
+    const testLayer = buildGlobalAdminLayer();
+    const app = HttpRouter.toWebHandler(testLayer);
+    const h = app.handler as (...args: any[]) => Promise<Response>;
+
+    const response = await h(
+      new Request(`http://localhost/teams/${TEST_TEAM_ID}/fees`, {
+        headers: { Authorization: 'Bearer pre-existing-token' },
+      }),
+    );
+    await app.dispose();
+
+    expect(response.status).toBe(200);
+  });
+
+  it('global admin non-member calling POST /teams/:id/fees → 403', async () => {
+    const testLayer = buildGlobalAdminLayer();
+    const app = HttpRouter.toWebHandler(testLayer);
+    const h = app.handler as (...args: any[]) => Promise<Response>;
+
+    const response = await h(
+      new Request(`http://localhost/teams/${TEST_TEAM_ID}/fees`, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer pre-existing-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Test Fee',
+          description: null,
+          amountMinor: 1000,
+          currency: 'CZK',
+          dueAt: null,
+          targetScope: 'custom',
+        }),
+      }),
+    );
+    await app.dispose();
+
+    expect(response.status).toBe(403);
+  });
+});

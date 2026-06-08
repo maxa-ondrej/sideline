@@ -839,7 +839,7 @@ members.findMembershipByIds(teamId, userId, { includeInactive: true })
 
 Rules:
 
-1. **The default `findMembershipByIds(teamId, userId)` (no options) is the correct call for every authorization gate** — `requireMembership`, every `requirePermission`, every "is this caller a member" check. A removed user must surface as `Option.none()` so the gate returns `forbidden` (403).
+1. **The default `findMembershipByIds(teamId, userId)` (no options) is the correct call for every authorization gate** — `requireMembership`, `requireReadAccess`, every `requirePermission`, every "is this caller a member" check. A removed user must surface as `Option.none()` so the gate returns `forbidden` (403) — except `requireReadAccess`, which on `Option.none()` falls through to a synthetic read-only membership when `currentUser.isGlobalAdmin` is `true` (see "Global Admin Authorization" rule 6).
 2. **Pass `{ includeInactive: true }` only when the handler's purpose is to decide between addMember / reactivateMember / reject.** Currently exactly three call sites need this: `invite.joinViaInvite`, `auth.autoJoinTeams`, and `rpc/guild.RegisterMember`. Do not add a fourth without documenting why the reactivation branch belongs there.
 3. **`findByUser(userId)` has no `includeInactive` option and never will.** It backs `GET /auth/me/teams` (the team switcher), which must hide teams the user has been removed from. Add a new method (e.g. `findAllByUserIncludingInactive`) before relaxing the SQL filter on `findByUser`.
 4. **`requireMembership` (`src/api/permissions.ts`) calls `findMembershipByIds` without options.** Every endpoint that gates on membership inherits the active-only filter for free — never re-implement the gate by calling `findMembershipByIds(..., { includeInactive: true })` and then checking `membership.active` in handler code.
@@ -938,6 +938,8 @@ Some HTTP endpoints (translations CMS, onboarding-token tools, future cross-team
 | Per-request flag | `Auth.CurrentUser.isGlobalAdmin` | Produced by `toCurrentUser` at every `CurrentUser` construction site: `AuthMiddlewareLive` and the three `src/api/auth.ts` handlers (locale update, admin profile update, profile completion). Never construct `Auth.CurrentUser` inline. |
 | First-user bootstrap | `UsersRepository.upsertFromDiscord` | The insert sets `is_global_admin = (NOT EXISTS (SELECT 1 FROM users))`, so the first registered user becomes a global admin. `ON CONFLICT` omits `is_global_admin`, so subsequent logins never promote/demote it. |
 | Handler guard | `requireGlobalAdmin(forbidden)` in `src/utils/requireGlobalAdmin.ts` | Reads `Auth.CurrentUserContext`; on `isGlobalAdmin === false`, fails with the caller-supplied `forbidden` error. |
+| Read-access gate | `requireReadAccess(members, teamId, forbidden)` in `src/api/permissions.ts` | Team-scoped read gate that grants a global admin synthetic read access. Returns the real `MembershipWithRole` for an actual member (a global admin's permissions are unioned with `VIEW_PERMISSIONS`); for a global admin who is NOT a member, returns a synthetic `MembershipWithRole` (sentinel id, `permissions = VIEW_PERMISSIONS`); for a non-member non-admin, fails with `forbidden`. |
+| Read-permission set | `VIEW_PERMISSIONS` in `src/api/permissions.ts` | `readonly Role.Permission[]` granted to global admins by `requireReadAccess` — `roster:view`, `member:view`, `role:view`, `finance:view`. |
 
 Rules:
 
@@ -945,9 +947,14 @@ Rules:
 2. **The endpoint's domain error must be a dedicated `<Resource>Forbidden` tag bound to HTTP 403** via `HttpApiSchema.status(403)`. Do not reuse `Auth.Unauthorized` — that is reserved for "no valid session" (401), not "session valid but insufficient privilege".
 3. **Never check `discord_id` against the env set inside a handler, and never construct `Auth.CurrentUser` inline.** Always build it via `toCurrentUser` and always read `currentUser.isGlobalAdmin`, so the resolution rule (DB flag OR env allow-list) lives in exactly one place.
 4. **Env allow-list changes require a redeploy; DB-flag changes take effect on the user's next request.** `globalAdminDiscordIds` is computed at module load from `process.env` — there is no hot-reload path. `users.is_global_admin` is read per-request via `toCurrentUser`. Document the env var in `docs/deployment.md` when adding a new admin-only endpoint.
-5. **Do not use the global-admin flag for team-scoped operations.** Captain/member permissions on a team are checked via `requirePermission(membership, '<perm>', forbidden)` from the membership repository — global admin does NOT implicitly grant team permissions and must not be made to.
+5. **Do not use the global-admin flag for team-scoped WRITE operations.** Captain/member permissions for any mutation are checked via `requirePermission(membership, '<perm>', forbidden)` on a membership obtained from `requireMembership(...)` — global admin does NOT implicitly grant team write permissions and must not be made to. The only team-scoped privilege a global admin gets is read access via `requireReadAccess` (rule 6).
+6. **Read-only handlers use `requireReadAccess`; write handlers use `requireMembership`.**
+   - A read-only handler (any `<resource>:view` endpoint — list/get of roster, members, roles, finance, activity stats) gates with `requireReadAccess(members, teamId, forbidden)` so a global admin can inspect any team without being a member.
+   - A write handler (create / update / delete) gates with `requireMembership(members, teamId, currentUser.id, forbidden)` — it MUST require actual team membership; a global admin must NOT be able to mutate a team they are not a member of.
+   - `requireReadAccess` reads `Auth.CurrentUserContext` itself, so its signature is `(members, teamId, forbidden)` — it does NOT take `currentUser.id` (unlike `requireMembership(members, teamId, currentUser.id, forbidden)`).
+   - A global admin who is not a member receives a synthetic `MembershipWithRole` with a sentinel id and `permissions = VIEW_PERMISSIONS`. Handlers using `requireReadAccess` MUST NOT scope DB queries by `membership.id` — that id is not a real `team_members` row for a synthetic membership. (Caller-scoped `my*` reads that hardcode `memberId: Option.some(membership.id)` therefore keep using `requireMembership`, never `requireReadAccess`.)
 
-Reference: `src/api/translations.ts` (every mutating endpoint starts with `Effect.tap(() => requireGlobalAdmin(forbidden))`).
+Reference: read-access helper `src/api/permissions.ts` (`requireReadAccess`, `VIEW_PERMISSIONS`); read handlers `src/api/roster.ts`, `src/api/role.ts`, `src/api/finance.ts`, `src/api/activity-stats.ts`, `src/api/team.ts`. Global-admin-only mutating endpoints `src/api/translations.ts` (every mutating endpoint starts with `Effect.tap(() => requireGlobalAdmin(forbidden))`).
 
 ## LISTEN/NOTIFY Cache Invalidation
 

@@ -70,6 +70,25 @@ Sideline exposes a JSON REST API built with [`@effect/platform`](https://github.
 | 409 | Conflict (duplicate, resource in use, etc.) |
 | 410 | Gone (resource expired or permanently revoked) |
 
+### Authorization Model
+
+Most team-scoped endpoints require the caller to be a member of the target team. There are two helpers used by handlers:
+
+- **`requireMembership`** — verifies the caller is a team member. Used by write handlers (create/update/delete). Global admins who are not members of the team are rejected with `403`.
+- **`requireReadAccess`** — used by read-only handlers. If the caller is a team member, it behaves like `requireMembership`. If the caller is **not** a member but has `isGlobalAdmin = true`, it synthesises a read-only membership with the `VIEW_PERMISSIONS` set (`roster:view`, `member:view`, `role:view`, `finance:view`). This allows global admins to inspect any team's data without being enrolled as a member.
+
+Endpoints using `requireReadAccess`:
+
+| Group | Endpoints |
+|---|---|
+| Roster | `GET /teams/:teamId/members`, `GET /teams/:teamId/members/:memberId`, `GET /teams/:teamId/rosters`, `GET /teams/:teamId/rosters/:rosterId` |
+| Role | `GET /teams/:teamId/roles`, `GET /teams/:teamId/roles/:roleId` |
+| Finance | `GET /teams/:teamId/finance/fees`, `GET /teams/:teamId/finance/fees/:feeId`, `GET /teams/:teamId/finance/assignments`, `GET /teams/:teamId/finance/members/:memberId/assignments`, `GET /teams/:teamId/finance/payments`, `GET /teams/:teamId/finances/overview` |
+| Activity Stats | `GET /teams/:teamId/members/:memberId/activity-stats` |
+| Team | `GET /teams/:teamId` |
+
+Write handlers on all these resources continue to use `requireMembership`, so global admins cannot mutate team data.
+
 ---
 
 ## Authentication Flow
@@ -155,7 +174,7 @@ Returns the currently authenticated user's profile.
 | `birthDate` | `string \| null` | Yes | Birth date (ISO 8601 date string) |
 | `gender` | `"male" \| "female" \| "other" \| null` | Yes | Gender |
 | `locale` | `"en" \| "cs"` | No | Preferred locale |
-| `isGlobalAdmin` | `boolean` | No | Whether the user is a global admin (Discord ID listed in `APP_GLOBAL_ADMIN_DISCORD_IDS`). Global admins can manage translation overrides. |
+| `isGlobalAdmin` | `boolean` | No | Whether the user is a global admin (Discord ID listed in `APP_GLOBAL_ADMIN_DISCORD_IDS`). Global admins can manage translation overrides, mint team onboarding tokens, and read data from any team regardless of membership. |
 | `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
@@ -412,7 +431,12 @@ Returns the team's current settings.
 | `teamId` | `TeamId` | No | Team ID |
 | `eventHorizonDays` | `integer` | No | How many days ahead to generate events from active series |
 | `minPlayersThreshold` | `integer` | No | Minimum players for an event to show a warning |
-| `rsvpReminderHours` | `integer` | No | Hours before an event when the RSVP reminder is sent |
+| `rsvpRemindersEnabled` | `boolean` | No | Whether RSVP reminders are enabled for this team |
+| `rsvpReminderDaysBefore` | `integer` | No | Days before an event the RSVP reminder is sent |
+| `claimRequestDaysBefore` | `integer` | No | Days before a training the coach claim-board message is posted (0 = on the training day; range 0–30) |
+| `rsvpReminderTime` | `string` | No | Time of day the RSVP reminder fires (HH:MM in the team's timezone, e.g. `18:00`) |
+| `remindersChannelId` | `Snowflake \| null` | Yes | Discord channel where reminders and event-start announcements are posted; falls back to the event's owner-group channel if unset |
+| `timezone` | `string` | No | IANA timezone name used for scheduling reminders and cron jobs (e.g. `Europe/Prague`) |
 | `discordChannelTraining` | `Snowflake \| null` | Yes | Default Discord channel for training events |
 | `discordChannelMatch` | `Snowflake \| null` | Yes | Default Discord channel for match events |
 | `discordChannelTournament` | `Snowflake \| null` | Yes | Default Discord channel for tournament events |
@@ -438,7 +462,7 @@ Returns the team's current settings.
 
 #### `PATCH /teams/:teamId/settings`
 
-Updates the team's settings. `eventHorizonDays` is required; all other fields are optional.
+Updates the team's settings. All fields are optional; only provided fields are changed.
 
 **Auth:** Bearer token (AuthMiddleware)
 **Required Permission:** `team:manage`
@@ -453,9 +477,14 @@ Updates the team's settings. `eventHorizonDays` is required; all other fields ar
 
 | Field | Type | Required | Constraints | Description |
 |---|---|---|---|---|
-| `eventHorizonDays` | `integer` | Yes | 1–365 | Days ahead to generate scheduled events |
+| `eventHorizonDays` | `integer` | No | 1–365 | Days ahead to generate scheduled events |
 | `minPlayersThreshold` | `integer` | No | 0–100 | Minimum player threshold |
-| `rsvpReminderHours` | `integer` | No | 0–168 | Hours before event for RSVP reminder |
+| `rsvpRemindersEnabled` | `boolean` | No | — | Enable or disable RSVP reminders |
+| `rsvpReminderDaysBefore` | `integer` | No | 0–14 | Days before the event the reminder fires |
+| `claimRequestDaysBefore` | `integer` | No | 0–30 | Days before a training the coach claim-board message is posted; 0 posts on the training day |
+| `rsvpReminderTime` | `string` | No | Valid HH:MM, max `23:54` | Time of day the reminder fires in the team's timezone |
+| `remindersChannelId` | `Snowflake \| null` | No | — | Channel for reminders; null clears the field |
+| `timezone` | `string` | No | Valid IANA timezone | Team timezone (e.g. `Europe/Prague`) |
 | `discordChannelTraining` | `Snowflake \| null` | No | — | Channel for training events |
 | `discordChannelMatch` | `Snowflake \| null` | No | — | Channel for match events |
 | `discordChannelTournament` | `Snowflake \| null` | No | — | Channel for tournament events |

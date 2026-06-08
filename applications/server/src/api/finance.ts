@@ -3,7 +3,7 @@ import { LogicError } from '@sideline/effect-lib';
 import { Array, DateTime, Effect, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
-import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { requireMembership, requirePermission, requireReadAccess } from '~/api/permissions.js';
 import {
   type AssignmentViewRow,
   FeeAssignmentsRepository,
@@ -131,10 +131,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
         // ------------------------------------------------------------------
         .handle('listFees', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'finance:view', forbidden),
             ),
@@ -198,10 +195,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
         // ------------------------------------------------------------------
         .handle('getFee', ({ params: { teamId, feeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'finance:view', forbidden),
             ),
@@ -315,10 +309,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
         // ------------------------------------------------------------------
         .handle('listAssignments', ({ params: { teamId, feeId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'finance:view', forbidden),
             ),
@@ -465,10 +456,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
         // ------------------------------------------------------------------
         .handle('listMemberAssignments', ({ params: { teamId, memberId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'finance:view', forbidden),
             ),
@@ -488,10 +476,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
         // ------------------------------------------------------------------
         .handle('listPayments', ({ params: { teamId }, query }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'finance:view', forbidden),
             ),
@@ -557,7 +542,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
                 teamMemberId: assignment.team_member_id,
                 amountMinor: payload.amountMinor,
                 method: payload.method,
-                paidAt: payload.paidAt as DateTime.Utc,
+                paidAt: payload.paidAt,
                 note: payload.note,
                 recordedByUserId: currentUser.id,
               }),
@@ -612,10 +597,7 @@ export const FinanceApiLive = HttpApiBuilder.group(Api, 'finance', (handlers) =>
         // ------------------------------------------------------------------
         .handle('overview', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) =>
               requirePermission(membership, 'finance:view', forbidden),
             ),
