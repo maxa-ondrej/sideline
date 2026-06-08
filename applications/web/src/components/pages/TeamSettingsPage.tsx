@@ -274,9 +274,9 @@ export function TeamSettingsPage({
       parsedReminderDaysBefore > 14
     )
       return;
-    const parsedClaimDaysBefore = Number.parseInt(claimRequestDaysBefore, 10);
+    const parsedClaimDaysBefore = Number(claimRequestDaysBefore);
     if (
-      Number.isNaN(parsedClaimDaysBefore) ||
+      !Number.isInteger(parsedClaimDaysBefore) ||
       parsedClaimDaysBefore < 0 ||
       parsedClaimDaysBefore > 30
     )
