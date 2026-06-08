@@ -70,7 +70,7 @@ const makeReal = (
         {
           role: 'system',
           content:
-            'You are a helpful assistant that summarizes emails concisely. Provide a brief, informative summary in 2-4 sentences.',
+            'You are a helpful assistant that summarizes emails concisely. Provide a brief, informative summary in 2-4 sentences. Always write the summary in the same language as the email.',
         },
         {
           role: 'user',
