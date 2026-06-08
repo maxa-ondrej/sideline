@@ -217,4 +217,10 @@ const handleInbound = (
 // Layer — registers the route on the HttpRouter
 // ---------------------------------------------------------------------------
 
-export const EmailWebhookLive = HttpRouter.add('POST', '/email/inbound/:token', handleInbound);
+// Mount under the API prefix so the route sits behind the same `/api` path the
+// reverse proxy forwards to the server (empty prefix locally → `/email/inbound`,
+// `/api/email/inbound` in preview/prod). This matches the inbound URL the web UI
+// builds from SERVER_URL, which already includes the prefix.
+const inboundPath = `${env.API_PREFIX}/email/inbound/:token` as `/${string}`;
+
+export const EmailWebhookLive = HttpRouter.add('POST', inboundPath, handleInbound);
