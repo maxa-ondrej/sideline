@@ -388,8 +388,12 @@ test.describe('Onboarding Settings Card', () => {
       timeout: 15000,
     });
 
-    // Form fields should be wrapped in a disabled fieldset
-    const fieldset = page.locator('fieldset[disabled]');
+    // Form fields should be wrapped in a disabled fieldset.
+    // Scope to the onboarding fieldset (the one containing the rules-channel
+    // control) so the unrelated email-forwarding fieldset doesn't trip strict mode.
+    const fieldset = page
+      .locator('fieldset[disabled]')
+      .filter({ has: page.getByLabel(/rules channel/i) });
     await expect(fieldset).toBeVisible({ timeout: 10000 });
 
     // Status section should remain accessible (outside the disabled fieldset)
