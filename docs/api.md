@@ -70,6 +70,25 @@ Sideline exposes a JSON REST API built with [`@effect/platform`](https://github.
 | 409 | Conflict (duplicate, resource in use, etc.) |
 | 410 | Gone (resource expired or permanently revoked) |
 
+### Authorization Model
+
+Most team-scoped endpoints require the caller to be a member of the target team. There are two helpers used by handlers:
+
+- **`requireMembership`** — verifies the caller is a team member. Used by write handlers (create/update/delete). Global admins who are not members of the team are rejected with `403`.
+- **`requireReadAccess`** — used by read-only handlers. If the caller is a team member, it behaves like `requireMembership`. If the caller is **not** a member but has `isGlobalAdmin = true`, it synthesises a read-only membership with the `VIEW_PERMISSIONS` set (`roster:view`, `member:view`, `role:view`, `finance:view`). This allows global admins to inspect any team's data without being enrolled as a member.
+
+Endpoints using `requireReadAccess`:
+
+| Group | Endpoints |
+|---|---|
+| Roster | `GET /teams/:teamId/members`, `GET /teams/:teamId/members/:memberId`, `GET /teams/:teamId/rosters`, `GET /teams/:teamId/rosters/:rosterId` |
+| Role | `GET /teams/:teamId/roles`, `GET /teams/:teamId/roles/:roleId` |
+| Finance | `GET /teams/:teamId/finance/fees`, `GET /teams/:teamId/finance/fees/:feeId`, `GET /teams/:teamId/finance/assignments`, `GET /teams/:teamId/finance/members/:memberId/assignments`, `GET /teams/:teamId/finance/payments`, `GET /teams/:teamId/finances/overview` |
+| Activity Stats | `GET /teams/:teamId/members/:memberId/activity-stats` |
+| Team | `GET /teams/:teamId` |
+
+Write handlers on all these resources continue to use `requireMembership`, so global admins cannot mutate team data.
+
 ---
 
 ## Authentication Flow
@@ -155,7 +174,7 @@ Returns the currently authenticated user's profile.
 | `birthDate` | `string \| null` | Yes | Birth date (ISO 8601 date string) |
 | `gender` | `"male" \| "female" \| "other" \| null` | Yes | Gender |
 | `locale` | `"en" \| "cs"` | No | Preferred locale |
-| `isGlobalAdmin` | `boolean` | No | Whether the user is a global admin (Discord ID listed in `APP_GLOBAL_ADMIN_DISCORD_IDS`). Global admins can manage translation overrides. |
+| `isGlobalAdmin` | `boolean` | No | Whether the user is a global admin (Discord ID listed in `APP_GLOBAL_ADMIN_DISCORD_IDS`). Global admins can manage translation overrides, mint team onboarding tokens, and read data from any team regardless of membership. |
 | `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
 
 **Errors:**
