@@ -3,7 +3,12 @@ import { LogicError } from '@sideline/effect-lib';
 import { Array, Effect, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
-import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
+import {
+  hasPermission,
+  requireMembership,
+  requirePermission,
+  requireReadAccess,
+} from '~/api/permissions.js';
 import { NotificationsRepository } from '~/repositories/NotificationsRepository.js';
 import { RolesRepository } from '~/repositories/RolesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -19,10 +24,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
       handlers
         .handle('listRoles', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:view', forbidden)),
             Effect.let('canManage', ({ membership }) => hasPermission(membership, 'role:manage')),
             Effect.bind('roleList', () => roles.findRolesByTeamId(teamId)),
@@ -78,10 +80,7 @@ export const RoleApiLive = HttpApiBuilder.group(Api, 'role', (handlers) =>
         )
         .handle('getRole', ({ params: { teamId, roleId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.tap(({ membership }) => requirePermission(membership, 'role:view', forbidden)),
             Effect.let('canManage', ({ membership }) => hasPermission(membership, 'role:manage')),
             Effect.bind('role', () =>

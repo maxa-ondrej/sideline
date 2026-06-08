@@ -1,8 +1,8 @@
-import { type Achievement, ActivityStats, ActivityStatsApi, Auth } from '@sideline/domain';
+import { type Achievement, ActivityStats, ActivityStatsApi } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
-import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { requirePermission, requireReadAccess } from '~/api/permissions.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { EarnedAchievementsRepository } from '~/repositories/EarnedAchievementsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -15,9 +15,8 @@ export const ActivityStatsApiLive = HttpApiBuilder.group(Api, 'activityStats', (
     Effect.map(({ members, activityLogs, earnedAchievementsOpt }) =>
       handlers.handle('getMemberStats', ({ params: { teamId, memberId } }) =>
         Effect.Do.pipe(
-          Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-          Effect.bind('membership', ({ currentUser }) =>
-            requireMembership(members, teamId, currentUser.id, new ActivityStatsApi.Forbidden()),
+          Effect.bind('membership', () =>
+            requireReadAccess(members, teamId, new ActivityStatsApi.Forbidden()),
           ),
           Effect.tap(({ membership }) =>
             requirePermission(membership, 'member:view', new ActivityStatsApi.Forbidden()),

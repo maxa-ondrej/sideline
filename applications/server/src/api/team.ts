@@ -2,7 +2,7 @@ import { Auth, EventApi, type Team, TeamApi } from '@sideline/domain';
 import { Effect, Option, type ServiceMap } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
-import { requireMembership, requirePermission } from '~/api/permissions.js';
+import { requireMembership, requirePermission, requireReadAccess } from '~/api/permissions.js';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
@@ -35,7 +35,7 @@ const hasOnboardingFieldChange = (
 const parseOnboardingSyncError = (raw: Option.Option<string>): Option.Option<string> => {
   if (Option.isNone(raw)) return Option.none();
   try {
-    const parsed = JSON.parse(raw.value) as { code?: unknown; detail?: unknown };
+    const parsed: { code?: unknown; detail?: unknown } = JSON.parse(raw.value);
     if (typeof parsed.code === 'string' && typeof parsed.detail === 'string') {
       return Option.some(JSON.stringify({ code: parsed.code, detail: parsed.detail }));
     }
@@ -99,10 +99,7 @@ export const TeamApiLive = HttpApiBuilder.group(Api, 'team', (handlers) =>
       handlers
         .handle('getTeamInfo', ({ params: { teamId } }) =>
           Effect.Do.pipe(
-            Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
-            Effect.bind('membership', ({ currentUser }) =>
-              requireMembership(members, teamId, currentUser.id, forbidden),
-            ),
+            Effect.bind('membership', () => requireReadAccess(members, teamId, forbidden)),
             Effect.bind('team', () => getTeamOrForbidden(teams, teamId)),
             Effect.bind('isCommunityEnabled', ({ team }) =>
               getIsCommunityEnabled(botGuilds, team.guild_id),
