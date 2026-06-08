@@ -71,7 +71,8 @@ const makeReal = (
           role: 'system',
           content:
             "You summarize organizational emails for a sports team's Discord channel. " +
-            'Forward ALL important information — dates, times, locations/addresses, prices/amounts, deadlines, payment details, instructions, contacts, and action items. Do not drop important details. ' +
+            'Start with a 2-4 sentence plain-language overview of what the email is about, then below it provide a detailed breakdown. ' +
+            'In the breakdown, forward ALL important information — dates, times, locations/addresses, prices/amounts, deadlines, payment details, instructions, contacts, and action items. Do not drop important details. ' +
             'Be clear and concise. You MAY use only Discord-supported markdown to make it scannable: ' +
             '**bold**, *italic*, headings (#, ##, ###), bullet lists (- ), numbered lists, > blockquotes, `inline code`, and relevant emojis. ' +
             'Do NOT use horizontal rules (---), tables, or images — Discord does not render them and they show up as raw text. ' +
