@@ -86,6 +86,7 @@ export const emitTrainingClaimRequestIfApplicable = (args: {
               mapping.value.discord_channel_id.value,
               mapping.value.discord_role_id,
               args.locationUrl ?? Option.none(),
+              Option.some(ownerGroupId),
             )
             .pipe(Effect.tap(() => eventsRepo.markClaimRequestSent(args.eventId)));
         }),

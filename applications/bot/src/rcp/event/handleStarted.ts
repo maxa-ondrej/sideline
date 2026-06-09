@@ -196,17 +196,38 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
                 ),
               ];
 
-              const roleMention = Option.match(event.discord_role_id, {
-                onNone: () =>
-                  ({}) as {
-                    content?: string;
-                    allowed_mentions?: { parse: []; roles: string[] };
-                  },
-                onSome: (role) => ({
-                  content: `<@&${role}>`,
-                  allowed_mentions: { parse: [] as [], roles: [role] },
-                }),
-              });
+              const roleMention: {
+                content?: string;
+                allowed_mentions?: {
+                  parse: [];
+                  roles?: string[];
+                  users?: string[];
+                };
+              } =
+                event.event_type === 'training'
+                  ? Option.match(event.claimed_by_discord_id, {
+                      onSome: (coachId) => ({
+                        content: `<@${coachId}>`,
+                        allowed_mentions: { parse: [] as const, users: [coachId] },
+                      }),
+                      onNone: () =>
+                        Option.match(event.discord_role_id, {
+                          onSome: (ownersRole) => ({
+                            content: `<@&${ownersRole}> ${m.bot_event_started_no_coach_warning({}, { locale })}`,
+                            allowed_mentions: { parse: [] as const, roles: [ownersRole] },
+                          }),
+                          onNone: () => ({
+                            content: m.bot_event_started_no_coach_warning({}, { locale }),
+                          }),
+                        }),
+                    })
+                  : Option.match(event.discord_role_id, {
+                      onNone: () => ({}),
+                      onSome: (role) => ({
+                        content: `<@&${role}>`,
+                        allowed_mentions: { parse: [] as const, roles: [role] },
+                      }),
+                    });
 
               return rest
                 .createMessage(channelId, {
@@ -249,8 +270,45 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
         ),
       );
 
-      return Effect.all([safeInPlaceEdit, safeNewPost], { concurrency: 'unbounded' }).pipe(
-        Effect.asVoid,
+      // Best-effort: delete the owners-thread claim message when the training starts
+      const deleteClaim =
+        event.event_type === 'training'
+          ? rpc['Event/GetClaimInfo']({ event_id: event.event_id }).pipe(
+              Effect.flatMap((claimOpt) =>
+                Option.match(
+                  Option.flatMap(claimOpt, (claim) =>
+                    Option.all([claim.claim_discord_channel_id, claim.claim_discord_message_id]),
+                  ),
+                  {
+                    onNone: () => Effect.void,
+                    onSome: ([threadId, msgId]) =>
+                      rest.deleteMessage(threadId, msgId).pipe(
+                        Effect.asVoid,
+                        Effect.catchTag('ErrorResponse', (err) =>
+                          err.data.code === 10008
+                            ? Effect.void
+                            : Effect.logWarning(
+                                `handleStarted: deleteMessage failed for claim of event ${event.event_id}`,
+                                err,
+                              ),
+                        ),
+                      ),
+                  },
+                ),
+              ),
+            )
+          : Effect.void;
+
+      const safeDeleteClaim = Effect.exit(deleteClaim).pipe(
+        Effect.tap((exit) =>
+          exit._tag === 'Failure'
+            ? Effect.logWarning('handleStarted: delete claim failed', exit.cause)
+            : Effect.void,
+        ),
       );
+
+      return Effect.all([safeInPlaceEdit, safeNewPost, safeDeleteClaim], {
+        concurrency: 'unbounded',
+      }).pipe(Effect.asVoid);
     }),
   );

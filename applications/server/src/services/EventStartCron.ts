@@ -23,7 +23,9 @@ export const eventStartCronEffect = Effect.Do.pipe(
               onSome: () =>
                 Effect.Do.pipe(
                   Effect.bind('discordRoleId', () =>
-                    resolveGroupRoleId(event.team_id, event.member_group_id),
+                    event.event_type === 'training'
+                      ? resolveGroupRoleId(event.team_id, event.owner_group_id)
+                      : resolveGroupRoleId(event.team_id, event.member_group_id),
                   ),
                   Effect.bind('channel', () =>
                     resolveReminderChannel(
@@ -48,6 +50,7 @@ export const eventStartCronEffect = Effect.Do.pipe(
                       event.image_url,
                       event.location_url,
                       event.all_day,
+                      event.event_type === 'training' ? event.claimed_by : Option.none(),
                     ),
                   ),
                   Effect.tap(() =>

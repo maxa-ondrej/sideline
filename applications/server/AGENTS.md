@@ -322,6 +322,33 @@ Rules:
 
 Reference: `EventSyncEventsRepository.findUnprocessedEvents` resolves the claimer's `discord_id`, `name`, `nickname`, `display_name`, `username` from `users` via `team_members`.
 
+### Overloaded payload fields on event sync events (training vs non-training)
+
+Two `event_sync_events` payload fields carry **different semantics depending on `event_type`**. Both producer (cron/emitter) and consumer (bot handler) branch on `event_type === 'training'`; if you touch one side you MUST update the other, or trainings will mention the wrong role/group.
+
+| Payload field | Non-training meaning | Training meaning | Producer | Consumer |
+|---------------|----------------------|------------------|----------|----------|
+| `event_started.discord_role_id` | MEMBER-group role (`resolveGroupRoleId(team_id, member_group_id)`) — pinged on "Starting now" | OWNERS-group role (`resolveGroupRoleId(team_id, owner_group_id)`) — used only as the no-coach fallback mention | `src/services/EventStartCron.ts` | `applications/bot/src/rcp/event/handleStarted.ts` |
+| `training_claim_request.owner_group_id` | n/a (only emitted for trainings) | populated in `constructEvent` from the outbox row's `member_group_id` column (`owner_group_id: r.member_group_id`) | `src/rpc/event/events.ts` (`constructEvent`) | `applications/bot/src/rcp/event/handleTrainingClaimRequest.ts` |
+
+For `event_started`, `EventStartCron` additionally passes `event.claimed_by` (the assigned coach's `TeamMemberId`) to `emitEventStarted` ONLY for trainings; the JOIN in `findUnprocessedEvents` resolves it to `claimed_by_discord_id`, and the bot prefers a `<@coach>` user mention over the role mention. See the bot AGENTS.md "Training claim threads" note for the consumer rules.
+
+### Dead claim-thread column and RPC (do not reuse)
+
+`events.claim_thread_id` and the `Event/SaveClaimThreadId` RPC are **dead** as of the persistent-owners-claim-thread change. Claim threads are no longer per-training; they are one persistent thread per owners group stored on `discord_channel_mappings.claim_thread_id` (see "Persistent owners claim thread" below). Do not write to `events.claim_thread_id` or call `Event/SaveClaimThreadId` in new code.
+
+### Persistent owners claim thread
+
+There is exactly ONE claim thread per owners group, stored on `discord_channel_mappings.claim_thread_id` (added by migration `1789400005_add_claim_thread_id_to_channel_mappings.ts`, nullable TEXT). The bot creates the thread lazily; the server persists and serves it via three RPCs handled against `DiscordChannelMappingRepository`:
+
+| RPC | Repository method | Behaviour |
+|-----|-------------------|-----------|
+| `Event/GetOwnerClaimThread` | `findClaimThread(teamId, groupId)` | returns `Option<Snowflake>` |
+| `Event/SaveOwnerClaimThread` | `saveClaimThreadIfAbsent(teamId, groupId, threadId)` | atomic race-safe save (see below); returns the WINNING thread id |
+| `Event/ClearOwnerClaimThread` | `clearClaimThread(teamId, groupId)` | sets `claim_thread_id = NULL` (bot calls this when Discord reports the thread deleted, error code 10003) |
+
+`saveClaimThreadIfAbsent` uses the atomic conditional UPDATE pattern: `UPDATE ... SET claim_thread_id = ${threadId} WHERE team_id = ... AND group_id = ... AND claim_thread_id IS NULL RETURNING claim_thread_id`. On `Option.none()` (another concurrent request already won), it falls back to `findClaimThread` and returns the already-stored id — so the caller always receives the single winning thread id and can delete its own orphan. See "Atomic Conditional UPDATE Pattern" below.
+
 ### Discord Name Formatting
 
 The **server** applies Discord name formatting before emitting sync events. The bot receives pre-formatted `discord_channel_name` and `discord_role_name` fields and uses them directly.
@@ -968,7 +995,7 @@ const _claimTraining = SqlSchema.findOneOption({
 Rules:
 1. Always include every business precondition in the `WHERE` clause — never read-then-update across two statements
 2. The handler that consumes the `Option` must, on `None`, re-read the row to distinguish which precondition failed and map to the appropriate typed error (e.g. `ClaimEventNotFound` vs `ClaimAlreadyClaimed` vs `ClaimEventInactive`)
-3. Used by: `EventsRepository.claimTraining` / `unclaimTraining` (claim race), `EventsRepository.markEventStarted` (start race), `EventRsvpsRepository` upserts
+3. Used by: `EventsRepository.claimTraining` / `unclaimTraining` (claim race), `EventsRepository.markEventStarted` (start race), `EventRsvpsRepository` upserts, `DiscordChannelMappingRepository.saveClaimThreadIfAbsent` (claim-thread create race; `WHERE claim_thread_id IS NULL` — `None` means another request won, so re-read instead of mapping to an error)
 
 ## Consistent `FOR UPDATE` Lock Ordering Within A Transaction
 

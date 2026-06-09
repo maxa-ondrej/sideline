@@ -199,6 +199,28 @@ export const EventRpcGroup = RpcGroup.make(
     payload: { event_id: Event.EventId },
     success: Schema.OptionFromNullOr(EventClaimInfo),
   }),
+  Rpc.make('GetOwnerClaimThread', {
+    payload: {
+      team_id: Team.TeamId,
+      owner_group_id: GroupModel.GroupId,
+    },
+    success: Schema.OptionFromNullOr(Discord.Snowflake),
+  }),
+  Rpc.make('SaveOwnerClaimThread', {
+    payload: {
+      team_id: Team.TeamId,
+      owner_group_id: GroupModel.GroupId,
+      thread_id: Discord.Snowflake,
+    },
+    success: Schema.OptionFromNullOr(Discord.Snowflake),
+  }),
+  Rpc.make('ClearOwnerClaimThread', {
+    payload: {
+      team_id: Team.TeamId,
+      owner_group_id: GroupModel.GroupId,
+    },
+    success: Schema.Void,
+  }),
   Rpc.make('GetChannelsWithStoredMessages', {
     success: Schema.Array(
       Schema.Struct({

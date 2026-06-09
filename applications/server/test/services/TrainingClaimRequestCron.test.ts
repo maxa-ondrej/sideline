@@ -48,7 +48,11 @@ type ClaimEvent = {
 
 let pendingEvents: ClaimEvent[];
 let markedSent: Event.EventId[];
-let emittedEvents: Array<{ teamId: Team.TeamId; eventId: Event.EventId }>;
+let emittedEvents: Array<{
+  teamId: Team.TeamId;
+  eventId: Event.EventId;
+  ownerGroupId: Option.Option<GroupModel.GroupId>;
+}>;
 let channelMappings: Map<
   string,
   {
@@ -115,8 +119,20 @@ const makeMockEventsRepo = () =>
 
 const makeMockSyncEvents = () =>
   Layer.succeed(EventSyncEventsRepository, {
-    emitTrainingClaimRequest: (teamId: Team.TeamId, eventId: Event.EventId) => {
-      emittedEvents.push({ teamId, eventId });
+    emitTrainingClaimRequest: (
+      teamId: Team.TeamId,
+      eventId: Event.EventId,
+      _title: string,
+      _startAt: unknown,
+      _endAt: unknown,
+      _location: unknown,
+      _description: unknown,
+      _channelId: unknown,
+      _discordRoleId: unknown,
+      _locationUrl: unknown,
+      ownerGroupId: Option.Option<GroupModel.GroupId>,
+    ) => {
+      emittedEvents.push({ teamId, eventId, ownerGroupId });
       return Effect.void;
     },
     emitEventCreated: () => Effect.void,
@@ -276,4 +292,30 @@ describe('TrainingClaimRequestCron — trainingClaimRequestCronEffect', () => {
       Effect.asVoid,
     );
   });
+
+  it.effect(
+    'emitted training_claim_request row carries owner_group_id (member_group_id column overload)',
+    () => {
+      pendingEvents = [makeEvent()];
+      channelMappings.set(`${TEAM_ID}:${GROUP_ID_A}`, {
+        discord_channel_id: Option.some(OWNER_CHANNEL),
+        discord_role_id: Option.none(),
+      });
+
+      return trainingClaimRequestCronEffect.pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            expect(emittedEvents).toHaveLength(1);
+            const emitted = emittedEvents[0];
+            // The owner_group_id must be forwarded so the bot can post the claim embed.
+            // It travels via the member_group_id column overload (documented in plan).
+            expect(Option.isSome(emitted.ownerGroupId)).toBe(true);
+            expect(Option.getOrElse(emitted.ownerGroupId, () => null)).toBe(GROUP_ID_A);
+          }),
+        ),
+        Effect.provide(buildLayer()),
+        Effect.asVoid,
+      );
+    },
+  );
 });

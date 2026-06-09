@@ -5,6 +5,19 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-09 — Training-start announcement @-mentions the assigned coach
+
+- When a training starts, the **"Starting now"** announcement in Discord now **@-mentions the assigned coach directly** instead of the member-group role, so the coach is notified the moment their session begins.
+- If no coach has claimed the training (or the claimer has no linked Discord account), the announcement **@-mentions the owners-group role** and includes the message "No coach claimed this training." so the coaching team is aware.
+- For non-training events (matches, tournaments, etc.) the announcement still @-mentions the member-group role as before.
+- The claim embed is automatically **removed from the "Training claims" thread** when the training starts, keeping the thread tidy.
+
+## 2026-06-09 — Training claim embeds now use one persistent thread per owner group
+
+- All training claim embeds for the same owner group are now posted into a single persistent **"Training claims" thread** rather than each training getting its own separate thread.
+- The bot creates the thread the first time a claim-request is processed for an owner group and reuses it for all subsequent trainings. If the thread is ever deleted, the bot recreates it automatically on the next claim-request.
+- This change reduces channel clutter and makes it easier for the coaching team to see all open and past training claims in one place.
+
 ## 2026-06-09 — Persistent "Leave my car" button on carpool board
 
 - Members can now leave their car in two new persistent ways, not just from the ephemeral confirmation after reserving:

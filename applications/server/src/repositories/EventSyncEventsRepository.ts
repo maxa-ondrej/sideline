@@ -329,6 +329,7 @@ const make = Effect.gen(function* () {
     imageUrl: Option.Option<string> = Option.none(),
     locationUrl: Option.Option<string> = Option.none(),
     allDay: boolean = false,
+    claimedByMemberId: Option.Option<TeamMember.TeamMemberId> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -346,6 +347,7 @@ const make = Effect.gen(function* () {
       discordTargetChannelId,
       memberGroupId,
       discordRoleId,
+      claimedByMemberId,
     );
 
   const emitTrainingClaimRequest = (
@@ -359,6 +361,7 @@ const make = Effect.gen(function* () {
     discordTargetChannelId: Discord.Snowflake,
     discordRoleId: Option.Option<Discord.Snowflake> = Option.none(),
     locationUrl: Option.Option<string> = Option.none(),
+    ownerGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
   ) =>
     _emitIfGuildLinked(
       teamId,
@@ -374,7 +377,7 @@ const make = Effect.gen(function* () {
       'training',
       false,
       Option.some(discordTargetChannelId),
-      Option.none(),
+      ownerGroupId,
       discordRoleId,
     );
 

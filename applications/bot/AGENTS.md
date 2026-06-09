@@ -44,7 +44,7 @@ src/
     ├── handleCancelled.ts              — event_cancelled handler
     ├── handleStarted.ts                — event_started handler (updates embed, removes RSVP buttons)
     ├── handleRsvpReminder.ts           — rsvp_reminder handler
-    ├── handleTrainingClaimRequest.ts   — training_claim_request handler (posts claim embed, saves message id back via Event/SaveClaimDiscordMessageId)
+    ├── handleTrainingClaimRequest.ts   — training_claim_request handler (posts claim embed into the persistent owners claim thread, saves message id back via Event/SaveClaimDiscordMessageId)
     ├── handleTrainingClaimUpdate.ts    — training_claim_update handler (edits existing claim embed in place)
     └── handleUnclaimedTrainingReminder.ts — unclaimed_training_reminder handler (posts reminder pointing to claim message)
 └── rest/events/     — Embed builder functions
@@ -360,7 +360,7 @@ Syncs event lifecycle to Discord embed messages. When events are created/updated
 
 Event types: `event_created`, `event_updated`, `event_cancelled`, `event_started`, `rsvp_reminder`, `training_claim_request`, `training_claim_update`, `unclaimed_training_reminder`
 
-The `event_started` handler updates the Discord embed to remove RSVP buttons and rebuilds the embed with current RSVP counts.
+The `event_started` handler updates the Discord embed to remove RSVP buttons and rebuilds the embed with current RSVP counts. For its "Starting now" post, the mention is `event_type`-dependent: for a **training** it mentions the assigned coach via a `<@coach>` user mention (`event.claimed_by_discord_id` + `allowed_mentions.users`), falling back to the owners-group role mention + `bot_event_started_no_coach_warning` when no coach is claimed (and to the bare warning text when neither is resolvable); for **non-training** events it mentions `event.discord_role_id` (the member-group role) as before. Note `event.discord_role_id` is the OWNERS-group role for trainings and the MEMBER-group role otherwise — this overload is set server-side; see `applications/server/AGENTS.md` → "Overloaded payload fields on event sync events". The handler also best-effort deletes the owners-thread claim message (`Event/GetClaimInfo` → `rest.deleteMessage`, swallowing code 10008) when a training starts.
 
 ### Finance Sync (payment reminders → user DMs)
 
@@ -400,9 +400,14 @@ Event kinds: `approval_request` (post summary + Approve/Reject buttons to the co
 
 Any `rest.createMessage` / `rest.updateMessage` whose embed or content includes a string the bot did not author — a user-typed value, or content forwarded from an external source (email subject/body/sender, summaries) — MUST pass `allowed_mentions: { parse: [] }` (optionally with an explicit `users` allow-list). Without it, a `@everyone`, `@here`, role, or user mention literal embedded in that text pings real recipients. This generalises the welcome-flow rule above: it applies to the email post handlers (`handleEmailPostEvent` passes `allowed_mentions: { parse: [] }` on every `createMessage`) and to any future feature that relays third-party or user-authored text into Discord. The only messages that may omit it are those whose entire content is bot-authored static copy with no interpolated user/external strings.
 
-#### Coach-claim message id round-trip
+#### Persistent owners claim thread (one per owners group, NOT per training)
 
-The `training_claim_request` handler posts the initial claim embed to the owner-group channel. The server does not know the resulting Discord channel/message id ahead of time. After `rest.createMessage` succeeds, the handler must call `rpc['Event/SaveClaimDiscordMessageId']({ event_id, channel_id, message_id })` so subsequent `training_claim_update` and `unclaimed_training_reminder` events can locate and edit / link to that message. Always save the id in the same effect chain as the create call (via `Effect.tap`) so a failure to save is logged together with the create.
+The `training_claim_request` handler posts the claim embed into a single **persistent claim thread per owners group**, NOT a per-training thread (the old per-message thread creation in `buildThreadName` / `createThreadFromMessage` was removed). Flow in `handleTrainingClaimRequest.ts`:
+
+1. Resolve the thread id from the server via `rpc['Event/GetOwnerClaimThread']({ team_id, owner_group_id })` (the owner group comes from `event.owner_group_id`, which the server overloads onto the outbox `member_group_id` column — see `applications/server/AGENTS.md`).
+2. If `None`, create a `PUBLIC_THREAD` (`type: 11`, `auto_archive_duration: 10080`, name `bot_claim_thread_name`) and persist it via `rpc['Event/SaveOwnerClaimThread']`. That RPC is race-safe and returns the WINNING thread id; if another request won, delete the orphan thread you just created (`rest.deleteChannel`, best-effort) and use the winner's id.
+3. Post the embed to the thread. If `createMessage` returns Discord code `10003` (unknown channel — the thread was deleted), call `rpc['Event/ClearOwnerClaimThread']`, recreate the thread, and retry the post ONCE.
+4. After the post succeeds, call `rpc['Event/SaveClaimDiscordMessageId']({ event_id, channel_id, message_id })` (where `channel_id` is the actual thread id used) so `training_claim_update`, `unclaimed_training_reminder`, and the `handleStarted` claim-message cleanup can locate / edit / delete that message.
 
 #### Rebuild a board message from the stored id, never from `interaction.message`
 

@@ -3,6 +3,8 @@
 // These tests WILL FAIL until the developer extends CreateEvent to also emit
 // training_claim_request when creating a training with an owner group that resolves
 // to a Discord channel.
+//
+// Change B server test (T12.D): asserts emitted event carries owner_group_id.
 
 import { it as itEffect } from '@effect/vitest';
 import type { Discord, Event, GroupModel, Team, TeamMember, TrainingType } from '@sideline/domain';
@@ -47,6 +49,7 @@ type EmittedClaimRequest = {
   discordTargetChannelId: Discord.Snowflake;
   discordRoleId: Option.Option<Discord.Snowflake>;
   locationUrl: Option.Option<string>;
+  ownerGroupId: Option.Option<GroupModel.GroupId>;
 };
 
 let emittedEventCreated: Event.EventId[];
@@ -234,6 +237,8 @@ const makeMockSyncEventsRepository = () =>
       discordTargetChannelId: Discord.Snowflake,
       discordRoleId: Option.Option<Discord.Snowflake>,
       locationUrl: Option.Option<string>,
+      // Change B: owner_group_id carried via member_group_id column overload
+      ownerGroupId: Option.Option<GroupModel.GroupId> = Option.none(),
     ) => {
       emittedClaimRequests.push({
         teamId,
@@ -241,6 +246,7 @@ const makeMockSyncEventsRepository = () =>
         discordTargetChannelId,
         discordRoleId,
         locationUrl,
+        ownerGroupId,
       });
       return Effect.void;
     },
@@ -576,6 +582,44 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
             // markClaimRequestSent must have been called
             expect(markedClaimRequestSent).toHaveLength(1);
             expect(markedClaimRequestSent[0]).toBe(NEW_EVENT_ID);
+          }),
+        ),
+        Effect.provide(buildRpcTestLayer()),
+        Effect.asVoid,
+      ),
+  );
+
+  // T12.D: emitted training_claim_request carries owner_group_id (Change B server)
+  itEffect.effect(
+    'T12.D: emitted training_claim_request carries owner_group_id (via member_group_id column overload)',
+    () =>
+      Effect.scoped(
+        (RpcTest.makeClient(EventRpcGroup.EventRpcGroup) as Effect.Effect<any, never, any>).pipe(
+          Effect.flatMap(
+            (rpc: any) =>
+              rpc['Event/CreateEvent']({
+                guild_id: GUILD_ID,
+                discord_user_id: CREATOR_DISCORD_ID,
+                event_type: 'training' as Event.EventType,
+                title: 'Training With Owner Group',
+                start_at: '2099-12-31 18:00',
+                end_at: Option.none<string>(),
+                location: Option.none<string>(),
+                location_url: Option.none<string>(),
+                description: Option.none<string>(),
+                training_type_id: Option.some(TRAINING_TYPE_ID),
+              }) as Effect.Effect<EventRpcModels.CreateEventResult, unknown, never>,
+          ),
+        ),
+      ).pipe(
+        Effect.tap((_result) =>
+          Effect.sync(() => {
+            expect(emittedClaimRequests).toHaveLength(1);
+            // owner_group_id must be present in the emitted event
+            expect(Option.isSome(emittedClaimRequests[0].ownerGroupId)).toBe(true);
+            if (Option.isSome(emittedClaimRequests[0].ownerGroupId)) {
+              expect(emittedClaimRequests[0].ownerGroupId.value).toBe(OWNER_GROUP_ID);
+            }
           }),
         ),
         Effect.provide(buildRpcTestLayer()),
