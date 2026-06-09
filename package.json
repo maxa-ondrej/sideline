@@ -61,7 +61,8 @@
     },
     "patchedDependencies": {
       "@changesets/get-github-info@0.6.0": "patches/@changesets__get-github-info@0.6.0.patch",
-      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch"
+      "@changesets/assemble-release-plan@6.0.9": "patches/@changesets__assemble-release-plan@6.0.9.patch",
+      "effect@4.0.0-beta.40": "patches/effect@4.0.0-beta.40.patch"
     },
     "peerDependencyRules": {
       "ignoreMissing": [
