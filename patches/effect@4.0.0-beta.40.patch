@@ -1,0 +1,26 @@
+diff --git a/dist/unstable/rpc/RpcSerialization.js b/dist/unstable/rpc/RpcSerialization.js
+index 26dc4f2608580af60306a99243a9abf2b3581640..a9652d11715c0a49d1dbeaa91eadcf7ebb14e8a7 100644
+--- a/dist/unstable/rpc/RpcSerialization.js
++++ b/dist/unstable/rpc/RpcSerialization.js
+@@ -41,7 +41,7 @@ export const ndjson = /*#__PURE__*/RpcSerialization.of({
+     let buffer = "";
+     return {
+       decode: bytes => {
+-        buffer += typeof bytes === "string" ? bytes : decoder.decode(bytes);
++        buffer += typeof bytes === "string" ? bytes : decoder.decode(bytes, { stream: true });
+         let position = 0;
+         let nlIndex = buffer.indexOf("\n", position);
+         const items = [];
+diff --git a/src/unstable/rpc/RpcSerialization.ts b/src/unstable/rpc/RpcSerialization.ts
+index 319effeabbc94237cd1a11799ac5d9bbd39d0170..ad5bd5f0e83675dd767db9460bc05b89a5833f2c 100644
+--- a/src/unstable/rpc/RpcSerialization.ts
++++ b/src/unstable/rpc/RpcSerialization.ts
+@@ -58,7 +58,7 @@ export const ndjson: RpcSerialization["Service"] = RpcSerialization.of({
+     let buffer = ""
+     return ({
+       decode: (bytes) => {
+-        buffer += typeof bytes === "string" ? bytes : decoder.decode(bytes)
++        buffer += typeof bytes === "string" ? bytes : decoder.decode(bytes, { stream: true })
+         let position = 0
+         let nlIndex = buffer.indexOf("\n", position)
+         const items: Array<unknown> = []
