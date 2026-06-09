@@ -39,9 +39,10 @@ The capacity must be between 1 and 8 (inclusive). You can only have one car per 
 
 ### Your car's private thread
 
-After you add a car the bot creates a private Discord thread — only you and the passengers in your car can see it. The thread contains two buttons:
+After you add a car the bot creates a private Discord thread — only you and the passengers in your car can see it. The thread contains three buttons:
 
 - **Assign passenger** — pick a team member from a Discord user-select menu to add them to your car on their behalf.
+- **Leave** — for passengers to leave the car directly from the thread (see [Leaving a car](#leaving-a-car)).
 - **Remove car** — remove your car entirely (see [Removing a car](#removing-a-car)).
 
 You are automatically added to the thread when the car is created.
@@ -60,11 +61,17 @@ Any team member can reserve an available seat in a car by clicking its **Reserve
 - If you own a car on this board, you cannot also reserve a passenger seat in another car on the same board.
 - The driver cannot reserve a seat in their own car.
 
-After reserving, an ephemeral confirmation appears with a **Leave** button in case you change your mind.
+After reserving, an ephemeral confirmation appears with a **Leave** button in case you change your mind immediately.
 
 ## Leaving a car
 
-Click **Leave** in your reservation confirmation to release your seat.
+You can leave a car in three ways:
+
+- Click **Leave** in the ephemeral confirmation that appears right after you reserve a seat.
+- Click **Leave** in the car's private thread (the persistent button between Assign and Remove).
+- Click **Leave my car** on the public carpool board — this resolves your current car automatically, so you do not need to find the right thread.
+
+In all cases:
 
 - You are removed from the car's private thread.
 - The board refreshes to show the updated passenger list.

@@ -45,6 +45,11 @@ export class RemoveCarResult extends Schema.Class<RemoveCarResult>('RemoveCarRes
   view: CarpoolView,
 }) {}
 
+export class LeaveCarpoolResult extends Schema.Class<LeaveCarpoolResult>('LeaveCarpoolResult')({
+  car_id: CarpoolCarId,
+  view: CarpoolView,
+}) {}
+
 export class CarpoolGuildNotFound extends Schema.TaggedErrorClass<CarpoolGuildNotFound>()(
   'CarpoolGuildNotFound',
   {},

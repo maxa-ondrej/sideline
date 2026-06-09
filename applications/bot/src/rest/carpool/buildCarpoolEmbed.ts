@@ -117,6 +117,16 @@ export const buildCarpoolEmbed = (
         // Encode carpool_id so the modal submit handler can call AddCar.
         custom_id: `carpool-add:${view.carpool_id}`,
       },
+      {
+        type: 2,
+        style: 4, // Danger
+        label: m.bot_carpool_btn_leave_mine({}, { locale }),
+        // A member is in at most one car per carpool, so a single shared
+        // "leave my car" button resolves the car server-side by carpool_id.
+        custom_id: `carpool-leave-mine:${view.carpool_id}`,
+        // No cars → nothing to leave.
+        disabled: displayedCars.length === 0,
+      },
     ],
   };
 

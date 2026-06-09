@@ -876,6 +876,7 @@
   "bot_carpool_btn_add": "➕ Přidat auto",
   "bot_carpool_btn_reserve": "🚗 Auto {n}",
   "bot_carpool_btn_leave": "🚪 Odejít z auta",
+  "bot_carpool_btn_leave_mine": "🚪 Odejít z mého auta",
   "bot_carpool_btn_assign": "👤 Obsadit místo",
   "bot_carpool_btn_remove": "🗑️ Zrušit auto",
   "bot_carpool_capacity_placeholder": "Kolik míst má tvé auto? (včetně řidiče)",

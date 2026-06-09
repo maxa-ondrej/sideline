@@ -876,6 +876,7 @@
   "bot_carpool_btn_add": "➕ Add car",
   "bot_carpool_btn_reserve": "🚗 Car {n}",
   "bot_carpool_btn_leave": "🚪 Leave car",
+  "bot_carpool_btn_leave_mine": "🚪 Leave my car",
   "bot_carpool_btn_assign": "👤 Assign seat",
   "bot_carpool_btn_remove": "🗑️ Remove car",
   "bot_carpool_capacity_placeholder": "How many seats does your car have? (including driver)",

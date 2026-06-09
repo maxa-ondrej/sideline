@@ -34,6 +34,19 @@ export const formatName = (entry: {
     Option.getOrElse(() => 'Unknown'),
   );
 
+export const formatNamePlain = (entry: {
+  readonly name: Option.Option<string>;
+  readonly nickname: Option.Option<string>;
+  readonly display_name: Option.Option<string>;
+  readonly username: Option.Option<string>;
+}): string =>
+  DisplayName.pickDisplayName({
+    name: entry.name,
+    nickname: entry.nickname,
+    displayName: entry.display_name,
+    username: entry.username,
+  }).pipe(Option.getOrElse(() => 'Unknown'));
+
 export const formatNameWithMention = (entry: {
   readonly discord_id: Option.Option<string>;
   readonly name: Option.Option<string>;

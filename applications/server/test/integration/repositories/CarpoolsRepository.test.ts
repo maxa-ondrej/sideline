@@ -1,7 +1,3 @@
-// NOTE: These tests are written in TDD mode BEFORE the implementation.
-// They reference CarpoolsRepository which does NOT exist yet.
-// They will FAIL to compile until the developer implements the module.
-
 import { describe, expect, it } from '@effect/vitest';
 import type { Carpool, Discord, Team, TeamMember, User } from '@sideline/domain';
 import { Effect, Layer, Option } from 'effect';
@@ -121,6 +117,11 @@ const reserveSeat = (carId: Carpool.CarpoolCarId, teamMemberId: TeamMember.TeamM
 const leaveSeat = (carId: Carpool.CarpoolCarId, teamMemberId: TeamMember.TeamMemberId) =>
   CarpoolsRepository.asEffect().pipe(
     Effect.andThen((repo) => repo.leaveSeat({ carId, teamMemberId })),
+  );
+
+const leaveSeatByCarpool = (carpoolId: Carpool.CarpoolId, teamMemberId: TeamMember.TeamMemberId) =>
+  CarpoolsRepository.asEffect().pipe(
+    Effect.andThen((repo) => repo.leaveSeatByCarpool({ carpoolId, teamMemberId })),
   );
 
 const removeCar = (carId: Carpool.CarpoolCarId, ownerTeamMemberId: TeamMember.TeamMemberId) =>
@@ -577,5 +578,129 @@ describe('CarpoolsRepository', () => {
         // name could be none — just assert the field exists and doesn't throw
         expect('name' in owner).toBe(true);
       }).pipe(Effect.provide(TestLayer)),
+  );
+
+  // ---------------------------------------------------------------------------
+  // leaveSeatByCarpool tests (TDD — implementation not yet written)
+  // ---------------------------------------------------------------------------
+
+  it.effect('leaveSeatByCarpool: passenger leaves their car (happy path)', () =>
+    Effect.gen(function* () {
+      const ownerId = yield* createUser('400000000000000170', 'owner-lsbc-1');
+      const passId = yield* createUser('400000000000000171', 'pass-lsbc-1');
+      const team = yield* createTeam('427272727272727272' as Discord.Snowflake, ownerId);
+      const ownerMember = yield* addTeamMember(team.id, ownerId);
+      const passengerMember = yield* addTeamMember(team.id, passId);
+      const carpool = yield* createCarpool(team.id, team.guild_id, ownerMember.id);
+      const carA = yield* addCar(carpool.id, ownerMember.id, 4);
+      yield* reserveSeat(carA.car_id, passengerMember.id);
+
+      yield* leaveSeatByCarpool(carpool.id, passengerMember.id);
+
+      const view = yield* findCarpoolView(carpool.id);
+      expect(Option.isSome(view)).toBe(true);
+      const carpoolView = Option.getOrThrow(view);
+      expect(carpoolView.cars[0].passengers).toHaveLength(0);
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.effect('leaveSeatByCarpool: resolves the correct car among multiple cars', () =>
+    Effect.gen(function* () {
+      const ownerAId = yield* createUser('400000000000000180', 'owner-lsbc-a');
+      const ownerBId = yield* createUser('400000000000000181', 'owner-lsbc-b');
+      const passId = yield* createUser('400000000000000182', 'pass-lsbc-multi');
+      const team = yield* createTeam('428282828282828282' as Discord.Snowflake, ownerAId);
+      const ownerAMember = yield* addTeamMember(team.id, ownerAId);
+      const ownerBMember = yield* addTeamMember(team.id, ownerBId);
+      const passengerMember = yield* addTeamMember(team.id, passId);
+      const carpool = yield* createCarpool(team.id, team.guild_id, ownerAMember.id);
+      const carA = yield* addCar(carpool.id, ownerAMember.id, 4);
+      const carB = yield* addCar(carpool.id, ownerBMember.id, 4);
+      // Passenger joins car B only
+      yield* reserveSeat(carB.car_id, passengerMember.id);
+
+      yield* leaveSeatByCarpool(carpool.id, passengerMember.id);
+
+      const view = yield* findCarpoolView(carpool.id);
+      expect(Option.isSome(view)).toBe(true);
+      const carpoolView = Option.getOrThrow(view);
+      const viewCarA = carpoolView.cars.find((c) => c.car_id === carA.car_id);
+      const viewCarB = carpoolView.cars.find((c) => c.car_id === carB.car_id);
+      // Car B: passenger has left
+      expect(viewCarB?.passengers).toHaveLength(0);
+      // Car A: unchanged — still 0 passengers
+      expect(viewCarA?.passengers).toHaveLength(0);
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.effect('leaveSeatByCarpool: non-occupant → CarpoolNotInCar', () =>
+    Effect.gen(function* () {
+      const ownerId = yield* createUser('400000000000000190', 'owner-lsbc-nocc');
+      const nonOccId = yield* createUser('400000000000000191', 'nocc-lsbc');
+      const team = yield* createTeam('429292929292929292' as Discord.Snowflake, ownerId);
+      const ownerMember = yield* addTeamMember(team.id, ownerId);
+      const nonOcc = yield* addTeamMember(team.id, nonOccId);
+      const carpool = yield* createCarpool(team.id, team.guild_id, ownerMember.id);
+      yield* addCar(carpool.id, ownerMember.id, 4);
+
+      const result = yield* leaveSeatByCarpool(carpool.id, nonOcc.id).pipe(Effect.result);
+
+      expect(result._tag).toBe('Failure');
+      if (result._tag === 'Failure') {
+        expect(result.failure._tag).toBe('CarpoolNotInCar');
+      }
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.effect('leaveSeatByCarpool: car owner → CarpoolOwnerCannotLeave', () =>
+    Effect.gen(function* () {
+      const ownerId = yield* createUser('400000000000000200', 'owner-lsbc-owns');
+      const team = yield* createTeam('430303030303030303' as Discord.Snowflake, ownerId);
+      const ownerMember = yield* addTeamMember(team.id, ownerId);
+      const carpool = yield* createCarpool(team.id, team.guild_id, ownerMember.id);
+      yield* addCar(carpool.id, ownerMember.id, 4);
+
+      const result = yield* leaveSeatByCarpool(carpool.id, ownerMember.id).pipe(Effect.result);
+
+      expect(result._tag).toBe('Failure');
+      if (result._tag === 'Failure') {
+        expect(result.failure._tag).toBe('CarpoolOwnerCannotLeave');
+      }
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.effect('leaveSeatByCarpool: seated only in a DIFFERENT carpool → CarpoolNotInCar', () =>
+    Effect.gen(function* () {
+      const ownerId = yield* createUser('400000000000000210', 'owner-lsbc-scope');
+      const passId = yield* createUser('400000000000000211', 'pass-lsbc-scope');
+      const team = yield* createTeam('431313131313131313' as Discord.Snowflake, ownerId);
+      const ownerMember = yield* addTeamMember(team.id, ownerId);
+      const passengerMember = yield* addTeamMember(team.id, passId);
+      // Two separate carpools in the same team / guild
+      const carpoolX = yield* createCarpool(
+        team.id,
+        team.guild_id,
+        ownerMember.id,
+        '300000000000000002' as Discord.Snowflake,
+      );
+      const carpoolY = yield* createCarpool(
+        team.id,
+        team.guild_id,
+        ownerMember.id,
+        '300000000000000003' as Discord.Snowflake,
+      );
+      const carX = yield* addCar(carpoolX.id, ownerMember.id, 4);
+      yield* addCar(carpoolY.id, ownerMember.id, 4);
+      // Passenger is only seated in carpool X
+      yield* reserveSeat(carX.car_id, passengerMember.id);
+
+      // Attempt to leave via carpool Y — should fail because the seat is in X, not Y
+      const result = yield* leaveSeatByCarpool(carpoolY.id, passengerMember.id).pipe(Effect.result);
+
+      expect(result._tag).toBe('Failure');
+      if (result._tag === 'Failure') {
+        expect(result.failure._tag).toBe('CarpoolNotInCar');
+      }
+    }).pipe(Effect.provide(TestLayer)),
   );
 });

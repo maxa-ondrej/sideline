@@ -8,7 +8,7 @@ import { Array as Arr, Effect, Metric, Option, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildCarpoolEmbed } from '~/rest/carpool/buildCarpoolEmbed.js';
-import { formatName } from '~/rest/utils.js';
+import { formatName, formatNamePlain } from '~/rest/utils.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -292,12 +292,16 @@ export const CarpoolAddModal = Ix.modalSubmit(
             onNone: () => 'Unknown',
             onSome: (car) => formatName(car.owner),
           });
+          const ownerNamePlain = Option.match(newCar, {
+            onNone: () => 'Unknown',
+            onSome: (car) => formatNamePlain(car.owner),
+          });
 
           // 1. Create the private thread
           const createThread = rest
             .createThread(decodeSnowflake(mainChannelId), {
               name: m.bot_carpool_thread_name(
-                { n: carIndex > 0 ? carIndex : 1, owner: ownerName },
+                { n: carIndex > 0 ? carIndex : 1, owner: ownerNamePlain },
                 { locale },
               ),
               type: 12 as const, // PRIVATE_THREAD
@@ -375,6 +379,12 @@ export const CarpoolAddModal = Ix.modalSubmit(
                           style: 1 as const,
                           label: m.bot_carpool_btn_assign({}, { locale }),
                           custom_id: `carpool-assign:${carId}`,
+                        },
+                        {
+                          type: 2 as const,
+                          style: 2 as const,
+                          label: m.bot_carpool_btn_leave({}, { locale }),
+                          custom_id: `carpool-leave:${carId}`,
                         },
                         {
                           type: 2 as const,
@@ -717,6 +727,109 @@ const _CarpoolLeaveButtonReg = Ix.messageComponent(
 );
 
 // ---------------------------------------------------------------------------
+// carpool-leave-mine:<carpool_id> button (board, leave from whichever car)
+// ---------------------------------------------------------------------------
+
+export const CarpoolLeaveMineButton = Effect.Do.pipe(
+  Effect.tap(() =>
+    Metric.update(
+      Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+      1,
+    ),
+  ),
+  Effect.bind('interaction', () => Interaction.asEffect()),
+  Effect.let('data', ({ interaction }) => getComponentData(interaction)),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
+  Effect.bind('rest', () => DiscordREST.asEffect()),
+  Effect.flatMap(({ data, interaction, rpc, rest }) => {
+    const parts = data.custom_id.split(':');
+    const carpool_id = Schema.decodeUnknownSync(Carpool.CarpoolId)(parts[1]);
+    const locale = userLocale(interaction);
+    const guildId = interaction.guild_id;
+    const discordUserIdOption = interactionUserId(interaction);
+    const embedLocale = guildLocale(interaction);
+
+    if (Option.isNone(discordUserIdOption)) {
+      return Effect.as(
+        Effect.forkDetach(
+          replyWebhook(rest, interaction, { content: m.bot_carpool_err_user({}, { locale }) }),
+        ),
+        ephemeralDeferred,
+      );
+    }
+
+    const discordUserId = discordUserIdOption.value;
+
+    const leaveAndFollowUp = rpc['Carpool/LeaveCarpool']({
+      guild_id: decodeSnowflake(guildId ?? ''),
+      discord_user_id: discordUserId,
+      carpool_id,
+    }).pipe(
+      Effect.flatMap((result) => {
+        const { car_id, view } = result;
+        const carIndex = carIndexInView(view, car_id);
+
+        const foundCar = Arr.findFirst(view.cars, (c) => c.car_id === car_id);
+        const carThreadId = Option.flatMap(foundCar, (c) => c.thread_id);
+
+        const removeFromThread = Option.match(carThreadId, {
+          onNone: () => Effect.void,
+          onSome: (threadId) =>
+            rest.deleteThreadMember(decodeSnowflake(threadId), decodeSnowflake(discordUserId)).pipe(
+              Effect.asVoid,
+              Effect.catchTag('ErrorResponse', (e) =>
+                Effect.logWarning('Failed to remove user from thread', e),
+              ),
+              Effect.catchTag('HttpClientError', (e) =>
+                Effect.logWarning('Failed to remove user from thread', e),
+              ),
+              Effect.catchTag('RatelimitedResponse', (e) =>
+                Effect.logWarning('Failed to remove user from thread', e),
+              ),
+            ),
+        });
+
+        const updateMain = rebuildBoard(rest, view, embedLocale);
+
+        return Effect.all([removeFromThread, updateMain], {
+          concurrency: 'unbounded',
+        }).pipe(
+          Effect.flatMap(() =>
+            replyWebhook(rest, interaction, {
+              content: m.bot_carpool_left({ n: carIndex > 0 ? carIndex : 1 }, { locale }),
+            }),
+          ),
+        );
+      }),
+      Effect.catchTag('CarpoolOwnerCannotLeave', () =>
+        replyWebhook(rest, interaction, {
+          content: m.bot_carpool_err_owner_cannot_leave({}, { locale }),
+        }),
+      ),
+      Effect.catchTag('CarpoolNotInCar', () =>
+        replyWebhook(rest, interaction, { content: m.bot_carpool_err_not_in_car({}, { locale }) }),
+      ),
+      Effect.catchTag('CarpoolNotMember', () =>
+        replyWebhook(rest, interaction, {
+          content: m.bot_carpool_err_not_member({}, { locale }),
+        }),
+      ),
+      Effect.catchTag('CarpoolGuildNotFound', () =>
+        replyWebhook(rest, interaction, { content: m.bot_carpool_no_guild({}, { locale }) }),
+      ),
+    );
+
+    return Effect.as(Effect.forkDetach(leaveAndFollowUp), ephemeralDeferred);
+  }),
+  Effect.withSpan('interaction/carpool-leave-mine-button'),
+);
+
+const _CarpoolLeaveMineButtonReg = Ix.messageComponent(
+  Ix.idStartsWith('carpool-leave-mine:'),
+  CarpoolLeaveMineButton,
+);
+
+// ---------------------------------------------------------------------------
 // carpool-remove:<car_id> button (owner only)
 // ---------------------------------------------------------------------------
 
@@ -991,4 +1104,5 @@ export const CarpoolAssignPickSelect = Ix.messageComponent(
 export const CarpoolAddButtonReg = _CarpoolAddButtonReg;
 export const CarpoolReserveButtonReg = _CarpoolReserveButtonReg;
 export const CarpoolLeaveButtonReg = _CarpoolLeaveButtonReg;
+export const CarpoolLeaveMineButtonReg = _CarpoolLeaveMineButtonReg;
 export const CarpoolRemoveButtonReg = _CarpoolRemoveButtonReg;

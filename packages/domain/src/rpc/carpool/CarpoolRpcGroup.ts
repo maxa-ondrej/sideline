@@ -20,6 +20,7 @@ import {
   CarpoolOwnerCannotReserve,
   CarpoolTargetNotMember,
   CarpoolView,
+  LeaveCarpoolResult,
   RemoveCarResult,
   ReserveResult,
 } from './CarpoolRpcModels.js';
@@ -119,6 +120,20 @@ export const CarpoolRpcGroup = RpcGroup.make(
       CarpoolGuildNotFound,
       CarpoolNotMember,
       CarpoolCarNotFound,
+      CarpoolNotInCar,
+      CarpoolOwnerCannotLeave,
+    ]),
+  }),
+  Rpc.make('LeaveCarpool', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+      carpool_id: CarpoolId,
+    },
+    success: LeaveCarpoolResult,
+    error: Schema.Union([
+      CarpoolGuildNotFound,
+      CarpoolNotMember,
       CarpoolNotInCar,
       CarpoolOwnerCannotLeave,
     ]),
