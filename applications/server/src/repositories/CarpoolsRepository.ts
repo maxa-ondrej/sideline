@@ -655,6 +655,60 @@ const make = Effect.gen(function* () {
       ),
     );
 
+  // ---- leaveSeatByCarpool ----
+
+  // No transaction needed: each member has at most one seat across all cars in a carpool
+  // (enforced by the unique index on carpool_seats(carpool_id, team_member_id)), so the
+  // carpool_id-scoped lookup + delete is effectively race-free — no two concurrent calls
+  // for the same (carpool_id, team_member_id) pair can interleave in a harmful way.
+  const leaveSeatByCarpool = (input: {
+    readonly carpoolId: Carpool.CarpoolId;
+    readonly teamMemberId: TeamMember.TeamMemberId;
+  }) =>
+    Effect.Do.pipe(
+      // Owner check FIRST: owners have no seat row, so we must check before the seat
+      // lookup to give the correct error rather than wrongly returning CarpoolNotInCar.
+      Effect.tap(() =>
+        findOwnedCarQuery({
+          carpool_id: input.carpoolId,
+          team_member_id: input.teamMemberId,
+        }).pipe(
+          catchSqlErrors,
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.void,
+              onSome: () => Effect.fail(new CarpoolRpcModels.CarpoolOwnerCannotLeave()),
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('seat', () =>
+        findExistingSeatQuery({
+          carpool_id: input.carpoolId,
+          team_member_id: input.teamMemberId,
+        }).pipe(
+          catchSqlErrors,
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.fail(new CarpoolRpcModels.CarpoolNotInCar()),
+              onSome: Effect.succeed,
+            }),
+          ),
+        ),
+      ),
+      Effect.bind('deleted', ({ seat }) =>
+        deleteSeatQuery({
+          car_id: seat.car_id,
+          team_member_id: input.teamMemberId,
+        }).pipe(catchSqlErrors),
+      ),
+      Effect.flatMap(({ seat, deleted }) =>
+        deleted.length === 0
+          ? Effect.fail(new CarpoolRpcModels.CarpoolNotInCar())
+          : Effect.succeed(seat.car_id),
+      ),
+    );
+
   // ---- removeCar ----
 
   const findCarOwnerQuery = SqlSchema.findOneOption({
@@ -723,6 +777,7 @@ const make = Effect.gen(function* () {
     saveCarThreadId,
     reserveSeat,
     leaveSeat,
+    leaveSeatByCarpool,
     removeCar,
     findCarById,
   };

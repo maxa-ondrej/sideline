@@ -408,6 +408,15 @@ The `training_claim_request` handler posts the initial claim embed to the owner-
 
 When a component/button/modal interaction must edit a persistent "board" message (a server-backed embed that several users mutate — e.g. the carpool board, an RSVP roster, any embed rebuilt after a state change), rebuild it at the channel/message id **carried on the server view** (saved at creation time via a `Save…DiscordMessageId`-style RPC), NOT from `interaction.message` / `interaction.channel_id`. The same interaction can fire from inside a private thread or an ephemeral reply, where `interaction.message` is a different message entirely — editing it would corrupt the wrong message or no-op silently. Reference: `applications/bot/src/interactions/carpool.ts` — the `rebuildBoard` helper reads `view.discord_channel_id` + `view.discord_message_id` (an `Option`; log a warning and skip when `None`) and calls `rest.updateMessage`, swallowing REST failures. The view's ids originate from the create handler calling the persist RPC (`Carpool/SaveCarThreadId` saves a per-car thread id the same way).
 
+#### Per-user actions on a shared board message: one button keyed by entity id, resolved server-side
+
+A board message is shared — every viewer sees the identical component rows, so a button's `custom_id` MUST NOT encode any single user's state. For a per-user action on a board, post ONE button keyed only by the board's entity id (e.g. `custom_id` = `carpool-leave-mine:<carpool_id>`), and resolve the acting user's specific target on the server from the interaction's user id. Reference: `CarpoolLeaveMineButton` in `src/interactions/carpool.ts` calls `rpc['Carpool/LeaveCarpool']({ carpool_id, discord_user_id })`; the `leaveSeatByCarpool` repo method (`applications/server/src/repositories/CarpoolsRepository.ts`) finds and deletes the caller's seat within that carpool and returns its `car_id` in `LeaveCarpoolResult`. Rules:
+
+1. **Never encode a per-user id (seat id, car id chosen for one user) into a shared-board button `custom_id`.** Encode only the shared entity id; pass `discord_user_id` in the RPC payload and let the server map it to the user's row. Per-target buttons (`carpool-leave:<car_id>`) are fine inside that target's own thread, where only its members act.
+2. **The RPC resolves the target by a uniqueness invariant**, so no client-supplied target is needed — `leaveSeatByCarpool` relies on the unique index on `carpool_seats(carpool_id, team_member_id)` (at most one seat per member per carpool). When the lookup yields nothing, return a typed error (`CarpoolNotInCar`) and reply ephemerally; never silently no-op.
+3. **Disable the shared button when there is nothing to act on** (e.g. `disabled: displayedCars.length === 0`) rather than letting the click fall through to a typed error.
+4. **Always reply ephemerally** (`ephemeralDeferred` + `replyWebhook`) to a shared-board per-user action — the outcome is user-specific and must not post to the shared channel; the board itself is updated via `rebuildBoard`.
+
 #### Channel Reorder Algorithm (`reorderChannelMessages`)
 
 `reorderChannelMessages(channelId, locale, snowflakeOverrides?)` is the single function responsible for laying out event messages (plus the optional past/future divider) inside a channel in chronological order. Every event handler that changes embed content or list ordering — `handleCreated`, `handleUpdated`, `handleCancelled`, `handleStarted`, `handleRsvpReminder` — calls into it. **Never re-implement reorder logic in a handler.**
@@ -611,6 +620,15 @@ const displayText = formatName(attendeeEntry); // => "**Alice**"
 ```
 
 `formatNameWithMention` (same file) is the mention-aware variant. It additionally requires `discord_id: Option<string>` on the entry and returns `**Name** (<@id>)`, `**Name**`, `<@id>`, or `"Unknown"` per the table above. Use it when the embed should render the mention alongside the bold name; use `formatName` when only the bold name is wanted.
+
+**`formatNamePlain` (same file) returns the raw display name with NO markdown** — same `{ name, nickname, display_name, username }` structural type and same `DisplayName.pickDisplayName` precedence as `formatName`, but without the `**bold**` wrap. Use it for any string Discord renders **literally instead of as markdown**:
+
+| Surface | Helper | Reason |
+|---------|--------|--------|
+| Embed/message **body** (title field, description, fields) | `formatName` / `formatNameWithMention` | Discord renders markdown — `**bold**` shows as bold. |
+| Thread / channel **title** (e.g. `rest.createThread({ name })`) | `formatNamePlain` | Titles do NOT render markdown — `formatName` would print literal `**Alice**` asterisks in the title. Reference: `CarpoolAddModal` in `src/interactions/carpool.ts` passes `formatNamePlain(car.owner)` to `bot_carpool_thread_name` while the embed body uses `formatName`. |
+
+Never pass `formatName`'s output into a thread name, channel name, or any other field Discord treats as plain text.
 
 This pattern is used in:
 - `buildEventEmbed.ts` — "Going" field (bold name only via `formatName`, no mention, comma-separated)

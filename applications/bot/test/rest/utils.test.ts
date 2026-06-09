@@ -1,7 +1,12 @@
 import { Discord as DomainDiscord, EventRpcModels } from '@sideline/domain';
 import { Option } from 'effect';
 import { describe, expect, it } from 'vitest';
-import { formatName, formatNameWithMention, joinEntriesWithLimit } from '~/rest/utils.js';
+import {
+  formatName,
+  formatNamePlain,
+  formatNameWithMention,
+  joinEntriesWithLimit,
+} from '~/rest/utils.js';
 
 const makeAttendee = (opts: {
   discord_id?: Option.Option<string>;
@@ -89,6 +94,69 @@ describe('formatName', () => {
       username: Option.none(),
     });
     expect(formatName(attendee)).toBe('**ServerNick**');
+  });
+});
+
+describe('formatNamePlain', () => {
+  it('returns the plain name (no asterisks) when present', () => {
+    const attendee = makeAttendee({
+      name: Option.some('Alice'),
+      nickname: Option.some('ServerNick'),
+      display_name: Option.some('Display'),
+      username: Option.some('handle'),
+    });
+    expect(formatNamePlain(attendee)).toBe('Alice');
+  });
+
+  it('falls back to nickname when name is None', () => {
+    const attendee = makeAttendee({
+      name: Option.none(),
+      nickname: Option.some('ServerNick'),
+      display_name: Option.some('Display'),
+      username: Option.some('handle'),
+    });
+    expect(formatNamePlain(attendee)).toBe('ServerNick');
+  });
+
+  it('falls back to display_name when name and nickname are None', () => {
+    const attendee = makeAttendee({
+      name: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.some('Display'),
+      username: Option.some('handle'),
+    });
+    expect(formatNamePlain(attendee)).toBe('Display');
+  });
+
+  it('falls back to username when name, nickname, and display_name are None', () => {
+    const attendee = makeAttendee({
+      name: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
+      username: Option.some('handle'),
+    });
+    expect(formatNamePlain(attendee)).toBe('handle');
+  });
+
+  it('returns Unknown when all fields are None', () => {
+    const attendee = makeAttendee({
+      name: Option.none(),
+      nickname: Option.none(),
+      display_name: Option.none(),
+      username: Option.none(),
+    });
+    expect(formatNamePlain(attendee)).toBe('Unknown');
+  });
+
+  it('strips the bold that formatName adds for the same input', () => {
+    const attendee = makeAttendee({
+      name: Option.some('Alice'),
+      nickname: Option.none(),
+      display_name: Option.none(),
+      username: Option.none(),
+    });
+    expect(formatName(attendee)).toBe('**Alice**');
+    expect(formatNamePlain(attendee)).toBe('Alice');
   });
 });
 

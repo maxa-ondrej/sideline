@@ -5,6 +5,13 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-09 — Persistent "Leave my car" button on carpool board
+
+- Members can now leave their car in two new persistent ways, not just from the ephemeral confirmation after reserving:
+  - A **Leave** button is always visible in the car's private thread (between the Assign and Remove car buttons).
+  - A **Leave my car** button appears directly on the public carpool board — the server resolves your current car automatically, so you can leave without opening the thread.
+- Car owners still cannot leave their own car; use **Remove car** in the private thread instead.
+
 ## 2026-06-09 — Two-tier AI summaries for email forwarding
 
 - The AI assistant now produces **two summaries** for every inbound email: a **short summary** (one opening sentence plus up to 6 emoji-led bullet points) and a **detailed summary** (fuller bullet-point breakdown). Both can be edited on the Email detail page before approval.

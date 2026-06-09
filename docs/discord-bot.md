@@ -603,7 +603,7 @@ Handles submission of the car-creation modal. Creates the car, spawns a private 
 4. On success:
    a. Creates a private Discord thread (`type: 12`) named after the car index and owner display name via `rest.createThread`.
    b. Persists the thread ID via `Carpool/SaveCarThreadId`.
-   c. Posts a welcome embed to the thread with an **Assign passenger** button (`carpool-assign:{carId}`) and a **Remove car** button (`carpool-remove:{carId}`).
+   c. Posts a welcome embed to the thread with an **Assign passenger** button (`carpool-assign:{carId}`), a **Leave** button (`carpool-leave:{carId}`), and a **Remove car** button (`carpool-remove:{carId}`).
    d. Adds the car owner to the thread via `rest.addThreadMember`.
    e. Re-fetches the carpool view via `Carpool/GetCarpoolView` and edits the public board message to reflect the new car.
 5. The ephemeral reply is updated with a "Car #N added" confirmation. If thread creation fails, the board is still rebuilt and the confirmation is shown without the thread link.
@@ -654,7 +654,7 @@ Appears on each car entry in the public carpool board. Allows any team member (e
 
 ### Carpool Leave Button — `carpool-leave:{carId}`
 
-Appears in the ephemeral confirmation after a member reserves a seat. Releases the seat and removes the user from the private thread.
+Appears in the ephemeral confirmation after a member reserves a seat, and also as a persistent button in the car's private thread (between Assign and Remove). Releases the seat and removes the user from the private thread.
 
 **Custom ID pattern:** `carpool-leave:{carId}`
 
@@ -676,6 +676,32 @@ Appears in the ephemeral confirmation after a member reserves a seat. Releases t
 | `CarpoolGuildNotFound` | Team not found for this Discord server |
 
 **Source file:** `applications/bot/src/interactions/carpool.ts` (`CarpoolLeaveButton`)
+
+---
+
+### Carpool Leave Mine Button — `carpool-leave-mine:{carpoolId}`
+
+Appears on the public carpool board message as a single shared **Leave my car** button. Because a member can only be in one car per carpool, the server resolves the relevant car server-side from the carpool ID and the invoking user's identity. The button is disabled when there are no cars on the board.
+
+**Custom ID pattern:** `carpool-leave-mine:{carpoolId}`
+
+**Behavior:**
+
+1. Parses `carpoolId` from the custom ID.
+2. Returns a deferred ephemeral acknowledgement and forks a background fiber.
+3. The background fiber calls `Carpool/LeaveCarpool` RPC with `guild_id`, `discord_user_id`, and `carpool_id`.
+4. On success: removes the user from the car's private thread (if one exists), rebuilds the public board, and replies with "Left car #N".
+
+**Errors from `Carpool/LeaveCarpool`:**
+
+| Error tag | User-visible message |
+|-----------|----------------------|
+| `CarpoolOwnerCannotLeave` | Car owner cannot leave their own car |
+| `CarpoolNotInCar` | Not in this car |
+| `CarpoolNotMember` | Not a member of this team |
+| `CarpoolGuildNotFound` | Team not found for this Discord server |
+
+**Source file:** `applications/bot/src/interactions/carpool.ts` (`CarpoolLeaveMineButton`)
 
 ---
 
@@ -1383,6 +1409,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Carpool/ReserveSeat` | `guild_id`, `discord_user_id`, `car_id` | Reserve a seat in a car (any member except the owner). Returns `ReserveResult` (`thread_id` + updated `CarpoolView`). Errors: `CarpoolGuildNotFound`, `CarpoolNotMember`, `CarpoolCarNotFound`, `CarpoolFull`, `CarpoolAlreadyInThisCar`, `CarpoolAlreadyInAnotherCar`, `CarpoolOwnerCannotReserve`. |
 | `Carpool/AssignSeat` | `guild_id`, `discord_user_id`, `car_id`, `target_discord_user_id` | Owner assigns a seat to another team member. Returns `ReserveResult`. Errors: same as `ReserveSeat` plus `CarpoolNotCarOwner`, `CarpoolTargetNotMember`. |
 | `Carpool/LeaveSeat` | `guild_id`, `discord_user_id`, `car_id` | Release a reserved seat (passengers only; owner cannot leave). Returns updated `CarpoolView`. Errors: `CarpoolGuildNotFound`, `CarpoolNotMember`, `CarpoolCarNotFound`, `CarpoolNotInCar`, `CarpoolOwnerCannotLeave`. |
+| `Carpool/LeaveCarpool` | `guild_id`, `discord_user_id`, `carpool_id` | Release a reserved seat by carpool ID — the server resolves the specific car. Returns `LeaveCarpoolResult` (`car_id` + updated `CarpoolView`). Errors: `CarpoolGuildNotFound`, `CarpoolNotMember`, `CarpoolNotInCar`, `CarpoolOwnerCannotLeave`. |
 | `Carpool/RemoveCar` | `guild_id`, `discord_user_id`, `car_id` | Owner removes their car entirely (deletes car + all seats). Returns `RemoveCarResult` (`thread_id` of the car's thread + updated `CarpoolView`). Errors: `CarpoolGuildNotFound`, `CarpoolNotMember`, `CarpoolCarNotFound`, `CarpoolNotCarOwner`. |
 
 ### Activity group (`Activity/`)

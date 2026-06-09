@@ -301,6 +301,37 @@ const rpcHandlers = Effect.Do.pipe(
         ),
   ),
   Effect.let(
+    'Carpool/LeaveCarpool',
+    ({ carpools }) =>
+      ({
+        guild_id,
+        discord_user_id,
+        carpool_id,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly discord_user_id: Discord.Snowflake;
+        readonly carpool_id: Carpool.CarpoolId;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('team', () => resolveTeamByGuild(guild_id)),
+          Effect.bind('membership', ({ team }) => resolveMember(discord_user_id, team.id)),
+          Effect.bind('car_id', ({ membership }) =>
+            carpools.leaveSeatByCarpool({
+              carpoolId: carpool_id,
+              teamMemberId: membership.id,
+            }),
+          ),
+          Effect.bind('view', () => requireCarpoolView(carpool_id, carpools.findCarpoolView)),
+          Effect.map(
+            ({ car_id, view }) =>
+              new CarpoolRpcModels.LeaveCarpoolResult({
+                car_id,
+                view,
+              }),
+          ),
+        ),
+  ),
+  Effect.let(
     'Carpool/RemoveCar',
     ({ carpools }) =>
       ({

@@ -6,6 +6,7 @@ import {
   CarpoolAssignButton,
   CarpoolAssignPickSelect,
   CarpoolLeaveButtonReg,
+  CarpoolLeaveMineButtonReg,
   CarpoolRemoveButtonReg,
   CarpoolReserveButtonReg,
 } from './carpool.js';
@@ -61,6 +62,7 @@ export const interactionBuilder = Ix.builder
   .add(CarpoolAddModal)
   .add(CarpoolReserveButtonReg)
   .add(CarpoolLeaveButtonReg)
+  .add(CarpoolLeaveMineButtonReg)
   .add(CarpoolRemoveButtonReg)
   .add(CarpoolAssignButton)
   .add(CarpoolAssignPickSelect);
