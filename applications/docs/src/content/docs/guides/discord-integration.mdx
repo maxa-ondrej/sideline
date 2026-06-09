@@ -91,15 +91,20 @@ Set a **system log channel** to receive a private embed for every join. The log 
 
 ## Training claim board
 
-The bot posts a **claim-board message** to the owner group's Discord channel a configurable number of days before the training (default: 3 days). The message shows training details and an orange **Claim** button, and the bot automatically opens a **discussion thread** on the message so the coaching team can coordinate.
+A configurable number of days before each training (default: 3 days), the bot posts a **claim-board message** into a dedicated **"Training claims" thread** in the owner group's Discord channel. All trainings for the same owner group share one persistent thread — the bot creates it the first time and reuses it from then on. Each individual embed shows the training's details and an orange **Claim** button.
 
-A coach (any member of the training's owner group or a sub-group of it) can click **Claim** to mark themselves as responsible for running the training. The message turns green and shows the coach's name with a clickable Discord mention (for example, `**Alex** (<@123456789>)`). If the training is already claimed by someone else, the button responds with a quiet "already claimed" notice visible only to you.
+A coach (any member of the training's owner group or a sub-group of it) can click **Claim** to mark themselves as responsible for running the training. The embed turns green and shows the coach's name with a clickable Discord mention (for example, `**Alex** (<@123456789>)`). If the training is already claimed by someone else, the button responds with a quiet "already claimed" notice visible only to you.
 
-The current claimer can click **Release** to give up the claim, returning the board to its unclaimed (orange) state for others to pick up.
+The current claimer can click **Release** to give up the claim, returning the embed to its unclaimed (orange) state for others to pick up.
 
-If no one has claimed a training by the time the regular RSVP reminder fires, the bot posts an additional **unclaimed training reminder** to the owner group's channel, including a jump link back to the claim-board message.
+If no one has claimed a training by the time the regular RSVP reminder fires, the bot posts an additional **unclaimed training reminder** to the owner group's channel, including a jump link back to the claim embed.
 
-On the day of the training, if the training has been claimed, the bot posts a **"today's coach is X"** announcement to the member training channel so players know who is running the session.
+When the training starts, the claim embed is automatically removed from the thread, and the bot posts a **"Starting now"** announcement to the reminders channel. For trainings:
+
+- If a coach claimed the training, the announcement **@-mentions the coach directly** (e.g. `<@CoachDiscordId>`).
+- If no coach claimed the training (or the claimer has no linked Discord account), the announcement **@-mentions the owners-group role** and includes the message "No coach claimed this training."
+
+On the day of the training, if the training has been claimed, the bot also posts a **"today's coach is X"** announcement to the member training channel so players know who is running the session.
 
 <Aside type="note" title="Who can claim?">
   Only members (including coaches in sub-groups) of the training's **owner group** can claim or release a training. The Claim button silently rejects everyone else.

@@ -43,6 +43,8 @@ export const trainingClaimRequestCronEffect = Effect.Do.pipe(
                     event.description,
                     channelId,
                     mapping.value.discord_role_id,
+                    Option.none(), // locationUrl — unchanged from prior behavior
+                    event.owner_group_id,
                   )
                   .pipe(
                     Effect.tap(() => eventsRepo.markClaimRequestSent(event.event_id)),

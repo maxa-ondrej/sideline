@@ -249,11 +249,12 @@ const make = Effect.gen(function* () {
       owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
       reminders_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
       all_day: Schema.Boolean,
+      claimed_by: Schema.OptionFromNullOr(TeamMember.TeamMemberId),
     }),
     execute: () => sql`
       SELECT e.id, e.team_id, e.title, e.description, e.image_url, e.start_at, e.end_at, e.location, e.location_url, e.event_type,
              e.member_group_id, e.discord_target_channel_id, e.owner_group_id,
-             ts.reminders_channel_id, e.all_day
+             ts.reminders_channel_id, e.all_day, e.claimed_by
       FROM events e
       LEFT JOIN team_settings ts ON ts.team_id = e.team_id
       WHERE e.status = 'active'

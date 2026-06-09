@@ -1316,6 +1316,44 @@ export const EventsRpcLive = rpcHandlers.pipe(
       ({ event_id }: { readonly event_id: Event.EventId }) =>
         events.findClaimInfo(event_id),
   ),
+  Effect.let(
+    'Event/GetOwnerClaimThread',
+    ({ deps: { mappingRepo } }) =>
+      ({
+        team_id,
+        owner_group_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly owner_group_id: GroupModel.GroupId;
+      }) =>
+        mappingRepo.findClaimThread(team_id, owner_group_id),
+  ),
+  Effect.let(
+    'Event/SaveOwnerClaimThread',
+    ({ deps: { mappingRepo } }) =>
+      ({
+        team_id,
+        owner_group_id,
+        thread_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly owner_group_id: GroupModel.GroupId;
+        readonly thread_id: Discord.Snowflake;
+      }) =>
+        mappingRepo.saveClaimThreadIfAbsent(team_id, owner_group_id, thread_id),
+  ),
+  Effect.let(
+    'Event/ClearOwnerClaimThread',
+    ({ deps: { mappingRepo } }) =>
+      ({
+        team_id,
+        owner_group_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly owner_group_id: GroupModel.GroupId;
+      }) =>
+        mappingRepo.clearClaimThread(team_id, owner_group_id),
+  ),
   Bind.remove('events'),
   Bind.remove('rsvps'),
   Bind.remove('deps'),

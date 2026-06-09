@@ -66,6 +66,7 @@ export class EventStartedEvent extends Schema.TaggedClass<EventStartedEvent>()('
   member_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  claimed_by_discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 export class RsvpReminderEvent extends Schema.TaggedClass<RsvpReminderEvent>()('rsvp_reminder', {
@@ -95,6 +96,7 @@ export class TrainingClaimRequestEvent extends Schema.TaggedClass<TrainingClaimR
     description: Schema.OptionFromNullOr(Schema.String),
     discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
     discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+    owner_group_id: Schema.OptionFromNullOr(GroupModel.GroupId),
   },
 ) {}
 

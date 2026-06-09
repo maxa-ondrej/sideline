@@ -466,7 +466,7 @@ flowchart LR
         UC_CREATE_EVENT["Create Event\n(POST /teams/:teamId/events)\nrequires: event:create\ntitle · type · startAt · endAt\nlocation · trainingTypeId\ndiscordChannelId · ownerGroupId · memberGroupId"]
         UC_EDIT_EVENT["Edit Event\n(PATCH /teams/:teamId/events/:eventId)\nrequires: event:edit"]
         UC_CANCEL_EVENT["Cancel Event\n(POST /teams/:teamId/events/:eventId/cancel)\nrequires: event:cancel"]
-        UC_START_EVENT["Mark Event as Started\n(background scheduler)\ntransitions status: active → started\nremoves RSVP buttons in Discord"]
+        UC_START_EVENT["Mark Event as Started\n(background scheduler)\ntransitions status: active → started\nremoves RSVP buttons in Discord\nfor trainings: @-mentions assigned coach (or owners role if unclaimed)\nfor other events: @-mentions member-group role"]
     end
 
     subgraph SERIES["Event Series (Recurring)"]
@@ -608,6 +608,8 @@ flowchart LR
         UC_SYNC_ROLES["Sync Discord Roles\nApplies / removes Discord guild roles\nwhen Sideline role assignments change\n(Role/GetUnprocessedEvents → Role/MarkEventProcessed)"]
         UC_SYNC_CHANNELS["Sync Discord Channels\nCreates / updates channel permissions\nwhen group channel mappings change\n(Channel RPC group)"]
         UC_POST_EMBED["Post Event Embed\nPosts or updates an event embed message\nin the configured Discord channel\nwhen an event is created or updated\n(Event/GetUnprocessedEvents → Event/MarkEventProcessed)"]
+        UC_CLAIM_THREAD["Post Training Claim Embed\nPosts claim embed into persistent owners-group thread\n(Event/GetOwnerClaimThread → Event/SaveOwnerClaimThread\n→ Event/SaveClaimDiscordMessageId)\nThread is reused across all trainings for the same owner group"]
+        UC_START_ANNOUNCE["Post Training-Start Announcement\n@-mentions assigned coach (claimed_by_discord_id)\nor owners-group role + no-coach warning if unclaimed\n(Event/GetClaimInfo → rest.deleteMessage on claim embed)"]
     end
 
     DU --> UC_EVT_LIST
@@ -634,10 +636,13 @@ flowchart LR
     BOT --> UC_SYNC_ROLES
     BOT --> UC_SYNC_CHANNELS
     BOT --> UC_POST_EMBED
+    BOT --> UC_CLAIM_THREAD
+    BOT --> UC_START_ANNOUNCE
 
     SYS --> UC_SYNC_ROLES
     SYS --> UC_SYNC_CHANNELS
     SYS --> UC_POST_EMBED
+    SYS --> UC_START_ANNOUNCE
 ```
 
 ### 3.9 Weekly Challenges

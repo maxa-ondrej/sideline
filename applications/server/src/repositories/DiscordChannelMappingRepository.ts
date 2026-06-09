@@ -6,7 +6,7 @@ import {
   RosterModel,
   Team,
 } from '@sideline/domain';
-import { Effect, Layer, Schema, ServiceMap } from 'effect';
+import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 
@@ -18,6 +18,11 @@ class MappingRow extends Schema.Class<MappingRow>('MappingRow')({
   roster_id: Schema.OptionFromNullOr(RosterModel.RosterId),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  claim_thread_id: Schema.OptionFromNullOr(Discord.Snowflake),
+}) {}
+
+class ClaimThreadRow extends Schema.Class<ClaimThreadRow>('ClaimThreadRow')({
+  claim_thread_id: Schema.OptionFromNullOr(Discord.Snowflake),
 }) {}
 
 const FindByGroupInput = Schema.Struct({
@@ -71,6 +76,17 @@ const DeleteByRosterInput = Schema.Struct({
   roster_id: RosterModel.RosterId,
 });
 
+const ClaimThreadInput = Schema.Struct({
+  team_id: Team.TeamId,
+  group_id: GroupModel.GroupId,
+});
+
+const SaveClaimThreadInput = Schema.Struct({
+  team_id: Team.TeamId,
+  group_id: GroupModel.GroupId,
+  thread_id: Discord.Snowflake,
+});
+
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
@@ -78,7 +94,7 @@ const make = Effect.gen(function* () {
     Request: FindByGroupInput,
     Result: MappingRow,
     execute: (input) => sql`
-      SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id
+      SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id, claim_thread_id
       FROM discord_channel_mappings
       WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
     `,
@@ -88,7 +104,7 @@ const make = Effect.gen(function* () {
     Request: FindByRosterInput,
     Result: MappingRow,
     execute: (input) => sql`
-      SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id
+      SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id, claim_thread_id
       FROM discord_channel_mappings
       WHERE team_id = ${input.team_id} AND roster_id = ${input.roster_id}
     `,
@@ -163,7 +179,7 @@ const make = Effect.gen(function* () {
     Request: Schema.String,
     Result: MappingRow,
     execute: (teamId) => sql`
-      SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id
+      SELECT id, team_id, entity_type, group_id, roster_id, discord_channel_id, discord_role_id, claim_thread_id
       FROM discord_channel_mappings
       WHERE team_id = ${teamId}
     `,
@@ -237,6 +253,59 @@ const make = Effect.gen(function* () {
 
   const findAllByTeam = (teamId: Team.TeamId) => _findAllByTeamId(teamId).pipe(catchSqlErrors);
 
+  const _findClaimThread = SqlSchema.findOneOption({
+    Request: ClaimThreadInput,
+    Result: ClaimThreadRow,
+    execute: (input) => sql`
+      SELECT claim_thread_id
+      FROM discord_channel_mappings
+      WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
+    `,
+  });
+
+  const _saveClaimThreadIfAbsent = SqlSchema.findOneOption({
+    Request: SaveClaimThreadInput,
+    Result: ClaimThreadRow,
+    execute: (input) => sql`
+      UPDATE discord_channel_mappings
+      SET claim_thread_id = ${input.thread_id}
+      WHERE team_id = ${input.team_id} AND group_id = ${input.group_id} AND claim_thread_id IS NULL
+      RETURNING claim_thread_id
+    `,
+  });
+
+  const _clearClaimThread = SqlSchema.void({
+    Request: ClaimThreadInput,
+    execute: (input) => sql`
+      UPDATE discord_channel_mappings
+      SET claim_thread_id = NULL
+      WHERE team_id = ${input.team_id} AND group_id = ${input.group_id}
+    `,
+  });
+
+  const findClaimThread = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
+    _findClaimThread({ team_id: teamId, group_id: groupId }).pipe(
+      Effect.map(Option.flatMap((row) => row.claim_thread_id)),
+      catchSqlErrors,
+    );
+
+  const saveClaimThreadIfAbsent = (
+    teamId: Team.TeamId,
+    groupId: GroupModel.GroupId,
+    threadId: Discord.Snowflake,
+  ) =>
+    _saveClaimThreadIfAbsent({ team_id: teamId, group_id: groupId, thread_id: threadId }).pipe(
+      Effect.flatMap((maybeRow) =>
+        Option.isSome(maybeRow)
+          ? Effect.succeed(maybeRow.value.claim_thread_id)
+          : findClaimThread(teamId, groupId),
+      ),
+      catchSqlErrors,
+    );
+
+  const clearClaimThread = (teamId: Team.TeamId, groupId: GroupModel.GroupId) =>
+    _clearClaimThread({ team_id: teamId, group_id: groupId }).pipe(catchSqlErrors);
+
   return {
     findByGroupId,
     insert,
@@ -248,6 +317,9 @@ const make = Effect.gen(function* () {
     insertRoster,
     deleteByRosterId,
     findAllByTeam,
+    findClaimThread,
+    saveClaimThreadIfAbsent,
+    clearClaimThread,
   };
 });
 
