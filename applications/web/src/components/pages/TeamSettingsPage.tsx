@@ -2099,10 +2099,11 @@ function EmailForwardingCard({ teamId, discordChannels, initialConfig }: EmailFo
                       />
                     </div>
 
-                    {/* Sync status row */}
-                    <output aria-live='polite' className='text-xs text-muted-foreground'>
+                    {/* Sync status row — a polite live region (not role=status) so it
+                        doesn't collide with the onboarding card's status output on this page */}
+                    <div aria-live='polite' className='text-xs text-muted-foreground'>
                       {imapSyncStatus}
-                    </output>
+                    </div>
                   </div>
                 </fieldset>
               </div>
