@@ -219,7 +219,7 @@ groupRoleMap.set(GROUP_A, ROLE_A);
 // Mock layers
 // ---------------------------------------------------------------------------
 
-const makeAccessLayer = (_inFlightGroups: GroupModel.GroupId[] = []) =>
+const makeAccessLayer = () =>
   Layer.succeed(TeamChannelAccessRepository, {
     _tag: 'api/TeamChannelAccessRepository',
     findByChannel: (channelId: TeamChannel.TeamChannelId) =>
@@ -797,7 +797,7 @@ const buildLazyHealLayer = (inFlightGroups: GroupModel.GroupId[] = []) => {
     .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
     .pipe(Layer.provide(MockDashboardLayoutsRepositoryLayer))
     .pipe(Layer.provide(channelsLayer))
-    .pipe(Layer.provide(makeAccessLayer(inFlightGroups)))
+    .pipe(Layer.provide(makeAccessLayer()))
     .pipe(Layer.provide(MockSqlClientLayer))
     .pipe(Layer.provide(MockEmailLayers))
     .pipe(Layer.provide(MockEventRosterLayers))

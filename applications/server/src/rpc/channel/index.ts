@@ -472,12 +472,14 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         readonly limit: Option.Option<number>;
       }) =>
         Effect.Do.pipe(
+          Effect.let('boundedLimit', () => {
+            const raw = Option.getOrElse(limit, () => 20);
+            const normalized = Number.isFinite(raw) ? Math.trunc(raw) : 20;
+            return Math.min(100, Math.max(1, normalized));
+          }),
           Effect.bind('mappingsRepo', () => DiscordChannelMappingRepository.asEffect()),
-          Effect.bind('groups', ({ mappingsRepo }) =>
-            mappingsRepo.findGroupsMissingRole(
-              team_id,
-              Option.getOrElse(limit, () => 20),
-            ),
+          Effect.bind('groups', ({ mappingsRepo, boundedLimit }) =>
+            mappingsRepo.findGroupsMissingRole(team_id, boundedLimit),
           ),
           Effect.tap(({ groups }) =>
             Effect.logInfo(
