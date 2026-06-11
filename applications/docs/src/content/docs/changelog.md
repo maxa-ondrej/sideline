@@ -5,6 +5,15 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-11 — Channel access grants for unprovisioned groups no longer silently fail
+
+When you grant channel access to a group that does not yet have a Discord role, Sideline now saves the grant and shows you clearly that it is pending rather than silently skipping it.
+
+- A **"Not yet active in Discord"** badge appears next to the group name in the channel Access sheet.
+- An info alert at the top of the Access sheet tells you that some grants are waiting for Discord to catch up.
+- When you add such a grant, you receive an informational toast (instead of the usual success toast) so you know the grant is saved but not yet active.
+- The access applies automatically once the group is provisioned in Discord — no further action is needed.
+
 ## 2026-06-11 — Any team member can now add a car to the carpool board
 
 Previously, adding a car required the `carpool:manage` permission (Admin and Captain roles only). Now **any team member** can volunteer as a driver by clicking **Add a car** on the carpool board — no special role needed. Posting the board itself (`/doprava`) still requires `carpool:manage`.

@@ -5059,14 +5059,17 @@ Creates a new managed channel. Emits a `channel_created` / `managed` sync event;
 
 | Field | Type | Description |
 |---|---|---|
-| `grants` | `ChannelAccessGrant[]` | Current access grants (always empty for unmanaged channels) |
+| `grants` | `ChannelAccessGrantDetail[]` | Current access grants (always empty for unmanaged channels) |
 
-`ChannelAccessGrant`:
+`ChannelAccessGrantDetail`:
 
 | Field | Type | Description |
 |---|---|---|
 | `groupId` | `GroupId` | Group ID |
 | `accessLevel` | `'VIEW' \| 'EDIT' \| 'ADMIN'` | Access tier |
+| `roleResolvable` | `boolean` | Whether the group currently has a Discord role that the bot can apply the permission overwrite to. `false` means the grant is saved but will not be synced to Discord until the group is provisioned with a Discord role. The grant self-heals automatically once the role exists. |
+
+> **Note:** The input type used when writing grants (`POST/PATCH` endpoints that accept a grants array) remains `ChannelAccessGrant` — it has only `groupId` and `accessLevel`. `roleResolvable` is a read-only computed field present only in `ChannelAccessGrantDetail` (on `ChannelDetail` responses).
 
 **Errors:**
 

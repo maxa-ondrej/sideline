@@ -82,6 +82,9 @@ const TEST_CHANNEL_ID = '00000000-0000-0000-0006-000000000030' as TeamChannel.Te
 const DISCORD_CHANNEL_ID = '777777777777777777' as Discord.Snowflake;
 const GROUP_A = '00000000-0000-0000-0006-000000000040' as GroupModel.GroupId;
 const GROUP_B = '00000000-0000-0000-0006-000000000041' as GroupModel.GroupId;
+// GROUP_C has NO entry in groupRoleMap — its Discord role ID is unresolvable, mirroring
+// production's `discord_role_id IS NOT NULL` filter.
+const GROUP_C = '00000000-0000-0000-0006-000000000042' as GroupModel.GroupId;
 const ROLE_A = '111111111111111111' as Discord.Snowflake;
 const ROLE_B = '222222222222222222' as Discord.Snowflake;
 
@@ -773,6 +776,12 @@ const setAccessRequest = (grants: Array<{ groupId: string; accessLevel: string }
     body: JSON.stringify({ grants }),
   });
 
+const getChannelRequest = () =>
+  new Request(`http://localhost/teams/${TEST_TEAM_ID}/channels/${TEST_CHANNEL_ID}`, {
+    method: 'GET',
+    headers: { Authorization: 'Bearer admin-token' },
+  });
+
 let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
 
@@ -939,5 +948,259 @@ describe('setAccess — diff logic', () => {
     expect(deleteCalls).toHaveLength(0);
     expect(grantedBatchCalls).toHaveLength(0);
     expect(revokedBatchCalls).toHaveLength(0);
+  });
+
+  // -------------------------------------------------------------------------
+  // roleResolvable — new tests (TDD: these fail until implementation ships)
+  // -------------------------------------------------------------------------
+
+  it('{} → [A:VIEW, B:VIEW]: 2 upserts, ONE granted-batch call with both entries', async () => {
+    // Start empty — grant A and B together
+    const response = await handler(
+      setAccessRequest([
+        { groupId: GROUP_A, accessLevel: 'VIEW' },
+        { groupId: GROUP_B, accessLevel: 'VIEW' },
+      ]),
+    );
+
+    expect(response.status).toBe(200);
+
+    // Both grants persisted
+    expect(upsertCalls).toHaveLength(2);
+    const upsertedGroupIds = upsertCalls.map((c) => c.groupId);
+    expect(upsertedGroupIds).toContain(GROUP_A);
+    expect(upsertedGroupIds).toContain(GROUP_B);
+
+    // No revokes
+    expect(deleteCalls).toHaveLength(0);
+
+    // Exactly ONE granted-batch call containing BOTH entries
+    expect(grantedBatchCalls).toHaveLength(1);
+    const batchEntries = grantedBatchCalls[0]?.entries as any[];
+    expect(batchEntries).toHaveLength(2);
+    const roleIds = batchEntries.map((e) => e.discordRoleId);
+    expect(roleIds).toContain(ROLE_A);
+    expect(roleIds).toContain(ROLE_B);
+
+    // Response shape
+    const body = (await response.json()) as any;
+    expect(body.grants).toHaveLength(2);
+  });
+
+  it('[A:VIEW] → [A:VIEW, B:EDIT]: 1 upsert (B only), ONE granted-batch call with B→ROLE_B (bug repro)', async () => {
+    // Seed A with VIEW already present
+    accessStore.set(TEST_CHANNEL_ID, [{ group_id: GROUP_A, access_level: 'VIEW' }]);
+
+    // Request adds B at EDIT; A stays at VIEW (unchanged)
+    const response = await handler(
+      setAccessRequest([
+        { groupId: GROUP_A, accessLevel: 'VIEW' },
+        { groupId: GROUP_B, accessLevel: 'EDIT' },
+      ]),
+    );
+
+    expect(response.status).toBe(200);
+
+    // Only B is upserted — A is unchanged and must NOT be re-upserted
+    expect(upsertCalls).toHaveLength(1);
+    expect(upsertCalls[0]).toMatchObject({ groupId: GROUP_B, level: 'EDIT' });
+
+    // No revokes
+    expect(deleteCalls).toHaveLength(0);
+
+    // Exactly ONE granted-batch call with exactly 1 entry for B at EDIT
+    // Also assert GROUP_A / ROLE_A is ABSENT from the batch (only B should be emitted)
+    expect(grantedBatchCalls).toHaveLength(1);
+    const batchEntries = grantedBatchCalls[0]?.entries as any[];
+    expect(batchEntries).toHaveLength(1);
+    expect(batchEntries[0].discordRoleId).toBe(ROLE_B);
+    expect(batchEntries[0].accessLevel).toBe('EDIT');
+    const batchGroupRoleIds = batchEntries.map((e: any) => e.discordRoleId);
+    expect(batchGroupRoleIds).not.toContain(ROLE_A);
+
+    // Response body must contain both grants preserving A at VIEW
+    const body = (await response.json()) as any;
+    expect(body.grants).toHaveLength(2);
+    const responseGrantA = (body.grants as any[]).find((g: any) => g.groupId === GROUP_A);
+    const responseGrantB = (body.grants as any[]).find((g: any) => g.groupId === GROUP_B);
+    expect(responseGrantA?.accessLevel).toBe('VIEW');
+    expect(responseGrantB?.accessLevel).toBe('EDIT');
+
+    // A's grant remains untouched — still VIEW in store
+    const stored = accessStore.get(TEST_CHANNEL_ID) ?? [];
+    const aEntry = stored.find((e) => e.group_id === GROUP_A);
+    expect(aEntry?.access_level).toBe('VIEW');
+  });
+
+  it('{} → [C:VIEW]: grant persisted, NO granted-batch call (unresolvable group)', async () => {
+    // GROUP_C has no entry in groupRoleMap → role is unresolvable
+    const response = await handler(setAccessRequest([{ groupId: GROUP_C, accessLevel: 'VIEW' }]));
+
+    expect(response.status).toBe(200);
+
+    // The grant IS persisted in the DB
+    expect(upsertCalls).toHaveLength(1);
+    expect(upsertCalls[0]).toMatchObject({ groupId: GROUP_C, level: 'VIEW' });
+
+    // But NO batch emit because no role could be resolved
+    expect(grantedBatchCalls).toHaveLength(0);
+  });
+
+  it('{} → [A:VIEW, C:VIEW]: both persisted, ONE granted-batch call with ONLY A (C skipped)', async () => {
+    // GROUP_A is resolvable (ROLE_A); GROUP_C is not
+    const response = await handler(
+      setAccessRequest([
+        { groupId: GROUP_A, accessLevel: 'VIEW' },
+        { groupId: GROUP_C, accessLevel: 'VIEW' },
+      ]),
+    );
+
+    expect(response.status).toBe(200);
+
+    // Both grants persisted
+    expect(upsertCalls).toHaveLength(2);
+    const upsertedGroupIds = upsertCalls.map((c) => c.groupId);
+    expect(upsertedGroupIds).toContain(GROUP_A);
+    expect(upsertedGroupIds).toContain(GROUP_C);
+
+    // Exactly ONE granted-batch call — contains ONLY the A entry (C is skipped)
+    expect(grantedBatchCalls).toHaveLength(1);
+    const batchEntries = grantedBatchCalls[0]?.entries as any[];
+    expect(batchEntries).toHaveLength(1);
+    expect(batchEntries[0].discordRoleId).toBe(ROLE_A);
+
+    // Response carries both grants (A and C)
+    const body = (await response.json()) as any;
+    expect(body.grants).toHaveLength(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // Unresolvable-REVOKE path — these test the revoke side of setAccess which
+  // independently filters groups whose discord_role_id cannot be resolved.
+  // -------------------------------------------------------------------------
+
+  it('[C:VIEW] → {} (C unresolvable): deleteGrant for C, NO revoked-batch call, HTTP 200', async () => {
+    // Seed C into the store so there is a grant to revoke
+    accessStore.set(TEST_CHANNEL_ID, [{ group_id: GROUP_C, access_level: 'VIEW' }]);
+
+    const response = await handler(setAccessRequest([]));
+
+    expect(response.status).toBe(200);
+
+    // The grant IS deleted from the DB
+    expect(deleteCalls).toHaveLength(1);
+    expect(deleteCalls[0]).toMatchObject({ groupId: GROUP_C });
+
+    // No upserts
+    expect(upsertCalls).toHaveLength(0);
+
+    // The revoked-batch mock guards on entries.length > 0 — C has no role, so the
+    // entries array is empty and the mock does NOT push to revokedBatchCalls.
+    expect(revokedBatchCalls).toHaveLength(0);
+
+    // No granted batches either
+    expect(grantedBatchCalls).toHaveLength(0);
+  });
+
+  it('[B:VIEW] → {} (B resolvable): deleteGrant for B, ONE revoked-batch call with ROLE_B, HTTP 200', async () => {
+    accessStore.set(TEST_CHANNEL_ID, [{ group_id: GROUP_B, access_level: 'VIEW' }]);
+
+    const response = await handler(setAccessRequest([]));
+
+    expect(response.status).toBe(200);
+
+    // The grant is deleted
+    expect(deleteCalls).toHaveLength(1);
+    expect(deleteCalls[0]).toMatchObject({ groupId: GROUP_B });
+
+    // Exactly one revoked-batch call with ROLE_B
+    expect(revokedBatchCalls).toHaveLength(1);
+    const revokedEntries = revokedBatchCalls[0]?.entries as any[];
+    expect(revokedEntries).toHaveLength(1);
+    expect(revokedEntries[0].discordRoleId).toBe(ROLE_B);
+
+    // No granted batches
+    expect(grantedBatchCalls).toHaveLength(0);
+  });
+
+  it('[B:VIEW, C:VIEW] → {} (mixed): both deleted, ONE revoked-batch with ONLY ROLE_B (C filtered), HTTP 200', async () => {
+    // Both B (resolvable) and C (unresolvable) are seeded
+    accessStore.set(TEST_CHANNEL_ID, [
+      { group_id: GROUP_B, access_level: 'VIEW' },
+      { group_id: GROUP_C, access_level: 'VIEW' },
+    ]);
+
+    const response = await handler(setAccessRequest([]));
+
+    expect(response.status).toBe(200);
+
+    // Both grants are deleted from the DB
+    expect(deleteCalls).toHaveLength(2);
+    const deletedGroupIds = deleteCalls.map((c) => c.groupId);
+    expect(deletedGroupIds).toContain(GROUP_B);
+    expect(deletedGroupIds).toContain(GROUP_C);
+
+    // Exactly ONE revoked-batch call — carrying ONLY ROLE_B (C is filtered out as unresolvable)
+    expect(revokedBatchCalls).toHaveLength(1);
+    const revokedEntries = revokedBatchCalls[0]?.entries as any[];
+    expect(revokedEntries).toHaveLength(1);
+    expect(revokedEntries[0].discordRoleId).toBe(ROLE_B);
+
+    // No granted batches
+    expect(grantedBatchCalls).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// roleResolvable on responses — new describe block (TDD)
+// ---------------------------------------------------------------------------
+
+describe('roleResolvable field in ChannelDetail.grants', () => {
+  it('getChannel: grants include roleResolvable=true for A (mapped) and false for C (unmapped)', async () => {
+    // Seed both A (has ROLE_A) and C (no role) into accessStore
+    accessStore.set(TEST_CHANNEL_ID, [
+      { group_id: GROUP_A, access_level: 'VIEW' },
+      { group_id: GROUP_C, access_level: 'VIEW' },
+    ]);
+
+    const response = await handler(getChannelRequest());
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as any;
+    const grants: any[] = body.grants;
+    expect(grants).toHaveLength(2);
+
+    const grantA = grants.find((g) => g.groupId === GROUP_A);
+    const grantC = grants.find((g) => g.groupId === GROUP_C);
+
+    expect(grantA).toBeDefined();
+    expect(grantA.roleResolvable).toBe(true);
+
+    expect(grantC).toBeDefined();
+    expect(grantC.roleResolvable).toBe(false);
+  });
+
+  it('setAccess response body: grants carry roleResolvable=true for A, false for C', async () => {
+    // {} → [A:VIEW, C:VIEW]
+    const response = await handler(
+      setAccessRequest([
+        { groupId: GROUP_A, accessLevel: 'VIEW' },
+        { groupId: GROUP_C, accessLevel: 'VIEW' },
+      ]),
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as any;
+    const grants: any[] = body.grants;
+    expect(grants).toHaveLength(2);
+
+    const grantA = grants.find((g) => g.groupId === GROUP_A);
+    const grantC = grants.find((g) => g.groupId === GROUP_C);
+
+    expect(grantA).toBeDefined();
+    expect(grantA.roleResolvable).toBe(true);
+
+    expect(grantC).toBeDefined();
+    expect(grantC.roleResolvable).toBe(false);
   });
 });

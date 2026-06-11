@@ -39,6 +39,7 @@ const toChannelDetail = (
     group_id: GroupModel.GroupId;
     access_level: TeamChannelAccess.AccessLevel;
   }>,
+  resolvableGroupIds: ReadonlySet<GroupModel.GroupId>,
   emoji: Option.Option<string> = Option.none(),
 ): ChannelApi.ChannelDetail =>
   new ChannelApi.ChannelDetail({
@@ -53,9 +54,10 @@ const toChannelDetail = (
     accessCount,
     grants: grants.map(
       (g) =>
-        new ChannelApi.ChannelAccessGrant({
+        new ChannelApi.ChannelAccessGrantDetail({
           groupId: g.group_id,
           accessLevel: g.access_level,
+          roleResolvable: resolvableGroupIds.has(g.group_id),
         }),
     ),
   });
@@ -80,8 +82,33 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
         teamSettings,
         botGuilds,
         discordChannels,
-      }) =>
-        handlers
+      }) => {
+        // Build a ChannelDetail from a channel + its grants, resolving which grant groups
+        // currently map to a discord role (roleResolvable) via a single role-id lookup.
+        const buildDetailFromGrants = (
+          channel: Parameters<typeof toChannelDetail>[0] & {
+            readonly emoji: Option.Option<string>;
+          },
+          grants: ReadonlyArray<{
+            group_id: GroupModel.GroupId;
+            access_level: TeamChannelAccess.AccessLevel;
+          }>,
+        ) =>
+          channelAccess
+            .findGroupRoleIds(grants.map((g) => g.group_id))
+            .pipe(
+              Effect.map((resolvableRoleRows) =>
+                toChannelDetail(
+                  channel,
+                  grants.length,
+                  grants,
+                  new Set(resolvableRoleRows.map((r) => r.group_id)),
+                  channel.emoji,
+                ),
+              ),
+            );
+
+        return handlers
           .handle('listChannels', ({ params: { teamId } }) =>
             Effect.Do.pipe(
               Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
@@ -274,7 +301,9 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                   discordChannelName,
                 });
               }),
-              Effect.map(({ channel }) => toChannelDetail(channel, 0, [], payload.emoji)),
+              Effect.map(({ channel }) =>
+                toChannelDetail(channel, 0, [], new Set(), payload.emoji),
+              ),
               Effect.catchTag('ChannelNameAlreadyTakenError', () =>
                 Effect.fail(new ChannelApi.ChannelNameAlreadyTaken()),
               ),
@@ -305,9 +334,7 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                   : Effect.void,
               ),
               Effect.bind('grants', ({ channel }) => channelAccess.findByChannel(channel.id)),
-              Effect.map(({ channel, grants }) =>
-                toChannelDetail(channel, grants.length, grants, channel.emoji),
-              ),
+              Effect.flatMap(({ channel, grants }) => buildDetailFromGrants(channel, grants)),
             ),
           )
           .handle('renameChannel', ({ params: { teamId, channelId }, payload }) =>
@@ -338,9 +365,7 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
               Effect.bind('grants', () => channelAccess.findByChannel(channelId)),
               // Rename updates the read model only. No Discord sync event is emitted in v1
               // because the bot handler for managed channel rename is out of scope.
-              Effect.map(({ updated, grants }) =>
-                toChannelDetail(updated, grants.length, grants, updated.emoji),
-              ),
+              Effect.flatMap(({ updated, grants }) => buildDetailFromGrants(updated, grants)),
               Effect.catchTag('ChannelNameAlreadyTakenError', () =>
                 Effect.fail(new ChannelApi.ChannelNameAlreadyTaken()),
               ),
@@ -649,13 +674,8 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                       }),
                       // Return updated channel detail
                       Effect.bind('updatedGrants', () => channelAccess.findByChannel(channelId)),
-                      Effect.map(({ updatedGrants }) =>
-                        toChannelDetail(
-                          channel,
-                          updatedGrants.length,
-                          updatedGrants,
-                          channel.emoji,
-                        ),
+                      Effect.flatMap(({ updatedGrants }) =>
+                        buildDetailFromGrants(channel, updatedGrants),
                       ),
                     ),
                   )
@@ -727,11 +747,7 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                     // Idempotent pre-check path: already adopted — return its detail, no event
                     channelAccess
                       .findByChannel(existing.id)
-                      .pipe(
-                        Effect.map((grants) =>
-                          toChannelDetail(existing, grants.length, grants, existing.emoji),
-                        ),
-                      ),
+                      .pipe(Effect.flatMap((grants) => buildDetailFromGrants(existing, grants))),
                   onNone: () =>
                     sqlClient
                       .withTransaction(
@@ -751,7 +767,11 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                                   teamChannelId: row.id,
                                   discordChannelId,
                                 })
-                                .pipe(Effect.map(() => toChannelDetail(row, 0, [], row.emoji))),
+                                .pipe(
+                                  Effect.map(() =>
+                                    toChannelDetail(row, 0, [], new Set(), row.emoji),
+                                  ),
+                                ),
                             ),
                             // Concurrent race: another request already inserted — re-fetch the
                             // existing row and return its detail WITHOUT emitting a duplicate event.
@@ -770,8 +790,8 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                                   return channelAccess
                                     .findByChannel(found.id)
                                     .pipe(
-                                      Effect.map((grants) =>
-                                        toChannelDetail(found, grants.length, grants, found.emoji),
+                                      Effect.flatMap((grants) =>
+                                        buildDetailFromGrants(found, grants),
                                       ),
                                     );
                                 }),
@@ -1149,7 +1169,8 @@ export const ChannelApiLive = HttpApiBuilder.group(Api, 'channel', (handlers) =>
                 );
               }),
             ),
-          ),
+          );
+      },
     ),
   ),
 );

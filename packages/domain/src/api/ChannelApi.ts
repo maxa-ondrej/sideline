@@ -12,6 +12,14 @@ export class ChannelAccessGrant extends Schema.Class<ChannelAccessGrant>('Channe
   accessLevel: AccessLevel,
 }) {}
 
+export class ChannelAccessGrantDetail extends Schema.Class<ChannelAccessGrantDetail>(
+  'ChannelAccessGrantDetail',
+)({
+  groupId: GroupId,
+  accessLevel: AccessLevel,
+  roleResolvable: Schema.Boolean,
+}) {}
+
 export class ChannelInfo extends Schema.Class<ChannelInfo>('ChannelInfo')({
   discordChannelId: Schema.OptionFromNullOr(Snowflake),
   teamChannelId: Schema.OptionFromNullOr(TeamChannelId),
@@ -34,7 +42,7 @@ export class ChannelDetail extends Schema.Class<ChannelDetail>('ChannelDetail')(
   type: Schema.Number,
   archived: Schema.Boolean,
   accessCount: Schema.Number,
-  grants: Schema.Array(ChannelAccessGrant),
+  grants: Schema.Array(ChannelAccessGrantDetail),
 }) {}
 
 export class ChannelListResponse extends Schema.Class<ChannelListResponse>('ChannelListResponse')({

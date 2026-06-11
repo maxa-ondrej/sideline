@@ -97,6 +97,23 @@ Current shared schemas:
 |--------|-----------|----------------|
 | `HexColor` | `src/api/GroupApi.ts` | `src/api/Roster.ts` |
 
+### Input vs Output Types for Write-Back Nested Arrays
+
+When a response `Detail` type carries a nested array of records that the client edits and submits back in a request payload, and the response needs to augment each record with a **server-computed field** (a flag/value the client reads but must never send), define **two distinct schema classes** — never add the computed field to the type the request payload accepts.
+
+Reference: `packages/domain/src/api/ChannelApi.ts`.
+
+- **Input type** — `ChannelAccessGrant` (`groupId` + `accessLevel`). Used by `SetChannelAccessRequest.grants`. Carries **only writable fields**.
+- **Output type** — `ChannelAccessGrantDetail` (`groupId` + `accessLevel` + `roleResolvable: boolean`). Used by `ChannelDetail.grants`. Adds the server-computed `roleResolvable` field (the server populates it from `channelAccess.findGroupRoleIds`, which filters `discord_role_id IS NOT NULL`).
+
+Rules:
+
+1. **The request payload's array element is the input type; the response's array element is the output type.** Do not reuse the output type in the request — the computed field has no meaning as client input and the server would have to ignore or re-validate it.
+2. **Name the output type `<Input>Detail`** (e.g. `ChannelAccessGrant` → `ChannelAccessGrantDetail`), mirroring the existing `<Resource>Detail` naming for response views.
+3. **The web MUST map output records back to the input type before submitting**, stripping the computed field. Construct fresh input instances — never spread or pass the output array straight into the request. Reference: `applications/web/src/components/organisms/ChannelAccessSheet.tsx` (`handleGrantAccess`, `handleChangeLevel`, `handleRemoveAccess`) maps `detail.grants` (output) to `new ChannelApi.ChannelAccessGrant({ groupId, accessLevel })` (input) so `roleResolvable` does not leak into `SetChannelAccessRequest`.
+
+This is the nested-write-back counterpart of the "Display Names Are Computed Server-Side" convention in `applications/server/AGENTS.md` — both keep server-computed fields out of request payloads while letting responses carry them.
+
 ### Externally-Fetched URLs (SSRF guard)
 
 Any user-supplied URL that the server (or a downstream service such as Discord) will fetch or render MUST be validated with the shared `isPublicHttpsUrl` predicate exported from `src/api/EventApi.ts`. Reference implementations: `EventImageUrl` and `EventLocationUrl` in `src/api/EventApi.ts`.
