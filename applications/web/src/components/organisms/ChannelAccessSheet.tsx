@@ -10,6 +10,7 @@ import { useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import { Trash2 } from 'lucide-react';
 import React from 'react';
+import { toast } from 'sonner';
 import { SearchableSelect } from '~/components/atoms/SearchableSelect.js';
 import { AccessLevelSelect } from '~/components/molecules/AccessLevelSelect.js';
 import { Alert, AlertDescription } from '~/components/ui/alert';
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '~/components/ui/alert-dialog';
+import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import {
   Sheet,
@@ -33,6 +35,7 @@ import {
   SheetTitle,
 } from '~/components/ui/sheet';
 import { Skeleton } from '~/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '~/components/ui/tooltip';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import { tr } from '~/lib/translations.js';
 
@@ -104,11 +107,17 @@ export function ChannelAccessSheet({
 
   const handleGrantAccess = async () => {
     if (!selectedGroupId || !detail) return;
+    const newGrantGroupId = Schema.decodeSync(GroupModel.GroupId)(selectedGroupId);
     const newGrant = new ChannelApi.ChannelAccessGrant({
-      groupId: Schema.decodeSync(GroupModel.GroupId)(selectedGroupId),
+      groupId: newGrantGroupId,
       accessLevel: selectedLevel,
     });
-    const newGrants = [...detail.grants, newGrant];
+    // Map existing detail grants back to plain ChannelApi.ChannelAccessGrant so roleResolvable
+    // is stripped from the request payload (the detail type carries it; the API only accepts grants).
+    const existingGrants = detail.grants.map(
+      (g) => new ChannelApi.ChannelAccessGrant({ groupId: g.groupId, accessLevel: g.accessLevel }),
+    );
+    const newGrants = [...existingGrants, newGrant];
     const groupName = getGroupName(selectedGroupId);
     setSubmitting(true);
     const result = await ApiClient.asEffect().pipe(
@@ -119,10 +128,17 @@ export function ChannelAccessSheet({
         }),
       ),
       Effect.mapError(() => ClientError.make(tr('channels_access_updateFailed'))),
-      run({ success: tr('channels_access_granted', { group: groupName }) }),
+      run({}),
     );
     setSubmitting(false);
     if (Option.isSome(result)) {
+      const addedGrant = result.value.grants.find((g) => g.groupId === newGrantGroupId);
+      // A pending grant (role not yet resolvable) is advisory, not a clean success.
+      if (addedGrant?.roleResolvable === false) {
+        toast.info(tr('channels_access_grantedPending', { group: groupName }));
+      } else {
+        toast.success(tr('channels_access_granted', { group: groupName }));
+      }
       setDetail(result.value);
       setSelectedGroupId('');
       setSelectedLevel('VIEW');
@@ -132,10 +148,15 @@ export function ChannelAccessSheet({
 
   const handleChangeLevel = async (groupId: string, newLevel: TeamChannelAccess.AccessLevel) => {
     if (!detail) return;
-    const newGrants = detail.grants.map((g) =>
-      g.groupId === groupId
-        ? new ChannelApi.ChannelAccessGrant({ groupId: g.groupId, accessLevel: newLevel })
-        : g,
+    // Map back to plain ChannelApi.ChannelAccessGrant so roleResolvable is stripped from the
+    // request payload (the detail type carries it; the API only accepts grants). Do not simplify
+    // this to passing detail.grants directly, or roleResolvable leaks into the request.
+    const newGrants = detail.grants.map(
+      (g) =>
+        new ChannelApi.ChannelAccessGrant({
+          groupId: g.groupId,
+          accessLevel: g.groupId === groupId ? newLevel : g.accessLevel,
+        }),
     );
     setSubmitting(true);
     const result = await ApiClient.asEffect().pipe(
@@ -157,7 +178,12 @@ export function ChannelAccessSheet({
 
   const handleRemoveAccess = async (groupId: string) => {
     if (!detail) return;
-    const newGrants = detail.grants.filter((g) => g.groupId !== groupId);
+    const newGrants = detail.grants
+      .filter((g) => g.groupId !== groupId)
+      .map(
+        (g) =>
+          new ChannelApi.ChannelAccessGrant({ groupId: g.groupId, accessLevel: g.accessLevel }),
+      );
     setSubmitting(true);
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) =>
@@ -177,6 +203,7 @@ export function ChannelAccessSheet({
   };
 
   const hasNoAccess = (detail?.grants.length ?? 0) === 0;
+  const hasUnresolvableGrants = detail?.grants.some((g) => g.roleResolvable === false) ?? false;
 
   const accessLevelLabel = (level: TeamChannelAccess.AccessLevel) => {
     const map: Record<TeamChannelAccess.AccessLevel, string> = {
@@ -202,6 +229,13 @@ export function ChannelAccessSheet({
           {!loading && !loadError && hasNoAccess && (
             <Alert>
               <AlertDescription>{tr('channels_visibilityNote_hidden')}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Unresolvable grants info */}
+          {!loading && !loadError && hasUnresolvableGrants && (
+            <Alert role='status'>
+              <AlertDescription>{tr('channels_access_notActive_alert')}</AlertDescription>
             </Alert>
           )}
 
@@ -244,78 +278,90 @@ export function ChannelAccessSheet({
           )}
 
           {/* Current grants */}
-          <div className='flex flex-col gap-1'>
-            {loading ? (
-              <>
-                <Skeleton className='h-10 w-full' />
-                <Skeleton className='h-10 w-full' />
-              </>
-            ) : loadError ? (
-              <p className='text-sm text-destructive'>{tr('channels_access_loadFailed')}</p>
-            ) : detail && detail.grants.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>{tr('channels_access_empty')}</p>
-            ) : (
-              detail?.grants.map((grant) => {
-                const groupName = getGroupName(grant.groupId);
-                return (
-                  <div
-                    key={grant.groupId}
-                    className='flex items-center gap-2 py-1.5 border-b last:border-0'
-                  >
-                    <span className='flex-1 text-sm font-medium truncate'>{groupName}</span>
-                    {canManage ? (
-                      <AccessLevelSelect
-                        value={grant.accessLevel}
-                        onValueChange={(newLevel) => handleChangeLevel(grant.groupId, newLevel)}
-                        disabled={submitting}
-                        className='w-32 shrink-0'
-                      />
-                    ) : (
-                      <span className='text-sm text-muted-foreground shrink-0'>
-                        {accessLevelLabel(grant.accessLevel)}
-                      </span>
-                    )}
-                    {canManage && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant='ghost'
-                            size='icon'
-                            className='size-8 shrink-0 text-destructive'
-                            disabled={submitting}
-                            aria-label={tr('channels_access_remove')}
-                          >
-                            <Trash2 className='size-4' />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              {tr('channels_access_removeConfirm_title')}
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {tr('channels_access_removeConfirm_description', {
-                                group: groupName,
-                              })}
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>{tr('channels_cancel')}</AlertDialogCancel>
-                            <AlertDialogAction
-                              variant='destructive'
-                              onClick={() => handleRemoveAccess(grant.groupId)}
+          <TooltipProvider>
+            <div className='flex flex-col gap-1'>
+              {loading ? (
+                <>
+                  <Skeleton className='h-10 w-full' />
+                  <Skeleton className='h-10 w-full' />
+                </>
+              ) : loadError ? (
+                <p className='text-sm text-destructive'>{tr('channels_access_loadFailed')}</p>
+              ) : detail && detail.grants.length === 0 ? (
+                <p className='text-sm text-muted-foreground'>{tr('channels_access_empty')}</p>
+              ) : (
+                detail?.grants.map((grant) => {
+                  const groupName = getGroupName(grant.groupId);
+                  return (
+                    <div
+                      key={grant.groupId}
+                      className='flex items-center gap-2 py-1.5 border-b last:border-0'
+                    >
+                      <span className='flex-1 text-sm font-medium truncate'>{groupName}</span>
+                      {grant.roleResolvable === false && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant='secondary' className='shrink-0'>
+                              {tr('channels_access_notActive_badge')}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>{tr('channels_access_notActive_tooltip')}</TooltipContent>
+                        </Tooltip>
+                      )}
+                      {canManage ? (
+                        <AccessLevelSelect
+                          value={grant.accessLevel}
+                          onValueChange={(newLevel) => handleChangeLevel(grant.groupId, newLevel)}
+                          disabled={submitting}
+                          className='w-32 shrink-0'
+                        />
+                      ) : (
+                        <span className='text-sm text-muted-foreground shrink-0'>
+                          {accessLevelLabel(grant.accessLevel)}
+                        </span>
+                      )}
+                      {canManage && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              className='size-8 shrink-0 text-destructive'
+                              disabled={submitting}
+                              aria-label={tr('channels_access_remove')}
                             >
-                              {tr('channels_access_remove')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
+                              <Trash2 className='size-4' />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {tr('channels_access_removeConfirm_title')}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {tr('channels_access_removeConfirm_description', {
+                                  group: groupName,
+                                })}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{tr('channels_cancel')}</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant='destructive'
+                                onClick={() => handleRemoveAccess(grant.groupId)}
+                              >
+                                {tr('channels_access_remove')}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </TooltipProvider>
         </div>
       </SheetContent>
     </Sheet>
