@@ -1,5 +1,11 @@
 # @sideline/i18n
 
+## 0.12.6
+
+### Patch Changes
+
+- [#405](https://github.com/maxa-ondrej/sideline/pull/405) [`ff0a8aa`](https://github.com/maxa-ondrej/sideline/commit/ff0a8aa32b3bed9235110368a6de7fb77abbeb2f) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Fix the original/detailed email preview buttons hanging on a perpetual "loading" state for very large emails. The ephemeral interaction is now always resolved even when fetching/rendering fails, and oversized email bodies are capped at 20 pages with a truncation notice (plus a Sideline deep link when configured).
+
 ## 0.12.5
 
 ### Patch Changes

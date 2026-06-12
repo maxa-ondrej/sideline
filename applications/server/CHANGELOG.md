@@ -1,5 +1,12 @@
 # @sideline/server
 
+## 0.28.2
+
+### Patch Changes
+
+- Updated dependencies [[`ff0a8aa`](https://github.com/maxa-ondrej/sideline/commit/ff0a8aa32b3bed9235110368a6de7fb77abbeb2f)]:
+  - @sideline/i18n@0.12.6
+
 ## 0.28.1
 
 ### Patch Changes
