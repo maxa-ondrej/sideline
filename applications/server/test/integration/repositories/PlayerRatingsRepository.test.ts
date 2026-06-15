@@ -2,6 +2,7 @@ import { describe, expect, it } from '@effect/vitest';
 import type { Discord, Team, User } from '@sideline/domain';
 import { Elo } from '@sideline/domain';
 import { Effect, Layer, Option } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
 import { beforeEach } from 'vitest';
 import { PlayerRatingsRepository } from '~/repositories/PlayerRatingsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -256,7 +257,8 @@ describe('PlayerRatingsRepository', () => {
       Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
       Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
       Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
-      // Apply two games sequentially
+      Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
+      // Apply two games sequentially (distinct timestamps)
       Effect.tap(({ ratings, team, member1, member2 }) =>
         ratings.applyGameUpdates({
           teamId: team.id,
@@ -275,17 +277,38 @@ describe('PlayerRatingsRepository', () => {
           submittedBy: Option.none(),
         }),
       ),
+      // Insert two history rows with an identical created_at to exercise the id DESC tiebreaker
+      Effect.tap(({ sql, team, member1 }) => {
+        const fixedTs = '2020-01-01T00:00:00.000Z';
+        return sql`
+          INSERT INTO player_rating_history
+            (team_id, team_member_id, rating_before, rating_after, delta, result, game_id, submitted_by, created_at)
+          VALUES
+            (${team.id}, ${member1.id}, 900, 910, 10, 'win', NULL, NULL, ${fixedTs}::timestamptz),
+            (${team.id}, ${member1.id}, 910, 920, 10, 'win', NULL, NULL, ${fixedTs}::timestamptz)
+        `.pipe(Effect.asVoid);
+      }),
       Effect.bind('history', ({ ratings, team, member1 }) =>
         ratings.findHistoryByMember(team.id, member1.id, 10),
       ),
       Effect.tap(({ history }) =>
         Effect.sync(() => {
           // Most recent entry is first (DESC order)
-          expect(history).toHaveLength(2);
-          // The most recent game should be first
-          expect(history[0].created_at.getTime()).toBeGreaterThanOrEqual(
-            history[1].created_at.getTime(),
+          expect(history.length).toBeGreaterThanOrEqual(4);
+          // The most recent games should be first (created_at DESC)
+          for (let i = 0; i < history.length - 1; i++) {
+            expect(history[i].created_at.getTime()).toBeGreaterThanOrEqual(
+              history[i + 1].created_at.getTime(),
+            );
+          }
+          // The two same-timestamp rows inserted last are the oldest; they appear at the end.
+          // Find the equal-timestamp pair among them and assert id DESC tiebreaker.
+          const sameTsRows = history.filter((h) =>
+            h.created_at.toISOString().startsWith('2020-01-01'),
           );
+          expect(sameTsRows).toHaveLength(2);
+          // id DESC: first sameTsRow id must be greater than second
+          expect(sameTsRows[0].id > sameTsRows[1].id).toBe(true);
         }),
       ),
       Effect.provide(TestLayer),
@@ -350,20 +373,19 @@ describe('PlayerRatingsRepository', () => {
           submittedBy: Option.none(),
         }),
       ),
-      // Deactivate member1 (this doesn't delete, cascade only happens on hard delete)
-      Effect.tap(({ members, team, member1 }) =>
-        members.deactivateMemberByIds(team.id, member1.id),
-      ),
-      // After deactivation, player_ratings row still exists (no cascade for deactivation)
-      // The cascade happens on hard delete — but we can verify that the rating still exists
-      // after deactivation (since we don't hard-delete in this test).
-      Effect.bind('ratingAfterDeactivate', ({ ratings, team, member1 }) =>
+      // Hard-delete member1 — this exercises the FK cascade
+      Effect.tap(({ members, member1 }) => members.hardDelete(member1.id)),
+      // After hard delete, player_ratings row and history rows must be gone (FK cascade)
+      Effect.bind('ratingAfterDelete', ({ ratings, team, member1 }) =>
         ratings.getMemberRating(team.id, member1.id),
       ),
-      Effect.tap(({ ratingAfterDeactivate }) =>
+      Effect.bind('historyAfterDelete', ({ ratings, team, member1 }) =>
+        ratings.findHistoryByMember(team.id, member1.id, 10),
+      ),
+      Effect.tap(({ ratingAfterDelete, historyAfterDelete }) =>
         Effect.sync(() => {
-          // Rating still exists after deactivation (only hard delete cascades)
-          expect(Option.isSome(ratingAfterDeactivate)).toBe(true);
+          expect(Option.isNone(ratingAfterDelete)).toBe(true);
+          expect(historyAfterDelete).toHaveLength(0);
         }),
       ),
       Effect.provide(TestLayer),

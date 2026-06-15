@@ -1263,6 +1263,7 @@ erDiagram
     teams ||--o{ player_rating_history : "tracks"
     team_members ||--o{ player_ratings : "has"
     team_members ||--o{ player_rating_history : "generates"
+    team_members ||--o{ player_rating_history : "submits"
 ```
 
 ---

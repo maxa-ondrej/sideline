@@ -1653,7 +1653,7 @@ Append-only audit log of every rating change. One row per player per game result
 
 **Indexes**: `idx_player_rating_history_member` on `(team_member_id, created_at DESC, id DESC)` — used to retrieve a member's chronological history efficiently.
 
-**Notes**: Added in migration `1789600000_create_player_ratings`. `game_id` is a nullable UUID that can group all history entries belonging to the same `applyGameResult` call (allows correlating team-A and team-B deltas). `submitted_by` records which team member submitted the game result; set to `NULL` via `ON DELETE SET NULL` if that member is later deleted. No updates are ever made to this table — all entries are immutable once written.
+**Notes**: Added in migration `1789600000_create_player_ratings`. `game_id` is a nullable UUID that can group all history entries belonging to the same `applyGameResult` call (allows correlating team-A and team-B deltas). `submitted_by` records which team member submitted the game result; set to `NULL` via `ON DELETE SET NULL` if that member is later deleted. The table is append-only from the application's perspective — no application code ever updates a row after insert — though `submitted_by` may be nulled by FK cleanup if the referenced member is deleted.
 
 ---
 

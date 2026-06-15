@@ -40,6 +40,7 @@ export const kFactor = (gamesPlayed: number): number =>
  * Each player's K-factor is determined individually and ratings are rounded to
  * the nearest integer. Per-player K-factor + integer rounding means exact
  * zero-sum is NOT guaranteed; this is intentional (same as chess Elo).
+ * Ratings are floored at 0 — a long losing streak cannot produce a negative rating.
  */
 export const computeTeamGameUpdate = (
   input: TeamGameInput,
@@ -61,7 +62,7 @@ export const computeTeamGameUpdate = (
     (actual: number, exp: number) =>
     (player: PlayerRatingInput): PlayerRatingUpdate => {
       const k = kFactor(player.gamesPlayed);
-      const newRating = Math.round(player.rating + k * (actual - exp));
+      const newRating = Math.max(0, Math.round(player.rating + k * (actual - exp)));
       return {
         teamMemberId: player.teamMemberId,
         oldRating: player.rating,
