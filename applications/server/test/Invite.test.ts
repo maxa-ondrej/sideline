@@ -51,6 +51,7 @@ import { AchievementPreview } from '~/services/AchievementPreview.js';
 import { AgeCheckService } from '~/services/AgeCheckService.js';
 import { BotInfoStore } from '~/services/BotInfoStore.js';
 import { DiscordOAuth } from '~/services/DiscordOAuth.js';
+import { GlobalAdminAllowlist } from '~/services/GlobalAdminAllowlist.js';
 import { MockChannelManagementLayers } from './mocks/channelMocks.js';
 import { MockDashboardLayoutsRepositoryLayer } from './mocks/dashboardLayoutMocks.js';
 import { MockEmailLayers } from './mocks/emailMocks.js';
@@ -769,7 +770,12 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockChannelManagementLayers))
   .pipe(Layer.provide(MockEmailLayers))
   .pipe(Layer.provide(MockEventRosterLayers))
-  .pipe(Layer.provide(BotInfoStore.Default));
+  .pipe(Layer.provide(BotInfoStore.Default))
+  .pipe(
+    Layer.provide(
+      Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+    ),
+  );
 
 let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
@@ -1316,7 +1322,14 @@ describe('Invite API — removed-user re-join (TDD: Handle removing user)', () =
       .pipe(Layer.provide(MockChannelManagementLayers))
       .pipe(Layer.provide(MockEmailLayers))
       .pipe(Layer.provide(MockEventRosterLayers))
-      .pipe(Layer.provide(BotInfoStore.Default));
+      .pipe(Layer.provide(BotInfoStore.Default))
+      .pipe(
+        Layer.provide(
+          Layer.succeed(GlobalAdminAllowlist, {
+            asEffect: Effect.succeed(new Set<string>()),
+          } as any),
+        ),
+      );
 
   it('removed user re-joins via invite — reactivateMember is called, NOT addMember, returns JoinResult', async () => {
     reactivateCalled = false;
