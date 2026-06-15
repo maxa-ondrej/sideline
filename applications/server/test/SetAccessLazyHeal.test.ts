@@ -803,7 +803,11 @@ const buildLazyHealLayer = (inFlightGroups: GroupModel.GroupId[] = []) => {
     .pipe(Layer.provide(MockEmailLayers))
     .pipe(Layer.provide(MockEventRosterLayers))
     .pipe(Layer.provide(BotInfoStore.Default))
-    .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+    .pipe(
+      Layer.provide(
+        Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+      ),
+    );
 };
 
 // ---------------------------------------------------------------------------

@@ -919,7 +919,11 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockChannelManagementLayers))
   .pipe(Layer.provide(MockEmailLayers))
   .pipe(Layer.provide(BotInfoStore.Default))
-  .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+  .pipe(
+    Layer.provide(
+      Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+    ),
+  );
 
 let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
@@ -1430,7 +1434,11 @@ describe('Event Roster API — web approve/decline (real service, B1 regression)
     .pipe(Layer.provide(MockChannelManagementLayers))
     .pipe(Layer.provide(MockEmailLayers))
     .pipe(Layer.provide(BotInfoStore.Default))
-    .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+    .pipe(
+      Layer.provide(
+        Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+      ),
+    );
 
   let realHandler: (...args: any) => Promise<Response>;
   let realDispose: () => Promise<void>;

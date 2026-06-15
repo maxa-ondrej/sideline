@@ -149,13 +149,14 @@ const make = Effect.gen(function* () {
     Request: Schema.Struct({ userId: User.UserId, envAdminCount: Schema.Number }),
     Result: User.User,
     execute: (input) => sql`
-      UPDATE users
-      SET is_global_admin = false,
-          global_admin_granted_at = NULL,
-          updated_at = now()
+      WITH locked_admins AS (
+        SELECT id FROM users WHERE is_global_admin = true ORDER BY id FOR UPDATE
+      )
+      UPDATE users SET is_global_admin = false, global_admin_granted_at = NULL, updated_at = now()
       WHERE id = ${input.userId}
         AND is_global_admin = true
-        AND ((SELECT count(*) FROM users WHERE is_global_admin = true) + ${input.envAdminCount} > 1)
+        AND id IN (SELECT id FROM locked_admins)
+        AND ((SELECT count(*) FROM locked_admins) + ${input.envAdminCount} > 1)
       RETURNING *
     `,
   });

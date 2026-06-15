@@ -582,7 +582,11 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockEmailLayers))
   .pipe(Layer.provide(MockEventRosterLayers))
   .pipe(Layer.provide(BotInfoStore.Default))
-  .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+  .pipe(
+    Layer.provide(
+      Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+    ),
+  );
 
 let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
@@ -780,7 +784,13 @@ describe('Auth API — isGlobalAdmin flag on GET /auth/me (TDD: first registered
       .pipe(Layer.provide(MockEmailLayers))
       .pipe(Layer.provide(MockEventRosterLayers))
       .pipe(Layer.provide(BotInfoStore.Default))
-      .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+      .pipe(
+        Layer.provide(
+          Layer.succeed(GlobalAdminAllowlist, {
+            asEffect: Effect.succeed(new Set<string>()),
+          } as any),
+        ),
+      );
   };
 
   it('isGlobalAdmin true when db flag is true and env allowlist empty', async () => {
@@ -1097,7 +1107,13 @@ describe('Auth API — removed-user behaviour (TDD: Handle removing user)', () =
       .pipe(Layer.provide(MockEmailLayers))
       .pipe(Layer.provide(MockEventRosterLayers))
       .pipe(Layer.provide(BotInfoStore.Default))
-      .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+      .pipe(
+        Layer.provide(
+          Layer.succeed(GlobalAdminAllowlist, {
+            asEffect: Effect.succeed(new Set<string>()),
+          } as any),
+        ),
+      );
   };
 
   it('GET /auth/me/teams omits teams where user has been deactivated (findByUser returns only active)', async () => {
@@ -1373,7 +1389,13 @@ describe('Global admin read access', () => {
       .pipe(Layer.provide(MockEmailLayers))
       .pipe(Layer.provide(MockEventRosterLayers))
       .pipe(Layer.provide(BotInfoStore.Default))
-      .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+      .pipe(
+        Layer.provide(
+          Layer.succeed(GlobalAdminAllowlist, {
+            asEffect: Effect.succeed(new Set<string>()),
+          } as any),
+        ),
+      );
 
   it('global admin non-member can GET /teams/:id/members → 200', async () => {
     const testLayer = buildGlobalAdminLayer();

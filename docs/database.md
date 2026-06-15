@@ -1607,7 +1607,7 @@ Binary attachment storage. Attachment bytes are stored directly in a `BYTEA` col
 
 ## Migration History
 
-All 86 migration files in `packages/migrations/src/before/` plus 1 after-migration.
+All 108 migration files in `packages/migrations/src/before/` plus 1 after-migration.
 
 ### Before Migrations (schema changes)
 
@@ -1701,6 +1701,10 @@ All 86 migration files in `packages/migrations/src/before/` plus 1 after-migrati
 | 1789400003 | `create_email_attachments` | Creates `email_attachments` table for binary attachment storage (BYTEA). |
 | 1789400004 | `add_short_summary_to_email_messages` | Adds nullable `short_summary TEXT` column to `email_messages` for the two-tier AI summary (short + detailed). |
 | 1789400006 | `add_imap_to_email_forwarding_config` | Adds 10 IMAP columns to `email_forwarding_config` (`imap_enabled`, `imap_host`, `imap_port`, `imap_username`, `imap_secret_encrypted`, `imap_use_tls`, `imap_folder`, `imap_last_seen_uid`, `imap_uid_validity`, `imap_last_synced_at`) and a partial index for the `ImapPoller` scan; adds `message_id TEXT` column to `email_messages` and a unique partial index `uq_email_messages_team_message_id` on `(team_id, message_id) WHERE message_id IS NOT NULL` for deduplication. |
+| 1789500000 | `create_event_rosters` | Creates `event_rosters` table (one-to-one event–roster link with `auto_approve BOOLEAN`, `owners_thread_id TEXT`, UNIQUE on `event_id`); adds index `idx_event_rosters_roster` on `(roster_id)`. |
+| 1789500001 | `create_event_roster_requests` | Creates `event_roster_requests` table tracking per-member approval requests (status CHECK `'pending'/'approved'/'declined'/'cancelled'`, source CHECK `'auto'/'approval'`, `discord_message_id`, `decided_by`, `decided_at`; UNIQUE on `(event_id, team_member_id)`); adds indexes on `(event_id, status)` and a partial index for pending rows. |
+| 1789500002 | `add_event_roster_sync_types` | Extends `event_sync_events.event_type` CHECK constraint to add three roster-workflow event types: `event_roster_approval_request`, `event_roster_approval_cancel`, and `event_roster_thread_delete`. |
+| 1789500003 | `add_user_global_admin_granted_at` | Adds nullable `global_admin_granted_at TIMESTAMPTZ` column to `users`; back-fills `now()` for existing global admins. |
 
 ### After Migrations (seed data)
 

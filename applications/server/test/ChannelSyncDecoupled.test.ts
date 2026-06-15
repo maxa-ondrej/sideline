@@ -974,7 +974,11 @@ const buildTestLayer = (
     .pipe(Layer.provide(MockEmailLayers))
     .pipe(Layer.provide(MockEventRosterLayers))
     .pipe(Layer.provide(BotInfoStore.Default))
-    .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+    .pipe(
+      Layer.provide(
+        Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+      ),
+    );
 
 const makeSettingsLayer = (findByTeamId: () => Effect.Effect<Option.Option<unknown>>) =>
   Layer.succeed(TeamSettingsRepository, {
@@ -1205,7 +1209,13 @@ describe('B2 — createGroup emits channel_created regardless of create_discord_
       .pipe(Layer.provide(MockEmailLayers))
       .pipe(Layer.provide(MockEventRosterLayers))
       .pipe(Layer.provide(BotInfoStore.Default))
-      .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+      .pipe(
+        Layer.provide(
+          Layer.succeed(GlobalAdminAllowlist, {
+            asEffect: Effect.succeed(new Set<string>()),
+          } as any),
+        ),
+      );
 
     const _app = HttpRouter.toWebHandler(customLayer);
     const handler: (...args: any) => Promise<Response> = _app.handler;

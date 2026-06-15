@@ -833,7 +833,11 @@ const TestLayer = ApiLive.pipe(
   .pipe(Layer.provide(MockEmailLayers))
   .pipe(Layer.provide(MockEventRosterLayers))
   .pipe(Layer.provide(BotInfoStore.Default))
-  .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+  .pipe(
+    Layer.provide(
+      Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+    ),
+  );
 
 const makeTestSettingsLayer = (findByTeamId: () => Effect.Effect<Option.Option<unknown>>) =>
   Layer.succeed(TeamSettingsRepository, {
@@ -954,7 +958,11 @@ const buildTestLayer = (settingsLayer: Layer.Layer<TeamSettingsRepository>) =>
     .pipe(Layer.provide(MockEmailLayers))
     .pipe(Layer.provide(MockEventRosterLayers))
     .pipe(Layer.provide(BotInfoStore.Default))
-    .pipe(Layer.provide(GlobalAdminAllowlist.Default));
+    .pipe(
+      Layer.provide(
+        Layer.succeed(GlobalAdminAllowlist, { asEffect: Effect.succeed(new Set<string>()) } as any),
+      ),
+    );
 
 let handler: (...args: any) => Promise<Response>;
 let dispose: () => Promise<void>;
