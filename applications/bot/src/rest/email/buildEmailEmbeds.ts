@@ -37,6 +37,16 @@ export const buildEmailDeepLink = (
 ): Option.Option<string> =>
   Option.map(webUrl, (url) => `${url.replace(/\/$/, '')}/teams/${teamId}/emails/${emailId}`);
 
+export const buildTrainingResultDeepLink = (
+  webUrl: Option.Option<string>,
+  teamId: string,
+  eventId: string,
+): Option.Option<string> =>
+  Option.map(
+    webUrl,
+    (url) => `${url.replace(/\/$/, '')}/teams/${teamId}/events/${eventId}#training-result`,
+  );
+
 // ---------------------------------------------------------------------------
 // Approval (two-embed)
 // ---------------------------------------------------------------------------

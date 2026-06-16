@@ -30,7 +30,7 @@ The bot is built with **dfx**, an Effect-native Discord framework. It connects t
 
 ## Slash Commands
 
-Six top-level commands are registered globally: `/carpool`, `/event`, `/finance`, `/info`, `/makanicko`, and `/summon`. `/event`, `/finance`, and `/makanicko` each have sub-commands.
+Seven top-level commands are registered globally: `/carpool`, `/event`, `/finance`, `/info`, `/makanicko`, `/summon`, and `/training`. `/event`, `/finance`, `/makanicko`, and `/training` each have sub-commands.
 
 ### /carpool
 
@@ -380,6 +380,46 @@ At least one of `user` or `role` must be supplied.
 | `ActivityMemberNotFound` | "Not a member" message |
 
 **Source file:** `applications/bot/src/commands/makanicko/leaderboard.ts`
+
+---
+
+### /training result
+
+**Description:** Get a deep-link to the web training result editor for a specific event.
+
+**Czech sub-command name:** `výsledek`
+
+**Permission required:** Hidden in the Discord UI from members who lack `ManageEvents` (used as a proxy gate for captains/coaches). No server-side permission is checked beyond guild membership.
+
+**Constraints:**
+- `dm_permission: false` — the command cannot be used in DMs.
+- `default_member_permissions: ManageEvents` — Discord hides the command from members without this permission.
+
+**Options:**
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `event` | String (autocomplete) | Yes | Event ID; populated via autocomplete from loggable training events |
+
+**Flow:**
+
+1. Captain invokes `/training result event:<autocomplete>`.
+2. The handler returns an immediate deferred ephemeral acknowledgement and forks a background fiber.
+3. The background fiber calls `Event/GetLoggableTrainingEvents` and `Event/GetUpcomingGuildEvents` (for `team_id`) concurrently.
+4. If the selected `event` value appears in the loggable list, the bot builds a deep-link URL (`{WEB_URL}/teams/{teamId}/events/{eventId}`) and replies with a localised ephemeral message containing the link.
+5. If the event is no longer loggable, the bot replies with an ephemeral "event not loggable" message.
+
+**Autocomplete behavior:** The `event` option is backed by `TrainingResultAutocomplete` (`applications/bot/src/interactions/training-result-autocomplete.ts`). It calls `Event/GetLoggableTrainingEvents` (payload: `{ guild_id }`), then filters results by the user's current search query (matched case-insensitively against the event title and ISO date label `YYYY-MM-DD`), takes up to 25 results, and formats each choice label as `{date} · {title}` (truncated to 100 characters). The value stored in the choice is the event ID string.
+
+**Errors handled:**
+- `GuildNotFound` — returns empty ephemeral acknowledgement.
+- `RpcClientError` — returns a generic error message.
+- If `WEB_URL` is not configured on the bot, replies with a "deep link unavailable" message.
+
+**Source files:**
+- `applications/bot/src/commands/training/result.ts` (command handler)
+- `applications/bot/src/commands/training/index.ts` (command registration)
+- `applications/bot/src/interactions/training-result-autocomplete.ts` (autocomplete handler)
 
 ---
 
@@ -904,6 +944,18 @@ Provides training type suggestions for the `/event create training_type` option.
 **Behavior:** See `/event create` autocomplete description above.
 
 **Source file:** `applications/bot/src/interactions/event-create-autocomplete.ts`
+
+---
+
+### Training Result Autocomplete
+
+Provides loggable training-event suggestions for the `/training result event` option.
+
+**Trigger condition:** command name is `training` and the focused option name is `event`.
+
+**Behavior:** Calls `Event/GetLoggableTrainingEvents` with the guild ID. Filters results case-insensitively by the user's current input (matched against the event title and the ISO date string `YYYY-MM-DD`). Returns up to 25 choices formatted as `{date} · {title}` (truncated to 100 characters). The choice value is the event ID string. Returns empty choices on `GuildNotFound` or `RpcClientError`.
+
+**Source file:** `applications/bot/src/interactions/training-result-autocomplete.ts`
 
 ---
 
@@ -1446,6 +1498,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/SaveOwnerClaimThread` | Compare-and-swap write: sets `claim_thread_id` on the mapping row only when the current value is `NULL`; returns the winning thread ID (the caller's if it won, or the pre-existing one if it lost the race) |
 | `Event/ClearOwnerClaimThread` | Sets `claim_thread_id = NULL` on the mapping row for a given `(team_id, owner_group_id)`; called when the thread is found to have been deleted (Discord error 10003) so that the next claim-request recreates it |
 | `Event/GetChannelsWithStoredMessages` | Fetch all `(discord_channel_id, guild_id)` pairs for which at least one event message ID is stored; used by the `recoverDeletedMessages` startup task |
+| `Event/GetLoggableTrainingEvents` | Fetch training events for the guild with status `active` or `started` whose `start_at` is within the past 2 days; used by the `/training result` autocomplete and command handler; errors: `GuildNotFound` |
 
 ### Invite group (`Invite/`)
 

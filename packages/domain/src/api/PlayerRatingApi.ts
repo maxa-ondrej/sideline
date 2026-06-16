@@ -1,8 +1,10 @@
 import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
+import { EventId } from '~/models/Event.js';
 import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
+import { TrainingGameId, TrainingGameOutcome } from '~/models/TrainingGame.js';
 
 export class Forbidden extends Schema.TaggedErrorClass<Forbidden>()('PlayerRatingForbidden', {}) {}
 
@@ -14,8 +16,13 @@ export class PlayerNotFound extends Schema.TaggedErrorClass<PlayerNotFound>()(
 export class InvalidGameResult extends Schema.TaggedErrorClass<InvalidGameResult>()(
   'PlayerRatingInvalidGameResult',
   {
-    reason: Schema.Literals(['emptyTeam', 'overlap', 'unknownMember']),
+    reason: Schema.Literals(['emptyTeam', 'overlap', 'unknownMember', 'notRsvpYes']),
   },
+) {}
+
+export class EventNotLoggable extends Schema.TaggedErrorClass<EventNotLoggable>()(
+  'PlayerRatingEventNotLoggable',
+  {},
 ) {}
 
 export class MemberRatingResponse extends Schema.Class<MemberRatingResponse>(
@@ -74,6 +81,36 @@ export const GameResultRequest = Schema.Struct({
 });
 export type GameResultRequest = Schema.Schema.Type<typeof GameResultRequest>;
 
+export const LogTrainingGamePayload = Schema.Struct({
+  teamA: Schema.Array(TeamMemberId),
+  teamB: Schema.Array(TeamMemberId),
+  outcome: TrainingGameOutcome,
+});
+export type LogTrainingGamePayload = Schema.Schema.Type<typeof LogTrainingGamePayload>;
+
+export class TrainingGameResult extends Schema.Class<TrainingGameResult>('TrainingGameResult')({
+  id: TrainingGameId,
+  round: Schema.Int,
+  teamA: Schema.Array(TeamMemberId),
+  teamB: Schema.Array(TeamMemberId),
+  outcome: TrainingGameOutcome,
+  created_at: Schema.String,
+  ratings: TeamRatingsResponse,
+}) {}
+
+export class LoggedGameEntry extends Schema.Class<LoggedGameEntry>('LoggedGameEntry')({
+  id: TrainingGameId,
+  round: Schema.Int,
+  teamA: Schema.Array(TeamMemberId),
+  teamB: Schema.Array(TeamMemberId),
+  outcome: TrainingGameOutcome,
+  created_at: Schema.String,
+}) {}
+
+export class LoggedGamesResponse extends Schema.Class<LoggedGamesResponse>('LoggedGamesResponse')({
+  games: Schema.Array(LoggedGameEntry),
+}) {}
+
 export class PlayerRatingApiGroup extends HttpApiGroup.make('playerRating')
   .add(
     HttpApiEndpoint.get('getTeamRatings', '/teams/:teamId/ratings', {
@@ -116,5 +153,24 @@ export class PlayerRatingApiGroup extends HttpApiGroup.make('playerRating')
       ],
       payload: GameResultRequest,
       params: { teamId: TeamId },
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('logTrainingGame', '/teams/:teamId/events/:eventId/training-games', {
+      success: TrainingGameResult.pipe(HttpApiSchema.status(200)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        EventNotLoggable.pipe(HttpApiSchema.status(409)),
+        InvalidGameResult.pipe(HttpApiSchema.status(422)),
+      ],
+      payload: LogTrainingGamePayload,
+      params: { teamId: TeamId, eventId: EventId },
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.get('getTrainingGames', '/teams/:teamId/events/:eventId/training-games', {
+      success: LoggedGamesResponse,
+      error: Forbidden.pipe(HttpApiSchema.status(403)),
+      params: { teamId: TeamId, eventId: EventId },
     }).middleware(AuthMiddleware),
   ) {}

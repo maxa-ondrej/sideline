@@ -5917,7 +5917,7 @@ Revokes global-admin status from a user by their internal `UserId`. Clears `user
 
 Manages per-member Elo ratings within a team. Uses a team-average Elo model: each player's individual rating is compared against the average of the opposing team. K-factor is 40 during the first 10 games (calibration) and 20 thereafter. Default starting rating is 1200.
 
-All endpoints require the caller to be an authenticated team member. The three read endpoints are accessible to **any** team member; the write endpoint (`applyGameResult`) requires the `member:edit` permission (i.e. Captain, Admin, or any role with that permission). Global admins who are not team members receive a 403 from all four endpoints (no `requireReadAccess` bypass is applied here).
+All endpoints require the caller to be an authenticated team member. The read endpoints are accessible to **any** team member; the write endpoints (`applyGameResult`, `logTrainingGame`) require the `member:edit` permission (i.e. Captain, Admin, or any role with that permission). Global admins who are not team members receive a 403 from all endpoints (no `requireReadAccess` bypass is applied here).
 
 ---
 
@@ -6027,7 +6027,7 @@ Returns the full chronological game history for a single member, newest first.
 | `ratingAfter` | `integer` | No | Rating after this game |
 | `delta` | `integer` | No | Change applied (`ratingAfter - ratingBefore`) |
 | `result` | `"win" \| "loss" \| "draw"` | No | Outcome for this member |
-| `gameId` | `string \| null` | Yes | UUID grouping all entries for the same `applyGameResult` call |
+| `gameId` | `string \| null` | Yes | UUID grouping all entries for the same game — set for both `applyGameResult` and `logTrainingGame` calls |
 | `submittedBy` | `TeamMemberId \| null` | Yes | Member who submitted the game result (null if that member was later deleted) |
 | `createdAt` | `string` (ISO 8601) | No | Timestamp of the rating change |
 
@@ -6078,6 +6078,89 @@ Applies a game result, updating the Elo ratings for all members on both teams. R
 | `emptyTeam` | `teamA` or `teamB` array is empty |
 | `overlap` | The same member appears on both teams |
 | `unknownMember` | A member ID is not found in this team |
+| `notRsvpYes` | A member in `teamA` or `teamB` did not RSVP "yes" for the associated event (training-game endpoint only) |
+
+---
+
+#### `POST /teams/:teamId/events/:eventId/training-games`
+
+Logs a single training-game round for an event and immediately applies Elo updates for all participants. Returns the updated ratings alongside the persisted game record. The event must be a training event with status `active` or `started` and must have started within the past 2 days.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `member:edit`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `eventId` | `EventId` (string) | Event ID |
+
+**Request Body:** `LogTrainingGamePayload`
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `teamA` | `TeamMemberId[]` | Yes | Member IDs on team A |
+| `teamB` | `TeamMemberId[]` | Yes | Member IDs on team B |
+| `outcome` | `"teamA" \| "teamB" \| "draw"` | Yes | Match outcome |
+
+**Response:** `200 OK` — `TrainingGameResult`
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `id` | `TrainingGameId` (string) | No | ID of the newly created training game row |
+| `round` | `integer` | No | Round number (auto-incremented per event, starting at 1) |
+| `teamA` | `TeamMemberId[]` | No | Members on team A |
+| `teamB` | `TeamMemberId[]` | No | Members on team B |
+| `outcome` | `"teamA" \| "teamB" \| "draw"` | No | Match outcome |
+| `created_at` | `string` (ISO 8601) | No | Timestamp the game was logged |
+| `ratings` | `TeamRatingsResponse` | No | Updated leaderboard after applying this round's Elo changes |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `PlayerRatingForbidden` | 403 | Missing `member:edit` permission |
+| `PlayerRatingEventNotLoggable` | 409 | The event is not a training event, is cancelled, or its `start_at` is more than 2 days in the past |
+| `PlayerRatingInvalidGameResult` | 422 | Invalid game setup — see `reason` field (`emptyTeam`, `overlap`, `unknownMember`, or `notRsvpYes`) |
+
+---
+
+#### `GET /teams/:teamId/events/:eventId/training-games`
+
+Returns all logged training-game rounds for an event, ordered by round number ascending.
+
+**Auth:** Bearer token (AuthMiddleware)
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `eventId` | `EventId` (string) | Event ID |
+
+**Response:** `200 OK` — `LoggedGamesResponse`
+
+| Field | Type | Description |
+|---|---|---|
+| `games` | `LoggedGameEntry[]` | Logged rounds for this event |
+
+`LoggedGameEntry`:
+
+| Field | Type | Nullable | Description |
+|---|---|---|---|
+| `id` | `TrainingGameId` (string) | No | Game ID |
+| `round` | `integer` | No | Round number |
+| `teamA` | `TeamMemberId[]` | No | Members on team A |
+| `teamB` | `TeamMemberId[]` | No | Members on team B |
+| `outcome` | `"teamA" \| "teamB" \| "draw"` | No | Match outcome |
+| `created_at` | `string` (ISO 8601) | No | Timestamp the game was logged |
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `PlayerRatingForbidden` | 403 | Not a member of this team |
 
 ---
 
@@ -6158,6 +6241,7 @@ Manages event embeds, RSVPs, and event sync outbox processing.
 | `Event/SaveApprovalRequestMessageId` | `event_id`, `team_member_id`, `message_id` | Stores the Discord message ID of the approval embed for a specific candidate |
 | `Event/ApproveRosterRequest` | `event_id`, `team_member_id`, `decided_by_discord_id` → `DecideRosterRequestResult` | Approves a pending roster request from Discord; errors: `RosterRequestNotFound`, `RosterRequestNotPending`, `NotOwnerGroupMember`, `EventRosterEventNotFound` |
 | `Event/DeclineRosterRequest` | `event_id`, `team_member_id`, `decided_by_discord_id` → `DecideRosterRequestResult` | Declines a pending roster request from Discord; errors: `RosterRequestNotFound`, `RosterRequestNotPending`, `NotOwnerGroupMember`, `EventRosterEventNotFound` |
+| `Event/GetLoggableTrainingEvents` | `guild_id` → `GuildEventListEntry[]` | Returns training events for the guild whose status is `active` or `started` and whose `start_at` is within the past 2 days. Used by the `/training result` autocomplete and command handler. Errors: `GuildNotFound` |
 
 #### Role
 
@@ -6396,6 +6480,7 @@ The following table consolidates all error tags across all API groups.
 | `GlobalAdminLastAdminError` | 409 | Global Admin | Revoking would leave zero effective global admins |
 | `GlobalAdminSelfRevokeError` | 409 | Global Admin | Caller attempted to revoke their own admin status |
 | `GlobalAdminEnvManaged` | 409 | Global Admin | Target user's Discord ID is in the env allowlist and cannot be revoked via the API |
-| `PlayerRatingForbidden` | 403 | Player Rating | Not a member of this team, or missing `member:edit` permission for the write endpoint |
+| `PlayerRatingForbidden` | 403 | Player Rating | Not a member of this team, or missing `member:edit` permission for write endpoints |
 | `PlayerRatingPlayerNotFound` | 404 | Player Rating | Member does not have a rating record in this team |
-| `PlayerRatingInvalidGameResult` | 422 | Player Rating | Invalid game setup (`emptyTeam`, `overlap`, or `unknownMember`) |
+| `PlayerRatingEventNotLoggable` | 409 | Player Rating | The event is not a training, is cancelled, or its `start_at` is more than 2 days in the past |
+| `PlayerRatingInvalidGameResult` | 422 | Player Rating | Invalid game setup (`emptyTeam`, `overlap`, `unknownMember`, or `notRsvpYes`) |

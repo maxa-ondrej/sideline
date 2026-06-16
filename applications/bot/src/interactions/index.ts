@@ -28,6 +28,7 @@ import { MakanickoLogAutocomplete } from './makanicko-log-autocomplete.js';
 import { OverviewShowButton } from './overview-channel.js';
 import { RosterApproveButton, RosterDeclineButton } from './roster-approval.js';
 import { RsvpAddMessageButton, RsvpButton, RsvpClearMessageButton, RsvpModal } from './rsvp.js';
+import { TrainingResultAutocomplete } from './training-result-autocomplete.js';
 import {
   UpcomingAddMessageButton,
   UpcomingClearMessageButton,
@@ -50,6 +51,7 @@ export const interactionBuilder = Ix.builder
   .add(OverviewShowButton)
   .add(EventCreateAutocomplete)
   .add(MakanickoLogAutocomplete)
+  .add(TrainingResultAutocomplete)
   .add(ClaimButton)
   .add(UnclaimButton)
   .add(EmailApproveButton)

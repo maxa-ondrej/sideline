@@ -5,6 +5,19 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-16 — Log training game results and track Elo per training event
+
+Captains and coaches can now log the result of each internal scrimmage round directly on the **event detail page** — no more switching between pages.
+
+- Open any training event and scroll to the new **Training results** section.
+- Assign RSVP-yes attendees to **Team A** and **Team B**, pick the outcome (Team A wins / Team B wins / Draw), and click **Save**. Elo ratings update immediately.
+- Log as many rounds as you need — each is saved as an independent round (Round 1, Round 2, …). Logged rounds are shown in a read-only list below the form.
+- Only members who RSVPed "yes" can be placed on a team. The server rejects any other member IDs.
+- Logging a round also auto-records attendance for all RSVP-yes attendees (best-effort, once per calendar day).
+- Game results are **immutable** — there is no edit or delete in this release.
+
+**Discord shortcut:** Captains with the `ManageEvents` Discord permission can use the new **`/training result`** command (Czech: `/training výsledek`) to get a direct link to the event result editor. The command's `event` autocomplete shows only training events from the past 2 days.
+
 ## 2026-06-15 — Global admin management page
 
 Global admins can now manage the list of other global admins directly from the Sideline web app — no database access or environment-variable change required.

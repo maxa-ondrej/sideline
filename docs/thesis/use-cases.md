@@ -1092,3 +1092,32 @@ The following structured descriptions cover the most significant use cases in th
 | **Alternate Flow B** | If the same member appears on both teams, the server returns `422 PlayerRatingInvalidGameResult` with `reason = "overlap"`. |
 | **Alternate Flow C** | If a member ID does not belong to this team, the server returns `422 PlayerRatingInvalidGameResult` with `reason = "unknownMember"`. |
 | **Notes** | The Elo engine uses team averages: each player's expected score is computed against the opposing team's mean rating. Per-player K-factor and integer rounding mean the sum of all deltas is not guaranteed to be zero (consistent with standard chess Elo). |
+
+---
+
+### UC-31: Captain Navigates to the Training Result Editor via Discord
+
+| Field | Detail |
+|---|---|
+| **Actor** | Captain / Coach (any Discord user with `ManageEvents` permission in the guild) |
+| **Precondition** | The actor is a member of the guild. The guild has at least one training event whose status is `active` or `started` and whose `start_at` is within the past 2 days. |
+| **Main Flow** | 1. The actor invokes `/training result` in Discord. 2. The autocomplete handler calls `Event/GetLoggableTrainingEvents` with the guild ID and returns matching training events as choices, formatted as `{date} · {title}`. 3. The actor selects an event. 4. The bot's command handler calls `Event/GetLoggableTrainingEvents` and `Event/GetUpcomingGuildEvents` concurrently to verify the event and resolve the `team_id`. 5. The bot replies with an ephemeral message containing a deep-link to the training result page on the web app (`{WEB_URL}/teams/{teamId}/events/{eventId}`). |
+| **Postcondition** | The actor receives a private ephemeral link. Clicking it opens the web app's training result section for the selected event. |
+| **Alternate Flow A** | If the selected event is no longer loggable (cancelled, older than 2 days) when the command is processed, the bot responds with an ephemeral "event not loggable" message. |
+| **Alternate Flow B** | If `WEB_URL` is not configured on the bot, the bot responds with an ephemeral "deep link unavailable" message. |
+| **Notes** | The command is a pure deep-link — no game data is submitted via Discord. All data entry occurs on the web UI after following the link. |
+
+---
+
+### UC-32: Captain Logs a Training Game Round
+
+| Field | Detail |
+|---|---|
+| **Actor** | Captain / Admin (any member holding `member:edit` permission) |
+| **Precondition** | The actor is navigated to the training result section of an event detail page. The event is a training event with status `active` or `started`, and its `start_at` is within the past 2 days. At least two members with a "yes" RSVP exist. |
+| **Main Flow** | 1. The actor opens the training result section on the event detail page. The web app calls `GET /teams/:teamId/events/:eventId/training-games` to load any previously logged rounds. 2. The actor assigns RSVP-yes members to Team A and Team B, selects the outcome (`teamA`, `teamB`, or `draw`), and clicks **Save**. 3. The web app calls `POST /teams/:teamId/events/:eventId/training-games` with the payload. 4. The server verifies `member:edit` permission, confirms the event is loggable (training, active/started, within 2 days), validates that all selected members have a "yes" RSVP, inserts a `training_games` row (auto-incrementing `round`), inserts `training_game_participants` rows, updates Elo ratings using the same engine as `applyGameResult`, and returns the `TrainingGameResult`. 5. The web app appends the new round to the read-only logged games list and refreshes the displayed ratings. |
+| **Postcondition** | A `training_games` row exists with a unique round number for the event. `player_rating_history` rows for all participants reference the game's `id` as `game_id`. `player_ratings` counters are updated. |
+| **Alternate Flow A** | If the event is not loggable, the server returns `409 PlayerRatingEventNotLoggable`. |
+| **Alternate Flow B** | If a member selected for a team did not RSVP "yes", the server returns `422 PlayerRatingInvalidGameResult` with `reason = "notRsvpYes"`. |
+| **Alternate Flow C** | If `teamA` or `teamB` is empty, the server returns `422 PlayerRatingInvalidGameResult` with `reason = "emptyTeam"`. |
+| **Notes** | Game results are immutable once logged in this iteration — there is no edit or delete endpoint. Attendance auto-log (best-effort, deduped per UTC day) runs on save for all RSVP-yes members. |

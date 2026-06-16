@@ -192,6 +192,8 @@ export * as TeamOnboardingToken from './models/TeamOnboardingToken.js';
 
 export * as TeamSettings from './models/TeamSettings.js';
 
+export * as TrainingGame from './models/TrainingGame.js';
+
 export * as TrainingType from './models/TrainingType.js';
 
 export * as User from './models/User.js';

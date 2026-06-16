@@ -28,6 +28,7 @@ import {
   EventEmbedInfo,
   EventRosterAlreadyLinked,
   EventRosterEventNotFound,
+  GuildEventListEntry,
   GuildEventListResult,
   GuildNotFound,
   NotOwnerGroupMember,
@@ -316,5 +317,12 @@ export const EventRpcGroup = RpcGroup.make(
       NotOwnerGroupMember,
       EventRosterEventNotFound,
     ]),
+  }),
+  Rpc.make('GetLoggableTrainingEvents', {
+    payload: {
+      guild_id: Discord.Snowflake,
+    },
+    success: Schema.Array(GuildEventListEntry),
+    error: GuildNotFound,
   }),
 ).prefix('Event/');

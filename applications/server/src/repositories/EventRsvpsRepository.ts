@@ -327,10 +327,7 @@ const make = Effect.gen(function* () {
     }).pipe(catchSqlErrors);
 
   const findYesRsvpMemberIdsByEventId = (eventId: Event.EventId) =>
-    findYesRsvpMemberIds(eventId).pipe(
-      Effect.map((rows) => rows.map((r) => r.team_member_id)),
-      catchSqlErrors,
-    );
+    findYesRsvpMemberIds(eventId).pipe(catchSqlErrors);
 
   return {
     findRsvpsByEventId,

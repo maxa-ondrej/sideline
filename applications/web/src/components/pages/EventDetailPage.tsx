@@ -4,6 +4,7 @@ import type {
   EventRosterApi,
   EventRsvpApi,
   GroupApi,
+  PlayerRatingApi,
   Roster as RosterDomain,
   TrainingTypeApi,
 } from '@sideline/domain';
@@ -17,6 +18,7 @@ import { EventLocation } from '~/components/atoms/EventLocation.js';
 import { SearchableSelect } from '~/components/atoms/SearchableSelect';
 import { EventAttendanceRosterSection } from '~/components/organisms/EventAttendanceRosterSection.js';
 import { EventRsvpPanel } from '~/components/organisms/EventRsvpPanel.js';
+import { TrainingResultSection } from '~/components/organisms/TrainingResultSection.js';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
 import {
@@ -117,7 +119,10 @@ interface EventDetailPageProps {
   groups: ReadonlyArray<GroupApi.GroupInfo>;
   rosters: ReadonlyArray<RosterDomain.RosterInfo>;
   canManageRosters: boolean;
+  canManageRatings: boolean;
   initialEventRosterLink: Option.Option<EventRosterApi.EventRosterLink>;
+  rsvpYesAttendees: ReadonlyArray<EventRsvpApi.RsvpEntry>;
+  initialTrainingGames: ReadonlyArray<PlayerRatingApi.LoggedGameEntry>;
 }
 
 interface EventDateRangeProps {
@@ -167,7 +172,10 @@ export function EventDetailPage({
   groups,
   rosters,
   canManageRosters,
+  canManageRatings,
   initialEventRosterLink,
+  rsvpYesAttendees,
+  initialTrainingGames,
 }: EventDetailPageProps) {
   const run = useRun();
   const router = useRouter();
@@ -887,6 +895,18 @@ export function EventDetailPage({
             eventId={eventId}
             rosters={rosters}
             initialEventRosterLink={initialEventRosterLink}
+            onRefresh={() => router.invalidate()}
+          />
+        </div>
+      )}
+
+      {canManageRatings && eventDetail.eventType === 'training' && status !== 'cancelled' && (
+        <div className='mt-6'>
+          <TrainingResultSection
+            teamId={teamId}
+            eventId={eventId}
+            attendees={rsvpYesAttendees}
+            initialGames={initialTrainingGames}
             onRefresh={() => router.invalidate()}
           />
         </div>
