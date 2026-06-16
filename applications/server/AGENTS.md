@@ -1137,6 +1137,34 @@ Rules:
 
 Reference: `PlayerRatingsRepository.applyGameUpdates` (`src/repositories/PlayerRatingsRepository.ts`); calculator `packages/domain/src/models/Elo.ts`.
 
+#### Composing repository writes atomically across repositories (`…Tx` body split)
+
+When repository A's write must commit atomically together with repository B's write (e.g. `TrainingGamesRepository.insertGame` must insert the game rows AND apply `PlayerRatingsRepository`'s Elo updates in the same transaction), expose **two** methods on the inner repository:
+
+| Method | Wraps `sql.withTransaction`? | Applies `catchSqlErrors`? | Caller |
+|--------|------------------------------|---------------------------|--------|
+| `applyGameUpdatesTx` (the **body**) | NO | NO (per-statement `catchSqlErrors` only) | Another repository, from inside its own `sql.withTransaction(...)` — nests as a Postgres savepoint |
+| `applyGameUpdates` (the **public wrapper**) | YES (`applyGameUpdatesTx(params).pipe(sql.withTransaction, catchSqlErrors)`) | YES | API handlers calling the operation standalone |
+
+Rules:
+1. **The `…Tx` body MUST NOT call `sql.withTransaction`.** A nested `sql.withTransaction` opens a SAVEPOINT, but the body is meant to join the caller's outer transaction, not create a nested rollback boundary that hides its writes from the outer commit/rollback. The outer caller (e.g. `insertGame`) owns the single `sql.withTransaction(...)`; the body runs inside it.
+2. **Keep the public wrapper.** Standalone callers (e.g. `applyGameResult` HTTP handler) call `applyGameUpdates`, which adds `sql.withTransaction` + `catchSqlErrors`. Never make every caller assemble the transaction themselves.
+3. **The body still applies `catchSqlErrors` per statement** so a SQL/parse error becomes a defect; it does NOT apply the outer `catchSqlErrors`/`withTransaction` — those belong to whichever wrapper or outer transaction runs it.
+4. **All `FOR UPDATE` lock-ordering rules above still apply across the merged transaction.** Because the bodies now share one transaction, two bodies that lock the same table must use the identical `ORDER BY <pk>` lock order (see rule 4 of "Consistent `FOR UPDATE` Lock Ordering").
+
+Reference: `PlayerRatingsRepository.applyGameUpdatesTx` / `applyGameUpdates`; consumer `TrainingGamesRepository.insertGame` (`src/repositories/`).
+
+#### Best-effort side effect AFTER a committed transaction
+
+When a follow-up side effect (e.g. training attendance auto-logging via `ActivityLogsRepository.insertAutoIgnoreConflict`) runs AFTER the primary transaction has committed and must never be able to fail the request or roll the primary write back, wrap it in `Effect.catchCause((cause) => Effect.logWarning('<what> failed', cause))`. The `Cause` MUST be logged before being swallowed — never `Effect.ignore` a side effect whose failure you would want to see in logs.
+
+Rules:
+1. **Run the best-effort side effect outside (after) the primary `sql.withTransaction(...)`**, so its failure cannot abort the committed primary write. It is a separate, fire-and-observe step.
+2. **Always pass the captured `cause` to `logWarning`** — `Effect.catchCause((cause) => Effect.logWarning(msg, cause))`, never a bare `Effect.catchCause(() => Effect.void)`. Silent swallowing hides real defects.
+3. **Make the side effect itself idempotent** (e.g. `ON CONFLICT DO NOTHING` against the partial unique index, as `insertAutoIgnoreConflict` does) so a retried request does not double-apply it.
+
+Reference: `logTrainingGame` handler in `src/api/player-rating.ts` (the `insertAutoIgnoreConflict` loop wrapped in `Effect.catchCause(... logWarning)`).
+
 ## Global Admin Authorization (`users.is_global_admin` + `APP_GLOBAL_ADMIN_DISCORD_IDS`)
 
 Some HTTP endpoints (translations CMS, onboarding-token tools, future cross-team operator tools) must be restricted to Sideline operators that are **not** modelled per-team in the database. Global-admin status has two additive sources, OR-combined into a per-request boolean on `CurrentUser`: a persisted `users.is_global_admin` DB flag and an env-driven Discord-id allow-list.

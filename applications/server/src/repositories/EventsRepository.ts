@@ -560,6 +560,39 @@ const make = Effect.gen(function* () {
           `,
   });
 
+  const findLoggableTrainingsByGuild = SqlSchema.findAll({
+    Request: Schema.Struct({ guild_id: Schema.String }),
+    Result: Schema.Struct({
+      event_id: Schema.String,
+      title: Schema.String,
+      start_at: Schemas.DateTimeFromDate,
+      end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+      location: Schema.OptionFromNullOr(Schema.String),
+      location_url: Schema.OptionFromNullOr(Schema.String),
+      event_type: Schema.String,
+      yes_count: Schema.Number,
+      no_count: Schema.Number,
+      maybe_count: Schema.Number,
+      all_day: Schema.Boolean,
+    }),
+    execute: (input) => sql`
+            SELECT e.id AS event_id, e.title, e.start_at, e.end_at,
+                   e.location, e.location_url, e.event_type, e.all_day,
+                   COALESCE(SUM(CASE WHEN er.response = 'yes' THEN 1 ELSE 0 END), 0)::int AS yes_count,
+                   COALESCE(SUM(CASE WHEN er.response = 'no' THEN 1 ELSE 0 END), 0)::int AS no_count,
+                   COALESCE(SUM(CASE WHEN er.response = 'maybe' THEN 1 ELSE 0 END), 0)::int AS maybe_count
+            FROM events e
+            LEFT JOIN event_rsvps er ON er.event_id = e.id
+            WHERE e.team_id = (SELECT id FROM teams WHERE guild_id = ${input.guild_id})
+              AND e.event_type = 'training'
+              AND e.status IN ('active', 'started')
+              AND e.start_at >= now() - interval '2 days'
+            GROUP BY e.id
+            ORDER BY e.start_at DESC
+            LIMIT 25
+          `,
+  });
+
   const findByUserId = SqlSchema.findAll({
     Request: Schema.String,
     Result: Schema.Struct({
@@ -613,6 +646,9 @@ const make = Effect.gen(function* () {
       Effect.map(Option.getOrElse(() => 0)),
       catchSqlErrors,
     );
+
+  const findLoggableTrainingsByGuildId = (guildId: Discord.Snowflake) =>
+    findLoggableTrainingsByGuild({ guild_id: guildId }).pipe(catchSqlErrors);
 
   const findEventsByUserId = (userId: string) => findByUserId(userId).pipe(catchSqlErrors);
 
@@ -843,6 +879,7 @@ const make = Effect.gen(function* () {
   return {
     findUpcomingByGuildId,
     countUpcomingByGuildId,
+    findLoggableTrainingsByGuildId,
     findEventsByUserId,
     findEventsByTeamId,
     findEventByIdWithDetails,

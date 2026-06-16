@@ -1,5 +1,5 @@
 import { LogicError } from '@sideline/effect-lib';
-import { Array, DateTime, Effect, Option, Schedule } from 'effect';
+import { Array, Cause, DateTime, Effect, Option, Schedule } from 'effect';
 import { withCronMetrics } from '~/metrics.js';
 import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
 import { ActivityTypesRepository } from '~/repositories/ActivityTypesRepository.js';
@@ -30,16 +30,16 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
     Effect.all(
       Array.map(events, (event) =>
         Effect.Do.pipe(
-          Effect.bind('memberIds', () => rsvpsRepo.findYesRsvpMemberIdsByEventId(event.id)),
+          Effect.bind('memberRows', () => rsvpsRepo.findYesRsvpMemberIdsByEventId(event.id)),
           Effect.let('loggedAt', () =>
             DateTime.toDateUtc(Option.getOrElse(event.end_at, () => event.start_at)),
           ),
-          Effect.tap(({ memberIds, loggedAt }) =>
+          Effect.tap(({ memberRows, loggedAt }) =>
             Effect.all(
-              Array.map(memberIds, (memberId) =>
+              Array.map(memberRows, (memberRow) =>
                 activityLogs
                   .insert({
-                    team_member_id: memberId,
+                    team_member_id: memberRow.team_member_id,
                     activity_type_id: trainingTypeId,
                     logged_at: loggedAt,
                     duration_minutes: Option.none(),
@@ -49,7 +49,7 @@ export const trainingAutoLogCronEffect = Effect.Do.pipe(
                   .pipe(
                     Effect.asVoid,
                     Effect.catchDefect((defect) =>
-                      isUniqueViolation(defect) ? Effect.void : Effect.die(defect),
+                      isUniqueViolation(defect) ? Effect.void : Effect.failCause(Cause.die(defect)),
                     ),
                   ),
               ),

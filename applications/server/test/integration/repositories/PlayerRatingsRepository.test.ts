@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@effect/vitest';
 import type { Discord, Team, User } from '@sideline/domain';
-import { Elo } from '@sideline/domain';
-import { Effect, Layer, Option } from 'effect';
+import { Elo, type TrainingGame } from '@sideline/domain';
+import { Effect, Exit, Layer, Option } from 'effect';
 import { SqlClient } from 'effect/unstable/sql';
 import { beforeEach } from 'vitest';
 import { PlayerRatingsRepository } from '~/repositories/PlayerRatingsRepository.js';
@@ -390,5 +390,293 @@ describe('PlayerRatingsRepository', () => {
       ),
       Effect.provide(TestLayer),
     ),
+  );
+
+  // ---------------------------------------------------------------------------
+  // Epic 6.2 — applyGameUpdates with gameId
+  // ---------------------------------------------------------------------------
+
+  it.effect('applyGameUpdates with gameId=Some(id) → history rows have game_id = id', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId1', () => createUser('100000000000000071', 'gameid-a')),
+      Effect.bind('userId2', () => createUser('100000000000000072', 'gameid-b')),
+      Effect.bind('team', ({ userId1 }) =>
+        createTeam('888888888888888881' as Discord.Snowflake, userId1),
+      ),
+      Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+      Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+      Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
+      Effect.bind('gameId', () =>
+        Effect.succeed('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa' as TrainingGame.TrainingGameId),
+      ),
+      Effect.tap(({ ratings, team, member1, member2, gameId }) =>
+        ratings.applyGameUpdates({
+          teamId: team.id,
+          teamAMemberIds: [member1.id],
+          teamBMemberIds: [member2.id],
+          outcome: 'teamA',
+          submittedBy: Option.none(),
+          gameId: Option.some(gameId),
+        }),
+      ),
+      Effect.bind('history1', ({ ratings, team, member1 }) =>
+        ratings.findHistoryByMember(team.id, member1.id, 10),
+      ),
+      Effect.bind('history2', ({ ratings, team, member2 }) =>
+        ratings.findHistoryByMember(team.id, member2.id, 10),
+      ),
+      Effect.tap(({ history1, history2, gameId }) =>
+        Effect.sync(() => {
+          expect(history1).toHaveLength(1);
+          expect(history2).toHaveLength(1);
+          expect(Option.isSome(history1[0].game_id)).toBe(true);
+          expect(Option.getOrThrow(history1[0].game_id)).toBe(gameId);
+          expect(Option.isSome(history2[0].game_id)).toBe(true);
+          expect(Option.getOrThrow(history2[0].game_id)).toBe(gameId);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('applyGameUpdates with gameId=None → history rows have game_id IS NULL', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId1', () => createUser('100000000000000081', 'nogameid-a')),
+      Effect.bind('userId2', () => createUser('100000000000000082', 'nogameid-b')),
+      Effect.bind('team', ({ userId1 }) =>
+        createTeam('888888888888888882' as Discord.Snowflake, userId1),
+      ),
+      Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+      Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+      Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
+      Effect.tap(({ ratings, team, member1, member2 }) =>
+        ratings.applyGameUpdates({
+          teamId: team.id,
+          teamAMemberIds: [member1.id],
+          teamBMemberIds: [member2.id],
+          outcome: 'draw',
+          submittedBy: Option.none(),
+          gameId: Option.none(),
+        }),
+      ),
+      Effect.bind('history1', ({ ratings, team, member1 }) =>
+        ratings.findHistoryByMember(team.id, member1.id, 10),
+      ),
+      Effect.tap(({ history1 }) =>
+        Effect.sync(() => {
+          expect(history1).toHaveLength(1);
+          expect(Option.isNone(history1[0].game_id)).toBe(true);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect(
+    'applyGameUpdates: winner rating up, loser rating down, games_played+1, delta matches computeTeamGameUpdate',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('userId1', () => createUser('100000000000000091', 'winloss-a')),
+        Effect.bind('userId2', () => createUser('100000000000000092', 'winloss-b')),
+        Effect.bind('team', ({ userId1 }) =>
+          createTeam('888888888888888883' as Discord.Snowflake, userId1),
+        ),
+        Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+        Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+        Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
+        Effect.tap(({ ratings, team, member1, member2 }) =>
+          ratings.applyGameUpdates({
+            teamId: team.id,
+            teamAMemberIds: [member1.id],
+            teamBMemberIds: [member2.id],
+            outcome: 'teamA',
+            submittedBy: Option.none(),
+            gameId: Option.none(),
+          }),
+        ),
+        Effect.bind('engineResult', () =>
+          Effect.succeed(
+            Elo.computeTeamGameUpdate({
+              teamA: [{ teamMemberId: 'x', rating: Elo.DEFAULT_RATING, gamesPlayed: 0 }],
+              teamB: [{ teamMemberId: 'y', rating: Elo.DEFAULT_RATING, gamesPlayed: 0 }],
+              outcome: 'teamA',
+            }),
+          ),
+        ),
+        Effect.bind('teamRatings', ({ ratings, team }) => ratings.getTeamRatings(team.id)),
+        Effect.tap(({ teamRatings, member1, member2, engineResult }) =>
+          Effect.sync(() => {
+            const r1 = teamRatings.find((r) => r.team_member_id === member1.id);
+            const r2 = teamRatings.find((r) => r.team_member_id === member2.id);
+            expect(r1).toBeDefined();
+            expect(r2).toBeDefined();
+            expect(r1?.games_played).toBe(1);
+            expect(r2?.games_played).toBe(1);
+            expect(r1?.wins).toBe(1);
+            expect(r1?.losses).toBe(0);
+            expect(r2?.wins).toBe(0);
+            expect(r2?.losses).toBe(1);
+            expect(r1?.rating).toBeGreaterThan(Elo.DEFAULT_RATING);
+            expect(r2?.rating).toBeLessThan(Elo.DEFAULT_RATING);
+            // Delta matches Elo engine
+            expect((r1?.rating ?? 0) - Elo.DEFAULT_RATING).toBe(engineResult.teamA[0].delta);
+            expect((r2?.rating ?? 0) - Elo.DEFAULT_RATING).toBe(engineResult.teamB[0].delta);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  it.effect(
+    'applyGameUpdatesTx runs inside a caller-supplied outer tx and persists after commit',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('userId1', () => createUser('100000000000000101', 'outertx-a')),
+        Effect.bind('userId2', () => createUser('100000000000000102', 'outertx-b')),
+        Effect.bind('team', ({ userId1 }) =>
+          createTeam('888888888888888884' as Discord.Snowflake, userId1),
+        ),
+        Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+        Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+        Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
+        Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
+        // Run applyGameUpdatesTx inside an outer transaction
+        Effect.tap(({ ratings, sql, team, member1, member2 }) =>
+          sql.withTransaction(
+            ratings.applyGameUpdatesTx({
+              teamId: team.id,
+              teamAMemberIds: [member1.id],
+              teamBMemberIds: [member2.id],
+              outcome: 'teamB',
+              submittedBy: Option.none(),
+              gameId: Option.none(),
+            }),
+          ),
+        ),
+        // After the outer tx commits, ratings must be persisted
+        Effect.bind('teamRatings', ({ ratings, team }) => ratings.getTeamRatings(team.id)),
+        Effect.tap(({ teamRatings, member1, member2 }) =>
+          Effect.sync(() => {
+            const r1 = teamRatings.find((r) => r.team_member_id === member1.id);
+            const r2 = teamRatings.find((r) => r.team_member_id === member2.id);
+            expect(r1).toBeDefined();
+            expect(r2).toBeDefined();
+            expect(r2?.wins).toBe(1);
+            expect(r1?.losses).toBe(1);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  // Positive control: applyGameUpdatesTx inside a COMMITTING outer tx → rows DO persist.
+  // This gives the rollback test's emptiness a meaningful contrast.
+  it.effect(
+    'applyGameUpdatesTx positive control — committing outer tx persists rating/history for both members',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('userId1', () => createUser('100000000000000121', 'pos-ctrl-a')),
+        Effect.bind('userId2', () => createUser('100000000000000122', 'pos-ctrl-b')),
+        Effect.bind('team', ({ userId1 }) =>
+          createTeam('888888888888888886' as Discord.Snowflake, userId1),
+        ),
+        Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+        Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+        Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
+        Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
+        // Run applyGameUpdatesTx inside a committing outer tx
+        Effect.tap(({ ratings, sql, team, member1, member2 }) =>
+          sql.withTransaction(
+            ratings.applyGameUpdatesTx({
+              teamId: team.id,
+              teamAMemberIds: [member1.id],
+              teamBMemberIds: [member2.id],
+              outcome: 'teamA',
+              submittedBy: Option.none(),
+              gameId: Option.none(),
+            }),
+          ),
+        ),
+        // After commit — both members must have rating rows and history rows
+        Effect.bind('teamRatings', ({ ratings, team }) => ratings.getTeamRatings(team.id)),
+        Effect.bind('history1', ({ ratings, team, member1 }) =>
+          ratings.findHistoryByMember(team.id, member1.id, 10),
+        ),
+        Effect.bind('history2', ({ ratings, team, member2 }) =>
+          ratings.findHistoryByMember(team.id, member2.id, 10),
+        ),
+        Effect.tap(({ teamRatings, history1, history2, member1, member2 }) =>
+          Effect.sync(() => {
+            // Both members have rating rows
+            const r1 = teamRatings.find((r) => r.team_member_id === member1.id);
+            const r2 = teamRatings.find((r) => r.team_member_id === member2.id);
+            expect(r1).toBeDefined();
+            expect(r2).toBeDefined();
+            // Both members have history rows
+            expect(history1).toHaveLength(1);
+            expect(history2).toHaveLength(1);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  it.effect(
+    'applyGameUpdatesTx propagates SqlError to roll back the outer tx — no rating/history rows persist',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('userId1', () => createUser('100000000000000111', 'rollback-a')),
+        Effect.bind('userId2', () => createUser('100000000000000112', 'rollback-b')),
+        Effect.bind('team', ({ userId1 }) =>
+          createTeam('888888888888888885' as Discord.Snowflake, userId1),
+        ),
+        Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+        Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+        Effect.bind('ratings', () => PlayerRatingsRepository.asEffect()),
+        Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
+        // Outer tx: run applyGameUpdatesTx then force a failure to trigger rollback
+        Effect.bind('exit', ({ ratings, sql, team, member1, member2 }) =>
+          sql
+            .withTransaction(
+              ratings
+                .applyGameUpdatesTx({
+                  teamId: team.id,
+                  teamAMemberIds: [member1.id],
+                  teamBMemberIds: [member2.id],
+                  outcome: 'teamA',
+                  submittedBy: Option.none(),
+                  gameId: Option.none(),
+                })
+                .pipe(
+                  // Force a SQL error after the Elo writes to trigger rollback
+                  Effect.andThen(
+                    sql`INSERT INTO player_ratings (id) VALUES ('not-a-uuid-will-fail')`,
+                  ),
+                ),
+            )
+            .pipe(Effect.exit),
+        ),
+        // The outer tx must have rolled back — no rating rows and no history rows for BOTH members
+        Effect.bind('teamRatings', ({ ratings, team }) => ratings.getTeamRatings(team.id)),
+        Effect.bind('history1', ({ ratings, team, member1 }) =>
+          ratings.findHistoryByMember(team.id, member1.id, 10),
+        ),
+        Effect.bind('history2', ({ ratings, team, member2 }) =>
+          ratings.findHistoryByMember(team.id, member2.id, 10),
+        ),
+        Effect.tap(({ exit, teamRatings, history1, history2 }) =>
+          Effect.sync(() => {
+            // The outer tx must have failed
+            expect(Exit.isFailure(exit)).toBe(true);
+            // No rating rows persisted for either member (proves rollback, not just empty DB)
+            expect(teamRatings).toHaveLength(0);
+            // No history rows for member1
+            expect(history1).toHaveLength(0);
+            // No history rows for member2 — rollback must cover all writes
+            expect(history2).toHaveLength(0);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
   );
 });

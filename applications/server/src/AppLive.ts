@@ -63,6 +63,7 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamOnboardingTokensRepository } from '~/repositories/TeamOnboardingTokensRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { TrainingGamesRepository } from '~/repositories/TrainingGamesRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { TranslationsRepository } from '~/repositories/TranslationsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
@@ -155,6 +156,10 @@ const Repositories = Layer.mergeAll(
   TeamChannelsRepository.Default,
   TeamChannelAccessRepository.Default,
   PlayerRatingsRepository.Default,
+  // TrainingGamesRepository depends on PlayerRatingsRepository; providing it inline
+  // keeps the layer self-contained. The standalone PlayerRatingsRepository.Default above
+  // satisfies other consumers (e.g. the HTTP API handlers).
+  TrainingGamesRepository.Default.pipe(Layer.provide(PlayerRatingsRepository.Default)),
   EmailForwardingConfigRepository.Default,
   EmailMessagesRepository.Default,
   EmailAttachmentsRepository.Default,

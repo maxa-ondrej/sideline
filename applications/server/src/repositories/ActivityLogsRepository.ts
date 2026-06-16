@@ -245,6 +245,39 @@ const make = Effect.gen(function* () {
       Effect.asVoid,
     );
 
+  /**
+   * Insert a training attendance auto-log, ignoring conflicts (idempotent).
+   * Looks up the 'training' activity type internally; does nothing if not found.
+   * Logs a warning if zero rows were inserted (likely missing 'training' activity type slug).
+   */
+  const insertAutoIgnoreConflict = (input: {
+    team_member_id: TeamMember.TeamMemberId;
+    logged_at: Date;
+  }): Effect.Effect<void> =>
+    sql<{ id: string }[]>`
+      INSERT INTO activity_logs (team_member_id, activity_type_id, logged_at, source)
+      SELECT
+        ${input.team_member_id},
+        at.id,
+        ${input.logged_at},
+        'auto'
+      FROM activity_types at
+      WHERE at.slug = 'training'
+      ON CONFLICT (team_member_id, activity_type_id, ((logged_at AT TIME ZONE 'UTC')::date))
+      WHERE source = 'auto'
+      DO NOTHING
+      RETURNING id
+    `.pipe(
+      catchSqlErrors,
+      Effect.flatMap((rows) =>
+        rows.length === 0
+          ? Effect.logWarning(
+              'insertAutoIgnoreConflict: zero rows inserted — training activity type slug may be missing',
+            )
+          : Effect.void,
+      ),
+    );
+
   return {
     findByTeamMember,
     findByMember,
@@ -252,6 +285,7 @@ const make = Effect.gen(function* () {
     insert,
     update,
     delete: _delete,
+    insertAutoIgnoreConflict,
   };
 });
 

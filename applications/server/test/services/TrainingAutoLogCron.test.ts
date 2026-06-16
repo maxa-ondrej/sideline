@@ -39,7 +39,7 @@ let endedTrainings: Array<{
   end_at: Option.Option<DateTime.Utc>;
 }>;
 
-let rsvpsByEventId: Map<Event.EventId, TeamMember.TeamMemberId[]>;
+let rsvpsByEventId: Map<Event.EventId, Array<{ team_member_id: TeamMember.TeamMemberId }>>;
 
 let insertShouldThrowUniqueConstraint: boolean;
 
@@ -106,6 +106,7 @@ const MockActivityLogsRepositoryLayer = Layer.succeed(ActivityLogsRepository, {
       source: input.source,
     });
   },
+  insertAutoIgnoreConflict: () => Effect.void,
   findByTeamMember: () => Effect.succeed([]),
   findById: () => Effect.succeed(Option.none()),
   findByMember: () => Effect.succeed([]),
@@ -144,7 +145,10 @@ afterEach(() => {
 describe('trainingAutoLogCronEffect', () => {
   it.effect('creates auto-logs for yes RSVPs of ended training events', () => {
     endedTrainings = [{ id: EVENT_ID_1, start_at: START_AT, end_at: Option.some(END_AT) }];
-    rsvpsByEventId.set(EVENT_ID_1, [MEMBER_ID_1, MEMBER_ID_2]);
+    rsvpsByEventId.set(EVENT_ID_1, [
+      { team_member_id: MEMBER_ID_1 },
+      { team_member_id: MEMBER_ID_2 },
+    ]);
 
     return trainingAutoLogCronEffect.pipe(
       Effect.tap(() =>
@@ -182,7 +186,7 @@ describe('trainingAutoLogCronEffect', () => {
 
   it.effect('uses end_at for loggedAt when available', () => {
     endedTrainings = [{ id: EVENT_ID_1, start_at: START_AT, end_at: Option.some(END_AT) }];
-    rsvpsByEventId.set(EVENT_ID_1, [MEMBER_ID_1]);
+    rsvpsByEventId.set(EVENT_ID_1, [{ team_member_id: MEMBER_ID_1 }]);
 
     return trainingAutoLogCronEffect.pipe(
       Effect.tap(() =>
@@ -199,7 +203,7 @@ describe('trainingAutoLogCronEffect', () => {
 
   it.effect('uses start_at for loggedAt when end_at is none', () => {
     endedTrainings = [{ id: EVENT_ID_1, start_at: START_AT, end_at: Option.none() }];
-    rsvpsByEventId.set(EVENT_ID_1, [MEMBER_ID_1]);
+    rsvpsByEventId.set(EVENT_ID_1, [{ team_member_id: MEMBER_ID_1 }]);
 
     return trainingAutoLogCronEffect.pipe(
       Effect.tap(() =>
@@ -216,7 +220,7 @@ describe('trainingAutoLogCronEffect', () => {
 
   it.effect('handles duplicate insert gracefully (idempotency)', () => {
     endedTrainings = [{ id: EVENT_ID_1, start_at: START_AT, end_at: Option.some(END_AT) }];
-    rsvpsByEventId.set(EVENT_ID_1, [MEMBER_ID_1]);
+    rsvpsByEventId.set(EVENT_ID_1, [{ team_member_id: MEMBER_ID_1 }]);
     insertShouldThrowUniqueConstraint = true;
 
     return trainingAutoLogCronEffect.pipe(
@@ -239,8 +243,8 @@ describe('trainingAutoLogCronEffect', () => {
       { id: EVENT_ID_1, start_at: START_AT, end_at: Option.some(END_AT) },
       { id: EVENT_ID_2, start_at: START_AT, end_at: Option.none() },
     ];
-    rsvpsByEventId.set(EVENT_ID_1, [MEMBER_ID_1]);
-    rsvpsByEventId.set(EVENT_ID_2, [MEMBER_ID_2]);
+    rsvpsByEventId.set(EVENT_ID_1, [{ team_member_id: MEMBER_ID_1 }]);
+    rsvpsByEventId.set(EVENT_ID_2, [{ team_member_id: MEMBER_ID_2 }]);
 
     // Override the events repo to make the first event processing fail
     const MockEventsRepositoryWithFirstFailing = Layer.succeed(EventsRepository, {

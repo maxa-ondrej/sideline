@@ -108,6 +108,11 @@ erDiagram
     team_members ||--o{ player_ratings : "has"
     team_members ||--o{ player_rating_history : "generates"
 
+    teams ||--o{ training_games : "logs"
+    events ||--o{ training_games : "has"
+    training_games ||--o{ training_game_participants : "has"
+    team_members ||--o{ training_game_participants : "participates in"
+
     team_invites ||--o{ invite_acceptances : "tracks"
 
     fees ||--o{ fee_assignments : "assigned via"
@@ -1227,9 +1232,11 @@ erDiagram
 
 ---
 
-### Player Ratings
+### Player Ratings and Training Games
 
-`player_ratings` stores the current Elo rating and win/loss/draw totals for each team member. `player_rating_history` is an append-only log of every rating change; one row is written per member per `applyGameResult` call. A shared `game_id` UUID groups the history entries for all members who participated in the same game, allowing team-A and team-B deltas to be correlated. The `submitted_by` FK uses `ON DELETE SET NULL` so history is preserved even if the submitting member is later removed.
+`player_ratings` stores the current Elo rating and win/loss/draw totals for each team member. `player_rating_history` is an append-only log of every rating change; one row is written per member per game application. For training games the `game_id` column is set to the corresponding `training_games.id`, allowing rating history to be correlated with specific logged rounds. The `submitted_by` FK uses `ON DELETE SET NULL` so history is preserved even if the submitting member is later removed.
+
+`training_games` records each logged game round for a training event (unique per `(event_id, round)`). `training_game_participants` is a junction table recording which team members played and on which side (A or B).
 
 ```mermaid
 erDiagram
@@ -1254,9 +1261,26 @@ erDiagram
         INT rating_after
         INT delta
         TEXT result
-        UUID game_id "nullable"
+        UUID game_id "nullable, FK → training_games.id"
         UUID submitted_by FK "nullable, SET NULL"
         TIMESTAMPTZ created_at
+    }
+
+    training_games {
+        UUID id PK
+        UUID team_id FK
+        UUID event_id FK
+        INT round
+        TEXT outcome
+        UUID submitted_by FK "nullable, SET NULL"
+        TIMESTAMPTZ created_at
+    }
+
+    training_game_participants {
+        UUID id PK
+        UUID training_game_id FK
+        UUID team_member_id FK
+        TEXT side
     }
 
     teams ||--o{ player_ratings : "tracks"
@@ -1264,6 +1288,11 @@ erDiagram
     team_members ||--o{ player_ratings : "has"
     team_members ||--o{ player_rating_history : "generates"
     team_members ||--o{ player_rating_history : "submits"
+
+    teams ||--o{ training_games : "logs"
+    events ||--o{ training_games : "has"
+    training_games ||--o{ training_game_participants : "has"
+    team_members ||--o{ training_game_participants : "participates in"
 ```
 
 ---
@@ -1338,4 +1367,6 @@ erDiagram
 | `email_post_sync_events` | Outbox records for the bot's Email Sync worker to post Discord messages. Three kinds: `approval_request`, `post_summary`, `post_original`. Unique on `(email_message_id, kind)`. |
 | `email_attachments` | Binary attachment storage per email. `content` is a `BYTEA` column; no automatic retention in v1. |
 | `player_ratings` | Current Elo rating and win/loss/draw counters for one team member within one team. Default rating 1200; unique on `(team_id, team_member_id)`. |
-| `player_rating_history` | Append-only rating-change log. One row per game result per member; tracks before/after rating, delta, result kind, and the submitting member. |
+| `player_rating_history` | Append-only rating-change log. One row per game result per member; tracks before/after rating, delta, result kind, the submitting member, and a `game_id` linking the row to `training_games.id` when logged via `logTrainingGame`. |
+| `training_games` | One row per logged training-game round for an event. Unique on `(event_id, round)`. Outcome is `teamA`, `teamB`, or `draw`. The row ID is used as `game_id` in the corresponding `player_rating_history` rows. |
+| `training_game_participants` | Junction table recording which team members participated in a training game round and their side (A or B). Unique on `(training_game_id, team_member_id)`. |

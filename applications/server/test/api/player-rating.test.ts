@@ -1,5 +1,5 @@
-import type { Auth, Discord, Role, Team, TeamMember } from '@sideline/domain';
-import { Elo } from '@sideline/domain';
+import type { Auth, Discord, Event, Role, Team, TeamMember } from '@sideline/domain';
+import { Elo, PlayerRatingApi } from '@sideline/domain';
 import { OAuth2Tokens } from 'arctic';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from 'effect/unstable/http';
@@ -40,6 +40,8 @@ import type { MembershipWithRole } from '~/repositories/TeamMembersRepository.js
 import { RosterEntry, TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+// TrainingGamesRepository import — will fail until the implementation is created:
+import { TrainingGamesRepository } from '~/repositories/TrainingGamesRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { AchievementPreview } from '~/services/AchievementPreview.js';
@@ -1428,5 +1430,793 @@ describe('Unauthenticated requests → 401', () => {
       }),
     );
     expect(response.status).toBe(401);
+  });
+});
+
+// ===========================================================================
+// Epic 6.2 — logTrainingGame + getTrainingGames
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Additional constants
+// ---------------------------------------------------------------------------
+
+const TEST_EVENT_ID = '00000000-0000-4000-d000-000000000001' as Event.EventId;
+const TEST_GAME_ID =
+  '00000000-0000-4000-e000-000000000001' as PlayerRatingApi.TrainingGameResult['id'];
+
+// ---------------------------------------------------------------------------
+// Mutable state for training game tests
+// ---------------------------------------------------------------------------
+
+// Mutable event store — controls what EventsRepository returns
+let tgEventStore: Map<
+  Event.EventId,
+  {
+    id: Event.EventId;
+    team_id: Team.TeamId;
+    event_type: string;
+    status: string;
+    start_at: Date;
+  }
+>;
+
+// Mutable RSVP store — member IDs that have RSVP=yes for TEST_EVENT_ID
+let tgYesRsvpMembers: TeamMember.TeamMemberId[];
+
+// Captures insertGame calls
+let insertGameCallCount: number;
+let lastInsertGameParams: any;
+
+// Captures insertAutoIgnoreConflict calls
+let insertAutoIgnoreConflictCallCount: number;
+let insertAutoIgnoreConflictParams: any[]; // all params passed to each call
+let insertAutoIgnoreConflictFailure: boolean; // when true, the mock throws
+
+// Stored training games for getTrainingGames
+let trainingGamesStore: PlayerRatingApi.LoggedGameEntry[];
+
+const resetTgState = () => {
+  insertGameCallCount = 0;
+  lastInsertGameParams = null;
+  insertAutoIgnoreConflictCallCount = 0;
+  insertAutoIgnoreConflictParams = [];
+  insertAutoIgnoreConflictFailure = false;
+
+  tgYesRsvpMembers = [TEST_MEMBER_A, TEST_MEMBER_B];
+
+  tgEventStore = new Map([
+    [
+      TEST_EVENT_ID,
+      {
+        id: TEST_EVENT_ID,
+        team_id: TEST_TEAM_ID,
+        event_type: 'training',
+        status: 'active',
+        start_at: new Date('2099-12-31T18:00:00Z'),
+      },
+    ],
+  ]);
+
+  trainingGamesStore = [];
+};
+
+// ---------------------------------------------------------------------------
+// URL helpers for training game endpoints
+// ---------------------------------------------------------------------------
+
+const trainingGamesUrl = (teamId: string, eventId: string) =>
+  `http://localhost/teams/${teamId}/events/${eventId}/training-games`;
+
+// ---------------------------------------------------------------------------
+// Mock layers specific to training game tests
+// ---------------------------------------------------------------------------
+
+const makeTgEventsRepositoryLayer = () =>
+  Layer.succeed(EventsRepository, {
+    _tag: 'api/EventsRepository',
+    findByTeamId: () => Effect.succeed([]),
+    findEventsByTeamId: () => Effect.succeed([]),
+    findByIdWithDetails: () => Effect.succeed(Option.none()),
+    findEventByIdWithDetails: (eventId: Event.EventId) => {
+      const ev = tgEventStore.get(eventId);
+      return Effect.succeed(ev ? Option.some(ev) : Option.none());
+    },
+    insert: () => Effect.die(new Error('Not implemented')),
+    insertEvent: () => Effect.die(new Error('Not implemented')),
+    update: () => Effect.die(new Error('Not implemented')),
+    updateEvent: () => Effect.die(new Error('Not implemented')),
+    cancel: () => Effect.void,
+    cancelEvent: () => Effect.void,
+    findScopedTrainingTypeIds: () => Effect.succeed([]),
+    getScopedTrainingTypeIds: () => Effect.succeed([]),
+    markModified: () => Effect.void,
+    markEventSeriesModified: () => Effect.void,
+    cancelFuture: () => Effect.void,
+    cancelFutureInSeries: () => Effect.void,
+    updateFutureUnmodified: () => Effect.void,
+    updateFutureUnmodifiedInSeries: () => Effect.void,
+    findEventsByChannelId: () => Effect.succeed([]),
+    findUpcomingByGuildId: () => Effect.succeed([]),
+    countUpcomingByGuildId: () => Effect.succeed(0),
+    saveDiscordMessageId: () => Effect.void,
+    getDiscordMessageId: () => Effect.succeed(Option.none()),
+    findNonResponders: () => Effect.succeed([]),
+  } as any);
+
+const makeTgEventRsvpsRepositoryLayer = () =>
+  Layer.succeed(EventRsvpsRepository, {
+    _tag: 'api/EventRsvpsRepository',
+    findByEventId: () => Effect.succeed([]),
+    findRsvpsByEventId: () => Effect.succeed([]),
+    findByEventAndMember: () => Effect.succeed(Option.none()),
+    findRsvpByEventAndMember: () => Effect.succeed(Option.none()),
+    upsert: () => Effect.die(new Error('Not implemented')),
+    upsertRsvp: () => Effect.die(new Error('Not implemented')),
+    countByEventId: () => Effect.succeed([]),
+    countRsvpsByEventId: () => Effect.succeed([]),
+    // Used by the handler to check RSVP-yes members
+    findYesRsvpMemberIdsByEventId: (eventId: Event.EventId) =>
+      Effect.succeed(
+        eventId === TEST_EVENT_ID ? tgYesRsvpMembers.map((id) => ({ team_member_id: id })) : [],
+      ),
+  } as any);
+
+const makeTgActivityLogsRepositoryLayer = () =>
+  Layer.succeed(ActivityLogsRepository, {
+    insert: () =>
+      Effect.succeed({
+        id: 'log-id',
+        activity_type_id: 'type-id',
+        activity_type_name: 'Training',
+        activity_type_emoji: Option.none(),
+        logged_at: new Date().toISOString(),
+        source: 'auto',
+      }),
+    findByTeamMember: () => Effect.succeed([]),
+    insertAutoIgnoreConflict: (params: any) => {
+      insertAutoIgnoreConflictCallCount++;
+      insertAutoIgnoreConflictParams.push(params);
+      if (insertAutoIgnoreConflictFailure) {
+        return Effect.fail(new Error('Simulated attendance failure'));
+      }
+      return Effect.void;
+    },
+  } as any);
+
+const makeTgTrainingGamesRepositoryLayer = () =>
+  Layer.succeed(TrainingGamesRepository, {
+    _tag: 'api/TrainingGamesRepository',
+    insertGame: (params: any) => {
+      insertGameCallCount++;
+      lastInsertGameParams = params;
+      const game: PlayerRatingApi.TrainingGameResult = new PlayerRatingApi.TrainingGameResult({
+        id: TEST_GAME_ID,
+        round: trainingGamesStore.length + 1,
+        teamA: params.teamAMemberIds,
+        teamB: params.teamBMemberIds,
+        outcome: params.outcome,
+        created_at: new Date().toISOString(),
+        ratings: new PlayerRatingApi.TeamRatingsResponse({
+          canManage: true,
+          calibrationThreshold: Elo.CALIBRATION_GAMES,
+          entries: [],
+        }),
+      });
+      trainingGamesStore.push(
+        new PlayerRatingApi.LoggedGameEntry({
+          id: game.id,
+          round: game.round,
+          teamA: game.teamA,
+          teamB: game.teamB,
+          outcome: game.outcome,
+          created_at: game.created_at,
+        }),
+      );
+      return Effect.succeed(game);
+    },
+    listGamesByEvent: (_teamId: Team.TeamId, _eventId: Event.EventId) =>
+      Effect.succeed(trainingGamesStore),
+  } as any);
+
+// ---------------------------------------------------------------------------
+// Build TG test layer
+// ---------------------------------------------------------------------------
+
+const buildTgTestLayer = () =>
+  ApiLive.pipe(
+    Layer.provideMerge(AuthMiddlewareLive),
+    Layer.provideMerge(HttpServer.layerServices),
+    Layer.provide(MockDiscordOAuthLayer),
+    Layer.provide(MockUsersRepositoryLayer),
+    Layer.provide(MockSessionsRepositoryLayer),
+    Layer.provide(MockTeamsRepositoryLayer),
+    Layer.provide(MockTeamMembersRepositoryLayer),
+    Layer.provide(
+      Layer.merge(
+        Layer.merge(
+          Layer.merge(MockRostersRepositoryLayer, makeTgActivityLogsRepositoryLayer()),
+          MockActivityTypesRepositoryLayer,
+        ),
+        MockLeaderboardRepositoryLayer,
+      ),
+    ),
+    Layer.provide(
+      Layer.merge(
+        MockTeamInvitesRepositoryLayer,
+        Layer.merge(
+          Layer.succeed(PendingGuildJoinsRepository, {
+            enqueue: () => Effect.void,
+            listPending: () => Effect.succeed([]),
+            markDone: () => Effect.void,
+            markFailed: () => Effect.void,
+          } as never),
+          Layer.succeed(InviteAcceptancesRepository, {} as never),
+        ),
+      ),
+    ),
+    Layer.provide(MockRolesRepositoryLayer),
+    Layer.provide(MockGroupsRepositoryLayer),
+    Layer.provide(MockTrainingTypesRepositoryLayer),
+    Layer.provide(
+      Layer.merge(
+        Layer.merge(makeTgEventsRepositoryLayer(), MockEventSeriesRepositoryLayer),
+        makeTgEventRsvpsRepositoryLayer(),
+      ),
+    ),
+    Layer.provide(MockHttpClientLayer),
+    Layer.provide(MockAgeCheckServiceLayer),
+    Layer.provide(MockAgeThresholdRepositoryLayer),
+    Layer.provide(Layer.merge(MockNotificationsRepositoryLayer, MockRoleSyncEventsRepositoryLayer)),
+    Layer.provide(
+      Layer.merge(
+        Layer.merge(MockChannelSyncEventsRepositoryLayer, MockEventSyncEventsRepositoryLayer),
+        MockICalTokensRepositoryLayer,
+      ),
+    ),
+    Layer.provide(
+      Layer.merge(
+        Layer.merge(
+          Layer.merge(
+            Layer.merge(
+              MockDiscordChannelMappingRepositoryLayer,
+              Layer.succeed(BotGuildsRepository, {
+                upsert: () => Effect.void,
+                remove: () => Effect.void,
+                exists: () => Effect.succeed(false),
+                findAll: () => Effect.succeed([]),
+              } as any),
+            ),
+            Layer.merge(MockDiscordChannelsRepositoryLayer, MockDiscordRolesRepositoryLayer),
+          ),
+          Layer.succeed(TeamSettingsRepository, {
+            findByTeam: () => Effect.succeed(Option.none()),
+            findByTeamId: () => Effect.succeed(Option.none()),
+            upsertSettings: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+            upsert: () => Effect.succeed({ team_id: 'test', event_horizon_days: 30 }),
+            getHorizon: () => Effect.succeed({ event_horizon_days: 30 }),
+            getHorizonDays: () => Effect.succeed(30),
+          } as any),
+        ),
+        MockOAuthConnectionsRepositoryLayer,
+      ),
+    ),
+    Layer.provide(MockAchievementAdminLayers),
+  )
+    .pipe(Layer.provide(MockEventRosterLayers))
+    .pipe(Layer.provide(MockChannelEventDividersRepositoryLayer))
+    .pipe(Layer.provide(MockFinanceLayers))
+    .pipe(Layer.provide(MockTranslationsLayers))
+    .pipe(Layer.provide(MockTeamOnboardingTokensRepositoryLayer))
+    .pipe(Layer.provide(MockTeamChallengeRepositoryLayer))
+    .pipe(Layer.provide(makeControlledPlayerRatingsLayer()))
+    .pipe(Layer.provide(makeTgTrainingGamesRepositoryLayer()))
+    .pipe(Layer.provide(MockDashboardLayoutsRepositoryLayer))
+    .pipe(Layer.provide(MockChannelManagementLayers))
+    .pipe(Layer.provide(MockEmailLayers))
+    .pipe(Layer.provide(BotInfoStore.Default))
+    .pipe(
+      Layer.provide(
+        Layer.succeed(GlobalAdminAllowlist, {
+          asEffect: Effect.succeed(new Set<string>()),
+        } as any),
+      ),
+    );
+
+// ---------------------------------------------------------------------------
+// TG test handler setup
+// ---------------------------------------------------------------------------
+
+let tgHandler: (...args: any) => Promise<Response>;
+let tgDispose: () => Promise<void>;
+
+describe('logTrainingGame + getTrainingGames (Epic 6.2)', () => {
+  beforeAll(() => {
+    const TgTestLayer = buildTgTestLayer();
+    const app = HttpRouter.toWebHandler(TgTestLayer);
+    tgHandler = app.handler;
+    tgDispose = app.dispose;
+  });
+
+  afterAll(async () => {
+    await tgDispose();
+  });
+
+  beforeEach(() => {
+    resetTgState();
+    resetState();
+  });
+
+  // -------------------------------------------------------------------------
+  // Permission gating
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — permission gating', () => {
+    it('Player (no member:edit) → 403', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer player-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
+    // GET getTrainingGames 403-for-player is covered in the getTrainingGames describe block below.
+  });
+
+  // -------------------------------------------------------------------------
+  // EventNotLoggable — cancelled event
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — EventNotLoggable (409)', () => {
+    it('cancelled event → 409 EventNotLoggable', async () => {
+      // Mark the event as cancelled
+      tgEventStore.set(TEST_EVENT_ID, {
+        id: TEST_EVENT_ID,
+        team_id: TEST_TEAM_ID,
+        event_type: 'training',
+        status: 'cancelled',
+        start_at: new Date('2099-12-31T18:00:00Z'),
+      });
+
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body._tag).toBe('PlayerRatingEventNotLoggable');
+    });
+
+    it('non-training event type → 409 EventNotLoggable', async () => {
+      tgEventStore.set(TEST_EVENT_ID, {
+        id: TEST_EVENT_ID,
+        team_id: TEST_TEAM_ID,
+        event_type: 'match', // not 'training'
+        status: 'active',
+        start_at: new Date('2099-12-31T18:00:00Z'),
+      });
+
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body._tag).toBe('PlayerRatingEventNotLoggable');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Active + started events → allowed
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — active/started events → 200', () => {
+    it('active event → 200', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      // insertGame must have been called — 200 cannot come from an early-exit path
+      expect(insertGameCallCount).toBe(1);
+    });
+
+    it('started event → 200', async () => {
+      tgEventStore.set(TEST_EVENT_ID, {
+        id: TEST_EVENT_ID,
+        team_id: TEST_TEAM_ID,
+        event_type: 'training',
+        status: 'started',
+        start_at: new Date('2099-12-31T18:00:00Z'),
+      });
+
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'draw',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      // insertGame must have been called — 200 cannot come from an early-exit path
+      expect(insertGameCallCount).toBe(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Validation errors → 422 InvalidGameResult
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — validation errors (Captain)', () => {
+    it('empty teamA → 422 with reason emptyTeam', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamB',
+          }),
+        }),
+      );
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body._tag).toBe('PlayerRatingInvalidGameResult');
+      expect(body.reason).toBe('emptyTeam');
+    });
+
+    it('empty teamB → 422 with reason emptyTeam', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.reason).toBe('emptyTeam');
+    });
+
+    it('intra-team duplicate member → 422 with reason overlap', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A, TEST_MEMBER_A], // duplicate within team A
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.reason).toBe('overlap');
+    });
+
+    it('inter-team overlap → 422 with reason overlap', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A, TEST_MEMBER_B],
+            teamB: [TEST_MEMBER_B], // TEST_MEMBER_B in both
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.reason).toBe('overlap');
+    });
+
+    it('member not on team roster → 422 with reason unknownMember', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_UNKNOWN_MEMBER_ID],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.reason).toBe('unknownMember');
+    });
+
+    it('member on roster but RSVP != yes → 422 with reason notRsvpYes', async () => {
+      // TEST_PLAYER_MEMBER_ID is on the roster but NOT in tgYesRsvpMembers
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_PLAYER_MEMBER_ID], // on roster, but no RSVP=yes
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(422);
+      const body = await response.json();
+      expect(body.reason).toBe('notRsvpYes');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Happy path — submittedBy sentinel
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — submittedBy sentinel', () => {
+    it('Captain (real member) → insertGame called with submittedBy = Some(captain member id)', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect(insertGameCallCount).toBe(1);
+      const submittedBy = lastInsertGameParams.submittedBy;
+      expect(Option.isSome(submittedBy)).toBe(true);
+      expect(Option.getOrUndefined(submittedBy)).toBe(TEST_CAPTAIN_MEMBER_ID);
+    });
+
+    it('Global admin (no membership) → insertGame called with submittedBy = None', async () => {
+      // Global admin is NOT a team member, so cannot appear in teamA/B.
+      // We use MEMBER_A/B (who have RSVP=yes) so the validation passes.
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer global-admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'draw',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect(insertGameCallCount).toBe(1);
+      const submittedBy = lastInsertGameParams.submittedBy;
+      expect(Option.isNone(submittedBy)).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Attendance auto-logging
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — auto attendance logging', () => {
+    it('successful save → insertAutoIgnoreConflict called for all RSVP-yes members with correct member IDs', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      // tgYesRsvpMembers has 2 members (MEMBER_A and MEMBER_B)
+      expect(insertAutoIgnoreConflictCallCount).toBe(2);
+      // Must be called with the correct team_member_id values — not just any two members
+      const calledMemberIds = insertAutoIgnoreConflictParams.map((p: any) => p.team_member_id);
+      expect(calledMemberIds).toContain(TEST_MEMBER_A);
+      expect(calledMemberIds).toContain(TEST_MEMBER_B);
+    });
+
+    it('attendance failure does not fail the save — game committed, warning logged', async () => {
+      // Make insertAutoIgnoreConflict fail
+      insertAutoIgnoreConflictFailure = true;
+
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'draw',
+          }),
+        }),
+      );
+      // Game is committed despite attendance failure
+      expect(response.status).toBe(200);
+      // insertGame was still called — the failure is in the best-effort attendance step
+      expect(insertGameCallCount).toBe(1);
+      // NOTE: Per AGENTS.md rule "Never swallow errors silently — always log before catching",
+      // the implementation MUST call Effect.logWarning (or equivalent) with the cause before
+      // swallowing the attendance failure via Effect.catchCause.
+      // There is currently no log-capture harness available in this test suite to intercept
+      // Effect logger output.  The assertion here is purely structural: the handler returned
+      // 200 (success) even though insertAutoIgnoreConflict threw — proving the failure was
+      // caught and not propagated.  The implementation must log the cause; that is enforced
+      // by code-review against AGENTS.md, not by this test.
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Cross-team scoping: event belonging to a different team → 409
+  // -------------------------------------------------------------------------
+
+  describe('logTrainingGame — cross-team scoping', () => {
+    it('event belonging to a different team → 409 EventNotLoggable', async () => {
+      const OTHER_TEAM_ID = '00000000-0000-4000-b000-000000000099' as Team.TeamId;
+      // Store the event with a DIFFERENT team_id
+      tgEventStore.set(TEST_EVENT_ID, {
+        id: TEST_EVENT_ID,
+        team_id: OTHER_TEAM_ID,
+        event_type: 'training',
+        status: 'active',
+        start_at: new Date('2099-12-31T18:00:00Z'),
+      });
+
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer captain-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            teamA: [TEST_MEMBER_A],
+            teamB: [TEST_MEMBER_B],
+            outcome: 'teamA',
+          }),
+        }),
+      );
+      expect(response.status).toBe(409);
+      const body = await response.json();
+      expect(body._tag).toBe('PlayerRatingEventNotLoggable');
+      // insertGame must NOT have been called
+      expect(insertGameCallCount).toBe(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // getTrainingGames — read-only list
+  // -------------------------------------------------------------------------
+
+  describe('getTrainingGames', () => {
+    it('returns saved games', async () => {
+      // Pre-seed the store
+      trainingGamesStore.push(
+        new PlayerRatingApi.LoggedGameEntry({
+          id: TEST_GAME_ID,
+          round: 1,
+          teamA: [TEST_MEMBER_A],
+          teamB: [TEST_MEMBER_B],
+          outcome: 'teamA',
+          created_at: new Date('2099-12-31T18:00:00Z').toISOString(),
+        }),
+      );
+
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          headers: { Authorization: 'Bearer captain-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(Array.isArray(body.games)).toBe(true);
+      expect(body.games).toHaveLength(1);
+      expect(body.games[0].round).toBe(1);
+      expect(body.games[0].outcome).toBe('teamA');
+    });
+
+    it('returns empty list when no games have been played', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          headers: { Authorization: 'Bearer captain-token' },
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.games).toHaveLength(0);
+    });
+
+    it('GET getTrainingGames → 403 for player', async () => {
+      const response = await tgHandler(
+        new Request(trainingGamesUrl(TEST_TEAM_ID, TEST_EVENT_ID), {
+          headers: { Authorization: 'Bearer player-token' },
+        }),
+      );
+      expect(response.status).toBe(403);
+    });
   });
 });

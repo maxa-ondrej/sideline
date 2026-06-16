@@ -8,8 +8,12 @@ import {
   requirePermission,
   requireReadAccess,
 } from '~/api/permissions.js';
+import { ActivityLogsRepository } from '~/repositories/ActivityLogsRepository.js';
+import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
+import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { PlayerRatingsRepository } from '~/repositories/PlayerRatingsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TrainingGamesRepository } from '~/repositories/TrainingGamesRepository.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,6 +44,69 @@ const requireManageAccess = (
   );
 
 // ---------------------------------------------------------------------------
+// Helper: validate team composition (shared by applyGameResult + logTrainingGame)
+// Checks non-empty teams, no intra-team duplicates, no cross-team overlap, and
+// that every id belongs to the roster. Fails with the matching InvalidGameResult.
+// ---------------------------------------------------------------------------
+
+const validateGameComposition = (
+  teamA: ReadonlyArray<TeamMember.TeamMemberId>,
+  teamB: ReadonlyArray<TeamMember.TeamMemberId>,
+  rosterIds: ReadonlySet<TeamMember.TeamMemberId>,
+): Effect.Effect<void, PlayerRatingApi.InvalidGameResult> => {
+  if (teamA.length === 0 || teamB.length === 0) {
+    return Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'emptyTeam' }));
+  }
+  const setA = new Set(teamA);
+  const setB = new Set(teamB);
+  if (setA.size !== teamA.length || setB.size !== teamB.length) {
+    return Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'overlap' }));
+  }
+  if (teamB.some((id) => setA.has(id))) {
+    return Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'overlap' }));
+  }
+  if ([...teamA, ...teamB].some((id) => !rosterIds.has(id))) {
+    return Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'unknownMember' }));
+  }
+  return Effect.void;
+};
+
+// ---------------------------------------------------------------------------
+// Helper: build TeamRatingsResponse from rating rows
+// ---------------------------------------------------------------------------
+
+const buildTeamRatingsResponse = (
+  rows: ReadonlyArray<{
+    team_member_id: TeamMember.TeamMemberId;
+    rating: number;
+    games_played: number;
+    prev_rating: Option.Option<number>;
+    last_delta: Option.Option<number>;
+    wins: number;
+    losses: number;
+    draws: number;
+  }>,
+  canManage: boolean,
+) =>
+  new PlayerRatingApi.TeamRatingsResponse({
+    canManage,
+    calibrationThreshold: Elo.CALIBRATION_GAMES,
+    entries: rows.map(
+      (row) =>
+        new PlayerRatingApi.TeamRatingEntry({
+          memberId: row.team_member_id,
+          rating: row.rating,
+          gamesPlayed: row.games_played,
+          previousRating: row.prev_rating,
+          lastDelta: row.last_delta,
+          wins: row.wins,
+          losses: row.losses,
+          draws: row.draws,
+        }),
+    ),
+  });
+
+// ---------------------------------------------------------------------------
 // API Live
 // ---------------------------------------------------------------------------
 
@@ -59,26 +126,7 @@ export const PlayerRatingApiLive = HttpApiBuilder.group(Api, 'playerRating', (ha
             Effect.map(({ gate: { currentUser, membership }, rows }) => {
               const canManage =
                 currentUser.isGlobalAdmin || hasPermission(membership, 'member:edit');
-
-              const entries = rows.map(
-                (row) =>
-                  new PlayerRatingApi.TeamRatingEntry({
-                    memberId: row.team_member_id,
-                    rating: row.rating,
-                    gamesPlayed: row.games_played,
-                    previousRating: row.prev_rating,
-                    lastDelta: row.last_delta,
-                    wins: row.wins,
-                    losses: row.losses,
-                    draws: row.draws,
-                  }),
-              );
-
-              return new PlayerRatingApi.TeamRatingsResponse({
-                canManage,
-                calibrationThreshold: Elo.CALIBRATION_GAMES,
-                entries,
-              });
+              return buildTeamRatingsResponse(rows, canManage);
             }),
           ),
         )
@@ -179,28 +227,6 @@ export const PlayerRatingApiLive = HttpApiBuilder.group(Api, 'playerRating', (ha
         .handle('applyGameResult', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
             Effect.bind('gate', () => requireManageAccess(members, teamId)),
-            // Validate: non-empty teams
-            Effect.tap(() =>
-              payload.teamA.length === 0 || payload.teamB.length === 0
-                ? Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'emptyTeam' }))
-                : Effect.void,
-            ),
-            // Validate: no duplicates within the same team
-            Effect.tap(() => {
-              const hasDupA = new Set(payload.teamA).size !== payload.teamA.length;
-              const hasDupB = new Set(payload.teamB).size !== payload.teamB.length;
-              return hasDupA || hasDupB
-                ? Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'overlap' }))
-                : Effect.void;
-            }),
-            // Validate: no overlap between teams
-            Effect.tap(() => {
-              const setA = new Set(payload.teamA);
-              const hasOverlap = payload.teamB.some((id) => setA.has(id));
-              return hasOverlap
-                ? Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'overlap' }))
-                : Effect.void;
-            }),
             // Verify all member ids belong to the team
             Effect.bind('rosterIds', () =>
               members
@@ -211,13 +237,10 @@ export const PlayerRatingApiLive = HttpApiBuilder.group(Api, 'playerRating', (ha
                   ),
                 ),
             ),
-            Effect.tap(({ rosterIds }) => {
-              const allIds = [...payload.teamA, ...payload.teamB];
-              const unknown = allIds.find((id) => !rosterIds.has(id));
-              return unknown !== undefined
-                ? Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'unknownMember' }))
-                : Effect.void;
-            }),
+            // Validate team composition (non-empty, no dups, no overlap, known members)
+            Effect.tap(({ rosterIds }) =>
+              validateGameComposition(payload.teamA, payload.teamB, rosterIds),
+            ),
             // Apply updates — read+compute+write is atomic inside the transaction
             Effect.tap(({ gate }) => {
               // submittedBy: the current user's membership id if they are a real member
@@ -232,6 +255,7 @@ export const PlayerRatingApiLive = HttpApiBuilder.group(Api, 'playerRating', (ha
                 teamBMemberIds: payload.teamB,
                 outcome: payload.outcome,
                 submittedBy,
+                gameId: Option.none(),
               });
             }),
             // Return updated team ratings
@@ -239,27 +263,126 @@ export const PlayerRatingApiLive = HttpApiBuilder.group(Api, 'playerRating', (ha
             Effect.map(({ gate: { currentUser, membership }, updatedRows }) => {
               const canManage =
                 currentUser.isGlobalAdmin || hasPermission(membership, 'member:edit');
-
-              const entries = updatedRows.map(
-                (row) =>
-                  new PlayerRatingApi.TeamRatingEntry({
-                    memberId: row.team_member_id,
-                    rating: row.rating,
-                    gamesPlayed: row.games_played,
-                    previousRating: row.prev_rating,
-                    lastDelta: row.last_delta,
-                    wins: row.wins,
-                    losses: row.losses,
-                    draws: row.draws,
-                  }),
-              );
-
-              return new PlayerRatingApi.TeamRatingsResponse({
-                canManage,
-                calibrationThreshold: Elo.CALIBRATION_GAMES,
-                entries,
-              });
+              return buildTeamRatingsResponse(updatedRows, canManage);
             }),
+          ),
+        )
+        // ------------------------------------------------------------------
+        // POST /teams/:teamId/events/:eventId/training-games
+        // ------------------------------------------------------------------
+        .handle('logTrainingGame', ({ params: { teamId, eventId }, payload }) =>
+          Effect.Do.pipe(
+            Effect.bind('gate', () => requireManageAccess(members, teamId)),
+            // Acquire lazily to avoid requiring these services in the old test layer
+            Effect.bind('trainingGames', () => TrainingGamesRepository.asEffect()),
+            Effect.bind('events', () => EventsRepository.asEffect()),
+            Effect.bind('eventRsvps', () => EventRsvpsRepository.asEffect()),
+            Effect.bind('activityLogs', () => ActivityLogsRepository.asEffect()),
+            // Load event (scoped to team)
+            Effect.bind('event', ({ events }) =>
+              events.findEventByIdWithDetails(eventId).pipe(
+                Effect.flatMap(
+                  Option.match({
+                    onNone: () => Effect.fail(new PlayerRatingApi.EventNotLoggable()),
+                    onSome: Effect.succeed,
+                  }),
+                ),
+              ),
+            ),
+            // Validate event belongs to the requested team (cross-team scoping guard)
+            Effect.tap(({ event }) =>
+              event.team_id !== teamId
+                ? Effect.fail(new PlayerRatingApi.EventNotLoggable())
+                : Effect.void,
+            ),
+            // Validate event is not cancelled and is of type training
+            Effect.tap(({ event }) =>
+              event.status === 'cancelled' || event.event_type !== 'training'
+                ? Effect.fail(new PlayerRatingApi.EventNotLoggable())
+                : Effect.void,
+            ),
+            // Verify all member ids belong to the team roster
+            Effect.bind('rosterIds', () =>
+              members
+                .findRosterByTeam(teamId)
+                .pipe(
+                  Effect.map(
+                    (roster) => new Set<TeamMember.TeamMemberId>(roster.map((r) => r.member_id)),
+                  ),
+                ),
+            ),
+            // Validate team composition (non-empty, no dups, no overlap, known members)
+            Effect.tap(({ rosterIds }) =>
+              validateGameComposition(payload.teamA, payload.teamB, rosterIds),
+            ),
+            // Verify all members have RSVP=yes for this event
+            Effect.bind('yesRsvpIds', ({ eventRsvps }) =>
+              eventRsvps
+                .findYesRsvpMemberIdsByEventId(eventId)
+                .pipe(
+                  Effect.map(
+                    (rows) => new Set<TeamMember.TeamMemberId>(rows.map((r) => r.team_member_id)),
+                  ),
+                ),
+            ),
+            Effect.tap(({ yesRsvpIds }) => {
+              const allIds = [...payload.teamA, ...payload.teamB];
+              const notYes = allIds.find((id) => !yesRsvpIds.has(id));
+              return notYes !== undefined
+                ? Effect.fail(new PlayerRatingApi.InvalidGameResult({ reason: 'notRsvpYes' }))
+                : Effect.void;
+            }),
+            // Determine submittedBy
+            Effect.let('submittedBy', ({ gate }) =>
+              gate.membership.id === GLOBAL_ADMIN_SENTINEL_ID
+                ? Option.none<TeamMember.TeamMemberId>()
+                : Option.some(gate.membership.id),
+            ),
+            // Insert the game (includes Elo rating updates inside the transaction)
+            Effect.bind('gameResult', ({ trainingGames, submittedBy }) =>
+              trainingGames.insertGame({
+                teamId,
+                eventId,
+                teamAMemberIds: payload.teamA,
+                teamBMemberIds: payload.teamB,
+                outcome: payload.outcome,
+                submittedBy,
+              }),
+            ),
+            // BEST-EFFORT attendance auto-logging (after insertGame tx has committed)
+            // insertAutoIgnoreConflict handles the 'training' activity type lookup internally
+            Effect.tap(({ event, activityLogs, yesRsvpIds }) =>
+              Effect.forEach(
+                Array.from(yesRsvpIds),
+                (memberId) =>
+                  activityLogs.insertAutoIgnoreConflict({
+                    team_member_id: memberId,
+                    logged_at: new Date(DateTime.toEpochMillis(event.start_at)),
+                  }),
+                { concurrency: 1, discard: true },
+              ).pipe(
+                Effect.catchCause((cause) =>
+                  Effect.logWarning('training attendance auto-log failed', cause),
+                ),
+              ),
+            ),
+            // Return the game result
+            Effect.map(({ gameResult }) => gameResult),
+          ),
+        )
+        // ------------------------------------------------------------------
+        // GET /teams/:teamId/events/:eventId/training-games
+        // ------------------------------------------------------------------
+        .handle('getTrainingGames', ({ params: { teamId, eventId } }) =>
+          Effect.Do.pipe(
+            Effect.tap(() => requireManageAccess(members, teamId)),
+            Effect.bind('trainingGames', () => TrainingGamesRepository.asEffect()),
+            Effect.bind('games', ({ trainingGames }) =>
+              trainingGames.listGamesByEvent(teamId, eventId),
+            ),
+            Effect.map(
+              ({ games }) => new PlayerRatingApi.LoggedGamesResponse({ games: [...games] }),
+            ),
           ),
         ),
     ),

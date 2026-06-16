@@ -726,6 +726,37 @@ export const EventsRpcLive = EventRpcGroup.EventRpcGroup.toLayer(
           ),
         ),
 
+      'Event/GetLoggableTrainingEvents': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+        SqlSchema.findOne({
+          Request: Schema.String,
+          Result: TeamLookupResult,
+          execute: (guildId) => svc.sql`SELECT id FROM teams WHERE guild_id = ${guildId}`,
+        })(guild_id).pipe(
+          Effect.catchTag('NoSuchElementError', () =>
+            Effect.fail(new EventRpcModels.GuildNotFound()),
+          ),
+          Effect.mapError(() => new EventRpcModels.GuildNotFound()),
+          Effect.flatMap(() => svc.events.findLoggableTrainingsByGuildId(guild_id)),
+          Effect.map(
+            Array.map(
+              (row) =>
+                new EventRpcModels.GuildEventListEntry({
+                  event_id: row.event_id,
+                  title: row.title,
+                  start_at: row.start_at,
+                  end_at: row.end_at,
+                  location: row.location,
+                  location_url: row.location_url,
+                  event_type: row.event_type,
+                  yes_count: row.yes_count,
+                  no_count: row.no_count,
+                  maybe_count: row.maybe_count,
+                  all_day: row.all_day,
+                }),
+            ),
+          ),
+        ),
+
       'Event/GetUpcomingEventsForUser': ({
         guild_id,
         discord_user_id,

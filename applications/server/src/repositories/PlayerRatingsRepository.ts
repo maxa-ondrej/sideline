@@ -1,4 +1,4 @@
-import { Elo, Team, TeamMember } from '@sideline/domain';
+import { Elo, Team, TeamMember, type TrainingGame } from '@sideline/domain';
 import { LogicError } from '@sideline/effect-lib';
 import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
@@ -54,6 +54,7 @@ export interface ApplyGameUpdatesParams {
   readonly teamBMemberIds: ReadonlyArray<TeamMember.TeamMemberId>;
   readonly outcome: Elo.GameOutcome;
   readonly submittedBy: Option.Option<TeamMember.TeamMemberId>;
+  readonly gameId?: Option.Option<TrainingGame.TrainingGameId>;
 }
 
 // ---------------------------------------------------------------------------
@@ -213,8 +214,9 @@ const make = Effect.gen(function* () {
     );
   };
 
-  const applyGameUpdates = (params: ApplyGameUpdatesParams): Effect.Effect<void> => {
+  const applyGameUpdatesTx = (params: ApplyGameUpdatesParams) => {
     const { teamId, teamAMemberIds, teamBMemberIds, outcome, submittedBy } = params;
+    const gameId = params.gameId ?? Option.none<TrainingGame.TrainingGameId>();
 
     // Dedupe + sort union of all member ids by team_member_id for consistent lock ordering
     const allMemberIdSet = new Set<TeamMember.TeamMemberId>([...teamAMemberIds, ...teamBMemberIds]);
@@ -238,6 +240,7 @@ const make = Effect.gen(function* () {
     };
 
     const submittedByVal = Option.getOrNull(submittedBy);
+    const gameIdVal = Option.getOrNull(gameId);
 
     // Build PlayerRatingInput array from locked rows, failing if any member is missing
     const buildSide = (
@@ -260,7 +263,7 @@ const make = Effect.gen(function* () {
         });
       });
 
-    const txEffect = Effect.Do.pipe(
+    return Effect.Do.pipe(
       // Step 1: Ensure rows exist (INSERT ... ON CONFLICT DO NOTHING)
       Effect.tap(() => ensureRatingsExist(teamId, allMemberIds)),
       // Step 2: Lock rows in sorted order (FOR UPDATE)
@@ -331,7 +334,7 @@ const make = Effect.gen(function* () {
                     ${update.newRating},
                     ${update.delta},
                     ${result},
-                    NULL,
+                    ${gameIdVal},
                     ${submittedByVal}
                   )
                 `,
@@ -345,9 +348,10 @@ const make = Effect.gen(function* () {
       }),
       Effect.asVoid,
     );
-
-    return sql.withTransaction(txEffect).pipe(catchSqlErrors);
   };
+
+  const applyGameUpdates = (params: ApplyGameUpdatesParams): Effect.Effect<void> =>
+    applyGameUpdatesTx(params).pipe(sql.withTransaction, catchSqlErrors);
 
   return {
     getMemberRating,
@@ -355,6 +359,7 @@ const make = Effect.gen(function* () {
     findHistoryByMember,
     getOrInitMany,
     applyGameUpdates,
+    applyGameUpdatesTx,
   };
 });
 

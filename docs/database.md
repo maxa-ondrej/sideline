@@ -1653,7 +1653,48 @@ Append-only audit log of every rating change. One row per player per game result
 
 **Indexes**: `idx_player_rating_history_member` on `(team_member_id, created_at DESC, id DESC)` — used to retrieve a member's chronological history efficiently.
 
-**Notes**: Added in migration `1789600000_create_player_ratings`. `game_id` is a nullable UUID that can group all history entries belonging to the same `applyGameResult` call (allows correlating team-A and team-B deltas). `submitted_by` records which team member submitted the game result; set to `NULL` via `ON DELETE SET NULL` if that member is later deleted. The table is append-only from the application's perspective — no application code ever updates a row after insert — though `submitted_by` may be nulled by FK cleanup if the referenced member is deleted.
+**Notes**: Added in migration `1789600000_create_player_ratings`. `game_id` links all history rows belonging to the same game: for `applyGameResult` calls it is a server-generated UUID; for training games logged via `logTrainingGame` it is set to the `training_games.id` of the corresponding row. `submitted_by` records which team member submitted the game result; set to `NULL` via `ON DELETE SET NULL` if that member is later deleted. The table is append-only from the application's perspective — no application code ever updates a row after insert — though `submitted_by` may be nulled by FK cleanup if the referenced member is deleted.
+
+---
+
+#### `training_games`
+
+One row per logged training-game round within an event. Multiple rounds can be logged per event; round numbers start at 1 and are unique per event.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `id` | UUID | PK | `gen_random_uuid()` |
+| `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
+| `event_id` | UUID | NOT NULL, FK → `events(id)` ON DELETE CASCADE | — |
+| `round` | INT | NOT NULL, CHECK (`>= 1`) | — |
+| `outcome` | TEXT | NOT NULL, CHECK (`'teamA'`, `'teamB'`, `'draw'`) | — |
+| `submitted_by` | UUID | FK → `team_members(id)` ON DELETE SET NULL | — |
+| `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
+
+**Unique**: `(event_id, round)` — prevents duplicate rounds for the same event.
+
+**Indexes**: `idx_training_games_event` on `(event_id, round)`
+
+**Notes**: Added in migration `1789700000_create_training_games`. Game results are immutable once logged (no UPDATE path in the application). The `id` of this row is used as `game_id` in the corresponding `player_rating_history` rows so individual rounds can be correlated with rating changes.
+
+---
+
+#### `training_game_participants`
+
+Many-to-many junction recording which team members participated in a training game round and which side (A or B) they were on.
+
+| Column | Type | Constraints | Default |
+|---|---|---|---|
+| `id` | UUID | PK | `gen_random_uuid()` |
+| `training_game_id` | UUID | NOT NULL, FK → `training_games(id)` ON DELETE CASCADE | — |
+| `team_member_id` | UUID | NOT NULL, FK → `team_members(id)` ON DELETE CASCADE | — |
+| `side` | TEXT | NOT NULL, CHECK (`'A'`, `'B'`) | — |
+
+**Unique**: `(training_game_id, team_member_id)` — a member can only appear once per game round.
+
+**Indexes**: `idx_training_game_participants_game` on `(training_game_id)`
+
+**Notes**: Added in migration `1789700000_create_training_games`. Cascade on both FKs ensures participant rows are cleaned up when the game or the member is deleted.
 
 ---
 
@@ -1758,6 +1799,7 @@ All 109 migration files in `packages/migrations/src/before/` plus 1 after-migrat
 | 1789500002 | `add_event_roster_sync_types` | Extends `event_sync_events.event_type` CHECK constraint to add three roster-workflow event types: `event_roster_approval_request`, `event_roster_approval_cancel`, and `event_roster_thread_delete`. |
 | 1789500003 | `add_user_global_admin_granted_at` | Adds nullable `global_admin_granted_at TIMESTAMPTZ` column to `users`; back-fills `now()` for existing global admins. |
 | 1789600000 | `create_player_ratings` | Creates `player_ratings` (id PK, team_id FK CASCADE, team_member_id FK CASCADE, rating INT DEFAULT 1200, games_played/wins/losses/draws INT CHECK ≥ 0, created_at, updated_at; UNIQUE (team_id, team_member_id)); index `idx_player_ratings_team` on `(team_id, rating DESC)`. Creates `player_rating_history` (id PK, team_id FK CASCADE, team_member_id FK CASCADE, rating_before/rating_after/delta INT, result TEXT CHECK `'win'/'loss'/'draw'`, game_id UUID nullable, submitted_by FK → team_members SET NULL, created_at); index `idx_player_rating_history_member` on `(team_member_id, created_at DESC, id DESC)`. |
+| 1789700000 | `create_training_games` | Creates `training_games` (id PK, team_id FK CASCADE, event_id FK CASCADE, round INT CHECK ≥ 1, outcome TEXT CHECK `'teamA'/'teamB'/'draw'`, submitted_by FK → team_members SET NULL, created_at; UNIQUE (event_id, round)); index `idx_training_games_event` on `(event_id, round)`. Creates `training_game_participants` (id PK, training_game_id FK CASCADE, team_member_id FK CASCADE, side TEXT CHECK `'A'/'B'`; UNIQUE (training_game_id, team_member_id)); index `idx_training_game_participants_game` on `(training_game_id)`. |
 
 ### After Migrations (seed data)
 
@@ -1791,7 +1833,7 @@ The server inserts rows when the relevant domain action occurs. The bot polls `W
 
 ### Cascading Deletes
 
-Team deletion cascades to all child tables (team_members, team_invites, invite_acceptances, team_settings, roles, groups, training_types, events, event_series, rosters, notifications, discord_role_mappings, discord_channel_mappings, role_sync_events, channel_sync_events, event_sync_events, age_threshold_rules, activity_types, achievement_role_mappings, achievement_sync_events, achievement_settings, custom_achievements, discord_role_provision_events, fees, expenses, email_forwarding_config, email_messages, email_post_sync_events, player_ratings, player_rating_history). Deletion of an `email_messages` row cascades to its `email_attachments` and `email_post_sync_events` rows. Fee deletion cascades to fee_assignments. Fee assignment deletion cascades to `payment_reminder_sync_events` and `payment_reminders_sent`. Expense deletion does not cascade to `expense_history` (no FK constraint on `expense_history.expense_id`). Member deletion cascades to group_members, member_roles, roster_members, event_rsvps, activity_logs, earned_achievements, and achievement_sync_events. Member deletion is blocked (`ON DELETE RESTRICT`) when any fee_assignment or payment row references the member. User deletion is blocked (`ON DELETE RESTRICT`) when any expense or expense_history row references the user. `invite_acceptances` rows are also deleted when the referenced `team_invites` row is deleted (ON DELETE CASCADE on `team_invite_id`) and when the referenced `users` row is deleted (ON DELETE CASCADE on `user_id`).
+Team deletion cascades to all child tables (team_members, team_invites, invite_acceptances, team_settings, roles, groups, training_types, events, event_series, rosters, notifications, discord_role_mappings, discord_channel_mappings, role_sync_events, channel_sync_events, event_sync_events, age_threshold_rules, activity_types, achievement_role_mappings, achievement_sync_events, achievement_settings, custom_achievements, discord_role_provision_events, fees, expenses, email_forwarding_config, email_messages, email_post_sync_events, player_ratings, player_rating_history, training_games). Deletion of a `training_games` row cascades to its `training_game_participants` rows. Deletion of an `email_messages` row cascades to its `email_attachments` and `email_post_sync_events` rows. Fee deletion cascades to fee_assignments. Fee assignment deletion cascades to `payment_reminder_sync_events` and `payment_reminders_sent`. Expense deletion does not cascade to `expense_history` (no FK constraint on `expense_history.expense_id`). Member deletion cascades to group_members, member_roles, roster_members, event_rsvps, activity_logs, earned_achievements, achievement_sync_events, and training_game_participants. Member deletion is blocked (`ON DELETE RESTRICT`) when any fee_assignment or payment row references the member. User deletion is blocked (`ON DELETE RESTRICT`) when any expense or expense_history row references the user. `invite_acceptances` rows are also deleted when the referenced `team_invites` row is deleted (ON DELETE CASCADE on `team_invite_id`) and when the referenced `users` row is deleted (ON DELETE CASCADE on `user_id`).
 
 Role deletion uses `ON DELETE RESTRICT` on `member_roles` to prevent accidentally orphaning members. FK references from `role_sync_events.role_id` and `channel_sync_events.group_id` are stored as plain UUID (no FK constraint) so audit rows are retained after the referenced entity is deleted.
 
