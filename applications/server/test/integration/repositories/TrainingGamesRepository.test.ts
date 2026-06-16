@@ -413,15 +413,15 @@ describe('TrainingGamesRepository', () => {
             Effect.map((rows) => rows),
           ),
         ),
-        // No participant rows at all (training_game_participants is scoped by game_id,
+        // No participant rows at all (training_game_participants is scoped by training_game_id,
         // but since training_games was rolled back there should be no orphans)
         Effect.bind('participantRows', ({ sql, event }) =>
           sql<
             {
-              game_id: string;
+              training_game_id: string;
             }[]
-          >`SELECT tgp.game_id FROM training_game_participants tgp
-               JOIN training_games tg ON tg.id = tgp.game_id
+          >`SELECT tgp.training_game_id FROM training_game_participants tgp
+               JOIN training_games tg ON tg.id = tgp.training_game_id
                WHERE tg.event_id = ${event.id}`.pipe(Effect.map((rows) => rows)),
         ),
         Effect.bind('teamRatings', ({ ratings, team }) => ratings.getTeamRatings(team.id)),
