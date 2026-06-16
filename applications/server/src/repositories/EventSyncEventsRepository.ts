@@ -2,6 +2,7 @@ import {
   Discord,
   Event,
   type EventRosterModel,
+  EventRpcEvents,
   GroupModel,
   type RosterModel,
   Team,
@@ -25,6 +26,7 @@ const EventSyncEventType = Schema.Literals([
   'event_roster_approval_request',
   'event_roster_approval_cancel',
   'event_roster_thread_delete',
+  'teams_generated',
 ]);
 type EventSyncEventType = typeof EventSyncEventType.Type;
 
@@ -94,6 +96,9 @@ export class EventSyncEventRow extends Schema.Class<EventSyncEventRow>('EventSyn
   claimed_by_user_display_name: Schema.OptionFromNullOr(Schema.String),
   claimed_by_username: Schema.OptionFromNullOr(Schema.String),
   event_all_day: Schema.Boolean,
+  // Nullable JSONB; only populated for 'teams_generated' rows.
+  // node-pg auto-parses JSONB into a JS object/array, so we use the array schema directly.
+  teams_payload: Schema.OptionFromNullOr(Schema.Array(EventRpcEvents.TeamsGeneratedTeam)),
 }) {}
 
 const MarkProcessedInput = Schema.Struct({
@@ -137,7 +142,8 @@ const make = Effect.gen(function* () {
              u.discord_nickname     AS claimed_by_nickname,
              u.discord_display_name AS claimed_by_user_display_name,
              u.username             AS claimed_by_username,
-             ese.event_all_day
+             ese.event_all_day,
+             ese.teams_payload
       FROM event_sync_events ese
       LEFT JOIN team_members tm ON tm.id = ese.claimed_by_member_id
       LEFT JOIN users u         ON u.id = tm.user_id
@@ -537,6 +543,71 @@ const make = Effect.gen(function* () {
       catchSqlErrors,
     );
 
+  // ---- Teams generated event --------------------------------------------------
+
+  const hasUnprocessedTeamsGeneratedForEventQuery = SqlSchema.findOneOption({
+    Request: Schema.Struct({ event_id: Event.EventId }),
+    Result: Schema.Struct({ exists: Schema.Boolean }),
+    execute: (input) => sql`
+      SELECT EXISTS(
+        SELECT 1 FROM event_sync_events
+        WHERE event_type = 'teams_generated'
+          AND event_id = ${input.event_id}
+          AND processed_at IS NULL
+      ) AS exists
+    `,
+  });
+
+  const hasUnprocessedTeamsGeneratedForEvent = (eventId: Event.EventId): Effect.Effect<boolean> =>
+    hasUnprocessedTeamsGeneratedForEventQuery({ event_id: eventId }).pipe(
+      Effect.map((opt) => Option.match(opt, { onNone: () => false, onSome: (row) => row.exists })),
+      catchSqlErrors,
+    );
+
+  const insertTeamsGeneratedEvent = SqlSchema.void({
+    Request: Schema.Struct({
+      team_id: Team.TeamId,
+      guild_id: Discord.Snowflake,
+      event_id: Event.EventId,
+      event_title: Schema.String,
+      discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+      teams_payload_json: Schema.String,
+    }),
+    execute: (input) => sql`
+      INSERT INTO event_sync_events (
+        team_id, guild_id, event_type, event_id, event_title, event_description,
+        event_image_url, event_start_at, event_end_at, event_location,
+        event_location_url, event_event_type, discord_target_channel_id,
+        member_group_id, discord_role_id, claimed_by_member_id, claimed_by_display_name,
+        event_all_day, teams_payload
+      ) VALUES (
+        ${input.team_id}, ${input.guild_id}, ${'teams_generated'}, ${input.event_id},
+        ${input.event_title}, ${null},
+        ${null}, ${DateTime.makeUnsafe(0)}, ${null}, ${null},
+        ${null}, ${'teams_generated'}, ${input.discord_target_channel_id},
+        ${null}, ${null}, ${null}, ${null}, ${false},
+        ${input.teams_payload_json}::jsonb
+      )
+    `,
+  });
+
+  const emitTeamsGenerated = (
+    teamId: Team.TeamId,
+    guildId: Discord.Snowflake,
+    eventId: Event.EventId,
+    title: string,
+    discordTargetChannelId: Option.Option<Discord.Snowflake>,
+    teams: ReadonlyArray<EventRpcEvents.TeamsGeneratedTeam>,
+  ) =>
+    insertTeamsGeneratedEvent({
+      team_id: teamId,
+      guild_id: guildId,
+      event_id: eventId,
+      event_title: title,
+      discord_target_channel_id: discordTargetChannelId,
+      teams_payload_json: JSON.stringify(teams),
+    }).pipe(catchSqlErrors);
+
   // ---- Roster event helpers ---------------------------------------------------
 
   const insertRosterEvent = SqlSchema.void({
@@ -703,6 +774,8 @@ const make = Effect.gen(function* () {
     emitTrainingClaimUpdate,
     emitUnclaimedTrainingReminder,
     emitCoachingStatus,
+    emitTeamsGenerated,
+    hasUnprocessedTeamsGeneratedForEvent,
     emitEventRosterApprovalRequest,
     emitEventRosterApprovalCancel,
     emitEventRosterThreadDelete,

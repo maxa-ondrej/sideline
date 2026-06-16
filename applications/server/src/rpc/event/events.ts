@@ -269,5 +269,19 @@ export const constructEvent = Match.type<EventSyncEventRow>().pipe(
       }),
     ),
   ),
+  Match.when({ event_type: 'teams_generated' }, (r) =>
+    Effect.succeed(
+      new EventRpcEvents.TeamsGeneratedEvent({
+        id: r.id,
+        team_id: r.team_id,
+        guild_id: r.guild_id,
+        event_id: r.event_id,
+        title: r.event_title,
+        discord_target_channel_id: r.discord_target_channel_id,
+        // teams_payload is JSONB, auto-parsed by node-pg into JS array; fall back to empty.
+        teams: Option.getOrElse(r.teams_payload, () => []),
+      }),
+    ),
+  ),
   Match.exhaustive,
 );
