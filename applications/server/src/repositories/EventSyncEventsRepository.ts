@@ -545,10 +545,12 @@ const make = Effect.gen(function* () {
 
   // ---- Teams generated event --------------------------------------------------
 
-  // Atomic insert-if-not-pending: the row is only written when no unprocessed
-  // 'teams_generated' row already exists for the event. RETURNING id lets the caller
-  // distinguish "inserted" (Some) from "skipped because a post is already pending" (None),
-  // closing the check-then-insert TOCTOU race against concurrent posts.
+  // Idempotent insert-if-not-pending: the row is only written when no unprocessed
+  // 'teams_generated' row already exists for the event. The `WHERE NOT EXISTS` fast-path
+  // skips the common case, and `ON CONFLICT DO NOTHING` against the partial unique index
+  // `event_sync_events_teams_generated_pending_unique` makes it fully race-safe — two
+  // concurrent posts cannot both enqueue a pending row. RETURNING id lets the caller
+  // distinguish "inserted" (Some) from "skipped because a post is already pending" (None).
   const insertTeamsGeneratedEventQuery = SqlSchema.findOneOption({
     Request: Schema.Struct({
       team_id: Team.TeamId,
@@ -580,6 +582,9 @@ const make = Effect.gen(function* () {
           AND event_id = ${input.event_id}
           AND processed_at IS NULL
       )
+      ON CONFLICT (event_type, event_id)
+        WHERE event_type = 'teams_generated' AND processed_at IS NULL
+        DO NOTHING
       RETURNING id
     `,
   });
