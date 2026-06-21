@@ -557,6 +557,8 @@ const make = Effect.gen(function* () {
       guild_id: Discord.Snowflake,
       event_id: Event.EventId,
       event_title: Schema.String,
+      event_start_at: Schemas.DateTimeFromIsoString,
+      event_end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromIsoString),
       discord_target_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
       teams_payload_json: Schema.String,
     }),
@@ -572,7 +574,7 @@ const make = Effect.gen(function* () {
       SELECT
         ${input.team_id}, ${input.guild_id}, ${'teams_generated'}, ${input.event_id},
         ${input.event_title}, ${null},
-        ${null}, ${DateTime.makeUnsafe(0)}, ${null}, ${null},
+        ${null}, ${input.event_start_at}, ${input.event_end_at}, ${null},
         ${null}, ${'teams_generated'}, ${input.discord_target_channel_id},
         ${null}, ${null}, ${null}, ${null}, ${false},
         ${input.teams_payload_json}::jsonb
@@ -595,6 +597,8 @@ const make = Effect.gen(function* () {
     guildId: Discord.Snowflake,
     eventId: Event.EventId,
     title: string,
+    startAt: DateTime.Utc,
+    endAt: Option.Option<DateTime.Utc>,
     discordTargetChannelId: Option.Option<Discord.Snowflake>,
     teams: ReadonlyArray<EventRpcEvents.TeamsGeneratedTeam>,
   ): Effect.Effect<boolean> =>
@@ -603,6 +607,8 @@ const make = Effect.gen(function* () {
       guild_id: guildId,
       event_id: eventId,
       event_title: title,
+      event_start_at: startAt,
+      event_end_at: endAt,
       discord_target_channel_id: discordTargetChannelId,
       teams_payload_json: JSON.stringify(teams),
     }).pipe(Effect.map(Option.isSome), catchSqlErrors);

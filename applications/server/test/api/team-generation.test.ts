@@ -178,6 +178,8 @@ type EventStub = {
   status: string;
   title: string;
   owner_group_id: Option.Option<GroupModel.GroupId>;
+  start_at: DateTime.Utc;
+  end_at: Option.Option<DateTime.Utc>;
 };
 
 type RsvpYesMemberStub = {
@@ -211,6 +213,8 @@ let emitTeamsGeneratedCalls: Array<{
   guildId: Discord.Snowflake;
   eventId: Event.EventId;
   title: string;
+  startAt: DateTime.Utc;
+  endAt: Option.Option<DateTime.Utc>;
   channelId: Option.Option<Discord.Snowflake>;
   teams: unknown[];
 }>;
@@ -250,6 +254,8 @@ const resetState = () => {
         status: 'active',
         title: 'Training session',
         owner_group_id: Option.some(TEST_GROUP_ID),
+        start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+        end_at: Option.some(DateTime.makeUnsafe(Date.parse('2026-06-06T14:00:00.000Z'))),
       },
     ],
   ]);
@@ -350,13 +356,24 @@ const makeControlledEventSyncEventsRepositoryLayer = () =>
       guildId: Discord.Snowflake,
       eventId: Event.EventId,
       title: string,
+      startAt: DateTime.Utc,
+      endAt: Option.Option<DateTime.Utc>,
       channelId: Option.Option<Discord.Snowflake>,
       teams: unknown[],
     ) => {
       // Atomic insert-if-not-pending: returns false (skipped) when a post is already pending,
       // true (inserted) otherwise. Only record the call when a row is actually inserted.
       if (hasPendingTeamsGenerated) return Effect.succeed(false);
-      emitTeamsGeneratedCalls.push({ teamId, guildId, eventId, title, channelId, teams });
+      emitTeamsGeneratedCalls.push({
+        teamId,
+        guildId,
+        eventId,
+        title,
+        startAt,
+        endAt,
+        channelId,
+        teams,
+      });
       return Effect.succeed(true);
     },
     emitEventRosterApprovalRequest: () => Effect.void,
@@ -909,6 +926,8 @@ describe('generateTeams — non-training event → 409 EventNotGeneratable', () 
       status: 'active',
       title: 'Match',
       owner_group_id: Option.none(),
+      start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+      end_at: Option.none(),
     });
 
     const response = await handler(
@@ -952,6 +971,8 @@ describe('generateTeams — non-training event → 409 EventNotGeneratable', () 
       status: 'active',
       title: 'Training',
       owner_group_id: Option.none(),
+      start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+      end_at: Option.none(),
     });
 
     const response = await handler(
@@ -976,6 +997,8 @@ describe('generateTeams — non-training event → 409 EventNotGeneratable', () 
       status: 'cancelled',
       title: 'Training',
       owner_group_id: Option.none(),
+      start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+      end_at: Option.none(),
     });
 
     const response = await handler(
@@ -1447,6 +1470,8 @@ describe('postTeamsToDiscord — no channel mapping → 502 DiscordPostFailed', 
       status: 'active',
       title: 'Training',
       owner_group_id: Option.none(), // no group → no channel
+      start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+      end_at: Option.none(),
     });
 
     const response = await handler(
@@ -1475,6 +1500,8 @@ describe('postTeamsToDiscord — event validity guard → 409 EventNotGeneratabl
       status: 'active',
       title: 'Match',
       owner_group_id: Option.some(TEST_GROUP_ID),
+      start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+      end_at: Option.none(),
     });
 
     const response = await handler(
@@ -1503,6 +1530,8 @@ describe('postTeamsToDiscord — event validity guard → 409 EventNotGeneratabl
       status: 'cancelled',
       title: 'Training',
       owner_group_id: Option.some(TEST_GROUP_ID),
+      start_at: DateTime.makeUnsafe(Date.parse('2026-06-06T12:00:00.000Z')),
+      end_at: Option.none(),
     });
 
     const response = await handler(
@@ -1633,6 +1662,12 @@ describe('postTeamsToDiscord — happy path', () => {
     expect(call.guildId).toBe(TEST_GUILD_ID);
     expect(call.eventId).toBe(TEST_EVENT_ID);
     expect(call.title).toBe('Training session');
+    // startAt/endAt are forwarded from the stored event
+    expect(DateTime.toEpochMillis(call.startAt)).toBe(Date.parse('2026-06-06T12:00:00.000Z'));
+    expect(Option.isSome(call.endAt)).toBe(true);
+    expect(DateTime.toEpochMillis(Option.getOrThrow(call.endAt))).toBe(
+      Date.parse('2026-06-06T14:00:00.000Z'),
+    );
     expect(Option.isSome(call.channelId)).toBe(true);
     expect(Option.getOrUndefined(call.channelId)).toBe(TEST_CHANNEL_ID);
     expect(Array.isArray(call.teams)).toBe(true);

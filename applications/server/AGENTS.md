@@ -42,6 +42,20 @@ const findByDiscordId = SqlSchema.findOne({
 });
 ```
 
+**Any value whose column is read back through a schema codec MUST be bound from the `Request`-encoded `input`, never interpolated raw into the `execute` template.** Add a field to the `Request` schema with the SAME codec the row/read schema uses (e.g. `event_start_at: Schemas.DateTimeFromIsoString`), accept the decoded value as a method parameter, and bind `${input.event_start_at}`. `SqlSchema` encodes that field through the codec, so a `DateTime.Utc` becomes the exact wire format the reader's `Schemas.DateTimeFromIsoString` expects.
+
+```typescript
+// WRONG — DateTime interpolated raw; node-pg JSON-quotes it, so a reader
+// decoding the column with Schemas.DateTimeFromIsoString fails on read.
+execute: (input) => sql`INSERT INTO event_sync_events (event_start_at) VALUES (${DateTime.makeUnsafe(0)})`
+
+// RIGHT — Request field carries the codec; input.event_start_at is encoded.
+Request: Schema.Struct({ event_start_at: Schemas.DateTimeFromIsoString }),
+execute: (input) => sql`INSERT INTO event_sync_events (event_start_at) VALUES (${input.event_start_at})`
+```
+
+Regression coverage: `applications/server/test/integration/repositories/EventSyncEventsRepository.test.ts` (the `teams_generated` outbox row's `event_start_at`/`event_end_at` must round-trip through the bot's read schema).
+
 ### Repository Pattern
 
 Construct repositories by starting from `SqlClient.SqlClient.pipe(Effect.bindTo('sql'), ...)`. Use `Effect.bind` for effectful dependencies and `Effect.let` for pure method definitions. End with `Bind.remove` to strip internals.
