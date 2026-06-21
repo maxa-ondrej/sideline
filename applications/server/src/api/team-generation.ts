@@ -409,6 +409,8 @@ export const TeamGenerationApiLive = HttpApiBuilder.group(Api, 'teamGeneration',
                   team.guild_id,
                   eventId,
                   event.title,
+                  event.start_at,
+                  event.end_at,
                   channelId,
                   trustedTeams,
                 )
