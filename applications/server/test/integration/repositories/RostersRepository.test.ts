@@ -130,4 +130,98 @@ describe('RostersRepository.findMemberEntriesById', () => {
       Effect.provide(TestLayer),
     ),
   );
+
+  // ---------------------------------------------------------------------------
+  // Channel/GetRosterMembers coverage: findMemberEntriesById returns all roster
+  // members including those without a linked Discord account.
+  // The RPC handler (Channel/GetRosterMembers) is responsible for filtering out
+  // members whose discord_id is null before returning RosterMemberDiscord objects.
+  // These tests verify the raw repository output that the RPC handler consumes.
+  // ---------------------------------------------------------------------------
+
+  it.effect('returns all members for a roster regardless of discord_id presence', () =>
+    Effect.Do.pipe(
+      // User A — has a discord account (discord_id is always set from upsertFromDiscord)
+      Effect.bind('userAId', () => createUser('600000000000000001', 'player-with-discord')),
+      // User B — second member, also has discord (all users have discord_id via upsertFromDiscord)
+      Effect.bind('userBId', () => createUser('600000000000000002', 'player-also-discord')),
+      Effect.bind('team', ({ userAId }) =>
+        createTeam('600606060606060601' as Discord.Snowflake, userAId),
+      ),
+      Effect.bind('memberA', ({ team, userAId }) => addTeamMember(team.id, userAId)),
+      Effect.bind('memberB', ({ team, userBId }) => addTeamMember(team.id, userBId)),
+      Effect.bind('roster', ({ team }) => createRoster(team.id)),
+      // Add both members to the roster
+      Effect.tap(({ roster, memberA }) =>
+        RostersRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.addMemberById(roster.id, memberA.id)),
+        ),
+      ),
+      Effect.tap(({ roster, memberB }) =>
+        RostersRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.addMemberById(roster.id, memberB.id)),
+        ),
+      ),
+      Effect.bind('entries', ({ roster }) =>
+        RostersRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findMemberEntriesById(roster.id)),
+        ),
+      ),
+      Effect.tap(({ entries }) =>
+        Effect.sync(() => {
+          // Both members returned — the RPC handler filters by non-null discord_id
+          expect(entries).toHaveLength(2);
+          const usernames = entries.map((e) => e.username).sort();
+          expect(usernames).toEqual(['player-also-discord', 'player-with-discord']);
+          // All entries have non-null discord_id (set via upsertFromDiscord)
+          for (const entry of entries) {
+            expect(entry.discord_id).toBeDefined();
+            expect(entry.discord_id).not.toBeNull();
+          }
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('returns empty array for unknown roster id', () =>
+    Effect.Do.pipe(
+      Effect.bind('entries', () =>
+        RostersRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            // Use a well-formed but non-existent UUID
+            repo.findMemberEntriesById('00000000-0000-0000-0000-999999999999' as never),
+          ),
+        ),
+      ),
+      Effect.tap(({ entries }) =>
+        Effect.sync(() => {
+          expect(entries).toHaveLength(0);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('returns empty array when roster exists but has no members', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId', () => createUser('700000000000000001', 'team-owner')),
+      Effect.bind('team', ({ userId }) =>
+        createTeam('700606060606060601' as Discord.Snowflake, userId),
+      ),
+      Effect.bind('roster', ({ team }) => createRoster(team.id)),
+      // Don't add any members to the roster
+      Effect.bind('entries', ({ roster }) =>
+        RostersRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.findMemberEntriesById(roster.id)),
+        ),
+      ),
+      Effect.tap(({ entries }) =>
+        Effect.sync(() => {
+          expect(entries).toHaveLength(0);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
 });

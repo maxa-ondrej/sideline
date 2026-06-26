@@ -943,6 +943,60 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
               }),
               Effect.asVoid,
             ),
+          )
+          .handle('syncRoleMembers', ({ params: { teamId, rosterId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.bind('roster', () =>
+                rosters.findRosterById(rosterId).pipe(
+                  Effect.flatMap(
+                    Option.match({
+                      onNone: () => Effect.fail(new Roster.RosterNotFound()),
+                      onSome: Effect.succeed,
+                    }),
+                  ),
+                ),
+              ),
+              Effect.tap(({ roster }) =>
+                roster.team_id !== teamId ? Effect.fail(new Roster.RosterNotFound()) : Effect.void,
+              ),
+              Effect.bind('rosterMembers', () => rosters.findMemberEntriesById(rosterId)),
+              Effect.bind('mapping', () => channelMappings.findByRosterId(teamId, rosterId)),
+              Effect.bind('settings', () => teamSettings.findByTeamId(teamId)),
+              Effect.tap(({ roster, mapping, settings }) => {
+                const { channelName, roleName, discordRoleColor } = deriveChannelNames(
+                  settings,
+                  roster.name,
+                  roster.emoji,
+                  roster.color,
+                );
+                const existingChannelId = Option.flatMap(mapping, (m) => m.discord_channel_id);
+                return channelSync.emitRosterChannelCreated(
+                  teamId,
+                  rosterId,
+                  roster.name,
+                  existingChannelId,
+                  channelName,
+                  roleName,
+                  discordRoleColor,
+                  Option.flatMap(settings, (s) => s.discord_roster_category_id),
+                );
+              }),
+              Effect.map(
+                ({ rosterMembers }) =>
+                  new Roster.SyncRoleMembersResult({
+                    addedCount: rosterMembers.length,
+                    removedCount: 0,
+                    skippedCount: 0,
+                  }),
+              ),
+            ),
           ),
     ),
   ),

@@ -282,6 +282,7 @@ Server-owned vs. bot-owned mapping writes:
 | Bot (`handleCreated` role-only / `handleMemberAdded` lazy role) | `Channel/UpsertMappingRoleOnly` | Sets only `discord_role_id`, leaves channel id untouched. |
 | Server (detach / archive) | `Channel/UpsertGroupChannel` cleared via `clearGroupChannel` repository method | Server clears `discord_channel_id`; the mapping row stays so the role survives. |
 | Bot (`handleDeleted` only) | `Channel/DeleteMapping` | Deletes the entire mapping row. Never call this from `handleArchived` or `handleDetached`. |
+| Bot (`handleRosterChannelCreated`) | `Channel/UpsertRosterMapping` THEN `Channel/UpdateRosterChannel` | Roster-flow parallel of the group family. Upsert both ids after channel + role are created, then link the new channel back onto the roster. Skip `Channel/UpdateRosterChannel` when the channel already existed in the mapping. See rule 8. |
 
 Rules:
 
@@ -298,6 +299,28 @@ Rules:
 5. **`handleArchived`** moves the channel to the archive category if `discord_channel_id = Some`; on failure falls back to deleting only the channel (`Option.none()` for role). It does NOT delete the role, does NOT call `Channel/DeleteMapping` — the server has already cleared `discord_channel_id` via `clearGroupChannel` before emitting.
 6. **`handleDetached`** deletes the role's permission overwrite from the channel when both ids are `Some`; otherwise no-op. It does NOT delete the role, does NOT delete the channel, does NOT call `Channel/DeleteMapping` — the server has already cleared `discord_channel_id`.
 7. **Never re-introduce `ensureMapping`.** The helper was removed; provisioning is split across `createChannelOnly` / `createRoleOnly` / `createRoleForChannel` / `createChannelWithRole`, each with a narrow contract. Splitting prevents racy fat-upserts that would nullify the unrelated column.
+8. **`handleRosterChannelCreated`** (`src/rcp/channel/handleRosterChannelCreated.ts`) is the `roster` `channel_created` handler. It is **`Channel/GetRosterMapping`-first** for idempotency, then backfills the roster's members onto the role. Provision order:
+   - Read the mapping via `Channel/GetRosterMapping({ team_id, roster_id })`, then resolve `roleId`:
+     - mapping has `discord_role_id = Some` → reuse it; do NOT create a role, do NOT upsert (NO-OP on the role axis).
+     - mapping has `discord_channel_id = Some, discord_role_id = None` → `createRoleForChannel` against the existing channel + `Channel/UpsertRosterMapping`; do NOT call `Channel/UpdateRosterChannel` (the channel already exists in the mapping).
+     - mapping `None`, OR mapping with both ids `None` → `provisionChannelAndRole`: when `event.existing_channel_id = Some` call `createRoleForChannel`, otherwise `createDiscordChannelAndRole`; then `Channel/UpsertRosterMapping` + `Channel/UpdateRosterChannel` (link the new channel back onto the roster).
+   - After `roleId` is resolved, read `Channel/GetRosterMembers({ team_id, roster_id })` and backfill each member's role with the per-member backfill loop (see rule 9). Reusing the resolved role on a retried/backfilled event is what makes the handler idempotent. Regression coverage: `applications/bot/test/rcp/channel/handleRosterChannelCreated.test.ts`.
+9. **Per-member role-backfill loop.** When a handler grants a role to many members in one pass (currently only `handleRosterChannelCreated`), use `Effect.forEach(members, ..., { concurrency: 1 })` (serialised to avoid Discord rate-limit storms) where each iteration is:
+   ```ts
+   rest.addGuildMemberRole(guildId, member.discord_user_id, roleId).pipe(
+     // Retry transient failures only; a permanent error exits immediately.
+     Effect.retry({ schedule: retryPolicy, while: (e) => !isPermanentError(e) }),
+     // Isolate each member: one failure must NOT abort the rest of the loop.
+     Effect.exit,
+     Effect.flatMap((exit) =>
+       Exit.match(exit, {
+         onSuccess: () => Effect.void,
+         onFailure: (cause) => Effect.logWarning(`Failed to add role ... ${String(cause)}`),
+       }),
+     ),
+   )
+   ```
+   Rules: (a) use the shared `isPermanentError` (`src/rcp/channel/ProcessorService.ts`) as the negated `while` predicate — never re-classify inline; (b) wrap each iteration in `Effect.exit` + `Exit.match` so a single member's permanent failure is logged-and-skipped, not propagated (one bad member must not fail the whole event and trigger a re-process that re-grants the others); (c) keep `concurrency: 1`. Do NOT use `Effect.catchIf` here — the `Effect.exit` isolation is required because the loop must continue past a permanent failure.
 
 #### Channel Backfill (self-healing role provisioning)
 
