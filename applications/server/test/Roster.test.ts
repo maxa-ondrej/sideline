@@ -1471,9 +1471,8 @@ describe('Rosters API', () => {
 // =============================================================================
 // ROSTER CATEGORY TESTS — updateRoster → emitRosterChannelCreated target_category_id
 //
-// Tests the NEW behavior of PATCH /rosters/:id after the discord_roster_category_id
-// feature is implemented. These tests are expected to FAIL until the server
-// implementation is updated.
+// Tests the behavior of PATCH /rosters/:id with the discord_roster_category_id
+// feature. The server implementation ships with this PR.
 //
 // Scenarios:
 //   R1: reactivation + category → roster_channel_created with target_category_id=Some
@@ -2014,5 +2013,50 @@ describe('updateRoster — discord_roster_category_id feature', () => {
     expect(rcRosterCleanupCalls[0]?.eventType).toBe('channel_deleted');
     // Mapping deleted
     expect(rcMappingDeletedForRoster).toBe(true);
+  });
+
+  /**
+   * R7: reactivation (active false→true) + discordChannelId=Some(Some(chan))
+   *     → emits roster_channel_created with existing_channel_id=Some(chan) and target_category_id=None
+   *     → does NOT auto-create a fresh channel (links the provided one instead)
+   */
+  it('R7: reactivation + discordChannelId=Some(Some(chan)) → roster_channel_created with existing_channel_id=Some(chan) and target_category_id=None', async () => {
+    const LINK_CHANNEL = '999999999999999999' as Discord.Snowflake;
+    const ROSTER_CAT_ID = 'cat123000000000000' as Discord.Snowflake;
+
+    rostersStore.set(TEST_ROSTER_ID, {
+      id: TEST_ROSTER_ID,
+      team_id: TEST_TEAM_ID,
+      name: 'Test Roster',
+      active: false,
+      color: Option.none(),
+      emoji: Option.none(),
+      discord_channel_id: Option.none(),
+      created_at: DateTime.nowUnsafe(),
+    });
+
+    const settings = makeRcSettingsRow({
+      create_discord_channel_on_roster: true,
+      discord_roster_category_id: Option.some(ROSTER_CAT_ID),
+    });
+
+    const { status } = await runRcPatchRoster(
+      makeRcSettingsLayer(Option.some(settings)),
+      makeRcChannelSyncLayer(),
+      makeRcDiscordChannelMappingLayer(Option.none()),
+      { name: null, active: true, color: null, emoji: null, discordChannelId: LINK_CHANNEL },
+    );
+
+    expect(status).toBe(200);
+    // Exactly one roster_channel_created event
+    expect(rcRosterCreatedCalls).toHaveLength(1);
+    const call = rcRosterCreatedCalls[0]!;
+    // existing_channel_id must be Some(LINK_CHANNEL) — linked, not auto-created
+    expect(Option.isSome(call.existingChannelId)).toBe(true);
+    expect((call.existingChannelId as Option.Some<Discord.Snowflake>).value).toBe(LINK_CHANNEL);
+    // target_category_id must be None — ignored when linking an existing channel
+    expect(Option.isNone(call.targetCategoryId)).toBe(true);
+    // No cleanup events
+    expect(rcRosterCleanupCalls).toHaveLength(0);
   });
 });

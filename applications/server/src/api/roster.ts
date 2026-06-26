@@ -473,9 +473,29 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                 const isDeactivated = existing.active === true && updated.active === false;
 
                 if (isReactivated) {
-                  // When the PATCH also sets discordChannelId, the link path below owns the event.
+                  // If the PATCH also links an existing channel, link THAT channel (don't auto-create a fresh one).
+                  const linkedChannel = Option.flatten(payload.discordChannelId);
+                  if (Option.isSome(linkedChannel)) {
+                    const { channelName, roleName, discordRoleColor } = deriveChannelNames(
+                      settings,
+                      updated.name,
+                      updated.emoji,
+                      updated.color,
+                    );
+                    return channelSync.emitRosterChannelCreated(
+                      teamId,
+                      updated.id,
+                      updated.name,
+                      linkedChannel,
+                      channelName,
+                      roleName,
+                      discordRoleColor,
+                      Option.none(),
+                    );
+                  }
+                  // Explicit unlink (Some(None)) during reactivation: nothing to provision.
                   if (Option.isSome(payload.discordChannelId)) return Effect.void;
-
+                  // No channel specified: auto-create a fresh channel in the configured category.
                   const shouldCreate = Option.match(settings, {
                     onNone: () => false,
                     onSome: (s) => s.create_discord_channel_on_roster,

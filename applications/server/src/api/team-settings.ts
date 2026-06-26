@@ -237,10 +237,10 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       onNone: () => s.discord_archive_category_id,
                       onSome: (v) => v,
                     }),
-                    discordRosterCategoryId: Option.match(payload.discordRosterCategoryId, {
-                      onNone: () => s.discord_roster_category_id,
-                      onSome: (v) => v,
-                    }),
+                    discordRosterCategoryId: Option.getOrElse(
+                      payload.discordRosterCategoryId,
+                      () => s.discord_roster_category_id,
+                    ),
                     discordChannelCleanupOnGroupDelete: Option.getOrElse(
                       payload.discordChannelCleanupOnGroupDelete,
                       () => s.discord_channel_cleanup_on_group_delete,

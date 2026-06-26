@@ -16,7 +16,8 @@
 
 import { describe, expect, it } from '@effect/vitest';
 import type { Discord, GroupModel, TeamChannel, TeamMember, User } from '@sideline/domain';
-import { Effect, Layer, Option } from 'effect';
+import { RosterModel } from '@sideline/domain';
+import { Effect, Layer, Option, Schema } from 'effect';
 import { SqlClient } from 'effect/unstable/sql';
 import { beforeEach } from 'vitest';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
@@ -191,6 +192,17 @@ const readAllTargetCategoryIds = SqlClient.SqlClient.asEffect().pipe(
   Effect.map((rows) => rows.map((r) => r.val)),
 );
 
+// Typed roster IDs used across RC tests (no raw casts or `as any`)
+const ROSTER_ID_30 = Schema.decodeSync(RosterModel.RosterId)(
+  '00000000-0000-0000-0000-000000000030',
+);
+const ROSTER_ID_31 = Schema.decodeSync(RosterModel.RosterId)(
+  '00000000-0000-0000-0000-000000000031',
+);
+const ROSTER_ID_32 = Schema.decodeSync(RosterModel.RosterId)(
+  '00000000-0000-0000-0000-000000000032',
+);
+
 describe('ChannelSyncEventsRepository — roster target_category_id round-trip', () => {
   /**
    * RC1: emitRosterChannelCreated with targetCategoryId=Some(cat123)
@@ -205,7 +217,7 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
 
         yield* repo.emitRosterChannelCreated(
           teamId,
-          '00000000-0000-0000-0000-000000000030' as any,
+          ROSTER_ID_30,
           'Test Roster',
           Option.none(),
           '🏐│Test Roster',
@@ -233,7 +245,7 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
 
         yield* repo.emitRosterChannelCreated(
           teamId,
-          '00000000-0000-0000-0000-000000000030' as any,
+          ROSTER_ID_30,
           'Test Roster',
           Option.none(),
           '🏐│Test Roster',
@@ -246,7 +258,10 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
         expect(rows).toHaveLength(1);
 
         // Construct the typed event from the raw EventRow
-        const typedEvent = yield* constructEvent(rows[0]!);
+        const row = rows[0];
+        expect(row).toBeDefined();
+        if (row === undefined) return;
+        const typedEvent = yield* constructEvent(row);
         expect(typedEvent._tag).toBe('roster_channel_created');
 
         if (typedEvent._tag === 'roster_channel_created') {
@@ -271,7 +286,7 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
         // Call without the trailing targetCategoryId argument (default Option.none())
         yield* repo.emitRosterChannelCreated(
           teamId,
-          '00000000-0000-0000-0000-000000000030' as any,
+          ROSTER_ID_30,
           'Test Roster',
           Option.none(),
           '🏐│Test Roster',
@@ -286,7 +301,10 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
 
         const rows = yield* repo.findUnprocessed(10);
         expect(rows).toHaveLength(1);
-        const typedEvent = yield* constructEvent(rows[0]!);
+        const row = rows[0];
+        expect(row).toBeDefined();
+        if (row === undefined) return;
+        const typedEvent = yield* constructEvent(row);
         expect(typedEvent._tag).toBe('roster_channel_created');
         if (typedEvent._tag === 'roster_channel_created') {
           expect(Option.isNone(typedEvent.target_category_id)).toBe(true);
@@ -307,7 +325,7 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
 
         yield* repo.emitRosterChannelCreated(
           teamId,
-          '00000000-0000-0000-0000-000000000031' as any,
+          ROSTER_ID_31,
           'Roster A',
           Option.none(),
           '│Roster A',
@@ -318,7 +336,7 @@ describe('ChannelSyncEventsRepository — roster target_category_id round-trip',
 
         yield* repo.emitRosterChannelCreated(
           teamId,
-          '00000000-0000-0000-0000-000000000032' as any,
+          ROSTER_ID_32,
           'Roster B',
           Option.none(),
           '│Roster B',
