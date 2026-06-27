@@ -23,6 +23,7 @@ import {
   DEFAULT_CHANNEL_FORMAT,
   DEFAULT_ROLE_FORMAT,
 } from '~/utils/applyDiscordFormat.js';
+import { backfillRosterRoleMembers } from '~/utils/backfillRosterRoleMembers.js';
 import { hexColorToDiscordInt } from '~/utils/hexColorToDiscordInt.js';
 
 const toRosterPlayer = (entry: RosterEntry) =>
@@ -995,6 +996,24 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                     removedCount: 0,
                     skippedCount: 0,
                   }),
+              ),
+            ),
+          )
+          // backfillRosterRoles reuses roster:manage — same permission cluster as createRoster,
+          // updateRoster, and syncRoleMembers; backfill is an admin-only bulk operation.
+          .handle('backfillRosterRoles', ({ params: { teamId } }) =>
+            Effect.Do.pipe(
+              Effect.bind('currentUser', () => Auth.CurrentUserContext.asEffect()),
+              Effect.bind('membership', ({ currentUser }) =>
+                requireMembership(members, teamId, currentUser.id, new Roster.Forbidden()),
+              ),
+              Effect.tap(({ membership }) =>
+                requirePermission(membership, 'roster:manage', new Roster.Forbidden()),
+              ),
+              Effect.flatMap(() => backfillRosterRoleMembers(teamId)),
+              Effect.map(
+                ({ processedCount, remainingCount }) =>
+                  new Roster.BackfillRosterRolesResult({ processedCount, remainingCount }),
               ),
             ),
           ),
