@@ -15,10 +15,12 @@ Follow these phases **in order**. Stop and report if any phase fails. Pass `$ARG
 
 Invoke the `/agile-coach` agent via the Agent tool to:
 - Find the active sprint
-- Select the next bug or story (pass `$ARGUMENTS` if the user named one)
+- Select the next **not-started** bug or story (pass `$ARGUMENTS` if the user named one)
 - Update Notion statuses to In Progress
 - **Determine the branch name** it would use (e.g. `feat/...` or `fix/...`)
 - **Report the selected ticket's Notion page ID** (32-hex UUID)
+
+**Skip in-progress tickets.** Unlike `/work`, this skill spins up a *new* dedicated agent in a *new* worktree — an already-in-progress ticket almost always already has a worktree and agent on it. So instruct the agile-coach to **only consider not-started tickets** (bugs still before stories, stories by epic number) and to **skip anything already In Progress**. If the user named a specific ticket via `$ARGUMENTS`, honor that regardless of status. If no not-started ticket remains, the agile-coach should report that and Phase 2/3 are skipped.
 
 **Important:** Instruct the agile-coach to **NOT run any `git checkout`/`git branch` commands** and **NOT touch the main checkout** — the worktree script creates the branch from `origin/main` itself. The agile-coach should only report the branch name (new or, for resumed work, the existing branch) and the ticket's page ID.
 
