@@ -381,10 +381,9 @@ export const summarizeHandler = Interaction.asEffect().pipe(
             const filterCapped =
               Option.isSome(maybeCutoff) && filteredMessages.length > effectiveLimit;
 
-            // Determine participants (distinct authors)
-            const participantsSet = new Set(
-              chronological.map((msg) => msg.author.global_name ?? msg.author.username),
-            );
+            // Determine participants (distinct authors) — dedupe by author.id (unique per user),
+            // not by display name, to avoid under-counting when two users share a display name.
+            const participantsSet = new Set(chronological.map((msg) => msg.author.id));
             const participants = participantsSet.size;
 
             // Build range string

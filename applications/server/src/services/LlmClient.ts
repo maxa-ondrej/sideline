@@ -313,7 +313,7 @@ const OpenAiResponseSchema = Schema.Struct({
 // Real OpenAI-compatible provider
 // ---------------------------------------------------------------------------
 
-const makeReal = (
+export const makeReal = (
   apiUrl: string,
   apiKey: Redacted.Redacted<string>,
   model: string,
@@ -640,7 +640,7 @@ const make: Effect.Effect<LlmClientService> = Effect.Do.pipe(
     }
     if (apiUrl === '' || Option.isNone(apiKeyOpt)) {
       return Effect.logWarning(
-        'LlmClient: no LLM API configured — HTTP errors will fall back to deterministic stub',
+        'LlmClient: no LLM API configured — using deterministic stub provider',
       );
     }
     return Effect.void;
@@ -650,13 +650,13 @@ const make: Effect.Effect<LlmClientService> = Effect.Do.pipe(
       // No HTTP client available — use stub
       return makeStub();
     }
-    // Use real provider with the injected HTTP client.
-    // If apiUrl or apiKey are not configured, requests will fail gracefully (catchTag → fallback).
-    const effectiveApiUrl = apiUrl !== '' ? apiUrl : 'http://localhost';
-    const effectiveKey = Option.isSome(apiKeyOpt)
-      ? apiKeyOpt.value
-      : Redacted.make('no-key-configured');
-    return makeReal(effectiveApiUrl, effectiveKey, model, httpClientOpt.value);
+    if (apiUrl === '' || Option.isNone(apiKeyOpt)) {
+      // HttpClient present but LLM config is missing — use stub to avoid
+      // guaranteed-failing outbound HTTP calls on every invocation.
+      return makeStub();
+    }
+    // Both HttpClient and LLM config are present — use the real provider.
+    return makeReal(apiUrl, apiKeyOpt.value, model, httpClientOpt.value);
   }),
 );
 

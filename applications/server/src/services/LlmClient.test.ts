@@ -49,10 +49,10 @@
 //   provider tests remain valid regardless.
 
 import { it as itEffect } from '@effect/vitest';
-import { Effect, Layer } from 'effect';
+import { Effect, Layer, Redacted } from 'effect';
 import { HttpClient, HttpClientResponse } from 'effect/unstable/http';
 import { afterEach, describe, expect } from 'vitest';
-import { LlmClient } from '~/services/LlmClient.js';
+import { LlmClient, makeReal } from '~/services/LlmClient.js';
 
 // ---------------------------------------------------------------------------
 // Captured HTTP request storage (reset per test)
@@ -112,9 +112,20 @@ const makeMockHttpClientLayer = (responseBody: unknown, status = 200) =>
     }),
   );
 
-/** Build an LlmClient layer backed by a real (mock HTTP) provider. */
+/** Build an LlmClient layer backed by a real (mock HTTP) provider.
+ * Constructs makeReal directly with explicit non-empty config so the test is
+ * decoupled from env-based provider selection (env vars are blank in the test
+ * environment, which now causes make to select makeStub).
+ */
 const makeLlmClientRealWithHttp = (httpLayer: Layer.Layer<HttpClient.HttpClient>) =>
-  LlmClient.Default.pipe(Layer.provide(httpLayer));
+  Layer.effect(
+    LlmClient,
+    HttpClient.HttpClient.asEffect().pipe(
+      Effect.map((client) =>
+        makeReal('https://api.test/v1', Redacted.make('test-key'), 'gpt-4o-mini', client),
+      ),
+    ),
+  ).pipe(Layer.provide(httpLayer));
 
 // ---------------------------------------------------------------------------
 // Summarize channel input helpers
