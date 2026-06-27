@@ -5,6 +5,14 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-26 — Fix: roster reactivation now re-adds members to the Discord role
+
+When a roster was reactivated, the bot re-created its Discord role but never re-added the roster's members — so the role came back empty. This is now fixed: on reactivation (and on any manual sync) the bot backfills all current roster members onto the role automatically.
+
+- A new **Sync with Discord** button on the roster detail page lets captains re-apply the roster role on demand — useful after manually adjusting membership or if the role ever drifts out of sync.
+- The sync is add-only in this release: it adds or heals members, but does not remove former members who still hold the role. Automatic pruning is planned for a follow-up.
+- Requires the **roster:manage** permission (Captain or Admin).
+
 ## 2026-06-26 — Discord category for new roster channels
 
 Captains can now choose which Discord category new roster channels are created in.

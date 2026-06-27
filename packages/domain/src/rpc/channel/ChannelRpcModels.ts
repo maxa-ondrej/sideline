@@ -6,6 +6,7 @@ import {
   GroupModel,
   RosterModel,
   Team,
+  TeamMember,
 } from '~/index.js';
 import { TeamChannelId } from '~/models/TeamChannel.js';
 
@@ -17,6 +18,11 @@ export class ChannelMapping extends Schema.Class<ChannelMapping>('ChannelMapping
   roster_id: Schema.OptionFromNullOr(RosterModel.RosterId),
   discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
   discord_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
+}) {}
+
+export class RosterMemberDiscord extends Schema.Class<RosterMemberDiscord>('RosterMemberDiscord')({
+  team_member_id: TeamMember.TeamMemberId,
+  discord_user_id: Discord.Snowflake,
 }) {}
 
 // Managed channels never carry a per-channel role: access is enforced via Discord permission

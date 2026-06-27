@@ -2,8 +2,9 @@ import type { EventRosterApi, GroupApi, Roster as RosterDomain } from '@sideline
 import { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
 import { Link, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import React from 'react';
+import { toast } from 'sonner';
 
 import { ColorPicker } from '~/components/atoms/ColorPicker.js';
 import { DiscordChannelLink } from '~/components/atoms/DiscordChannelLink.js';
@@ -50,6 +51,7 @@ export function RosterDetailPage({
     Option.getOrUndefined(rosterDetail.color),
   );
   const [saving, setSaving] = React.useState(false);
+  const [syncingRoleMembers, setSyncingRoleMembers] = React.useState(false);
 
   const teamIdBranded = Schema.decodeSync(Team.TeamId)(teamId);
   const rosterIdBranded = Schema.decodeSync(RosterModel.RosterId)(rosterId);
@@ -246,6 +248,32 @@ export function RosterDetailPage({
     }
   }, [teamId, teamIdBranded, rosterIdBranded, run, router]);
 
+  const handleSyncRoleMembers = React.useCallback(async () => {
+    setSyncingRoleMembers(true);
+    try {
+      const result = await ApiClient.asEffect().pipe(
+        Effect.flatMap((api) =>
+          api.roster.syncRoleMembers({
+            params: { teamId: teamIdBranded, rosterId: rosterIdBranded },
+          }),
+        ),
+        Effect.mapError(() => ClientError.make(tr('roster_syncRoleMembersFailed'))),
+        run({}),
+      );
+      if (Option.isSome(result)) {
+        toast.success(
+          tr('roster_syncRoleMembersQueued', {
+            addedCount: result.value.addedCount,
+            removedCount: result.value.removedCount,
+            skippedCount: result.value.skippedCount,
+          }),
+        );
+      }
+    } finally {
+      setSyncingRoleMembers(false);
+    }
+  }, [teamIdBranded, rosterIdBranded, run]);
+
   return (
     <div>
       <header className='mb-8'>
@@ -384,6 +412,30 @@ export function RosterDetailPage({
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && Option.isSome(rosterDetail.discordChannelId) && (
+        <Card className='mb-6 max-w-md'>
+          <CardHeader>
+            <CardTitle className='text-base'>{tr('roster_syncRoleMembers')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className='text-xs text-muted-foreground mb-3'>{tr('roster_syncRoleMembersHelp')}</p>
+            <Button variant='outline' onClick={handleSyncRoleMembers} disabled={syncingRoleMembers}>
+              {syncingRoleMembers ? (
+                <>
+                  <Loader2 className='mr-2 size-4 animate-spin' />
+                  {tr('roster_syncRoleMembers')}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className='mr-2 size-4' />
+                  {tr('roster_syncRoleMembers')}
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
       )}

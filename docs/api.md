@@ -943,6 +943,41 @@ Removes a member from a roster.
 
 ---
 
+#### `POST /teams/:teamId/rosters/:rosterId/sync-role-members`
+
+Triggers a Discord role member sync for a roster. Emits a `roster_channel_created` outbox event; the bot's idempotent handler then ensures a role exists for the roster and adds all current roster members to that Discord role. If a role mapping already exists it is reused rather than recreated.
+
+**Auth:** Bearer token (AuthMiddleware)
+**Required Permission:** `roster:manage`
+
+**Path Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `teamId` | `TeamId` (string) | Team ID |
+| `rosterId` | `RosterId` (string) | Roster ID |
+
+**Request Body:** None
+
+**Response:** `200 OK` — `SyncRoleMembersResult`
+
+| Field | Type | Description |
+|---|---|---|
+| `addedCount` | `number` | Number of members queued to be added to the Discord role (equals the current roster member count) |
+| `removedCount` | `number` | Always `0` in this release — pruning stale role-holders is a planned follow-up |
+| `skippedCount` | `number` | Always `0` in this release |
+
+**Notes:** The sync is asynchronous — the endpoint returns immediately after emitting the outbox event. The bot processes adds with per-member failure isolation: a single failed add is logged as a warning and does not abort the rest of the sync. Permanent Discord errors (403/404) are not retried.
+
+**Errors:**
+
+| Tag | Status | When |
+|---|---|---|
+| `Forbidden` | 403 | Missing `roster:manage` permission or not a member of this team |
+| `RosterNotFound` | 404 | Roster does not exist or belongs to a different team |
+
+---
+
 ### 6. Role
 
 **Source:** `packages/domain/src/api/RoleApi.ts`
@@ -6574,6 +6609,11 @@ Manages Discord channel mappings and channel sync outbox processing. The outbox 
 | `Channel/GetMapping` | `team_id`, `group_id` → `ChannelMapping \| null` | Gets the Discord channel mapping for a group |
 | `Channel/UpsertMapping` | `team_id`, `group_id`, `discord_channel_id`, `discord_role_id` | Creates or updates a channel mapping. If the group had no `discord_role_id` before this call (i.e. `old_role_id` returned by the SQL upsert is `None`), immediately re-applies all stored `team_channel_access` grants for that group on every already-provisioned managed channel (group-axis reconcile). |
 | `Channel/DeleteMapping` | `team_id`, `group_id` | Removes a channel mapping |
+| `Channel/GetRosterMapping` | `team_id`, `roster_id` → `ChannelMapping \| null` | Gets the Discord channel/role mapping for a roster |
+| `Channel/GetRosterMembers` | `team_id`, `roster_id` → `RosterMemberDiscord[]` | Returns all roster members who have a linked Discord account; scoped to `team_id` — an unknown roster or team mismatch returns an empty array |
+| `Channel/UpsertRosterMapping` | `team_id`, `roster_id`, `discord_channel_id`, `discord_role_id` | Creates or updates the Discord channel+role mapping for a roster |
+| `Channel/DeleteRosterMapping` | `team_id`, `roster_id` | Removes the roster channel mapping |
+| `Channel/UpdateRosterChannel` | `roster_id`, `discord_channel_id` | Updates the `discord_channel_id` on the roster's Sideline record |
 | `Channel/GetManagedChannel` | `team_channel_id` → `ManagedChannelMapping \| null` | Returns the `team_id` and current `discord_channel_id` for a managed channel row |
 | `Channel/UpsertManagedChannel` | `team_channel_id`, `discord_channel_id` | Writes the provisioned Discord channel ID to `team_channels`; then replays any access grants that were created before the channel was provisioned |
 | `Channel/ClearManagedChannel` | `team_channel_id` | Clears the `discord_channel_id` column on the managed channel row (called after delete only; **not** called after archive — the link is preserved so that restore can re-activate the same Discord channel without reprovisioning) |

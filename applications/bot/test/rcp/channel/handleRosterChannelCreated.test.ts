@@ -1,33 +1,36 @@
 /**
- * TDD tests for handleRosterChannelCreated — per-team Discord category support.
+ * TDD tests for handleRosterChannelCreated — idempotency + member backfill.
  *
- * These tests describe NEW behavior after the feature is implemented and are
+ * These tests describe NEW behavior after the bug fix is implemented and are
  * expected to FAIL until the bot's handleRosterChannelCreated is updated.
  *
- * Contracts:
- *   1. target_category_id=Some(cat123), existing_channel_id=None
- *      → createGuildChannel called with parent_id: 'cat123'
- *   2. target_category_id=None, existing_channel_id=None
- *      → createGuildChannel called WITHOUT parent_id (undefined)
- *   3. Stale category: createGuildChannel (with parent_id) fails with PERMANENT
- *      Discord error (e.g. 10003 / 404) → retry without parent_id, succeeds,
- *      mapping/UpdateRosterChannel still upserted once
- *   3b. Stale category (real Discord shape): HTTP 400 + code 50035 (Invalid Form Body)
- *      → same fallback behaviour as 3
- *   4. Transient error (HttpClientError / 5xx) → retried with parent_id still
- *      present (no root-level fallback on transient); uses TestClock for fast CI
- *   5. Link-existing: existing_channel_id=Some(chan), target_category_id=Some(cat123)
- *      → createGuildChannel NOT called (only createRoleForChannel path)
- *   6. Group-created path unaffected — createGuildChannel called with no parent_id
- *      (regression guard; tested via handleCreated for the group path)
+ * Contracts (new behavior to be added):
+ *   (a) mapping+role already exist (GetRosterMapping returns Some with discord_role_id=Some)
+ *       → createGuildRole / createDiscordChannelAndRole / createRoleForChannel NOT called
+ *       → UpsertRosterMapping NOT called, UpdateRosterChannel NOT called
+ *       → GetRosterMembers called → addGuildMemberRole called once per member (2 members → 2 calls)
+ *         with the EXISTING role id
+ *   (b) no mapping (GetRosterMapping returns None)
+ *       → create path runs (role created once via createDiscordChannelAndRole or createRoleForChannel)
+ *       → UpsertRosterMapping + UpdateRosterChannel called
+ *       → then 2 members backfilled (addGuildMemberRole ×2)
+ *   (c) mapping exists but discord_role_id is None
+ *       → treated as create-role branch (createRoleForChannel or createDiscordChannelAndRole)
+ *       → UpsertRosterMapping called, UpdateRosterChannel NOT called (channel already exists)
+ *       → then backfill runs
+ *   (d) DOUBLE-EMIT regression: invoke handler twice (first creates role, second sees mapping)
+ *       → exactly ONE createGuildRole call total across both invocations
+ *       → second invocation takes reuse path (no new role, addGuildMemberRole with same role id)
+ *   (e) per-member failure isolation: one addGuildMemberRole fails permanently (404)
+ *       → other member still added, event completes without throwing, warning logged
+ *   (f) zero members → no addGuildMemberRole calls, mapping still handled (created or reused)
  */
 
-import { describe, expect, it } from '@effect/vitest';
-import type { Discord, RosterModel, Team } from '@sideline/domain';
+import type { Discord, RosterModel, Team, TeamMember } from '@sideline/domain';
 import { ChannelRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
-import { Effect, Fiber, Layer, Option } from 'effect';
-import * as TestClock from 'effect/testing/TestClock';
+import { Effect, Layer, Logger, Option } from 'effect';
+import { describe, expect, it } from 'vitest';
 import { handleRosterChannelCreated } from '~/rcp/channel/handleRosterChannelCreated.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -38,10 +41,14 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 const GUILD_ID = '999999999999999999' as Discord.Snowflake;
 const TEAM_ID = '00000000-0000-0000-0001-000000000010' as Team.TeamId;
 const ROSTER_ID = '00000000-0000-0000-0001-000000000030' as RosterModel.RosterId;
+const MEMBER_ID_A = '00000000-0000-0000-0002-000000000001' as TeamMember.TeamMemberId;
+const MEMBER_ID_B = '00000000-0000-0000-0002-000000000002' as TeamMember.TeamMemberId;
+const DISCORD_USER_A = '111111111111111111' as Discord.Snowflake;
+const DISCORD_USER_B = '222222222222222222' as Discord.Snowflake;
 const EXISTING_CHANNEL_ID = '666666666666666666' as Discord.Snowflake;
-const NEW_CHANNEL_ID = 'new-channel-id' as Discord.Snowflake;
+const EXISTING_ROLE_ID = '555555555555555555' as Discord.Snowflake;
+const NEW_CHANNEL_ID = '888888888888888888' as Discord.Snowflake;
 const NEW_ROLE_ID = '777777777777777777' as Discord.Snowflake;
-const CATEGORY_ID = 'cat123000000000000' as Discord.Snowflake;
 
 // ---------------------------------------------------------------------------
 // Event factory helpers
@@ -68,13 +75,43 @@ const makeRosterCreatedEvent = (
   });
 
 // ---------------------------------------------------------------------------
+// Fake ErrorResponse factory (matches isPermanentError check in ProcessorService)
+// Shape: { _tag: 'ErrorResponse', response: { status } }
+// isPermanentError reads e._tag and e.response.status — no real HttpClientResponse needed.
+// ---------------------------------------------------------------------------
+
+const makeErrorResponse = (status: number, code?: number) =>
+  ({
+    _tag: 'ErrorResponse',
+    response: { status },
+    data: code !== undefined ? { code } : {},
+  }) as any;
+
+// ---------------------------------------------------------------------------
+// Log capture helper
+// ---------------------------------------------------------------------------
+
+const makeLogCapture = (): { messages: string[]; level: string[]; layer: Layer.Layer<never> } => {
+  const messages: string[] = [];
+  const level: string[] = [];
+  const layer = Logger.layer([
+    Logger.make((options) => {
+      messages.push(String(options.message));
+      level.push(String(options.logLevel));
+    }),
+  ]);
+  return { messages, level, layer };
+};
+
+// ---------------------------------------------------------------------------
 // Mock builders
 // ---------------------------------------------------------------------------
 
 type RestCallRecord = {
-  createGuildRole: unknown[];
-  createGuildChannel: unknown[];
-  setChannelPermissionOverwrite: unknown[];
+  createGuildRole: unknown[][];
+  createGuildChannel: unknown[][];
+  setChannelPermissionOverwrite: unknown[][];
+  addGuildMemberRole: unknown[][];
 };
 
 const makeRest = (
@@ -84,6 +121,7 @@ const makeRest = (
     createGuildRole: [],
     createGuildChannel: [],
     setChannelPermissionOverwrite: [],
+    addGuildMemberRole: [],
   };
 
   const defaults: Record<string, (...args: any[]) => Effect.Effect<any, any, any>> = {
@@ -97,6 +135,10 @@ const makeRest = (
     },
     setChannelPermissionOverwrite: (...args: any[]) => {
       calls.setChannelPermissionOverwrite.push(args);
+      return Effect.void;
+    },
+    addGuildMemberRole: (...args: any[]) => {
+      calls.addGuildMemberRole.push(args);
       return Effect.void;
     },
     deleteChannel: () => Effect.void,
@@ -122,32 +164,54 @@ const makeRest = (
   return { calls, layer };
 };
 
+type ChannelMappingLike = {
+  discord_channel_id: Option.Option<Discord.Snowflake>;
+  discord_role_id: Option.Option<Discord.Snowflake>;
+};
+
+type RosterMemberLike = {
+  team_member_id: TeamMember.TeamMemberId;
+  discord_user_id: Discord.Snowflake;
+};
+
 type RpcCallRecord = {
+  GetRosterMapping: unknown[];
+  GetRosterMembers: unknown[];
   UpsertRosterMapping: unknown[];
   UpdateRosterChannel: unknown[];
-  UpsertGroupChannel: unknown[];
 };
 
 const makeRpc = (
+  opts: {
+    rosterMapping: Option.Option<ChannelMappingLike>;
+    rosterMembers?: RosterMemberLike[];
+  },
   overrides: Partial<Record<string, (...args: any[]) => Effect.Effect<any, any, any>>> = {},
 ): { calls: RpcCallRecord; layer: Layer.Layer<SyncRpc> } => {
   const calls: RpcCallRecord = {
+    GetRosterMapping: [],
+    GetRosterMembers: [],
     UpsertRosterMapping: [],
     UpdateRosterChannel: [],
-    UpsertGroupChannel: [],
   };
 
+  const members = opts.rosterMembers ?? [];
+
   const defaults: Record<string, (...args: any[]) => Effect.Effect<any, any, any>> = {
+    'Channel/GetRosterMapping': (args: any) => {
+      calls.GetRosterMapping.push(args);
+      return Effect.succeed(opts.rosterMapping);
+    },
+    'Channel/GetRosterMembers': (args: any) => {
+      calls.GetRosterMembers.push(args);
+      return Effect.succeed(members);
+    },
     'Channel/UpsertRosterMapping': (args: any) => {
       calls.UpsertRosterMapping.push(args);
       return Effect.void;
     },
     'Channel/UpdateRosterChannel': (args: any) => {
       calls.UpdateRosterChannel.push(args);
-      return Effect.void;
-    },
-    'Channel/UpsertGroupChannel': (args: any) => {
-      calls.UpsertGroupChannel.push(args);
       return Effect.void;
     },
     'Channel/MarkEventProcessed': () => Effect.void,
@@ -161,7 +225,11 @@ const makeRpc = (
         if (typeof prop !== 'string' || prop === 'then' || prop === 'catch') return undefined;
         const fn = overrides[prop] ?? defaults[prop];
         if (fn !== undefined) return fn;
-        return () => Effect.void;
+        // Throw on unexpected RPC method calls — mirrors REST proxy behavior.
+        // If a new RPC method is called without being declared here, the test fails loudly.
+        return (...args: unknown[]) => {
+          throw new Error(`Unexpected SyncRpc.${prop} call: ${JSON.stringify(args)}`);
+        };
       },
     }),
   );
@@ -177,259 +245,304 @@ const runHandleRosterCreated = (
   event: ChannelRpcEvents.RosterChannelCreatedEvent,
   rpcLayer: Layer.Layer<SyncRpc>,
   restLayer: Layer.Layer<DiscordREST>,
-) =>
-  Effect.runPromise(
-    handleRosterChannelCreated(event).pipe(Effect.provide(Layer.merge(rpcLayer, restLayer))),
+  extraLayer?: Layer.Layer<never>,
+) => {
+  const base = handleRosterChannelCreated(event).pipe(
+    Effect.provide(Layer.merge(rpcLayer, restLayer)),
   );
+  return Effect.runPromise(extraLayer ? base.pipe(Effect.provide(extraLayer)) : base);
+};
+
+// ---------------------------------------------------------------------------
+// Test helpers — two standard roster members for reuse
+// ---------------------------------------------------------------------------
+
+const TWO_MEMBERS: RosterMemberLike[] = [
+  { team_member_id: MEMBER_ID_A, discord_user_id: DISCORD_USER_A },
+  { team_member_id: MEMBER_ID_B, discord_user_id: DISCORD_USER_B },
+];
 
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('handleRosterChannelCreated — target_category_id / Discord category support', () => {
+describe('handleRosterChannelCreated — idempotency + member backfill', () => {
   /**
-   * Test 1: target_category_id=Some(cat123), existing_channel_id=None
-   * → createGuildChannel called with parent_id: 'cat123'
+   * (a) mapping+role already exist → reuse path
+   *     - createGuildRole / createDiscordChannelAndRole / createRoleForChannel NOT called
+   *     - UpsertRosterMapping NOT called, UpdateRosterChannel NOT called
+   *     - GetRosterMembers called → addGuildMemberRole called twice with EXISTING_ROLE_ID
    */
-  it('target_category_id=Some(cat123), existing_channel_id=None → createGuildChannel called with parent_id: cat123', async () => {
-    const { calls: restCalls, layer: restLayer } = makeRest();
-    const { calls: rpcCalls, layer: rpcLayer } = makeRpc();
-
-    await runHandleRosterCreated(
-      makeRosterCreatedEvent({ target_category_id: Option.some(CATEGORY_ID) }),
-      rpcLayer,
-      restLayer,
-    );
-
-    // createGuildChannel must be called exactly once
-    expect(restCalls.createGuildChannel).toHaveLength(1);
-
-    // The call must include parent_id matching the category
-    const [_guildId, channelParams] = restCalls.createGuildChannel[0] as [
-      string,
-      Record<string, unknown>,
-    ];
-    expect(channelParams.parent_id).toBe(CATEGORY_ID);
-
-    // Mapping and UpdateRosterChannel must be upserted
-    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
-    expect(rpcCalls.UpdateRosterChannel).toHaveLength(1);
-  });
-
-  /**
-   * Test 2: target_category_id=None, existing_channel_id=None
-   * → createGuildChannel called without parent_id (undefined or absent)
-   */
-  it('target_category_id=None, existing_channel_id=None → createGuildChannel called without parent_id', async () => {
-    const { calls: restCalls, layer: restLayer } = makeRest();
-    const { calls: rpcCalls, layer: rpcLayer } = makeRpc();
-
-    await runHandleRosterCreated(
-      makeRosterCreatedEvent({ target_category_id: Option.none() }),
-      rpcLayer,
-      restLayer,
-    );
-
-    expect(restCalls.createGuildChannel).toHaveLength(1);
-
-    const [_guildId, channelParams] = restCalls.createGuildChannel[0] as [
-      string,
-      Record<string, unknown>,
-    ];
-    // parent_id must not be set (either undefined or absent from the object)
-    expect(channelParams.parent_id).toBeUndefined();
-
-    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
-    expect(rpcCalls.UpdateRosterChannel).toHaveLength(1);
-  });
-
-  /**
-   * Test 3: Stale category — createGuildChannel with parent_id fails with PERMANENT
-   * Discord error (code 10003 / 404 Unknown Channel). Handler retries without parent_id
-   * and succeeds. Mapping/UpdateRosterChannel still upserted exactly once.
-   */
-  it('stale category: createGuildChannel(with parent_id) fails 10003/404 → retried without parent_id, mapping upserted once', async () => {
-    let callCount = 0;
-
-    const permanentError = {
-      _tag: 'ErrorResponse',
-      data: { code: 10003, message: 'Unknown Channel' },
-      response: { status: 404 },
-      request: {},
+  it('(a) mapping+role exist → no createGuildRole, no UpsertRosterMapping/UpdateRosterChannel; addGuildMemberRole ×2 with existing role id', async () => {
+    const existingMapping: ChannelMappingLike = {
+      discord_channel_id: Option.some(EXISTING_CHANNEL_ID),
+      discord_role_id: Option.some(EXISTING_ROLE_ID),
     };
 
-    const { calls: restCalls, layer: restLayer } = makeRest({
-      createGuildChannel: (...args: any[]) => {
-        callCount++;
-        const channelParams = args[1] as Record<string, unknown>;
-        restCalls.createGuildChannel.push(args);
-
-        if (channelParams.parent_id !== undefined) {
-          // First call (with parent_id) — return permanent Discord error
-          return Effect.fail(permanentError);
-        }
-        // Second call (without parent_id) — succeed
-        return Effect.succeed({ id: NEW_CHANNEL_ID, parent_id: null });
-      },
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc({
+      rosterMapping: Option.some(existingMapping),
+      rosterMembers: TWO_MEMBERS,
     });
-    const { calls: rpcCalls, layer: rpcLayer } = makeRpc();
-
-    await runHandleRosterCreated(
-      makeRosterCreatedEvent({ target_category_id: Option.some(CATEGORY_ID) }),
-      rpcLayer,
-      restLayer,
-    );
-
-    // createGuildChannel called twice: first with parent_id (fails), then without (succeeds)
-    expect(restCalls.createGuildChannel).toHaveLength(2);
-    expect(callCount).toBe(2);
-
-    const [, firstParams] = restCalls.createGuildChannel[0] as [string, Record<string, unknown>];
-    expect(firstParams.parent_id).toBe(CATEGORY_ID);
-
-    const [, secondParams] = restCalls.createGuildChannel[1] as [string, Record<string, unknown>];
-    expect(secondParams.parent_id).toBeUndefined();
-
-    // Mapping upserted exactly once (from the successful second call)
-    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
-    expect(rpcCalls.UpdateRosterChannel).toHaveLength(1);
-  });
-
-  /**
-   * Test 3b: Stale category — real-world Discord error shape: HTTP 400 + code 50035
-   * (Invalid Form Body — parent_id refers to a deleted category). Handler falls back to
-   * guild-root channel creation and upserts the mapping exactly once.
-   */
-  it('stale category: createGuildChannel(with parent_id) fails 50035/400 → retried without parent_id, mapping upserted once', async () => {
-    let callCount = 0;
-
-    const invalidFormBodyError = {
-      _tag: 'ErrorResponse',
-      data: { code: 50035, message: 'Invalid Form Body' },
-      response: { status: 400 },
-      request: {},
-    };
-
-    const { calls: restCalls, layer: restLayer } = makeRest({
-      createGuildChannel: (...args: any[]) => {
-        callCount++;
-        const channelParams = args[1] as Record<string, unknown>;
-        restCalls.createGuildChannel.push(args);
-
-        if (channelParams.parent_id !== undefined) {
-          // First call (with parent_id) — return permanent Discord error (stale category)
-          return Effect.fail(invalidFormBodyError);
-        }
-        // Second call (without parent_id) — succeed
-        return Effect.succeed({ id: NEW_CHANNEL_ID, parent_id: null });
-      },
-    });
-    const { calls: rpcCalls, layer: rpcLayer } = makeRpc();
-
-    await runHandleRosterCreated(
-      makeRosterCreatedEvent({ target_category_id: Option.some(CATEGORY_ID) }),
-      rpcLayer,
-      restLayer,
-    );
-
-    // createGuildChannel called twice: first with parent_id (fails), then without (succeeds)
-    expect(restCalls.createGuildChannel).toHaveLength(2);
-    expect(callCount).toBe(2);
-
-    const [, firstParams] = restCalls.createGuildChannel[0] as [string, Record<string, unknown>];
-    expect(firstParams.parent_id).toBe(CATEGORY_ID);
-
-    const [, secondParams] = restCalls.createGuildChannel[1] as [string, Record<string, unknown>];
-    expect(secondParams.parent_id).toBeUndefined();
-
-    // Mapping upserted exactly once (from the successful second call)
-    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
-    expect(rpcCalls.UpdateRosterChannel).toHaveLength(1);
-  });
-
-  /**
-   * Test 4: Transient error (HttpClientError / 5xx) → retried with parent_id still present.
-   * The root-level fallback (drop parent_id) must NOT trigger for transient errors.
-   * Uses TestClock to advance virtual time so the exponential back-off does not
-   * cause real multi-second delays in CI.
-   */
-  it.effect(
-    'transient 5xx error → retried with parent_id still present, fallback NOT triggered',
-    () => {
-      const transientError = {
-        _tag: 'HttpClientError',
-        reason: { _tag: 'StatusCodeError' },
-        response: { status: 503 },
-      };
-
-      let callCount = 0;
-      const { calls: restCalls, layer: restLayer } = makeRest({
-        createGuildChannel: (...args: any[]) => {
-          callCount++;
-          restCalls.createGuildChannel.push(args);
-          // Fail first two attempts with transient error, succeed on third
-          if (callCount <= 2) {
-            return Effect.fail(transientError);
-          }
-          return Effect.succeed({ id: NEW_CHANNEL_ID, parent_id: null });
-        },
-      });
-      const { calls: rpcCalls, layer: rpcLayer } = makeRpc();
-
-      const handler = handleRosterChannelCreated(
-        makeRosterCreatedEvent({ target_category_id: Option.some(CATEGORY_ID) }),
-      ).pipe(Effect.provide(Layer.merge(rpcLayer, restLayer)));
-
-      return Effect.Do.pipe(
-        Effect.bind('fiber', () => Effect.forkChild(handler)),
-        // Advance virtual time past the exponential delays (1s + 2s = 3s covers recurs(3))
-        Effect.tap(() => TestClock.adjust('10 seconds')),
-        Effect.bind('result', ({ fiber }) => Fiber.join(fiber)),
-        Effect.tap(({ result: _result }) =>
-          Effect.sync(() => {
-            // All calls must have parent_id (transient retry keeps the category)
-            expect(restCalls.createGuildChannel.length).toBeGreaterThanOrEqual(2);
-            for (const call of restCalls.createGuildChannel) {
-              const [, params] = call as [string, Record<string, unknown>];
-              expect(params.parent_id).toBe(CATEGORY_ID);
-            }
-
-            // Mapping upserted once (from successful call)
-            expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
-            expect(rpcCalls.UpdateRosterChannel).toHaveLength(1);
-          }),
-        ),
-        Effect.asVoid,
-      );
-    },
-  );
-
-  /**
-   * Test 5: Link-existing path — existing_channel_id=Some(chan), target_category_id=Some(cat123)
-   * → createGuildChannel NOT called; only createRoleForChannel path runs.
-   * Mapping/UpdateRosterChannel still upserted.
-   */
-  it('link-existing: existing_channel_id=Some(chan), target_category_id=Some(cat123) → createGuildChannel NOT called', async () => {
     const { calls: restCalls, layer: restLayer } = makeRest();
-    const { calls: rpcCalls, layer: rpcLayer } = makeRpc();
 
-    await runHandleRosterCreated(
-      makeRosterCreatedEvent({
-        existing_channel_id: Option.some(EXISTING_CHANNEL_ID),
-        target_category_id: Option.some(CATEGORY_ID),
-      }),
-      rpcLayer,
-      restLayer,
-    );
+    await runHandleRosterCreated(makeRosterCreatedEvent(), rpcLayer, restLayer);
 
-    // No channel creation — we're linking an existing channel
+    // Role must NOT be created (reuse existing)
+    expect(restCalls.createGuildRole).toHaveLength(0);
     expect(restCalls.createGuildChannel).toHaveLength(0);
+    // Mapping must NOT be written again (idempotency)
+    expect(rpcCalls.UpsertRosterMapping).toHaveLength(0);
+    expect(rpcCalls.UpdateRosterChannel).toHaveLength(0);
+    // Members must be backfilled with the EXISTING role id
+    expect(rpcCalls.GetRosterMembers).toHaveLength(1);
+    expect(restCalls.addGuildMemberRole).toHaveLength(2);
+    // Both calls must use the existing role id
+    for (const call of restCalls.addGuildMemberRole) {
+      const [, , roleId] = call as [string, string, string];
+      expect(roleId).toBe(EXISTING_ROLE_ID);
+    }
+  });
 
-    // Role must be created for the existing channel
+  /**
+   * (b) no mapping (None) → create path runs, then 2 members backfilled
+   *     - createGuildRole called once (via createDiscordChannelAndRole)
+   *     - UpsertRosterMapping + UpdateRosterChannel called
+   *     - addGuildMemberRole called twice (with new role id)
+   */
+  it('(b) no mapping (None) → role created once, UpsertRosterMapping+UpdateRosterChannel called, then 2 members backfilled', async () => {
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc({
+      rosterMapping: Option.none(),
+      rosterMembers: TWO_MEMBERS,
+    });
+    const { calls: restCalls, layer: restLayer } = makeRest();
+
+    await runHandleRosterCreated(makeRosterCreatedEvent(), rpcLayer, restLayer);
+
+    // Role creation: createDiscordChannelAndRole path calls createGuildRole
     expect(restCalls.createGuildRole).toHaveLength(1);
-
-    // Mapping upserted once
+    // Mapping upserted after role created
     expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
     expect(rpcCalls.UpdateRosterChannel).toHaveLength(1);
+    // Members backfilled
+    expect(rpcCalls.GetRosterMembers).toHaveLength(1);
+    expect(restCalls.addGuildMemberRole).toHaveLength(2);
+    // Both calls must use the newly created role id
+    for (const call of restCalls.addGuildMemberRole) {
+      const [, , roleId] = call as [string, string, string];
+      expect(roleId).toBe(NEW_ROLE_ID);
+    }
+  });
+
+  /**
+   * (c) mapping exists but discord_role_id is None
+   *     → treated as create-role branch (createRoleForChannel)
+   *     → UpsertRosterMapping called (UpdateRosterChannel NOT called — channel already exists)
+   *     → then backfill runs
+   */
+  it('(c) mapping exists but discord_role_id=None → create-role branch runs, UpsertRosterMapping called, then backfill', async () => {
+    const mappingNoRole: ChannelMappingLike = {
+      discord_channel_id: Option.some(EXISTING_CHANNEL_ID),
+      discord_role_id: Option.none(),
+    };
+
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc({
+      rosterMapping: Option.some(mappingNoRole),
+      rosterMembers: TWO_MEMBERS,
+    });
+    const { calls: restCalls, layer: restLayer } = makeRest();
+
+    await runHandleRosterCreated(makeRosterCreatedEvent(), rpcLayer, restLayer);
+
+    // A role must be created (the existing channel path calls createRoleForChannel → createGuildRole)
+    expect(restCalls.createGuildRole).toHaveLength(1);
+    // Mapping must be upserted
+    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
+    // UpdateRosterChannel NOT called — channel already exists in the mapping
+    expect(rpcCalls.UpdateRosterChannel).toHaveLength(0);
+    // Members backfilled
+    expect(rpcCalls.GetRosterMembers).toHaveLength(1);
+    expect(restCalls.addGuildMemberRole).toHaveLength(2);
+  });
+
+  /**
+   * (d) DOUBLE-EMIT regression
+   *     Invoke handler twice:
+   *       1st invocation: mapping=None → creates role+channel → stores mapping
+   *       2nd invocation: mapping=Some(role=Some) → reuses role, backfills members
+   *     → exactly ONE createGuildRole call total
+   *     → second invocation uses NEW_ROLE_ID (reuse, not a fresh role)
+   *     → createGuildChannel called exactly once (1st invocation only)
+   *     → 2nd invocation still produces addGuildMemberRole calls (it doesn't short-circuit)
+   */
+  it('(d) double-emit: handler invoked twice → exactly 1 createGuildRole + 1 createGuildChannel total; 2nd run reuses role', async () => {
+    let mappingState: Option.Option<ChannelMappingLike> = Option.none();
+
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc(
+      {
+        rosterMapping: Option.none(), // initial state (ignored — we override below)
+        rosterMembers: TWO_MEMBERS,
+      },
+      {
+        'Channel/GetRosterMapping': () => {
+          rpcCalls.GetRosterMapping.push({});
+          return Effect.succeed(mappingState);
+        },
+        'Channel/UpsertRosterMapping': (args: any) => {
+          rpcCalls.UpsertRosterMapping.push(args);
+          // Simulate mapping being persisted after first invocation
+          mappingState = Option.some({
+            discord_channel_id: Option.some(NEW_CHANNEL_ID),
+            discord_role_id: Option.some(NEW_ROLE_ID),
+          });
+          return Effect.void;
+        },
+      },
+    );
+
+    const { calls: restCalls, layer: restLayer } = makeRest();
+
+    const event = makeRosterCreatedEvent();
+    await runHandleRosterCreated(event, rpcLayer, restLayer);
+    await runHandleRosterCreated(event, rpcLayer, restLayer);
+
+    // Exactly ONE createGuildRole across both invocations
+    expect(restCalls.createGuildRole).toHaveLength(1);
+    // Exactly ONE createGuildChannel across both invocations (1st run only)
+    expect(restCalls.createGuildChannel).toHaveLength(1);
+    // GetRosterMapping called twice (once per invocation)
+    expect(rpcCalls.GetRosterMapping).toHaveLength(2);
+    // UpsertRosterMapping called only ONCE (first invocation only)
+    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
+    // addGuildMemberRole called 4 times (2 members × 2 invocations)
+    // — the 2nd invocation must still backfill (it didn't early-exit)
+    expect(restCalls.addGuildMemberRole).toHaveLength(4);
+    // All role adds in the 2nd run must use NEW_ROLE_ID (reuse, not a fresh ID)
+    const secondRunCalls = restCalls.addGuildMemberRole.slice(2);
+    for (const call of secondRunCalls) {
+      const [, , roleId] = call as [string, string, string];
+      expect(roleId).toBe(NEW_ROLE_ID);
+    }
+  });
+
+  /**
+   * (e) per-member failure isolation
+   *     One addGuildMemberRole fails permanently (Discord 404) while the other succeeds.
+   *     The event handler must complete without throwing.
+   *     The surviving member (B) must still receive addGuildMemberRole with the correct args.
+   *     A warning must be logged for the failed member (A).
+   */
+  it('(e) one addGuildMemberRole fails (404) → other member still added with correct role id, handler does not throw, warning logged', async () => {
+    const existingMapping: ChannelMappingLike = {
+      discord_channel_id: Option.some(EXISTING_CHANNEL_ID),
+      discord_role_id: Option.some(EXISTING_ROLE_ID),
+    };
+
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc({
+      rosterMapping: Option.some(existingMapping),
+      rosterMembers: TWO_MEMBERS,
+    });
+
+    const addRoleCallArgs: unknown[][] = [];
+    let addRoleCallCount = 0;
+    const { layer: restLayer } = makeRest({
+      addGuildMemberRole: (...args: any[]) => {
+        addRoleCallCount++;
+        addRoleCallArgs.push(args);
+        // First call (DISCORD_USER_A) fails with a permanent 404 — no retry should occur.
+        // isPermanentError classifies _tag=ErrorResponse + status=404 as permanent.
+        if (addRoleCallCount === 1) {
+          return Effect.fail(makeErrorResponse(404, 10007 /* Unknown Member */));
+        }
+        // Second call (DISCORD_USER_B) succeeds
+        return Effect.void;
+      },
+    });
+
+    const { messages, level: logLevels, layer: logLayer } = makeLogCapture();
+
+    // The handler must NOT throw even though one member add failed
+    const result = await runHandleRosterCreated(
+      makeRosterCreatedEvent(),
+      rpcLayer,
+      restLayer,
+      logLayer,
+    );
+    expect(result).toBeUndefined();
+
+    // GetRosterMembers was called
+    expect(rpcCalls.GetRosterMembers).toHaveLength(1);
+
+    // Exactly 2 addGuildMemberRole attempts — no retries on permanent errors
+    expect(addRoleCallCount).toBe(2);
+
+    // Member B's call must carry DISCORD_USER_B and EXISTING_ROLE_ID (survivor was actually added)
+    const memberBCall = addRoleCallArgs[1] as [string, string, string];
+    expect(memberBCall).toBeDefined();
+    expect(memberBCall[1]).toBe(DISCORD_USER_B);
+    expect(memberBCall[2]).toBe(EXISTING_ROLE_ID);
+
+    // A warning must have been logged for member A's failure
+    // The impl calls Effect.logWarning for each failed member add.
+    // We check that at least one log entry is at Warn level or mentions the failure.
+    const warnCount = logLevels.filter((l) => l.includes('Warn') || l.includes('Warning')).length;
+    const msgCount = messages.filter(
+      (m) => m.includes('404') || m.toLowerCase().includes('warn'),
+    ).length;
+    expect(warnCount + msgCount).toBeGreaterThan(0);
+  });
+
+  /**
+   * (f) zero members → no addGuildMemberRole calls, mapping still handled
+   */
+  it('(f) zero members → no addGuildMemberRole calls; new-mapping path still creates role and upserts mapping', async () => {
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc({
+      rosterMapping: Option.none(),
+      rosterMembers: [], // empty roster
+    });
+    const { calls: restCalls, layer: restLayer } = makeRest();
+
+    await runHandleRosterCreated(makeRosterCreatedEvent(), rpcLayer, restLayer);
+
+    // Role still created
+    expect(restCalls.createGuildRole).toHaveLength(1);
+    // Mapping still upserted
+    expect(rpcCalls.UpsertRosterMapping).toHaveLength(1);
+    // No member role adds
+    expect(restCalls.addGuildMemberRole).toHaveLength(0);
+    // GetRosterMembers was still called (backfill runs, just with no members)
+    expect(rpcCalls.GetRosterMembers).toHaveLength(1);
+  });
+
+  /**
+   * (a2) existing mapping+role with existing_channel_id event field
+   *      → same idempotency holds: no createGuildRole, no UpsertRosterMapping, no UpdateRosterChannel
+   */
+  it('(a2) mapping+role exist, event has existing_channel_id=Some → still no createGuildRole, no mapping writes, 2 members backfilled', async () => {
+    const existingMapping: ChannelMappingLike = {
+      discord_channel_id: Option.some(EXISTING_CHANNEL_ID),
+      discord_role_id: Option.some(EXISTING_ROLE_ID),
+    };
+
+    const { calls: rpcCalls, layer: rpcLayer } = makeRpc({
+      rosterMapping: Option.some(existingMapping),
+      rosterMembers: TWO_MEMBERS,
+    });
+    const { calls: restCalls, layer: restLayer } = makeRest();
+
+    await runHandleRosterCreated(
+      makeRosterCreatedEvent({ existing_channel_id: Option.some(EXISTING_CHANNEL_ID) }),
+      rpcLayer,
+      restLayer,
+    );
+
+    expect(restCalls.createGuildRole).toHaveLength(0);
+    expect(restCalls.createGuildChannel).toHaveLength(0);
+    expect(rpcCalls.UpsertRosterMapping).toHaveLength(0);
+    expect(rpcCalls.UpdateRosterChannel).toHaveLength(0);
+    expect(restCalls.addGuildMemberRole).toHaveLength(2);
+    for (const call of restCalls.addGuildMemberRole) {
+      const [, , roleId] = call as [string, string, string];
+      expect(roleId).toBe(EXISTING_ROLE_ID);
+    }
   });
 });

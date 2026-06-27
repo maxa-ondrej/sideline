@@ -291,6 +291,43 @@ export const ChannelsRpcLive = Effect.Do.pipe(
         mappings.findByRosterId(team_id, roster_id).pipe(Effect.map(Option.map(toChannelMapping))),
   ),
   Effect.let(
+    'Channel/GetRosterMembers',
+    () =>
+      ({
+        team_id,
+        roster_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly roster_id: RosterModel.RosterId;
+      }) =>
+        RostersRepository.asEffect().pipe(
+          Effect.flatMap((rosters) =>
+            rosters.findRosterById(roster_id).pipe(
+              Effect.flatMap(
+                // Scope to the requesting team: a roster from another team yields no members.
+                Option.match({
+                  onNone: () => Effect.succeed(Array.empty<ChannelRpcModels.RosterMemberDiscord>()),
+                  onSome: (roster) =>
+                    roster.team_id !== team_id
+                      ? Effect.succeed(Array.empty<ChannelRpcModels.RosterMemberDiscord>())
+                      : rosters.findMemberEntriesById(roster_id).pipe(
+                          Effect.map(
+                            Array.map(
+                              (entry) =>
+                                new ChannelRpcModels.RosterMemberDiscord({
+                                  team_member_id: entry.member_id,
+                                  discord_user_id: entry.discord_id,
+                                }),
+                            ),
+                          ),
+                        ),
+                }),
+              ),
+            ),
+          ),
+        ),
+  ),
+  Effect.let(
     'Channel/UpsertRosterMapping',
     ({ mappings }) =>
       ({

@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/unstable/httpapi';
 import { AuthMiddleware } from '~/api/Auth.js';
-import { HexColor } from '~/api/GroupApi.js';
+import { HexColor, SyncRoleMembersResult } from '~/api/GroupApi.js';
 import { Snowflake } from '~/models/Discord.js';
 import { Permission } from '~/models/Role.js';
 import { RosterId } from '~/models/RosterModel.js';
@@ -9,7 +9,7 @@ import { TeamId } from '~/models/Team.js';
 import { TeamMemberId } from '~/models/TeamMember.js';
 import { Gender, UserId } from '~/models/User.js';
 
-export { HexColor };
+export { HexColor, SyncRoleMembersResult };
 
 export class RosterPlayer extends Schema.Class<RosterPlayer>('RosterPlayer')({
   memberId: TeamMemberId,
@@ -223,6 +223,16 @@ export class RosterApiGroup extends HttpApiGroup.make('roster')
   .add(
     HttpApiEndpoint.post('createChannel', '/teams/:teamId/rosters/:rosterId/channel', {
       success: Schema.Void.pipe(HttpApiSchema.status(204)),
+      error: [
+        Forbidden.pipe(HttpApiSchema.status(403)),
+        RosterNotFound.pipe(HttpApiSchema.status(404)),
+      ],
+      params: { teamId: TeamId, rosterId: RosterId },
+    }).middleware(AuthMiddleware),
+  )
+  .add(
+    HttpApiEndpoint.post('syncRoleMembers', '/teams/:teamId/rosters/:rosterId/sync-role-members', {
+      success: SyncRoleMembersResult,
       error: [
         Forbidden.pipe(HttpApiSchema.status(403)),
         RosterNotFound.pipe(HttpApiSchema.status(404)),
