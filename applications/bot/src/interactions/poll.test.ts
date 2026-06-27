@@ -421,6 +421,20 @@ describe('poll-vote button interaction', () => {
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 
+  it('RpcClientError from CastVote → resolves deferred reply with generic error (no forever-loading spinner)', async () => {
+    const rpcStub = makeSyncRpcStub({
+      // Simulate a bot↔server RPC transport failure. catchTag matches on `_tag`.
+      'Poll/CastVote': vi.fn(() => Effect.fail({ _tag: 'RpcClientError' } as never)),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-vote:${POLL_ID}:${OPTION_ID_A}`);
+    await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, interaction);
+
+    // The deferred ephemeral must be resolved (spinner cleared) rather than left hanging.
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+  });
+
   it('PollClosed from CastVote → ephemeral bot_poll_closed_notice (not an error, friendly message)', async () => {
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() => Effect.fail(new PollRpcModels.PollClosed())),

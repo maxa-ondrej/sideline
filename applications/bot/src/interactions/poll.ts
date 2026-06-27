@@ -269,6 +269,20 @@ export const PollVoteButton = Effect.Do.pipe(
           'Failed to update poll guild-not-found response',
         ),
       ),
+      // RPC transport failure (e.g. server unreachable): resolve the deferred reply with a
+      // generic error instead of leaving the ephemeral spinner loading forever.
+      Effect.catchTag('RpcClientError', (e) =>
+        Effect.logError('Poll vote RPC failed', e).pipe(
+          Effect.flatMap(() =>
+            replyWebhook(
+              rest,
+              interaction,
+              { content: m.bot_poll_err_generic({}, { locale }) },
+              'Failed to update poll vote RPC-error response',
+            ),
+          ),
+        ),
+      ),
     );
 
     return Effect.as(Effect.forkDetach(voteAndFollowUp), ephemeralDeferred);
@@ -526,6 +540,20 @@ export const PollAddModalSubmit = Effect.Do.pipe(
           'Failed to update poll guild-not-found response',
         ),
       ),
+      // RPC transport failure: resolve the deferred reply with a generic error instead of
+      // leaving the ephemeral spinner loading forever.
+      Effect.catchTag('RpcClientError', (e) =>
+        Effect.logError('Poll add-option RPC failed', e).pipe(
+          Effect.flatMap(() =>
+            replyWebhook(
+              rest,
+              interaction,
+              { content: m.bot_poll_err_generic({}, { locale }) },
+              'Failed to update poll add-option RPC-error response',
+            ),
+          ),
+        ),
+      ),
     );
 
     return Effect.as(Effect.forkDetach(addAndFollowUp), ephemeralDeferred);
@@ -642,6 +670,20 @@ export const PollCloseButton = Effect.Do.pipe(
           interaction,
           { content: m.bot_poll_err_no_guild({}, { locale }) },
           'Failed to update poll close guild-not-found response',
+        ),
+      ),
+      // RPC transport failure: resolve the deferred reply with a generic error instead of
+      // leaving the ephemeral spinner loading forever.
+      Effect.catchTag('RpcClientError', (e) =>
+        Effect.logError('Poll close RPC failed', e).pipe(
+          Effect.flatMap(() =>
+            replyWebhook(
+              rest,
+              interaction,
+              { content: m.bot_poll_err_generic({}, { locale }) },
+              'Failed to update poll close RPC-error response',
+            ),
+          ),
         ),
       ),
     );

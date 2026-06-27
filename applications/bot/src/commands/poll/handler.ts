@@ -245,17 +245,19 @@ export const pollHandler = Interaction.asEffect().pipe(
               'Failed to update poll deadline-past response',
             ),
           ),
-          Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
-            Effect.logError('Failed to create poll message', error).pipe(
-              Effect.flatMap(() =>
-                replyContent(
-                  rest,
-                  interaction,
-                  m.bot_poll_err_generic({}, { locale }),
-                  'Failed to update poll error response',
+          Effect.catchTag(
+            ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse', 'RpcClientError'],
+            (error) =>
+              Effect.logError('Failed to create poll message', error).pipe(
+                Effect.flatMap(() =>
+                  replyContent(
+                    rest,
+                    interaction,
+                    m.bot_poll_err_generic({}, { locale }),
+                    'Failed to update poll error response',
+                  ),
                 ),
               ),
-            ),
           ),
         ),
       ),
