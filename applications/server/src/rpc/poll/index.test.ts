@@ -192,7 +192,8 @@ const MockPollsRepository = Layer.succeed(PollsRepository, {
     createPollCalls.push(input);
     return Effect.succeed(makePollView());
   },
-  saveMessageId: (_pollId: Poll.PollId, _messageId: Discord.Snowflake) => Effect.void,
+  saveMessageId: (_pollId: Poll.PollId, _messageId: Discord.Snowflake, _teamId: Team.TeamId) =>
+    Effect.void,
   findPollView: (
     pollId: Poll.PollId,
     _viewer: Option.Option<TeamMember.TeamMemberId>,
@@ -524,7 +525,8 @@ describe('Poll/CreatePoll RPC — deadline validation', () => {
   itEffect.effect('deadline in the past → PollDeadlineInPast (repo raises it)', () => {
     const MockPollsRepoWithPastDeadline = Layer.succeed(PollsRepository, {
       createPoll: (_input: unknown) => Effect.fail(new PollRpcModels.PollDeadlineInPast()),
-      saveMessageId: () => Effect.void,
+      saveMessageId: (_pollId: Poll.PollId, _messageId: Discord.Snowflake, _teamId: Team.TeamId) =>
+        Effect.void,
       findPollView: () => Effect.succeed(Option.none()),
       castVote: () => Effect.die(new Error('Not used')),
       addOption: () => Effect.die(new Error('Not used')),

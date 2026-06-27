@@ -8,6 +8,7 @@ import { Effect, Metric, Option, Schema } from 'effect';
 import { guildLocale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildPollEmbed } from '~/rest/poll/buildPollEmbed.js';
+import { retryPolicy } from '~/rest/utils.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -26,18 +27,28 @@ const logRestErrors =
       ),
     );
 
-/** Update the deferred webhook reply with a plain content message, swallowing REST failures. */
+/** Update the deferred webhook reply with a plain content message, swallowing REST failures.
+ *
+ * Effect.suspend is required so that Effect.retry re-invokes the REST call rather than
+ * replaying the same frozen value (Effect v4 semantics).
+ * Permanent errors (ErrorResponse) are short-circuited before retries so only
+ * transient HTTP/rate-limit failures are retried.
+ */
 const replyContent = (
   rest: DiscordRestService,
   interaction: DiscordTypes.APIInteraction,
   content: string,
   context: string,
 ) =>
-  rest
-    .updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+  Effect.suspend(() =>
+    rest.updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
       payload: { content },
-    })
-    .pipe(logRestErrors(context));
+    }),
+  ).pipe(
+    Effect.catchTag('ErrorResponse', (e) => Effect.fail(e)),
+    Effect.retry(retryPolicy),
+    logRestErrors(context),
+  );
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -133,20 +144,26 @@ export const pollHandler = Interaction.asEffect().pipe(
         }).pipe(
           Effect.flatMap((view) => {
             const { embeds, components } = buildPollEmbed(view, embedLocale);
-            return rest
-              .createMessage(decodeSnowflake(channelId), {
+            // Effect.suspend ensures Effect.retry re-invokes createMessage rather than
+            // replaying a frozen Effect value (required in Effect v4).
+            // ErrorResponse is short-circuited before retries (permanent Discord error).
+            return Effect.suspend(() =>
+              rest.createMessage(decodeSnowflake(channelId), {
                 embeds,
                 components,
                 allowed_mentions: { parse: [] },
-              })
-              .pipe(
-                Effect.flatMap((msg) =>
-                  rpc['Poll/SavePollMessageId']({
-                    poll_id: view.poll_id,
-                    discord_message_id: decodeSnowflake(msg.id),
-                  }),
-                ),
-              );
+              }),
+            ).pipe(
+              Effect.catchTag('ErrorResponse', (e) => Effect.fail(e)),
+              Effect.retry(retryPolicy),
+              Effect.flatMap((msg) =>
+                rpc['Poll/SavePollMessageId']({
+                  guild_id: decodeSnowflake(guildId),
+                  poll_id: view.poll_id,
+                  discord_message_id: decodeSnowflake(msg.id),
+                }),
+              ),
+            );
           }),
           Effect.flatMap(() =>
             replyContent(

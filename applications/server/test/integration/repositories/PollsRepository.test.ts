@@ -692,6 +692,45 @@ describe('PollsRepository — addOption', () => {
     }).pipe(Effect.provide(TestLayer)),
   );
 
+  it.effect('addOption gate — isManagerOrCreator=true bypasses allowed_role_id restriction', () =>
+    Effect.gen(function* () {
+      const userId = yield* createUser('500000000000000026', 'adder-manager-bypass');
+      const team = yield* createTeam('536000000000000001' as Discord.Snowflake, userId);
+      const member = yield* addTeamMember(team.id, userId);
+      const ALLOWED_ROLE = '536000000000000020' as Discord.Snowflake;
+
+      const poll = yield* PollsRepository.asEffect().pipe(
+        Effect.andThen((repo) =>
+          repo.createPoll({
+            teamId: team.id,
+            guildId: team.guild_id,
+            channelId: '536000000000000010' as Discord.Snowflake,
+            question: 'Gated poll for manager bypass?',
+            options: ['Yes', 'No'],
+            multiple: false,
+            allowedRoleId: Option.some(ALLOWED_ROLE),
+            deadline: Option.none(),
+            timezone: 'UTC',
+            createdBy: member.id,
+          }),
+        ),
+      );
+
+      // Member has NO allowed role but isManagerOrCreator=true — must succeed
+      const result = yield* addOption(
+        poll.poll_id,
+        'Maybe',
+        member.id,
+        team.id,
+        [], // no roles
+        true, // isManagerOrCreator bypass
+      );
+
+      expect(result.option_id).toBeDefined();
+      expect(result.view.options).toHaveLength(3);
+    }).pipe(Effect.provide(TestLayer)),
+  );
+
   it.effect('addOption on closed poll → PollClosed', () =>
     Effect.gen(function* () {
       const userId = yield* createUser('500000000000000025', 'adder-closed');
@@ -914,5 +953,64 @@ describe('PollsRepository — findPollView', () => {
       );
       expect(Option.isNone(view)).toBe(true);
     }).pipe(Effect.provide(TestLayer)),
+  );
+
+  it.effect(
+    'vote_count not inflated by cartesian product — multiple voters, each option count is exact',
+    () =>
+      Effect.gen(function* () {
+        // REGRESSION TEST for: pv_total × pv_opt cartesian product inflating vote_count.
+        // When total_votes > 1, the old COUNT(pv_opt.id) was multiplied by total_votes.
+        // With 3 voters on A and 2 voters on B, the old query returned:
+        //   optA.vote_count = 3 × 5 = 15 (wrong), optB.vote_count = 2 × 5 = 10 (wrong)
+        // The fix (COUNT DISTINCT) must return:
+        //   optA.vote_count = 3 (correct), optB.vote_count = 2 (correct), total_votes = 5
+        const userId1 = yield* createUser('500000000000000060', 'count-voter-1');
+        const userId2 = yield* createUser('500000000000000061', 'count-voter-2');
+        const userId3 = yield* createUser('500000000000000062', 'count-voter-3');
+        const userId4 = yield* createUser('500000000000000063', 'count-voter-4');
+        const userId5 = yield* createUser('500000000000000064', 'count-voter-5');
+
+        const team = yield* createTeam('570000000000000001' as Discord.Snowflake, userId1);
+        const member1 = yield* addTeamMember(team.id, userId1);
+        const member2 = yield* addTeamMember(team.id, userId2);
+        const member3 = yield* addTeamMember(team.id, userId3);
+        const member4 = yield* addTeamMember(team.id, userId4);
+        const member5 = yield* addTeamMember(team.id, userId5);
+
+        // Single-choice poll with options A and B
+        const poll = yield* createPoll(
+          team.id,
+          team.guild_id,
+          '570000000000000010' as Discord.Snowflake,
+          member1.id,
+          ['Option A', 'Option B'],
+          false,
+        );
+
+        const optionA = poll.options[0].option_id;
+        const optionB = poll.options[1].option_id;
+
+        // 3 voters choose A, 2 voters choose B → total_votes=5
+        yield* castVote(poll.poll_id, optionA, member1.id, team.id);
+        yield* castVote(poll.poll_id, optionA, member2.id, team.id);
+        yield* castVote(poll.poll_id, optionA, member3.id, team.id);
+        yield* castVote(poll.poll_id, optionB, member4.id, team.id);
+        yield* castVote(poll.poll_id, optionB, member5.id, team.id);
+
+        const view = yield* findPollView(poll.poll_id, Option.none());
+        expect(Option.isSome(view)).toBe(true);
+        const pollView = Option.getOrThrow(view);
+
+        // total_votes must be 5 distinct voters (not inflated)
+        expect(pollView.total_votes).toBe(5);
+
+        const optAView = pollView.options.find((o) => o.option_id === optionA);
+        const optBView = pollView.options.find((o) => o.option_id === optionB);
+
+        // vote_count per option must be exact — NOT multiplied by total_votes
+        expect(optAView?.vote_count).toBe(3);
+        expect(optBView?.vote_count).toBe(2);
+      }).pipe(Effect.provide(TestLayer)),
   );
 });

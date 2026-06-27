@@ -21,6 +21,9 @@ export const PollCommand = Ix.global(
         description_localizations: { cs: m.bot_poll_opt_question_desc({}, { locale: 'cs' }) },
         type: DiscordTypes.ApplicationCommandOptionType.STRING,
         required: true as const,
+        // Discord embed title limit is 256. The prefix "📊 " is 3 chars (emoji 2 + space 1),
+        // so the question itself must be ≤253 to guarantee the title never exceeds 256.
+        max_length: 253 as const,
       },
       {
         name: 'options',

@@ -153,7 +153,7 @@ const make = Effect.gen(function* () {
         po.id AS option_id,
         po.label,
         po.position,
-        COUNT(pv_opt.id)::int AS vote_count,
+        COUNT(DISTINCT pv_opt.id)::int AS vote_count,
         CASE
           WHEN ${input.viewer_id}::uuid IS NULL THEN NULL
           ELSE (
@@ -208,19 +208,30 @@ const make = Effect.gen(function* () {
 
   // ---- saveMessageId ----
 
-  const saveMessageIdQuery = SqlSchema.void({
+  const saveMessageIdQuery = SqlSchema.findOneOption({
     Request: Schema.Struct({
       poll_id: Poll.PollId,
+      team_id: Team.TeamId,
       message_id: Discord.Snowflake,
     }),
+    Result: PollIdRow,
     execute: (input) => sql`
       UPDATE polls SET discord_message_id = ${input.message_id}, updated_at = now()
-      WHERE id = ${input.poll_id}
+      WHERE id = ${input.poll_id} AND team_id = ${input.team_id}
+      RETURNING id
     `,
   });
 
-  const saveMessageId = (pollId: Poll.PollId, messageId: Discord.Snowflake) =>
-    saveMessageIdQuery({ poll_id: pollId, message_id: messageId }).pipe(catchSqlErrors);
+  const saveMessageId = (pollId: Poll.PollId, messageId: Discord.Snowflake, teamId: Team.TeamId) =>
+    saveMessageIdQuery({ poll_id: pollId, team_id: teamId, message_id: messageId }).pipe(
+      catchSqlErrors,
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.fail(new PollRpcModels.PollNotFound()),
+          onSome: () => Effect.void,
+        }),
+      ),
+    );
 
   // ---- createPoll ----
 

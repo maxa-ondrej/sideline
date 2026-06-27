@@ -49,9 +49,11 @@ export const PollRpcGroup = RpcGroup.make(
   }),
   Rpc.make('SavePollMessageId', {
     payload: {
+      guild_id: Discord.Snowflake,
       poll_id: PollId,
       discord_message_id: Discord.Snowflake,
     },
+    error: Schema.Union([PollGuildNotFound, PollNotFound]),
   }),
   Rpc.make('CastVote', {
     payload: {

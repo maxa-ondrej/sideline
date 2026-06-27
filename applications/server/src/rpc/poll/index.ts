@@ -182,13 +182,18 @@ const rpcHandlers = Effect.Do.pipe(
     'Poll/SavePollMessageId',
     ({ polls }) =>
       ({
+        guild_id,
         poll_id,
         discord_message_id,
       }: {
+        readonly guild_id: Discord.Snowflake;
         readonly poll_id: Poll.PollId;
         readonly discord_message_id: Discord.Snowflake;
       }) =>
-        polls.saveMessageId(poll_id, discord_message_id),
+        Effect.Do.pipe(
+          Effect.bind('team', () => resolveTeamByGuild(guild_id)),
+          Effect.flatMap(({ team }) => polls.saveMessageId(poll_id, discord_message_id, team.id)),
+        ),
   ),
   Effect.let(
     'Poll/CastVote',

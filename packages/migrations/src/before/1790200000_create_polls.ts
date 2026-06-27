@@ -32,7 +32,8 @@ export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
         added_by UUID NOT NULL REFERENCES team_members(id) ON DELETE RESTRICT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE (poll_id, position),
-        UNIQUE (poll_id, label)
+        UNIQUE (poll_id, label),
+        UNIQUE (id, poll_id)
       )
     `,
     ),
@@ -44,7 +45,8 @@ export default Effect.flatMap(Effect.service(SqlClient.SqlClient), (sql) =>
         option_id UUID NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE,
         team_member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE (poll_id, team_member_id, option_id)
+        UNIQUE (poll_id, team_member_id, option_id),
+        FOREIGN KEY (option_id, poll_id) REFERENCES poll_options (id, poll_id) ON DELETE CASCADE
       )
     `,
     ),

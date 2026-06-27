@@ -37,6 +37,7 @@ const makePollView = (
   status: Poll.PollStatus = 'open',
   multiple = false,
   deadline: Option.Option<any> = Option.none(),
+  totalVotes?: number,
 ): PollRpcModels.PollView =>
   new PollRpcModels.PollView({
     poll_id: POLL_ID,
@@ -47,7 +48,11 @@ const makePollView = (
     multiple,
     allowed_role_id: Option.none(),
     deadline,
-    total_votes: myOptionIds.length,
+    // totalVotes defaults to the sum of all option vote_counts when not provided explicitly.
+    // Using options sum (rather than myOptionIds.length) gives the correct total for
+    // percentage and closed-footer scenarios where the viewer has no selected options.
+    total_votes:
+      totalVotes !== undefined ? totalVotes : options.reduce((sum, o) => sum + o.vote_count, 0),
     options,
     my_option_ids: myOptionIds,
   });
@@ -462,6 +467,60 @@ describe('buildPollEmbed — title and color', () => {
     const { embeds: closedEmbeds } = buildPollEmbed(closedView, locale);
 
     expect(closedEmbeds[0].color).not.toBe(openEmbeds[0].color);
+  });
+
+  it('question of 300 chars → embed title truncated to ≤256 chars', () => {
+    // The DB allows up to 300-char questions (VARCHAR(300)). Discord embed title limit is 256.
+    // The "📊 " prefix is 3 chars, so a 300-char question produces a 303-char title without
+    // truncation, which would cause a Discord 400 error.
+    const question300 = 'Q'.repeat(300);
+    const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
+    const view = new PollRpcModels.PollView({
+      poll_id: POLL_ID,
+      discord_channel_id: CHANNEL_ID,
+      discord_message_id: Option.some(MESSAGE_ID),
+      question: question300,
+      status: 'open',
+      multiple: false,
+      allowed_role_id: Option.none(),
+      deadline: Option.none(),
+      total_votes: 0,
+      options,
+      my_option_ids: [],
+    });
+
+    const { embeds } = buildPollEmbed(view, locale);
+
+    expect(embeds[0].title).toBeDefined();
+    expect((embeds[0].title ?? '').length).toBeLessThanOrEqual(256);
+    // Title must end with '…' to signal truncation
+    expect(embeds[0].title).toMatch(/…$/);
+  });
+
+  it('question of exactly 253 chars → embed title is exactly 256 chars (no truncation)', () => {
+    // "📊 " prefix = 3 chars, question = 253 chars → total = 256 (within limit)
+    const question253 = 'Q'.repeat(253);
+    const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
+    const view = new PollRpcModels.PollView({
+      poll_id: POLL_ID,
+      discord_channel_id: CHANNEL_ID,
+      discord_message_id: Option.some(MESSAGE_ID),
+      question: question253,
+      status: 'open',
+      multiple: false,
+      allowed_role_id: Option.none(),
+      deadline: Option.none(),
+      total_votes: 0,
+      options,
+      my_option_ids: [],
+    });
+
+    const { embeds } = buildPollEmbed(view, locale);
+
+    expect(embeds[0].title).toBeDefined();
+    expect((embeds[0].title ?? '').length).toBe(256);
+    // Must NOT be truncated
+    expect(embeds[0].title).not.toMatch(/…$/);
   });
 });
 

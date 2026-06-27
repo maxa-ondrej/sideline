@@ -27,6 +27,20 @@ const truncateButtonLabel = (label: string): string => {
   return `${label.slice(0, BUTTON_LABEL_CONTENT_MAX - 1)}…`;
 };
 
+/**
+ * Discord embed title limit is 256 characters.
+ * The poll title prefix "📊 " is 3 characters (emoji 2-char surrogate pair + space),
+ * so the question portion must be ≤253 to stay within budget.
+ * This constant is the max length of the full composed title (prefix + question).
+ */
+const EMBED_TITLE_MAX = 256;
+
+/** Defensively truncate a string so it fits within the Discord embed title limit. */
+const truncateEmbedTitle = (title: string): string => {
+  if (title.length <= EMBED_TITLE_MAX) return title;
+  return `${title.slice(0, EMBED_TITLE_MAX - 1)}…`;
+};
+
 /** Progress bar: filled blocks for percent filled, empty blocks for rest. */
 const buildBar = (count: number, total: number): string => {
   const FILLED = '█';
@@ -100,7 +114,7 @@ export const buildPollEmbed = (
 
   const embeds: ReadonlyArray<Discord.RichEmbed> = [
     {
-      title: `📊 ${view.question}`,
+      title: truncateEmbedTitle(`📊 ${view.question}`),
       color: isClosed ? COLOR_CLOSED : COLOR_OPEN,
       description: descriptionParts.length > 0 ? descriptionParts.join('\n') : undefined,
       fields,

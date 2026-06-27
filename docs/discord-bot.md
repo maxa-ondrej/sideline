@@ -95,6 +95,20 @@ Nine top-level commands are registered globally: `/carpool`, `/event`, `/finance
 4. On success the bot posts a public `buildPollEmbed` message with option vote buttons, an **Add option** button, and a **Close poll** button. The message ID is saved via `Poll/SavePollMessageId`.
 5. The ephemeral reply is updated with a localised "poll created" confirmation.
 
+**Errors from `Poll/CreatePoll`:**
+
+| Error tag | User-visible message |
+|-----------|----------------------|
+| `PollForbidden` | Missing permission (not a captain / no `poll:manage`) |
+| `PollGuildNotFound` | Team not found for this Discord server |
+| `PollNotMember` | Not a member of this team |
+| `PollTooFewOptions` | Too few options (minimum 2) |
+| `PollTooManyOptions` | Too many options (maximum 10) |
+| `PollDuplicateOption` | Duplicate option labels are not allowed |
+| `PollOptionTooLong` | At least one option label exceeds 80 characters |
+| `PollInvalidDeadline` | Deadline format invalid (expected `YYYY-MM-DD HH:mm`) |
+| `PollDeadlineInPast` | Deadline is in the past |
+
 **Source files:**
 - `applications/bot/src/commands/poll/index.ts`
 - `applications/bot/src/commands/poll/handler.ts`
