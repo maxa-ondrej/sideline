@@ -289,11 +289,16 @@ describe('summarizeHandler', () => {
   });
 
   it('default limit: no options, listMessages returns >50 msgs → RPC payload has ≤ 50 messages', async () => {
-    // Generate 60 messages, newest-first (Discord default order)
+    // Generate 60 messages, newest-first (Discord default order).
+    // content `msg-<i>`: i=0 is the newest, i=59 the oldest.
     const now = new Date('2026-06-20T12:00:00Z').getTime();
     const allMessages = Array.from({ length: 60 }, (_, i) => {
       const ts = new Date(now - i * 60_000).toISOString();
-      return makeMessage({ timestamp: ts, id: makeSnowflake(now - i * 60_000) });
+      return makeMessage({
+        timestamp: ts,
+        id: makeSnowflake(now - i * 60_000),
+        content: `msg-${i}`,
+      });
     });
 
     const summarizeChannel = vi.fn(() =>
@@ -317,10 +322,15 @@ describe('summarizeHandler', () => {
     const payload = (
       summarizeChannel.mock.calls as ReadonlyArray<ReadonlyArray<unknown>>
     )[0]?.[0] as unknown as {
-      messages: unknown[];
+      messages: Array<{ content: string }>;
     };
-    expect(payload.messages.length).toBeLessThanOrEqual(DEFAULT_MESSAGE_LIMIT);
     expect(payload.messages.length).toBe(DEFAULT_MESSAGE_LIMIT);
+
+    // The NEWEST 50 must be kept (msg-0 .. msg-49), the oldest 10 dropped.
+    const contents = payload.messages.map((m) => m.content);
+    expect(contents).toContain('msg-0'); // newest is included
+    expect(contents).not.toContain('msg-59'); // oldest is excluded
+    expect(contents).not.toContain('msg-50'); // beyond the newest-50 window
   });
 
   it('explicit messages: 10 → RPC payload has exactly 10 messages, chronological order', async () => {
@@ -1156,6 +1166,13 @@ describe('parseSince', () => {
 
   it('"99999999999d" (absurd duration > 3650 days) → Option.none()', () => {
     const result = parseSince('99999999999d', NOW);
+    expect(Option.isNone(result)).toBe(true);
+  });
+
+  it('"3650d100000h" (combined duration > 10 years) → Option.none()', () => {
+    // The days component alone is within the 3650-day cap, but the combined
+    // duration exceeds 10 years and must be rejected.
+    const result = parseSince('3650d100000h', NOW);
     expect(Option.isNone(result)).toBe(true);
   });
 

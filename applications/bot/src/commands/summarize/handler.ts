@@ -76,12 +76,15 @@ export const parseSince = (
       return Option.none();
     }
 
-    // Cap absurd durations (> 10 years) so we return none instead of crashing
-    if (days > MAX_DURATION_DAYS) {
+    const totalMs = days * 86_400_000 + hours * 3_600_000 + minutes * 60_000;
+
+    // Cap absurd durations (> 10 years total) so we return none instead of crashing.
+    // Check the combined duration, not just the days component, so inputs like
+    // `3650d100000h` are rejected.
+    if (totalMs > MAX_DURATION_DAYS * 86_400_000) {
       return Option.none();
     }
 
-    const totalMs = days * 86_400_000 + hours * 3_600_000 + minutes * 60_000;
     const cutoffMs = DateTime.toEpochMillis(now) - totalMs;
 
     // Guard against out-of-range Date values
@@ -130,6 +133,8 @@ const ephemeral = (content: string) =>
     data: {
       content,
       flags: DiscordTypes.MessageFlags.Ephemeral,
+      // Anti-ping guard: some ephemeral replies (invalid-since) echo raw user input.
+      allowed_mentions: { parse: [] },
     },
   });
 
@@ -362,12 +367,13 @@ export const summarizeHandler = Interaction.asEffect().pipe(
             // chronological = most recent). For the no-since path: take the first
             // effectiveLimit (which are already the newest, since they came newest-first
             // from Discord and we've reversed).
+            // Keep the NEWEST effectiveLimit messages. reversedToChronological is
+            // oldest→newest, so the tail is the most recent — correct for both the
+            // since path (filtered set may exceed the limit) and the no-since path
+            // (a full page of up to 100 is fetched even when effectiveLimit is smaller,
+            // so slicing from the start would drop the most recent discussion).
             const reversedToChronological = [...filteredMessages].reverse();
-            const chronological = Option.isSome(maybeCutoff)
-              ? // since path: filteredMessages may have more than effectiveLimit — keep newest
-                reversedToChronological.slice(-effectiveLimit)
-              : // no-since path: already newest-first before reverse, take first N after reverse
-                reversedToChronological.slice(0, effectiveLimit);
+            const chronological = reversedToChronological.slice(-effectiveLimit);
 
             // Bot-capped: the page budget ran out (more messages may exist in the window)
             const botCapped = pageCapped && Option.isSome(maybeCutoff);
