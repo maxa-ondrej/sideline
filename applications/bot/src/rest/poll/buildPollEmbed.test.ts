@@ -1,5 +1,6 @@
-// TDD mode — written BEFORE the implementation exists.
-// Tests will fail to import until buildPollEmbed is implemented.
+// TDD mode — written BEFORE the implementation changes land.
+// The public board is now aggregate-only: no poll-vote: buttons, one poll-open: button.
+// Tests will fail on the OLD implementation (which still emits poll-vote: buttons).
 // buildPollEmbed is a PURE function — call it directly, no Effect.
 
 import type { Discord } from '@sideline/domain';
@@ -49,8 +50,6 @@ const makePollView = (
     allowed_role_id: Option.none(),
     deadline,
     // totalVotes defaults to the sum of all option vote_counts when not provided explicitly.
-    // Using options sum (rather than myOptionIds.length) gives the correct total for
-    // percentage and closed-footer scenarios where the viewer has no selected options.
     total_votes:
       totalVotes !== undefined ? totalVotes : options.reduce((sum, o) => sum + o.vote_count, 0),
     options,
@@ -66,35 +65,11 @@ const REGIONAL_B = String.fromCodePoint(0x1f1e7); // 🇧
 const REGIONAL_C = String.fromCodePoint(0x1f1e8); // 🇨
 
 // ---------------------------------------------------------------------------
-// Tests — row layout (3, 9, 10 options)
+// Tests — public board has ZERO poll-vote: buttons (aggregate only)
 // ---------------------------------------------------------------------------
 
-describe('buildPollEmbed — row layout', () => {
-  it('3 options — 3 fields with regional indicator letters A/B/C', () => {
-    const options = [
-      makeOptionView('opt-a', 'Pizza', 0),
-      makeOptionView('opt-b', 'Sushi', 1),
-      makeOptionView('opt-c', 'Tacos', 2),
-    ];
-    const view = makePollView(options);
-
-    const { embeds } = buildPollEmbed(view, locale);
-
-    expect(embeds).toHaveLength(1);
-    const fields = embeds[0].fields ?? [];
-    // Each option gets a field
-    expect(fields.length).toBeGreaterThanOrEqual(3);
-
-    const names = fields.map((f) => f.name);
-    const hasA = names.some((n) => n.includes(REGIONAL_A));
-    const hasB = names.some((n) => n.includes(REGIONAL_B));
-    const hasC = names.some((n) => n.includes(REGIONAL_C));
-    expect(hasA).toBe(true);
-    expect(hasB).toBe(true);
-    expect(hasC).toBe(true);
-  });
-
-  it('3 options — buttons laid out 3 per row (max 4/row)', () => {
+describe('buildPollEmbed — public board has no poll-vote buttons (aggregate only)', () => {
+  it('open poll → ZERO poll-vote: buttons in components', () => {
     const options = [
       makeOptionView('opt-a', 'Pizza', 0),
       makeOptionView('opt-b', 'Sushi', 1),
@@ -104,86 +79,28 @@ describe('buildPollEmbed — row layout', () => {
 
     const { components } = buildPollEmbed(view, locale);
 
-    // Collect vote buttons — custom_id starts with 'poll-vote:'
     const voteButtons = components
       .flatMap((row) => (row as any).components ?? [])
       .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'));
-    expect(voteButtons).toHaveLength(3);
+    expect(voteButtons).toHaveLength(0);
   });
 
-  it('9 options — 9 fields; buttons span multiple rows (max 4/row = 3 rows)', () => {
-    const options = Array.from({ length: 9 }, (_, i) =>
-      makeOptionView(`opt-${i}`, `Option ${i + 1}`, i),
-    );
-    const view = makePollView(options);
-
-    const { embeds, components } = buildPollEmbed(view, locale);
-
-    const fields = embeds[0].fields ?? [];
-    expect(fields.length).toBeGreaterThanOrEqual(9);
-
-    const voteButtons = components
-      .flatMap((row) => (row as any).components ?? [])
-      .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'));
-    expect(voteButtons).toHaveLength(9);
-  });
-
-  it('10 options — 10 vote buttons, each row has ≤4 buttons', () => {
-    const options = Array.from({ length: 10 }, (_, i) =>
-      makeOptionView(`opt-${i}`, `Option ${i + 1}`, i),
-    );
-    const view = makePollView(options);
-
-    const { components } = buildPollEmbed(view, locale);
-
-    const voteButtons = components
-      .flatMap((row) => (row as any).components ?? [])
-      .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'));
-    expect(voteButtons).toHaveLength(10);
-
-    // Every row with vote buttons must have ≤ 4
-    for (const row of components) {
-      const rowButtons = ((row as any).components ?? []).filter(
-        (c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'),
-      );
-      expect(rowButtons.length).toBeLessThanOrEqual(4);
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests — highlight ALL options in my_option_ids
-// ---------------------------------------------------------------------------
-
-describe('buildPollEmbed — my_option_ids highlighting', () => {
-  it('single selected option highlighted as Primary button; others Secondary', () => {
+  it('my_option_ids set — board STILL has zero poll-vote: buttons (no per-user leak)', () => {
     const options = [
       makeOptionView('opt-a', 'Pizza', 0, 1),
       makeOptionView('opt-b', 'Sushi', 1, 0),
-      makeOptionView('opt-c', 'Tacos', 2, 0),
     ];
     const view = makePollView(options, ['opt-a' as Poll.PollOptionId]);
 
     const { components } = buildPollEmbed(view, locale);
 
-    const allButtons = components.flatMap((row) => (row as any).components ?? []) as Array<{
-      custom_id?: string;
-      style?: number;
-    }>;
-    const voteButtons = allButtons.filter(
-      (b) => typeof b.custom_id === 'string' && b.custom_id.startsWith('poll-vote:'),
-    );
-    const btnA = voteButtons.find((b) => b.custom_id === `poll-vote:${POLL_ID}:opt-a`);
-    const btnB = voteButtons.find((b) => b.custom_id === `poll-vote:${POLL_ID}:opt-b`);
-
-    expect(btnA).toBeDefined();
-    expect(btnB).toBeDefined();
-    // Primary = 1, Secondary = 2 in Discord button styles
-    expect(btnA?.style).toBe(1); // Primary
-    expect(btnB?.style).toBe(2); // Secondary
+    const voteButtons = components
+      .flatMap((row) => (row as any).components ?? [])
+      .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'));
+    expect(voteButtons).toHaveLength(0);
   });
 
-  it('multi-choice: ALL selected options highlighted (Primary), unselected Secondary', () => {
+  it('multi-choice with two my_option_ids → board still has zero poll-vote: buttons', () => {
     const options = [
       makeOptionView('opt-a', 'Pizza', 0, 2),
       makeOptionView('opt-b', 'Sushi', 1, 2),
@@ -198,47 +115,57 @@ describe('buildPollEmbed — my_option_ids highlighting', () => {
 
     const { components } = buildPollEmbed(view, locale);
 
-    const allButtons = components.flatMap((row) => (row as any).components ?? []) as Array<{
-      custom_id?: string;
-      style?: number;
-    }>;
-    const voteButtons = allButtons.filter(
-      (b) => typeof b.custom_id === 'string' && b.custom_id.startsWith('poll-vote:'),
-    );
-    const btnA = voteButtons.find((b) => b.custom_id === `poll-vote:${POLL_ID}:opt-a`);
-    const btnB = voteButtons.find((b) => b.custom_id === `poll-vote:${POLL_ID}:opt-b`);
-    const btnC = voteButtons.find((b) => b.custom_id === `poll-vote:${POLL_ID}:opt-c`);
-
-    expect(btnA?.style).toBe(1); // Primary (selected)
-    expect(btnB?.style).toBe(1); // Primary (selected)
-    expect(btnC?.style).toBe(2); // Secondary (not selected)
+    const voteButtons = components
+      .flatMap((row) => (row as any).components ?? [])
+      .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'));
+    expect(voteButtons).toHaveLength(0);
   });
 
-  it('no selection — all option buttons are Secondary', () => {
+  it('no my_option_ids → board has zero poll-vote: buttons', () => {
     const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
     const view = makePollView(options, []); // no my_option_ids
 
     const { components } = buildPollEmbed(view, locale);
 
-    const allButtons = components.flatMap((row) => (row as any).components ?? []) as Array<{
-      custom_id?: string;
-      style?: number;
-    }>;
-    const voteButtons = allButtons.filter(
-      (b) => typeof b.custom_id === 'string' && b.custom_id.startsWith('poll-vote:'),
-    );
-    for (const btn of voteButtons) {
-      expect(btn.style).toBe(2); // Secondary
-    }
+    const voteButtons = components
+      .flatMap((row) => (row as any).components ?? [])
+      .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-vote:'));
+    expect(voteButtons).toHaveLength(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Tests — closed poll: buttons disabled / action row omitted
+// Tests — public board has exactly one poll-open: button
 // ---------------------------------------------------------------------------
 
-describe('buildPollEmbed — closed poll behavior', () => {
-  it('closed poll → all vote buttons disabled', () => {
+describe('buildPollEmbed — public board has exactly one poll-open: button', () => {
+  it('open poll → exactly one button with custom_id poll-open:{pollId}', () => {
+    const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
+    const view = makePollView(options);
+
+    const { components } = buildPollEmbed(view, locale);
+
+    const openButtons = components
+      .flatMap((row) => (row as any).components ?? [])
+      .filter(
+        (c: any) => typeof c.custom_id === 'string' && c.custom_id === `poll-open:${POLL_ID}`,
+      );
+    expect(openButtons).toHaveLength(1);
+  });
+
+  it('poll-open: button appears on ALL open polls regardless of my_option_ids', () => {
+    const options = [makeOptionView('opt-a', 'Pizza', 0)];
+    const view = makePollView(options, ['opt-a' as Poll.PollOptionId]);
+
+    const { components } = buildPollEmbed(view, locale);
+
+    const allCustomIds = components
+      .flatMap((row) => (row as any).components ?? [])
+      .map((c: any) => c.custom_id as string);
+    expect(allCustomIds.some((id) => id === `poll-open:${POLL_ID}`)).toBe(true);
+  });
+
+  it('closed poll → NO poll-open: button', () => {
     const options = [
       makeOptionView('opt-a', 'Pizza', 0, 3),
       makeOptionView('opt-b', 'Sushi', 1, 1),
@@ -247,19 +174,74 @@ describe('buildPollEmbed — closed poll behavior', () => {
 
     const { components } = buildPollEmbed(view, locale);
 
-    const allButtons = components.flatMap((row) => (row as any).components ?? []) as Array<{
-      custom_id?: string;
-      disabled?: boolean;
-    }>;
-    const voteButtons = allButtons.filter(
-      (b) => typeof b.custom_id === 'string' && b.custom_id.startsWith('poll-vote:'),
-    );
-    for (const btn of voteButtons) {
-      expect(btn.disabled).toBe(true);
-    }
+    const openButtons = components
+      .flatMap((row) => (row as any).components ?? [])
+      .filter((c: any) => typeof c.custom_id === 'string' && c.custom_id.startsWith('poll-open:'));
+    expect(openButtons).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — row layout: aggregate fields (not vote buttons)
+// ---------------------------------------------------------------------------
+
+describe('buildPollEmbed — row layout (aggregate fields)', () => {
+  it('3 options — 3 fields with regional indicator letters A/B/C', () => {
+    const options = [
+      makeOptionView('opt-a', 'Pizza', 0),
+      makeOptionView('opt-b', 'Sushi', 1),
+      makeOptionView('opt-c', 'Tacos', 2),
+    ];
+    const view = makePollView(options);
+
+    const { embeds } = buildPollEmbed(view, locale);
+
+    expect(embeds).toHaveLength(1);
+    const fields = embeds[0].fields ?? [];
+    expect(fields.length).toBeGreaterThanOrEqual(3);
+
+    const names = fields.map((f) => f.name);
+    const hasA = names.some((n) => n.includes(REGIONAL_A));
+    const hasB = names.some((n) => n.includes(REGIONAL_B));
+    const hasC = names.some((n) => n.includes(REGIONAL_C));
+    expect(hasA).toBe(true);
+    expect(hasB).toBe(true);
+    expect(hasC).toBe(true);
   });
 
-  it('closed poll → add and close action row is omitted', () => {
+  it('9 options — 9 fields in the embed', () => {
+    const options = Array.from({ length: 9 }, (_, i) =>
+      makeOptionView(`opt-${i}`, `Option ${i + 1}`, i),
+    );
+    const view = makePollView(options);
+
+    const { embeds } = buildPollEmbed(view, locale);
+
+    const fields = embeds[0].fields ?? [];
+    expect(fields.length).toBeGreaterThanOrEqual(9);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — closed poll: no components at all
+// ---------------------------------------------------------------------------
+
+describe('buildPollEmbed — closed poll behavior', () => {
+  it('closed poll → zero components (no poll-vote:, no poll-open:, no poll-add:, no poll-close:)', () => {
+    const options = [
+      makeOptionView('opt-a', 'Pizza', 0, 3),
+      makeOptionView('opt-b', 'Sushi', 1, 1),
+    ];
+    const view = makePollView(options, [], 'closed');
+
+    const { components } = buildPollEmbed(view, locale);
+
+    // Closed board must have ZERO action rows (no buttons at all)
+    const allButtons = components.flatMap((row) => (row as any).components ?? []);
+    expect(allButtons).toHaveLength(0);
+  });
+
+  it('closed poll → no poll-add: or poll-close: buttons', () => {
     const options = [
       makeOptionView('opt-a', 'Pizza', 0, 5),
       makeOptionView('opt-b', 'Sushi', 1, 2),
@@ -272,12 +254,11 @@ describe('buildPollEmbed — closed poll behavior', () => {
       .flatMap((row) => (row as any).components ?? [])
       .map((c: any) => c.custom_id as string);
 
-    // The add-option and close-poll buttons must NOT appear on a closed poll
     expect(allCustomIds.every((id) => !id?.startsWith('poll-add:'))).toBe(true);
     expect(allCustomIds.every((id) => !id?.startsWith('poll-close:'))).toBe(true);
   });
 
-  it('open poll → add and close action row present', () => {
+  it('open poll → poll-add: and poll-close: action buttons present', () => {
     const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
     const view = makePollView(options, [], 'open');
 
@@ -306,9 +287,7 @@ describe('buildPollEmbed — footer text', () => {
     const footer = embeds[0].footer?.text ?? '';
     // The footer should signal single-choice open poll
     expect(footer.length).toBeGreaterThan(0);
-    // Should NOT contain the multi indicator
     const embedJson = JSON.stringify(embeds);
-    // Footer text must be present
     expect(embedJson).toMatch(/footer/i);
   });
 
@@ -323,7 +302,6 @@ describe('buildPollEmbed — footer text', () => {
     const singleFooter = singleEmbeds[0].footer?.text ?? '';
     const multiFooter = multiEmbeds[0].footer?.text ?? '';
 
-    // The footers must differ between single and multi
     expect(singleFooter).not.toBe(multiFooter);
   });
 
@@ -347,27 +325,10 @@ describe('buildPollEmbed — footer text', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests — custom_id formats
+// Tests — custom_id formats (poll-add, poll-close, poll-open)
 // ---------------------------------------------------------------------------
 
 describe('buildPollEmbed — custom_id formats', () => {
-  it('vote button custom_id format: poll-vote:{pollId}:{optionId}', () => {
-    const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
-    const view = makePollView(options);
-
-    const { components } = buildPollEmbed(view, locale);
-
-    const allCustomIds = components
-      .flatMap((row) => (row as any).components ?? [])
-      .map((c: any) => c.custom_id as string);
-
-    const voteButtonForA = allCustomIds.find((id) => id === `poll-vote:${POLL_ID}:opt-a`);
-    const voteButtonForB = allCustomIds.find((id) => id === `poll-vote:${POLL_ID}:opt-b`);
-
-    expect(voteButtonForA).toBeDefined();
-    expect(voteButtonForB).toBeDefined();
-  });
-
   it('add option button custom_id format: poll-add:{pollId}', () => {
     const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
     const view = makePollView(options, [], 'open');
@@ -395,6 +356,20 @@ describe('buildPollEmbed — custom_id formats', () => {
     const closeBtn = allCustomIds.find((id) => id === `poll-close:${POLL_ID}`);
     expect(closeBtn).toBeDefined();
   });
+
+  it('vote button custom_id format: poll-open:{pollId} (aggregate board vote entry-point)', () => {
+    const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
+    const view = makePollView(options, [], 'open');
+
+    const { components } = buildPollEmbed(view, locale);
+
+    const allCustomIds = components
+      .flatMap((row) => (row as any).components ?? [])
+      .map((c: any) => c.custom_id as string);
+
+    const openBtn = allCustomIds.find((id) => id === `poll-open:${POLL_ID}`);
+    expect(openBtn).toBeDefined();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -409,16 +384,13 @@ describe('buildPollEmbed — deadline rendering', () => {
     const { embeds } = buildPollEmbed(view, locale);
 
     const embedJson = JSON.stringify(embeds);
-    // No <t: timestamp markers without a deadline
     expect(embedJson).not.toMatch(/<t:\d+/);
   });
 
   it('deadline Some → embed contains <t:{unix}:R> relative timestamp', () => {
     const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
 
-    // Create a DateTime at a known future unix timestamp
     const futureUnix = 4000000000; // far future
-    // For the test fixture, construct the deadline as an Option<DateTime.Utc>
     const deadline = Option.some(DateTime.fromDateUnsafe(new Date(futureUnix * 1000)));
 
     const view = makePollView(options, [], 'open', false, deadline);
@@ -426,7 +398,6 @@ describe('buildPollEmbed — deadline rendering', () => {
     const { embeds } = buildPollEmbed(view, locale);
 
     const embedJson = JSON.stringify(embeds);
-    // Should contain <t:{unix}:R> and <t:{unix}:f> for the deadline
     expect(embedJson).toMatch(/<t:\d+:R>/);
     expect(embedJson).toMatch(/<t:\d+:f>/);
   });
@@ -470,9 +441,6 @@ describe('buildPollEmbed — title and color', () => {
   });
 
   it('question of 300 chars → embed title truncated to ≤256 chars', () => {
-    // The DB allows up to 300-char questions (VARCHAR(300)). Discord embed title limit is 256.
-    // The "📊 " prefix is 3 chars, so a 300-char question produces a 303-char title without
-    // truncation, which would cause a Discord 400 error.
     const question300 = 'Q'.repeat(300);
     const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
     const view = new PollRpcModels.PollView({
@@ -493,12 +461,10 @@ describe('buildPollEmbed — title and color', () => {
 
     expect(embeds[0].title).toBeDefined();
     expect((embeds[0].title ?? '').length).toBeLessThanOrEqual(256);
-    // Title must end with '…' to signal truncation
     expect(embeds[0].title).toMatch(/…$/);
   });
 
   it('question of exactly 253 chars → embed title is exactly 256 chars (no truncation)', () => {
-    // "📊 " prefix = 3 chars, question = 253 chars → total = 256 (within limit)
     const question253 = 'Q'.repeat(253);
     const options = [makeOptionView('opt-a', 'Pizza', 0), makeOptionView('opt-b', 'Sushi', 1)];
     const view = new PollRpcModels.PollView({
@@ -519,7 +485,6 @@ describe('buildPollEmbed — title and color', () => {
 
     expect(embeds[0].title).toBeDefined();
     expect((embeds[0].title ?? '').length).toBe(256);
-    // Must NOT be truncated
     expect(embeds[0].title).not.toMatch(/…$/);
   });
 });
@@ -541,7 +506,6 @@ describe('buildPollEmbed — option field display', () => {
     const fields = embeds[0].fields ?? [];
     const embedJson = JSON.stringify(fields);
 
-    // Should contain vote counts
     expect(embedJson).toContain('3');
     expect(embedJson).toContain('1');
   });
@@ -556,69 +520,5 @@ describe('buildPollEmbed — option field display', () => {
     const fieldNames = fields.map((f) => f.name);
     expect(fieldNames.some((n) => n.includes('Pizza'))).toBe(true);
     expect(fieldNames.some((n) => n.includes('Sushi'))).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tests — Fix B: button label must not exceed 80 chars (Discord limit)
-// ---------------------------------------------------------------------------
-
-describe('buildPollEmbed — button label length limit (Fix B)', () => {
-  it('80-char option label → button label.length ≤ 80 (emoji+space overhead counted)', () => {
-    // An 80-char label with the regional indicator (2 surrogate chars) + space overhead = 83 chars
-    // without truncation. The fix must cap the button label at 80 chars total.
-    const label80 = 'A'.repeat(80);
-    const options = [makeOptionView('opt-a', label80, 0), makeOptionView('opt-b', 'Short', 1)];
-    const view = makePollView(options);
-
-    const { components } = buildPollEmbed(view, locale);
-
-    const allButtons = components.flatMap((row) => (row as any).components ?? []) as Array<{
-      custom_id?: string;
-      label?: string;
-    }>;
-    const voteButtons = allButtons.filter(
-      (b) => typeof b.custom_id === 'string' && b.custom_id.startsWith('poll-vote:'),
-    );
-
-    // Every button label must be ≤ 80 chars
-    for (const btn of voteButtons) {
-      expect((btn.label ?? '').length).toBeLessThanOrEqual(80);
-    }
-  });
-
-  it('80-char option label appears FULL in embed field (not truncated)', () => {
-    const label80 = 'A'.repeat(80);
-    const options = [makeOptionView('opt-a', label80, 0), makeOptionView('opt-b', 'Short', 1)];
-    const view = makePollView(options);
-
-    const { embeds } = buildPollEmbed(view, locale);
-
-    // The field name in the embed should contain the full 80-char label
-    const fields = embeds[0].fields ?? [];
-    const fieldWithFullLabel = fields.find((f) => f.name.includes(label80));
-    expect(fieldWithFullLabel).toBeDefined();
-  });
-
-  it('short option label (≤77 chars) → button label unchanged (no truncation)', () => {
-    const label77 = 'B'.repeat(77);
-    const options = [makeOptionView('opt-a', label77, 0), makeOptionView('opt-b', 'Short', 1)];
-    const view = makePollView(options);
-
-    const { components } = buildPollEmbed(view, locale);
-
-    const allButtons = components.flatMap((row) => (row as any).components ?? []) as Array<{
-      custom_id?: string;
-      label?: string;
-    }>;
-    const btnForLong = allButtons.find(
-      (b) => typeof b.custom_id === 'string' && b.custom_id.includes('opt-a'),
-    );
-
-    // Label should be: emoji (2 chars) + space (1 char) + 77-char label = 80 chars, no ellipsis
-    expect(btnForLong?.label).toBeDefined();
-    expect((btnForLong?.label ?? '').length).toBeLessThanOrEqual(80);
-    // Should NOT be truncated since 77 chars fits exactly
-    expect(btnForLong?.label).not.toContain('…');
   });
 });

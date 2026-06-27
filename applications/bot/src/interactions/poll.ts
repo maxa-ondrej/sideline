@@ -8,6 +8,7 @@ import { Effect, Metric, Option, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
 import { buildPollEmbed } from '~/rest/poll/buildPollEmbed.js';
+import { buildPollPrivateView } from '~/rest/poll/buildPollPrivateView.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -32,6 +33,14 @@ const ephemeralDeferred: DiscordTypes.CreateMessageInteractionCallbackRequest = 
   type: DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
   data: { flags: DiscordTypes.MessageFlags.Ephemeral },
 };
+
+/**
+ * DEFERRED_UPDATE_MESSAGE response (type 6): edits the ephemeral in place.
+ * Used by poll-vote button which lives on the per-user ephemeral private view.
+ */
+const deferredUpdateMessage = Ix.response({
+  type: DiscordTypes.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE,
+});
 
 /** The error union shared by every dfx DiscordREST call. */
 type RestError = Effect.Error<ReturnType<DiscordRestService['updateOriginalWebhookMessage']>>;
@@ -114,7 +123,125 @@ const readModalFieldValue = (
 };
 
 // ---------------------------------------------------------------------------
-// poll-vote:{pollId}:{optionId} button
+// poll-open:{pollId} button — opens per-user ephemeral private view
+// ---------------------------------------------------------------------------
+
+export const PollOpenButton = Effect.Do.pipe(
+  Effect.tap(() =>
+    Metric.update(
+      Metric.withAttributes(discordInteractionsTotal, { interaction_type: 'button' }),
+      1,
+    ),
+  ),
+  Effect.bind('interaction', () => Interaction.asEffect()),
+  Effect.bind('rpc', () => SyncRpc.asEffect()),
+  Effect.bind('rest', () => DiscordREST.asEffect()),
+  Effect.flatMap(({ interaction, rpc, rest }) => {
+    const locale = userLocale(interaction);
+    const guildId = interaction.guild_id;
+    const discordUserIdOption = interactionUserId(interaction);
+    const customId = getCustomId(interaction);
+
+    // custom_id: poll-open:{pollId}
+    const colonIdx = customId.indexOf(':');
+    const pollIdRaw = customId.slice(colonIdx + 1);
+
+    // Guard: DM-context interactions have no guild_id — return ephemeral error immediately.
+    if (guildId === undefined) {
+      return Effect.as(
+        Effect.forkDetach(
+          replyWebhook(
+            rest,
+            interaction,
+            { content: m.bot_poll_err_no_guild({}, { locale }) },
+            'Failed to update poll-open no-guild response',
+          ),
+        ),
+        ephemeralDeferred,
+      );
+    }
+
+    if (Option.isNone(discordUserIdOption)) {
+      return Effect.as(
+        Effect.forkDetach(
+          replyWebhook(
+            rest,
+            interaction,
+            { content: m.bot_poll_err_not_member({}, { locale }) },
+            'Failed to update poll-open no-user response',
+          ),
+        ),
+        ephemeralDeferred,
+      );
+    }
+
+    const discordUserId = discordUserIdOption.value;
+    const pollId = decodePollId(pollIdRaw);
+
+    const openAndFollowUp = rpc['Poll/GetPollView']({
+      guild_id: decodeSnowflake(guildId),
+      discord_user_id: discordUserId,
+      poll_id: pollId,
+    }).pipe(
+      Effect.flatMap((viewOption) =>
+        Option.match(viewOption, {
+          onNone: () =>
+            replyWebhook(
+              rest,
+              interaction,
+              { content: m.bot_poll_err_not_found({}, { locale }) },
+              'Failed to update poll-open not-found response',
+            ),
+          onSome: (view) =>
+            replyWebhook(
+              rest,
+              interaction,
+              { ...buildPollPrivateView(view, locale), allowed_mentions: { parse: [] } },
+              'Failed to update poll-open private view',
+            ),
+        }),
+      ),
+      Effect.catchTag('PollGuildNotFound', () =>
+        replyWebhook(
+          rest,
+          interaction,
+          { content: m.bot_poll_err_no_guild({}, { locale }) },
+          'Failed to update poll-open guild-not-found response',
+        ),
+      ),
+      Effect.catchTag('PollNotMember', () =>
+        replyWebhook(
+          rest,
+          interaction,
+          { content: m.bot_poll_err_not_member({}, { locale }) },
+          'Failed to update poll-open not-member response',
+        ),
+      ),
+      // RPC transport failure: resolve the deferred reply with a generic error instead of
+      // leaving the ephemeral spinner loading forever.
+      Effect.catchTag('RpcClientError', (e) =>
+        Effect.logError('Poll open RPC failed', e).pipe(
+          Effect.flatMap(() =>
+            replyWebhook(
+              rest,
+              interaction,
+              { content: m.bot_poll_err_generic({}, { locale }) },
+              'Failed to update poll-open RPC-error response',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Effect.as(Effect.forkDetach(openAndFollowUp), ephemeralDeferred);
+  }),
+  Effect.withSpan('interaction/poll-open-button'),
+);
+
+export const PollOpenButtonReg = Ix.messageComponent(Ix.idStartsWith('poll-open:'), PollOpenButton);
+
+// ---------------------------------------------------------------------------
+// poll-vote:{pollId}:{optionId} button (on ephemeral private view)
 // ---------------------------------------------------------------------------
 
 export const PollVoteButton = Effect.Do.pipe(
@@ -142,7 +269,7 @@ export const PollVoteButton = Effect.Do.pipe(
     const pollIdRaw = rest2.slice(0, secondColon);
     const optionIdRaw = rest2.slice(secondColon + 1);
 
-    // Guard: DM-context interactions have no guild_id — return ephemeral error immediately.
+    // Guard: DM-context interactions have no guild_id — return deferred update error immediately.
     if (guildId === undefined) {
       return Effect.as(
         Effect.forkDetach(
@@ -153,7 +280,7 @@ export const PollVoteButton = Effect.Do.pipe(
             'Failed to update poll vote no-guild response',
           ),
         ),
-        ephemeralDeferred,
+        deferredUpdateMessage,
       );
     }
 
@@ -167,7 +294,7 @@ export const PollVoteButton = Effect.Do.pipe(
             'Failed to update poll vote no-user response',
           ),
         ),
-        ephemeralDeferred,
+        deferredUpdateMessage,
       );
     }
 
@@ -182,7 +309,7 @@ export const PollVoteButton = Effect.Do.pipe(
       option_id: optionId,
     }).pipe(
       Effect.flatMap((result) => {
-        const voteMessage = (() => {
+        const actionNote = (() => {
           switch (result.action) {
             case 'counted':
               return m.bot_poll_vote_counted({}, { locale });
@@ -198,14 +325,15 @@ export const PollVoteButton = Effect.Do.pipe(
         })();
 
         const rebuildEffect = rebuildBoard(rest, result.view, embedLocale);
+        const privateViewPayload = buildPollPrivateView(result.view, locale, actionNote);
 
         return rebuildEffect.pipe(
           Effect.flatMap(() =>
             replyWebhook(
               rest,
               interaction,
-              { content: voteMessage },
-              'Failed to update poll vote response',
+              { ...privateViewPayload, allowed_mentions: { parse: [] } },
+              'Failed to update poll vote private view',
             ),
           ),
         );
@@ -231,7 +359,11 @@ export const PollVoteButton = Effect.Do.pipe(
             replyWebhook(
               rest,
               interaction,
-              { content: m.bot_poll_closed_notice({}, { locale }) },
+              {
+                content: m.bot_poll_closed_notice({}, { locale }),
+                embeds: [],
+                components: [],
+              },
               'Failed to update poll closed notice',
             ),
           ),
@@ -285,7 +417,7 @@ export const PollVoteButton = Effect.Do.pipe(
       ),
     );
 
-    return Effect.as(Effect.forkDetach(voteAndFollowUp), ephemeralDeferred);
+    return Effect.as(Effect.forkDetach(voteAndFollowUp), deferredUpdateMessage);
   }),
   Effect.withSpan('interaction/poll-vote-button'),
 );

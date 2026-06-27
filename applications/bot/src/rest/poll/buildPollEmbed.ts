@@ -10,7 +10,8 @@ const COLOR_OPEN = 0x5865f2;
 const COLOR_CLOSED = 0x95a5a6;
 
 /** Regional indicator letter: position 0 → 🇦, 1 → 🇧, etc. */
-const regionalIndicator = (position: number): string => String.fromCodePoint(0x1f1e6 + position);
+export const regionalIndicator = (position: number): string =>
+  String.fromCodePoint(0x1f1e6 + position);
 
 /**
  * Maximum character length for a Discord button label is 80.
@@ -22,7 +23,7 @@ const BUTTON_INDICATOR_OVERHEAD = 3; // 2 (emoji surrogate pair) + 1 (space)
 const BUTTON_LABEL_CONTENT_MAX = BUTTON_LABEL_MAX - BUTTON_INDICATOR_OVERHEAD;
 
 /** Truncate a label to fit the button content budget, appending … if truncated. */
-const truncateButtonLabel = (label: string): string => {
+export const truncateButtonLabel = (label: string): string => {
   if (label.length <= BUTTON_LABEL_CONTENT_MAX) return label;
   return `${label.slice(0, BUTTON_LABEL_CONTENT_MAX - 1)}…`;
 };
@@ -122,49 +123,35 @@ export const buildPollEmbed = (
     },
   ];
 
-  // Build vote button rows (4 per row, cap 10)
-  const BUTTONS_PER_ROW = 4;
-  const components: Discord.ActionRowComponentForMessageRequest[] = [];
-
-  for (let i = 0; i < view.options.length; i += BUTTONS_PER_ROW) {
-    const batch = view.options.slice(i, i + BUTTONS_PER_ROW);
-    const buttonRow: Discord.ActionRowComponentForMessageRequest = {
-      type: 1,
-      components: batch.map((opt) => {
-        const isSelected = view.my_option_ids.includes(opt.option_id);
-        return {
-          type: 2,
-          style: isSelected ? 1 : 2, // Primary=1 (selected), Secondary=2 (unselected)
-          label: `${regionalIndicator(opt.position)} ${truncateButtonLabel(opt.label)}`,
-          custom_id: `poll-vote:${view.poll_id}:${opt.option_id}`,
-          disabled: isClosed,
-        };
-      }),
-    };
-    components.push(buttonRow);
+  // Closed board: no components at all
+  if (isClosed) {
+    return { embeds, components: [] };
   }
 
-  // Add action row with Add option + Close poll buttons (only for open polls)
-  if (!isClosed) {
-    const actionRow: Discord.ActionRowComponentForMessageRequest = {
-      type: 1,
-      components: [
-        {
-          type: 2,
-          style: 1, // Primary
-          label: m.bot_poll_add_option_button({}, { locale }),
-          custom_id: `poll-add:${view.poll_id}`,
-        },
-        {
-          type: 2,
-          style: 4, // Danger
-          label: m.bot_poll_close_button({}, { locale }),
-          custom_id: `poll-close:${view.poll_id}`,
-        },
-      ],
-    };
-    components.push(actionRow);
-  }
+  // Open board: one action row with Vote + Add option + Close poll buttons
+  const actionRow: Discord.ActionRowComponentForMessageRequest = {
+    type: 1,
+    components: [
+      {
+        type: 2,
+        style: 1, // Primary
+        label: m.bot_poll_vote_button({}, { locale }),
+        custom_id: `poll-open:${view.poll_id}`,
+      },
+      {
+        type: 2,
+        style: 2, // Secondary
+        label: m.bot_poll_add_option_button({}, { locale }),
+        custom_id: `poll-add:${view.poll_id}`,
+      },
+      {
+        type: 2,
+        style: 4, // Danger
+        label: m.bot_poll_close_button({}, { locale }),
+        custom_id: `poll-close:${view.poll_id}`,
+      },
+    ],
+  };
 
-  return { embeds, components };
+  return { embeds, components: [actionRow] };
 };

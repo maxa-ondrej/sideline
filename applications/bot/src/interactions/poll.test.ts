@@ -1,5 +1,5 @@
-// TDD mode — written BEFORE the implementation exists.
-// Tests will fail to import until poll.ts interactions are implemented.
+// TDD mode — written BEFORE the implementation changes land.
+// Tests will fail to import until poll.ts interactions are updated.
 // Static top-of-file imports only (per AGENTS.md "Test File Imports — Static Only").
 //
 // vi.mock is hoisted before imports by Vitest. The factory mocks ~/env.js so
@@ -16,6 +16,7 @@ import {
   PollAddButton,
   PollAddModalSubmit,
   PollCloseButton,
+  PollOpenButton,
   PollVoteButton,
 } from '~/interactions/poll.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -301,7 +302,7 @@ const runHandler = async (
 };
 
 // ---------------------------------------------------------------------------
-// Tests — poll-vote button
+// Tests — poll-vote button (now on ephemeral private view)
 // ---------------------------------------------------------------------------
 
 describe('poll-vote button interaction', () => {
@@ -359,7 +360,23 @@ describe('poll-vote button interaction', () => {
     );
   });
 
-  it('CastVote action=counted → ephemeral success reply', async () => {
+  // NEW: vote button now responds with DEFERRED_UPDATE_MESSAGE (type 6) not ephemeral deferred
+  it('vote button returns DEFERRED_UPDATE_MESSAGE (type 6) — edits ephemeral in-place', async () => {
+    const rpcStub = makeSyncRpcStub();
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-vote:${POLL_ID}:${OPTION_ID_A}`);
+    const response = await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, interaction);
+
+    const responseJson = JSON.stringify(response);
+    // DEFERRED_UPDATE_MESSAGE = type 6
+    expect(responseJson).toContain(
+      String(DiscordTypes.InteractionCallbackTypes.DEFERRED_UPDATE_MESSAGE),
+    );
+  });
+
+  // NEW: on success, updateOriginalWebhookMessage called with embeds+components (re-rendered private view)
+  it('CastVote action=counted → updateOriginalWebhookMessage called with embeds and components (private view refresh)', async () => {
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() => Effect.succeed(makeCastVoteResult('counted', [OPTION_ID_A]))),
     });
@@ -369,9 +386,31 @@ describe('poll-vote button interaction', () => {
     await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, interaction);
 
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+    const callArgs = restStub.updateOriginalWebhookMessage.mock.calls[0];
+    const payloadStr = JSON.stringify(callArgs);
+    // The private-view re-render must include embeds and components
+    expect(payloadStr).toContain('embeds');
+    expect(payloadStr).toContain('components');
   });
 
-  it('CastVote action=moved → ephemeral reply (different from counted)', async () => {
+  // NEW: on success, updateMessage also called with public board (allowed_mentions: { parse: [] })
+  it('CastVote action=counted → updateMessage (public board) called with allowed_mentions: { parse: [] }', async () => {
+    const rpcStub = makeSyncRpcStub({
+      'Poll/CastVote': vi.fn(() => Effect.succeed(makeCastVoteResult('counted', [OPTION_ID_A]))),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-vote:${POLL_ID}:${OPTION_ID_A}`);
+    await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, interaction);
+
+    expect(restStub.updateMessage).toHaveBeenCalledWith(
+      CHANNEL_ID,
+      MESSAGE_ID,
+      expect.objectContaining({ allowed_mentions: { parse: [] } }),
+    );
+  });
+
+  it('CastVote action=moved → updateOriginalWebhookMessage called (private view updated)', async () => {
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() => Effect.succeed(makeCastVoteResult('moved', [OPTION_ID_B]))),
     });
@@ -383,7 +422,7 @@ describe('poll-vote button interaction', () => {
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 
-  it('CastVote action=retracted → ephemeral reply', async () => {
+  it('CastVote action=retracted → updateOriginalWebhookMessage called', async () => {
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() => Effect.succeed(makeCastVoteResult('retracted', []))),
     });
@@ -395,7 +434,7 @@ describe('poll-vote button interaction', () => {
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 
-  it('CastVote action=added (multi) → ephemeral reply', async () => {
+  it('CastVote action=added (multi) → updateOriginalWebhookMessage called', async () => {
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() =>
         Effect.succeed(makeCastVoteResult('added', [OPTION_ID_A, OPTION_ID_B])),
@@ -409,7 +448,7 @@ describe('poll-vote button interaction', () => {
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 
-  it('CastVote action=removed (multi) → ephemeral reply', async () => {
+  it('CastVote action=removed (multi) → updateOriginalWebhookMessage called', async () => {
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() => Effect.succeed(makeCastVoteResult('removed', [OPTION_ID_B]))),
     });
@@ -423,7 +462,6 @@ describe('poll-vote button interaction', () => {
 
   it('RpcClientError from CastVote → resolves deferred reply with generic error (no forever-loading spinner)', async () => {
     const rpcStub = makeSyncRpcStub({
-      // Simulate a bot↔server RPC transport failure. catchTag matches on `_tag`.
       'Poll/CastVote': vi.fn(() => Effect.fail({ _tag: 'RpcClientError' } as never)),
     });
     const restStub = makeRestStub();
@@ -435,9 +473,13 @@ describe('poll-vote button interaction', () => {
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 
-  it('PollClosed from CastVote → ephemeral bot_poll_closed_notice (not an error, friendly message)', async () => {
+  // NEW: PollClosed → ephemeral edit passes components: [] (cleared) + board rebuilt
+  it('PollClosed from CastVote → ephemeral edit passes components: [] (clears stale toggle buttons)', async () => {
+    const closedView = makePollView('closed');
+    const getPollViewFn = vi.fn(() => Effect.succeed(Option.some(closedView)));
     const rpcStub = makeSyncRpcStub({
       'Poll/CastVote': vi.fn(() => Effect.fail(new PollRpcModels.PollClosed())),
+      'Poll/GetPollView': getPollViewFn,
     });
     const restStub = makeRestStub();
 
@@ -445,9 +487,10 @@ describe('poll-vote button interaction', () => {
     await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, interaction);
 
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
-    const followUpPayload = JSON.stringify(restStub.updateOriginalWebhookMessage.mock.calls[0]);
-    // Should contain an ephemeral-flag-like response (not throwing, user-friendly)
-    expect(followUpPayload.length).toBeGreaterThan(0);
+    // The ephemeral edit on PollClosed must pass components: [] to clear stale toggle buttons
+    const callArgs = restStub.updateOriginalWebhookMessage.mock.calls[0];
+    const payloadStr = JSON.stringify(callArgs);
+    expect(payloadStr).toContain('"components":[]');
   });
 
   it('PollClosed from CastVote → Poll/GetPollView called and board rebuilt with closed state', async () => {
@@ -512,7 +555,6 @@ describe('poll-vote button interaction', () => {
     const rpcStub = makeSyncRpcStub({ 'Poll/CastVote': castVoteFn });
     const restStub = makeRestStub();
 
-    // Interaction with no member/user id
     const noUserInteraction: DiscordTypes.APIInteraction = {
       id: '1234567890' as DiscordTypes.Snowflake,
       application_id: APP_ID,
@@ -545,19 +587,236 @@ describe('poll-vote button interaction', () => {
     expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 
-  it('vote button returns deferred ephemeral immediately (optimistic defer pattern)', async () => {
-    const rpcStub = makeSyncRpcStub();
+  // UPDATED: vote button on ephemeral no longer returns DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE+Ephemeral
+  // it now returns DEFERRED_UPDATE_MESSAGE (type 6) to edit the ephemeral in place
+  it('undefined guild_id → ephemeral error reply, no CastVote called', async () => {
+    const castVoteFn = vi.fn(() => Effect.succeed(makeCastVoteResult()));
+    const rpcStub = makeSyncRpcStub({ 'Poll/CastVote': castVoteFn });
     const restStub = makeRestStub();
 
-    const interaction = makeComponentInteraction(`poll-vote:${POLL_ID}:${OPTION_ID_A}`);
-    const response = await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, interaction);
+    const noGuildInteraction: DiscordTypes.APIInteraction = {
+      id: '1234567890' as DiscordTypes.Snowflake,
+      application_id: APP_ID,
+      token: INTERACTION_TOKEN,
+      version: 1,
+      type: DiscordTypes.InteractionTypes.MESSAGE_COMPONENT,
+      // guild_id explicitly absent
+      channel_id: CHANNEL_ID,
+      channel: {
+        id: CHANNEL_ID,
+        type: DiscordTypes.ChannelTypes.GUILD_TEXT,
+      } as unknown as DiscordTypes.APIInteraction['channel'],
+      member: {
+        user: {
+          id: USER_DISCORD_ID,
+          username: 'testuser',
+          discriminator: '0001',
+          global_name: null,
+          avatar: null,
+        },
+        roles: [],
+        joined_at: '2024-01-01T00:00:00Z',
+        deaf: false,
+        mute: false,
+        permissions: '8',
+      },
+      locale: 'en-US',
+      data: {
+        component_type: 2,
+        custom_id: `poll-vote:${POLL_ID}:${OPTION_ID_A}`,
+      },
+      message: {
+        id: MESSAGE_ID,
+        channel_id: CHANNEL_ID,
+      },
+    } as unknown as DiscordTypes.APIInteraction;
 
-    const responseJson = JSON.stringify(response);
-    expect(responseJson).toContain(
-      String(DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE),
+    await runHandler(PollVoteButton, restStub.layer, rpcStub.layer, noGuildInteraction);
+
+    expect(castVoteFn).not.toHaveBeenCalled();
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — poll-open button (new: opens per-user ephemeral private view)
+// ---------------------------------------------------------------------------
+
+describe('PollOpenButton — poll-open:{pollId}', () => {
+  it('returns DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE + Ephemeral (fresh per-user ephemeral)', async () => {
+    const rpcStub = makeSyncRpcStub({
+      'Poll/GetPollView': vi.fn(() => Effect.succeed(Option.some(makePollView('open')))),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-open:${POLL_ID}`);
+    const response = await runHandler(PollOpenButton, restStub.layer, rpcStub.layer, interaction);
+
+    const r = response as any;
+    expect(r.type).toBe(DiscordTypes.InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE);
+    expect(r.data?.flags).toBe(DiscordTypes.MessageFlags.Ephemeral);
+  });
+
+  it('calls Poll/GetPollView with {poll_id, discord_user_id, guild_id}', async () => {
+    const getPollViewFn = vi.fn(() => Effect.succeed(Option.some(makePollView('open'))));
+    const rpcStub = makeSyncRpcStub({ 'Poll/GetPollView': getPollViewFn });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-open:${POLL_ID}`);
+    await runHandler(PollOpenButton, restStub.layer, rpcStub.layer, interaction);
+
+    expect(getPollViewFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        poll_id: POLL_ID,
+        discord_user_id: USER_DISCORD_ID,
+        guild_id: GUILD_ID,
+      }),
     );
-    // ephemeral flag (64)
-    expect(responseJson).toContain(String(DiscordTypes.MessageFlags.Ephemeral));
+  });
+
+  it('Option.some(view) → updateOriginalWebhookMessage called with poll-vote: component(s)', async () => {
+    const rpcStub = makeSyncRpcStub({
+      'Poll/GetPollView': vi.fn(() => Effect.succeed(Option.some(makePollView('open')))),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-open:${POLL_ID}`);
+    await runHandler(PollOpenButton, restStub.layer, rpcStub.layer, interaction);
+
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+    const callArgs = restStub.updateOriginalWebhookMessage.mock.calls[0];
+    const payloadStr = JSON.stringify(callArgs);
+    // The private view must contain poll-vote: buttons
+    expect(payloadStr).toContain('poll-vote:');
+  });
+
+  it('Option.some(view) → updateOriginalWebhookMessage payload has allowed_mentions: { parse: [] }', async () => {
+    const rpcStub = makeSyncRpcStub({
+      'Poll/GetPollView': vi.fn(() => Effect.succeed(Option.some(makePollView('open')))),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-open:${POLL_ID}`);
+    await runHandler(PollOpenButton, restStub.layer, rpcStub.layer, interaction);
+
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+    const callArgs = restStub.updateOriginalWebhookMessage.mock.calls[0];
+    const payloadStr = JSON.stringify(callArgs);
+    expect(payloadStr).toContain('"allowed_mentions":{"parse":[]}');
+  });
+
+  it('Option.none → updateOriginalWebhookMessage called with not-found content, no crash', async () => {
+    const rpcStub = makeSyncRpcStub({
+      'Poll/GetPollView': vi.fn(() => Effect.succeed(Option.none())),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-open:${POLL_ID}`);
+    await expect(
+      runHandler(PollOpenButton, restStub.layer, rpcStub.layer, interaction),
+    ).resolves.toBeDefined();
+
+    // Spinner must be resolved even on Option.none — not-found ephemeral
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+  });
+
+  it('RpcClientError from GetPollView → resolves with generic error (no forever-loading spinner)', async () => {
+    const rpcStub = makeSyncRpcStub({
+      'Poll/GetPollView': vi.fn(() => Effect.fail({ _tag: 'RpcClientError' } as never)),
+    });
+    const restStub = makeRestStub();
+
+    const interaction = makeComponentInteraction(`poll-open:${POLL_ID}`);
+    await expect(
+      runHandler(PollOpenButton, restStub.layer, rpcStub.layer, interaction),
+    ).resolves.toBeDefined();
+
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+  });
+
+  it('missing user id → ephemeral error, GetPollView NOT called', async () => {
+    const getPollViewFn = vi.fn(() => Effect.succeed(Option.some(makePollView('open'))));
+    const rpcStub = makeSyncRpcStub({ 'Poll/GetPollView': getPollViewFn });
+    const restStub = makeRestStub();
+
+    const noUserInteraction: DiscordTypes.APIInteraction = {
+      id: '1234567890' as DiscordTypes.Snowflake,
+      application_id: APP_ID,
+      token: INTERACTION_TOKEN,
+      version: 1,
+      type: DiscordTypes.InteractionTypes.MESSAGE_COMPONENT,
+      guild_id: GUILD_ID,
+      channel_id: CHANNEL_ID,
+      channel: {
+        id: CHANNEL_ID,
+        type: DiscordTypes.ChannelTypes.GUILD_TEXT,
+      } as unknown as DiscordTypes.APIInteraction['channel'],
+      // No member field — user id is unknown
+      locale: 'en-US',
+      data: {
+        component_type: 2,
+        custom_id: `poll-open:${POLL_ID}`,
+      },
+      message: {
+        id: MESSAGE_ID,
+        channel_id: CHANNEL_ID,
+      },
+    } as unknown as DiscordTypes.APIInteraction;
+
+    await runHandler(PollOpenButton, restStub.layer, rpcStub.layer, noUserInteraction);
+
+    // GetPollView must NOT be called when user id is absent
+    expect(getPollViewFn).not.toHaveBeenCalled();
+    // An ephemeral error must still be sent to resolve the spinner
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
+  });
+
+  it('undefined guild_id → ephemeral error, GetPollView NOT called', async () => {
+    const getPollViewFn = vi.fn(() => Effect.succeed(Option.some(makePollView('open'))));
+    const rpcStub = makeSyncRpcStub({ 'Poll/GetPollView': getPollViewFn });
+    const restStub = makeRestStub();
+
+    const noGuildInteraction: DiscordTypes.APIInteraction = {
+      id: '1234567890' as DiscordTypes.Snowflake,
+      application_id: APP_ID,
+      token: INTERACTION_TOKEN,
+      version: 1,
+      type: DiscordTypes.InteractionTypes.MESSAGE_COMPONENT,
+      // guild_id explicitly absent
+      channel_id: CHANNEL_ID,
+      channel: {
+        id: CHANNEL_ID,
+        type: DiscordTypes.ChannelTypes.GUILD_TEXT,
+      } as unknown as DiscordTypes.APIInteraction['channel'],
+      member: {
+        user: {
+          id: USER_DISCORD_ID,
+          username: 'testuser',
+          discriminator: '0001',
+          global_name: null,
+          avatar: null,
+        },
+        roles: [],
+        joined_at: '2024-01-01T00:00:00Z',
+        deaf: false,
+        mute: false,
+        permissions: '8',
+      },
+      locale: 'en-US',
+      data: {
+        component_type: 2,
+        custom_id: `poll-open:${POLL_ID}`,
+      },
+      message: {
+        id: MESSAGE_ID,
+        channel_id: CHANNEL_ID,
+      },
+    } as unknown as DiscordTypes.APIInteraction;
+
+    await runHandler(PollOpenButton, restStub.layer, rpcStub.layer, noGuildInteraction);
+
+    expect(getPollViewFn).not.toHaveBeenCalled();
+    expect(restStub.updateOriginalWebhookMessage).toHaveBeenCalled();
   });
 });
 
@@ -593,7 +852,6 @@ describe('poll-add button interaction', () => {
     const response = await runHandler(PollAddButton, restStub.layer, rpcStub.layer, interaction);
 
     const responseJson = JSON.stringify(response);
-    // custom_id must be poll-add-modal:{channelId}:{messageId}:{pollId}
     const expectedModalId = `poll-add-modal:${CHANNEL_ID}:${MESSAGE_ID}:${POLL_ID}`;
     expect(responseJson).toContain(expectedModalId);
   });
@@ -606,7 +864,6 @@ describe('poll-add button interaction', () => {
     const interaction = makeComponentInteraction(`poll-add:${POLL_ID}`);
     await runHandler(PollAddButton, restStub.layer, rpcStub.layer, interaction);
 
-    // The add button must NOT call AddOption — that's for the modal submit
     expect(addOptionFn).not.toHaveBeenCalled();
   });
 });
@@ -622,7 +879,6 @@ describe('poll-add modal submit interaction', () => {
     const rpcStub = makeSyncRpcStub({ 'Poll/AddOption': addOptionFn });
     const restStub = makeRestStub();
 
-    // Modal custom_id: poll-add-modal:{channel}:{message}:{pollId}
     const modalCustomId = `poll-add-modal:${CHANNEL_ID}:${MESSAGE_ID}:${POLL_ID}`;
     const interaction = makeModalInteraction(
       modalCustomId,
@@ -639,12 +895,9 @@ describe('poll-add modal submit interaction', () => {
       expect.objectContaining({
         poll_id: POLL_ID,
         label: 'My New Option',
-        // CRITICAL: member_role_ids must be the EXACT raw array from interaction.member.roles
-        // It must never be a boolean or transformed value
         member_role_ids: EXACT_ROLE_IDS,
       }),
     );
-    // Additional explicit assertion: the value is an array, never a boolean
     const callArgs = (addOptionFn.mock.calls as unknown[][])[0]?.[0] as
       | { member_role_ids: unknown }
       | undefined;
@@ -787,7 +1040,6 @@ describe('poll-add modal submit interaction', () => {
     await runHandler(PollAddModalSubmit, restStub.layer, rpcStub.layer, interaction);
 
     expect(addOptionFn).toHaveBeenCalled();
-    // Board must be updated at the stored channel/message ids from the view
     expect(restStub.updateMessage).toHaveBeenCalledWith(
       CHANNEL_ID,
       MESSAGE_ID,

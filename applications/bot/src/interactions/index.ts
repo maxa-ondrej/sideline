@@ -30,6 +30,7 @@ import {
   PollAddButtonReg,
   PollAddModalReg,
   PollCloseButtonReg,
+  PollOpenButtonReg,
   PollVoteButtonReg,
 } from './poll.js';
 import { RosterApproveButton, RosterDeclineButton } from './roster-approval.js';
@@ -77,6 +78,7 @@ export const interactionBuilder = Ix.builder
   .add(CarpoolAssignPickSelect)
   .add(RosterApproveButton)
   .add(RosterDeclineButton)
+  .add(PollOpenButtonReg)
   .add(PollVoteButtonReg)
   .add(PollAddButtonReg)
   .add(PollAddModalReg)
