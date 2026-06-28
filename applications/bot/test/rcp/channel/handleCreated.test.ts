@@ -85,6 +85,7 @@ const makeLogCapture = (): { messages: string[]; level: string[]; layer: Layer.L
   const layer = Logger.layer([
     Logger.make((options) => {
       messages.push(String(options.message));
+      // In Effect v4, options.logLevel is the level string itself (e.g. "Warn").
       level.push(String(options.logLevel));
     }),
   ]);
@@ -629,12 +630,12 @@ describe('handleCreated — Task 2: member backfill after role resolution', () =
     expect(memberBCall[1]).toBe(DISCORD_USER_B);
     expect(memberBCall[2]).toBe(EXISTING_ROLE_ID);
 
-    // A warning must have been logged for member A's failure
-    const warnCount = logLevels.filter((l) => l.includes('Warn') || l.includes('Warning')).length;
-    const msgCount = messages.filter(
-      (m) => m.includes('404') || m.toLowerCase().includes('warn'),
-    ).length;
-    expect(warnCount + msgCount).toBeGreaterThan(0);
+    // A warning (at WARN level) must have been logged for member A's failure.
+    // Assert on the actual log level label rather than message text, so the test
+    // verifies the warning level itself instead of passing on a 404/warn substring.
+    const warnCount = logLevels.filter((l) => l.toUpperCase().includes('WARN')).length;
+    expect(warnCount).toBeGreaterThan(0);
+    expect(messages.some((m) => m.includes('Failed to add role'))).toBe(true);
   });
 
   /**

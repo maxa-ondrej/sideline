@@ -261,7 +261,7 @@ const make = Effect.gen(function* () {
     Result: GroupMemberWithDiscordRow,
     execute: (groupId) => sql`
             WITH RECURSIVE descendants AS (
-              SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId}
+              SELECT g.id, g.team_id FROM groups g WHERE g.id = ${groupId} AND g.is_archived = false
               UNION ALL
               SELECT g.id, g.team_id FROM groups g JOIN descendants d ON g.parent_id = d.id WHERE g.is_archived = false AND g.team_id = d.team_id
             )
