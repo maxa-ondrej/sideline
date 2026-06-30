@@ -13,15 +13,13 @@ const DiscordFormatString = Schema.String.pipe(
   ),
 );
 
-// Personal events channel name template: must include {name} or {discord_id} so
-// generated channel names stay distinguishable per member.
+// Personal events channel name template. Placeholders {name}/{discord_id} are
+// optional — a static name is fine since each personal channel is private (only
+// its member sees it) and the bot tracks channels by id, not name. Just require
+// a non-empty template so generated channel names are never blank.
 const PersonalEventsChannelFormatString = Schema.String.pipe(
   Schema.check(
-    Schema.makeFilter<string>((s) =>
-      s.includes('{name}') || s.includes('{discord_id}')
-        ? true
-        : 'Format must include {name} or {discord_id}',
-    ),
+    Schema.makeFilter<string>((s) => (s.trim().length > 0 ? true : 'Format must not be empty')),
   ),
 );
 
