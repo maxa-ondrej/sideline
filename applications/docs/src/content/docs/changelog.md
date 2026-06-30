@@ -5,6 +5,13 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-30 — Personal event channels: instant backfill and automatic rename on format change
+
+Two further improvements to personal event channels:
+
+- **New channels show existing events immediately.** When the bot creates a personal channel for a member, it immediately backfills all of that member's upcoming events into the new channel. The channel is populated within seconds of provisioning — no waiting for the next reconcile cycle.
+- **Changing the channel-name format renames existing channels.** When a captain updates the **Personal channel name format** setting, the bot automatically renames every existing personal channel to match the new format. Channels are processed one at a time to respect Discord rate limits, so renaming a large team may take a few seconds.
+
 ## 2026-06-30 — Personal event channels: group restriction, custom names, Going list, and smart mentions
 
 Personal event channels — private per-member Discord channels showing that member's upcoming events — now have several new capabilities:

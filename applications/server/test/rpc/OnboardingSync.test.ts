@@ -15,6 +15,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { DiscordRolesRepository } from '~/repositories/DiscordRolesRepository.js';
+import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { InviteAcceptancesRepository } from '~/repositories/InviteAcceptancesRepository.js';
 import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
@@ -115,6 +116,7 @@ const makeTestLayer = () =>
         DiscordRoleMappingRepository.Default,
         DiscordChannelMappingRepository.Default,
         DiscordRolesRepository.Default,
+        EventsRepository.Default,
         GroupsRepository.Default,
         InviteAcceptancesRepository.Default,
         PendingGuildJoinsRepository.Default,

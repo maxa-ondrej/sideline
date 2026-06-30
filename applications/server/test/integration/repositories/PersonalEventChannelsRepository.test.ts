@@ -18,6 +18,7 @@ import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 // TDD: implement PersonalEventChannelsRepository
 import { PersonalEventChannelsRepository } from '~/repositories/PersonalEventChannelsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 import { cleanDatabase, TestPgClient } from '../helpers.js';
@@ -29,6 +30,7 @@ const TestLayer = Layer.mergeAll(
   TeamsRepository.Default,
   UsersRepository.Default,
   GroupsRepository.Default,
+  TeamSettingsRepository.Default,
 ).pipe(Layer.provideMerge(TestPgClient));
 
 beforeEach(() => cleanDatabase.pipe(Effect.provide(TestPgClient), Effect.runPromise));
@@ -265,6 +267,7 @@ describe('PersonalEventChannelsRepository — getMembersNeedingPersonalChannel',
                   seed.team.id,
                   seed.member.id,
                   '404111111111111111' as Discord.Snowflake,
+                  'events-{discord_id}',
                 ),
               ]),
             ),
@@ -341,6 +344,7 @@ describe('PersonalEventChannelsRepository — savePersonalChannelId / getPersona
                 seed.team.id,
                 seed.member.id,
                 '406111111111111111' as Discord.Snowflake,
+                'events-{discord_id}',
               ),
             ]),
           ),
@@ -393,6 +397,7 @@ describe('PersonalEventChannelsRepository — UNIQUE on discord_channel_id', () 
                   team.id,
                   member1.id,
                   '407111111111111111' as Discord.Snowflake,
+                  'events-{discord_id}',
                 ),
               ]),
             ),
@@ -407,6 +412,7 @@ describe('PersonalEventChannelsRepository — UNIQUE on discord_channel_id', () 
                   team.id,
                   member2.id,
                   '407111111111111111' as Discord.Snowflake,
+                  'events-{discord_id}',
                 )
                 .pipe(Effect.exit),
             ),
@@ -446,6 +452,7 @@ describe('PersonalEventChannelsRepository — deletePersonalChannel', () => {
                 seed.team.id,
                 seed.member.id,
                 '408111111111111111' as Discord.Snowflake,
+                'events-{discord_id}',
               ),
             ]),
           ),
@@ -620,6 +627,7 @@ describe('PersonalEventChannelsRepository — group-restricted provisioning', ()
                       seed.team.id,
                       seed.member1.id,
                       '414111111111111111' as Discord.Snowflake,
+                      'events-{discord_id}',
                     ),
                   ),
                 ),
@@ -631,6 +639,7 @@ describe('PersonalEventChannelsRepository — group-restricted provisioning', ()
                       seed.team.id,
                       seed.member2.id,
                       '414222222222222222' as Discord.Snowflake,
+                      'events-{discord_id}',
                     ),
                   ),
                 ),
@@ -651,6 +660,136 @@ describe('PersonalEventChannelsRepository — group-restricted provisioning', ()
           expect(memberIds).not.toContain(seed.member1.id);
           const member2Row = results.find((r) => r.team_member_id === seed.member2.id);
           expect(member2Row?.discord_channel_id).toBe('414222222222222222');
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Tests: rename-on-format-change drift detection (getChannelsToRename)
+// ---------------------------------------------------------------------------
+
+const setTeamChannelFormat = (teamId: Team.TeamId, format: string) =>
+  TeamSettingsRepository.asEffect().pipe(
+    Effect.andThen((repo) =>
+      repo.upsert({
+        teamId,
+        eventHorizonDays: 30,
+        minPlayersThreshold: 0,
+        discordPersonalEventsChannelFormat: format,
+      }),
+    ),
+  );
+
+describe('PersonalEventChannelsRepository — getChannelsToRename', () => {
+  it.effect('returns channels whose applied format differs from the current team format', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '415000000000000001',
+          'rename-me-1',
+          '415050505050505050' as Discord.Snowflake,
+        ),
+      ),
+      // Provision a channel with the original format.
+      Effect.tap(({ seed }) => setTeamChannelFormat(seed.team.id, 'events-{discord_id}')),
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo
+              .reservePersonalChannel(seed.team.id, seed.member.id)
+              .pipe(
+                Effect.andThen(
+                  repo.savePersonalChannelId(
+                    seed.team.id,
+                    seed.member.id,
+                    '415111111111111111' as Discord.Snowflake,
+                    'events-{discord_id}',
+                  ),
+                ),
+              ),
+          ),
+        ),
+      ),
+      // No drift yet → nothing to rename.
+      Effect.bind('before', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.getChannelsToRename(seed.team.id, 100)),
+        ),
+      ),
+      // Change the team format → the channel is now drifted.
+      Effect.tap(({ seed }) => setTeamChannelFormat(seed.team.id, 'attendance-{name}')),
+      Effect.bind('after', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.getChannelsToRename(seed.team.id, 100)),
+        ),
+      ),
+      Effect.tap(({ before, after, seed }) =>
+        Effect.sync(() => {
+          expect(before).toHaveLength(0);
+          expect(after).toHaveLength(1);
+          expect(after[0]?.team_member_id).toBe(seed.member.id);
+          expect(after[0]?.channel_format).toBe('attendance-{name}');
+          expect(after[0]?.discord_channel_id).toBe('415111111111111111');
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('savePersonalChannelFormat clears the drift', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '416000000000000001',
+          'rename-me-2',
+          '416060606060606060' as Discord.Snowflake,
+        ),
+      ),
+      Effect.tap(({ seed }) => setTeamChannelFormat(seed.team.id, 'attendance-{name}')),
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo
+              .reservePersonalChannel(seed.team.id, seed.member.id)
+              .pipe(
+                Effect.andThen(
+                  repo.savePersonalChannelId(
+                    seed.team.id,
+                    seed.member.id,
+                    '416111111111111111' as Discord.Snowflake,
+                    'events-{discord_id}',
+                  ),
+                ),
+              ),
+          ),
+        ),
+      ),
+      // Drifted (applied 'events-{discord_id}' vs current 'attendance-{name}').
+      Effect.bind('drifted', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.getChannelsToRename(seed.team.id, 100)),
+        ),
+      ),
+      // Record the new applied format → drift cleared.
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.savePersonalChannelFormat(seed.team.id, seed.member.id, 'attendance-{name}'),
+          ),
+        ),
+      ),
+      Effect.bind('cleared', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.getChannelsToRename(seed.team.id, 100)),
+        ),
+      ),
+      Effect.tap(({ drifted, cleared }) =>
+        Effect.sync(() => {
+          expect(drifted).toHaveLength(1);
+          expect(cleared).toHaveLength(0);
         }),
       ),
       Effect.provide(TestLayer),

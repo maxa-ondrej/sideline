@@ -15,6 +15,7 @@ import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMa
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
 import { DiscordRolesRepository } from '~/repositories/DiscordRolesRepository.js';
+import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { InviteAcceptancesRepository } from '~/repositories/InviteAcceptancesRepository.js';
 import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
@@ -66,6 +67,7 @@ export const GuildsRpcLive = Effect.Do.pipe(
   Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
   Effect.bind('personalChannels', () => PersonalEventChannelsRepository.asEffect()),
   Effect.bind('overflowCategories', () => PersonalEventOverflowCategoriesRepository.asEffect()),
+  Effect.bind('events', () => EventsRepository.asEffect()),
   Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
   Effect.map((deps) => {
     const setupNewMember = (
@@ -645,15 +647,74 @@ export const GuildsRpcLive = Effect.Do.pipe(
         team_id,
         team_member_id,
         discord_channel_id,
+        channel_format,
       }: {
         readonly team_id: Team.TeamId;
         readonly team_member_id: string;
         readonly discord_channel_id: Discord.Snowflake;
+        readonly channel_format: string;
       }) =>
         deps.personalChannels.savePersonalChannelId(
           team_id,
           team_member_id as TeamMember.TeamMemberId,
           discord_channel_id,
+          channel_format,
+        ),
+
+      'Guild/SavePersonalChannelFormat': ({
+        team_id,
+        team_member_id,
+        channel_format,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly team_member_id: string;
+        readonly channel_format: string;
+      }) =>
+        deps.personalChannels.savePersonalChannelFormat(
+          team_id,
+          team_member_id as TeamMember.TeamMemberId,
+          channel_format,
+        ),
+
+      'Guild/MarkTeamPersonalEventsDirty': ({ team_id }: { readonly team_id: Team.TeamId }) =>
+        deps.events.markTeamUpcomingEventsPersonalMessagesDirty(team_id),
+
+      'Guild/GetPersonalChannelsToRename': ({
+        guild_id,
+        limit,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly limit: number;
+      }) =>
+        deps.teams.findByGuildId(guild_id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () =>
+                Effect.succeed(
+                  [] as ReadonlyArray<{
+                    readonly team_id: Team.TeamId;
+                    readonly team_member_id: string;
+                    readonly discord_id: Discord.Snowflake;
+                    readonly discord_channel_id: Discord.Snowflake;
+                    readonly name: string;
+                    readonly channel_format: string;
+                  }>,
+                ),
+              onSome: (team) =>
+                deps.personalChannels.getChannelsToRename(team.id, limit).pipe(
+                  Effect.map(
+                    Array.map((m) => ({
+                      team_id: team.id,
+                      team_member_id: m.team_member_id,
+                      discord_id: m.discord_id,
+                      discord_channel_id: m.discord_channel_id,
+                      name: m.name,
+                      channel_format: m.channel_format,
+                    })),
+                  ),
+                ),
+            }),
+          ),
         ),
 
       'Guild/GetPersonalChannel': ({

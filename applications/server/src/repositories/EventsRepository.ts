@@ -853,6 +853,20 @@ const make = Effect.gen(function* () {
       sql`UPDATE events SET personal_messages_dirty_at = NULL WHERE id = ${input.id} AND personal_messages_dirty_at = ${input.dirty_at}`,
   });
 
+  // Mark every active, upcoming event for a team dirty so the personal-events
+  // reconcile loop (re)builds personal messages — e.g. to populate a member's
+  // freshly-provisioned channel with their existing events. Only touches events
+  // that are not already dirty, so in-flight reconciles are left undisturbed.
+  const markTeamUpcomingPersonalMessagesDirty = SqlSchema.void({
+    Request: Team.TeamId,
+    execute: (teamId) =>
+      sql`UPDATE events SET personal_messages_dirty_at = date_trunc('milliseconds', now())
+          WHERE team_id = ${teamId}
+            AND status = 'active'
+            AND start_at >= now()
+            AND personal_messages_dirty_at IS NULL`,
+  });
+
   const updateFutureUnmodifiedInSeries = (
     seriesId: EventSeries.EventSeriesId,
     fromDate: Date,
@@ -880,6 +894,9 @@ const make = Effect.gen(function* () {
 
   const markEventPersonalMessagesDirty = (eventId: Event.EventId) =>
     markPersonalMessagesDirty(eventId).pipe(catchSqlErrors);
+
+  const markTeamUpcomingEventsPersonalMessagesDirty = (teamId: Team.TeamId) =>
+    markTeamUpcomingPersonalMessagesDirty(teamId).pipe(catchSqlErrors);
 
   const clearEventPersonalMessagesDirty = (eventId: Event.EventId, observedDirtyAt: DateTime.Utc) =>
     clearPersonalMessagesDirty({
@@ -919,6 +936,7 @@ const make = Effect.gen(function* () {
     saveClaimThread,
     findClaimInfo,
     markEventPersonalMessagesDirty,
+    markTeamUpcomingEventsPersonalMessagesDirty,
     clearEventPersonalMessagesDirty,
   };
 });

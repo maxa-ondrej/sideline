@@ -1583,7 +1583,7 @@ The server's AI summarization pipeline inserts rows into `email_post_sync_events
 
 **Polling interval:** 10 seconds.
 
-This worker creates private per-member event channels and de-provisions channels for members who are no longer eligible. On each tick it calls `Guild/GetGuildsNeedingPersonalProvisioning` to find guilds where the personal-channel feature is enabled (`discord_personal_events_category_id` is set) and at least one active member is missing a channel. For each such guild it runs two sequential passes:
+This worker creates private per-member event channels, de-provisions channels for members who are no longer eligible, and renames channels whose name format has changed. On each tick it calls `Guild/GetGuildsNeedingPersonalProvisioning` to find guilds where the personal-channel feature is enabled (`discord_personal_events_category_id` is set) and at least one active member is missing a channel or has a channel rendered with an outdated format. For each such guild it runs three sequential passes:
 
 **Provisioning pass (`handleProvision.ts`):**
 
@@ -1592,11 +1592,16 @@ This worker creates private per-member event channels and de-provisions channels
 3. Calls `Guild/GetPersonalChannelTargetCategory` to determine the target Discord category (the primary category or the latest overflow category if the primary is full).
 4. Applies the team's `channel_format` template — replaces `{name}` with the member's display name and `{discord_id}` with their Discord user snowflake — to derive the channel name.
 5. Calls `createPersonalEventChannel` (Discord REST) to create a private text channel visible only to that member and the bot.
-6. On success, calls `Guild/SavePersonalChannelId` to write the Discord snowflake back. If category overflow is detected (Discord error 50035 / channel limit reached), allocates a new overflow category via `Guild/AllocatePersonalOverflowCategory`, creates the Discord category channel, saves it via `Guild/SavePersonalOverflowCategoryId`, and retries the channel creation in the new category.
+6. On success, calls `Guild/SavePersonalChannelId` (now includes `channel_format`) to write the Discord snowflake and the applied format back. If category overflow is detected (Discord error 50035 / channel limit reached), allocates a new overflow category via `Guild/AllocatePersonalOverflowCategory`, creates the Discord category channel, saves it via `Guild/SavePersonalOverflowCategoryId`, and retries the channel creation in the new category.
+7. After writing the channel ID, calls `Guild/MarkTeamPersonalEventsDirty` to mark all of the team's active upcoming events dirty. This triggers the reconcile loop to backfill event embeds into the freshly-created channel so members see their existing events immediately. If this RPC call fails transiently it is logged as a warning and does not block provisioning.
 
 **De-provisioning pass (`handleDeprovision.ts`):**
 
 Runs immediately after the provisioning pass for the same guild. Calls `Guild/GetPersonalChannelsToDeprovision` to find members who currently have a personal channel but are no longer eligible (i.e. `discord_personal_events_group_id` is set and the member is outside that group). For each such member, deletes the Discord channel via REST and removes the row via `Guild/DeletePersonalChannel`. Returns an empty list if no group restriction is configured, so de-provisioning is a no-op for teams without a restriction.
+
+**Rename pass (`handleRename.ts`):**
+
+Runs immediately after the de-provisioning pass for the same guild. Calls `Guild/GetPersonalChannelsToRename` to find members whose stored `applied_channel_format` differs from the team's current `discord_personal_events_channel_format`. For each such member: renders the new channel name using the current format, calls `rest.updateChannel` to rename the Discord channel, then calls `Guild/SavePersonalChannelFormat` to record the applied format so the channel is no longer flagged as drifted. The applied format is only recorded once the rename lands (or Discord reports the channel gone with a 10003 Unknown Channel error), so a transient failure simply retries on the next tick. Channels are processed one at a time per guild to respect Discord rate limits. Existing channels created before migration `1790300011` have `applied_channel_format = NULL`, which is treated as drifted — they are renamed on the first provisioning tick after the migration.
 
 **RPCs used by this worker:**
 
@@ -1605,10 +1610,13 @@ Runs immediately after the provisioning pass for the same guild. Calls `Guild/Ge
 - `Guild/ReservePersonalChannel`
 - `Guild/GetPersonalChannelTargetCategory`
 - `Guild/SavePersonalChannelId`
+- `Guild/MarkTeamPersonalEventsDirty`
 - `Guild/AllocatePersonalOverflowCategory`
 - `Guild/SavePersonalOverflowCategoryId`
 - `Guild/GetPersonalChannelsToDeprovision`
 - `Guild/DeletePersonalChannel`
+- `Guild/GetPersonalChannelsToRename`
+- `Guild/SavePersonalChannelFormat`
 
 ---
 
@@ -1656,6 +1664,7 @@ After reconciling all members for an event, calls `PersonalEvents/ClearPersonalM
 - `applications/bot/src/rcp/personalEvents/ProcessorService.ts`
 - `applications/bot/src/rcp/personalEvents/handleProvision.ts`
 - `applications/bot/src/rcp/personalEvents/handleDeprovision.ts`
+- `applications/bot/src/rcp/personalEvents/handleRename.ts`
 - `applications/bot/src/rcp/personalEvents/handleReconcile.ts`
 - `applications/bot/src/rcp/personalEvents/reorderPersonalChannel.ts`
 - `applications/bot/src/rest/events/buildPersonalEventMessage.ts`
@@ -1705,7 +1714,10 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id, name, channel_format }[]` | Lists active members with no provisioned personal channel; applies the team's `discord_personal_events_group_id` restriction when set; `name` is the member's display name for the `{name}` channel-format placeholder; `channel_format` is the team's configured `discord_personal_events_channel_format` |
 | `Guild/GetPersonalChannelsToDeprovision` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_channel_id }[]` | Lists members who have a personal channel but are outside the configured `discord_personal_events_group_id` group; empty when no group restriction is set |
 | `Guild/ReservePersonalChannel` | `team_id`, `team_member_id` → `{ reserved }` | Idempotent insert into `personal_event_channels` |
-| `Guild/SavePersonalChannelId` | `team_id`, `team_member_id`, `discord_channel_id` | Writes the Discord channel ID after the bot creates it |
+| `Guild/SavePersonalChannelId` | `team_id`, `team_member_id`, `discord_channel_id`, `channel_format` | Writes the Discord channel ID and the applied channel-name format after the bot creates a channel |
+| `Guild/SavePersonalChannelFormat` | `team_id`, `team_member_id`, `channel_format` | Records the channel-name format last applied during a rename so drift detection works correctly on subsequent ticks |
+| `Guild/GetPersonalChannelsToRename` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id, discord_channel_id, name, channel_format }[]` | Lists members whose channel was rendered with an outdated format; `channel_format` is the current format to apply |
+| `Guild/MarkTeamPersonalEventsDirty` | `team_id` | Marks all active upcoming team events dirty so the reconcile loop backfills embeds into a freshly-provisioned channel |
 | `Guild/GetPersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Reads the stored Discord channel ID for a member |
 | `Guild/DeletePersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Deletes the row and returns the channel ID for cleanup |
 | `Guild/ListPersonalChannelsForEvent` | `event_id` → `{ team_member_id, discord_id, personal_channel_id }[]` | Lists all members with a personal channel for reconcile |

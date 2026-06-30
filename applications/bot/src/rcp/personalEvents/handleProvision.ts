@@ -82,7 +82,22 @@ export const provisionPersonalChannels = (guildId: DiscordSchemas.Snowflake) =>
                               team_id: member.team_id,
                               team_member_id: member.team_member_id,
                               discord_channel_id,
+                              channel_format: member.channel_format,
                             }),
+                          ),
+                          // Populate the new channel with the member's existing events: mark the
+                          // team's upcoming events dirty so the reconcile pass renders them here.
+                          Effect.tap(() =>
+                            rpc['Guild/MarkTeamPersonalEventsDirty']({
+                              team_id: member.team_id,
+                            }).pipe(
+                              Effect.catchTag('RpcClientError', (e) =>
+                                Effect.logWarning(
+                                  `Failed to mark events dirty after provisioning member ${member.team_member_id}`,
+                                  e,
+                                ),
+                              ),
+                            ),
                           ),
                         );
 

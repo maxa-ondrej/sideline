@@ -255,7 +255,38 @@ export const GuildRpcGroup = RpcGroup.make(
       team_id: TeamId,
       team_member_id: Schema.String,
       discord_channel_id: Discord.Snowflake,
+      // The channel-name format applied when creating the channel.
+      channel_format: Schema.String,
     },
+  }),
+  // Records the channel-name format last applied to a member's channel (after a
+  // rename), so format-change drift can be detected.
+  Rpc.make('SavePersonalChannelFormat', {
+    payload: {
+      team_id: TeamId,
+      team_member_id: Schema.String,
+      channel_format: Schema.String,
+    },
+  }),
+  // Members whose personal channel name was rendered with a now-outdated format
+  // (the team's channel-name format changed). Used to rename existing channels.
+  Rpc.make('GetPersonalChannelsToRename', {
+    payload: { guild_id: Discord.Snowflake, limit: Schema.Number },
+    success: Schema.Array(
+      Schema.Struct({
+        team_id: TeamId,
+        team_member_id: Schema.String,
+        discord_id: Discord.Snowflake,
+        discord_channel_id: Discord.Snowflake,
+        name: Schema.String,
+        channel_format: Schema.String,
+      }),
+    ),
+  }),
+  // Marks all of a team's active upcoming events dirty so the reconcile loop
+  // backfills personal messages (e.g. into a freshly-provisioned channel).
+  Rpc.make('MarkTeamPersonalEventsDirty', {
+    payload: { team_id: TeamId },
   }),
   Rpc.make('GetPersonalChannel', {
     payload: { team_id: TeamId, team_member_id: Schema.String },

@@ -1022,12 +1022,13 @@ One row per team member, tracking the private Discord channel created for that m
 | `team_id` | UUID | NOT NULL, FK → `teams(id)` ON DELETE CASCADE | — |
 | `team_member_id` | UUID | NOT NULL, FK → `team_members(id)` ON DELETE CASCADE | — |
 | `discord_channel_id` | TEXT | — | — |
+| `applied_channel_format` | TEXT | — | — |
 | `created_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | `now()` |
 
 **Unique**: `(team_id, team_member_id)`
 
-**Notes**: Added in the personal-events rework migration. `discord_channel_id` is null until the bot creates the channel and writes back the Discord snowflake via `Guild/SavePersonalChannelId`. The provisioning worker polls `Guild/GetGuildsNeedingPersonalProvisioning` to find guilds where at least one active member has no channel, then calls `Guild/GetMembersNeedingPersonalChannel` to get the list and creates channels one at a time. A `(team_id, team_member_id)` insert uses `ON CONFLICT DO NOTHING` (via `Guild/ReservePersonalChannel`) so concurrent workers do not create duplicate rows.
+**Notes**: Added in the personal-events rework migration. `discord_channel_id` is null until the bot creates the channel and writes back the Discord snowflake via `Guild/SavePersonalChannelId`. The provisioning worker polls `Guild/GetGuildsNeedingPersonalProvisioning` to find guilds where at least one active member has no channel, then calls `Guild/GetMembersNeedingPersonalChannel` to get the list and creates channels one at a time. A `(team_id, team_member_id)` insert uses `ON CONFLICT DO NOTHING` (via `Guild/ReservePersonalChannel`) so concurrent workers do not create duplicate rows. `applied_channel_format` records the channel-name format template that was used when the channel was last created or renamed. When this value differs from the team's current `discord_personal_events_channel_format` setting, the provisioning worker renames the Discord channel and updates this field. Rows created before migration `1790300011` have `NULL` for this column, which is treated as drifted — those channels are renamed to the current format on the next provisioning tick. Added in migration `1790300011_add_personal_channel_applied_format`.
 
 ---
 
@@ -1954,6 +1955,7 @@ All 109 migration files in `packages/migrations/src/before/` plus 1 after-migrat
 | 1790200002 | `add_roster_role_reconcile_event_type` | Extends `channel_sync_events.event_type` CHECK constraint to include `'roster_role_reconcile'`, enabling the team-wide roster sync endpoint to enqueue bidirectional reconcile events. |
 | 1790300005 | `add_team_members_missed_rsvps` | Adds `missed_rsvps INT NOT NULL DEFAULT 0` to `team_members`. |
 | 1790300009 | `personal_events_rework` | Removes `discord_target_channel_id` from `events` and `event_series`; removes `overview_channel_id` from `teams`; adds `personal_messages_dirty_at TIMESTAMPTZ` to `events`; adds `discord_personal_events_category_id TEXT` and `discord_events_channel_id TEXT` to `team_settings`; creates `personal_event_channels` (PK id, team_id FK CASCADE, team_member_id FK CASCADE, discord_channel_id TEXT nullable, created_at, updated_at; UNIQUE (team_id, team_member_id)); creates `personal_event_messages` (PK id, event_id FK CASCADE, team_member_id FK CASCADE, personal_channel_id TEXT, discord_message_id TEXT, payload_hash TEXT, created_at, updated_at; UNIQUE (event_id, team_member_id)); creates `personal_event_overflow_categories` (PK id, team_id FK CASCADE, sequence INT, discord_category_id TEXT nullable, created_at; UNIQUE (team_id, sequence)). |
+| 1790300011 | `add_personal_channel_applied_format` | Adds `applied_channel_format TEXT` (nullable) to `personal_event_channels`. Stores the channel-name format template that was applied when the channel was last created or renamed; NULL on rows predating this migration, which causes the provisioning worker to treat those channels as drifted and rename them to the current format on the next tick. |
 
 ### After Migrations (seed data)
 

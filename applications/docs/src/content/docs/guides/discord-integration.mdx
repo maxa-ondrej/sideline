@@ -193,7 +193,7 @@ When a roster channel is created and a category is configured, the bot passes `p
 
 ## Personal event channels
 
-When the **Personal events category** is configured in **Team settings → Discord integration**, the bot creates a private text channel under that category for each eligible member. The channel shows that member's upcoming events with RSVP buttons — the same format as the global events channel but personalised. Events in a member's personal channel are kept in the same order as the global channel (soonest event nearest the input box).
+When the **Personal events category** is configured in **Team settings → Discord integration**, the bot creates a private text channel under that category for each eligible member. The channel shows that member's upcoming events with RSVP buttons — the same format as the global events channel but personalised. Events in a member's personal channel are kept in the same order as the global channel (soonest event nearest the input box). When a new personal channel is created, the bot immediately backfills all of the member's existing upcoming events into it, so the channel is never empty after provisioning.
 
 ### Going list and Attendees button
 
@@ -218,8 +218,8 @@ The default channel name is `events-{discord_id}` (e.g. `events-123456789`). Cap
 
 Example formats: `events-{name}`, `{name}-{discord_id}`, `my-events-{discord_id}`.
 
-<Aside type="note" title="Channel names are set at creation time">
-  Changing the format after channels have already been created does not rename existing channels. Only newly provisioned channels will use the updated format.
+<Aside type="note" title="Changing the format renames existing channels">
+  When you save a new channel-name format, the bot automatically renames all existing personal channels to match. Channels are processed one at a time to respect Discord rate limits, so renaming a large team may take a few seconds. New channels created after the change will also use the updated format from the start.
 </Aside>
 
 ## Cleanup modes

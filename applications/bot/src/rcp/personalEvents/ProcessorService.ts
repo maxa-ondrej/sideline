@@ -4,6 +4,7 @@ import { SyncRpc } from '~/services/SyncRpc.js';
 import { deprovisionPersonalChannels } from './handleDeprovision.js';
 import { provisionPersonalChannels } from './handleProvision.js';
 import { reconcileEvent } from './handleReconcile.js';
+import { renamePersonalChannels } from './handleRename.js';
 
 const PROVISION_BATCH = 20;
 const RECONCILE_BATCH = 20;
@@ -40,6 +41,8 @@ export const ProcessorService = Effect.Do.pipe(
             provisionPersonalChannels(guildId).pipe(
               // De-provision members who fell outside the configured group.
               Effect.andThen(deprovisionPersonalChannels(guildId)),
+              // Rename channels whose name format changed.
+              Effect.andThen(renamePersonalChannels(guildId)),
               Effect.catchCause((cause) =>
                 Effect.logWarning(`Provision failed for guild ${guildId}, skipping`, cause),
               ),

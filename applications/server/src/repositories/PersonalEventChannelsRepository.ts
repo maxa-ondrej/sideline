@@ -25,6 +25,14 @@ class MemberToDeprovision extends Schema.Class<MemberToDeprovision>('MemberToDep
   discord_channel_id: Discord.Snowflake,
 }) {}
 
+class MemberToRename extends Schema.Class<MemberToRename>('MemberToRename')({
+  team_member_id: TeamMember.TeamMemberId,
+  discord_id: Discord.Snowflake,
+  discord_channel_id: Discord.Snowflake,
+  name: Schema.String,
+  channel_format: Schema.String,
+}) {}
+
 class PersonalChannelForEvent extends Schema.Class<PersonalChannelForEvent>(
   'PersonalChannelForEvent',
 )({
@@ -55,10 +63,26 @@ const make = Effect.Do.pipe(
         team_id: Schema.String,
         team_member_id: Schema.String,
         discord_channel_id: Discord.Snowflake,
+        channel_format: Schema.String,
       }),
       execute: (input) => sql`
         UPDATE personal_event_channels
-        SET discord_channel_id = ${input.discord_channel_id}, updated_at = now()
+        SET discord_channel_id = ${input.discord_channel_id},
+            applied_channel_format = ${input.channel_format},
+            updated_at = now()
+        WHERE team_id = ${input.team_id} AND team_member_id = ${input.team_member_id}
+      `,
+    });
+
+    const _saveChannelFormat = SqlSchema.void({
+      Request: Schema.Struct({
+        team_id: Schema.String,
+        team_member_id: Schema.String,
+        channel_format: Schema.String,
+      }),
+      execute: (input) => sql`
+        UPDATE personal_event_channels
+        SET applied_channel_format = ${input.channel_format}, updated_at = now()
         WHERE team_id = ${input.team_id} AND team_member_id = ${input.team_member_id}
       `,
     });
@@ -172,6 +196,30 @@ const make = Effect.Do.pipe(
       `,
     });
 
+    const _getChannelsToRename = SqlSchema.findAll({
+      Request: Schema.Struct({ team_id: Schema.String, limit: Schema.Number }),
+      Result: MemberToRename,
+      execute: (input) => sql`
+        SELECT tm.id AS team_member_id, u.discord_id, pec.discord_channel_id,
+          COALESCE(
+            NULLIF(u.discord_display_name, ''),
+            NULLIF(u.discord_nickname, ''),
+            NULLIF(u.name, ''),
+            u.discord_id
+          ) AS name,
+          ts.discord_personal_events_channel_format AS channel_format
+        FROM personal_event_channels pec
+        JOIN team_members tm ON tm.id = pec.team_member_id AND tm.team_id = pec.team_id
+        JOIN users u ON u.id = tm.user_id
+        JOIN team_settings ts ON ts.team_id = pec.team_id
+        WHERE pec.team_id = ${input.team_id}
+          AND pec.discord_channel_id IS NOT NULL
+          AND pec.applied_channel_format IS DISTINCT FROM ts.discord_personal_events_channel_format
+        ORDER BY tm.id
+        LIMIT ${input.limit}
+      `,
+    });
+
     const _getGuildsNeedingProvisioning = SqlSchema.findAll({
       Request: Schema.Struct({ limit: Schema.Number }),
       Result: Schema.Struct({ guild_id: Discord.Snowflake }),
@@ -223,6 +271,11 @@ const make = Effect.Do.pipe(
                   AND gm.team_member_id = tm.id
               )
             )
+            -- (c) a channel whose name was rendered with an outdated format
+            OR (
+              pec.discord_channel_id IS NOT NULL
+              AND pec.applied_channel_format IS DISTINCT FROM ts.discord_personal_events_channel_format
+            )
           )
         LIMIT ${input.limit}
       `,
@@ -252,12 +305,28 @@ const make = Effect.Do.pipe(
       teamId: Team.TeamId,
       teamMemberId: TeamMember.TeamMemberId,
       discordChannelId: Discord.Snowflake,
+      channelFormat: string,
     ) =>
       _saveChannelId({
         team_id: teamId,
         team_member_id: teamMemberId,
         discord_channel_id: discordChannelId,
+        channel_format: channelFormat,
       }).pipe(catchSqlErrors);
+
+    const savePersonalChannelFormat = (
+      teamId: Team.TeamId,
+      teamMemberId: TeamMember.TeamMemberId,
+      channelFormat: string,
+    ) =>
+      _saveChannelFormat({
+        team_id: teamId,
+        team_member_id: teamMemberId,
+        channel_format: channelFormat,
+      }).pipe(catchSqlErrors);
+
+    const getChannelsToRename = (teamId: Team.TeamId, limit: number) =>
+      _getChannelsToRename({ team_id: teamId, limit }).pipe(catchSqlErrors);
 
     const getPersonalChannel = (teamId: Team.TeamId, teamMemberId: TeamMember.TeamMemberId) =>
       _getChannel({ team_id: teamId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
@@ -299,10 +368,12 @@ const make = Effect.Do.pipe(
     return {
       reservePersonalChannel,
       savePersonalChannelId,
+      savePersonalChannelFormat,
       getPersonalChannel,
       deletePersonalChannel,
       getMembersNeedingPersonalChannel,
       getMembersToDeprovision,
+      getChannelsToRename,
       getGuildsNeedingPersonalProvisioning,
       listPersonalChannelsForEvent,
     };
