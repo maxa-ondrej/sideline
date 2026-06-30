@@ -371,6 +371,35 @@ function MyForm({ onSuccess }: { onSuccess: () => void }) {
   />
   ```
 
+### Dirty-State UX for Edit Forms
+
+An **edit** form (pre-filled from existing data, distinct from a create form) MUST surface dirty state from React Hook Form's `formState` rather than tracking a manual `changed` boolean. This gates the submit button, shows per-field "changed" markers, and resets the baseline on a confirmed save so the form returns to a clean state in place (no navigation away). Reference: `applications/web/src/components/pages/PlayerDetailPage.tsx` (member edit card + `DirtyFieldLabel`).
+
+```typescript
+const dirtyFieldCount = Object.keys(form.formState.dirtyFields).length;
+const hasErrors = Object.keys(form.formState.errors).length > 0;
+
+const handleSubmit = React.useCallback(
+  async (values: PlayerEditValues) => {
+    const submittedValues = form.getValues();
+    const succeeded = await onSave(values); // onSave returns Promise<boolean>
+    if (succeeded) form.reset(submittedValues); // re-baseline so the form is clean again
+  },
+  [onSave, form],
+);
+
+<Button type='submit' disabled={!form.formState.isDirty || hasErrors || form.formState.isSubmitting}>
+  {form.formState.isSubmitting ? tr('members_saving') : tr('members_saveChanges')}
+</Button>
+```
+
+Rules:
+
+1. **Gate the submit button on `!form.formState.isDirty || hasErrors || form.formState.isSubmitting`.** A pristine, error-free, or in-flight edit form has a disabled Save button. Do not track a separate `submitting`/`changed` state — `formState` is the single source of truth.
+2. **The page's `onSave` prop returns `Promise<boolean>` (`true` = persisted), and the form re-baselines only on `true` via `form.reset(form.getValues())`.** Capture the submitted values with `form.getValues()` BEFORE awaiting, then `form.reset(submittedValues)` after success so the dirty diff is recomputed against what was actually saved. Never navigate away on save — the cleaned form stays in place. The route-level handler returns `true` after a successful mutation and calls `router.invalidate()`; it returns `false` on failure (see `members.$memberId.tsx`).
+3. **Mark each changed field at its label**, not just globally, via a small `DirtyFieldLabel({ label, dirty })` helper reading `Boolean(form.formState.dirtyFields.<field>)`. Render the visual dot with `aria-hidden='true'` and pair it with an `<span className='sr-only'>{tr('form_fieldChanged')}</span>` so the change is announced to screen readers.
+4. **Show the dirty-field count + a Cancel (reset) control only while `form.formState.isDirty`.** Cancel is a `type='button'` that calls `form.reset()` (no args — reverts to the original `defaultValues`); the count uses an ICU-pluralized key (`tr('members_unsavedChanges', { count: dirtyFieldCount })`).
+
 ## Submitting Branded Values to API Endpoints
 
 API request payloads frequently contain branded types defined in `@sideline/domain` (e.g. `Fee.AmountMinor`, `Fee.CurrencyCode`, `Team.TeamId`, `FeeAssignment.FeeAssignmentId`). When a form computes a plain `number` or `string` and must pass it as a branded field, **never** use `as unknown as Fee.AmountMinor` (or any `as unknown as` double-cast). Always decode through the branded schema:
@@ -846,6 +875,43 @@ Rules:
 2. **Freeze the last-known data in a `useRef` so content does not blank during the close animation.** When the dialog renders data from a nullable state slot (`editTarget`, `mintedUrl`), the slot is set to `null` on close while Radix is still animating the exit. Hold the last non-null value: `const ref = useRef<T | null>(null); if (state !== null) ref.current = state;` then pass `state ?? ref.current ?? undefined` (or `mintedUrl ?? ''` for a required string prop). Without the freeze, the dialog flashes empty for the duration of the close animation.
 3. **Add a reset-on-open `useEffect` when local state was previously seeded only at mount.** A conditionally-mounted dialog got fresh `useState`/`form` defaults every time it mounted; an always-mounted dialog does not re-mount, so re-opening with a different row would show stale state. Re-seed inside `React.useEffect(() => { if (open) { form.reset({...}); /* reset other local state */ } }, [open, editing, form])`. Reference: `EditBuiltInSheet` and `CustomAchievementDialog` in `AchievementsAdminPage.tsx`.
 4. **Clear any debounce/timeout `useRef` in the same `open` effect's `else`/cleanup branch.** Because the component no longer unmounts on close, a pending `setTimeout` would otherwise survive across closes. Reference: `MintedLinkDialog` (`timerRef`) in `AdminOnboardingTokensPage.tsx`, `EditBuiltInSheet` (`debounceRef`).
+
+## Confirm Before Destructive Actions — `AlertDialog`
+
+Any immediate, irreversible-from-the-UI destructive action (unassign a role, remove a member, delete a row that has no second confirmation step elsewhere) MUST be confirmed through Shadcn `AlertDialog` (`components/ui/alert-dialog`) — never fire the mutation directly from a plain button's `onClick`, and never use the native `window.confirm(...)`. The trigger that performs the destruction is `<AlertDialogAction>`; the escape hatch is `<AlertDialogCancel>`. Wrap the trigger and dialog in a small self-contained control component so the list/row stays declarative. Reference: `RemoveRoleControl` in `applications/web/src/components/pages/PlayerDetailPage.tsx`.
+
+```typescript
+function RemoveRoleControl({ roleName, onConfirm }: { roleName: string; onConfirm: () => void }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button type='button' variant='ghost' size='icon' className='text-muted-foreground hover:text-destructive'>
+          <X className='size-3' aria-hidden='true' />
+          <span className='sr-only'>{tr('roles_removeAria', { role: roleName })}</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{tr('roles_removeRoleConfirmTitle')}</AlertDialogTitle>
+          <AlertDialogDescription>{tr('roles_removeRoleConfirmDescription', { role: roleName })}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{tr('roles_removeRoleCancel')}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{tr('roles_removeRoleConfirm')}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+```
+
+Rules:
+
+1. **The mutation runs from `<AlertDialogAction onClick={onConfirm}>`, never from the trigger.** The trigger only opens the dialog. `<AlertDialogCancel>` closes it with no side effect. Do not call the destructive `onConfirm`/API handler on the trigger button.
+2. **Pass the destructive action in as an `onConfirm: () => void` prop** so the control stays decoupled from how the parent runs the Effect (the parent builds and runs the mutation via `useRun()` / Effect-as-prop — see "Runtime — Client vs Server Runners"). The confirm control itself owns no API logic.
+3. **Every icon-only trigger needs an accessible label** via `<span className='sr-only'>{tr('<feature>_removeAria', { ... })}</span>` next to an `aria-hidden='true'` icon. An `<X>` glyph with no label is unusable with a screen reader.
+4. **Title, description, cancel, and confirm labels are all i18n keys** added to BOTH `packages/i18n/messages/en.json` and `cs.json` (i18n lockstep). The description names the specific entity being removed (`{ role: roleName }`), never a generic "Are you sure?".
+5. **`AlertDialog` is a Radix overlay** — when its open state is parent-controlled rather than self-contained (this example is self-contained, so no `open` prop is needed), it falls under "Dialogs Must Be Always-Mounted, Driven By `open`" above.
 
 ## Shared Utility Modules (`src/lib/`)
 

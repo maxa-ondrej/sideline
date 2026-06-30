@@ -1,6 +1,7 @@
 import type { ActivityLog, ActivityLogApi, ActivityType } from '@sideline/domain';
 import { ActivityLogDate } from '@sideline/domain';
 import { Option } from 'effect';
+import { ClipboardList } from 'lucide-react';
 import React from 'react';
 import { Button } from '~/components/ui/button';
 import { DatePicker } from '~/components/ui/date-picker';
@@ -78,6 +79,12 @@ export function ActivityLogList({
   const [editDateDirty, setEditDateDirty] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<ActivityLog.ActivityLogId | null>(null);
+
+  const logActivityRef = React.useRef<HTMLDivElement>(null);
+
+  const handleFocusLogActivity = React.useCallback(() => {
+    logActivityRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
 
   // Derive edit activity types from the logs (unique types seen) plus provided activityTypes
   const editActivityTypes = React.useMemo(() => {
@@ -174,11 +181,9 @@ export function ActivityLogList({
   }, [logs]);
 
   return (
-    <div className='mt-6'>
-      <h2 className='text-lg font-semibold mb-4'>{tr('activityLog_title')}</h2>
-
+    <div>
       {isOwnProfile && (
-        <div className='mb-6 p-4 border rounded-lg'>
+        <div ref={logActivityRef} className='mb-6 p-4 border rounded-lg'>
           <p className='text-sm font-medium mb-2'>{tr('activityLog_logActivity')}</p>
           <div className='flex gap-2 mb-3 flex-wrap'>
             {activityTypes.map((type) => (
@@ -251,7 +256,16 @@ export function ActivityLogList({
       )}
 
       {logs.length === 0 ? (
-        <p className='text-muted-foreground'>{tr('activityLog_empty')}</p>
+        <div className='flex flex-col items-center justify-center gap-2 py-10 text-center'>
+          <ClipboardList className='size-8 text-muted-foreground' aria-hidden='true' />
+          <p className='font-medium'>{tr('activityLog_empty_title')}</p>
+          <p className='text-sm text-muted-foreground'>{tr('activityLog_empty_body')}</p>
+          {isOwnProfile ? (
+            <Button type='button' size='sm' className='mt-2' onClick={handleFocusLogActivity}>
+              {tr('activityLog_empty_cta')}
+            </Button>
+          ) : null}
+        </div>
       ) : (
         <div className='flex flex-col gap-4'>
           {Array.from(groupedByDate.entries()).map(([date, dateLogs]) => (

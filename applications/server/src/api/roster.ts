@@ -49,6 +49,7 @@ const toRosterPlayer = (entry: RosterEntry) =>
       }),
       () => entry.username,
     ),
+    joinedAt: entry.joined_at,
   });
 
 type ChannelLike = { readonly channel_id: Discord.Snowflake; readonly name: string };
@@ -219,6 +220,7 @@ export const RosterApiLive = HttpApiBuilder.group(Api, 'roster', (handlers) =>
                       }),
                       () => entry.username,
                     ),
+                    joinedAt: entry.joined_at,
                   }),
               ),
               Effect.catchTag(

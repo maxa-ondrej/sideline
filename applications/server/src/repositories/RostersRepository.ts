@@ -133,7 +133,8 @@ const make = Effect.gen(function* () {
                ) all_perms), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar, u.discord_nickname, u.discord_display_name
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name,
+             to_char(tm.joined_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS joined_at
       FROM roster_members rmb
       JOIN team_members tm ON tm.id = rmb.team_member_id
       JOIN users u ON u.id = tm.user_id

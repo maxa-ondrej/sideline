@@ -53,6 +53,7 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   avatar: Schema.OptionFromNullOr(Schema.String),
   discord_nickname: Schema.OptionFromNullOr(Schema.String),
   discord_display_name: Schema.OptionFromNullOr(Schema.String),
+  joined_at: Schema.String,
 }) {}
 
 const make = Effect.gen(function* () {
@@ -289,7 +290,8 @@ const make = Effect.gen(function* () {
                 WHERE mr.team_member_id = tm.id), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar, u.discord_nickname, u.discord_display_name
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name,
+             to_char(tm.joined_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS joined_at
       FROM team_members tm
       JOIN users u ON u.id = tm.user_id
       WHERE tm.team_id = ${teamId} AND tm.active = true
@@ -314,7 +316,8 @@ const make = Effect.gen(function* () {
                 WHERE mr.team_member_id = tm.id), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar, u.discord_nickname, u.discord_display_name
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name,
+             to_char(tm.joined_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS joined_at
       FROM team_members tm
       JOIN users u ON u.id = tm.user_id
       WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id} AND tm.active = true

@@ -624,6 +624,7 @@ Lists all active members of a team with their profile and role information.
 | `username` | `string` | No | Discord username |
 | `avatar` | `string \| null` | Yes | Discord avatar hash |
 | `displayName` | `string` | No | Server-resolved display name. Precedence: profile name → Discord nickname → Discord display name → Discord username. Always non-empty. |
+| `joinedAt` | `string` | No | ISO 8601 UTC timestamp of when the member joined the team (`team_members.joined_at`) |
 
 **Errors:**
 

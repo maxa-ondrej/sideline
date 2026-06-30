@@ -5,6 +5,16 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-07-01 — Redesigned member detail page
+
+The member detail page (**Team → Members → a member**) has a new card-based layout that's easier to scan, especially on mobile.
+
+- A **summary header** at the top shows the member's avatar, name, `@username`, jersey number, the date they joined the team, and their primary role as a badge (with a `+N` badge if they hold more than one role). Their raw Discord ID and full permission list remain visible only to captains/admins who can manage roles.
+- **Removing a role** now asks for confirmation in a dialog before it takes effect, preventing accidental clicks.
+- The **edit form** validates the display name (80 characters max) and rejects a birth date in the future. While you have unsaved changes, the form shows how many fields changed and a **Cancel** button to discard them; changed fields are also marked individually.
+- Empty sections (stats, activity log, achievements) now show a friendlier message with a call-to-action instead of a blank area.
+- API integrators: `RosterPlayer` now includes a `joinedAt` field (ISO 8601 UTC timestamp) on `GET /teams/{teamId}/members`, `GET /teams/{teamId}/members/{memberId}`, and `PATCH /teams/{teamId}/members/{memberId}`.
+
 ## 2026-06-30 — New Discord sub-command: `/event refresh`
 
 Force an immediate re-sync of an events channel without waiting for the next reconcile cycle.

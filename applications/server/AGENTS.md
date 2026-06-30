@@ -1142,6 +1142,7 @@ Rules:
 ## Postgres Type Conventions
 
 - **`TIME` columns** — node-postgres returns `'HH:MM:SS'`. If consumers expect `'HH:MM'`, normalize on read with `TO_CHAR(col, 'HH24:MI') AS col` in both `SELECT` and `RETURNING` clauses (see `TeamSettingsRepository._findByTeam`).
+- **`timestamptz` read into a plain `Schema.String` DTO field** — when a DTO exposes a timestamp as a wire string (not decoded via `Schemas.DateTimeFromIsoString`), format it on read with `to_char(<col> AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS <col>`, never a bare `<col>::text` cast. The `::text` cast yields Postgres's `2025-01-01 12:00:00+00` form (space separator, no `T`, offset not `Z`), which `new Date(...)` parses inconsistently across browsers; the `to_char` form is canonical ISO 8601 UTC that round-trips through `new Date(...)` and `Date.prototype.toLocaleDateString` on the web. Reference: `RostersRepository`/`TeamMembersRepository` `joined_at` (consumed by `MemberSummaryHeader.tsx`). A `birth_date` `date` column (no time/zone) still uses `::text` — this rule is only for `timestamptz`/`timestamp` columns surfaced as strings.
 - **`sql` template tag** — interpolated values become bind parameters, never SQL fragments. To pass "now" into a query, pass a real `Date` (or its ISO string) and cast in SQL (`${nowIso}::timestamptz`); never interpolate the literal string `'NOW()'` — it becomes a bound text value, not a function call.
 
 ## Permission-Gated Data-Scope Flags Are Re-Checked Server-Side

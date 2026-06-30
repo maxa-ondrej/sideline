@@ -1109,6 +1109,7 @@ describe('POST /teams/:teamId/rosters/:rosterId/sync-role-members', () => {
         avatar: Option.none(),
         discord_nickname: Option.none(),
         discord_display_name: Option.none(),
+        joined_at: '2024-01-01T00:00:00.000Z',
       }),
       new RosterEntry({
         member_id: '00000000-0000-0000-0002-000000000002' as TeamMember.TeamMemberId,
@@ -1124,6 +1125,7 @@ describe('POST /teams/:teamId/rosters/:rosterId/sync-role-members', () => {
         avatar: Option.none(),
         discord_nickname: Option.none(),
         discord_display_name: Option.none(),
+        joined_at: '2024-01-01T00:00:00.000Z',
       }),
     ];
 

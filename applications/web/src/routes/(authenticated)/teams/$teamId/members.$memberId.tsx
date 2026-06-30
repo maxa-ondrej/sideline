@@ -1,6 +1,6 @@
 import type { ActivityLog, Auth, Role } from '@sideline/domain';
 import { ActivityLogApi, type ActivityType, Team, TeamMember } from '@sideline/domain';
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { Effect, Option, Schema } from 'effect';
 import React from 'react';
 import type { PlayerEditValues } from '~/components/pages/PlayerDetailPage';
@@ -53,7 +53,6 @@ function MemberDetailRoute() {
   const { teamId: teamIdRaw, memberId: memberIdRaw } = Route.useParams();
   const teamId = Schema.decodeSync(Team.TeamId)(teamIdRaw);
   const memberId = Schema.decodeSync(TeamMember.TeamMemberId)(memberIdRaw);
-  const navigate = useNavigate();
   const router = useRouter();
   const run = useRun();
   const {
@@ -100,10 +99,12 @@ function MemberDetailRoute() {
         run({ success: tr('members_playerSaved') }),
       );
       if (Option.isSome(result)) {
-        navigate({ to: '/teams/$teamId/members', params: { teamId: teamIdRaw } });
+        router.invalidate();
+        return true;
       }
+      return false;
     },
-    [teamId, memberId, teamIdRaw, navigate, run],
+    [teamId, memberId, run, router],
   );
 
   const handleAssignRole = React.useCallback(

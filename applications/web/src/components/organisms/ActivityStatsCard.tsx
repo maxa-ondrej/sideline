@@ -1,8 +1,12 @@
 import type { ActivityStatsApi } from '@sideline/domain';
+import { Activity } from 'lucide-react';
+import { Button } from '~/components/ui/button';
 import { tr } from '~/lib/translations.js';
 
 interface ActivityStatsCardProps {
   stats: ActivityStatsApi.ActivityStatsResponse;
+  isOwnProfile?: boolean;
+  onLogActivity?: () => void;
 }
 
 const formatDuration = (minutes: number): string => {
@@ -14,21 +18,26 @@ const formatDuration = (minutes: number): string => {
   return `${hours}h ${mins}m`;
 };
 
-export function ActivityStatsCard({ stats }: ActivityStatsCardProps) {
+export function ActivityStatsCard({ stats, isOwnProfile, onLogActivity }: ActivityStatsCardProps) {
   const isEmpty = stats.totalActivities === 0;
 
   if (isEmpty) {
     return (
-      <div className='mt-6'>
-        <h2 className='text-lg font-semibold mb-2'>{tr('stats_title')}</h2>
-        <p className='text-muted-foreground'>{tr('stats_empty')}</p>
+      <div className='flex flex-col items-center justify-center gap-2 py-10 text-center'>
+        <Activity className='size-8 text-muted-foreground' aria-hidden='true' />
+        <p className='font-medium'>{tr('stats_empty_title')}</p>
+        <p className='text-sm text-muted-foreground'>{tr('stats_empty')}</p>
+        {isOwnProfile ? (
+          <Button type='button' size='sm' className='mt-2' onClick={onLogActivity}>
+            {tr('stats_activityEmptyCta')}
+          </Button>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className='mt-6'>
-      <h2 className='text-lg font-semibold mb-4'>{tr('stats_title')}</h2>
+    <div>
       <div className='grid grid-cols-2 gap-4 mb-6'>
         <div>
           <p className='text-3xl font-bold'>🔥 {stats.currentStreak}</p>

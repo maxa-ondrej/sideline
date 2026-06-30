@@ -143,8 +143,12 @@ export function AchievementsGrid({
  */
 export function AchievementsGridI18n({
   earnedAchievements,
+  emptyTitle,
+  emptyDescription,
 }: {
   earnedAchievements: ReadonlyArray<EarnedAchievement>;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   const total = Achievement.ACHIEVEMENTS.length;
   const earnedCount = earnedAchievements.filter((a) =>
@@ -156,8 +160,8 @@ export function AchievementsGridI18n({
       earnedAchievements={earnedAchievements}
       sectionTitle={tr('achievements_section_title')}
       sectionCount={tr('achievements_section_count', { earned: earnedCount, total })}
-      emptyTitle={tr('achievements_empty_title')}
-      emptyDescription={tr('achievements_empty_description')}
+      emptyTitle={emptyTitle ?? tr('achievements_empty_title')}
+      emptyDescription={emptyDescription ?? tr('achievements_empty_description')}
       earnedOnLabel={(date) => tr('achievements_earned_on', { date })}
     />
   );
