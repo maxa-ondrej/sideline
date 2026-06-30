@@ -1,12 +1,15 @@
 import {
   type Discord,
+  EventRpcModels,
   type GroupModel,
   GuildRpcGroup,
   type Team,
   type TeamMember,
 } from '@sideline/domain';
+import { LogicError, Schemas } from '@sideline/effect-lib';
 import { applyTemplate, sanitizeHexColor, sanitizeRendered } from '@sideline/template-renderer';
-import { Array, Effect, Option, pipe } from 'effect';
+import { Array, Effect, Option, pipe, Schema } from 'effect';
+import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
@@ -15,7 +18,10 @@ import { DiscordRolesRepository } from '~/repositories/DiscordRolesRepository.js
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { InviteAcceptancesRepository } from '~/repositories/InviteAcceptancesRepository.js';
 import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
+import { PersonalEventChannelsRepository } from '~/repositories/PersonalEventChannelsRepository.js';
+import { PersonalEventOverflowCategoriesRepository } from '~/repositories/PersonalEventOverflowCategoriesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
 
@@ -56,6 +62,10 @@ export const GuildsRpcLive = Effect.Do.pipe(
   Effect.bind('groups', () => GroupsRepository.asEffect()),
   Effect.bind('acceptances', () => InviteAcceptancesRepository.asEffect()),
   Effect.bind('pendingGuildJoins', () => PendingGuildJoinsRepository.asEffect()),
+  Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
+  Effect.bind('personalChannels', () => PersonalEventChannelsRepository.asEffect()),
+  Effect.bind('overflowCategories', () => PersonalEventOverflowCategoriesRepository.asEffect()),
+  Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
   Effect.map((deps) => {
     const setupNewMember = (
       team: { readonly id: Team.TeamId },
@@ -427,25 +437,6 @@ export const GuildsRpcLive = Effect.Do.pipe(
       'Guild/MarkOnboardingSyncSkipped': ({ team_id }: { readonly team_id: Team.TeamId }) =>
         deps.teams.markOnboardingSyncSkippedIfSyncing(team_id),
 
-      'Guild/SetOverviewChannel': ({
-        guild_id,
-        channel_id,
-      }: {
-        readonly guild_id: Discord.Snowflake;
-        readonly channel_id: Discord.Snowflake;
-      }) =>
-        deps.teams.setOverviewChannelByGuildId(guild_id, channel_id).pipe(
-          Effect.flatMap((rows) =>
-            rows.length === 0
-              ? Effect.void
-              : // Channel actually changed — re-trigger welcome-screen sync.
-                Effect.all(
-                  Array.map(rows, (row) => deps.teams.markOnboardingSyncPending(row.id)),
-                  { concurrency: 1, discard: true },
-                ),
-          ),
-        ),
-
       'Guild/GetOnboardingRulesRoleId': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
         deps.teams.getOnboardingRulesRoleIdByGuildId(guild_id),
 
@@ -518,6 +509,319 @@ export const GuildsRpcLive = Effect.Do.pipe(
         readonly guild_id: Discord.Snowflake;
         readonly role_id: Discord.Snowflake;
       }) => deps.discordRoles.delete(guild_id, role_id),
+
+      'Guild/GetGuildsNeedingPersonalProvisioning': ({ limit }: { readonly limit: number }) =>
+        deps.personalChannels.getGuildsNeedingPersonalProvisioning(limit),
+
+      'Guild/GetPersonalEventsCategory': ({ guild_id }: { readonly guild_id: Discord.Snowflake }) =>
+        deps.teams.findByGuildId(guild_id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () => Effect.succeed(Option.none<Discord.Snowflake>()),
+              onSome: (team) =>
+                deps.teamSettings
+                  .findByTeamId(team.id)
+                  .pipe(Effect.map(Option.flatMap((s) => s.discord_personal_events_category_id))),
+            }),
+          ),
+        ),
+
+      'Guild/GetMembersNeedingPersonalChannel': ({
+        guild_id,
+        limit,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly limit: number;
+      }) =>
+        deps.teams.findByGuildId(guild_id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () =>
+                Effect.succeed(
+                  [] as ReadonlyArray<{
+                    readonly team_id: Team.TeamId;
+                    readonly team_member_id: string;
+                    readonly discord_id: Discord.Snowflake;
+                  }>,
+                ),
+              onSome: (team) =>
+                deps.personalChannels.getMembersNeedingPersonalChannel(team.id, limit).pipe(
+                  Effect.map(
+                    Array.map((m) => ({
+                      team_id: team.id,
+                      team_member_id: m.team_member_id,
+                      discord_id: m.discord_id,
+                    })),
+                  ),
+                ),
+            }),
+          ),
+        ),
+
+      'Guild/ReservePersonalChannel': ({
+        team_id,
+        team_member_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly team_member_id: string;
+      }) =>
+        deps.personalChannels
+          .reservePersonalChannel(team_id, team_member_id as TeamMember.TeamMemberId)
+          .pipe(Effect.map((reserved) => ({ reserved }))),
+
+      'Guild/SavePersonalChannelId': ({
+        team_id,
+        team_member_id,
+        discord_channel_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly team_member_id: string;
+        readonly discord_channel_id: Discord.Snowflake;
+      }) =>
+        deps.personalChannels.savePersonalChannelId(
+          team_id,
+          team_member_id as TeamMember.TeamMemberId,
+          discord_channel_id,
+        ),
+
+      'Guild/GetPersonalChannel': ({
+        team_id,
+        team_member_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly team_member_id: string;
+      }) =>
+        deps.personalChannels
+          .getPersonalChannel(team_id, team_member_id as TeamMember.TeamMemberId)
+          .pipe(Effect.map(Option.flatMap((row) => row.discord_channel_id))),
+
+      'Guild/DeletePersonalChannel': ({
+        team_id,
+        team_member_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly team_member_id: string;
+      }) =>
+        deps.personalChannels.deletePersonalChannel(
+          team_id,
+          team_member_id as TeamMember.TeamMemberId,
+        ),
+
+      'Guild/ListPersonalChannelsForEvent': ({ event_id }: { readonly event_id: string }) =>
+        deps.personalChannels.listPersonalChannelsForEvent(event_id),
+
+      'Guild/GetPersonalChannelTargetCategory': ({ team_id }: { readonly team_id: Team.TeamId }) =>
+        deps.teamSettings.findByTeamId(team_id).pipe(
+          Effect.flatMap((settingsOpt) => {
+            const baseCategory = Option.flatMap(
+              settingsOpt,
+              (s) => s.discord_personal_events_category_id,
+            );
+            if (Option.isNone(baseCategory)) {
+              return Effect.succeed({
+                category_id: Option.none<Discord.Snowflake>(),
+                is_overflow: false,
+              });
+            }
+            return deps.overflowCategories.listPersonalOverflowCategories(team_id).pipe(
+              Effect.map((overflows) => {
+                if (overflows.length === 0) {
+                  return { category_id: baseCategory, is_overflow: false };
+                }
+                const last = overflows[overflows.length - 1];
+                return {
+                  category_id: last.discord_category_id,
+                  is_overflow: true,
+                };
+              }),
+            );
+          }),
+        ),
+
+      'Guild/AllocatePersonalOverflowCategory': ({ team_id }: { readonly team_id: Team.TeamId }) =>
+        deps.overflowCategories.listPersonalOverflowCategories(team_id).pipe(
+          Effect.flatMap((existing) => {
+            const nextSequence = existing.length + 1;
+            return deps.overflowCategories
+              .allocatePersonalOverflowCategory(team_id, nextSequence)
+              .pipe(
+                Effect.map((idOpt) => ({
+                  sequence: nextSequence,
+                  exists: Option.isSome(idOpt),
+                })),
+              );
+          }),
+        ),
+
+      'Guild/SavePersonalOverflowCategoryId': ({
+        team_id,
+        sequence,
+        discord_category_id,
+      }: {
+        readonly team_id: Team.TeamId;
+        readonly sequence: number;
+        readonly discord_category_id: Discord.Snowflake;
+      }) =>
+        deps.overflowCategories.savePersonalOverflowCategoryId(
+          team_id,
+          sequence,
+          discord_category_id,
+        ),
+
+      'Guild/ListPersonalOverflowCategories': ({ team_id }: { readonly team_id: Team.TeamId }) =>
+        deps.overflowCategories
+          .listPersonalOverflowCategories(team_id)
+          .pipe(
+            Effect.map((rows) =>
+              rows.flatMap((row) =>
+                Option.isSome(row.discord_category_id)
+                  ? [{ sequence: row.sequence, discord_category_id: row.discord_category_id.value }]
+                  : [],
+              ),
+            ),
+          ),
+
+      'Guild/GetAllUpcomingEventsForUser': ({
+        guild_id,
+        discord_user_id,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly discord_user_id: Discord.Snowflake;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('team', () =>
+            deps.teams.findByGuildId(guild_id).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new EventRpcModels.GuildNotFound()),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+          ),
+          Effect.bind('member', ({ team }) =>
+            SqlSchema.findOne({
+              Request: Schema.Struct({ discord_user_id: Schema.String, team_id: Schema.String }),
+              Result: Schema.Struct({ id: Schema.String }),
+              execute: (input) =>
+                deps.sql`
+                  SELECT tm.id FROM team_members tm
+                  JOIN users u ON u.id = tm.user_id
+                  WHERE u.discord_id = ${input.discord_user_id} AND tm.team_id = ${input.team_id}
+                    AND tm.active = true
+                `,
+            })({ discord_user_id, team_id: team.id }).pipe(
+              Effect.catchTag('NoSuchElementError', () =>
+                Effect.fail(new EventRpcModels.RsvpMemberNotFound()),
+              ),
+              Effect.mapError(() => new EventRpcModels.RsvpMemberNotFound()),
+            ),
+          ),
+          Effect.bind('rows', ({ team, member }) =>
+            SqlSchema.findAll({
+              Request: Schema.Struct({
+                team_id: Schema.String,
+                team_member_id: Schema.String,
+              }),
+              Result: Schema.Struct({
+                event_id: Schema.String,
+                team_id: Schema.String,
+                title: Schema.String,
+                description: Schema.OptionFromNullOr(Schema.String),
+                image_url: Schema.OptionFromNullOr(Schema.String),
+                start_at: Schemas.DateTimeFromDate,
+                end_at: Schema.OptionFromNullOr(Schemas.DateTimeFromDate),
+                location: Schema.OptionFromNullOr(Schema.String),
+                location_url: Schema.OptionFromNullOr(Schema.String),
+                event_type: Schema.String,
+                yes_count: Schema.Number,
+                no_count: Schema.Number,
+                maybe_count: Schema.Number,
+                my_response: Schema.OptionFromNullOr(Schema.Literals(['yes', 'no', 'maybe'])),
+                my_message: Schema.OptionFromNullOr(Schema.String),
+                all_day: Schema.Boolean,
+              }),
+              execute: (input) =>
+                deps.sql`
+                  SELECT
+                    e.id AS event_id,
+                    e.team_id,
+                    e.title,
+                    e.description,
+                    e.image_url,
+                    e.start_at,
+                    e.end_at,
+                    e.location,
+                    e.location_url,
+                    e.event_type,
+                    e.all_day,
+                    COALESCE(SUM(CASE WHEN er.response = 'yes' THEN 1 ELSE 0 END), 0)::int AS yes_count,
+                    COALESCE(SUM(CASE WHEN er.response = 'no' THEN 1 ELSE 0 END), 0)::int AS no_count,
+                    COALESCE(SUM(CASE WHEN er.response = 'maybe' THEN 1 ELSE 0 END), 0)::int AS maybe_count,
+                    my_rsvp.response AS my_response,
+                    my_rsvp.message AS my_message
+                  FROM events e
+                  LEFT JOIN event_rsvps er ON er.event_id = e.id
+                  LEFT JOIN event_rsvps my_rsvp ON my_rsvp.event_id = e.id
+                    AND my_rsvp.team_member_id = ${input.team_member_id}
+                  WHERE e.team_id = ${input.team_id}
+                    AND e.status = 'active'
+                    AND e.start_at >= now()
+                    AND (
+                      e.member_group_id IS NULL
+                      OR EXISTS (
+                        WITH RECURSIVE descendant_groups AS (
+                          SELECT id FROM groups WHERE id = e.member_group_id AND team_id = ${input.team_id}
+                          UNION ALL
+                          SELECT g.id FROM groups g JOIN descendant_groups dg ON g.parent_id = dg.id WHERE g.team_id = ${input.team_id}
+                        )
+                        SELECT 1 FROM group_members gm
+                        WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+                          AND gm.team_member_id = ${input.team_member_id}
+                      )
+                    )
+                  GROUP BY e.id, my_rsvp.response, my_rsvp.message
+                  ORDER BY e.start_at ASC
+                `,
+            })({ team_id: team.id, team_member_id: member.id }).pipe(
+              Effect.catchTag(
+                ['SqlError', 'SchemaError'],
+                LogicError.withMessage(
+                  (e) => `Failed querying all upcoming events for user: ${e.message}`,
+                ),
+              ),
+            ),
+          ),
+          Effect.map(
+            ({ rows, team }) =>
+              new EventRpcModels.UpcomingEventsForUserResult({
+                events: Array.map(
+                  rows,
+                  (row) =>
+                    new EventRpcModels.UpcomingEventForUserEntry({
+                      event_id: row.event_id,
+                      team_id: row.team_id,
+                      title: row.title,
+                      description: row.description,
+                      image_url: row.image_url,
+                      start_at: row.start_at,
+                      end_at: row.end_at,
+                      location: row.location,
+                      location_url: row.location_url,
+                      event_type: row.event_type,
+                      yes_count: row.yes_count,
+                      no_count: row.no_count,
+                      maybe_count: row.maybe_count,
+                      my_response: row.my_response,
+                      my_message: row.my_message,
+                      all_day: row.all_day,
+                    }),
+                ),
+                total: rows.length,
+                team_id: team.id,
+              }),
+          ),
+        ),
     };
   }),
   (handlers) => GuildRpcGroup.GuildRpcGroup.toLayer(handlers),

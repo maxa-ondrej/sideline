@@ -18,6 +18,8 @@ import { DiscordRolesRepository } from '~/repositories/DiscordRolesRepository.js
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { InviteAcceptancesRepository } from '~/repositories/InviteAcceptancesRepository.js';
 import { PendingGuildJoinsRepository } from '~/repositories/PendingGuildJoinsRepository.js';
+import { PersonalEventChannelsRepository } from '~/repositories/PersonalEventChannelsRepository.js';
+import { PersonalEventOverflowCategoriesRepository } from '~/repositories/PersonalEventOverflowCategoriesRepository.js';
 import { TeamInvitesRepository } from '~/repositories/TeamInvitesRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
@@ -116,6 +118,8 @@ const makeTestLayer = () =>
         GroupsRepository.Default,
         InviteAcceptancesRepository.Default,
         PendingGuildJoinsRepository.Default,
+        PersonalEventChannelsRepository.Default,
+        PersonalEventOverflowCategoriesRepository.Default,
         TeamInvitesRepository.Default,
         TeamMembersRepository.Default,
         TeamSettingsRepository.Default,

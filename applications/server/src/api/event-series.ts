@@ -95,7 +95,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 location: payload.location,
                 locationUrl: payload.locationUrl,
                 createdBy: membership.id,
-                discordTargetChannelId: payload.discordChannelId,
                 ownerGroupId: resolvedGroups.ownerGroupId,
                 memberGroupId: resolvedGroups.memberGroupId,
               }),
@@ -136,13 +135,12 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       locationUrl: inserted.location_url,
                       createdBy: membership.id,
                       seriesId: Option.some(inserted.id),
-                      discordTargetChannelId: inserted.discord_target_channel_id,
                       ownerGroupId: inserted.owner_group_id,
                       memberGroupId: inserted.member_group_id,
                     })
                     .pipe(
                       Effect.tap((event) =>
-                        resolveChannel(teamId, event.id).pipe(
+                        resolveChannel(teamId).pipe(
                           Effect.flatMap((resolved) =>
                             syncEvents.emitEventCreated(
                               teamId,
@@ -202,7 +200,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: inserted.end_time,
                   location: inserted.location,
                   locationUrl: inserted.location_url,
-                  discordChannelId: inserted.discord_target_channel_id,
                   ownerGroupId: inserted.owner_group_id,
                   ownerGroupName: Option.none(),
                   memberGroupId: inserted.member_group_id,
@@ -241,7 +238,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                     endTime: s.end_time,
                     location: s.location,
                     locationUrl: s.location_url,
-                    discordChannelId: s.discord_target_channel_id,
                     ownerGroupId: s.owner_group_id,
                     ownerGroupName: s.owner_group_name,
                     memberGroupId: s.member_group_id,
@@ -290,7 +286,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: found.end_time,
                   location: found.location,
                   locationUrl: found.location_url,
-                  discordChannelId: found.discord_target_channel_id,
                   ownerGroupId: found.owner_group_id,
                   ownerGroupName: found.owner_group_name,
                   memberGroupId: found.member_group_id,
@@ -387,10 +382,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 onNone: () => existing.end_date,
                 onSome: (v) => v,
               }),
-              discordTargetChannelId: Option.match(payload.discordChannelId, {
-                onNone: () => existing.discord_target_channel_id,
-                onSome: (v) => v,
-              }),
               ownerGroupId: Option.match(payload.ownerGroupId, {
                 onNone: () => existing.owner_group_id,
                 onSome: (v) => v,
@@ -417,7 +408,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 location: resolved.location,
                 locationUrl: resolved.locationUrl,
                 endDate: resolved.endDate,
-                discordTargetChannelId: resolved.discordTargetChannelId,
                 ownerGroupId: resolved.ownerGroupId,
                 memberGroupId: resolved.memberGroupId,
               }),
@@ -512,7 +502,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                   endTime: detail.end_time,
                   location: detail.location,
                   locationUrl: detail.location_url,
-                  discordChannelId: detail.discord_target_channel_id,
                   ownerGroupId: detail.owner_group_id,
                   ownerGroupName: detail.owner_group_name,
                   memberGroupId: detail.member_group_id,

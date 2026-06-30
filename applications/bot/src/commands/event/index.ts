@@ -1,9 +1,7 @@
-import * as m from '@sideline/i18n/messages';
 import * as Ix from 'dfx/Interactions/index';
 import * as DiscordTypes from 'dfx/types';
 import { createHandler } from './create.js';
 import { listHandler } from './list.js';
-import { overviewHandler } from './overview.js';
 
 export const EventCommand = Ix.global(
   {
@@ -50,19 +48,11 @@ export const EventCommand = Ix.global(
         description: 'List upcoming events',
         description_localizations: { cs: 'Zobrazit nadcházející události' },
       },
-      {
-        type: DiscordTypes.ApplicationCommandOptionType.SUB_COMMAND,
-        name: 'overview',
-        name_localizations: { cs: 'prehled' },
-        description: m.bot_event_overview_description({}, { locale: 'en' }),
-        description_localizations: { cs: m.bot_event_overview_description({}, { locale: 'cs' }) },
-      },
     ],
   } as const,
   (ix) =>
     ix.subCommands({
       create: createHandler,
       list: listHandler,
-      overview: overviewHandler,
     }),
 );

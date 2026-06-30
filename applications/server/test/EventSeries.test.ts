@@ -1237,7 +1237,6 @@ describe('Event Series API', () => {
     startTime: '18:00',
     endTime: '20:00',
     location: 'Main Field',
-    discordChannelId: null,
     ownerGroupId: null,
     memberGroupId: null,
   };

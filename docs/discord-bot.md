@@ -30,7 +30,7 @@ The bot is built with **dfx**, an Effect-native Discord framework. It connects t
 
 ## Slash Commands
 
-Nine top-level commands are registered globally: `/carpool`, `/event`, `/finance`, `/info`, `/makanicko`, `/poll`, `/summarize`, `/summon`, and `/training`. `/event`, `/finance`, `/makanicko`, and `/training` each have sub-commands.
+Nine top-level commands are registered globally: `/carpool`, `/event`, `/finance`, `/info`, `/makanicko`, `/poll`, `/summarize`, `/summon`, and `/training`. `/event`, `/finance`, `/makanicko`, and `/training` each have sub-commands. `/event` has two sub-commands: `create` and `list`.
 
 ### /carpool
 
@@ -307,30 +307,6 @@ Maximum duration: 10 years (3 650 days). Out-of-range or zero-value inputs retur
 - `applications/bot/src/commands/event/create.ts`
 - `applications/bot/src/interactions/event-create.ts`
 - `applications/bot/src/interactions/event-create-autocomplete.ts`
-
----
-
-### /event overview
-
-**Description:** Post the events overview message in this channel.
-
-**Czech sub-command name:** `prehled`
-
-**Options:** None.
-
-**Permission required:** `Manage Server` (checked at the top of the handler; members lacking this permission receive an ephemeral error).
-
-**Flow:**
-
-1. User with Manage Server permission invokes `/event overview`.
-2. The handler (`applications/bot/src/commands/event/overview.ts`) immediately returns an ephemeral acknowledgement.
-3. A background fiber posts a persistent public message containing a "Show My Events" button in the current channel.
-4. When a member clicks the button, the `OverviewShowButton` handler (`applications/bot/src/interactions/overview-channel.ts`) delegates to `sendUpcomingEventFollowups`, which calls `Event/GetUpcomingEventsForUser` RPC and sends one ephemeral message per upcoming event (up to 10), each with RSVP buttons.
-
-**Source files:**
-- `applications/bot/src/commands/event/overview.ts`
-- `applications/bot/src/interactions/overview-channel.ts` (`OverviewShowButton`)
-- `applications/bot/src/rest/events/sendUpcomingEventFollowups.ts`
 
 ---
 
@@ -1637,6 +1613,19 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/DeleteChannel` | Delete a single channel row from `discord_channels` when a Discord channel is deleted |
 | `Guild/ReconcileMembers` | Bulk-sync up to 1000 guild members on startup |
 | `Guild/RegisterMember` | Register a single new member; accepts `invite_code: Option<string>` (the Discord code matched by the invite diff) and returns `Option<WelcomeMeta>` (system log channel, optional welcome detail including rendered message, group colour, inviter Discord ID). The server resolves the invite code via `invite_acceptances.discord_code` (not `team_invites.discord_code`) to look up the team, group, and inviter. |
+| `Guild/GetGuildsNeedingPersonalProvisioning` | `limit` → `Snowflake[]` | Returns guild IDs where personal events are enabled and at least one active member is missing a personal channel |
+| `Guild/GetPersonalEventsCategory` | `guild_id` → `Snowflake \| null` | Returns the team's `discord_personal_events_category_id` setting |
+| `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` | Lists active members with no provisioned personal channel |
+| `Guild/ReservePersonalChannel` | `team_id`, `team_member_id` → `{ reserved }` | Idempotent insert into `personal_event_channels` |
+| `Guild/SavePersonalChannelId` | `team_id`, `team_member_id`, `discord_channel_id` | Writes the Discord channel ID after the bot creates it |
+| `Guild/GetPersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Reads the stored Discord channel ID for a member |
+| `Guild/DeletePersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Deletes the row and returns the channel ID for cleanup |
+| `Guild/ListPersonalChannelsForEvent` | `event_id` → `{ team_member_id, discord_id, personal_channel_id }[]` | Lists all members with a personal channel for reconcile |
+| `Guild/GetPersonalChannelTargetCategory` | `team_id` → `{ category_id, is_overflow }` | Returns which Discord category to place the next personal channel into |
+| `Guild/AllocatePersonalOverflowCategory` | `team_id` → `{ sequence, exists }` | Reserves the next overflow category slot |
+| `Guild/SavePersonalOverflowCategoryId` | `team_id`, `sequence`, `discord_category_id` | Persists the Discord overflow category snowflake |
+| `Guild/ListPersonalOverflowCategories` | `team_id` → `{ sequence, discord_category_id }[]` | Lists provisioned overflow categories in order |
+| `Guild/GetAllUpcomingEventsForUser` | `guild_id`, `discord_user_id` → `UpcomingEventsForUserResult` | Returns all upcoming active events with the user's RSVP; used by the personal-channel reconcile worker |
 
 ### Role group (`Role/`)
 
@@ -1683,7 +1672,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/MarkEventFailed` | Record a processing failure |
 | `Event/CreateEvent` | Create a new event (from `/event create`) |
 | `Event/GetUpcomingGuildEvents` | Fetch paginated upcoming events (guild-scoped, no per-user RSVP data; used by the event sync worker embed builder) |
-| `Event/GetUpcomingEventsForUser` | Fetch paginated upcoming events with the invoking user's RSVP status; used by `/event list`, the overview show button, and pagination/RSVP buttons on the per-user embed |
+| `Event/GetUpcomingEventsForUser` | Fetch paginated upcoming events with the invoking user's RSVP status; used by `/event list` and pagination/RSVP buttons on the per-user embed |
 | `Event/GetTrainingTypesByGuild` | Fetch training type choices for autocomplete |
 | `Event/SubmitRsvp` | Record a member's RSVP response; payload includes `clearMessage: boolean`; returns `SubmitRsvpResult` with late-RSVP flag, optional notification channel, and `message: Option<string>` |
 | `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |

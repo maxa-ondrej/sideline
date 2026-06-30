@@ -1,0 +1,496 @@
+// NOTE: These tests are written in TDD mode BEFORE the implementation.
+// They require:
+//   - Migration 1790100002: CREATE TABLE personal_event_channels
+//   - A new PersonalEventChannelsRepository service with methods:
+//       reservePersonalChannel(teamId, teamMemberId) → INSERT ON CONFLICT DO NOTHING
+//       savePersonalChannelId(teamId, teamMemberId, discordChannelId) → UPDATE
+//       getMembersNeedingPersonalChannel(teamId, limit) → rows with discord_channel_id IS NULL
+//       getPersonalChannel(teamId, teamMemberId) → Option<{id, discord_channel_id}>
+//       deletePersonalChannel(teamId, teamMemberId) → Option<Snowflake> (returns channel id)
+// These tests WILL FAIL until the developer implements the repository and migration.
+
+import { describe, expect, it } from '@effect/vitest';
+import type { Discord, Team, User } from '@sideline/domain';
+import { Effect, Exit, Layer, Option } from 'effect';
+import { SqlClient } from 'effect/unstable/sql';
+import { beforeEach } from 'vitest';
+// TDD: implement PersonalEventChannelsRepository
+import { PersonalEventChannelsRepository } from '~/repositories/PersonalEventChannelsRepository.js';
+import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
+import { TeamsRepository } from '~/repositories/TeamsRepository.js';
+import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { cleanDatabase, TestPgClient } from '../helpers.js';
+
+const TestLayer = Layer.mergeAll(
+  // TDD: implement PersonalEventChannelsRepository.Default
+  PersonalEventChannelsRepository.Default,
+  TeamMembersRepository.Default,
+  TeamsRepository.Default,
+  UsersRepository.Default,
+).pipe(Layer.provideMerge(TestPgClient));
+
+beforeEach(() => cleanDatabase.pipe(Effect.provide(TestPgClient), Effect.runPromise));
+
+// ---------------------------------------------------------------------------
+// Seed helpers
+// ---------------------------------------------------------------------------
+
+const createUser = (discordId: string, username: string) =>
+  UsersRepository.asEffect().pipe(
+    Effect.andThen((repo) =>
+      repo.upsertFromDiscord({
+        discord_id: discordId as Discord.Snowflake,
+        username,
+        avatar: Option.none(),
+        discord_nickname: Option.none(),
+        discord_display_name: Option.none(),
+      }),
+    ),
+    Effect.map((u) => u.id),
+  );
+
+const createTeam = (guildId: Discord.Snowflake, createdBy: User.UserId) =>
+  TeamsRepository.asEffect().pipe(
+    Effect.andThen((repo) =>
+      repo.insert({
+        name: 'Test Team',
+        guild_id: guildId,
+        created_by: createdBy,
+        description: Option.none(),
+        sport: Option.none(),
+        logo_url: Option.none(),
+        created_at: undefined,
+        updated_at: undefined,
+        welcome_channel_id: Option.none(),
+        system_log_channel_id: Option.none(),
+        welcome_message_template: Option.none(),
+        rules_channel_id: Option.none(),
+        achievement_channel_id: Option.none(),
+        onboarding_rules_role_id: Option.none(),
+        onboarding_rules_prompt_id: Option.none(),
+        onboarding_locale: 'en',
+        onboarding_synced_at: Option.none(),
+        onboarding_sync_status: 'pending',
+        onboarding_sync_error: Option.none(),
+      }),
+    ),
+  );
+
+const addTeamMember = (teamId: Team.TeamId, userId: User.UserId) =>
+  TeamMembersRepository.asEffect().pipe(
+    Effect.andThen((repo) =>
+      repo.addMember({
+        team_id: teamId,
+        user_id: userId,
+        active: true,
+        joined_at: undefined,
+      }),
+    ),
+  );
+
+const seedTeamWithMember = (discordId: string, username: string, guildId: Discord.Snowflake) =>
+  Effect.Do.pipe(
+    Effect.bind('userId', () => createUser(discordId, username)),
+    Effect.bind('team', ({ userId }) => createTeam(guildId, userId)),
+    Effect.bind('member', ({ team, userId }) => addTeamMember(team.id, userId)),
+    Effect.map(({ team, member }) => ({ team, member })),
+  );
+
+// ---------------------------------------------------------------------------
+// Tests: reserve-first idempotency (INSERT ON CONFLICT DO NOTHING)
+// ---------------------------------------------------------------------------
+
+describe('PersonalEventChannelsRepository — reservePersonalChannel idempotency', () => {
+  it.effect(
+    'reserve twice for same (team_id, team_member_id) does NOT error and does NOT duplicate',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('seed', () =>
+          seedTeamWithMember(
+            '400000000000000001',
+            'reserve-user-1',
+            '401010101010101010' as Discord.Snowflake,
+          ),
+        ),
+        // First reserve
+        Effect.tap(({ seed }) =>
+          PersonalEventChannelsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              // TDD: implement reservePersonalChannel
+              repo.reservePersonalChannel(seed.team.id, seed.member.id),
+            ),
+          ),
+        ),
+        // Second reserve — must not error (ON CONFLICT DO NOTHING)
+        Effect.tap(({ seed }) =>
+          PersonalEventChannelsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.reservePersonalChannel(seed.team.id, seed.member.id)),
+          ),
+        ),
+        // Verify only one row exists
+        Effect.bind('count', ({ seed }) =>
+          SqlClient.SqlClient.asEffect().pipe(
+            Effect.andThen((sql) =>
+              sql.unsafe<{ count: string }>(`
+              SELECT COUNT(*)::text AS count FROM personal_event_channels
+              WHERE team_id = '${seed.team.id}' AND team_member_id = '${seed.member.id}'
+            `),
+            ),
+            Effect.map((rows) => parseInt(rows[0]?.count ?? '0', 10)),
+          ),
+        ),
+        Effect.tap(({ count }) =>
+          Effect.sync(() => {
+            expect(count).toBe(1);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  it.effect('two different members of the same team each get their own reserve row', () =>
+    Effect.Do.pipe(
+      Effect.bind('userId1', () => createUser('402000000000000001', 'two-members-u1')),
+      Effect.bind('team', ({ userId1 }) =>
+        createTeam('402020202020202020' as Discord.Snowflake, userId1),
+      ),
+      Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+      Effect.bind('userId2', () => createUser('402000000000000002', 'two-members-u2')),
+      Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+      Effect.tap(({ team, member1, member2 }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            Effect.all([
+              repo.reservePersonalChannel(team.id, member1.id),
+              repo.reservePersonalChannel(team.id, member2.id),
+            ]),
+          ),
+        ),
+      ),
+      Effect.bind('count', ({ team }) =>
+        SqlClient.SqlClient.asEffect().pipe(
+          Effect.andThen((sql) =>
+            sql.unsafe<{ count: string }>(`
+              SELECT COUNT(*)::text AS count FROM personal_event_channels
+              WHERE team_id = '${team.id}'
+            `),
+          ),
+          Effect.map((rows) => parseInt(rows[0]?.count ?? '0', 10)),
+        ),
+      ),
+      Effect.tap(({ count }) =>
+        Effect.sync(() => {
+          expect(count).toBe(2);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Tests: GetMembersNeedingPersonalChannel
+// ---------------------------------------------------------------------------
+
+describe('PersonalEventChannelsRepository — getMembersNeedingPersonalChannel', () => {
+  it.effect('INCLUDES rows with discord_channel_id IS NULL (reserved but not yet created)', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '403000000000000001',
+          'needs-channel-1',
+          '403030303030303030' as Discord.Snowflake,
+        ),
+      ),
+      // Reserve without saving a channel id (discord_channel_id stays NULL)
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.reservePersonalChannel(seed.team.id, seed.member.id)),
+        ),
+      ),
+      Effect.bind('results', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            // TDD: implement getMembersNeedingPersonalChannel(teamId, limit)
+            repo.getMembersNeedingPersonalChannel(seed.team.id, 100),
+          ),
+        ),
+      ),
+      Effect.tap(({ results, seed }) =>
+        Effect.sync(() => {
+          const memberIds = results.map((r: any) => r.team_member_id);
+          expect(memberIds).toContain(seed.member.id);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect(
+    'EXCLUDES rows where discord_channel_id IS NOT NULL (channel already provisioned)',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('seed', () =>
+          seedTeamWithMember(
+            '404000000000000001',
+            'has-channel-1',
+            '404040404040404040' as Discord.Snowflake,
+          ),
+        ),
+        Effect.tap(({ seed }) =>
+          PersonalEventChannelsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              Effect.all([
+                repo.reservePersonalChannel(seed.team.id, seed.member.id),
+                // TDD: implement savePersonalChannelId(teamId, memberId, channelId)
+                repo.savePersonalChannelId(
+                  seed.team.id,
+                  seed.member.id,
+                  '404111111111111111' as Discord.Snowflake,
+                ),
+              ]),
+            ),
+          ),
+        ),
+        Effect.bind('results', ({ seed }) =>
+          PersonalEventChannelsRepository.asEffect().pipe(
+            Effect.andThen((repo) => repo.getMembersNeedingPersonalChannel(seed.team.id, 100)),
+          ),
+        ),
+        Effect.tap(({ results, seed }) =>
+          Effect.sync(() => {
+            const memberIds = results.map((r: any) => r.team_member_id);
+            // Member who already has a channel should NOT appear
+            expect(memberIds).not.toContain(seed.member.id);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  it.effect('INCLUDES members with no reserve row at all (LEFT JOIN pattern)', () =>
+    // The query should also detect team_members who have NO personal_event_channels row
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '405000000000000001',
+          'no-row-at-all',
+          '405050505050505050' as Discord.Snowflake,
+        ),
+      ),
+      // Do NOT call reservePersonalChannel — member has no row
+      Effect.bind('results', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.getMembersNeedingPersonalChannel(seed.team.id, 100)),
+        ),
+      ),
+      Effect.tap(({ results, seed }) =>
+        Effect.sync(() => {
+          const memberIds = results.map((r: any) => r.team_member_id);
+          // Member with no reserve row should be returned (LEFT JOIN + WHERE IS NULL)
+          expect(memberIds).toContain(seed.member.id);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Tests: savePersonalChannelId then getPersonalChannel
+// ---------------------------------------------------------------------------
+
+describe('PersonalEventChannelsRepository — savePersonalChannelId / getPersonalChannel', () => {
+  it.effect('save then get returns Some with correct discord_channel_id', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '406000000000000001',
+          'save-get-1',
+          '406060606060606060' as Discord.Snowflake,
+        ),
+      ),
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            Effect.all([
+              repo.reservePersonalChannel(seed.team.id, seed.member.id),
+              repo.savePersonalChannelId(
+                seed.team.id,
+                seed.member.id,
+                '406111111111111111' as Discord.Snowflake,
+              ),
+            ]),
+          ),
+        ),
+      ),
+      Effect.bind('channel', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            // TDD: implement getPersonalChannel(teamId, memberId) → Option<row>
+            repo.getPersonalChannel(seed.team.id, seed.member.id),
+          ),
+        ),
+      ),
+      Effect.tap(({ channel }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(channel)).toBe(true);
+          const row = Option.getOrThrow(channel);
+          expect(Option.isSome(row.discord_channel_id)).toBe(true);
+          expect(Option.getOrNull(row.discord_channel_id)).toBe('406111111111111111');
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Tests: UNIQUE constraint on discord_channel_id
+// ---------------------------------------------------------------------------
+
+describe('PersonalEventChannelsRepository — UNIQUE on discord_channel_id', () => {
+  it.effect(
+    'assigning the same discord_channel_id to two different members throws a unique violation',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('userId1', () => createUser('407000000000000001', 'unique-ch-u1')),
+        Effect.bind('team', ({ userId1 }) =>
+          createTeam('407070707070707070' as Discord.Snowflake, userId1),
+        ),
+        Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+        Effect.bind('userId2', () => createUser('407000000000000002', 'unique-ch-u2')),
+        Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+        Effect.tap(({ team, member1, member2 }) =>
+          PersonalEventChannelsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              Effect.all([
+                repo.reservePersonalChannel(team.id, member1.id),
+                repo.reservePersonalChannel(team.id, member2.id),
+                repo.savePersonalChannelId(
+                  team.id,
+                  member1.id,
+                  '407111111111111111' as Discord.Snowflake,
+                ),
+              ]),
+            ),
+          ),
+        ),
+        // Assigning same channel id to member2 should fail with unique constraint
+        Effect.bind('result', ({ team, member2 }) =>
+          PersonalEventChannelsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              repo
+                .savePersonalChannelId(
+                  team.id,
+                  member2.id,
+                  '407111111111111111' as Discord.Snowflake,
+                )
+                .pipe(Effect.exit),
+            ),
+          ),
+        ),
+        Effect.tap(({ result }) =>
+          Effect.sync(() => {
+            // Must be a failure (error) due to unique constraint violation
+            expect(Exit.isFailure(result)).toBe(true);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Tests: DeletePersonalChannel
+// ---------------------------------------------------------------------------
+
+describe('PersonalEventChannelsRepository — deletePersonalChannel', () => {
+  it.effect('deletePersonalChannel returns Some(channelId) and removes the row', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '408000000000000001',
+          'delete-ch-1',
+          '408080808080808080' as Discord.Snowflake,
+        ),
+      ),
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            Effect.all([
+              repo.reservePersonalChannel(seed.team.id, seed.member.id),
+              repo.savePersonalChannelId(
+                seed.team.id,
+                seed.member.id,
+                '408111111111111111' as Discord.Snowflake,
+              ),
+            ]),
+          ),
+        ),
+      ),
+      Effect.bind('deleted', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            // TDD: implement deletePersonalChannel(teamId, memberId) → Option<Snowflake>
+            repo.deletePersonalChannel(seed.team.id, seed.member.id),
+          ),
+        ),
+      ),
+      Effect.tap(({ deleted }) =>
+        Effect.sync(() => {
+          expect(Option.isSome(deleted)).toBe(true);
+          expect(Option.getOrNull(deleted)).toBe('408111111111111111');
+        }),
+      ),
+      // Verify the row is gone
+      Effect.bind('count', ({ seed }) =>
+        SqlClient.SqlClient.asEffect().pipe(
+          Effect.andThen((sql) =>
+            sql.unsafe<{ count: string }>(`
+            SELECT COUNT(*)::text AS count FROM personal_event_channels
+            WHERE team_id = '${seed.team.id}' AND team_member_id = '${seed.member.id}'
+          `),
+          ),
+          Effect.map((rows) => parseInt(rows[0]?.count ?? '0', 10)),
+        ),
+      ),
+      Effect.tap(({ count }) =>
+        Effect.sync(() => {
+          expect(count).toBe(0);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('deletePersonalChannel for member with no channel returns Option.none()', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () =>
+        seedTeamWithMember(
+          '409000000000000001',
+          'delete-no-ch-1',
+          '409090909090909090' as Discord.Snowflake,
+        ),
+      ),
+      // Reserve but don't save channel id
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.reservePersonalChannel(seed.team.id, seed.member.id)),
+        ),
+      ),
+      Effect.bind('deleted', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.deletePersonalChannel(seed.team.id, seed.member.id)),
+        ),
+      ),
+      Effect.tap(({ deleted }) =>
+        Effect.sync(() => {
+          // No channel id was assigned, so returns None
+          expect(Option.isNone(deleted)).toBe(true);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});

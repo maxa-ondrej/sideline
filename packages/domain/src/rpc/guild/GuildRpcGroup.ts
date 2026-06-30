@@ -3,6 +3,11 @@ import { Rpc, RpcGroup } from 'effect/unstable/rpc';
 import * as Discord from '~/models/Discord.js';
 import { OnboardingLocale, OnboardingSyncErrorCode } from '~/models/Onboarding.js';
 import { TeamId } from '~/models/Team.js';
+import {
+  GuildNotFound,
+  RsvpMemberNotFound,
+  UpcomingEventsForUserResult,
+} from '../event/EventRpcModels.js';
 
 export const GuildRpcGroup = RpcGroup.make(
   Rpc.make('RegisterGuild', {
@@ -123,7 +128,6 @@ export const GuildRpcGroup = RpcGroup.make(
         rules_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
         welcome_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
         training_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
-        overview_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
         onboarding_rules_role_id: Schema.OptionFromNullOr(Discord.Snowflake),
         onboarding_rules_prompt_id: Schema.OptionFromNullOr(Discord.Snowflake),
         is_community_enabled: Schema.Boolean,
@@ -147,15 +151,6 @@ export const GuildRpcGroup = RpcGroup.make(
   }),
   Rpc.make('RevertOnboardingSync', {
     payload: { team_id: TeamId },
-  }),
-  // Persists the channel where /event overview was invoked, so it can be featured
-  // alongside welcome/training in the Discord welcome screen. Flips onboarding sync to
-  // 'pending' when the channel actually changes.
-  Rpc.make('SetOverviewChannel', {
-    payload: {
-      guild_id: Discord.Snowflake,
-      channel_id: Discord.Snowflake,
-    },
   }),
   Rpc.make('MarkOnboardingSyncSkipped', {
     payload: { team_id: TeamId },
@@ -215,5 +210,89 @@ export const GuildRpcGroup = RpcGroup.make(
       guild_id: Discord.Snowflake,
       role_id: Discord.Snowflake,
     },
+  }),
+  // Personal event channel provisioning RPCs
+  Rpc.make('GetGuildsNeedingPersonalProvisioning', {
+    payload: { limit: Schema.Number },
+    success: Schema.Array(Discord.Snowflake),
+  }),
+  Rpc.make('GetPersonalEventsCategory', {
+    payload: { guild_id: Discord.Snowflake },
+    success: Schema.OptionFromNullOr(Discord.Snowflake),
+  }),
+  Rpc.make('GetMembersNeedingPersonalChannel', {
+    payload: { guild_id: Discord.Snowflake, limit: Schema.Number },
+    success: Schema.Array(
+      Schema.Struct({
+        team_id: TeamId,
+        team_member_id: Schema.String,
+        discord_id: Discord.Snowflake,
+      }),
+    ),
+  }),
+  Rpc.make('ReservePersonalChannel', {
+    payload: { team_id: TeamId, team_member_id: Schema.String },
+    success: Schema.Struct({ reserved: Schema.Boolean }),
+  }),
+  Rpc.make('SavePersonalChannelId', {
+    payload: {
+      team_id: TeamId,
+      team_member_id: Schema.String,
+      discord_channel_id: Discord.Snowflake,
+    },
+  }),
+  Rpc.make('GetPersonalChannel', {
+    payload: { team_id: TeamId, team_member_id: Schema.String },
+    success: Schema.OptionFromNullOr(Discord.Snowflake),
+  }),
+  Rpc.make('DeletePersonalChannel', {
+    payload: { team_id: TeamId, team_member_id: Schema.String },
+    success: Schema.OptionFromNullOr(Discord.Snowflake),
+  }),
+  Rpc.make('ListPersonalChannelsForEvent', {
+    payload: { event_id: Schema.String },
+    success: Schema.Array(
+      Schema.Struct({
+        team_member_id: Schema.String,
+        discord_id: Discord.Snowflake,
+        personal_channel_id: Discord.Snowflake,
+      }),
+    ),
+  }),
+  Rpc.make('GetPersonalChannelTargetCategory', {
+    payload: { team_id: TeamId },
+    success: Schema.Struct({
+      category_id: Schema.OptionFromNullOr(Discord.Snowflake),
+      is_overflow: Schema.Boolean,
+    }),
+  }),
+  Rpc.make('AllocatePersonalOverflowCategory', {
+    payload: { team_id: TeamId },
+    success: Schema.Struct({ sequence: Schema.Int, exists: Schema.Boolean }),
+  }),
+  Rpc.make('SavePersonalOverflowCategoryId', {
+    payload: {
+      team_id: TeamId,
+      sequence: Schema.Int,
+      discord_category_id: Discord.Snowflake,
+    },
+  }),
+  Rpc.make('ListPersonalOverflowCategories', {
+    payload: { team_id: TeamId },
+    success: Schema.Array(
+      Schema.Struct({
+        sequence: Schema.Int,
+        discord_category_id: Discord.Snowflake,
+      }),
+    ),
+  }),
+  // All upcoming events for a user — same result shape as GetUpcomingEventsForUser but without pagination
+  Rpc.make('GetAllUpcomingEventsForUser', {
+    payload: {
+      guild_id: Discord.Snowflake,
+      discord_user_id: Discord.Snowflake,
+    },
+    success: UpcomingEventsForUserResult,
+    error: Schema.Union([GuildNotFound, RsvpMemberNotFound]),
   }),
 ).prefix('Guild/');

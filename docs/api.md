@@ -454,6 +454,8 @@ Returns the team's current settings.
 | `createDiscordChannelOnRoster` | `boolean` | No | Auto-create Discord channel when a roster is created |
 | `discordArchiveCategoryId` | `Snowflake \| null` | Yes | Discord category channel used when cleanup mode is `archive` |
 | `discordRosterCategoryId` | `Snowflake \| null` | Yes | Discord category under which new roster channels are created; `null` means guild-root placement |
+| `discordPersonalEventsCategoryId` | `Snowflake \| null` | Yes | Discord category under which the bot creates private per-member event channels; `null` disables the personal-channel feature for this team |
+| `discordEventsChannelId` | `Snowflake \| null` | Yes | Discord channel where global event embeds (visible to all members) are posted; `null` disables the global post |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a group is deleted: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a roster is deactivated: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
 | `discordRoleFormat` | `string` | No | Template string for Discord role names (must contain `{name}`; may contain `{emoji}`) |
@@ -502,6 +504,8 @@ Updates the team's settings. All fields are optional; only provided fields are c
 | `discordChannelLateRsvp` | `Snowflake \| null` | No | — | Channel for late-RSVP notifications |
 | `discordArchiveCategoryId` | `Snowflake \| null` | No | — | Discord category used when cleanup mode is `archive` |
 | `discordRosterCategoryId` | `Snowflake \| null` | No | — | Discord category under which new roster channels are created; `null` clears the setting (guild-root placement) |
+| `discordPersonalEventsCategoryId` | `Snowflake \| null` | No | — | Discord category for per-member private event channels; `null` disables the feature |
+| `discordEventsChannelId` | `Snowflake \| null` | No | — | Discord channel for global event embeds; `null` disables global posting |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a group is deleted |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a roster is deactivated |
 | `discordRoleFormat` | `string` | No | Must contain `{name}` | Template string for Discord role names |
@@ -1821,7 +1825,6 @@ Creates a new event.
 | `endAt` | `string \| null` | Yes | End date/time (null if open-ended) |
 | `location` | `string \| null` | Yes | Location |
 | `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty |
-| `discordChannelId` | `Snowflake \| null` | Yes | Discord channel for the event embed |
 | `ownerGroupId` | `GroupId \| null` | Yes | Group that owns/manages the event |
 | `memberGroupId` | `GroupId \| null` | Yes | Group whose members are eligible to RSVP |
 
@@ -1872,7 +1875,6 @@ Members without the `team:manage` permission can only retrieve events belonging 
 | `canCancel` | `boolean` | No | Whether the user can cancel this event |
 | `seriesId` | `EventSeriesId \| null` | Yes | Series ID if part of a series |
 | `seriesModified` | `boolean` | No | Whether this event differs from the series template |
-| `discordChannelId` | `Snowflake \| null` | Yes | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | Yes | Owner group ID |
 | `ownerGroupName` | `string \| null` | Yes | Owner group name |
 | `memberGroupId` | `GroupId \| null` | Yes | Member group ID |
@@ -1914,7 +1916,6 @@ Updates an event's fields. All fields are optional.
 | `endAt` | `string \| null` | No | End date/time |
 | `location` | `string \| null` | No | Location |
 | `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty when setting a URL |
-| `discordChannelId` | `Snowflake \| null` | No | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | No | Owner group ID |
 | `memberGroupId` | `GroupId \| null` | No | Member group ID |
 
@@ -2127,7 +2128,6 @@ Creates a new recurring event series.
 | `endTime` | `string \| null` | Yes | End time (null if open-ended) |
 | `location` | `string \| null` | Yes | Location |
 | `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty |
-| `discordChannelId` | `Snowflake \| null` | Yes | Discord channel for event embeds |
 | `ownerGroupId` | `GroupId \| null` | Yes | Owner group ID |
 | `memberGroupId` | `GroupId \| null` | Yes | Member group ID |
 
@@ -2149,7 +2149,6 @@ Creates a new recurring event series.
 | `endTime` | `string \| null` | Yes | End time string |
 | `location` | `string \| null` | Yes | Location |
 | `locationUrl` | `string \| null` | Yes | Optional location URL (public `https://`, max 2048 chars) |
-| `discordChannelId` | `Snowflake \| null` | Yes | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | Yes | Owner group ID |
 | `ownerGroupName` | `string \| null` | Yes | Owner group name |
 | `memberGroupId` | `GroupId \| null` | Yes | Member group ID |
@@ -2242,7 +2241,6 @@ Updates a series. Changes apply only to future generated events. All fields are 
 | `location` | `string \| null` | No | Location |
 | `locationUrl` | `string \| null` | No | Optional location URL (public `https://`, max 2048 chars); requires `location` to be non-empty when setting a URL |
 | `endDate` | `string \| null` | No | Series end date |
-| `discordChannelId` | `Snowflake \| null` | No | Discord channel ID |
 | `ownerGroupId` | `GroupId \| null` | No | Owner group ID |
 | `memberGroupId` | `GroupId \| null` | No | Member group ID |
 
@@ -6570,6 +6568,19 @@ Handles Discord guild lifecycle events.
 | `Guild/SyncGuildChannels` | `guild_id`, `channels[]` | Syncs the channel list for a guild |
 | `Guild/ReconcileMembers` | `guild_id`, `members[]` | Reconciles the server member list with the database |
 | `Guild/RegisterMember` | `guild_id`, `discord_id`, `username`, `avatar`, `roles[]` | Registers a new member who joined the server |
+| `Guild/GetGuildsNeedingPersonalProvisioning` | `limit` → `Snowflake[]` | Returns guild IDs where `discord_personal_events_category_id` is set in team settings and at least one active member has no personal channel row or no Discord channel ID yet |
+| `Guild/GetPersonalEventsCategory` | `guild_id` → `Snowflake \| null` | Returns the team's configured personal-events category channel ID, or null if the feature is not enabled |
+| `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id }[]` | Lists active team members who have no personal channel row or whose channel has not yet been provisioned |
+| `Guild/ReservePersonalChannel` | `team_id`, `team_member_id` → `{ reserved: boolean }` | Inserts a `personal_event_channels` row with `ON CONFLICT DO NOTHING`; returns whether a new row was inserted |
+| `Guild/SavePersonalChannelId` | `team_id`, `team_member_id`, `discord_channel_id` | Writes the Discord channel snowflake back to the `personal_event_channels` row |
+| `Guild/GetPersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Returns the stored Discord channel ID for a member, or null if not yet provisioned |
+| `Guild/DeletePersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Deletes the row and returns the Discord channel ID so the caller can delete it in Discord |
+| `Guild/ListPersonalChannelsForEvent` | `event_id` → `{ team_member_id, discord_id, personal_channel_id }[]` | Lists all members who have a personal channel for the event's team (used during reconcile to know which channels to post/update embeds in) |
+| `Guild/GetPersonalChannelTargetCategory` | `team_id` → `{ category_id: Snowflake \| null, is_overflow: boolean }` | Returns the category to place the next personal channel into; prefers the latest overflow category if any exist |
+| `Guild/AllocatePersonalOverflowCategory` | `team_id` → `{ sequence: number, exists: boolean }` | Inserts a new `personal_event_overflow_categories` row (next sequence number) with `ON CONFLICT DO NOTHING`; returns whether a new row was inserted |
+| `Guild/SavePersonalOverflowCategoryId` | `team_id`, `sequence`, `discord_category_id` | Writes the Discord category snowflake back to the overflow row |
+| `Guild/ListPersonalOverflowCategories` | `team_id` → `{ sequence: number, discord_category_id: Snowflake }[]` | Lists all provisioned overflow categories for a team in sequence order |
+| `Guild/GetAllUpcomingEventsForUser` | `guild_id`, `discord_user_id` → `UpcomingEventsForUserResult` | Returns all upcoming active events for the requesting Discord user with their RSVP status; used by the personal-channel reconcile worker to build the member's personal-channel embed list |
 
 #### Event
 
@@ -6751,6 +6762,20 @@ Handles the coach approval flow (approve/reject via Discord buttons) and the ema
 `EmailContentView` fields: `subject`, `from_address`, `short_summary` (nullable), `summary` (nullable), `body`.
 
 `UnprocessedEmailPostEvent` fields: `id`, `email_message_id`, `team_id`, `kind` (`"approval_request" | "post_summary" | "post_original"`), `coach_channel_id`, `target_channel_id`, `subject`, `from_address`, `summary` (nullable), `short_summary` (nullable), `body`, `received_at`.
+
+---
+
+#### PersonalEvents
+
+Manages per-member personal event messages stored in `personal_event_messages`. The personal-events sync worker (poll loop in the bot) calls these methods to track which embeds have been posted, upserted, or deleted in members' private channels.
+
+| Method | Payload / Returns | Description |
+|---|---|---|
+| `PersonalEvents/GetPersonalEventMessage` | `event_id`, `team_member_id` → `{ personal_channel_id, discord_message_id, payload_hash } \| null` | Returns the stored embed state for an (event, member) pair |
+| `PersonalEvents/UpsertPersonalEventMessage` | `event_id`, `team_member_id`, `personal_channel_id`, `discord_message_id`, `payload_hash` | Inserts or updates the stored embed state (ON CONFLICT DO UPDATE on `(event_id, team_member_id)`) |
+| `PersonalEvents/DeletePersonalEventMessage` | `event_id`, `team_member_id` | Deletes the stored embed state when the event no longer applies to the member |
+| `PersonalEvents/GetEventsNeedingReconcile` | `limit` → `{ event_id, team_id, guild_id, dirty_at }[]` | Polls `events` for rows with `personal_messages_dirty_at IS NOT NULL`; returns up to `limit` ordered by `personal_messages_dirty_at ASC` |
+| `PersonalEvents/ClearPersonalMessagesDirty` | `event_id`, `dirty_at` | Clears `personal_messages_dirty_at` only if it still matches `dirty_at` (optimistic concurrency — prevents clearing a newer dirty stamp set after reconcile started) |
 
 ---
 

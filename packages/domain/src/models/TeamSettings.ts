@@ -18,6 +18,8 @@ export class TeamSettings extends Model.Class<TeamSettings>('TeamSettings')({
   create_discord_channel_on_roster: Schema.Boolean,
   discord_archive_category_id: Schema.OptionFromNullOr(Snowflake),
   discord_roster_category_id: Schema.OptionFromNullOr(Snowflake),
+  discord_personal_events_category_id: Schema.OptionFromNullOr(Snowflake),
+  discord_events_channel_id: Schema.OptionFromNullOr(Snowflake),
   discord_channel_cleanup_on_group_delete: ChannelCleanupMode,
   discord_channel_cleanup_on_roster_deactivate: ChannelCleanupMode,
   discord_role_format: Schema.String,

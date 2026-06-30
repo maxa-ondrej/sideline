@@ -12,7 +12,7 @@ src/
 ├── env.ts           — Environment config (token, intents, health port)
 ├── run.ts           — Runtime entrypoint (config, logging, NodeRuntime)
 ├── schemas.ts       — Dfx decode schemas (DfxTextChannel, DfxSyncableChannel, DfxGuildMember, DfxUser incl. global_name)
-├── commands/        — Slash command registry (event/create, event/list, event/overview, makanicko/*, finance/*, info, summon)
+├── commands/        — Slash command registry (event/create, event/list, event/setupOverview, makanicko/*, finance/*, info, summon)
 ├── interactions/    — Component interaction registry (buttons/selects/modals)
 ├── events/          — Gateway event handler registry (guild, member, invite, channel lifecycle)
 ├── services/        — Sync services (RoleSyncService, ChannelSyncService) and welcome helpers (InviteCache, inviteDiff, welcomeRenderer)
@@ -53,7 +53,7 @@ src/
 └── rest/events/     — Embed builder functions
     ├── buildEventEmbed.ts              — Main event embed (RSVP counts, "Going" field)
     ├── buildAttendeesEmbed.ts          — Paginated attendee list embed
-    ├── buildUpcomingEventEmbed.ts      — Per-user upcoming events embed (/event list, overview button)
+    ├── buildUpcomingEventEmbed.ts      — Per-user upcoming events embed (/event list + personal-channel messages)
     ├── buildClaimMessage.ts            — Coach-claim embed + Claim/Release button row
     ├── buildRosterApprovalMessage.ts   — Roster-approval embed + Approve/Decline button row (status-colored; disabled row for decided/withdrawn states)
     └── sendUpcomingEventFollowups.ts   — Shared helper: sends one ephemeral follow-up message per event (max 10)
@@ -427,6 +427,13 @@ Access tiers and Discord permission overwrites:
 
 ### Event Sync (events → Discord messages)
 
+Events render onto **two distinct Discord surfaces** — keep them straight:
+
+1. **Global shared events channel** — ONE channel per team (`team_settings.discord_events_channel_id`, resolved server-side by `resolveChannel`; see `applications/server/AGENTS.md`). The event-sync handlers below post/edit the aggregate embed here (`buildEventEmbed`), one message per event, RSVP buttons shared by everyone.
+2. **Private per-member personal channels** — one hidden channel per team member inside the team's configured personal-events category. Each carries that member's own RSVP view (`buildUpcomingEventEmbed`, per-member state). These are driven by the **Personal Events Sync** poll loop, NOT by the event-sync handlers — see "Personal Events Sync" below.
+
+`event_sync_events` (this section) drives surface 1. Surface 2 is reconciled separately off the `events.personal_messages_dirty_at` marker.
+
 Syncs event lifecycle to Discord embed messages. When events are created/updated/cancelled/started, the server emits events to `event_sync_events`.
 
 | Component | File |
@@ -456,6 +463,43 @@ Three event-sync handlers drive the Discord side of the Event↔Roster Attendanc
 2. If `owner_channel_id` is `None`, log a warning and skip — no thread can be created.
 3. On `createMessage` failure with code 10003 / HTTP 404 (thread deleted), call `Event/ClearEventRosterThread`, recreate via the same race-safe path, and retry the post once.
 4. The candidate's `discord_id` is resolved server-side and arrives on the event as `candidate_discord_id` — the handler never looks it up itself.
+
+### Personal Events Sync (per-member private channels + global refresh)
+
+This is surface 2 of the two-surface event model (see "Event Sync" above). It is **bot-driven and poll-based** — there is NO `personal_events_sync_events` outbox. The bot polls server reads keyed on `events.personal_messages_dirty_at` and reconciles both the per-member personal channels AND (re-)refreshes the global shared message.
+
+| Component | File |
+|-----------|------|
+| Bot service | `src/rcp/personalEvents/ProcessorService.ts` (`PersonalEventsSyncService.processTick`, exported via `src/rcp/personalEvents/index.ts`) |
+| Pass 1 — provision | `src/rcp/personalEvents/handleProvision.ts` (`provisionPersonalChannels(guildId)`) |
+| Pass 2 — reconcile | `src/rcp/personalEvents/handleReconcile.ts` (`reconcileEvent(event)`) |
+| Channel creation | `src/rest/channels/createPersonalEventChannel.ts` |
+| Domain RPCs | `packages/domain/src/rpc/guild/GuildRpcGroup.ts` (`Guild/*Personal*`) + `packages/domain/src/rpc/personalEvents/PersonalEventsRpcGroup.ts` (`PersonalEvents/*`) |
+
+`processTick` runs on the standard `pollLoop` (5s) and performs **two independent passes per tick**, each isolating per-item failures so one bad guild/event never aborts the rest:
+
+**Pass 1 — Provision (event-independent).** `Guild/GetGuildsNeedingPersonalProvisioning({ limit: 20 })` → for each guild, `provisionPersonalChannels(guildId)` (serialised `{ concurrency: 1 }` to respect Discord rate limits). This covers backfill when a category is first configured AND new member joins. Per member:
+
+1. `Guild/GetPersonalChannelTargetCategory({ team_id })` resolves the base category (`team_settings.discord_personal_events_category_id`) or the last allocated overflow category. Skip the member when `category_id` is `None` (no category configured).
+2. `Guild/ReservePersonalChannel({ team_id, team_member_id })` is the **reserve-first idempotency** guard — it `INSERT ... ON CONFLICT (team_id, team_member_id) DO NOTHING` into `personal_event_channels` (channel id still `NULL`) and returns `{ reserved: boolean }`. Proceed only when `reserved === true`; `false` means another replica/prior tick already owns it.
+3. `createPersonalEventChannel(guildId, discordId, categoryId, name)` creates a `GUILD_TEXT` channel named `events-<discord_id>` inside the category with `permission_overwrites` that DENY `ViewChannel` for `@everyone` and ALLOW `ViewChannel | ReadMessageHistory` (deny `SendMessages`) for the member — member-only, read-only.
+4. On a permanent Discord `403` (category at the 50-channel cap), `Guild/AllocatePersonalOverflowCategory({ team_id })` reserves the next `personal_event_overflow_categories` sequence, then re-resolve `Guild/GetPersonalChannelTargetCategory` and retry the create ONCE.
+5. `Guild/SavePersonalChannelId({ team_id, team_member_id, discord_channel_id })` fills in the reserved row's channel id.
+
+**Pass 2 — Reconcile (event-driven, dirty-marker-gated).** `PersonalEvents/GetEventsNeedingReconcile({ limit: 20 })` returns `{ event_id, team_id, guild_id, dirty_at }` for events whose `personal_messages_dirty_at IS NOT NULL` (ORDER BY the marker ASC). For each event (serialised `{ concurrency: 1 }`): `reconcileEvent(event)` THEN `PersonalEvents/ClearPersonalMessagesDirty({ event_id, dirty_at })`.
+
+`reconcileEvent` does three things, all hash-diffed to suppress no-op Discord edits:
+
+1. **Per-member personal messages.** `Guild/ListPersonalChannelsForEvent({ event_id })` → for each member, fetch their upcoming events, `buildUpcomingEventEmbed({ entry, locale })`, compute `hashPayload(...)` (SHA-256 of `{ embeds, components }`), and compare to the stored `payload_hash` from `PersonalEvents/GetPersonalEventMessage`. If equal, skip. Otherwise `rest.updateMessage` (stored message) or `rest.createMessage` (new member/event), then `PersonalEvents/UpsertPersonalEventMessage` persists `(personal_channel_id, discord_message_id, payload_hash)` keyed `(event_id, team_member_id)`. On CREATE, if the upsert still fails after retries, **delete the just-created Discord message (compensating action) and re-fail** so the event stays dirty and is retried cleanly next tick — never leave an orphan message persisted with no row.
+2. **Global shared message refresh.** `Event/GetDiscordMessageId({ event_id })` → rebuild `buildEventEmbed` from `Event/GetEventEmbedInfo` + `Event/GetRsvpCounts` + `Event/GetYesAttendeesForEmbed`, hash-diff against the CURRENT message fetched via `rest.getMessage` (fall back to always-update if the fetch fails), and `rest.updateMessage` only on change.
+3. The dirty flag is cleared LAST, with a timestamp guard (see below).
+
+Rules:
+
+1. **The `dirty_at` timestamp guard prevents lost updates.** `ClearPersonalMessagesDirty` clears the marker ONLY when `personal_messages_dirty_at = ${dirty_at}` (the value observed at the start of the tick). If an RSVP/edit re-marked the event during reconcile, the marker now holds a newer timestamp, the conditional `UPDATE` matches nothing, and the event is reconciled again next tick. Never clear the marker unconditionally. The server side of this contract lives in `applications/server/AGENTS.md` → "`events.personal_messages_dirty_at` reconcile marker".
+2. **`payload_hash` is the no-op suppressor on BOTH surfaces.** Compute the SHA-256 of the rendered `{ embeds, components }` and compare before any `rest.updateMessage`. Personal messages compare against the stored `personal_event_messages.payload_hash`; the global message compares against the live message content. Do not edit a Discord message whose hash is unchanged.
+3. **Reserve before create, always.** Never call `createPersonalEventChannel` without a successful `ReservePersonalChannel` first — the reserve row (nullable `discord_channel_id`) is what makes provisioning idempotent across replicas and ticks.
+4. **There is no outbox for personal events.** Do not add a `personal_events_sync_events` table or a `Match.exhaustive` dispatcher — the trigger is the `events.personal_messages_dirty_at` marker, polled by `GetEventsNeedingReconcile`.
 
 ### Finance Sync (payment reminders → user DMs)
 
@@ -574,7 +618,7 @@ const pollLoop = <E, R>(processTick: Effect.Effect<void, E, R>) =>
 
 | Helper | Cadence | Schedule | Used by |
 |--------|---------|----------|---------|
-| `pollLoop` | 5s | `Schedule.spaced('5 seconds')` | `roles.processTick`, `channels.processTick`, `eventSync.processTick`, `guildJoin.processTick`, `onboarding.processTick`, `finance.processTick`, `email.processTick` |
+| `pollLoop` | 5s | `Schedule.spaced('5 seconds')` | `roles.processTick`, `channels.processTick`, `eventSync.processTick`, `guildJoin.processTick`, `onboarding.processTick`, `finance.processTick`, `email.processTick`, `personalEvents.processTick` |
 | `fastPollLoop` | 1s | `Schedule.spaced('1 seconds')` | `inviteGenerator.processTick` only |
 | `slowPollLoop` | 5min | `Schedule.spaced('5 minutes')` | `channelBackfill.processTick` only (see "Channel Backfill" below) |
 
@@ -782,13 +826,12 @@ Two pagination models are used:
 
 #### Single-event ephemeral messages (upcoming events)
 
-Used by `/event list` and the overview show button (`overview-show`). Instead of pagination, the bot sends one ephemeral follow-up message per upcoming event (max 10). Each message shows one event with the invoking user's RSVP status.
+Used by `/event list`. Instead of pagination, the bot sends one ephemeral follow-up message per upcoming event (max 10). Each message shows one event with the invoking user's RSVP status. (The old `/event overview` command and `overview-show` button — `src/commands/event/overview.ts`, `src/interactions/overview-channel.ts`, `OverviewShowButton` — were REMOVED in the events-overview rework; the always-on private per-member channels of "Personal Events Sync" replace that on-demand snapshot. Do not reintroduce them.)
 
-1. `buildUpcomingEventPage` in `src/rest/events/buildUpcomingEventEmbed.ts` accepts `{ entry, locale }` and returns `{ embeds, components }` with a single action row:
+1. `buildUpcomingEventEmbed` in `src/rest/events/buildUpcomingEventEmbed.ts` accepts `{ entry, locale }` and returns `{ embeds, components }` with a single action row:
    - **Row 1 — RSVP buttons** (Yes / No / Maybe): `custom_id` = `upcoming-rsvp:{event_id}:{team_id}:{response}`. The button matching the user's current response uses a highlighted style (Success/Danger/Primary); others use Secondary
-2. `sendUpcomingEventFollowups` in `src/rest/events/sendUpcomingEventFollowups.ts` is the shared helper used by both `/event list` and `OverviewShowButton`. It calls `Event/GetUpcomingEventsForUser` (fetching up to 10 events), then sends one ephemeral follow-up message per event via `rest.createFollowupMessage`
+2. `sendUpcomingEventFollowups` in `src/rest/events/sendUpcomingEventFollowups.ts` is the shared helper used by `/event list`. It calls `Event/GetUpcomingEventsForUser` (fetching up to 10 events), then sends one ephemeral follow-up message per event via `rest.createFollowupMessage`
 3. `UpcomingRsvpButton` (`src/interactions/upcoming-rsvp.ts`) handles inline RSVP — submits the RSVP via `Event/SubmitRsvp`, triggers embed updates via `postRsvpDiscordUpdates`, then edits the current ephemeral message to reflect the new RSVP state
-4. `OverviewShowButton` (`src/interactions/overview-channel.ts`) handles the `overview-show` button — delegates to `sendUpcomingEventFollowups`
 
 #### Stateless ephemeral pagination (email detail / original)
 

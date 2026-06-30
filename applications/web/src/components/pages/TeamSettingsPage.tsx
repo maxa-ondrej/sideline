@@ -152,6 +152,12 @@ export function TeamSettingsPage({
   const [rosterCategory, setRosterCategory] = React.useState(
     Option.getOrElse(settings.discordRosterCategoryId, () => NONE_VALUE),
   );
+  const [eventsChannel, setEventsChannel] = React.useState(
+    Option.getOrElse(settings.discordEventsChannelId, () => NONE_VALUE),
+  );
+  const [personalEventsCategory, setPersonalEventsCategory] = React.useState(
+    Option.getOrElse(settings.discordPersonalEventsCategoryId, () => NONE_VALUE),
+  );
   const [cleanupOnGroupDelete, setCleanupOnGroupDelete] = React.useState(
     settings.discordChannelCleanupOnGroupDelete,
   );
@@ -251,6 +257,9 @@ export function TeamSettingsPage({
     channelLateRsvp !== Option.getOrElse(settings.discordChannelLateRsvp, () => NONE_VALUE) ||
     archiveCategory !== Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE) ||
     rosterCategory !== Option.getOrElse(settings.discordRosterCategoryId, () => NONE_VALUE) ||
+    eventsChannel !== Option.getOrElse(settings.discordEventsChannelId, () => NONE_VALUE) ||
+    personalEventsCategory !==
+      Option.getOrElse(settings.discordPersonalEventsCategoryId, () => NONE_VALUE) ||
     cleanupOnGroupDelete !== settings.discordChannelCleanupOnGroupDelete ||
     cleanupOnRosterDeactivate !== settings.discordChannelCleanupOnRosterDeactivate ||
     createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup ||
@@ -346,6 +355,8 @@ export function TeamSettingsPage({
             discordChannelLateRsvp: Option.some(channelToOption(channelLateRsvp)),
             discordArchiveCategoryId: Option.some(channelToOption(archiveCategory)),
             discordRosterCategoryId: Option.some(channelToOption(rosterCategory)),
+            discordEventsChannelId: Option.some(channelToOption(eventsChannel)),
+            discordPersonalEventsCategoryId: Option.some(channelToOption(personalEventsCategory)),
             discordChannelCleanupOnGroupDelete: Option.some(cleanupOnGroupDelete),
             discordChannelCleanupOnRosterDeactivate: Option.some(cleanupOnRosterDeactivate),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
@@ -382,6 +393,8 @@ export function TeamSettingsPage({
     channelLateRsvp,
     archiveCategory,
     rosterCategory,
+    eventsChannel,
+    personalEventsCategory,
     cleanupOnGroupDelete,
     cleanupOnRosterDeactivate,
     createDiscordChannelOnGroup,
@@ -1080,6 +1093,64 @@ export function TeamSettingsPage({
                   </div>
                 </>
               )}
+
+              <Separator />
+
+              {/* Events channels sub-section */}
+              <div className='flex flex-col gap-4'>
+                <h4 className='text-sm font-semibold'>{tr('teamSettings_eventsChannelsTitle')}</h4>
+                {eventsChannel === NONE_VALUE && personalEventsCategory === NONE_VALUE && (
+                  <Alert variant='default'>
+                    <AlertTriangle className='size-4' />
+                    <AlertDescription>{tr('teamSettings_eventsNoSurfaceWarning')}</AlertDescription>
+                  </Alert>
+                )}
+                <div>
+                  <label htmlFor='events-channel' className='text-sm font-medium mb-1 block'>
+                    {tr('teamSettings_eventsChannel')}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>
+                    {tr('teamSettings_eventsChannelHelp')}
+                  </p>
+                  <SearchableSelect
+                    id='events-channel'
+                    value={eventsChannel}
+                    onValueChange={setEventsChannel}
+                    placeholder={tr('teamSettings_channelNone')}
+                    pinnedValues={[NONE_VALUE]}
+                    options={[
+                      { value: NONE_VALUE, label: tr('teamSettings_channelNone') },
+                      ...discordChannels
+                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
+                        .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
+                    ]}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor='personal-events-category'
+                    className='text-sm font-medium mb-1 block'
+                  >
+                    {tr('teamSettings_personalEventsCategory')}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>
+                    {tr('teamSettings_personalEventsCategoryHelp')}
+                  </p>
+                  <SearchableSelect
+                    id='personal-events-category'
+                    value={personalEventsCategory}
+                    onValueChange={setPersonalEventsCategory}
+                    placeholder={tr('teamSettings_channelNone')}
+                    pinnedValues={[NONE_VALUE]}
+                    options={[
+                      { value: NONE_VALUE, label: tr('teamSettings_channelNone') },
+                      ...discordChannels
+                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_CATEGORY)
+                        .map((ch) => ({ value: ch.id, label: ch.name })),
+                    ]}
+                  />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
