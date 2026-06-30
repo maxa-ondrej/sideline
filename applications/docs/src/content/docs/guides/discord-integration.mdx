@@ -191,6 +191,37 @@ When a roster channel is created and a category is configured, the bot passes `p
   Changing this setting only affects new roster channels created after the change. Existing roster channels are not moved. If you want to move an existing channel, do it manually in Discord or use the **Team → Channels** archive/restore flow.
 </Aside>
 
+## Personal event channels
+
+When the **Personal events category** is configured in **Team settings → Discord integration**, the bot creates a private text channel under that category for each eligible member. The channel shows that member's upcoming events with RSVP buttons — the same format as the global events channel but personalised. Events in a member's personal channel are kept in the same order as the global channel (soonest event nearest the input box).
+
+### Going list and Attendees button
+
+Each event message in a personal channel displays the same **Going** attendee list and **Attendees** button that appear on the global events channel, so members always see who else has responded "yes" without switching channels.
+
+### Mention on unanswered events
+
+When the bot posts a new upcoming event to a personal channel and the member has not yet responded, the message includes a quiet mention of the member (highlighted as unread in Discord). No actual notification ping is sent — the `allowed_mentions` setting suppresses it. As soon as the member responds (yes, no, or maybe), the mention is cleared.
+
+### Restricting personal channels to a group
+
+By default all active team members receive a personal channel. To limit personal channels to a specific subset of members, set the **Personal events group** in **Team settings → Discord integration**. Only members who belong to that group (or any of its descendant groups) will receive a personal channel. Members outside the group continue to see events only in the global events channel. If a member's personal channel already exists and they later fall outside the configured group, the bot automatically deletes their personal channel.
+
+### Custom channel name format
+
+The default channel name is `events-{discord_id}` (e.g. `events-123456789`). Captains can change this by setting the **Personal channel name format** in **Team settings → Discord integration**. The format must include at least one of the following placeholders:
+
+| Placeholder | Replaced with |
+|---|---|
+| `{name}` | Member's display name (profile name → Discord server nickname → Discord display name → Discord username) |
+| `{discord_id}` | Member's Discord user snowflake (always unique) |
+
+Example formats: `events-{name}`, `{name}-{discord_id}`, `my-events-{discord_id}`.
+
+<Aside type="note" title="Channel names are set at creation time">
+  Changing the format after channels have already been created does not rename existing channels. Only newly provisioned channels will use the updated format.
+</Aside>
+
 ## Cleanup modes
 
 Old event posts accumulate. You pick a cleanup strategy per team:

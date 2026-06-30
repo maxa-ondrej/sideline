@@ -87,6 +87,7 @@ erDiagram
     groups ||--o{ event_series : "scopes"
     groups o|--o{ groups : "parent of"
     groups o|--o{ team_invites : "targeted by"
+    groups o|--o{ team_settings : "restricts personal channels for"
 
     training_types ||--o{ role_training_types : "available to"
     training_types ||--o{ events : "classifies"
@@ -293,6 +294,10 @@ erDiagram
         BOOLEAN create_discord_channel_on_roster
         TEXT discord_archive_category_id
         TEXT discord_roster_category_id
+        TEXT discord_personal_events_category_id
+        UUID discord_personal_events_group_id FK
+        TEXT discord_personal_events_channel_format
+        TEXT discord_events_channel_id
         TEXT discord_channel_cleanup_on_group_delete
         TEXT discord_channel_cleanup_on_roster_deactivate
         TEXT discord_role_format
@@ -333,6 +338,7 @@ erDiagram
     teams ||--|{ team_settings : "configures"
     teams ||--o{ team_onboarding_tokens : "created for"
     groups o|--o{ team_invites : "targeted by"
+    groups o|--o{ team_settings : "restricts personal channels for"
     team_invites ||--o{ invite_acceptances : "tracks"
 ```
 

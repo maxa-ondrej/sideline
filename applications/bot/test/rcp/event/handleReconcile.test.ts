@@ -12,6 +12,7 @@
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DateTime, Effect, Layer, Option } from 'effect';
 import { describe, expect, it, vi } from 'vitest';
+import { ChannelReorderSemaphore } from '~/rcp/event/ChannelReorderSemaphore.js';
 // TDD: implement handleReconcile (or reconcileEvent)
 import { reconcileEvent } from '~/rcp/personalEvents/handleReconcile.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -199,9 +200,16 @@ const makeTestLayers = (opts: ReconcileMockOptions = {}) => {
 };
 
 const run = (
-  effect: Effect.Effect<void, any, SyncRpc | DiscordREST>,
+  effect: Effect.Effect<void, any, SyncRpc | DiscordREST | ChannelReorderSemaphore>,
   layers: Layer.Layer<SyncRpc | DiscordREST>,
-) => Effect.runPromise(effect.pipe(Effect.provide(layers)) as Effect.Effect<void, never, never>);
+) =>
+  Effect.runPromise(
+    effect.pipe(Effect.provide(Layer.merge(layers, ChannelReorderSemaphore.Live))) as Effect.Effect<
+      void,
+      never,
+      never
+    >,
+  );
 
 // ---------------------------------------------------------------------------
 // Test: owner-resolution guard — each member sees their own my_response

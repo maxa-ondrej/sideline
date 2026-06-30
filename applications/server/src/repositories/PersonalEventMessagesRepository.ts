@@ -24,6 +24,13 @@ class EventNeedingReconcileRow extends Schema.Class<EventNeedingReconcileRow>(
   dirty_at: Schemas.DateTimeFromDate,
 }) {}
 
+class MemberMessageRow extends Schema.Class<MemberMessageRow>('MemberMessageRow')({
+  event_id: Event.EventId,
+  personal_channel_id: Discord.Snowflake,
+  discord_message_id: Discord.Snowflake,
+  start_at: Schemas.DateTimeFromDate,
+}) {}
+
 const make = Effect.Do.pipe(
   Effect.bind('sql', () => SqlClient.SqlClient.asEffect()),
   Effect.map(({ sql }) => {
@@ -87,6 +94,20 @@ const make = Effect.Do.pipe(
       `,
     });
 
+    const _listForMember = SqlSchema.findAll({
+      Request: Schema.Struct({ team_member_id: Schema.String }),
+      Result: MemberMessageRow,
+      execute: (input) => sql`
+        SELECT pem.event_id, pem.personal_channel_id, pem.discord_message_id, e.start_at
+        FROM personal_event_messages pem
+        JOIN events e ON e.id = pem.event_id
+        WHERE pem.team_member_id = ${input.team_member_id}
+          AND e.status = 'active'
+          AND e.start_at >= now()
+        ORDER BY e.start_at ASC
+      `,
+    });
+
     const upsertPersonalEventMessage = (
       eventId: Event.EventId,
       teamMemberId: TeamMember.TeamMemberId,
@@ -125,11 +146,15 @@ const make = Effect.Do.pipe(
     const getEventsNeedingReconcile = (limit: number) =>
       _getEventsNeedingReconcile({ limit }).pipe(catchSqlErrors);
 
+    const listMessagesForMember = (teamMemberId: TeamMember.TeamMemberId) =>
+      _listForMember({ team_member_id: teamMemberId }).pipe(catchSqlErrors);
+
     return {
       upsertPersonalEventMessage,
       getPersonalEventMessage,
       deletePersonalEventMessage,
       getEventsNeedingReconcile,
+      listMessagesForMember,
     };
   }),
 );

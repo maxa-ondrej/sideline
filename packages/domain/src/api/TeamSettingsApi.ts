@@ -4,11 +4,24 @@ import { AuthMiddleware } from '~/api/Auth.js';
 import { Forbidden } from '~/api/EventApi.js';
 import { ChannelCleanupMode } from '~/models/ChannelSyncEvent.js';
 import { Snowflake } from '~/models/Discord.js';
+import { GroupId } from '~/models/GroupModel.js';
 import { TeamId } from '~/models/Team.js';
 
 const DiscordFormatString = Schema.String.pipe(
   Schema.check(
     Schema.makeFilter<string>((s) => (s.includes('{name}') ? true : 'Format must include {name}')),
+  ),
+);
+
+// Personal events channel name template: must include {name} or {discord_id} so
+// generated channel names stay distinguishable per member.
+const PersonalEventsChannelFormatString = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>((s) =>
+      s.includes('{name}') || s.includes('{discord_id}')
+        ? true
+        : 'Format must include {name} or {discord_id}',
+    ),
   ),
 );
 
@@ -45,6 +58,8 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordArchiveCategoryId: Schema.OptionFromNullOr(Snowflake),
   discordRosterCategoryId: Schema.OptionFromNullOr(Snowflake),
   discordPersonalEventsCategoryId: Schema.OptionFromNullOr(Snowflake),
+  discordPersonalEventsGroupId: Schema.OptionFromNullOr(GroupId),
+  discordPersonalEventsChannelFormat: Schema.String,
   discordEventsChannelId: Schema.OptionFromNullOr(Snowflake),
   discordChannelCleanupOnGroupDelete: ChannelCleanupMode,
   discordChannelCleanupOnRosterDeactivate: ChannelCleanupMode,
@@ -104,6 +119,8 @@ export const UpdateTeamSettingsRequest = Schema.Struct({
   discordArchiveCategoryId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   discordRosterCategoryId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   discordPersonalEventsCategoryId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
+  discordPersonalEventsGroupId: Schema.OptionFromOptional(Schema.OptionFromNullOr(GroupId)),
+  discordPersonalEventsChannelFormat: Schema.OptionFromOptional(PersonalEventsChannelFormatString),
   discordEventsChannelId: Schema.OptionFromOptional(Schema.OptionFromNullOr(Snowflake)),
   discordChannelCleanupOnGroupDelete: Schema.OptionFromOptional(ChannelCleanupMode),
   discordChannelCleanupOnRosterDeactivate: Schema.OptionFromOptional(ChannelCleanupMode),

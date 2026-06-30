@@ -61,6 +61,12 @@ export const PersonalEventsRpcLive = Effect.Do.pipe(
       readonly event_id: Event.EventId;
       readonly dirty_at: DateTime.Utc;
     }) => deps.events.clearEventPersonalMessagesDirty(event_id, dirty_at),
+
+    'PersonalEvents/ListMessagesForMember': ({
+      team_member_id,
+    }: {
+      readonly team_member_id: string;
+    }) => deps.messages.listMessagesForMember(team_member_id as TeamMember.TeamMemberId),
   })),
   (handlers) => PersonalEventsRpcGroup.PersonalEventsRpcGroup.toLayer(handlers),
 );

@@ -1,6 +1,7 @@
 import type { Discord as DiscordSchemas } from '@sideline/domain';
 import { Array as Arr, Effect, Option } from 'effect';
 import { createPersonalEventChannel } from '~/rest/channels/createPersonalEventChannel.js';
+import { formatPersonalChannelName } from '~/rest/channels/formatPersonalChannelName.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
@@ -63,7 +64,11 @@ export const provisionPersonalChannels = (guildId: DiscordSchemas.Snowflake) =>
                         return Effect.void;
                       }
 
-                      const channelName = `events-${member.discord_id}`;
+                      const channelName = formatPersonalChannelName(
+                        member.channel_format,
+                        member.name,
+                        member.discord_id,
+                      );
 
                       const createAndSave = (catId: DiscordSchemas.Snowflake) =>
                         createPersonalEventChannel(

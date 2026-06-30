@@ -1,4 +1,4 @@
-import { Discord, Team, TeamMember } from '@sideline/domain';
+import { Discord, type GroupModel, Team, TeamMember } from '@sideline/domain';
 import { Effect, Layer, Option, Schema, ServiceMap } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
@@ -17,6 +17,12 @@ class MemberNeedingPersonalChannel extends Schema.Class<MemberNeedingPersonalCha
 )({
   team_member_id: TeamMember.TeamMemberId,
   discord_id: Discord.Snowflake,
+  name: Schema.String,
+}) {}
+
+class MemberToDeprovision extends Schema.Class<MemberToDeprovision>('MemberToDeprovision')({
+  team_member_id: TeamMember.TeamMemberId,
+  discord_channel_id: Discord.Snowflake,
 }) {}
 
 class PersonalChannelForEvent extends Schema.Class<PersonalChannelForEvent>(
@@ -85,20 +91,82 @@ const make = Effect.Do.pipe(
       `,
     });
 
+    // Clears any rendered personal message rows for a member (used on de-provision;
+    // the Discord channel and its messages are deleted separately by the bot).
+    const _deleteMemberMessages = SqlSchema.void({
+      Request: Schema.Struct({ team_member_id: Schema.String }),
+      execute: (input) => sql`
+        DELETE FROM personal_event_messages
+        WHERE team_member_id = ${input.team_member_id}
+      `,
+    });
+
     const _getMembersNeeding = SqlSchema.findAll({
       Request: Schema.Struct({
         team_id: Schema.String,
+        group_id: Schema.NullOr(Schema.String),
         limit: Schema.Number,
       }),
       Result: MemberNeedingPersonalChannel,
       execute: (input) => sql`
-        SELECT tm.id AS team_member_id, u.discord_id
+        SELECT tm.id AS team_member_id, u.discord_id,
+          COALESCE(
+            NULLIF(u.discord_display_name, ''),
+            NULLIF(u.discord_nickname, ''),
+            NULLIF(u.name, ''),
+            u.discord_id
+          ) AS name
         FROM team_members tm
         JOIN users u ON u.id = tm.user_id
         LEFT JOIN personal_event_channels pec ON pec.team_member_id = tm.id AND pec.team_id = tm.team_id
         WHERE tm.team_id = ${input.team_id}
           AND tm.active = true
           AND (pec.id IS NULL OR pec.discord_channel_id IS NULL)
+          AND (
+            ${input.group_id}::uuid IS NULL
+            OR EXISTS (
+              WITH RECURSIVE descendant_groups AS (
+                SELECT id FROM groups WHERE id = ${input.group_id}::uuid AND team_id = ${input.team_id}
+                UNION ALL
+                SELECT g.id FROM groups g
+                  JOIN descendant_groups dg ON g.parent_id = dg.id
+                WHERE g.team_id = ${input.team_id}
+              )
+              SELECT 1 FROM group_members gm
+              WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+                AND gm.team_member_id = tm.id
+            )
+          )
+        ORDER BY tm.id
+        LIMIT ${input.limit}
+      `,
+    });
+
+    const _getMembersToDeprovision = SqlSchema.findAll({
+      Request: Schema.Struct({
+        team_id: Schema.String,
+        group_id: Schema.String,
+        limit: Schema.Number,
+      }),
+      Result: MemberToDeprovision,
+      execute: (input) => sql`
+        SELECT tm.id AS team_member_id, pec.discord_channel_id
+        FROM personal_event_channels pec
+        JOIN team_members tm ON tm.id = pec.team_member_id AND tm.team_id = pec.team_id
+        WHERE pec.team_id = ${input.team_id}
+          AND pec.discord_channel_id IS NOT NULL
+          AND NOT EXISTS (
+            WITH RECURSIVE descendant_groups AS (
+              SELECT id FROM groups WHERE id = ${input.group_id}::uuid AND team_id = ${input.team_id}
+              UNION ALL
+              SELECT g.id FROM groups g
+                JOIN descendant_groups dg ON g.parent_id = dg.id
+              WHERE g.team_id = ${input.team_id}
+            )
+            SELECT 1 FROM group_members gm
+            WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+              AND gm.team_member_id = tm.id
+          )
         ORDER BY tm.id
         LIMIT ${input.limit}
       `,
@@ -116,7 +184,46 @@ const make = Effect.Do.pipe(
         WHERE ts.discord_personal_events_category_id IS NOT NULL
           AND t.guild_id IS NOT NULL
           AND tm.active = true
-          AND (pec.id IS NULL OR pec.discord_channel_id IS NULL)
+          AND (
+            -- (a) an eligible member still missing a channel
+            (
+              (pec.id IS NULL OR pec.discord_channel_id IS NULL)
+              AND (
+                ts.discord_personal_events_group_id IS NULL
+                OR EXISTS (
+                  WITH RECURSIVE descendant_groups AS (
+                    SELECT id FROM groups
+                      WHERE id = ts.discord_personal_events_group_id AND team_id = t.id
+                    UNION ALL
+                    SELECT g.id FROM groups g
+                      JOIN descendant_groups dg ON g.parent_id = dg.id
+                    WHERE g.team_id = t.id
+                  )
+                  SELECT 1 FROM group_members gm
+                  WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+                    AND gm.team_member_id = tm.id
+                )
+              )
+            )
+            -- (b) a member with a channel who is no longer in the configured group
+            OR (
+              pec.discord_channel_id IS NOT NULL
+              AND ts.discord_personal_events_group_id IS NOT NULL
+              AND NOT EXISTS (
+                WITH RECURSIVE descendant_groups AS (
+                  SELECT id FROM groups
+                    WHERE id = ts.discord_personal_events_group_id AND team_id = t.id
+                  UNION ALL
+                  SELECT g.id FROM groups g
+                    JOIN descendant_groups dg ON g.parent_id = dg.id
+                  WHERE g.team_id = t.id
+                )
+                SELECT 1 FROM group_members gm
+                WHERE gm.group_id IN (SELECT id FROM descendant_groups)
+                  AND gm.team_member_id = tm.id
+              )
+            )
+          )
         LIMIT ${input.limit}
       `,
     });
@@ -156,13 +263,29 @@ const make = Effect.Do.pipe(
       _getChannel({ team_id: teamId, team_member_id: teamMemberId }).pipe(catchSqlErrors);
 
     const deletePersonalChannel = (teamId: Team.TeamId, teamMemberId: TeamMember.TeamMemberId) =>
-      _deleteChannel({ team_id: teamId, team_member_id: teamMemberId }).pipe(
+      _deleteMemberMessages({ team_member_id: teamMemberId }).pipe(
+        Effect.andThen(_deleteChannel({ team_id: teamId, team_member_id: teamMemberId })),
         Effect.map(Option.flatMap((row) => row.discord_channel_id)),
         catchSqlErrors,
       );
 
-    const getMembersNeedingPersonalChannel = (teamId: Team.TeamId, limit: number) =>
-      _getMembersNeeding({ team_id: teamId, limit }).pipe(catchSqlErrors);
+    const getMembersNeedingPersonalChannel = (
+      teamId: Team.TeamId,
+      groupId: Option.Option<GroupModel.GroupId>,
+      limit: number,
+    ) =>
+      _getMembersNeeding({
+        team_id: teamId,
+        group_id: Option.getOrNull(groupId),
+        limit,
+      }).pipe(catchSqlErrors);
+
+    const getMembersToDeprovision = (
+      teamId: Team.TeamId,
+      groupId: GroupModel.GroupId,
+      limit: number,
+    ) =>
+      _getMembersToDeprovision({ team_id: teamId, group_id: groupId, limit }).pipe(catchSqlErrors);
 
     const getGuildsNeedingPersonalProvisioning = (limit: number) =>
       _getGuildsNeedingProvisioning({ limit }).pipe(
@@ -179,6 +302,7 @@ const make = Effect.Do.pipe(
       getPersonalChannel,
       deletePersonalChannel,
       getMembersNeedingPersonalChannel,
+      getMembersToDeprovision,
       getGuildsNeedingPersonalProvisioning,
       listPersonalChannelsForEvent,
     };

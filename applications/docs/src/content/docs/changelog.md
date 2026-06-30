@@ -5,6 +5,16 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-06-30 — Personal event channels: group restriction, custom names, Going list, and smart mentions
+
+Personal event channels — private per-member Discord channels showing that member's upcoming events — now have several new capabilities:
+
+- **Group restriction.** Captains can limit personal channels to a specific group (and its sub-groups) by setting **Personal events group** in **Team settings → Discord integration**. Members outside the group use the global events channel instead. If an existing personal channel falls outside the group after a restriction is applied, the bot removes it automatically.
+- **Custom channel name format.** The default channel name `events-{discord_id}` can now be changed via **Personal channel name format** in **Team settings → Discord integration**. The format must include `{name}` (member's display name) or `{discord_id}`. Example: `events-{name}`.
+- **Going list and Attendees button.** Each event message in a personal channel now shows the same **Going** attendee list and **Attendees** button as the global events channel, so you always see who else is coming without switching channels.
+- **Quiet mention on unanswered events.** When a new event appears in your personal channel and you have not yet responded, the message silently highlights as unread (no actual ping). The highlight clears as soon as you respond.
+- **Ordered like the global channel.** Events inside your personal channel are now sorted in the same order as the global events channel — soonest upcoming event nearest the input box.
+
 ## 2026-06-28 — New: "Who voted?" button on Discord polls
 
 Any team member can now see who voted for each option by clicking the **👥 Who voted?** button on any poll embed — open or closed.

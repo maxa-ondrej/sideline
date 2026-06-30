@@ -51,4 +51,18 @@ export const PersonalEventsRpcGroup = RpcGroup.make(
       dirty_at: Schemas.DateTimeFromIsoString,
     },
   }),
+  // All personal messages in a member's channel for events that are still active
+  // and upcoming, ordered by event start ascending. Drives the per-channel reorder
+  // that keeps personal channels in the same order as the global events channel.
+  Rpc.make('ListMessagesForMember', {
+    payload: { team_member_id: Schema.String },
+    success: Schema.Array(
+      Schema.Struct({
+        event_id: EventId,
+        personal_channel_id: Snowflake,
+        discord_message_id: Snowflake,
+        start_at: Schemas.DateTimeFromIsoString,
+      }),
+    ),
+  }),
 ).prefix('PersonalEvents/');

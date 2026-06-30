@@ -5,7 +5,13 @@ import type {
   TeamGenerationApi,
   TeamSettingsApi,
 } from '@sideline/domain';
-import { ChannelSyncEvent, Discord, Team, TeamGenerationConfig } from '@sideline/domain';
+import {
+  ChannelSyncEvent,
+  Discord,
+  GroupModel,
+  Team,
+  TeamGenerationConfig,
+} from '@sideline/domain';
 import { getLocale } from '@sideline/i18n/runtime';
 import { applyTemplate, sanitizeRendered } from '@sideline/template-renderer';
 import { Link, useRouter } from '@tanstack/react-router';
@@ -53,6 +59,7 @@ import { Textarea } from '~/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group';
 import { useFormatDate } from '~/hooks/useFormatDate';
 import { DISCORD_CHANNEL_TYPE_CATEGORY, DISCORD_CHANNEL_TYPE_TEXT } from '~/lib/discord';
+import { toGroupOptions } from '~/lib/group-options.js';
 import { ApiClient, ClientError, useRun } from '~/lib/runtime';
 import { useServerUrl } from '~/lib/translation-overrides-context.js';
 import { tr } from '~/lib/translations.js';
@@ -62,6 +69,7 @@ interface TeamSettingsPageProps {
   settings: TeamSettingsApi.TeamSettingsInfo;
   discordChannels: ReadonlyArray<GroupApi.DiscordChannelInfo>;
   discordRoles: ReadonlyArray<GroupApi.DiscordRoleInfo>;
+  groups: ReadonlyArray<GroupApi.GroupInfo>;
   teamInfo: TeamApi.TeamInfo;
   emailForwardingConfig: EmailForwardingApi.EmailForwardingConfigView | null;
   initialGenerationConfig: TeamGenerationApi.GenerationConfigResponse | null;
@@ -70,6 +78,7 @@ interface TeamSettingsPageProps {
 const NONE_VALUE = '__none__';
 const DEFAULT_ROLE_FORMAT = '{emoji} {name}';
 const DEFAULT_CHANNEL_FORMAT = '{emoji}\u2502{name}';
+const DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT = 'events-{discord_id}';
 
 const isFormatValid = (format: string) => format.includes('{name}');
 
@@ -84,6 +93,7 @@ export function TeamSettingsPage({
   settings,
   discordChannels,
   discordRoles,
+  groups,
   teamInfo,
   emailForwardingConfig,
   initialGenerationConfig,
@@ -157,6 +167,12 @@ export function TeamSettingsPage({
   );
   const [personalEventsCategory, setPersonalEventsCategory] = React.useState(
     Option.getOrElse(settings.discordPersonalEventsCategoryId, () => NONE_VALUE),
+  );
+  const [personalEventsGroupId, setPersonalEventsGroupId] = React.useState(
+    Option.getOrElse(settings.discordPersonalEventsGroupId, () => NONE_VALUE),
+  );
+  const [personalEventsChannelFormat, setPersonalEventsChannelFormat] = React.useState(
+    settings.discordPersonalEventsChannelFormat || DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT,
   );
   const [cleanupOnGroupDelete, setCleanupOnGroupDelete] = React.useState(
     settings.discordChannelCleanupOnGroupDelete,
@@ -260,6 +276,10 @@ export function TeamSettingsPage({
     eventsChannel !== Option.getOrElse(settings.discordEventsChannelId, () => NONE_VALUE) ||
     personalEventsCategory !==
       Option.getOrElse(settings.discordPersonalEventsCategoryId, () => NONE_VALUE) ||
+    personalEventsGroupId !==
+      Option.getOrElse(settings.discordPersonalEventsGroupId, () => NONE_VALUE) ||
+    personalEventsChannelFormat !==
+      (settings.discordPersonalEventsChannelFormat || DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT) ||
     cleanupOnGroupDelete !== settings.discordChannelCleanupOnGroupDelete ||
     cleanupOnRosterDeactivate !== settings.discordChannelCleanupOnRosterDeactivate ||
     createDiscordChannelOnGroup !== settings.createDiscordChannelOnGroup ||
@@ -270,6 +290,14 @@ export function TeamSettingsPage({
   const channelToOption = React.useCallback(
     (value: string) =>
       value !== NONE_VALUE ? Option.some(Discord.Snowflake.makeUnsafe(value)) : Option.none(),
+    [],
+  );
+
+  const groupIdToOption = React.useCallback(
+    (value: string) =>
+      value !== NONE_VALUE
+        ? Option.some(Schema.decodeSync(GroupModel.GroupId)(value))
+        : Option.none(),
     [],
   );
 
@@ -357,6 +385,8 @@ export function TeamSettingsPage({
             discordRosterCategoryId: Option.some(channelToOption(rosterCategory)),
             discordEventsChannelId: Option.some(channelToOption(eventsChannel)),
             discordPersonalEventsCategoryId: Option.some(channelToOption(personalEventsCategory)),
+            discordPersonalEventsGroupId: Option.some(groupIdToOption(personalEventsGroupId)),
+            discordPersonalEventsChannelFormat: Option.some(personalEventsChannelFormat),
             discordChannelCleanupOnGroupDelete: Option.some(cleanupOnGroupDelete),
             discordChannelCleanupOnRosterDeactivate: Option.some(cleanupOnRosterDeactivate),
             createDiscordChannelOnGroup: Option.some(createDiscordChannelOnGroup),
@@ -395,6 +425,8 @@ export function TeamSettingsPage({
     rosterCategory,
     eventsChannel,
     personalEventsCategory,
+    personalEventsGroupId,
+    personalEventsChannelFormat,
     cleanupOnGroupDelete,
     cleanupOnRosterDeactivate,
     createDiscordChannelOnGroup,
@@ -404,6 +436,7 @@ export function TeamSettingsPage({
     run,
     router,
     channelToOption,
+    groupIdToOption,
   ]);
 
   const handleSaveWelcome = React.useCallback(async () => {
@@ -1148,6 +1181,52 @@ export function TeamSettingsPage({
                         .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_CATEGORY)
                         .map((ch) => ({ value: ch.id, label: ch.name })),
                     ]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor='personal-events-group' className='text-sm font-medium mb-1 block'>
+                    {tr('teamSettings_personalEventsGroup')}
+                  </label>
+                  <p className='text-xs text-muted-foreground mb-2'>
+                    {tr('teamSettings_personalEventsGroupHelp')}
+                  </p>
+                  <SearchableSelect
+                    id='personal-events-group'
+                    value={personalEventsGroupId}
+                    onValueChange={setPersonalEventsGroupId}
+                    placeholder={tr('teamSettings_channelNone')}
+                    pinnedValues={[NONE_VALUE]}
+                    options={[
+                      { value: NONE_VALUE, label: tr('teamSettings_channelNone') },
+                      ...toGroupOptions(groups),
+                    ]}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <div className='flex items-center justify-between'>
+                    <Label>{tr('teamSettings_personalEventsChannelFormat')}</Label>
+                    {personalEventsChannelFormat !== DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT && (
+                      <Button
+                        variant='link'
+                        size='sm'
+                        className='h-auto p-0 text-xs'
+                        onClick={() =>
+                          setPersonalEventsChannelFormat(DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT)
+                        }
+                      >
+                        {tr('teamSettings_formatResetDefault')}
+                      </Button>
+                    )}
+                  </div>
+                  <p className='text-xs text-muted-foreground'>
+                    {tr('teamSettings_personalEventsChannelFormatHelp', {
+                      name: '{name}',
+                      discord_id: '{discord_id}',
+                    })}
+                  </p>
+                  <Input
+                    value={personalEventsChannelFormat}
+                    onChange={(e) => setPersonalEventsChannelFormat(e.target.value)}
                   />
                 </div>
               </div>

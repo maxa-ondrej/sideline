@@ -502,6 +502,19 @@ Three new tables back the personal-channel surface (migrations `1790300004`/`179
 - **`payload_hash` suppresses no-op Discord edits across BOTH surfaces** — personal messages compare against the stored `personal_event_messages.payload_hash`; the global message compares against the live message content. Same hash → no `updateMessage`.
 - The personal-events RPCs live in two groups: provisioning/category/channel reads on `Guild/*Personal*` (`packages/domain/src/rpc/guild/GuildRpcGroup.ts`, handlers in `src/rpc/guild/index.ts`) and message/dirty reads on `PersonalEvents/*` (`packages/domain/src/rpc/personalEvents/PersonalEventsRpcGroup.ts`, handlers in `src/rpc/personalEvents/index.ts` — wired into `SyncRpcsLive` per the three-edit RPC rule).
 
+##### Group restriction (`team_settings.discord_personal_events_group_id`)
+
+`team_settings.discord_personal_events_group_id` (nullable UUID FK to `groups`, `ON DELETE SET NULL`; migration `1790300010`) optionally restricts personal channels to members of one group AND its descendant subgroups. `NULL` = every active member gets a channel (default).
+
+- **Both eligibility queries use the SAME `WITH RECURSIVE descendant_groups` CTE** (`PersonalEventChannelsRepository`): `_getMembersNeeding` adds an `EXISTS (... descendant_groups ... group_members)` predicate (skipped when `group_id::uuid IS NULL`), and `_getMembersToDeprovision` uses the `NOT EXISTS` negation to find channel-holders who fell outside the group. The CTE walks `groups.parent_id`, scoped to the same `team_id`. This mirrors the established descendant-CTE pattern (see "Group-role backfill" rule above); reuse it for any future group-scoped membership filter — never flatten the hierarchy in application code.
+- **`Guild/GetGuildsNeedingPersonalProvisioning` surfaces a guild needing EITHER provision OR de-provision.** Its `_getGuildsNeedingProvisioning` query's WHERE has two OR'd arms: (a) an eligible member still missing a channel, OR (b) a channel-holder no longer in the configured group. A guild appears in the result if either arm matches, so Pass 1's provision + de-provision both have work.
+- **`Guild/GetPersonalChannelsToDeprovision` returns `[]` when no group is configured.** The handler short-circuits on `Option.none()` for `discord_personal_events_group_id` — an unrestricted team never de-provisions. Only `getMembersToDeprovision` runs the `NOT EXISTS` query, and only when a group id is present.
+- **De-provision clears messages BEFORE the channel row.** `deletePersonalChannel` runs `_deleteMemberMessages` (DELETE `personal_event_messages` for the member) THEN `_deleteChannel`, returning the freed `discord_channel_id` so the caller knows what to delete on Discord. The bot deletes the Discord channel first and calls `Guild/DeletePersonalChannel` only after the channel is gone (see `applications/bot/AGENTS.md` → "Pass 1b — De-provision").
+
+##### Channel-name format (`team_settings.discord_personal_events_channel_format`)
+
+`discord_personal_events_channel_format` (`TEXT NOT NULL DEFAULT 'events-{discord_id}'`; migration `1790300010`) is the per-team template for personal channel names. Placeholders: `{name}` (member display name, slugified bot-side) and `{discord_id}`. The server does NOT apply this template — it returns the raw `channel_format` plus the resolved `name` (display name via `COALESCE(discord_display_name, discord_nickname, name, discord_id)`) on the `Guild/GetGuildsNeedingPersonalProvisioning` result; the bot applies it via `formatPersonalChannelName`. The default constant `DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT = 'events-{discord_id}'` (`src/utils/applyDiscordFormat.ts`) is used when team settings are absent.
+
 > **NOTE — do not confuse two `discord_target_channel_id` meanings.** `event_sync_events.discord_target_channel_id` is RETAINED and still overloaded (it carries the resolved target for roster/claim/teams payloads). The now-DROPPED columns are `events.discord_target_channel_id` and `event_series.discord_target_channel_id` (migration `1790300009`). When you read or write `discord_target_channel_id`, confirm it is the outbox column — there is no longer a per-event/per-series channel column to fall back to.
 
 ### Overloaded payload fields on event sync events (roster approval flow)
@@ -572,6 +585,7 @@ The **server** applies Discord name formatting before emitting sync events. The 
 |----------|-------|----------|
 | `DEFAULT_ROLE_FORMAT` | `{emoji} {name}` | `src/utils/applyDiscordFormat.ts` |
 | `DEFAULT_CHANNEL_FORMAT` | `{emoji}│{name}` | `src/utils/applyDiscordFormat.ts` |
+| `DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT` | `events-{discord_id}` | `src/utils/applyDiscordFormat.ts` — personal-channel name template default; placeholders `{name}` / `{discord_id}` (applied bot-side by `formatPersonalChannelName`, NOT `applyDiscordFormat`) |
 
 Format templates use `{emoji}` and `{name}` placeholders. The `applyDiscordFormat(template, name, emoji)` function handles missing emoji by stripping the placeholder and cleaning up leftover separators.
 

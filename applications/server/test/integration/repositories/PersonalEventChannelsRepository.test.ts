@@ -10,10 +10,11 @@
 // These tests WILL FAIL until the developer implements the repository and migration.
 
 import { describe, expect, it } from '@effect/vitest';
-import type { Discord, Team, User } from '@sideline/domain';
+import type { Discord, GroupModel, Team, TeamMember, User } from '@sideline/domain';
 import { Effect, Exit, Layer, Option } from 'effect';
 import { SqlClient } from 'effect/unstable/sql';
 import { beforeEach } from 'vitest';
+import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 // TDD: implement PersonalEventChannelsRepository
 import { PersonalEventChannelsRepository } from '~/repositories/PersonalEventChannelsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -27,6 +28,7 @@ const TestLayer = Layer.mergeAll(
   TeamMembersRepository.Default,
   TeamsRepository.Default,
   UsersRepository.Default,
+  GroupsRepository.Default,
 ).pipe(Layer.provideMerge(TestPgClient));
 
 beforeEach(() => cleanDatabase.pipe(Effect.provide(TestPgClient), Effect.runPromise));
@@ -86,6 +88,22 @@ const addTeamMember = (teamId: Team.TeamId, userId: User.UserId) =>
         joined_at: undefined,
       }),
     ),
+  );
+
+const createGroup = (
+  teamId: Team.TeamId,
+  name: string,
+  parentId: Option.Option<GroupModel.GroupId> = Option.none(),
+) =>
+  GroupsRepository.asEffect().pipe(
+    Effect.andThen((repo) =>
+      repo.insertGroup(teamId, name, parentId, Option.none(), Option.none()),
+    ),
+  );
+
+const addGroupMember = (groupId: GroupModel.GroupId, teamMemberId: TeamMember.TeamMemberId) =>
+  GroupsRepository.asEffect().pipe(
+    Effect.andThen((repo) => repo.addMemberById(groupId, teamMemberId)),
   );
 
 const seedTeamWithMember = (discordId: string, username: string, guildId: Discord.Snowflake) =>
@@ -212,7 +230,7 @@ describe('PersonalEventChannelsRepository — getMembersNeedingPersonalChannel',
         PersonalEventChannelsRepository.asEffect().pipe(
           Effect.andThen((repo) =>
             // TDD: implement getMembersNeedingPersonalChannel(teamId, limit)
-            repo.getMembersNeedingPersonalChannel(seed.team.id, 100),
+            repo.getMembersNeedingPersonalChannel(seed.team.id, Option.none(), 100),
           ),
         ),
       ),
@@ -254,7 +272,9 @@ describe('PersonalEventChannelsRepository — getMembersNeedingPersonalChannel',
         ),
         Effect.bind('results', ({ seed }) =>
           PersonalEventChannelsRepository.asEffect().pipe(
-            Effect.andThen((repo) => repo.getMembersNeedingPersonalChannel(seed.team.id, 100)),
+            Effect.andThen((repo) =>
+              repo.getMembersNeedingPersonalChannel(seed.team.id, Option.none(), 100),
+            ),
           ),
         ),
         Effect.tap(({ results, seed }) =>
@@ -281,7 +301,9 @@ describe('PersonalEventChannelsRepository — getMembersNeedingPersonalChannel',
       // Do NOT call reservePersonalChannel — member has no row
       Effect.bind('results', ({ seed }) =>
         PersonalEventChannelsRepository.asEffect().pipe(
-          Effect.andThen((repo) => repo.getMembersNeedingPersonalChannel(seed.team.id, 100)),
+          Effect.andThen((repo) =>
+            repo.getMembersNeedingPersonalChannel(seed.team.id, Option.none(), 100),
+          ),
         ),
       ),
       Effect.tap(({ results, seed }) =>
@@ -488,6 +510,147 @@ describe('PersonalEventChannelsRepository — deletePersonalChannel', () => {
         Effect.sync(() => {
           // No channel id was assigned, so returns None
           expect(Option.isNone(deleted)).toBe(true);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Tests: group-restricted provisioning + de-provisioning
+// ---------------------------------------------------------------------------
+
+// Seeds a team with two members; member1 joins `Group A`, member2 stays ungrouped.
+const seedTeamWithGroup = (guildId: Discord.Snowflake) =>
+  Effect.Do.pipe(
+    Effect.bind('userId1', () => createUser(`${guildId}1`, `grp-u1-${guildId}`)),
+    Effect.bind('team', ({ userId1 }) => createTeam(guildId, userId1)),
+    Effect.bind('member1', ({ team, userId1 }) => addTeamMember(team.id, userId1)),
+    Effect.bind('userId2', () => createUser(`${guildId}2`, `grp-u2-${guildId}`)),
+    Effect.bind('member2', ({ team, userId2 }) => addTeamMember(team.id, userId2)),
+    Effect.bind('groupA', ({ team }) => createGroup(team.id, 'Group A')),
+    Effect.tap(({ groupA, member1 }) => addGroupMember(groupA.id, member1.id)),
+  );
+
+describe('PersonalEventChannelsRepository — group-restricted provisioning', () => {
+  it.effect('only returns members of the configured group (and excludes others)', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () => seedTeamWithGroup('411000000000000000' as Discord.Snowflake)),
+      Effect.bind('results', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.getMembersNeedingPersonalChannel(seed.team.id, Option.some(seed.groupA.id), 100),
+          ),
+        ),
+      ),
+      Effect.tap(({ results, seed }) =>
+        Effect.sync(() => {
+          const memberIds = results.map((r) => r.team_member_id);
+          expect(memberIds).toContain(seed.member1.id);
+          expect(memberIds).not.toContain(seed.member2.id);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('includes members of a descendant group', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () => seedTeamWithGroup('412000000000000000' as Discord.Snowflake)),
+      // Put member2 into a CHILD of Group A.
+      Effect.bind('childGroup', ({ seed }) =>
+        createGroup(seed.team.id, 'Group A Child', Option.some(seed.groupA.id)),
+      ),
+      Effect.tap(({ childGroup, seed }) => addGroupMember(childGroup.id, seed.member2.id)),
+      Effect.bind('results', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.getMembersNeedingPersonalChannel(seed.team.id, Option.some(seed.groupA.id), 100),
+          ),
+        ),
+      ),
+      Effect.tap(({ results, seed }) =>
+        Effect.sync(() => {
+          const memberIds = results.map((r) => r.team_member_id);
+          expect(memberIds).toContain(seed.member1.id);
+          expect(memberIds).toContain(seed.member2.id);
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('populates a non-empty name for the channel format', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () => seedTeamWithGroup('413000000000000000' as Discord.Snowflake)),
+      Effect.bind('results', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            repo.getMembersNeedingPersonalChannel(seed.team.id, Option.none(), 100),
+          ),
+        ),
+      ),
+      Effect.tap(({ results }) =>
+        Effect.sync(() => {
+          expect(results.length).toBeGreaterThan(0);
+          for (const r of results) {
+            expect(typeof r.name).toBe('string');
+            expect(r.name.length).toBeGreaterThan(0);
+          }
+        }),
+      ),
+      Effect.provide(TestLayer),
+    ),
+  );
+
+  it.effect('getMembersToDeprovision returns channelled members outside the group', () =>
+    Effect.Do.pipe(
+      Effect.bind('seed', () => seedTeamWithGroup('414000000000000000' as Discord.Snowflake)),
+      // Both members have a provisioned channel.
+      Effect.tap(({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) =>
+            Effect.all([
+              repo
+                .reservePersonalChannel(seed.team.id, seed.member1.id)
+                .pipe(
+                  Effect.andThen(
+                    repo.savePersonalChannelId(
+                      seed.team.id,
+                      seed.member1.id,
+                      '414111111111111111' as Discord.Snowflake,
+                    ),
+                  ),
+                ),
+              repo
+                .reservePersonalChannel(seed.team.id, seed.member2.id)
+                .pipe(
+                  Effect.andThen(
+                    repo.savePersonalChannelId(
+                      seed.team.id,
+                      seed.member2.id,
+                      '414222222222222222' as Discord.Snowflake,
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+      ),
+      Effect.bind('results', ({ seed }) =>
+        PersonalEventChannelsRepository.asEffect().pipe(
+          Effect.andThen((repo) => repo.getMembersToDeprovision(seed.team.id, seed.groupA.id, 100)),
+        ),
+      ),
+      Effect.tap(({ results, seed }) =>
+        Effect.sync(() => {
+          const memberIds = results.map((r) => r.team_member_id);
+          // member2 is outside Group A → must be de-provisioned; member1 is inside → kept.
+          expect(memberIds).toContain(seed.member2.id);
+          expect(memberIds).not.toContain(seed.member1.id);
+          const member2Row = results.find((r) => r.team_member_id === seed.member2.id);
+          expect(member2Row?.discord_channel_id).toBe('414222222222222222');
         }),
       ),
       Effect.provide(TestLayer),

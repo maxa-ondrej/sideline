@@ -1,6 +1,7 @@
 import { Bind } from '@sideline/effect-lib';
 import { Array as Arr, Effect } from 'effect';
 import { SyncRpc } from '~/services/SyncRpc.js';
+import { deprovisionPersonalChannels } from './handleDeprovision.js';
 import { provisionPersonalChannels } from './handleProvision.js';
 import { reconcileEvent } from './handleReconcile.js';
 
@@ -37,6 +38,8 @@ export const ProcessorService = Effect.Do.pipe(
         Effect.all(
           Arr.map(guilds, (guildId) =>
             provisionPersonalChannels(guildId).pipe(
+              // De-provision members who fell outside the configured group.
+              Effect.andThen(deprovisionPersonalChannels(guildId)),
               Effect.catchCause((cause) =>
                 Effect.logWarning(`Provision failed for guild ${guildId}, skipping`, cause),
               ),

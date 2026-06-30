@@ -227,6 +227,22 @@ export const GuildRpcGroup = RpcGroup.make(
         team_id: TeamId,
         team_member_id: Schema.String,
         discord_id: Discord.Snowflake,
+        // Best-effort display name for the {name} channel-format placeholder.
+        name: Schema.String,
+        // The team's discord_personal_events_channel_format template.
+        channel_format: Schema.String,
+      }),
+    ),
+  }),
+  // Members who currently have a personal channel but are no longer eligible
+  // (excluded by the configured personal-events group). Used for de-provisioning.
+  Rpc.make('GetPersonalChannelsToDeprovision', {
+    payload: { guild_id: Discord.Snowflake, limit: Schema.Number },
+    success: Schema.Array(
+      Schema.Struct({
+        team_id: TeamId,
+        team_member_id: Schema.String,
+        discord_channel_id: Discord.Snowflake,
       }),
     ),
   }),

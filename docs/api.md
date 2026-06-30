@@ -455,6 +455,8 @@ Returns the team's current settings.
 | `discordArchiveCategoryId` | `Snowflake \| null` | Yes | Discord category channel used when cleanup mode is `archive` |
 | `discordRosterCategoryId` | `Snowflake \| null` | Yes | Discord category under which new roster channels are created; `null` means guild-root placement |
 | `discordPersonalEventsCategoryId` | `Snowflake \| null` | Yes | Discord category under which the bot creates private per-member event channels; `null` disables the personal-channel feature for this team |
+| `discordPersonalEventsGroupId` | `GroupId \| null` | Yes | When set, only members of this group (and its descendant groups) receive a personal channel; `null` means all active members qualify |
+| `discordPersonalEventsChannelFormat` | `string` | No | Template string for personal channel names; must contain `{name}` or `{discord_id}` (default `events-{discord_id}`) |
 | `discordEventsChannelId` | `Snowflake \| null` | Yes | Discord channel where global event embeds (visible to all members) are posted; `null` disables the global post |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a group is deleted: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | What to do with the Discord channel when a roster is deactivated: keep it (`nothing`), delete it (`delete`), or move it to the archive category (`archive`) |
@@ -505,6 +507,8 @@ Updates the team's settings. All fields are optional; only provided fields are c
 | `discordArchiveCategoryId` | `Snowflake \| null` | No | — | Discord category used when cleanup mode is `archive` |
 | `discordRosterCategoryId` | `Snowflake \| null` | No | — | Discord category under which new roster channels are created; `null` clears the setting (guild-root placement) |
 | `discordPersonalEventsCategoryId` | `Snowflake \| null` | No | — | Discord category for per-member private event channels; `null` disables the feature |
+| `discordPersonalEventsGroupId` | `GroupId \| null` | No | — | Group restriction for personal channels; `null` clears any restriction (all active members qualify) |
+| `discordPersonalEventsChannelFormat` | `string` | No | Must contain `{name}` or `{discord_id}` | Template string for personal channel names; default `events-{discord_id}` |
 | `discordEventsChannelId` | `Snowflake \| null` | No | — | Discord channel for global event embeds; `null` disables global posting |
 | `discordChannelCleanupOnGroupDelete` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a group is deleted |
 | `discordChannelCleanupOnRosterDeactivate` | `'nothing' \| 'delete' \| 'archive'` | No | — | Cleanup mode applied when a roster is deactivated |
@@ -6570,7 +6574,8 @@ Handles Discord guild lifecycle events.
 | `Guild/RegisterMember` | `guild_id`, `discord_id`, `username`, `avatar`, `roles[]` | Registers a new member who joined the server |
 | `Guild/GetGuildsNeedingPersonalProvisioning` | `limit` → `Snowflake[]` | Returns guild IDs where `discord_personal_events_category_id` is set in team settings and at least one active member has no personal channel row or no Discord channel ID yet |
 | `Guild/GetPersonalEventsCategory` | `guild_id` → `Snowflake \| null` | Returns the team's configured personal-events category channel ID, or null if the feature is not enabled |
-| `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id }[]` | Lists active team members who have no personal channel row or whose channel has not yet been provisioned |
+| `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id, name, channel_format }[]` | Lists active team members who have no personal channel row or whose channel has not yet been provisioned; respects `discord_personal_events_group_id` restriction when set; `name` is the member's best-effort display name for the `{name}` channel-format placeholder; `channel_format` is the team's configured `discord_personal_events_channel_format` template |
+| `Guild/GetPersonalChannelsToDeprovision` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_channel_id }[]` | Lists members who currently have a personal channel but are no longer eligible due to the configured `discord_personal_events_group_id` restriction; returns an empty array when no group restriction is set |
 | `Guild/ReservePersonalChannel` | `team_id`, `team_member_id` → `{ reserved: boolean }` | Inserts a `personal_event_channels` row with `ON CONFLICT DO NOTHING`; returns whether a new row was inserted |
 | `Guild/SavePersonalChannelId` | `team_id`, `team_member_id`, `discord_channel_id` | Writes the Discord channel snowflake back to the `personal_event_channels` row |
 | `Guild/GetPersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Returns the stored Discord channel ID for a member, or null if not yet provisioned |
@@ -6776,6 +6781,7 @@ Manages per-member personal event messages stored in `personal_event_messages`. 
 | `PersonalEvents/DeletePersonalEventMessage` | `event_id`, `team_member_id` | Deletes the stored embed state when the event no longer applies to the member |
 | `PersonalEvents/GetEventsNeedingReconcile` | `limit` → `{ event_id, team_id, guild_id, dirty_at }[]` | Polls `events` for rows with `personal_messages_dirty_at IS NOT NULL`; returns up to `limit` ordered by `personal_messages_dirty_at ASC` |
 | `PersonalEvents/ClearPersonalMessagesDirty` | `event_id`, `dirty_at` | Clears `personal_messages_dirty_at` only if it still matches `dirty_at` (optimistic concurrency — prevents clearing a newer dirty stamp set after reconcile started) |
+| `PersonalEvents/ListMessagesForMember` | `team_member_id` → `{ event_id, personal_channel_id, discord_message_id, start_at }[]` | Returns all stored personal event messages for a member that belong to active upcoming events, ordered by `start_at` ascending; used by the personal-channel reorder pass that keeps each member's channel in the same order as the global events channel |
 
 ---
 

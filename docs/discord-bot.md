@@ -1256,7 +1256,7 @@ Calls `Guild/UpsertChannel` RPC to update the channel's name and metadata in the
 
 ## RPC Sync Workers
 
-Ten background worker loops run continuously inside the bot process. Eight of them (Role Sync, Channel Sync, Event Sync, Achievement Sync, Role Provision, Finance Sync, Weekly Challenge Sync, Email Sync) poll the server for unprocessed outbox events, process them sequentially, and mark each as processed or failed. Those eight loops use a **5-second polling interval** (`Schedule.spaced('5 seconds')`). Several outbox workers pass a client-side `POLL_BATCH_SIZE = 50` limit to the server query (Role Sync, Channel Sync, Event Sync, Achievement Sync, Role Provision, Finance Sync, Email Sync); the Weekly Challenge and Weekly Summary workers do not — their server-side queries are currently unbounded, which is acceptable because the per-team-per-week invariant naturally bounds the backlog. The ninth worker (Invite Generator) uses a **1-second polling interval** (`Schedule.spaced('1 seconds')`) for near-real-time Discord invite generation. The tenth worker (Channel Backfill) uses a **5-minute polling interval** (`Schedule.spaced('5 minutes')`) for low-cadence healing of groups that were never provisioned with a Discord role.
+Twelve background worker loops run continuously inside the bot process. Eight of them (Role Sync, Channel Sync, Event Sync, Achievement Sync, Role Provision, Finance Sync, Weekly Challenge Sync, Email Sync) poll the server for unprocessed outbox events, process them sequentially, and mark each as processed or failed. Those eight loops use a **5-second polling interval** (`Schedule.spaced('5 seconds')`). Several outbox workers pass a client-side `POLL_BATCH_SIZE = 50` limit to the server query (Role Sync, Channel Sync, Event Sync, Achievement Sync, Role Provision, Finance Sync, Email Sync); the Weekly Challenge and Weekly Summary workers do not — their server-side queries are currently unbounded, which is acceptable because the per-team-per-week invariant naturally bounds the backlog. The ninth worker (Invite Generator) uses a **1-second polling interval** (`Schedule.spaced('1 seconds')`) for near-real-time Discord invite generation. The tenth worker (Channel Backfill) uses a **5-minute polling interval** (`Schedule.spaced('5 minutes')`) for low-cadence healing of groups that were never provisioned with a Discord role. The eleventh worker (Personal Events Provisioning) and the twelfth worker (Personal Events Reconcile) run on a **10-second polling interval** (`Schedule.spaced('10 seconds')`) and manage per-member private event channels.
 
 The outbox workers implement the bot's side of the outbox pattern: the server inserts rows into `role_sync_events`, `channel_sync_events`, `event_sync_events`, `achievement_sync_events`, `discord_role_provision_events`, `payment_reminder_sync_events`, `weekly_challenge_sync_events`, and `email_post_sync_events`; the bot drains those queues.
 
@@ -1575,6 +1575,93 @@ The server's AI summarization pipeline inserts rows into `email_post_sync_events
 
 ---
 
+### Personal Events Provisioning Worker
+
+**Service class:** `ProcessorService` (`applications/bot/src/rcp/personalEvents/ProcessorService.ts`)
+
+**Polling RPC:** `Guild/GetGuildsNeedingPersonalProvisioning`
+
+**Polling interval:** 10 seconds.
+
+This worker creates private per-member event channels and de-provisions channels for members who are no longer eligible. On each tick it calls `Guild/GetGuildsNeedingPersonalProvisioning` to find guilds where the personal-channel feature is enabled (`discord_personal_events_category_id` is set) and at least one active member is missing a channel. For each such guild it runs two sequential passes:
+
+**Provisioning pass (`handleProvision.ts`):**
+
+1. Calls `Guild/GetMembersNeedingPersonalChannel` to retrieve up to `POLL_BATCH_SIZE` eligible members who still need a channel. The server applies any configured `discord_personal_events_group_id` restriction — only members of the configured group (and its descendant groups) are returned; all others are skipped.
+2. For each member: calls `Guild/ReservePersonalChannel` (`ON CONFLICT DO NOTHING`) to claim the slot. If another worker already reserved it (`reserved = false`), the member is skipped.
+3. Calls `Guild/GetPersonalChannelTargetCategory` to determine the target Discord category (the primary category or the latest overflow category if the primary is full).
+4. Applies the team's `channel_format` template — replaces `{name}` with the member's display name and `{discord_id}` with their Discord user snowflake — to derive the channel name.
+5. Calls `createPersonalEventChannel` (Discord REST) to create a private text channel visible only to that member and the bot.
+6. On success, calls `Guild/SavePersonalChannelId` to write the Discord snowflake back. If category overflow is detected (Discord error 50035 / channel limit reached), allocates a new overflow category via `Guild/AllocatePersonalOverflowCategory`, creates the Discord category channel, saves it via `Guild/SavePersonalOverflowCategoryId`, and retries the channel creation in the new category.
+
+**De-provisioning pass (`handleDeprovision.ts`):**
+
+Runs immediately after the provisioning pass for the same guild. Calls `Guild/GetPersonalChannelsToDeprovision` to find members who currently have a personal channel but are no longer eligible (i.e. `discord_personal_events_group_id` is set and the member is outside that group). For each such member, deletes the Discord channel via REST and removes the row via `Guild/DeletePersonalChannel`. Returns an empty list if no group restriction is configured, so de-provisioning is a no-op for teams without a restriction.
+
+**RPCs used by this worker:**
+
+- `Guild/GetGuildsNeedingPersonalProvisioning`
+- `Guild/GetMembersNeedingPersonalChannel`
+- `Guild/ReservePersonalChannel`
+- `Guild/GetPersonalChannelTargetCategory`
+- `Guild/SavePersonalChannelId`
+- `Guild/AllocatePersonalOverflowCategory`
+- `Guild/SavePersonalOverflowCategoryId`
+- `Guild/GetPersonalChannelsToDeprovision`
+- `Guild/DeletePersonalChannel`
+
+---
+
+### Personal Events Reconcile Worker
+
+**Service class:** `ProcessorService` (`applications/bot/src/rcp/personalEvents/ProcessorService.ts`)
+
+**Polling RPC:** `PersonalEvents/GetEventsNeedingReconcile`
+
+**Polling interval:** 10 seconds.
+
+This worker keeps the event embeds inside each member's private channel up to date. The server sets `events.personal_messages_dirty_at` whenever an event is created, updated, or cancelled, or whenever a member submits an RSVP. The reconcile worker drains this dirty queue.
+
+On each tick it calls `PersonalEvents/GetEventsNeedingReconcile` to get up to `POLL_BATCH_SIZE` events with a non-null `personal_messages_dirty_at`, ordered oldest-first. For each event it calls `Guild/ListPersonalChannelsForEvent` to enumerate every member who has a personal channel for that event's team. It then reconciles each member's message in the channel:
+
+**Per-member reconcile (`reconcileMemberMessage`):**
+
+1. Calls `Guild/GetAllUpcomingEventsForUser` to retrieve the full list of upcoming events with RSVP data for that member.
+2. Calls `PersonalEvents/GetPersonalEventMessage` to retrieve the currently stored embed state (channel ID, message ID, payload hash).
+3. If the event is no longer in the member's upcoming window (cancelled, started, or filtered by group): deletes the Discord message and the stored row via `PersonalEvents/DeletePersonalEventMessage`.
+4. If the event is still upcoming: builds the embed via `buildPersonalMessagePayload` (matching the global event embed format, including the "Going" attendee list and an **Attendees** button). For events where the member has not yet responded, the message content includes an `@mention` of the member (suppressed via `allowed_mentions: { parse: [] }` — no real ping is sent) so the message appears as unread and is visually highlighted. Once the member responds, the `content` field is cleared to `''`.
+5. Hashes the new payload and compares it to the stored hash. If they match, the update is skipped.
+6. If an existing message is found: edits it in place via REST (`updateMessage`). In-place edits do not affect message ordering.
+7. If no message exists yet: creates a new message via REST (`createMessage`) and persists the result via `PersonalEvents/UpsertPersonalEventMessage`. Since a `createMessage` appends to the bottom of the channel, the channel may now be out of order; these members are collected for the reorder pass below.
+
+**Per-channel reorder pass (`reorderPersonalChannel`):**
+
+After all members for an event have been reconciled, any member whose channel received a new message is subject to a reorder pass. The worker calls `PersonalEvents/ListMessagesForMember` to retrieve all stored personal event messages for that member ordered by `start_at` ascending. It then runs the same `longestKeepablePrefix` / delete-and-recreate algorithm used by the global event channel (`reorderChannelMessages`), ensuring that upcoming events inside each personal channel are ordered with the soonest event nearest the input box — matching the ordering in the global events channel. The reorder is serialised per-channel via `ChannelReorderSemaphore`.
+
+After reconciling all members for an event, calls `PersonalEvents/ClearPersonalMessagesDirty` with the original `dirty_at` timestamp (optimistic concurrency — if a newer dirty timestamp was written since the reconcile started, the clear is skipped and the event remains dirty for the next tick).
+
+**RPCs used by this worker:**
+
+- `PersonalEvents/GetEventsNeedingReconcile`
+- `Guild/ListPersonalChannelsForEvent`
+- `Guild/GetAllUpcomingEventsForUser`
+- `PersonalEvents/GetPersonalEventMessage`
+- `PersonalEvents/UpsertPersonalEventMessage`
+- `PersonalEvents/DeletePersonalEventMessage`
+- `PersonalEvents/ListMessagesForMember`
+- `PersonalEvents/ClearPersonalMessagesDirty`
+- `Event/GetYesAttendeesForEmbed`
+
+**Source files:**
+- `applications/bot/src/rcp/personalEvents/ProcessorService.ts`
+- `applications/bot/src/rcp/personalEvents/handleProvision.ts`
+- `applications/bot/src/rcp/personalEvents/handleDeprovision.ts`
+- `applications/bot/src/rcp/personalEvents/handleReconcile.ts`
+- `applications/bot/src/rcp/personalEvents/reorderPersonalChannel.ts`
+- `applications/bot/src/rest/events/buildPersonalEventMessage.ts`
+
+---
+
 ## Startup Tasks
 
 In addition to the poll loops, the bot runs one-off tasks at startup (after the gateway connection is established). These tasks are composed alongside the poll loops with `concurrency: 'unbounded'` in `Bot.ts`.
@@ -1615,7 +1702,8 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/RegisterMember` | Register a single new member; accepts `invite_code: Option<string>` (the Discord code matched by the invite diff) and returns `Option<WelcomeMeta>` (system log channel, optional welcome detail including rendered message, group colour, inviter Discord ID). The server resolves the invite code via `invite_acceptances.discord_code` (not `team_invites.discord_code`) to look up the team, group, and inviter. |
 | `Guild/GetGuildsNeedingPersonalProvisioning` | `limit` → `Snowflake[]` | Returns guild IDs where personal events are enabled and at least one active member is missing a personal channel |
 | `Guild/GetPersonalEventsCategory` | `guild_id` → `Snowflake \| null` | Returns the team's `discord_personal_events_category_id` setting |
-| `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` | Lists active members with no provisioned personal channel |
+| `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id, name, channel_format }[]` | Lists active members with no provisioned personal channel; applies the team's `discord_personal_events_group_id` restriction when set; `name` is the member's display name for the `{name}` channel-format placeholder; `channel_format` is the team's configured `discord_personal_events_channel_format` |
+| `Guild/GetPersonalChannelsToDeprovision` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_channel_id }[]` | Lists members who have a personal channel but are outside the configured `discord_personal_events_group_id` group; empty when no group restriction is set |
 | `Guild/ReservePersonalChannel` | `team_id`, `team_member_id` → `{ reserved }` | Idempotent insert into `personal_event_channels` |
 | `Guild/SavePersonalChannelId` | `team_id`, `team_member_id`, `discord_channel_id` | Writes the Discord channel ID after the bot creates it |
 | `Guild/GetPersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Reads the stored Discord channel ID for a member |
@@ -1783,6 +1871,17 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 Status values: `pending`, `partial`, `paid`, `overdue`, `waived`.
 
 `UnprocessedPaymentReminderEvent` fields: `id`, `team_id`, `guild_id`, `assignment_id`, `kind` (`due_in_3d | due_today | overdue_3d | overdue_10d | overdue_21d`), `fee_name`, `effective_due_at`, `currency`, `amount_minor`, `paid_minor`, `user_discord_id`.
+
+### PersonalEvents group (`PersonalEvents/`)
+
+| Method | Purpose |
+|--------|---------|
+| `PersonalEvents/GetPersonalEventMessage` | `event_id`, `team_member_id` → `{ personal_channel_id, discord_message_id, payload_hash } \| null` — Returns the stored embed state for an (event, member) pair |
+| `PersonalEvents/UpsertPersonalEventMessage` | `event_id`, `team_member_id`, `personal_channel_id`, `discord_message_id`, `payload_hash` — Inserts or updates the stored embed state |
+| `PersonalEvents/DeletePersonalEventMessage` | `event_id`, `team_member_id` — Deletes the stored embed state when the event no longer applies to the member |
+| `PersonalEvents/GetEventsNeedingReconcile` | `limit` → `{ event_id, team_id, guild_id, dirty_at }[]` — Polls events with `personal_messages_dirty_at IS NOT NULL`; used by the reconcile worker |
+| `PersonalEvents/ClearPersonalMessagesDirty` | `event_id`, `dirty_at` — Clears `personal_messages_dirty_at` with optimistic concurrency (only clears if the timestamp matches) |
+| `PersonalEvents/ListMessagesForMember` | `team_member_id` → `{ event_id, personal_channel_id, discord_message_id, start_at }[]` — Returns all stored personal event messages for a member, ordered by `start_at` ascending; drives the per-channel reorder pass |
 
 ### Poll group (`Poll/`)
 

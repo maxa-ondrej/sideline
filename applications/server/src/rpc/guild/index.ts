@@ -24,6 +24,7 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { UsersRepository } from '~/repositories/UsersRepository.js';
+import { DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT } from '~/utils/applyDiscordFormat.js';
 
 type RegisterMemberPayload = {
   readonly guild_id: Discord.Snowflake;
@@ -542,16 +543,87 @@ export const GuildsRpcLive = Effect.Do.pipe(
                     readonly team_id: Team.TeamId;
                     readonly team_member_id: string;
                     readonly discord_id: Discord.Snowflake;
+                    readonly name: string;
+                    readonly channel_format: string;
                   }>,
                 ),
               onSome: (team) =>
-                deps.personalChannels.getMembersNeedingPersonalChannel(team.id, limit).pipe(
-                  Effect.map(
-                    Array.map((m) => ({
-                      team_id: team.id,
-                      team_member_id: m.team_member_id,
-                      discord_id: m.discord_id,
-                    })),
+                deps.teamSettings.findByTeamId(team.id).pipe(
+                  Effect.flatMap((settingsOpt) => {
+                    const groupId = Option.flatMap(
+                      settingsOpt,
+                      (s) => s.discord_personal_events_group_id,
+                    );
+                    const channelFormat = Option.match(settingsOpt, {
+                      onNone: () => DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT,
+                      onSome: (s) => s.discord_personal_events_channel_format,
+                    });
+                    return deps.personalChannels
+                      .getMembersNeedingPersonalChannel(team.id, groupId, limit)
+                      .pipe(
+                        Effect.map(
+                          Array.map((m) => ({
+                            team_id: team.id,
+                            team_member_id: m.team_member_id,
+                            discord_id: m.discord_id,
+                            name: m.name,
+                            channel_format: channelFormat,
+                          })),
+                        ),
+                      );
+                  }),
+                ),
+            }),
+          ),
+        ),
+
+      'Guild/GetPersonalChannelsToDeprovision': ({
+        guild_id,
+        limit,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly limit: number;
+      }) =>
+        deps.teams.findByGuildId(guild_id).pipe(
+          Effect.flatMap(
+            Option.match({
+              onNone: () =>
+                Effect.succeed(
+                  [] as ReadonlyArray<{
+                    readonly team_id: Team.TeamId;
+                    readonly team_member_id: string;
+                    readonly discord_channel_id: Discord.Snowflake;
+                  }>,
+                ),
+              onSome: (team) =>
+                deps.teamSettings.findByTeamId(team.id).pipe(
+                  Effect.flatMap((settingsOpt) =>
+                    Option.match(
+                      Option.flatMap(settingsOpt, (s) => s.discord_personal_events_group_id),
+                      {
+                        // No group restriction → nothing to de-provision.
+                        onNone: () =>
+                          Effect.succeed(
+                            [] as ReadonlyArray<{
+                              readonly team_id: Team.TeamId;
+                              readonly team_member_id: string;
+                              readonly discord_channel_id: Discord.Snowflake;
+                            }>,
+                          ),
+                        onSome: (groupId) =>
+                          deps.personalChannels
+                            .getMembersToDeprovision(team.id, groupId, limit)
+                            .pipe(
+                              Effect.map(
+                                Array.map((m) => ({
+                                  team_id: team.id,
+                                  team_member_id: m.team_member_id,
+                                  discord_channel_id: m.discord_channel_id,
+                                })),
+                              ),
+                            ),
+                      },
+                    ),
                   ),
                 ),
             }),
