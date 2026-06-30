@@ -1,9 +1,17 @@
 import type { Discord as DiscordSchemas } from '@sideline/domain';
+import { DiscordREST } from 'dfx/DiscordREST';
+import * as Discord from 'dfx/types';
 import { Array as Arr, Effect, Option } from 'effect';
 import { createPersonalEventChannel } from '~/rest/channels/createPersonalEventChannel.js';
 import { formatPersonalChannelName } from '~/rest/channels/formatPersonalChannelName.js';
-import { POLL_BATCH_SIZE } from '~/rest/utils.js';
+import { POLL_BATCH_SIZE, retryPolicy } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
+
+/**
+ * Discord JSON error code: "Maximum number of channels in category reached".
+ * Returned as HTTP 400 when a guild category hits the channel limit.
+ */
+const MAX_CHANNELS_IN_CATEGORY = 30013;
 
 /**
  * Idempotent provisioner: for each guild, find members without a personal
@@ -13,7 +21,11 @@ import { SyncRpc } from '~/services/SyncRpc.js';
  *   1. GetPersonalChannelTargetCategory → resolves base or overflow category
  *   2. ReservePersonalChannel (INSERT ON CONFLICT DO NOTHING) → if reserved=true, proceed
  *   3. createPersonalEventChannel (Discord API call)
- *      - On permanent category-full error: AllocatePersonalOverflowCategory + retry once
+ *      - On HTTP 400 / code 30013 (category full):
+ *        a. AllocatePersonalOverflowCategory → get sequence
+ *        b. createGuildChannel(GUILD_CATEGORY) → new Discord category
+ *        c. SavePersonalOverflowCategoryId
+ *        d. retry createPersonalEventChannel in new category
  *   4. SavePersonalChannelId
  *
  * Serialized per guild (concurrency 1) to avoid Discord rate limits.
@@ -101,38 +113,64 @@ export const provisionPersonalChannels = (guildId: DiscordSchemas.Snowflake) =>
                           ),
                         );
 
-                      // Try with the resolved category; on permanent 403 (category full),
-                      // allocate/save an overflow category and retry once.
+                      // Try with the resolved category; on HTTP 400 / code 30013
+                      // (max channels in category), allocate and CREATE an overflow
+                      // Discord category, persist its ID, then retry once.
                       return createAndSave(categoryId).pipe(
                         Effect.catchTag('ErrorResponse', (e) => {
-                          const status =
-                            e.response !== undefined && e.response !== null
-                              ? (e.response as { status?: number }).status
-                              : undefined;
-                          if (status !== 403) {
+                          // Only handle the category-full error code (30013).
+                          // Any other error (e.g. 403 Missing Access = 50013) must
+                          // propagate so callers can observe the real failure.
+                          if (e.data.code !== MAX_CHANNELS_IN_CATEGORY) {
                             return Effect.fail(e);
                           }
-                          // 403 may mean category is full — allocate overflow and retry
-                          return rpc['Guild/AllocatePersonalOverflowCategory']({
-                            team_id: member.team_id,
-                          }).pipe(
-                            Effect.flatMap(({ sequence }) =>
-                              // The new overflow category must be created via Discord API first.
-                              // Since createGuildChannel for a category is handled at a higher level,
-                              // just re-resolve the target category which should now reflect the new overflow.
-                              rpc['Guild/GetPersonalChannelTargetCategory']({
+                          // Category is full — allocate an overflow row, create the
+                          // Discord category, persist its ID, then create the channel.
+                          return Effect.Do.pipe(
+                            Effect.bind('rest', () => DiscordREST.asEffect()),
+                            Effect.bind('allocation', () =>
+                              rpc['Guild/AllocatePersonalOverflowCategory']({
                                 team_id: member.team_id,
-                              }).pipe(
-                                Effect.flatMap(({ category_id }) =>
-                                  Option.match(category_id, {
-                                    onNone: () =>
-                                      Effect.logWarning(
-                                        `No overflow category available for team ${member.team_id} after allocation (sequence ${sequence})`,
-                                      ),
-                                    onSome: (overflowCatId) => createAndSave(overflowCatId),
-                                  }),
+                              }),
+                            ),
+                            // Fetch the base category name so the overflow category
+                            // gets a consistent label (e.g. "personal-events (2)").
+                            Effect.let('baseCategoryName', () => 'personal-events' as string),
+                            Effect.bind('resolvedBaseName', ({ rest, baseCategoryName }) =>
+                              rest.getChannel(categoryId).pipe(
+                                Effect.map((ch) =>
+                                  'name' in ch && typeof ch.name === 'string' && ch.name.length > 0
+                                    ? ch.name
+                                    : baseCategoryName,
+                                ),
+                                Effect.catchTag(
+                                  ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'],
+                                  () => Effect.succeed(baseCategoryName),
                                 ),
                               ),
+                            ),
+                            Effect.bind(
+                              'overflowCategory',
+                              ({ rest, allocation, resolvedBaseName }) => {
+                                const overflowName = `${resolvedBaseName} (${allocation.sequence + 1})`;
+                                return rest
+                                  .createGuildChannel(guildId, {
+                                    name: overflowName,
+                                    type: Discord.ChannelTypes.GUILD_CATEGORY,
+                                  })
+                                  .pipe(Effect.retry(retryPolicy));
+                              },
+                            ),
+                            Effect.tap(({ allocation, overflowCategory }) =>
+                              rpc['Guild/SavePersonalOverflowCategoryId']({
+                                team_id: member.team_id,
+                                sequence: allocation.sequence,
+                                discord_category_id:
+                                  overflowCategory.id as DiscordSchemas.Snowflake,
+                              }),
+                            ),
+                            Effect.flatMap(({ overflowCategory }) =>
+                              createAndSave(overflowCategory.id as DiscordSchemas.Snowflake),
                             ),
                           );
                         }),

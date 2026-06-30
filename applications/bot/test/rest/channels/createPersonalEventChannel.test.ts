@@ -1,13 +1,12 @@
-// NOTE: These tests are written in TDD mode BEFORE the implementation.
-// They require:
-//   - applications/bot/src/rest/channels/createPersonalEventChannel.ts (new file)
-//   - applications/bot/src/rest/permissions.ts: add PERSONAL_VIEW permission constant
-//     (allow: ViewChannel | ReadMessageHistory, deny: SendMessages | AddReactions |
-//      CreatePublicThreads | CreatePrivateThreads)
-//   - The createPersonalEventChannel function signature:
-//       createPersonalEventChannel(guildId, discordUserId, categoryId, channelName) →
-//         Effect<{discord_channel_id: Snowflake}, never, DiscordREST | SyncRpc>
-// These tests WILL FAIL until the developer implements the function.
+// createPersonalEventChannel tests.
+// Function signature:
+//   createPersonalEventChannel(guildId, discordUserId, categoryId, channelName) →
+//     Effect<{discord_channel_id: Snowflake}, HttpClientError | RatelimitedResponse | ErrorResponse, DiscordREST | SyncRpc>
+//
+// The error channel is non-empty: Discord API errors (HttpClientError,
+// RatelimitedResponse, ErrorResponse) propagate to the caller after the
+// built-in retry policy is exhausted. See the "propagates Discord API error"
+// test below for the expected rejection behaviour.
 
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as DiscordTypes from 'dfx/types';
@@ -30,9 +29,9 @@ const CREATED_CHANNEL_ID = '500000000000000004';
 const VIEW_CHANNEL = 1024n; // 1 << 10
 const READ_MESSAGE_HISTORY = 65536n; // 1 << 16
 const SEND_MESSAGES = 2048n; // 1 << 11
-const _ADD_REACTIONS = 64n; // 1 << 6
-const _CREATE_PUBLIC_THREADS = 34359738368n; // 1 << 35
-const _CREATE_PRIVATE_THREADS = 68719476736n; // 1 << 36
+const ADD_REACTIONS = 64n; // 1 << 6
+const CREATE_PUBLIC_THREADS = 34359738368n; // 1 << 35
+const CREATE_PRIVATE_THREADS = 68719476736n; // 1 << 36
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -193,7 +192,7 @@ describe('createPersonalEventChannel', () => {
     expect((allowBigInt & READ_MESSAGE_HISTORY) === READ_MESSAGE_HISTORY).toBe(true);
   });
 
-  it('member overwrite DENIES SendMessages (read-only personal channel)', async () => {
+  it('member overwrite DENIES SendMessages, AddReactions, CreatePublicThreads, CreatePrivateThreads (read-only personal channel)', async () => {
     const { layer: restLayer, calls } = makeRestStub();
     const { layer: rpcLayer } = makeSyncRpcStub();
 
@@ -216,6 +215,14 @@ describe('createPersonalEventChannel', () => {
 
     const denyBigInt = BigInt(memberOverwrite?.deny ?? 0);
     expect((denyBigInt & SEND_MESSAGES) === SEND_MESSAGES).toBe(true);
+    expect((denyBigInt & ADD_REACTIONS) === ADD_REACTIONS).toBe(true);
+    expect((denyBigInt & CREATE_PUBLIC_THREADS) === CREATE_PUBLIC_THREADS).toBe(true);
+    expect((denyBigInt & CREATE_PRIVATE_THREADS) === CREATE_PRIVATE_THREADS).toBe(true);
+
+    // Also assert the allow bitmask includes ViewChannel and ReadMessageHistory
+    const allowBigInt = BigInt(memberOverwrite?.allow ?? 0);
+    expect((allowBigInt & VIEW_CHANNEL) === VIEW_CHANNEL).toBe(true);
+    expect((allowBigInt & READ_MESSAGE_HISTORY) === READ_MESSAGE_HISTORY).toBe(true);
   });
 
   it('returns the discord_channel_id of the created channel', async () => {

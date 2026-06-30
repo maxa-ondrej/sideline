@@ -126,25 +126,28 @@ Nine top-level commands are registered globally: `/carpool`, `/event`, `/finance
 
 **Options:** None.
 
-**Permission required:** Visible to all members under `/event`. The subcommand carries no `default_member_permissions` gate (that is not possible for subcommands). Instead, `Guild/IdentifyEventsChannel` returns `is_admin` reflecting whether the caller holds Sideline's `team:manage` permission; the handler rejects non-admins with an ephemeral "Only team admins can refresh events channels" reply.
+**Permission required:** Visible to all members under `/event`. The subcommand carries no `default_member_permissions` gate (that is not possible for subcommands). Instead, access is gated at runtime using `Guild/IdentifyEventsChannel`, which returns `owner_discord_id` (the Discord snowflake of the personal channel's owner) and `is_admin` (whether the caller holds `team:manage`). The rules are:
+- **Own personal channel** — any member can refresh their own personal events channel.
+- **Another member's personal channel** — only Sideline admins (`team:manage`).
+- **Global events channel** — only Sideline admins (`team:manage`).
 
 **Flow:**
 
 1. Any member invokes `/event refresh` (Czech: `/event obnovit`) inside an events channel.
-2. The handler (`applications/bot/src/commands/event/refresh.ts`) calls `Guild/IdentifyEventsChannel` RPC with `guild_id`, `channel_id`, and `discord_user_id` to classify the channel and retrieve the caller's admin status.
-3. If `is_admin` is `false`, the handler returns an ephemeral "Only team admins can refresh events channels" reply immediately.
-4. The handler acks the interaction immediately (ephemeral); the heavy work is forked to a detached fiber so the 3-second Discord window is always met.
-5. **Global events channel** (`kind: 'global'`): calls `reorderChannelMessages` — re-renders all event embeds in place and reorders channel messages. Channel content is rendered in the guild locale.
-6. **Personal events channel** (`kind: 'personal'`): calls `Guild/MarkTeamPersonalEventsDirty` to mark the team's upcoming events dirty (triggering content re-render via the reconcile loop), then calls `reorderPersonalChannel` to reorder the member's personal channel. If `MarkTeamPersonalEventsDirty` fails with an `RpcClientError` it is logged as a warning and the reorder still proceeds.
-7. **Neither** (`kind: 'none'`): replies ephemerally with a "not an events channel" message and does nothing else.
-8. The ephemeral reply (always visible only to the invoker) is rendered in the caller's Discord client locale.
+2. The handler (`applications/bot/src/commands/event/refresh.ts`) calls `Guild/IdentifyEventsChannel` RPC with `guild_id`, `channel_id`, and `discord_user_id` to classify the channel and retrieve `owner_discord_id` and `is_admin`.
+3. The handler acks the interaction immediately (ephemeral); the heavy work is forked to a detached fiber so the 3-second Discord window is always met.
+4. **Personal events channel** (`kind: 'personal'`): compares `owner_discord_id` to the caller's ID. If the caller is not the owner and `is_admin` is `false`, returns an ephemeral "Only team admins can refresh events channels" reply. Otherwise, calls `Guild/MarkTeamPersonalEventsDirty` to mark the team's upcoming events dirty (triggering content re-render via the reconcile loop), then calls `reorderPersonalChannel` acting with the channel owner's identity. If `MarkTeamPersonalEventsDirty` fails with an `RpcClientError` it is logged as a warning and the reorder still proceeds.
+5. **Global events channel** (`kind: 'global'`): if `is_admin` is `false`, returns the forbidden reply. Otherwise calls `reorderChannelMessages` — re-renders all event embeds in place and reorders channel messages. Channel content is rendered in the guild locale.
+6. **Neither** (`kind: 'none'`): replies ephemerally with a "not an events channel" message and does nothing else.
+7. The ephemeral reply (always visible only to the invoker) is rendered in the caller's Discord client locale.
 
 **Errors:**
 
 | Condition | Behavior |
 |-----------|----------|
 | No `guild_id`, no `channel_id`, or user ID unavailable | Ephemeral "not an events channel" reply; no work forked |
-| `is_admin` is `false` | Ephemeral "Only team admins can refresh events channels" reply |
+| Personal channel, caller is not the owner and `is_admin` is `false` | Ephemeral "Only team admins can refresh events channels" reply |
+| Global channel and `is_admin` is `false` | Ephemeral "Only team admins can refresh events channels" reply |
 | `Guild/IdentifyEventsChannel` returns `RpcClientError` | Logged as a warning; ephemeral "not an events channel" reply |
 | Channel is neither global nor personal | Ephemeral "not an events channel" reply |
 
@@ -1627,7 +1630,7 @@ This worker creates private per-member event channels, de-provisions channels fo
 3. Calls `Guild/GetPersonalChannelTargetCategory` to determine the target Discord category (the primary category or the latest overflow category if the primary is full).
 4. Applies the team's `channel_format` template — replaces `{name}` with the member's display name and `{discord_id}` with their Discord user snowflake — to derive the channel name.
 5. Calls `createPersonalEventChannel` (Discord REST) to create a private text channel visible only to that member and the bot.
-6. On success, calls `Guild/SavePersonalChannelId` (now includes `channel_format`) to write the Discord snowflake and the applied format back. If category overflow is detected (Discord error 50035 / channel limit reached), allocates a new overflow category via `Guild/AllocatePersonalOverflowCategory`, creates the Discord category channel, saves it via `Guild/SavePersonalOverflowCategoryId`, and retries the channel creation in the new category.
+6. On success, calls `Guild/SavePersonalChannelId` (now includes `channel_format`) to write the Discord snowflake and the applied format back. If category overflow is detected (Discord HTTP 400 / JSON error code 30013 — max channels in category), allocates a new overflow category row via `Guild/AllocatePersonalOverflowCategory`, fetches the base category name, calls `createGuildChannel(GUILD_CATEGORY)` to create the new Discord category (named `"{base name} ({n})"` where `n` is the overflow sequence + 1), saves the Discord snowflake via `Guild/SavePersonalOverflowCategoryId`, and retries the channel creation in the new category.
 7. After writing the channel ID, calls `Guild/MarkTeamPersonalEventsDirty` to mark all of the team's active upcoming events dirty. This triggers the reconcile loop to backfill event embeds into the freshly-created channel so members see their existing events immediately. If this RPC call fails transiently it is logged as a warning and does not block provisioning.
 
 **De-provisioning pass (`handleDeprovision.ts`):**
@@ -1663,7 +1666,7 @@ Runs immediately after the de-provisioning pass for the same guild. Calls `Guild
 
 **Polling interval:** 10 seconds.
 
-This worker keeps the event embeds inside each member's private channel up to date. The server sets `events.personal_messages_dirty_at` whenever an event is created, updated, or cancelled, or whenever a member submits an RSVP. The reconcile worker drains this dirty queue.
+This worker keeps the event embeds inside each member's private channel up to date. The server sets `events.personal_messages_dirty_at` whenever an event is created, updated, or cancelled, whenever a member submits an RSVP, or whenever a recurring event series is created, updated, or cancelled (so all generated occurrences within the horizon pick up series-level changes). The reconcile worker drains this dirty queue.
 
 On each tick it calls `PersonalEvents/GetEventsNeedingReconcile` to get up to `POLL_BATCH_SIZE` events with a non-null `personal_messages_dirty_at`, ordered oldest-first. For each event it calls `Guild/ListPersonalChannelsForEvent` to enumerate every member who has a personal channel for that event's team. It then reconciles each member's message in the channel:
 
@@ -1733,18 +1736,19 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 
 ### Guild group (`Guild/`)
 
-| Method | Purpose |
-|--------|---------|
-| `Guild/RegisterGuild` | Register a guild when the bot joins |
-| `Guild/UnregisterGuild` | Remove guild registration when the bot leaves |
-| `Guild/IsGuildRegistered` | Check whether a guild is already registered |
-| `Guild/SyncGuildChannels` | Bulk-sync all text channels for a guild |
-| `Guild/UpdateChannelName` | Update the cached name of a single Discord channel after the bot renames it |
-| `Guild/UpsertChannel` | Insert or update a single Discord channel row in `discord_channels`; called after the bot auto-creates a channel so the web can display its name |
-| `Guild/DeleteChannel` | Delete a single channel row from `discord_channels` when a Discord channel is deleted |
-| `Guild/ReconcileMembers` | Bulk-sync up to 1000 guild members on startup |
-| `Guild/RegisterMember` | Register a single new member; accepts `invite_code: Option<string>` (the Discord code matched by the invite diff) and returns `Option<WelcomeMeta>` (system log channel, optional welcome detail including rendered message, group colour, inviter Discord ID). The server resolves the invite code via `invite_acceptances.discord_code` (not `team_invites.discord_code`) to look up the team, group, and inviter. |
+| Method | Signature | Purpose |
+|--------|-----------|---------|
+| `Guild/RegisterGuild` | | Register a guild when the bot joins |
+| `Guild/UnregisterGuild` | | Remove guild registration when the bot leaves |
+| `Guild/IsGuildRegistered` | | Check whether a guild is already registered |
+| `Guild/SyncGuildChannels` | | Bulk-sync all text channels for a guild |
+| `Guild/UpdateChannelName` | | Update the cached name of a single Discord channel after the bot renames it |
+| `Guild/UpsertChannel` | | Insert or update a single Discord channel row in `discord_channels`; called after the bot auto-creates a channel so the web can display its name |
+| `Guild/DeleteChannel` | | Delete a single channel row from `discord_channels` when a Discord channel is deleted |
+| `Guild/ReconcileMembers` | | Bulk-sync up to 1000 guild members on startup |
+| `Guild/RegisterMember` | | Register a single new member; accepts `invite_code: Option<string>` (the Discord code matched by the invite diff) and returns `Option<WelcomeMeta>` (system log channel, optional welcome detail including rendered message, group colour, inviter Discord ID). The server resolves the invite code via `invite_acceptances.discord_code` (not `team_invites.discord_code`) to look up the team, group, and inviter. |
 | `Guild/GetGuildsNeedingPersonalProvisioning` | `limit` → `Snowflake[]` | Returns guild IDs where personal events are enabled and at least one active member is missing a personal channel |
+| `Guild/IdentifyEventsChannel` | `guild_id`, `channel_id`, `discord_user_id` → `{ kind, team_id, team_member_id, owner_discord_id, is_admin }` | Classifies a channel as `'global'` (the team's global events channel), `'personal'` (a member's personal events channel), or `'none'`. For `'personal'` channels, `owner_discord_id` is the Discord snowflake of the channel's owner — the bot compares this to the caller to tell an own-channel refresh apart from an admin refreshing someone else's. `is_admin` is `true` if the caller holds `team:manage`. |
 | `Guild/GetPersonalEventsCategory` | `guild_id` → `Snowflake \| null` | Returns the team's `discord_personal_events_category_id` setting |
 | `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id, name, channel_format }[]` | Lists active members with no provisioned personal channel; applies the team's `discord_personal_events_group_id` restriction when set; `name` is the member's display name for the `{name}` channel-format placeholder; `channel_format` is the team's configured `discord_personal_events_channel_format` |
 | `Guild/GetPersonalChannelsToDeprovision` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_channel_id }[]` | Lists members who have a personal channel but are outside the configured `discord_personal_events_group_id` group; empty when no group restriction is set |

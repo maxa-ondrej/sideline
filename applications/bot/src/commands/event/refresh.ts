@@ -18,14 +18,17 @@ const ephemeral = (content: string) =>
   });
 
 /**
- * `/event refresh` — re-sync the events channel it's run in. Gated on Sideline's
- * own `team:manage` admin permission (NOT Discord permissions): the subcommand is
- * visible to everyone under `/event`, so it checks `is_admin` at runtime and
- * replies "forbidden" otherwise. `Guild/IdentifyEventsChannel` classifies the
- * current channel (and returns the caller's admin status); the heavy refresh is
- * forked so the interaction is acked within 3s. Global → reorderChannelMessages
- * (re-render in place + reorder); the caller's own personal channel →
- * MarkTeamPersonalEventsDirty (content re-render via reconcile) + reorderPersonalChannel.
+ * `/event refresh` — re-sync the events channel it's run in. The subcommand is
+ * visible to everyone under `/event`; access is gated at runtime (NOT via Discord
+ * permissions) by `Guild/IdentifyEventsChannel`, which classifies the current
+ * channel and returns the personal channel's owner plus the caller's admin status:
+ *  - own personal channel → anyone may refresh;
+ *  - another member's personal channel → Sideline admins (`team:manage`) only;
+ *  - the team's global events channel → admins only.
+ * The heavy refresh is forked so the interaction is acked within 3s. Global →
+ * reorderChannelMessages (re-render in place + reorder); a personal channel →
+ * MarkTeamPersonalEventsDirty (content re-render via reconcile) + reorderPersonalChannel,
+ * acting with the channel OWNER's identity (so an admin refresh renders the owner's events).
  */
 export const refreshHandler = Interaction.asEffect().pipe(
   Effect.tap(() =>
@@ -56,21 +59,21 @@ export const refreshHandler = Interaction.asEffect().pipe(
           discord_user_id: userId,
         }).pipe(
           Effect.flatMap((identified) => {
-            if (!identified.is_admin) {
-              return Effect.succeed(ephemeral(m.bot_refresh_events_forbidden({}, { locale })));
-            }
-            if (identified.kind === 'global') {
-              return Effect.forkDetach(
-                reorderChannelMessages(snowflakeChannelId, channelLocale),
-              ).pipe(Effect.as(ephemeral(m.bot_refresh_events_global({}, { locale }))));
-            }
+            // A personal channel: anyone may refresh their OWN; refreshing another
+            // member's requires admin. Act with the channel owner's identity.
             if (
               identified.kind === 'personal' &&
               Option.isSome(identified.team_id) &&
-              Option.isSome(identified.team_member_id)
+              Option.isSome(identified.team_member_id) &&
+              Option.isSome(identified.owner_discord_id)
             ) {
+              const isOwnChannel = identified.owner_discord_id.value === userId;
+              if (!isOwnChannel && !identified.is_admin) {
+                return Effect.succeed(ephemeral(m.bot_refresh_events_forbidden({}, { locale })));
+              }
               const teamId = identified.team_id.value;
               const teamMemberId = identified.team_member_id.value;
+              const ownerDiscordId = identified.owner_discord_id.value;
               const work = rpc['Guild/MarkTeamPersonalEventsDirty']({ team_id: teamId }).pipe(
                 Effect.catchTag('RpcClientError', (e) =>
                   Effect.logWarning('event refresh: failed to mark events dirty', e),
@@ -78,7 +81,7 @@ export const refreshHandler = Interaction.asEffect().pipe(
                 Effect.andThen(
                   reorderPersonalChannel({
                     team_member_id: teamMemberId,
-                    discord_id: userId,
+                    discord_id: ownerDiscordId,
                     guild_id: snowflakeGuildId,
                     locale: channelLocale,
                   }),
@@ -87,6 +90,15 @@ export const refreshHandler = Interaction.asEffect().pipe(
               return Effect.forkDetach(work).pipe(
                 Effect.as(ephemeral(m.bot_refresh_events_personal({}, { locale }))),
               );
+            }
+            // The global events channel: admins only.
+            if (identified.kind === 'global') {
+              if (!identified.is_admin) {
+                return Effect.succeed(ephemeral(m.bot_refresh_events_forbidden({}, { locale })));
+              }
+              return Effect.forkDetach(
+                reorderChannelMessages(snowflakeChannelId, channelLocale),
+              ).pipe(Effect.as(ephemeral(m.bot_refresh_events_global({}, { locale }))));
             }
             return Effect.succeed(ephemeral(m.bot_refresh_events_none({}, { locale })));
           }),

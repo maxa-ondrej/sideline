@@ -421,7 +421,7 @@
   "event_memberGroup": "Member Group",
   "event_ownerGroupHelp": "Members of this group can edit/cancel the event",
   "event_memberGroupHelp": "Only members of this group can see and RSVP to the event",
-  "event_visibilityNote": "Members see this event in their personal events channel and the global events channel — no channel selection needed.",
+  "event_visibilityNote": "Members will see this event in the team's configured Discord event surface(s) — no channel selection needed.",
   "event_useDefault": "Use default",
   "teamSettings_channelTraining": "Default channel: Training",
   "teamSettings_channelMatch": "Default channel: Match",

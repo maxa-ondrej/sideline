@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ChannelReorderSemaphore } from '~/rcp/event/ChannelReorderSemaphore.js';
 // TDD: implement handleReconcile (or reconcileEvent)
 import { reconcileEvent } from '~/rcp/personalEvents/handleReconcile.js';
+import { buildPersonalMessage } from '~/rest/events/buildPersonalEventMessage.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 
 // ---------------------------------------------------------------------------
@@ -268,18 +269,51 @@ describe('handleReconcile — owner-resolution: each member renders with their o
       }
     }
 
-    // If both personal messages were updated, verify they differ (cross-application guard)
-    // The rendered embeds for member A and B must reflect their own my_response
-    // At minimum, both personal channels must be targeted
+    // Both personal channels must be targeted
     const channelsUpdated = capturedUpdateMessages.map((u) => u.channelId);
     expect(channelsUpdated).toContain(PERSONAL_CHANNEL_A);
     expect(channelsUpdated).toContain(PERSONAL_CHANNEL_B);
+
+    // The rendered payloads must DIFFER — an impl applying member A's state to
+    // BOTH channels would produce identical serialised payloads for A and B.
+    const payloadA = renderedForMember[MEMBER_A_ID];
+    const payloadB = renderedForMember[MEMBER_B_ID];
+    expect(payloadA).toBeDefined();
+    expect(payloadB).toBeDefined();
+    expect(payloadA).not.toEqual(payloadB);
+
+    // Member A has my_response=yes → the Yes RSVP button is highlighted (style 3 = green).
+    // Member B has my_response=no  → the No RSVP button is highlighted (style 4 = red).
+    // The button style values are serialised as `"style":N` in the action-row components.
+    // style 3 = Success (green) — only present when member answered Yes.
+    // style 4 = Danger (red)   — only present when member answered No.
+    expect(payloadA).toContain('"style":3'); // A's Yes button is green
+    expect(payloadA).not.toContain('"style":4'); // A has no red button
+    expect(payloadB).toContain('"style":4'); // B's No button is red
+    expect(payloadB).not.toContain('"style":3'); // B has no green button
   });
 });
 
 // ---------------------------------------------------------------------------
 // Test: hash-diff guard — no updateMessage when hash matches
 // ---------------------------------------------------------------------------
+
+/**
+ * Compute the hash that `reconcileEvent` will produce for a given member/event
+ * so we can seed the stored hash to match and verify the no-op branch.
+ */
+const computeExpectedHash = (params: {
+  event: ReturnType<typeof makeUpcomingEvent>;
+  discordId: string;
+}): string => {
+  const render = buildPersonalMessage({
+    entry: params.event as any,
+    yesAttendees: [],
+    discordId: params.discordId as any,
+    locale: 'en',
+  });
+  return render.hash;
+};
 
 describe('handleReconcile — hash-diff: no updateMessage when rendered hash equals stored hash', () => {
   it('when stored hash matches the rendered hash, NO updateMessage is issued for that member', async () => {
@@ -310,6 +344,37 @@ describe('handleReconcile — hash-diff: no updateMessage when rendered hash equ
       (c) => c.channelId === PERSONAL_CHANNEL_A || c.channelId === PERSONAL_CHANNEL_B,
     );
     expect(personalUpdates.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('when stored hash equals the actual rendered hash, ZERO updateMessage calls are issued for that member', async () => {
+    // Compute the hash that the reconciler would render for member B (my_response=yes,
+    // yesAttendees=[] — the default in makeTestLayers when no override is given).
+    const eventForB = makeUpcomingEvent('yes');
+    const matchingHash = computeExpectedHash({ event: eventForB, discordId: DISCORD_ID_B });
+
+    const { rpcLayer, restLayer, updateMessageCalls } = makeTestLayers({
+      // Member A gets a stale hash → its channel WILL be updated.
+      storedHashA: 'SENTINEL-WILL-NEVER-MATCH',
+      // Member B gets a hash that matches what the renderer produces → NO update.
+      storedHashB: matchingHash,
+    });
+
+    await run(
+      reconcileEvent({
+        event_id: EVENT_ID as any,
+        team_id: TEAM_ID as any,
+        guild_id: GUILD_ID as any,
+      }),
+      Layer.merge(rpcLayer, restLayer),
+    );
+
+    // Member B's channel must receive ZERO updateMessage calls (no-op branch).
+    const bUpdates = updateMessageCalls.filter((c) => c.channelId === PERSONAL_CHANNEL_B);
+    expect(bUpdates).toHaveLength(0);
+
+    // Member A's channel must have been updated (stale hash → update path is exercised).
+    const aUpdates = updateMessageCalls.filter((c) => c.channelId === PERSONAL_CHANNEL_A);
+    expect(aUpdates.length).toBeGreaterThanOrEqual(1);
   });
 });
 

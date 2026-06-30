@@ -583,6 +583,8 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   cancelFutureInSeries: () => Effect.void,
   updateFutureUnmodified: () => Effect.void,
   updateFutureUnmodifiedInSeries: () => Effect.void,
+  markEventPersonalMessagesDirty: () => Effect.void,
+  markSeriesFuturePersonalMessagesDirty: () => Effect.void,
 } as any);
 
 const MockEventSeriesRepositoryLayer = Layer.succeed(EventSeriesRepository, {

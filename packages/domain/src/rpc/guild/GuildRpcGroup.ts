@@ -289,8 +289,10 @@ export const GuildRpcGroup = RpcGroup.make(
     payload: { team_id: TeamId },
   }),
   // Classifies a channel for the `/event refresh` command: the team's global events
-  // channel, the calling member's own personal events channel, or neither — and
-  // whether the caller is a team admin (holds the `team:manage` permission).
+  // channel, a member's personal events channel (with that member's identity), or
+  // neither — plus whether the caller is a team admin (holds the `team:manage`
+  // permission). The bot compares `owner_discord_id` to the caller to tell the
+  // caller's own personal channel apart from another member's (admin-only).
   Rpc.make('IdentifyEventsChannel', {
     payload: {
       guild_id: Discord.Snowflake,
@@ -301,6 +303,7 @@ export const GuildRpcGroup = RpcGroup.make(
       kind: Schema.Literals(['global', 'personal', 'none']),
       team_id: Schema.OptionFromNullOr(TeamId),
       team_member_id: Schema.OptionFromNullOr(Schema.String),
+      owner_discord_id: Schema.OptionFromNullOr(Discord.Snowflake),
       is_admin: Schema.Boolean,
     }),
   }),

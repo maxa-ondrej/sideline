@@ -867,6 +867,17 @@ const make = Effect.gen(function* () {
             AND personal_messages_dirty_at IS NULL`,
   });
 
+  const markSeriesFuturePersonalMessagesDirtySchema = SqlSchema.void({
+    Request: Schema.Struct({
+      series_id: Schema.String,
+      from_date: Schema.Date,
+    }),
+    execute: (input) =>
+      sql`UPDATE events SET personal_messages_dirty_at = date_trunc('milliseconds', now())
+          WHERE series_id = ${input.series_id}
+            AND (start_at AT TIME ZONE 'UTC')::date >= ${input.from_date}::date`,
+  });
+
   const updateFutureUnmodifiedInSeries = (
     seriesId: EventSeries.EventSeriesId,
     fromDate: Date,
@@ -897,6 +908,15 @@ const make = Effect.gen(function* () {
 
   const markTeamUpcomingEventsPersonalMessagesDirty = (teamId: Team.TeamId) =>
     markTeamUpcomingPersonalMessagesDirty(teamId).pipe(catchSqlErrors);
+
+  const markSeriesFuturePersonalMessagesDirty = (
+    seriesId: EventSeries.EventSeriesId,
+    fromDate: Date,
+  ) =>
+    markSeriesFuturePersonalMessagesDirtySchema({
+      series_id: seriesId,
+      from_date: fromDate,
+    }).pipe(catchSqlErrors);
 
   const clearEventPersonalMessagesDirty = (eventId: Event.EventId, observedDirtyAt: DateTime.Utc) =>
     clearPersonalMessagesDirty({
@@ -937,6 +957,7 @@ const make = Effect.gen(function* () {
     findClaimInfo,
     markEventPersonalMessagesDirty,
     markTeamUpcomingEventsPersonalMessagesDirty,
+    markSeriesFuturePersonalMessagesDirty,
     clearEventPersonalMessagesDirty,
   };
 });

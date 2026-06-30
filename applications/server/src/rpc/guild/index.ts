@@ -31,6 +31,7 @@ type IdentifyEventsChannelResult = {
   readonly kind: 'global' | 'personal' | 'none';
   readonly team_id: Option.Option<Team.TeamId>;
   readonly team_member_id: Option.Option<string>;
+  readonly owner_discord_id: Option.Option<Discord.Snowflake>;
   readonly is_admin: boolean;
 };
 /** Widens the `kind` literal so all branches share one return type. */
@@ -706,6 +707,7 @@ export const GuildsRpcLive = Effect.Do.pipe(
                     kind: 'none',
                     team_id: Option.none(),
                     team_member_id: Option.none(),
+                    owner_discord_id: Option.none(),
                     is_admin: false,
                   }),
                 ),
@@ -732,12 +734,13 @@ export const GuildsRpcLive = Effect.Do.pipe(
                               kind: 'global',
                               team_id: Option.some(team.id),
                               team_member_id: Option.none(),
+                              owner_discord_id: Option.none(),
                               is_admin: isAdmin,
                             }),
                           );
                         }
                         return deps.personalChannels
-                          .findOwnedPersonalChannel(team.id, channel_id, discord_user_id)
+                          .findPersonalChannelOwner(team.id, channel_id)
                           .pipe(
                             Effect.map(
                               Option.match({
@@ -746,13 +749,15 @@ export const GuildsRpcLive = Effect.Do.pipe(
                                     kind: 'none',
                                     team_id: Option.some(team.id),
                                     team_member_id: Option.none(),
+                                    owner_discord_id: Option.none(),
                                     is_admin: isAdmin,
                                   }),
-                                onSome: (teamMemberId) =>
+                                onSome: (owner) =>
                                   identifyResult({
                                     kind: 'personal',
                                     team_id: Option.some(team.id),
-                                    team_member_id: Option.some(String(teamMemberId)),
+                                    team_member_id: Option.some(String(owner.team_member_id)),
+                                    owner_discord_id: Option.some(owner.discord_id),
                                     is_admin: isAdmin,
                                   }),
                               }),
@@ -848,9 +853,14 @@ export const GuildsRpcLive = Effect.Do.pipe(
                 if (overflows.length === 0) {
                   return { category_id: baseCategory, is_overflow: false };
                 }
-                const last = overflows[overflows.length - 1];
+                const resolvedOverflow = Array.findLast(overflows, (o) =>
+                  Option.isSome(o.discord_category_id),
+                );
+                if (Option.isNone(resolvedOverflow)) {
+                  return { category_id: baseCategory, is_overflow: false };
+                }
                 return {
-                  category_id: last.discord_category_id,
+                  category_id: resolvedOverflow.value.discord_category_id,
                   is_overflow: true,
                 };
               }),

@@ -7,11 +7,11 @@ This page lists user-visible changes to Sideline. For developer-level release no
 
 ## 2026-06-30 — New Discord sub-command: `/event refresh`
 
-Team admins can now force an immediate re-sync of any events channel without waiting for the next reconcile cycle.
+Force an immediate re-sync of an events channel without waiting for the next reconcile cycle.
 
-- Run `/event refresh` (Czech: `/event obnovit`) inside a **global events channel** to re-render all event embeds in place and reorder the channel messages so the soonest upcoming event is nearest the input box.
-- Run it inside your own **personal events channel** to trigger a fresh content render for all your upcoming events and reorder your personal channel.
-- The sub-command is visible to all members under `/event`, but only **team admins** (members with the `team:manage` permission — the same gate as web team-settings) can use it. Non-admins receive a quiet ephemeral notice.
+- Run `/event refresh` (Czech: `/event obnovit`) inside **your own personal events channel** — any member can do this, no special permission needed. The bot triggers a fresh content render for all your upcoming events and reorders your personal channel.
+- Run it inside the **global events channel** or **another member's personal channel** to re-render and reorder that channel. This requires the `team:manage` permission (team admins only).
+- The sub-command is visible to all members under `/event`. Members without the required permission for the channel they are in receive a quiet ephemeral notice.
 - The bot always replies ephemerally (visible only to you) and does the heavy work in the background, so the response is instant.
 - If used in any other channel the bot replies with a quiet "not an events channel" notice.
 

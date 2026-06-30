@@ -438,7 +438,7 @@
   "event_memberGroup": "Skupina členů",
   "event_ownerGroupHelp": "Členové této skupiny mohou upravit/zrušit událost",
   "event_memberGroupHelp": "Pouze členové této skupiny mohou vidět a reagovat na událost",
-  "event_visibilityNote": "Členové uvidí tuto událost ve svém osobním kanálu událostí a v globálním kanálu událostí — výběr kanálu není potřeba.",
+  "event_visibilityNote": "Členové uvidí tuto událost na nakonfigurovaných Discord površích týmu — výběr kanálu není potřeba.",
   "event_useDefault": "Použít výchozí",
   "teamSettings_channelTraining": "Výchozí kanál: Trénink",
   "teamSettings_channelMatch": "Výchozí kanál: Zápas",

@@ -54,8 +54,9 @@ export const EventCommand = Ix.global(
         type: DiscordTypes.ApplicationCommandOptionType.SUB_COMMAND,
         name: 'refresh',
         name_localizations: { cs: 'obnovit' },
-        // Admins only — enforced at runtime via Sideline's team:manage permission
-        // (subcommands can't carry default_member_permissions).
+        // Visible to everyone; access is gated at runtime (own personal channel = anyone,
+        // others' personal channels + the global channel = team:manage admins). Subcommands
+        // can't carry default_member_permissions, so the gate lives in refreshHandler.
         description: m.bot_refresh_events_description({}, { locale: 'en' }),
         description_localizations: { cs: m.bot_refresh_events_description({}, { locale: 'cs' }) },
       },

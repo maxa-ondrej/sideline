@@ -13,7 +13,10 @@ export class PersonalEventOverflowCategory extends Model.Class<PersonalEventOver
 )({
   id: Model.Generated(PersonalEventOverflowCategoryId),
   team_id: TeamId,
-  discord_category_id: Snowflake,
+  // Reserve-first allocation inserts the row with a NULL category id (migration
+  // 1790300008), then a follow-up SavePersonalOverflowCategoryId fills it in once
+  // the Discord category exists — so this is nullable to match the column.
+  discord_category_id: Schema.OptionFromNullOr(Snowflake),
   sequence: Schema.Int,
   created_at: Model.DateTimeInsertFromDate,
 }) {}

@@ -174,6 +174,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           locationUrl: event.location_url,
                         }),
                       ),
+                      Effect.tap((event) =>
+                        events.markEventPersonalMessagesDirty(event.id).pipe(Effect.ignore),
+                      ),
                     );
                 }),
 
@@ -423,6 +426,11 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                 locationUrl: resolved.locationUrl,
               }),
             ),
+            Effect.tap(() =>
+              events
+                .markSeriesFuturePersonalMessagesDirty(seriesId, new Date())
+                .pipe(Effect.ignore),
+            ),
             Effect.tap(({ existing, resolved, membership }) =>
               teamSettings.getHorizonDays(teamId).pipe(
                 Effect.flatMap((horizonDays) => {
@@ -449,21 +457,27 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                           const endAt = Option.map(existing.end_time, (t) =>
                             DateTime.makeUnsafe(`${dateStr}T${t}Z`),
                           );
-                          return events.insertEvent({
-                            teamId,
-                            trainingTypeId: existing.training_type_id,
-                            eventType: 'training',
-                            title: existing.title,
-                            description: existing.description,
-                            startAt,
-                            endAt,
-                            location: existing.location,
-                            locationUrl: existing.location_url,
-                            createdBy: membership.id,
-                            seriesId: Option.some(existing.id),
-                            ownerGroupId: existing.owner_group_id,
-                            memberGroupId: existing.member_group_id,
-                          });
+                          return events
+                            .insertEvent({
+                              teamId,
+                              trainingTypeId: existing.training_type_id,
+                              eventType: 'training',
+                              title: existing.title,
+                              description: existing.description,
+                              startAt,
+                              endAt,
+                              location: existing.location,
+                              locationUrl: existing.location_url,
+                              createdBy: membership.id,
+                              seriesId: Option.some(existing.id),
+                              ownerGroupId: existing.owner_group_id,
+                              memberGroupId: existing.member_group_id,
+                            })
+                            .pipe(
+                              Effect.tap((event) =>
+                                events.markEventPersonalMessagesDirty(event.id).pipe(Effect.ignore),
+                              ),
+                            );
                         }),
                         { concurrency: 1 },
                       ).pipe(
@@ -562,6 +576,11 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
             ),
             Effect.tap(() => series.cancelEventSeries(seriesId)),
             Effect.tap(() => events.cancelFutureInSeries(seriesId, new Date())),
+            Effect.tap(() =>
+              events
+                .markSeriesFuturePersonalMessagesDirty(seriesId, new Date())
+                .pipe(Effect.ignore),
+            ),
             Effect.asVoid,
           ),
         ),

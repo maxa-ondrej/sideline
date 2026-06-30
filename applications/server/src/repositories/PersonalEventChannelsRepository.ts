@@ -145,6 +145,7 @@ const make = Effect.Do.pipe(
         LEFT JOIN personal_event_channels pec ON pec.team_member_id = tm.id AND pec.team_id = tm.team_id
         WHERE tm.team_id = ${input.team_id}
           AND tm.active = true
+          AND u.discord_id IS NOT NULL
           AND (pec.id IS NULL OR pec.discord_channel_id IS NULL)
           AND (
             ${input.group_id}::uuid IS NULL
@@ -214,6 +215,7 @@ const make = Effect.Do.pipe(
         JOIN team_settings ts ON ts.team_id = pec.team_id
         WHERE pec.team_id = ${input.team_id}
           AND pec.discord_channel_id IS NOT NULL
+          AND u.discord_id IS NOT NULL
           AND pec.applied_channel_format IS DISTINCT FROM ts.discord_personal_events_channel_format
         ORDER BY tm.id
         LIMIT ${input.limit}
@@ -281,21 +283,23 @@ const make = Effect.Do.pipe(
       `,
     });
 
-    const _findOwnedChannel = SqlSchema.findOneOption({
+    const _findChannelOwner = SqlSchema.findOneOption({
       Request: Schema.Struct({
         team_id: Schema.String,
         channel_id: Schema.String,
-        discord_user_id: Schema.String,
       }),
-      Result: Schema.Struct({ team_member_id: TeamMember.TeamMemberId }),
+      Result: Schema.Struct({
+        team_member_id: TeamMember.TeamMemberId,
+        discord_id: Discord.Snowflake,
+      }),
       execute: (input) => sql`
-        SELECT pec.team_member_id
+        SELECT pec.team_member_id, u.discord_id
         FROM personal_event_channels pec
         JOIN team_members tm ON tm.id = pec.team_member_id
         JOIN users u ON u.id = tm.user_id
         WHERE pec.team_id = ${input.team_id}
           AND pec.discord_channel_id = ${input.channel_id}
-          AND u.discord_id = ${input.discord_user_id}
+          AND u.discord_id IS NOT NULL
       `,
     });
 
@@ -310,6 +314,7 @@ const make = Effect.Do.pipe(
         JOIN events e ON e.team_id = pec.team_id
         WHERE e.id = ${input.event_id}
           AND pec.discord_channel_id IS NOT NULL
+          AND u.discord_id IS NOT NULL
       `,
     });
 
@@ -383,16 +388,11 @@ const make = Effect.Do.pipe(
     const listPersonalChannelsForEvent = (eventId: string) =>
       _listForEvent({ event_id: eventId }).pipe(catchSqlErrors);
 
-    const findOwnedPersonalChannel = (
-      teamId: Team.TeamId,
-      channelId: Discord.Snowflake,
-      discordUserId: Discord.Snowflake,
-    ) =>
-      _findOwnedChannel({
-        team_id: teamId,
-        channel_id: channelId,
-        discord_user_id: discordUserId,
-      }).pipe(Effect.map(Option.map((row) => row.team_member_id)), catchSqlErrors);
+    // Resolve the owner of a personal events channel by its Discord channel id alone
+    // (NOT keyed to the caller) so admins can refresh another member's channel. The
+    // bot decides own-vs-other by comparing the returned `discord_id` to the caller.
+    const findPersonalChannelOwner = (teamId: Team.TeamId, channelId: Discord.Snowflake) =>
+      _findChannelOwner({ team_id: teamId, channel_id: channelId }).pipe(catchSqlErrors);
 
     return {
       reservePersonalChannel,
@@ -405,7 +405,7 @@ const make = Effect.Do.pipe(
       getChannelsToRename,
       getGuildsNeedingPersonalProvisioning,
       listPersonalChannelsForEvent,
-      findOwnedPersonalChannel,
+      findPersonalChannelOwner,
     };
   }),
 );

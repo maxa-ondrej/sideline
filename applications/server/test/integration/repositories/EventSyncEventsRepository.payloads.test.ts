@@ -359,4 +359,82 @@ describe('EventSyncEventsRepository — discord_target_channel_id payload regres
         Effect.provide(TestLayer),
       ),
   );
+
+  it.effect(
+    'event_updated: emitEventUpdated with global channel stores discord_target_channel_id',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('seed', () => seedTeamWithMember()),
+        Effect.bind('event', ({ seed }) => createTrainingEvent(seed.team.id, seed.member.id)),
+        Effect.tap(({ seed, event }) =>
+          EventSyncEventsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              repo.emitEventUpdated(
+                seed.team.id,
+                event.id,
+                event.title,
+                event.description,
+                KNOWN_START_AT,
+                Option.some(KNOWN_END_AT),
+                Option.none(),
+                'training',
+                Option.some(CHANNEL_ID), // the resolved global events channel id
+                Option.none(),
+                Option.none(),
+                Option.none(),
+                Option.none(),
+                false,
+              ),
+            ),
+          ),
+        ),
+        Effect.bind('channelId', () => getLatestChannelId('event_updated')),
+        Effect.tap(({ channelId }) =>
+          Effect.sync(() => {
+            // After Part E.5: event_updated carries the global channel id
+            expect(channelId).toBe(CHANNEL_ID);
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
+
+  it.effect(
+    'event_updated: emitEventUpdated with None channel stores NULL (no channel configured)',
+    () =>
+      Effect.Do.pipe(
+        Effect.bind('seed', () => seedTeamWithMember()),
+        Effect.bind('event', ({ seed }) => createTrainingEvent(seed.team.id, seed.member.id)),
+        Effect.tap(({ seed, event }) =>
+          EventSyncEventsRepository.asEffect().pipe(
+            Effect.andThen((repo) =>
+              repo.emitEventUpdated(
+                seed.team.id,
+                event.id,
+                event.title,
+                event.description,
+                KNOWN_START_AT,
+                Option.some(KNOWN_END_AT),
+                Option.none(),
+                'training',
+                Option.none(), // no global events channel configured
+                Option.none(),
+                Option.none(),
+                Option.none(),
+                Option.none(),
+                false,
+              ),
+            ),
+          ),
+        ),
+        Effect.bind('channelId', () => getLatestChannelId('event_updated')),
+        Effect.tap(({ channelId }) =>
+          Effect.sync(() => {
+            // When no global channel is configured, the channel id is NULL
+            expect(channelId).toBeNull();
+          }),
+        ),
+        Effect.provide(TestLayer),
+      ),
+  );
 });
