@@ -499,8 +499,9 @@ describe('EventSyncEventsRepository — emitEventChannelMoved', () => {
             expect(row.discord_target_channel_id).toBe(CH_NEW);
             // old_channel_id mapped to discord_role_id
             expect(row.discord_role_id).toBe(CH_OLD);
-            // event_id is the nil-UUID sentinel
-            expect(row.event_id).toBe('00000000-0000-0000-0000-000000000000');
+            // team-scoped event: no real event, so event_id is stored NULL
+            // (COALESCE'd to the nil-UUID sentinel only on the findUnprocessed read path)
+            expect(row.event_id).toBeNull();
           }),
         ),
         Effect.provide(TestLayer),
