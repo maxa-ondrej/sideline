@@ -217,6 +217,8 @@ export const mockMembers = [
     username: 'testuser',
     avatar: null,
     displayName: 'Test User',
+    joinedAt: '2023-01-15T00:00:00Z',
+    active: true,
   },
   {
     memberId: 'test-member-00000002',
@@ -231,6 +233,8 @@ export const mockMembers = [
     username: 'janeplayer',
     avatar: null,
     displayName: 'Jane Player',
+    joinedAt: '2023-06-01T00:00:00Z',
+    active: true,
   },
 ];
 

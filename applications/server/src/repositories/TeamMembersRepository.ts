@@ -23,6 +23,12 @@ const MembershipByDiscordQuery = Schema.Struct({
 const RosterMemberQuery = Schema.Struct({
   team_id: Schema.String,
   member_id: Schema.String,
+  include_inactive: Schema.Boolean,
+});
+
+const DeactivateMemberQuery = Schema.Struct({
+  team_id: Schema.String,
+  member_id: Schema.String,
 });
 
 const MemberRoleInput = Schema.Struct({
@@ -53,6 +59,8 @@ export class RosterEntry extends Schema.Class<RosterEntry>('RosterEntry')({
   avatar: Schema.OptionFromNullOr(Schema.String),
   discord_nickname: Schema.OptionFromNullOr(Schema.String),
   discord_display_name: Schema.OptionFromNullOr(Schema.String),
+  joined_at: Schema.String,
+  active: Schema.Boolean,
 }) {}
 
 const make = Effect.gen(function* () {
@@ -289,7 +297,9 @@ const make = Effect.gen(function* () {
                 WHERE mr.team_member_id = tm.id), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar, u.discord_nickname, u.discord_display_name
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name,
+             to_char(tm.joined_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS joined_at,
+             tm.active AS active
       FROM team_members tm
       JOIN users u ON u.id = tm.user_id
       WHERE tm.team_id = ${teamId} AND tm.active = true
@@ -314,15 +324,18 @@ const make = Effect.gen(function* () {
                 WHERE mr.team_member_id = tm.id), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar, u.discord_nickname, u.discord_display_name
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name,
+             to_char(tm.joined_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS joined_at,
+             tm.active AS active
       FROM team_members tm
       JOIN users u ON u.id = tm.user_id
-      WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id} AND tm.active = true
+      WHERE tm.team_id = ${input.team_id} AND tm.id = ${input.member_id}
+        AND (${input.include_inactive} OR tm.active = true)
     `,
   });
 
   const deactivateMemberQuery = SqlSchema.findOne({
-    Request: RosterMemberQuery,
+    Request: DeactivateMemberQuery,
     Result: TeamMember.TeamMember,
     execute: (input) => sql`
       UPDATE team_members SET active = false
@@ -384,11 +397,22 @@ const make = Effect.gen(function* () {
       discord_id: discordId,
     }).pipe(catchSqlErrors);
 
-  const findRosterMemberByIds = (teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) =>
-    findRosterMemberQuery({ team_id: teamId, member_id: memberId }).pipe(catchSqlErrors);
+  const findRosterMemberByIds = (
+    teamId: Team.TeamId,
+    memberId: TeamMember.TeamMemberId,
+    options?: { includeInactive?: boolean },
+  ) =>
+    findRosterMemberQuery({
+      team_id: teamId,
+      member_id: memberId,
+      include_inactive: options?.includeInactive === true,
+    }).pipe(catchSqlErrors);
 
   const deactivateMemberByIds = (teamId: Team.TeamId, memberId: TeamMember.TeamMemberId) =>
-    deactivateMemberQuery({ team_id: teamId, member_id: memberId }).pipe(catchSqlErrors);
+    deactivateMemberQuery({
+      team_id: teamId,
+      member_id: memberId,
+    }).pipe(catchSqlErrors);
 
   const reactivateMember = (memberId: TeamMember.TeamMemberId) =>
     reactivateMemberQuery({ member_id: memberId }).pipe(catchSqlErrors);

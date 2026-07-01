@@ -70,7 +70,7 @@ export function MemberRatingCard({
   }, [teamId, teamMemberId, run]);
 
   return (
-    <div className='mt-6'>
+    <div>
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>

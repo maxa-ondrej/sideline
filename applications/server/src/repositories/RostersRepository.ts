@@ -42,6 +42,10 @@ const RosterMemberEntriesInput = Schema.Struct({
   roster_id: RosterModel.RosterId,
 });
 
+class RosterIdRow extends Schema.Class<RosterIdRow>('RosterIdRow')({
+  roster_id: RosterModel.RosterId,
+}) {}
+
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
 
@@ -133,7 +137,9 @@ const make = Effect.gen(function* () {
                ) all_perms), ''
              ) AS permissions,
              u.name, u.birth_date::text AS birth_date, u.gender, tm.jersey_number,
-             u.username, u.avatar, u.discord_nickname, u.discord_display_name
+             u.username, u.avatar, u.discord_nickname, u.discord_display_name,
+             to_char(tm.joined_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS joined_at,
+             tm.active AS active
       FROM roster_members rmb
       JOIN team_members tm ON tm.id = rmb.team_member_id
       JOIN users u ON u.id = tm.user_id
@@ -189,6 +195,20 @@ const make = Effect.gen(function* () {
   const findMemberEntriesById = (rosterId: RosterModel.RosterId) =>
     findMemberEntries({ roster_id: rosterId }).pipe(catchSqlErrors);
 
+  const findRosterIdsByMemberQuery = SqlSchema.findAll({
+    Request: TeamMember.TeamMemberId,
+    Result: RosterIdRow,
+    execute: (memberId) => sql`
+      SELECT roster_id FROM roster_members WHERE team_member_id = ${memberId}
+    `,
+  });
+
+  const findRosterIdsByMember = (memberId: TeamMember.TeamMemberId) =>
+    findRosterIdsByMemberQuery(memberId).pipe(
+      Effect.map((rows) => rows.map((r) => r.roster_id)),
+      catchSqlErrors,
+    );
+
   return {
     findByTeamId,
     findRosterById,
@@ -198,6 +218,7 @@ const make = Effect.gen(function* () {
     addMemberById,
     removeMemberById,
     findMemberEntriesById,
+    findRosterIdsByMember,
   };
 });
 

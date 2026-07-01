@@ -5,12 +5,14 @@ import type {
   ActivityLogApi,
   ActivityStatsApi,
   ActivityType,
+  GroupApi,
   PlayerRatingApi,
   RoleApi,
   Roster,
 } from '@sideline/domain';
 import { Link } from '@tanstack/react-router';
 import { Option, Schema } from 'effect';
+import { Pencil, UserMinus, X } from 'lucide-react';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { SearchableSelect } from '~/components/atoms/SearchableSelect';
@@ -18,7 +20,22 @@ import { AchievementsGridI18n } from '~/components/organisms/AchievementsGrid.js
 import { ActivityLogList } from '~/components/organisms/ActivityLogList';
 import { ActivityStatsCard } from '~/components/organisms/ActivityStatsCard';
 import { MemberRatingCard } from '~/components/organisms/MemberRatingCard.js';
+import { MemberSummaryHeader } from '~/components/organisms/MemberSummaryHeader.js';
+import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '~/components/ui/alert-dialog';
+import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '~/components/ui/card';
 import { DatePicker } from '~/components/ui/date-picker';
 import {
   Form,
@@ -36,11 +53,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '~/components/ui/select';
+import { useFormatDate } from '~/hooks/useFormatDate.js';
 import { tr } from '~/lib/translations.js';
 
+const isNotFutureDate = Schema.makeFilter<string>((value) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return true;
+  return parsed.getTime() <= Date.now() ? true : tr('validation_birthDateFuture');
+});
+
+const isNonBlank = Schema.makeFilter<string>((value) =>
+  value.trim().length > 0 ? true : tr('validation_required'),
+);
+
 const PlayerEditSchema = Schema.Struct({
-  name: Schema.NullOr(Schema.String),
-  birthDate: Schema.NullOr(Schema.String),
+  name: Schema.NullOr(
+    Schema.String.pipe(Schema.check(isNonBlank), Schema.check(Schema.isMaxLength(80))).annotate({
+      message: tr('validation_displayNameTooLong'),
+    }),
+  ),
+  birthDate: Schema.NullOr(Schema.String.pipe(Schema.check(isNotFutureDate))),
   gender: Schema.NullOr(Schema.Literals(['male', 'female', 'other'])),
   jerseyNumber: Schema.NullOr(
     Schema.NumberFromString.pipe(
@@ -66,6 +98,13 @@ interface PlayerDetailPageProps {
   canEdit: boolean;
   canManageRoles: boolean;
   availableRoles: ReadonlyArray<RoleApi.RoleInfo>;
+  memberRosters: ReadonlyArray<Roster.RosterInfo>;
+  assignableRosters: ReadonlyArray<Roster.RosterInfo>;
+  memberGroups: ReadonlyArray<GroupApi.GroupInfo>;
+  assignableGroups: ReadonlyArray<GroupApi.GroupInfo>;
+  canManageRosters: boolean;
+  canManageGroups: boolean;
+  canRemoveMember: boolean;
   activityStats: ActivityStatsApi.ActivityStatsResponse;
   achievements: ReadonlyArray<{ slug: Achievement.AchievementSlug; earned_at: string }>;
   isOwnProfile: boolean;
@@ -74,9 +113,15 @@ interface PlayerDetailPageProps {
   rating?: PlayerRatingApi.MemberRatingResponse;
   teamMemberId?: string;
   onRefresh?: () => void;
-  onSave: (values: PlayerEditValues) => Promise<void>;
+  onSave: (values: PlayerEditValues) => Promise<boolean>;
   onAssignRole: (roleId: string) => Promise<void>;
   onUnassignRole: (roleId: string) => Promise<void>;
+  onAddToRoster: (rosterId: string) => Promise<void>;
+  onRemoveFromRoster: (rosterId: string) => Promise<void>;
+  onAddToGroup: (groupId: string) => Promise<void>;
+  onRemoveFromGroup: (groupId: string) => Promise<void>;
+  onDeactivate: () => Promise<boolean>;
+  onReactivate: () => Promise<boolean>;
   onCreateLog: (input: {
     activityTypeId: ActivityType.ActivityTypeId;
     durationMinutes: Option.Option<number>;
@@ -101,6 +146,13 @@ export function PlayerDetailPage({
   canEdit,
   canManageRoles,
   availableRoles,
+  memberRosters,
+  assignableRosters,
+  memberGroups,
+  assignableGroups,
+  canManageRosters,
+  canManageGroups,
+  canRemoveMember,
   activityStats,
   achievements,
   isOwnProfile,
@@ -112,14 +164,20 @@ export function PlayerDetailPage({
   onSave,
   onAssignRole,
   onUnassignRole,
+  onAddToRoster,
+  onRemoveFromRoster,
+  onAddToGroup,
+  onRemoveFromGroup,
+  onDeactivate,
+  onReactivate,
   onCreateLog,
   onUpdateLog,
   onDeleteLog,
 }: PlayerDetailPageProps) {
-  const form = useForm({
-    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(PlayerEditSchema)),
-    mode: 'onChange',
-    defaultValues: {
+  const { formatDate } = useFormatDate();
+  const isInactive = !player.active;
+  const getDefaultValues = React.useCallback(
+    () => ({
       name: Option.getOrNull(player.name),
       birthDate: Option.getOrNull(player.birthDate),
       gender: Option.getOrNull(player.gender),
@@ -127,138 +185,489 @@ export function PlayerDetailPage({
         Option.map((v) => String(v)),
         Option.getOrNull,
       ),
-    },
+    }),
+    [player],
+  );
+
+  const form = useForm({
+    resolver: standardSchemaResolver(Schema.toStandardSchemaV1(PlayerEditSchema)),
+    mode: 'onChange',
+    defaultValues: getDefaultValues(),
   });
 
-  const displayName = player.displayName;
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = React.useState(false);
+
+  const dirtyFieldCount = Object.keys(form.formState.dirtyFields).length;
+  const hasErrors = Object.keys(form.formState.errors).length > 0;
+
+  const handleStartEditing = React.useCallback(() => {
+    form.reset(getDefaultValues());
+    setIsEditing(true);
+  }, [form, getDefaultValues]);
+
+  const handleCancelEditing = React.useCallback(() => {
+    if (form.formState.isDirty) {
+      setDiscardConfirmOpen(true);
+      return;
+    }
+    setIsEditing(false);
+  }, [form.formState.isDirty]);
+
+  const handleConfirmDiscard = React.useCallback(() => {
+    form.reset(getDefaultValues());
+    setDiscardConfirmOpen(false);
+    setIsEditing(false);
+  }, [form, getDefaultValues]);
+
+  const handleSubmit = React.useCallback(
+    async (values: PlayerEditValues) => {
+      const submittedValues = form.getValues();
+      const succeeded = await onSave(values);
+      if (succeeded) {
+        form.reset(submittedValues);
+        setIsEditing(false);
+      }
+    },
+    [onSave, form],
+  );
+
+  const activityLogCardRef = React.useRef<HTMLDivElement>(null);
+  const handleFocusActivityLog = React.useCallback(() => {
+    activityLogCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   return (
-    <div>
-      <header className='mb-8'>
+    <div className='mx-auto flex max-w-3xl flex-col gap-6 lg:max-w-5xl'>
+      <div>
         <Button asChild variant='ghost' size='sm' className='mb-2'>
           <Link to='/teams/$teamId/members' params={{ teamId }}>
             ← {tr('members_backToMembers')}
           </Link>
         </Button>
-        <h1 className='text-2xl font-bold'>{displayName}</h1>
-      </header>
-      {canEdit ? (
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSave)} className='flex flex-col gap-4'>
-            <FormField
-              {...form.register('name')}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{tr('profile_complete_displayName')}</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              {...form.register('birthDate')}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{tr('profile_complete_birthDate')}</FormLabel>
-                  <FormControl>
-                    <DatePicker
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      placeholder={tr('profile_complete_birthDatePlaceholder')}
-                      fromYear={1900}
-                      toYear={new Date().getFullYear()}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              {...form.register('gender')}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{tr('profile_complete_gender')}</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ''}>
-                    <FormControl>
-                      <SelectTrigger className='w-full'>
-                        <SelectValue placeholder={tr('profile_complete_genderPlaceholder')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='male'>{tr('profile_complete_genderMale')}</SelectItem>
-                      <SelectItem value='female'>{tr('profile_complete_genderFemale')}</SelectItem>
-                      <SelectItem value='other'>{tr('profile_complete_genderOther')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              {...form.register('jerseyNumber')}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{tr('profile_complete_jerseyNumber')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      placeholder={tr('profile_complete_jerseyNumberPlaceholder')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type='submit' disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? tr('members_saving') : tr('members_saveChanges')}
-            </Button>
-          </form>
-        </Form>
-      ) : (
-        <div className='flex flex-col gap-2'>
-          <p>
-            <strong>{tr('profile_complete_jerseyNumber')}:</strong>{' '}
-            {player.jerseyNumber.pipe(
-              Option.map((v) => `#${v}`),
-              Option.getOrElse(() => '—'),
+        <MemberSummaryHeader
+          player={player}
+          canManageRoles={canManageRoles}
+          isInactive={isInactive}
+        />
+      </div>
+
+      {isInactive ? (
+        <Alert variant='default'>
+          <UserMinus aria-hidden='true' />
+          <AlertTitle>{tr('members_inactiveBannerTitle')}</AlertTitle>
+          <AlertDescription>{tr('members_inactiveBannerDescription')}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className='grid gap-6 lg:grid-cols-2'>
+        <Card>
+          <CardHeader className='flex items-center justify-between'>
+            <CardTitle>{tr('profile_complete_title')}</CardTitle>
+            {canEdit && !isEditing && !isInactive ? (
+              <Button type='button' variant='ghost' size='sm' onClick={handleStartEditing}>
+                <Pencil className='size-4' aria-hidden='true' />
+                {tr('members_editProfile')}
+              </Button>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            {canEdit && isEditing ? (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className='flex flex-col gap-4'>
+                  <FormField
+                    {...form.register('name')}
+                    render={({ field }) => (
+                      <FormItem>
+                        <DirtyFieldLabel
+                          label={tr('profile_complete_displayName')}
+                          dirty={Boolean(form.formState.dirtyFields.name)}
+                        />
+                        <FormControl>
+                          <Input {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    {...form.register('birthDate')}
+                    render={({ field }) => (
+                      <FormItem>
+                        <DirtyFieldLabel
+                          label={tr('profile_complete_birthDate')}
+                          dirty={Boolean(form.formState.dirtyFields.birthDate)}
+                        />
+                        <FormControl>
+                          <DatePicker
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                            placeholder={tr('profile_complete_birthDatePlaceholder')}
+                            fromYear={1900}
+                            toYear={new Date().getFullYear()}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    {...form.register('gender')}
+                    render={({ field }) => (
+                      <FormItem>
+                        <DirtyFieldLabel
+                          label={tr('profile_complete_gender')}
+                          dirty={Boolean(form.formState.dirtyFields.gender)}
+                        />
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                          <FormControl>
+                            <SelectTrigger className='w-full'>
+                              <SelectValue placeholder={tr('profile_complete_genderPlaceholder')} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value='male'>
+                              {tr('profile_complete_genderMale')}
+                            </SelectItem>
+                            <SelectItem value='female'>
+                              {tr('profile_complete_genderFemale')}
+                            </SelectItem>
+                            <SelectItem value='other'>
+                              {tr('profile_complete_genderOther')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    {...form.register('jerseyNumber')}
+                    render={({ field }) => (
+                      <FormItem>
+                        <DirtyFieldLabel
+                          label={tr('profile_complete_jerseyNumber')}
+                          dirty={Boolean(form.formState.dirtyFields.jerseyNumber)}
+                        />
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ''}
+                            placeholder={tr('profile_complete_jerseyNumberPlaceholder')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className='flex items-center gap-2'>
+                    <Button
+                      type='submit'
+                      disabled={!form.formState.isDirty || hasErrors || form.formState.isSubmitting}
+                    >
+                      {form.formState.isSubmitting
+                        ? tr('members_saving')
+                        : tr('members_saveChanges')}
+                    </Button>
+                    <Button type='button' variant='ghost' onClick={handleCancelEditing}>
+                      {tr('common_cancel')}
+                    </Button>
+                  </div>
+                  {form.formState.isDirty ? (
+                    <CardFooter className='flex items-center justify-between gap-2 px-0'>
+                      <p className='text-sm text-muted-foreground'>
+                        {tr('members_unsavedChanges', { count: dirtyFieldCount })}
+                      </p>
+                    </CardFooter>
+                  ) : null}
+                </form>
+              </Form>
+            ) : (
+              <ProfileReadOnlyView player={player} formatDate={formatDate} />
             )}
-          </p>
-        </div>
-      )}
-      <RolesSection
-        player={player}
-        canManageRoles={canManageRoles}
-        availableRoles={availableRoles}
-        onAssignRole={onAssignRole}
-        onUnassignRole={onUnassignRole}
-      />
-      <AchievementsGridI18n
-        earnedAchievements={achievements.map((a) => ({
-          achievement_slug: a.slug,
-          earned_at: new Date(a.earned_at),
-        }))}
-      />
-      {canEdit && rating ? (
-        <MemberRatingCard
-          rating={rating}
-          teamId={teamId}
-          teamMemberId={teamMemberId}
-          onRefresh={onRefresh}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{tr('roles_currentRoles')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RolesSection
+              player={player}
+              canManageRoles={canManageRoles && !isInactive}
+              availableRoles={availableRoles}
+              onAssignRole={onAssignRole}
+              onUnassignRole={onUnassignRole}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{tr('members_membershipsTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className='flex flex-col gap-6'>
+            <div>
+              <h3 className='mb-2 text-sm font-medium'>{tr('members_groupsTitle')}</h3>
+              <MembershipsSection
+                current={memberGroups}
+                assignable={assignableGroups}
+                canManage={canManageGroups && !isInactive}
+                emptyLabel={tr('groups_noneForMember')}
+                addPlaceholder={tr('members_addToGroup')}
+                getId={(g) => g.groupId}
+                getLabel={(g) => g.name}
+                removeAriaLabel={(name) => tr('members_removeFromGroupAria', { group: name })}
+                removeConfirmTitle={tr('members_removeFromGroupConfirmTitle')}
+                removeConfirmDescription={(name) =>
+                  tr('members_removeFromGroupConfirmDescription', { group: name })
+                }
+                removeConfirmConfirm={tr('members_removeFromGroupConfirmConfirm')}
+                onAdd={onAddToGroup}
+                onRemove={onRemoveFromGroup}
+              />
+            </div>
+            <div>
+              <h3 className='mb-2 text-sm font-medium'>{tr('members_rostersTitle')}</h3>
+              <MembershipsSection
+                current={memberRosters}
+                assignable={assignableRosters}
+                canManage={canManageRosters && !isInactive}
+                emptyLabel={tr('rosters_noneForMember')}
+                addPlaceholder={tr('members_addToRoster')}
+                getId={(r) => r.rosterId}
+                getLabel={(r) => r.name}
+                removeAriaLabel={(name) => tr('members_removeFromRosterAria', { roster: name })}
+                removeConfirmTitle={tr('members_removeFromRosterConfirmTitle')}
+                removeConfirmDescription={(name) =>
+                  tr('members_removeFromRosterConfirmDescription', { roster: name })
+                }
+                removeConfirmConfirm={tr('members_removeFromRosterConfirmConfirm')}
+                onAdd={onAddToRoster}
+                onRemove={onRemoveFromRoster}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {canEdit && rating ? (
+          <Card>
+            <CardContent>
+              <MemberRatingCard
+                rating={rating}
+                teamId={teamId}
+                teamMemberId={teamMemberId}
+                onRefresh={onRefresh}
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{tr('stats_title')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActivityStatsCard
+              stats={activityStats}
+              isOwnProfile={isOwnProfile}
+              onLogActivity={handleFocusActivityLog}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent>
+          <AchievementsGridI18n
+            earnedAchievements={achievements.map((a) => ({
+              achievement_slug: a.slug,
+              earned_at: new Date(a.earned_at),
+            }))}
+            emptyTitle={tr('achievements_empty_title')}
+            emptyDescription={tr('achievements_empty_description')}
+          />
+        </CardContent>
+      </Card>
+
+      <Card ref={activityLogCardRef}>
+        <CardHeader>
+          <CardTitle>{tr('activityLog_title')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ActivityLogList
+            logs={activityLogs.logs}
+            isOwnProfile={isOwnProfile}
+            activityTypes={activityTypes}
+            onCreateLog={onCreateLog}
+            onUpdateLog={onUpdateLog}
+            onDeleteLog={onDeleteLog}
+          />
+        </CardContent>
+      </Card>
+
+      {canRemoveMember && !isOwnProfile ? (
+        <DangerZoneCard
+          isInactive={isInactive}
+          onDeactivate={onDeactivate}
+          onReactivate={onReactivate}
         />
       ) : null}
-      <ActivityStatsCard stats={activityStats} />
-      <ActivityLogList
-        logs={activityLogs.logs}
-        isOwnProfile={isOwnProfile}
-        activityTypes={activityTypes}
-        onCreateLog={onCreateLog}
-        onUpdateLog={onUpdateLog}
-        onDeleteLog={onDeleteLog}
-      />
+
+      <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr('members_discardTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{tr('members_discardDescription')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr('members_discardCancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDiscard}>
+              {tr('members_discardConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+function ProfileReadOnlyView({
+  player,
+  formatDate,
+}: {
+  player: Roster.RosterPlayer;
+  formatDate: (date: Date) => string;
+}) {
+  const genderLabel = player.gender.pipe(
+    Option.map((g) => {
+      if (g === 'male') return tr('profile_complete_genderMale');
+      if (g === 'female') return tr('profile_complete_genderFemale');
+      return tr('profile_complete_genderOther');
+    }),
+    Option.getOrElse(() => tr('members_fieldEmpty')),
+  );
+  const birthDateLabel = player.birthDate.pipe(
+    Option.map((d) => formatDate(new Date(d))),
+    Option.getOrElse(() => tr('members_fieldEmpty')),
+  );
+  const jerseyNumberLabel = player.jerseyNumber.pipe(
+    Option.map((v) => `#${v}`),
+    Option.getOrElse(() => tr('members_fieldEmpty')),
+  );
+
+  return (
+    <div className='flex flex-col gap-2'>
+      <p>
+        <strong>{tr('profile_complete_displayName')}:</strong> {player.displayName}
+      </p>
+      <p>
+        <strong>{tr('profile_complete_birthDate')}:</strong> {birthDateLabel}
+      </p>
+      <p>
+        <strong>{tr('profile_complete_gender')}:</strong> {genderLabel}
+      </p>
+      <p>
+        <strong>{tr('profile_complete_jerseyNumber')}:</strong> {jerseyNumberLabel}
+      </p>
+    </div>
+  );
+}
+
+function DangerZoneCard({
+  isInactive,
+  onDeactivate,
+  onReactivate,
+}: {
+  isInactive: boolean;
+  onDeactivate: () => Promise<boolean>;
+  onReactivate: () => Promise<boolean>;
+}) {
+  const [pending, setPending] = React.useState(false);
+
+  const handleDeactivate = React.useCallback(async () => {
+    setPending(true);
+    await onDeactivate();
+    setPending(false);
+  }, [onDeactivate]);
+
+  const handleReactivate = React.useCallback(async () => {
+    setPending(true);
+    await onReactivate();
+    setPending(false);
+  }, [onReactivate]);
+
+  return (
+    <Card className='border-destructive/50'>
+      <CardHeader>
+        <CardTitle>{tr('members_dangerZoneTitle')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isInactive ? (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button type='button' variant='outline'>
+                {tr('members_reactivateAction')}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{tr('members_reactivateConfirmTitle')}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {tr('members_reactivateConfirmDescription')}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{tr('common_cancel')}</AlertDialogCancel>
+                <AlertDialogAction disabled={pending} onClick={handleReactivate}>
+                  {tr('members_reactivateConfirmConfirm')}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <div className='flex flex-col gap-2'>
+            <p className='text-sm text-muted-foreground'>{tr('members_deactivateDescription')}</p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type='button' variant='destructive' className='w-fit'>
+                  {tr('members_deactivateAction')}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{tr('members_deactivateConfirmTitle')}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {tr('members_deactivateConfirmDescription')}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{tr('common_cancel')}</AlertDialogCancel>
+                  <AlertDialogAction disabled={pending} onClick={handleDeactivate}>
+                    {tr('members_deactivateConfirmConfirm')}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DirtyFieldLabel({ label, dirty }: { label: string; dirty: boolean }) {
+  return (
+    <FormLabel className='flex items-center gap-1.5'>
+      {label}
+      {dirty ? (
+        <>
+          <span className='inline-block size-1.5 rounded-full bg-warning' aria-hidden='true' />
+          <span className='sr-only'>{tr('form_fieldChanged')}</span>
+        </>
+      ) : null}
+    </FormLabel>
   );
 }
 
@@ -289,8 +698,7 @@ function RolesSection({
   }, [selectedRoleId, onAssignRole]);
 
   return (
-    <div className='mt-6'>
-      <h2 className='text-lg font-semibold mb-2'>{tr('roles_currentRoles')}</h2>
+    <div>
       {player.roleNames.length === 0 ? (
         <p className='text-muted-foreground'>{tr('roles_noRoles')}</p>
       ) : (
@@ -298,21 +706,21 @@ function RolesSection({
           {player.roleNames.map((roleName) => {
             const roleInfo = availableRoles.find((r) => r.name === roleName);
             return (
-              <span
-                key={roleName}
-                className='inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm'
-              >
+              <Badge key={roleName} variant='secondary' className='gap-1 py-1'>
                 {roleName}
                 {canManageRoles && roleInfo ? (
-                  <button
-                    type='button'
-                    className='ml-1 text-muted-foreground hover:text-destructive'
-                    onClick={() => onUnassignRole(roleInfo.roleId)}
-                  >
-                    x
-                  </button>
+                  <RemoveMembershipControl
+                    ariaLabel={tr('roles_removeAria', { role: roleName })}
+                    confirmTitle={tr('roles_removeRoleConfirmTitle')}
+                    confirmDescription={tr('roles_removeRoleConfirmDescription', {
+                      role: roleName,
+                    })}
+                    confirmConfirm={tr('roles_removeRoleConfirm')}
+                    cancelLabel={tr('roles_removeRoleCancel')}
+                    onConfirm={() => onUnassignRole(roleInfo.roleId)}
+                  />
                 ) : null}
-              </span>
+              </Badge>
             );
           })}
         </div>
@@ -332,5 +740,133 @@ function RolesSection({
         </div>
       ) : null}
     </div>
+  );
+}
+
+interface MembershipsSectionProps<T> {
+  current: ReadonlyArray<T>;
+  assignable: ReadonlyArray<T>;
+  canManage: boolean;
+  emptyLabel: string;
+  addPlaceholder: string;
+  getId: (item: T) => string;
+  getLabel: (item: T) => string;
+  removeAriaLabel: (label: string) => string;
+  removeConfirmTitle: string;
+  removeConfirmDescription: (label: string) => string;
+  removeConfirmConfirm: string;
+  onAdd: (id: string) => Promise<void>;
+  onRemove: (id: string) => Promise<void>;
+}
+
+function MembershipsSection<T>({
+  current,
+  assignable,
+  canManage,
+  emptyLabel,
+  addPlaceholder,
+  getId,
+  getLabel,
+  removeAriaLabel,
+  removeConfirmTitle,
+  removeConfirmDescription,
+  removeConfirmConfirm,
+  onAdd,
+  onRemove,
+}: MembershipsSectionProps<T>) {
+  const [selectedId, setSelectedId] = React.useState('');
+  const [assigning, setAssigning] = React.useState(false);
+
+  const handleAdd = React.useCallback(async () => {
+    if (!selectedId) return;
+    setAssigning(true);
+    await onAdd(selectedId);
+    setSelectedId('');
+    setAssigning(false);
+  }, [selectedId, onAdd]);
+
+  return (
+    <div>
+      {current.length === 0 ? (
+        <p className='text-muted-foreground'>{emptyLabel}</p>
+      ) : (
+        <div className='flex flex-wrap gap-2 mb-4'>
+          {current.map((item) => {
+            const id = getId(item);
+            const label = getLabel(item);
+            return (
+              <Badge key={id} variant='secondary' className='gap-1 py-1'>
+                {label}
+                {canManage ? (
+                  <RemoveMembershipControl
+                    ariaLabel={removeAriaLabel(label)}
+                    confirmTitle={removeConfirmTitle}
+                    confirmDescription={removeConfirmDescription(label)}
+                    confirmConfirm={removeConfirmConfirm}
+                    onConfirm={() => onRemove(id)}
+                  />
+                ) : null}
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+      {canManage && assignable.length > 0 ? (
+        <div className='flex gap-2 items-end'>
+          <SearchableSelect
+            value={selectedId}
+            onValueChange={setSelectedId}
+            placeholder={addPlaceholder}
+            options={assignable.map((item) => ({ value: getId(item), label: getLabel(item) }))}
+            className='w-48'
+          />
+          <Button size='sm' disabled={!selectedId || assigning} onClick={handleAdd}>
+            {addPlaceholder}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RemoveMembershipControl({
+  ariaLabel,
+  confirmTitle,
+  confirmDescription,
+  confirmConfirm,
+  cancelLabel = tr('common_cancel'),
+  onConfirm,
+}: {
+  ariaLabel: string;
+  confirmTitle: string;
+  confirmDescription: string;
+  confirmConfirm: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon'
+          className='ml-1 size-6 text-muted-foreground hover:text-destructive'
+        >
+          <X className='size-3' aria-hidden='true' />
+          <span className='sr-only'>{ariaLabel}</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmTitle}</AlertDialogTitle>
+          <AlertDialogDescription>{confirmDescription}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>{confirmConfirm}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
