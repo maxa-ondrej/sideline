@@ -27,6 +27,7 @@ const EventSyncEventType = Schema.Literals([
   'event_roster_approval_cancel',
   'event_roster_thread_delete',
   'teams_generated',
+  'event_channel_moved',
 ]);
 type EventSyncEventType = typeof EventSyncEventType.Type;
 
@@ -762,6 +763,46 @@ const make = Effect.gen(function* () {
       catchSqlErrors,
     );
 
+  /**
+   * Emit an `event_channel_moved` outbox event.
+   *
+   * Column overloads:
+   *   discord_target_channel_id → new_channel_id
+   *   discord_role_id           → old_channel_id
+   *   event_id                  → nil-UUID sentinel (no real event)
+   *
+   * Short-circuits (emits nothing) when the team has no linked guild.
+   */
+  const emitEventChannelMoved = (
+    teamId: Team.TeamId,
+    oldChannelId: Option.Option<Discord.Snowflake>,
+    newChannelId: Option.Option<Discord.Snowflake>,
+  ) =>
+    lookupGuildId(teamId).pipe(
+      Effect.flatMap(
+        Option.match({
+          onNone: () => Effect.void,
+          onSome: ({ guild_id }) =>
+            insertRosterEvent({
+              team_id: teamId,
+              guild_id,
+              event_type: 'event_channel_moved',
+              event_id: Event.EventId.makeUnsafe('00000000-0000-0000-0000-000000000000'),
+              event_title: '',
+              event_description: Option.none(),
+              event_start_at: DateTime.makeUnsafe(0),
+              discord_target_channel_id: newChannelId,
+              member_group_id: Option.none(),
+              discord_role_id: oldChannelId,
+              claimed_by_member_id: Option.none(),
+              claimed_by_display_name: Option.none(),
+              event_location: Option.none(),
+            }),
+        }),
+      ),
+      catchSqlErrors,
+    );
+
   const findUnprocessed = (limit: number) => findUnprocessedEvents(limit).pipe(catchSqlErrors);
 
   const markProcessed = (id: string) => markEventProcessed({ id }).pipe(catchSqlErrors);
@@ -783,6 +824,7 @@ const make = Effect.gen(function* () {
     emitEventRosterApprovalRequest,
     emitEventRosterApprovalCancel,
     emitEventRosterThreadDelete,
+    emitEventChannelMoved,
     findUnprocessed,
     markProcessed,
     markFailed,
