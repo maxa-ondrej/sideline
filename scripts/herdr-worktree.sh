@@ -120,14 +120,44 @@ fi
 # --- 4. launch the agent -----------------------------------------------------
 if [[ "$DO_AGENT" -eq 1 ]]; then
   info "Launching Claude agent in herdr…"
-  start_args=(agent start "$BRANCH" --cwd "$WT" --focus)
-  [[ -n "$WS_ID" ]] && start_args+=(--workspace "$WS_ID")
-  claude_args=(claude)
-  [[ -n "$PROMPT" ]] && claude_args+=("$PROMPT")
-  if herdr "${start_args[@]}" -- "${claude_args[@]}"; then
-    info "Agent '$BRANCH' started and focused${WS_ID:+ in workspace $WS_ID}${PROMPT:+ running: $PROMPT}."
-  else
-    warn "agent start failed — open it manually: herdr agent start $BRANCH --cwd \"$WT\"${WS_ID:+ --workspace $WS_ID} -- claude${PROMPT:+ \"$PROMPT\"}"
+
+  # Build the `claude` command line, safely quoting the optional prompt.
+  CLAUDE_CMD="claude"
+  [[ -n "$PROMPT" ]] && CLAUDE_CMD+=" $(printf '%q' "$PROMPT")"
+
+  # `herdr worktree create` opens the worktree's workspace with a main shell
+  # pane. `agent start --workspace` would spawn the agent in a NEW pane beside
+  # it (a split). Instead, run `claude` IN that existing main pane so the agent
+  # occupies the main pane — no split. Fall back to `agent start` if we can't
+  # resolve the main pane.
+  MAIN_PANE=""
+  if [[ -n "$WS_ID" ]]; then
+    MAIN_PANE="$(herdr pane list --workspace "$WS_ID" 2>/dev/null \
+      | jq -r '.result.panes[0].pane_id // empty' 2>/dev/null || true)"
+  fi
+
+  agent_launched=0
+  if [[ -n "$MAIN_PANE" ]]; then
+    if herdr pane run "$MAIN_PANE" "$CLAUDE_CMD" >/dev/null 2>&1; then
+      herdr pane rename "$MAIN_PANE" "$BRANCH" >/dev/null 2>&1 || true
+      [[ -n "$WS_ID" ]] && herdr workspace focus "$WS_ID" >/dev/null 2>&1 || true
+      info "Agent '$BRANCH' started in main pane $MAIN_PANE${PROMPT:+ running: $PROMPT}."
+      agent_launched=1
+    else
+      warn "pane run in main pane failed — falling back to agent start."
+    fi
+  fi
+
+  if [[ "$agent_launched" -eq 0 ]]; then
+    start_args=(agent start "$BRANCH" --cwd "$WT" --focus)
+    [[ -n "$WS_ID" ]] && start_args+=(--workspace "$WS_ID")
+    claude_args=(claude)
+    [[ -n "$PROMPT" ]] && claude_args+=("$PROMPT")
+    if herdr "${start_args[@]}" -- "${claude_args[@]}"; then
+      info "Agent '$BRANCH' started and focused${WS_ID:+ in workspace $WS_ID}${PROMPT:+ running: $PROMPT}."
+    else
+      warn "agent start failed — open it manually: herdr agent start $BRANCH --cwd \"$WT\"${WS_ID:+ --workspace $WS_ID} -- claude${PROMPT:+ \"$PROMPT\"}"
+    fi
   fi
 fi
 
