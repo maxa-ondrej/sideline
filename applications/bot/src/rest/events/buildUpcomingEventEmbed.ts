@@ -183,37 +183,33 @@ export const buildUpcomingEventEmbed = (params: {
   };
 
   // Row 2: Attendees button, plus (when user has responded) add/edit/clear message buttons
-  const messageButtons: ReadonlyArray<Discord.ButtonComponentForMessageRequest> = Option.match(
-    myResponse,
-    {
-      onNone: () => [],
-      onSome: (response) => {
-        const hasMessage = Option.isSome(entry.my_message);
-        return hasMessage
-          ? [
-              {
-                type: 2 as const,
-                style: Discord.ButtonStyleTypes.SECONDARY,
-                label: m.bot_rsvp_edit_message({}, { locale }),
-                custom_id: `u-add-msg:${entry.team_id}:${entry.event_id}:${response}`,
-              },
-              {
-                type: 2 as const,
-                style: Discord.ButtonStyleTypes.DANGER,
-                label: m.bot_rsvp_clear_message({}, { locale }),
-                custom_id: `u-clear-msg:${entry.team_id}:${entry.event_id}:${response}`,
-              },
-            ]
-          : [
-              {
-                type: 2 as const,
-                style: Discord.ButtonStyleTypes.SECONDARY,
-                label: m.bot_rsvp_add_message({}, { locale }),
-                custom_id: `u-add-msg:${entry.team_id}:${entry.event_id}:${response}`,
-              },
-            ];
-      },
-    },
+  const messageButtons: ReadonlyArray<Discord.ButtonComponentForMessageRequest> = myResponse.pipe(
+    Option.map((response) =>
+      Option.isSome(entry.my_message)
+        ? [
+            {
+              type: 2 as const,
+              style: Discord.ButtonStyleTypes.SECONDARY,
+              label: m.bot_rsvp_edit_message({}, { locale }),
+              custom_id: `u-add-msg:${entry.team_id}:${entry.event_id}:${response}`,
+            },
+            {
+              type: 2 as const,
+              style: Discord.ButtonStyleTypes.DANGER,
+              label: m.bot_rsvp_clear_message({}, { locale }),
+              custom_id: `u-clear-msg:${entry.team_id}:${entry.event_id}:${response}`,
+            },
+          ]
+        : [
+            {
+              type: 2 as const,
+              style: Discord.ButtonStyleTypes.SECONDARY,
+              label: m.bot_rsvp_add_message({}, { locale }),
+              custom_id: `u-add-msg:${entry.team_id}:${entry.event_id}:${response}`,
+            },
+          ],
+    ),
+    Option.getOrElse(() => []),
   );
 
   const messageRow: Discord.ActionRowComponentForMessageRequest = {
