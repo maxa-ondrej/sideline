@@ -209,6 +209,28 @@ async function setupApiMocks(page: Page) {
   );
 
   await page.route(
+    '**/teams/*/members/*/rosters',
+    apiOnly(async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    }),
+  );
+
+  await page.route(
+    '**/teams/*/members/*/groups',
+    apiOnly(async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    }),
+  );
+
+  await page.route(
     '**/teams/*/members/*/activity-stats',
     apiOnly(async (route) => {
       await route.fulfill({
