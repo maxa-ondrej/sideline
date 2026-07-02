@@ -3,8 +3,9 @@ import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Metric } from 'effect';
 import { env } from '../../env.js';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
+import { syncEventsProcessedTotal } from '../../metrics.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
+import { recordSyncFailure } from '../recordSyncFailure.js';
 import { handleTeamChallengeReady } from './handleTeamChallengeReady.js';
 
 // Structural narrowing helper — avoids an `as` cast.
@@ -53,21 +54,16 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            rpc['TeamChallenge/MarkTeamChallengeFailed']({
-              eventId: event.id,
-              error: formatError(error),
-            }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process team challenge sync event ${event.id}`, error),
-              ),
-              Effect.tap(() =>
-                Metric.update(
-                  Metric.withAttributes(syncEventsFailedTotal, {
-                    sync_type: 'team_challenge',
-                  }),
-                  1,
-                ),
-              ),
+            recordSyncFailure(
+              rpc['TeamChallenge/MarkTeamChallengeFailed']({
+                eventId: event.id,
+                error: formatError(error),
+              }),
+              {
+                syncType: 'team_challenge',
+                message: `Failed to process team challenge sync event ${event.id}`,
+                error,
+              },
             ),
           ),
           Effect.provideService(SyncRpc, rpc),

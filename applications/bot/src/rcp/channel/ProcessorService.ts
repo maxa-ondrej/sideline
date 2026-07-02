@@ -2,7 +2,8 @@ import type { ChannelRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, Effect, Match, Metric } from 'effect';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
+import { syncEventsProcessedTotal } from '~/metrics.js';
+import { recordSyncFailure } from '~/rcp/recordSyncFailure.js';
 import { isPermanentError } from '~/rest/discordErrors.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -81,22 +82,15 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            (isPermanentError(error)
-              ? rpc['Channel/MarkEventPermanentlyFailed']({
-                  id: event.id,
-                  error: String(error),
-                })
-              : rpc['Channel/MarkEventFailed']({ id: event.id, error: String(error) })
-            ).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process channel sync event ${event.id}`, error),
-              ),
-              Effect.tap(() =>
-                Metric.update(
-                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'channel' }),
-                  1,
-                ),
-              ),
+            recordSyncFailure(
+              isPermanentError(error)
+                ? rpc['Channel/MarkEventPermanentlyFailed']({ id: event.id, error: String(error) })
+                : rpc['Channel/MarkEventFailed']({ id: event.id, error: String(error) }),
+              {
+                syncType: 'channel',
+                message: `Failed to process channel sync event ${event.id}`,
+                error,
+              },
             ),
           ),
           Effect.provideService(SyncRpc, rpc),

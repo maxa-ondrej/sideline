@@ -1,8 +1,9 @@
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, Effect, Metric } from 'effect';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
+import { syncEventsProcessedTotal } from '../../metrics.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
+import { recordSyncFailure } from '../recordSyncFailure.js';
 
 export interface PendingGuildJoin {
   readonly id: string;
@@ -35,16 +36,13 @@ const processEvent = Effect.Do.pipe(
               ),
             ),
             Effect.catch((error) =>
-              rpc['Guild/MarkGuildJoinFailed']({ id: event.id, error: String(error) }).pipe(
-                Effect.tap(() =>
-                  Effect.logWarning(`Failed to add user ${event.discord_id} to guild`, error),
-                ),
-                Effect.tap(() =>
-                  Metric.update(
-                    Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'guild_join' }),
-                    1,
-                  ),
-                ),
+              recordSyncFailure(
+                rpc['Guild/MarkGuildJoinFailed']({ id: event.id, error: String(error) }),
+                {
+                  syncType: 'guild_join',
+                  message: `Failed to add user ${event.discord_id} to guild`,
+                  error,
+                },
               ),
             ),
             Effect.provideService(SyncRpc, rpc),

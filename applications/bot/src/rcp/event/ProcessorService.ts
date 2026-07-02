@@ -2,7 +2,8 @@ import type { EventRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, Effect, Match, Metric } from 'effect';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '~/metrics.js';
+import { syncEventsProcessedTotal } from '~/metrics.js';
+import { recordSyncFailure } from '~/rcp/recordSyncFailure.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { ChannelReorderSemaphore } from './ChannelReorderSemaphore.js';
@@ -61,16 +62,13 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            rpc['Event/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process event sync event ${event.id}`, error),
-              ),
-              Effect.tap(() =>
-                Metric.update(
-                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'event' }),
-                  1,
-                ),
-              ),
+            recordSyncFailure(
+              rpc['Event/MarkEventFailed']({ id: event.id, error: String(error) }),
+              {
+                syncType: 'event',
+                message: `Failed to process event sync event ${event.id}`,
+                error,
+              },
             ),
           ),
           Effect.provideService(SyncRpc, rpc),
