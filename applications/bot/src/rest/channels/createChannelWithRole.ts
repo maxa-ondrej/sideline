@@ -98,7 +98,7 @@ export const createDiscordChannelAndRole = (
     Effect.tap(({ channel, rpc }) =>
       rpc['Guild/UpsertChannel']({
         guild_id: guildId,
-        channel_id: channel.id as DiscordSchemas.Snowflake,
+        channel_id: DiscordSchemas.Snowflake.makeUnsafe(channel.id),
         name: channelName,
         type: Discord.ChannelTypes.GUILD_TEXT,
         parent_id: Option.map(
@@ -113,8 +113,8 @@ export const createDiscordChannelAndRole = (
       ),
     ),
     Effect.map(({ channel, role }) => ({
-      discord_channel_id: channel.id as DiscordSchemas.Snowflake,
-      discord_role_id: role.id as DiscordSchemas.Snowflake,
+      discord_channel_id: DiscordSchemas.Snowflake.makeUnsafe(channel.id),
+      discord_role_id: DiscordSchemas.Snowflake.makeUnsafe(role.id),
     })),
   );
 

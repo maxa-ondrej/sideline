@@ -1,4 +1,4 @@
-import type { Discord as DiscordSchemas } from '@sideline/domain';
+import { Discord as DiscordSchemas } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import * as Discord from 'dfx/types';
 import { Effect } from 'effect';
@@ -35,6 +35,6 @@ export const createRoleForChannel = (
     ),
     Effect.map(({ role }) => ({
       discord_channel_id: channelId,
-      discord_role_id: role.id as DiscordSchemas.Snowflake,
+      discord_role_id: DiscordSchemas.Snowflake.makeUnsafe(role.id),
     })),
   );
