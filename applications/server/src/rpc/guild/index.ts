@@ -1,17 +1,21 @@
 import {
+  Auth,
   type Discord,
   EventRpcModels,
   type GroupModel,
   GuildRpcGroup,
+  GuildRpcModels,
   type Team,
-  type TeamMember,
+  TeamMember,
+  type User,
 } from '@sideline/domain';
 import { LogicError, Schemas } from '@sideline/effect-lib';
 import { applyTemplate, sanitizeHexColor, sanitizeRendered } from '@sideline/template-renderer';
-import { Array, type DateTime, Effect, Option, pipe, Schema } from 'effect';
+import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import { SqlClient, SqlSchema } from 'effect/unstable/sql';
 import { BotGuildsRepository } from '~/repositories/BotGuildsRepository.js';
 import { ChannelSyncEventsRepository } from '~/repositories/ChannelSyncEventsRepository.js';
+import { catchSqlErrors } from '~/repositories/catchSqlErrors.js';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
 import { DiscordChannelsRepository } from '~/repositories/DiscordChannelsRepository.js';
 import { DiscordRoleMappingRepository } from '~/repositories/DiscordRoleMappingRepository.js';
@@ -925,6 +929,108 @@ export const GuildsRpcLive = Effect.Do.pipe(
                 ),
             }),
           ),
+        ),
+
+      // Server-side is the source of truth for validation — the bot's slash-command
+      // payload uses permissive `String`/`Number` fields, so name, birth_date, and
+      // jersey_number are re-validated/re-decoded here with the same schemas the
+      // bot's own modal validation uses (`Auth.BirthDateString`,
+      // `TeamMember.JerseyNumber`) before anything is persisted. `/complete` marks
+      // the user's profile globally complete: name, birth date, gender, and
+      // `is_profile_complete = true` are written via `deps.users.completeProfile`,
+      // and the optional jersey number is written alongside it, all inside a
+      // single transaction.
+      'Guild/CompleteMemberProfile': ({
+        guild_id,
+        discord_user_id,
+        name,
+        birth_date,
+        gender,
+        jersey_number,
+      }: {
+        readonly guild_id: Discord.Snowflake;
+        readonly discord_user_id: Discord.Snowflake;
+        readonly name: string;
+        readonly birth_date: string;
+        readonly gender: User.Gender;
+        readonly jersey_number: Option.Option<number>;
+      }) =>
+        Effect.Do.pipe(
+          Effect.bind('team', () =>
+            deps.teams.findByGuildId(guild_id).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new GuildRpcModels.CompleteProfileGuildNotFound()),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+          ),
+          Effect.bind('membership', ({ team }) =>
+            deps.members.findMembershipByDiscordAndTeam(discord_user_id, team.id).pipe(
+              Effect.flatMap(
+                Option.match({
+                  onNone: () => Effect.fail(new GuildRpcModels.CompleteProfileNotMember()),
+                  onSome: Effect.succeed,
+                }),
+              ),
+            ),
+          ),
+          Effect.bind('validatedName', () => {
+            const trimmed = name.trim();
+            return trimmed.length > 0
+              ? Effect.succeed(trimmed)
+              : Effect.fail(new GuildRpcModels.CompleteProfileInvalidInput());
+          }),
+          Effect.bind('validatedBirthDate', () =>
+            Schema.decodeUnknownEffect(Auth.BirthDateString)(birth_date).pipe(
+              Effect.mapError(() => new GuildRpcModels.CompleteProfileInvalidInput()),
+            ),
+          ),
+          Effect.bind('validatedJerseyNumber', () =>
+            Option.match(jersey_number, {
+              onNone: () => Effect.succeed(Option.none<TeamMember.JerseyNumber>()),
+              onSome: (n) =>
+                Schema.decodeUnknownEffect(TeamMember.JerseyNumber)(n).pipe(
+                  Effect.map(Option.some),
+                  Effect.mapError(() => new GuildRpcModels.CompleteProfileInvalidInput()),
+                ),
+            }),
+          ),
+          Effect.tap(({ membership, validatedName, validatedBirthDate, validatedJerseyNumber }) =>
+            deps.sql
+              .withTransaction(
+                Effect.Do.pipe(
+                  Effect.tap(() =>
+                    deps.users
+                      .completeProfile({
+                        id: membership.user_id,
+                        name: Option.some(validatedName),
+                        birth_date: Option.some(DateTime.makeUnsafe(validatedBirthDate)),
+                        gender: Option.some(gender),
+                      })
+                      .pipe(
+                        Effect.catchTag('NoSuchElementError', () =>
+                          LogicError.die('completeProfile: UPDATE returned no row'),
+                        ),
+                      ),
+                  ),
+                  Effect.tap(() =>
+                    Option.match(validatedJerseyNumber, {
+                      onNone: () => Effect.void,
+                      onSome: (n) => deps.members.setJerseyNumber(membership.id, Option.some(n)),
+                    }),
+                  ),
+                ),
+              )
+              .pipe(catchSqlErrors),
+          ),
+          Effect.map(({ validatedName, validatedBirthDate }) => ({
+            name: validatedName,
+            birth_date: validatedBirthDate,
+            gender,
+            jersey_number,
+          })),
         ),
 
       'Guild/BeginSudoSession': ({

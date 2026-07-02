@@ -5,6 +5,14 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-07-02 — New `/complete` Discord command completes your profile
+
+You can now complete your profile straight from Discord with the new `/complete` slash command (Czech: `/dokoncit`) — an alternative to the one-time web onboarding form.
+
+- Pick your gender when running the command, then fill in the pop-up form for name, date of birth, and (optionally) jersey number.
+- The reply is always ephemeral — visible only to you.
+- Run it again any time to update these details.
+
 ## 2026-07-01 — Changing the events channel now moves existing event posts automatically
 
 When a captain or admin changes the **Events channel** in **Team settings → Discord integration**, the bot now automatically migrates all upcoming event posts to the new channel.
