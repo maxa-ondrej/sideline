@@ -2,8 +2,9 @@ import type { WeeklySummaryRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Match, Metric } from 'effect';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
+import { syncEventsProcessedTotal } from '../../metrics.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
+import { recordSyncFailure } from '../recordSyncFailure.js';
 import { handleWeeklySummaryReady } from './handleWeeklySummaryReady.js';
 
 const action: (
@@ -37,16 +38,13 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            rpc['WeeklySummary/MarkEventFailed']({ id: event.id, error: String(error) }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process weekly summary sync event ${event.id}`, error),
-              ),
-              Effect.tap(() =>
-                Metric.update(
-                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'weekly_summary' }),
-                  1,
-                ),
-              ),
+            recordSyncFailure(
+              rpc['WeeklySummary/MarkEventFailed']({ id: event.id, error: String(error) }),
+              {
+                syncType: 'weekly_summary',
+                message: `Failed to process weekly summary sync event ${event.id}`,
+                error,
+              },
             ),
           ),
           Effect.provideService(SyncRpc, rpc),

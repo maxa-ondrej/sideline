@@ -2,9 +2,10 @@ import type { EmailRpcEvents } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Metric } from 'effect';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
+import { syncEventsProcessedTotal } from '../../metrics.js';
 import { POLL_BATCH_SIZE } from '../../rest/utils.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
+import { recordSyncFailure } from '../recordSyncFailure.js';
 import { handleEmailPostEvent } from './handleEmailPostEvent.js';
 
 const processEvent = Effect.Do.pipe(
@@ -33,19 +34,16 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            rpc['Email/MarkEmailPostEventFailed']({
-              id: event.id,
-              error: String(error),
-            }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process email post event ${event.id}`, error),
-              ),
-              Effect.tap(() =>
-                Metric.update(
-                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'email' }),
-                  1,
-                ),
-              ),
+            recordSyncFailure(
+              rpc['Email/MarkEmailPostEventFailed']({
+                id: event.id,
+                error: String(error),
+              }),
+              {
+                syncType: 'email',
+                message: `Failed to process email post event ${event.id}`,
+                error,
+              },
             ),
           ),
           Effect.provideService(SyncRpc, rpc),

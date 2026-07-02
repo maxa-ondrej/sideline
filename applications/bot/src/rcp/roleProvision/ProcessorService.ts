@@ -2,9 +2,10 @@ import type { RoleProvisionRpcGroup } from '@sideline/domain';
 import { Bind } from '@sideline/effect-lib';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, Cause, Effect, Metric } from 'effect';
-import { syncEventsFailedTotal, syncEventsProcessedTotal } from '../../metrics.js';
+import { syncEventsProcessedTotal } from '../../metrics.js';
 import { POLL_BATCH_SIZE } from '../../rest/utils.js';
 import { SyncRpc } from '../../services/SyncRpc.js';
+import { recordSyncFailure } from '../recordSyncFailure.js';
 import { handleProvisionRole } from './handleProvisionRole.js';
 
 const processEvent = Effect.Do.pipe(
@@ -23,19 +24,16 @@ const processEvent = Effect.Do.pipe(
             ),
           ),
           Effect.catch((error) =>
-            rpc['RoleProvision/MarkFailed']({
-              id: event.id,
-              error: Cause.pretty(Cause.fail(error)),
-            }).pipe(
-              Effect.tap(() =>
-                Effect.logWarning(`Failed to process role provision event ${event.id}`, error),
-              ),
-              Effect.tap(() =>
-                Metric.update(
-                  Metric.withAttributes(syncEventsFailedTotal, { sync_type: 'role_provision' }),
-                  1,
-                ),
-              ),
+            recordSyncFailure(
+              rpc['RoleProvision/MarkFailed']({
+                id: event.id,
+                error: Cause.pretty(Cause.fail(error)),
+              }),
+              {
+                syncType: 'role_provision',
+                message: `Failed to process role provision event ${event.id}`,
+                error,
+              },
             ),
           ),
           Effect.provideService(SyncRpc, rpc),
