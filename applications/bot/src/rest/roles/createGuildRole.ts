@@ -1,4 +1,4 @@
-import type { Discord, Role, Team } from '@sideline/domain';
+import { Discord, type Role, type Team } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect } from 'effect';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -22,7 +22,7 @@ export const createGuildRole = (
       rpc['Role/UpsertMapping']({
         team_id: teamId,
         role_id: roleId,
-        discord_role_id: role.id as Discord.Snowflake,
+        discord_role_id: Discord.Snowflake.makeUnsafe(role.id),
       }).pipe(Effect.map(() => role.id)),
     ),
   );

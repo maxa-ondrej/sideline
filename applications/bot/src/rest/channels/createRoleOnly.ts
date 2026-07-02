@@ -1,4 +1,4 @@
-import type { Discord as DiscordSchemas } from '@sideline/domain';
+import { Discord as DiscordSchemas } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Effect } from 'effect';
 import { retryPolicy } from '../utils.js';
@@ -20,6 +20,6 @@ export const createRoleOnly = (
       Effect.logInfo(`Auto-created Discord role "${roleName}" (${role.id}) in guild ${guildId}`),
     ),
     Effect.map(({ role }) => ({
-      discord_role_id: role.id as DiscordSchemas.Snowflake,
+      discord_role_id: DiscordSchemas.Snowflake.makeUnsafe(role.id),
     })),
   );

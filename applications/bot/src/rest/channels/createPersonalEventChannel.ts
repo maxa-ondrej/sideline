@@ -56,7 +56,7 @@ export const createPersonalEventChannel = (
     Effect.tap(({ channel, rpc }) =>
       rpc['Guild/UpsertChannel']({
         guild_id: guildId,
-        channel_id: channel.id as DiscordSchemas.Snowflake,
+        channel_id: DiscordSchemas.Snowflake.makeUnsafe(channel.id),
         name: channelName,
         type: Discord.ChannelTypes.GUILD_TEXT,
         parent_id: Option.map(
@@ -71,6 +71,6 @@ export const createPersonalEventChannel = (
       ),
     ),
     Effect.map(({ channel }) => ({
-      discord_channel_id: channel.id as DiscordSchemas.Snowflake,
+      discord_channel_id: DiscordSchemas.Snowflake.makeUnsafe(channel.id),
     })),
   );
