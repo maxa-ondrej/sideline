@@ -289,7 +289,7 @@ export function OnboardingPage({
     setLoadingGuilds(true);
     const result = await ApiClient.asEffect().pipe(
       Effect.flatMap((api) => api.auth.myGuilds()),
-      Effect.catch(() => Effect.succeed([] as ReadonlyArray<Auth.DiscordGuild>)),
+      Effect.catch(() => Effect.succeed<ReadonlyArray<Auth.DiscordGuild>>([])),
       run(),
     );
     if (Option.isSome(result)) {
