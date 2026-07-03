@@ -40,9 +40,7 @@ export const Route = createFileRoute('/(authenticated)/teams/$teamId/rosters/$ro
             api.eventRoster.listRosterRequests({ params: { teamId, rosterId } }),
           ),
           Effect.tapError((e) => Effect.logWarning('Failed to load roster pending requests', e)),
-          Effect.catch(() =>
-            Effect.succeed([] as ReadonlyArray<EventRosterApi.PendingRequestView>),
-          ),
+          Effect.catch(() => Effect.succeed<ReadonlyArray<EventRosterApi.PendingRequestView>>([])),
           context.run,
         ),
       ],

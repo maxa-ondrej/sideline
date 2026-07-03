@@ -30,16 +30,16 @@ export const Route = createFileRoute('/onboarding/$token')({
       ),
       Effect.map((preview): PreviewResult => ({ _tag: 'ok', preview })),
       Effect.catchTag('OnboardingTokenNotFound', () =>
-        Effect.succeed({ _tag: 'not-found' } as PreviewResult),
+        Effect.succeed<PreviewResult>({ _tag: 'not-found' }),
       ),
       Effect.catchTag('OnboardingTokenExpired', () =>
-        Effect.succeed({ _tag: 'expired' } as PreviewResult),
+        Effect.succeed<PreviewResult>({ _tag: 'expired' }),
       ),
       Effect.catchTag('OnboardingTokenRevoked', () =>
-        Effect.succeed({ _tag: 'revoked' } as PreviewResult),
+        Effect.succeed<PreviewResult>({ _tag: 'revoked' }),
       ),
       Effect.catchTag('OnboardingTokenAlreadyConsumed', () =>
-        Effect.succeed({ _tag: 'consumed' } as PreviewResult),
+        Effect.succeed<PreviewResult>({ _tag: 'consumed' }),
       ),
       warnAndCatchAll,
       context.run,
