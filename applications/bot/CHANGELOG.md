@@ -1,5 +1,17 @@
 # @sideline/bot
 
+## 0.30.2
+
+### Patch Changes
+
+- [#486](https://github.com/maxa-ondrej/sideline/pull/486) [`95e4fc9`](https://github.com/maxa-ondrej/sideline/commit/95e4fc9c85029a67520a943bd99cb191d7657405) Thanks [@maxa-ondrej](https://github.com/maxa-ondrej)! - Add an admin "Remove option" button to polls. Captains/admins can remove one or
+  more options from an open poll via an ephemeral select menu; votes for removed
+  options are deleted and the remaining options are renumbered so their letters stay
+  contiguous. A poll always keeps at least two options.
+- Updated dependencies [[`95e4fc9`](https://github.com/maxa-ondrej/sideline/commit/95e4fc9c85029a67520a943bd99cb191d7657405)]:
+  - @sideline/domain@0.37.1
+  - @sideline/i18n@0.18.2
+
 ## 0.30.1
 
 ### Patch Changes
