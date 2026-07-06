@@ -1347,10 +1347,7 @@ describe('PollsRepository — findPollVoters', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests — removeOptions (TDD mode — implementation does not exist yet)
-// ---------------------------------------------------------------------------
-// NOTE: These tests reference repo.removeOptions which is not yet implemented.
-// They will fail until the method is added to PollsRepository.
+// Tests — removeOptions
 // ---------------------------------------------------------------------------
 
 const removeOptions = (

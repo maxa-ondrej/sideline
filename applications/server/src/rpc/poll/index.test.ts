@@ -1539,8 +1539,10 @@ describe('Poll/RemoveOptions RPC — permission gate and error propagation', () 
   );
 
   itEffect.effect('repo raises PollTooFewOptions → propagates to caller', () => {
-    // removeOptions is typed explicitly (not `as any`) so the handler arg mapping
-    // optionIds (camelCase) is verified: a wrong option_ids key would be a type error here.
+    // The `RemoveOptionsCall` annotation on `_input` documents the camelCase arg shape
+    // (optionIds) the handler is expected to pass. Note the layer object is cast `as any`
+    // below, so this is self-documentation, not a compile-time check of the call site;
+    // the arg mapping is asserted at runtime in the success test above (`call.optionIds`).
     const MockPollsRepoTooFew = Layer.succeed(PollsRepository, {
       createPoll: () => Effect.die(new Error('Not used')),
       saveMessageId: () => Effect.void,

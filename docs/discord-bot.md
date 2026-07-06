@@ -1207,11 +1207,11 @@ Declines a roster attendance request from the per-event approval thread.
 
 ### Poll "Remove option" Button — `poll-remove:{pollId}`
 
-Opens an ephemeral string-select menu listing the poll's current options so an admin can pick one or more to remove.
+Opens an ephemeral string-select menu listing the poll's current options so a captain or admin can pick one or more to remove.
 
 **Custom ID pattern:** `poll-remove:{pollId}`
 
-**Visibility:** admins with `poll:manage` only (the same permission required to create/close polls).
+**Visibility:** members with `poll:manage` only (captains and admins by default; the same permission required to create/close polls).
 
 **Behavior:**
 

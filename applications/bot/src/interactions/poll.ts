@@ -1175,6 +1175,23 @@ export const PollRemoveSelectSubmit = Effect.Do.pipe(
     const pollId = decodePollId(pollIdRaw);
     const optionIds = selectedValues.map((v) => decodePollOptionId(v));
 
+    // Defense-in-depth: the select bounds the choice with min_values/max_values, but
+    // re-validate the decoded id count here before hitting the RPC (an empty selection
+    // should never reach the server, where it would be an invalid no-op).
+    if (optionIds.length === 0) {
+      return Effect.as(
+        Effect.forkDetach(
+          replyWebhook(
+            rest,
+            interaction,
+            { content: m.bot_poll_err_generic({}, { locale }) },
+            'Failed to update poll-remove-select empty-selection response',
+          ),
+        ),
+        ephemeralDeferred,
+      );
+    }
+
     const removeAndFollowUp = rpc['Poll/RemoveOptions']({
       guild_id: decodeSnowflake(guildId),
       discord_user_id: discordUserId,
@@ -1231,6 +1248,11 @@ export const PollRemoveSelectSubmit = Effect.Do.pipe(
               onNone: () => Effect.void,
               onSome: (view) => rebuildBoard(rest, view, embedLocale),
             }),
+          ),
+          // Log before swallowing: a failed closed-board refresh still falls through to
+          // the closed notice, but the failure must not vanish silently.
+          Effect.tapError((e) =>
+            Effect.logWarning('Failed to refresh poll view after PollClosed', e),
           ),
           Effect.catchTag('PollGuildNotFound', () => Effect.void),
           Effect.catchTag('PollNotMember', () => Effect.void),

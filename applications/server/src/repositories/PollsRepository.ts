@@ -611,6 +611,19 @@ const make = Effect.gen(function* () {
       sql`SELECT COUNT(*)::int AS count FROM poll_options WHERE poll_id = ${pollId}`,
   });
 
+  // Counts how many of the given option ids actually belong to the poll, in a single
+  // round trip. Callers compare the result against the number of requested ids to detect
+  // any that don't belong. Assumes a non-empty id list (sql.in cannot render `IN ()`).
+  const countBelongingOptionsQuery = SqlSchema.findOne({
+    Request: Schema.Struct({
+      poll_id: Poll.PollId,
+      option_ids: Schema.Array(Poll.PollOptionId),
+    }),
+    Result: OptionCountRow,
+    execute: (input) =>
+      sql`SELECT COUNT(*)::int AS count FROM poll_options WHERE poll_id = ${input.poll_id} AND id IN ${sql.in(input.option_ids)}`,
+  });
+
   const findExistingOptionQuery = SqlSchema.findOneOption({
     Request: Schema.Struct({ poll_id: Poll.PollId, label: Schema.String }),
     Result: ExistingOptionRow,
@@ -769,17 +782,21 @@ const make = Effect.gen(function* () {
               Effect.flatMap(() => Effect.fail(new PollRpcModels.PollClosed())),
             );
           }),
-          // Verify every requested option_id belongs to this poll.
+          // Verify every requested option_id belongs to this poll — one query for the
+          // whole set. If fewer belong than were requested, at least one is foreign/gone.
           Effect.tap(() =>
-            Effect.forEach(uniqueOptionIds, (optionId) =>
-              checkOptionBelongsQuery({ poll_id: input.pollId, option_id: optionId }).pipe(
-                catchSqlErrors,
-                Effect.flatMap(
-                  Option.match({
-                    onNone: () => Effect.fail(new PollRpcModels.PollOptionNotFound()),
-                    onSome: () => Effect.void,
-                  }),
-                ),
+            countBelongingOptionsQuery({
+              poll_id: input.pollId,
+              option_ids: uniqueOptionIds,
+            }).pipe(
+              catchSqlErrors,
+              Effect.catchTag('NoSuchElementError', () =>
+                LogicError.die('Belonging-option count returned no row'),
+              ),
+              Effect.flatMap((r) =>
+                r.count === uniqueOptionIds.length
+                  ? Effect.void
+                  : Effect.fail(new PollRpcModels.PollOptionNotFound()),
               ),
             ),
           ),
