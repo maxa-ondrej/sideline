@@ -1,4 +1,9 @@
-import { Discord as DiscordSchemas, type Event, type EventRpcModels } from '@sideline/domain';
+import {
+  Discord as DiscordSchemas,
+  type Event,
+  type EventRpcModels,
+  type TeamMember,
+} from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array as Arr, DateTime, Effect, Option, Order } from 'effect';
 import type { Locale } from '~/locale.js';
@@ -29,7 +34,7 @@ const desiredOrder = Order.make<MemberMessage>((a, b) => {
 
 const reorderWithMessages = (
   params: {
-    team_member_id: string;
+    team_member_id: TeamMember.TeamMemberId;
     discord_id: DiscordSchemas.Snowflake;
     guild_id: DiscordSchemas.Snowflake;
     locale: Locale;
@@ -155,7 +160,7 @@ const reorderWithMessages = (
  * Content refresh is the reconcile loop's job — this pass only fixes ordering.
  */
 export const reorderPersonalChannel = (params: {
-  team_member_id: string;
+  team_member_id: TeamMember.TeamMemberId;
   discord_id: DiscordSchemas.Snowflake;
   guild_id: DiscordSchemas.Snowflake;
   locale: Locale;
