@@ -4,6 +4,7 @@ import {
   type Event,
   type EventRpcModels,
   type Team,
+  type TeamMember,
 } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array as Arr, Effect, Option, Schedule, Schema } from 'effect';
@@ -32,7 +33,7 @@ const tryDecodeGuild = (raw: unknown): GuildLocaleShape => {
 };
 
 type PersonalChannelMember = {
-  readonly team_member_id: string;
+  readonly team_member_id: TeamMember.TeamMemberId;
   readonly discord_id: DiscordSchemas.Snowflake;
   readonly personal_channel_id: DiscordSchemas.Snowflake;
 };
