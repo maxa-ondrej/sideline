@@ -489,7 +489,33 @@ export const sudoHandler = Interaction.asEffect().pipe(
       }),
     );
 
-    return Effect.as(Effect.forkDetach(work), ephemeralDeferred);
+    // Terminal backstop: the fork resolves the deferred reply; on any unhandled
+    // failure or defect still resolve it so the user isn't stuck on "Sideline is
+    // thinking…". Mirrors the profile-complete / event-create backstop.
+    return Effect.as(
+      Effect.forkDetach(
+        work.pipe(
+          Effect.catchCause((cause) =>
+            Effect.logError('sudo command: unexpected failure', cause).pipe(
+              Effect.andThen(DiscordREST.asEffect()),
+              Effect.flatMap((rest) =>
+                rest
+                  .updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+                    payload: { content: m.bot_sudo_err_generic({}, { locale }) },
+                  })
+                  .pipe(
+                    Effect.catchTag(
+                      ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'],
+                      (e) => Effect.logError('Failed to update sudo command error response', e),
+                    ),
+                  ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      ephemeralDeferred,
+    );
   }),
   Effect.withSpan('command/sudo'),
 );
