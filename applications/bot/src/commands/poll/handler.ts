@@ -277,12 +277,16 @@ export const pollHandler = Interaction.asEffect().pipe(
             Effect.logError('poll command: unexpected failure', cause).pipe(
               Effect.andThen(DiscordREST.asEffect()),
               Effect.flatMap((rest) =>
-                replyWebhook(
-                  rest,
-                  interaction,
-                  { content: m.bot_poll_err_generic({}, { locale }) },
-                  'Failed to update poll command error response',
-                ),
+                rest
+                  .updateOriginalWebhookMessage(interaction.application_id, interaction.token, {
+                    payload: { content: m.bot_poll_err_generic({}, { locale }) },
+                  })
+                  .pipe(
+                    Effect.catchTag(
+                      ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'],
+                      (e) => Effect.logError('Failed to update poll command error response', e),
+                    ),
+                  ),
               ),
             ),
           ),
