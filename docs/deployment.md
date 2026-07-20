@@ -388,9 +388,9 @@ The GHCR `registry_package` webhook fired by the push notifies the MajNet bot, w
 
 ### 6.3 `release.yaml` — MajNet Release (Stable & Production)
 
-Triggers on push of a `vX.Y.Z` git tag. A release is repo-wide: one tag releases every app in the monorepo (MajNet ADR 0009/0018) — there is no per-package Changesets versioning anymore.
+Triggers on push of a per-app `@sideline/<app>@vX.Y.Z` git tag (continuing the historical tag naming) — each tag releases that one app; all apps are normally tagged together at one shared version. A plain `vX.Y.Z` tag is a supported fallback that releases every app at once (MajNet ADR 0009/0018). There is no per-package Changesets versioning anymore.
 
-For each app in the matrix, calls MajNet's reusable `app-release.yaml` workflow, which builds and pushes `ghcr.io/<owner>/<repo>/<app>:vX.Y.Z`.
+A resolve job parses the tag into (app, version); the release job builds and pushes `ghcr.io/<owner>/<repo>/<app>:vX.Y.Z` for the resolved app(s). MajNet's reusable `app-release.yaml` is not used because it derives the image tag from the git ref name, which the per-app tags prefix.
 
 The GHCR `registry_package` webhook tells the MajNet bot, which records the release (version → digest) and auto-tracks it into the **stable** class — the bot opens and auto-merges a render PR on `sideline-cz/ops` targeting `env/stable`.
 

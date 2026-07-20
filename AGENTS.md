@@ -34,7 +34,7 @@ The **migrations** package exports `MigratorLive` — a layer that only needs a 
 - **pnpm** — Fast, disk-efficient package manager (workspace-aware). Always use bare `pnpm` command, never `npx pnpm@...`
 - **Vitest 3.2+** — Testing framework with Effect integration (`@effect/vitest`)
 - **Biome.js** — Fast linting and formatting
-- **MajNet releases** — No Changesets. A release is a repo-wide `vX.Y.Z` git tag that builds `ghcr.io/sideline-cz/sideline/<app>:vX.Y.Z` images for every app; tags auto-track into the `stable` class and are promoted to `production` via an admin-gated render PR. Every merge to `main` also publishes `sha-…`/`latest` images to the `testing` class. See `/deploy`.
+- **MajNet releases** — No Changesets. A release is a set of per-app git tags `@sideline/<app>@vX.Y.Z` (all apps normally tagged together at one shared version); each tag builds that app's `ghcr.io/sideline-cz/sideline/<app>:vX.Y.Z` image. Releases auto-track into the `stable` class and are promoted to `production` via an admin-gated render PR. Every merge to `main` also publishes `sha-…`/`latest` images to the `testing` class. See `/deploy`.
 - **Husky + lint-staged** — Pre-commit hooks (auto-format via biome)
 
 ## Effect-TS Patterns
@@ -395,7 +395,7 @@ Trunk-based development on `main`:
 2. Make changes, commit (pre-commit hooks run biome automatically)
 3. Open a PR against `main` — CI runs checks + snapshot build
 4. After review, squash-merge into `main`
-5. No changeset is needed — a release is cut post-merge by tagging `main` with a repo-wide `vX.Y.Z` tag (see `/deploy`)
+5. No changeset is needed — a release is cut post-merge by pushing per-app `@sideline/<app>@vX.Y.Z` tags (see `/deploy`)
 
 ## Development Workflow Skills
 
@@ -423,9 +423,9 @@ The development workflow is split into composable skills:
 
 ## Releases
 
-There is no Changesets flow and no `pnpm changeset*` command. A release is a single repo-wide `vX.Y.Z` git tag on this repo — one tag releases every app in the monorepo.
+There is no Changesets flow and no `pnpm changeset*` command. A release is a set of per-app git tags `@sideline/<app>@vX.Y.Z` — all apps are normally tagged together at one shared version (a plain `vX.Y.Z` tag is a fallback that releases every app at once).
 
-- **Cut a release**: tag `main` with `vX.Y.Z` (bump patch for fixes, minor for features, never major without the user asking). `.github/workflows/release.yaml` builds and pushes `ghcr.io/sideline-cz/sideline/<app>:vX.Y.Z` for every app, and MajNet auto-tracks the tag into the `stable` class.
+- **Cut a release**: tag `main` with `@sideline/<app>@vX.Y.Z` for each app being released (bump patch for fixes, minor for features, never major without the user asking). `.github/workflows/release.yaml` parses each tag and builds + pushes that app's `ghcr.io/sideline-cz/sideline/<app>:vX.Y.Z` image (the IMAGE tag is the plain version — what MajNet reads), and MajNet auto-tracks the release into the `stable` class.
 - **Promote to production**: promote the chosen `vX.Y.Z` release via MajNet, which opens an admin-gated `env/production` render PR on `sideline-cz/ops`; merging that PR is the production deploy.
 - Run the full flow through the `/deploy` skill (authoritative reference: `.claude/skills/deploy/SKILL.md`).
 

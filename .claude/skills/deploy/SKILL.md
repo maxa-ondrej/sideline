@@ -1,16 +1,16 @@
 ---
 name: deploy
-description: Release the merged main branch through MajNet — cut a repo-wide vX.Y.Z release (stable auto-deploys), then promote it to production via the admin-gated env/production render PR in sideline-cz/ops. Use when the user says "deploy", "release", "ship to prod", "cut a release", or "promote to production".
+description: Release the merged main branch through MajNet — push per-app `@sideline/<app>@vX.Y.Z` release tags (stable auto-deploys), then promote to production via the admin-gated env/production render PR in sideline-cz/ops. Use when the user says "deploy", "release", "ship to prod", "cut a release", or "promote to production".
 ---
 
 # Deploy Skill
 
-Release `main` through **MajNet** (the GitOps platform — source: `~/Projects/majnet`, design in `docs/design.md`, ADR 0009/0018). There is **no Changesets flow** — a release is a repo-wide `vX.Y.Z` git tag; one tag releases every app in the monorepo.
+Release `main` through **MajNet** (the GitOps platform — source: `~/Projects/majnet`, design in `docs/design.md`, ADR 0009/0018). There is **no Changesets flow** — a release is a set of **per-app git tags `@sideline/<app>@vX.Y.Z`** (continuing the historical tag naming); all apps normally release together at the same version. A plain `vX.Y.Z` tag is a supported fallback that releases every app at once (what the MajNet dashboard's repo-wide cut would produce).
 
 ## Pipeline reference
 
 - **Builds (automatic, no ceremony):** every PR publishes `pr-<N>` images (ephemeral preview); every merge to `main` publishes `sha-…`/`latest` (auto-deployed to the **testing** class). Driven by `.github/workflows/build.yaml`.
-- **Release = a `vX.Y.Z` git tag on this repo.** `.github/workflows/release.yaml` builds + pushes `ghcr.io/sideline-cz/sideline/<app>:vX.Y.Z` for every app. The GHCR `registry_package` webhook tells the MajNet bot, which records the release (version → digest) and **auto-tracks it into the `stable` class** — the bot opens and auto-merges a render PR on `sideline-cz/ops` `env/stable`; the reconciler converges.
+- **Release = per-app git tags `@sideline/<app>@vX.Y.Z`.** `.github/workflows/release.yaml` parses each tag and builds + pushes that app's image `ghcr.io/sideline-cz/sideline/<app>:vX.Y.Z` (the IMAGE tag is the plain version — that is what MajNet reads). The GHCR `registry_package` webhook tells the MajNet bot, which records the release (version → digest) per app and **auto-tracks it into the `stable` class** — auto-merged render PR on `sideline-cz/ops` `env/stable`; the reconciler converges.
 - **Production:** a separate **promote** of a chosen release (MajNet dashboard, or its CLI if available) → the bot commits the digest to the production overlay and opens an **`env/production` render PR** on `sideline-cz/ops`. **Merging that render PR is the production deploy trigger** and requires admin review — it shows the exact final manifest diff.
 - The `sideline-cz/ops` repo is managed by the platform; `git log env/production` is the audit/rollback record. Never hand-edit rendered `env/*` branches.
 
@@ -25,12 +25,14 @@ Follow in order; stop and report on any failure.
 
 ### Step 2: Cut the release (tag → stable)
 
-1. Determine the version: repo-wide semver line from the latest `v*` tag (`git tag -l 'v*' --sort=-v:refname | head -1`). Bump patch for fixes, minor for features; never major without the user asking.
-2. Prefer the MajNet dashboard's **cut** action if the user wants to drive it; otherwise tag directly:
+1. Determine the version: shared semver line from the latest release tags (`git tag -l '@sideline/*@v*' --sort=-v:refname | head -5`). Bump patch for fixes, minor for features; never major without the user asking.
+2. Tag every app being released (normally all five) at the new version and push:
    ```bash
-   git tag vX.Y.Z && git push origin vX.Y.Z
+   V=X.Y.Z
+   for app in proxy server web docs bot; do git tag "@sideline/${app}@v${V}"; done
+   git push origin --tags
    ```
-3. Watch `.github/workflows/release.yaml` for the tag to success (`gh run watch`). All app matrix entries must be green.
+3. Watch `.github/workflows/release.yaml` (one run per tag) to success (`gh run watch`). Every app's run must be green.
 4. Verify **stable** picked it up: the bot auto-merges a render PR on `sideline-cz/ops` targeting `env/stable` — confirm the merged PR / new commit on `env/stable` references the `vX.Y.Z` digests:
    ```bash
    gh pr list --repo sideline-cz/ops --state merged --base env/stable --limit 3

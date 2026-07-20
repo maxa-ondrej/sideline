@@ -23,7 +23,7 @@ Run `git status` and `git diff` to understand what changed. If there are no chan
 
 ### Step 2: Versioning note (no changesets)
 
-This repo does NOT use Changesets. Do not create `.changeset/` files. Releases are repo-wide `vX.Y.Z` git tags handled by MajNet after merge (see `/deploy`) — nothing version-related is needed in the PR.
+This repo does NOT use Changesets. Do not create `.changeset/` files. Releases are per-app `@sideline/<app>@vX.Y.Z` git tags handled by MajNet after merge (see `/deploy`) — nothing version-related is needed in the PR.
 
 ---
 
