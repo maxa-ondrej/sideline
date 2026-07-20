@@ -42,7 +42,7 @@ Docs root (/docs)
 │
 ├── FAQ                                [v1]   — 8–12 of the most common support questions grouped by role.
 │
-├── Changelog                          [v1]   — Curated user-facing release notes. Hand-authored from `applications/web/CHANGELOG.md`; only user-visible changes, in plain language.
+├── Changelog                          [v1]   — Curated user-facing release notes. Hand-authored from merged PRs / release notes; only user-visible changes, in plain language.
 │
 └── About
     ├── Contact                        [v1]   — Where to get help (Discord community link, email).
