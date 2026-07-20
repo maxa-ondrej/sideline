@@ -26,11 +26,13 @@ Follow in order; stop and report on any failure.
 ### Step 2: Cut the release (tag → stable)
 
 1. Determine the version: shared semver line from the latest release tags (`git tag -l '@sideline/*@v*' --sort=-v:refname | head -5`). Bump patch for fixes, minor for features; never major without the user asking.
-2. Tag every app being released (normally all five) at the new version and push:
+2. Tag every app being released (normally all five) at the new version and push **one tag per push** — GitHub does NOT create events when more than 3 tags arrive in a single push, so a bulk `git push --tags` silently triggers NOTHING:
    ```bash
    V=X.Y.Z
-   for app in proxy server web docs bot; do git tag "@sideline/${app}@v${V}"; done
-   git push origin --tags
+   for app in proxy server web docs bot; do
+     git tag "@sideline/${app}@v${V}"
+     git push origin "@sideline/${app}@v${V}"
+   done
    ```
 3. Watch `.github/workflows/release.yaml` (one run per tag) to success (`gh run watch`). Every app's run must be green.
 4. Verify **stable** picked it up: the bot auto-merges a render PR on `sideline-cz/ops` targeting `env/stable` — confirm the merged PR / new commit on `env/stable` references the `vX.Y.Z` digests:
