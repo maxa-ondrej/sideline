@@ -94,7 +94,7 @@ Ship docs updates **in the same PR** as code changes that alter end-user behavio
 
 - Build stage: `node:25-slim` with pnpm, runs `pnpm --filter @sideline/docs build`. Build scripts (e.g. `sharp`) run normally — no `--ignore-scripts`.
 - Production stage: `nginx:alpine` listening on port 80. Contains only the static `dist/`.
-- Healthcheck: `GET /health` returns `{"status":"ok"}` — served by in-container nginx, not Astro.
+- MajNet standard endpoints (served by in-container nginx via `nginx.conf.template`, envsubst-expanded at container start — not Astro): `GET /healthz` (and legacy `GET /health`) return `{"status":"ok"}`; `GET /info` returns `{"version","commit","build_time"}` from the `APP_VERSION`/`GIT_COMMIT`/`BUILD_TIME` env vars baked in by the Dockerfile. Every app must serve `/healthz` + `/info`; `/health` is legacy-compat — never remove it.
 - The outer proxy forwards `/docs/*` to this container via `proxy_pass http://docs:80` with no URI rewriting.
 
 ## Verification checklist (manual)

@@ -19,4 +19,7 @@ const readVersion = (): string => {
   return 'unknown';
 };
 
-export const APP_VERSION: string = readVersion();
+const envVersion = process.env.APP_VERSION;
+
+export const APP_VERSION: string =
+  envVersion !== undefined && envVersion !== '' ? envVersion : readVersion();
