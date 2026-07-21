@@ -45,6 +45,8 @@ Server, Bot, Web ────────────────────►
 
 ## 2. Service Details
 
+Every app follows MajNet's standard health/info convention (ADR 0020) on its health port: `GET /healthz` is a bare liveness probe (`{"status": "ok"}`), and `GET /info` returns `{version, commit, build_time}` sourced from the `APP_VERSION` / `GIT_COMMIT` / `BUILD_TIME` env vars baked in at image build time via Docker `ARG`s (see [6.3](#63-releaseyaml-majnet-release-stable--production)). The legacy `GET /health` endpoint is unchanged and kept alongside `/healthz` for backward compatibility — it is what the Docker Compose/ops health-check manifests actually declare today.
+
 ### 2.1 Proxy
 
 **Purpose:** Terminates inbound HTTP traffic, forwards `/api/*` to the server, and all other paths to the web frontend. Handles the Discord OAuth callback redirect in a small njs script (`preview_redirect.js`).
@@ -58,7 +60,7 @@ Server, Bot, Web ────────────────────►
 - `:80` (or `$PORT`) — application traffic
 - `:9000` (or `$HEALTH_PORT`) — health check server
 
-**Health check:** `GET http://localhost:9000/health` returns `{"status": "ok"}`
+**Health check:** `GET http://localhost:9000/health` returns `{"status": "ok"}` (also served on `/healthz`; `/info` on the same port returns version metadata)
 
 **Dependencies:** `server` (healthy), `web` (healthy), `docs` (healthy)
 
@@ -89,7 +91,7 @@ Build stages:
 - `:80` (or `$PORT`) — application traffic
 - `:9000` (or `$HEALTH_PORT`) — health check
 
-**Health check:** `GET http://localhost:9000/health` — checked up to 15 times (30 s apart, 30 s start period)
+**Health check:** `GET http://localhost:9000/health` — checked up to 15 times (30 s apart, 30 s start period). The same port also serves `/healthz` (liveness) and `/info` (`{version, commit, build_time}`).
 
 **Dependencies:** PostgreSQL
 
@@ -128,7 +130,7 @@ Build stages are identical in structure to the server Dockerfile: `base` → `de
 **Ports:**
 - `:9000` (or `$HEALTH_PORT`) — health check only (no external application port)
 
-**Health check:** `GET http://localhost:9000/health`
+**Health check:** `GET http://localhost:9000/health` (also served on `/healthz`; `/info` on the same port returns version metadata)
 
 **Dependencies:** `server` (healthy) — the bot connects to the server's RPC endpoint on startup.
 
@@ -152,7 +154,7 @@ Build stages: `base` → `deps` → `build` → `production`. The Vite build out
 **Ports:**
 - `:3000` (or `$PORT`) — application traffic
 
-**Health check:** `GET http://localhost:3000/health`
+**Health check:** `GET http://localhost:3000/health` (also served on `/healthz`; `/info` returns `{version, commit, build_time}` read server-side from `APP_VERSION`/`GIT_COMMIT`/`BUILD_TIME`, falling back to `"dev"`/`"unknown"`/`null`)
 
 **Dependencies:** `server` (healthy)
 
@@ -171,7 +173,7 @@ Build stages:
 **Ports:**
 - `:80` — static file serving
 
-**Health check:** `GET http://localhost/health` returns `{"status": "ok"}` — checked up to 3 times (30 s apart, 10 s start period)
+**Health check:** `GET http://localhost/health` returns `{"status": "ok"}` — checked up to 3 times (30 s apart, 10 s start period). `/healthz` returns the same payload; `/info` returns `{version, commit, build_time}` rendered from the nginx config template (`nginx.conf.template`) via envsubst at container start.
 
 **Dependencies:** none
 
@@ -390,7 +392,7 @@ The GHCR `registry_package` webhook fired by the push notifies the MajNet bot, w
 
 Triggers on push of a per-app `@sideline/<app>@vX.Y.Z` git tag (continuing the historical tag naming) — each tag releases that one app; all apps are normally tagged together at one shared version. A plain `vX.Y.Z` tag is a supported fallback that releases every app at once (MajNet ADR 0009/0018). There is no per-package Changesets versioning anymore.
 
-A resolve job parses the tag into (app, version); the release job builds and pushes `ghcr.io/<owner>/<repo>/<app>:vX.Y.Z` for the resolved app(s). MajNet's reusable `app-release.yaml` is not used because it derives the image tag from the git ref name, which the per-app tags prefix.
+A `resolve` job parses the tag into a matrix of app(s) and the resolved `version`. The `release` job then delegates the actual build/push to MajNet's reusable `app-release.yaml` workflow (MajNet ADR 0020), passing `version` through explicitly as the image tag (`ghcr.io/<owner>/<repo>/<app>:vX.Y.Z`) rather than letting it derive the tag from the git ref name — which the per-app tags prefix and would otherwise mis-parse. The reusable workflow also bakes `version`, the resolved commit SHA, and the build timestamp into the image as Docker build-args (`VERSION`, `GIT_COMMIT`, `BUILD_TIME`), which each app's `Dockerfile` promotes to `APP_VERSION`/`GIT_COMMIT`/`BUILD_TIME` env vars so the running container can report them at `GET /info` (see [2. Service Details](#2-service-details)).
 
 The GHCR `registry_package` webhook tells the MajNet bot, which records the release (version → digest) and auto-tracks it into the **stable** class — the bot opens and auto-merges a render PR on `sideline-cz/ops` targeting `env/stable`.
 

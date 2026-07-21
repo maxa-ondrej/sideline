@@ -4493,7 +4493,7 @@ Returns the currently running server version and the most recently reported bot 
 
 | Field | Type | Nullable | Description |
 |---|---|---|---|
-| `server` | `string` | No | Server application version string (from `package.json#version` at startup) |
+| `server` | `string` | No | Server application version string. Read from the `APP_VERSION` env var when set (stamped into the image at build time from the release tag, MajNet ADR 0020); falls back to `package.json#version` for local/dev runs where the env var is unset. |
 | `bot` | `string` | No | Bot application version string as last reported by the bot via `BotInfo/ReportBotInfo` RPC; `"unknown"` if the bot has not yet reported |
 
 **Errors:** None — the endpoint always returns 200.

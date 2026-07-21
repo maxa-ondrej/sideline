@@ -13,6 +13,16 @@ server {
     return 200 '{"status":"ok"}';
   }
 
+  location = /healthz {
+    default_type application/json;
+    return 200 '{"status":"ok"}';
+  }
+
+  location = /info {
+    default_type application/json;
+    return 200 '{"version":"${APP_VERSION}","commit":"${GIT_COMMIT}","build_time":"${BUILD_TIME}"}';
+  }
+
   location = /docs {
     return 301 /docs/;
   }

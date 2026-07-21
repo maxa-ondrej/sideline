@@ -13,6 +13,10 @@ RUN pnpm --filter @sideline/docs build
 
 FROM nginx:alpine AS production
 RUN apk add --no-cache curl
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=
+ENV APP_VERSION=$VERSION GIT_COMMIT=$GIT_COMMIT BUILD_TIME=$BUILD_TIME
 COPY --from=build /app/applications/docs/dist /usr/share/nginx/html/docs
-COPY applications/docs/nginx.conf /etc/nginx/conf.d/default.conf
+COPY applications/docs/nginx.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 80

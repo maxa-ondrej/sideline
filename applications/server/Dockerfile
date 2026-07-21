@@ -17,6 +17,10 @@ RUN pnpm --recursive --parallel run codegen && pnpm build
 
 FROM base AS production
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+ARG VERSION=dev
+ARG GIT_COMMIT=unknown
+ARG BUILD_TIME=
+ENV APP_VERSION=$VERSION GIT_COMMIT=$GIT_COMMIT BUILD_TIME=$BUILD_TIME
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY patches/ patches/
 COPY --from=build --parents /app/packages/*/package.json /app/packages/*/dist /

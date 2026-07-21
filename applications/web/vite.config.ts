@@ -10,7 +10,7 @@ import pkg from './package.json' with { type: 'json' };
 
 const config = defineConfig({
   define: {
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkg.version),
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.APP_VERSION ?? pkg.version),
   },
   resolve: {
     alias: {
