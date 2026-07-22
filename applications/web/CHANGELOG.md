@@ -1,5 +1,10 @@
 # @sideline/web
 
+## 0.28.1
+
+### 🐛 Fixes
+- ship channel-by-type Release A web half (mis-typed as chore in #541) (#545)
+
 ## 0.28.0
 
 ### 🚀 Features
