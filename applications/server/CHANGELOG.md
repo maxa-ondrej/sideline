@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.40.3
+
+### 🐛 Fixes
+- drop per-event-type channel columns (Release B) (#543)
+
 ## 0.40.2
 
 ### 🐛 Fixes
