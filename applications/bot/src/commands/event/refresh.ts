@@ -6,7 +6,6 @@ import * as DiscordTypes from 'dfx/types';
 import { Effect, Metric, Option } from 'effect';
 import { guildLocale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
-import { reorderChannelMessages } from '~/rcp/event/reorderChannelMessages.js';
 import { reorderPersonalChannel } from '~/rcp/personalEvents/reorderPersonalChannel.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
@@ -25,10 +24,11 @@ const ephemeral = (content: string) =>
  *  - own personal channel → anyone may refresh;
  *  - another member's personal channel → Sideline admins (`team:manage`) only;
  *  - the team's global events channel → admins only.
- * The heavy refresh is forked so the interaction is acked within 3s. Global →
- * reorderChannelMessages (re-render in place + reorder); a personal channel →
- * MarkTeamPersonalEventsDirty (content re-render via reconcile) + reorderPersonalChannel,
- * acting with the channel OWNER's identity (so an admin refresh renders the owner's events).
+ * The heavy refresh is forked so the interaction is acked within 3s. A personal
+ * channel → MarkTeamPersonalEventsDirty (content re-render via reconcile) +
+ * reorderPersonalChannel, acting with the channel OWNER's identity (so an admin
+ * refresh renders the owner's events). The shared events board is removed, so
+ * the 'global' kind (and anything else) falls through to `bot_refresh_events_none`.
  */
 export const refreshHandler = Interaction.asEffect().pipe(
   Effect.tap(() =>
@@ -90,15 +90,6 @@ export const refreshHandler = Interaction.asEffect().pipe(
               return Effect.forkDetach(work).pipe(
                 Effect.as(ephemeral(m.bot_refresh_events_personal({}, { locale }))),
               );
-            }
-            // The global events channel: admins only.
-            if (identified.kind === 'global') {
-              if (!identified.is_admin) {
-                return Effect.succeed(ephemeral(m.bot_refresh_events_forbidden({}, { locale })));
-              }
-              return Effect.forkDetach(
-                reorderChannelMessages(snowflakeChannelId, channelLocale),
-              ).pipe(Effect.as(ephemeral(m.bot_refresh_events_global({}, { locale }))));
             }
             return Effect.succeed(ephemeral(m.bot_refresh_events_none({}, { locale })));
           }),

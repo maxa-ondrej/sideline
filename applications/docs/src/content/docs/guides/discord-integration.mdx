@@ -9,7 +9,7 @@ Sideline is Discord-first. Once the bot is installed, most day-to-day interactio
 
 ## What the bot does
 
-- **Posts events** in the linked events channel with RSVP buttons.
+- **Posts events** with RSVP buttons in each member's private personal events channel (and in the web app).
 - **Sends reminders** to players who haven't responded.
 - **Syncs roles** — group membership on Sideline is mirrored to Discord roles so channel access matches reality.
 - **Cleans up** old event posts according to your chosen cleanup mode.
@@ -23,7 +23,6 @@ See [Quick start for Admins](/quick-start/admins/#steps) for the full install fl
 
 You link Discord channels to Sideline for specific purposes:
 
-- **Events channel** — a single global channel where event posts with RSVP buttons for every event type (training, match, tournament, meeting, social, other) appear.
 - **Reminders channel** (optional) — where RSVP reminders and event-start announcements are posted. If unset, the bot falls back to the event's owner-group channel.
 - **Late-RSVP channel** (optional) — where the bot posts a notification when a member RSVPs after the reminder has already been sent.
 - **Welcome channel** (optional) — where the bot posts a public welcome embed when a new member joins via an invite.
@@ -33,19 +32,13 @@ You link Discord channels to Sideline for specific purposes:
 
 Change channel links at any time from **Team settings → Discord integration**.
 
-<Aside type="note" title="Changing the events channel moves existing events">
-  When you save a new **Events channel**, the bot automatically moves all of your team's upcoming event posts to the new channel — it deletes the old messages and re-posts each event embed in the new channel, then reorders both channels. Past or cancelled events are not moved.
-</Aside>
+Events themselves don't post to any of the channels above — see [Personal event channels](#personal-event-channels) below for where members see and RSVP to events in Discord.
 
 ### Managed channels
 
 In addition to the purpose-specific channels above, admins and captains can create fully **managed Discord channels** from **Team → Channels**. Sideline creates and owns these channels — you assign access per group, and the bot applies the corresponding Discord permission overwrites within seconds.
 
 See the [Channel management guide](/guides/channel-management/) for full details.
-
-<Aside type="note" title="10-event channel limit">
-  Each event channel shows at most **10 events** at a time — the most-recent past events plus the soonest upcoming events. When a new event is created or an existing one starts, the bot removes the oldest messages beyond that limit from the channel. Removed events are not deleted from Sideline; they remain visible in the web app.
-</Aside>
 
 ## Slash commands
 
@@ -62,7 +55,7 @@ The bot responds to the following slash commands inside your linked Discord serv
 - `/makanicko log` — log a personal physical activity. Required: activity type. Optional: duration (minutes), note, and `date` (YYYY-MM-DD, defaults to today; ±2 years limit).
 - `/makanicko stats` — view your personal activity stats and streaks.
 - `/makanicko leaderboard` — view the team activity leaderboard.
-- `/event refresh` — re-sync the current channel's event messages. Run this inside a global events channel or a personal events channel to force an immediate re-render and reorder. The subcommand is visible to all members under `/event`. Any member can run it inside **their own** personal events channel; running it in the **global events channel** or in **another member's personal channel** requires the `team:manage` permission (team admins only) — anyone else receives a quiet ephemeral notice. Czech sub-command name: `/event obnovit`.
+- `/event refresh` — re-sync the current channel's event messages. Run this inside a personal events channel to force an immediate re-render and reorder. The subcommand is visible to all members under `/event`. Any member can run it inside **their own** personal events channel; running it in **another member's personal channel** requires the `team:manage` permission (team admins only) — anyone else receives a quiet ephemeral notice. Running it anywhere else replies with a quiet "not an events channel" notice. Czech sub-command name: `/event obnovit`.
 - `/training result` — get a private deep-link to the training result editor for a recent training event. Use the autocomplete to pick an event from the past 2 days. Only visible to members with the **Manage Events** Discord permission (captains and admins by default). Czech sub-command name: `/training výsledek`.
 - `/training generate` — get a private deep-link to the **team generator** for a recent training event. The generator assigns RSVP-yes attendees to balanced teams based on Elo ratings, team size, and gender mix. Use the autocomplete to pick an event from the past 2 days, then follow the link to the web app to generate and post teams to Discord. Only visible to members with the **Manage Events** Discord permission. Czech sub-command name: `/training generovat`.
 - `/sudo` — team admins only (requires `team:manage`, checked when you run the command — the command itself stays visible to all members). Toggles a shared **Sideline Sudo** Discord role that carries the Administrator permission: running it grants you the role and posts an audit entry with a **Leave sudo** button to your team's system log channel; running it again removes the role and closes that audit entry, showing when the session started, when it ended, and how long it lasted. Any admin can click **Leave sudo** to end someone else's session the same way. There is no automatic expiry — step down by re-running `/sudo` or clicking **Leave sudo**.
@@ -221,11 +214,11 @@ When a roster channel is created and a category is configured, the bot passes `p
 
 ## Personal event channels
 
-When the **Personal events category** is configured in **Team settings → Discord integration**, the bot creates a private text channel under that category for each eligible member. The channel shows that member's upcoming events with RSVP buttons — the same format as the global events channel but personalised. Events in a member's personal channel are kept in the same order as the global channel (soonest event nearest the input box). When a new personal channel is created, the bot immediately backfills all of the member's existing upcoming events into it, so the channel is never empty after provisioning.
+This is where events actually live in Discord: when the **Personal events category** is configured in **Team settings → Discord integration**, the bot creates a private text channel under that category for each eligible member, and posts every one of the member's upcoming events there with RSVP buttons. Events in a member's personal channel are sorted soonest-first (nearest the input box). When a new personal channel is created, the bot immediately backfills all of the member's existing upcoming events into it, so the channel is never empty after provisioning.
 
 ### Going list and Attendees button
 
-Each event message in a personal channel displays the same **Going** attendee list and **Attendees** button that appear on the global events channel, so members always see who else has responded "yes" without switching channels.
+Each event message in a personal channel displays a **Going** attendee list and an **Attendees** button, so members always see who else has responded "yes" without switching channels.
 
 ### Mention on unanswered events
 
@@ -233,7 +226,7 @@ When the bot posts a new upcoming event to a personal channel and the member has
 
 ### Restricting personal channels to a group
 
-By default all active team members receive a personal channel. To limit personal channels to a specific subset of members, set the **Personal events group** in **Team settings → Discord integration**. Only members who belong to that group (or any of its descendant groups) will receive a personal channel. Members outside the group continue to see events only in the global events channel. If a member's personal channel already exists and they later fall outside the configured group, the bot automatically deletes their personal channel.
+By default all active team members receive a personal channel. To limit personal channels to a specific subset of members, set the **Personal events group** in **Team settings → Discord integration**. Only members who belong to that group (or any of its descendant groups) will receive a personal channel. Members outside the group don't get a personal channel and can still see and RSVP to events via `/event list` or the web app. If a member's personal channel already exists and they later fall outside the configured group, the bot automatically deletes their personal channel.
 
 ### Custom channel name format
 
@@ -250,13 +243,15 @@ Example formats: `events-{name}`, `{name}-{discord_id}`, `my-events-{discord_id}
   When you save a new channel-name format, the bot automatically renames all existing personal channels to match. Channels are processed one at a time to respect Discord rate limits, so renaming a large team may take a few seconds. New channels created after the change will also use the updated format from the start.
 </Aside>
 
-## Cleanup modes
+## Channel cleanup modes
 
-Old event posts accumulate. You pick a cleanup strategy per team:
+When a **group is deleted** or a **roster is deactivated**, its linked Discord channel needs to go somewhere. Pick a strategy per team in **Team settings → Discord integration**:
 
-- **Do nothing** — posts stay forever.
-- **Delete** — posts are removed a configurable time after the event ends.
-- **Archive** — posts are moved to an archive channel you configure.
+- **Do nothing** — keep the channel (only the role and the group/roster link are removed).
+- **Delete** — delete the Discord channel and role.
+- **Archive** — move the channel to the archive category you configure, instead of deleting it.
+
+Set **Cleanup on group delete** and **Cleanup on roster deactivate** independently — they don't have to match.
 
 ## Troubleshooting
 

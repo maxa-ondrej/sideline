@@ -1,6 +1,7 @@
 import {
   Auth,
   DisplayName,
+  type Event,
   EventRsvpApi,
   type GroupModel,
   type TeamMember,
@@ -12,7 +13,6 @@ import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
 import { rsvpSubmissionsTotal } from '~/metrics.js';
 import { EventRsvpsRepository } from '~/repositories/EventRsvpsRepository.js';
-import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
@@ -36,6 +36,18 @@ const checkGroupAccess = (
 
 const isEventPastDeadline = (startAt: DateTime.Utc): boolean =>
   !DateTime.isLessThan(DateTime.nowUnsafe(), startAt);
+
+const markPersonalMessagesDirtyBestEffort = (
+  events: ServiceMap.Service.Shape<typeof EventsRepository>,
+  eventId: Event.EventId,
+) =>
+  events
+    .markEventPersonalMessagesDirty(eventId)
+    .pipe(
+      Effect.catchCause((cause) =>
+        Effect.logWarning('Failed to mark personal messages dirty', cause),
+      ),
+    );
 
 const buildRsvpDetail = (
   rsvps: ServiceMap.Service.Shape<typeof EventRsvpsRepository>,
@@ -106,11 +118,10 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
     Effect.bind('members', () => TeamMembersRepository.asEffect()),
     Effect.bind('events', () => EventsRepository.asEffect()),
     Effect.bind('rsvps', () => EventRsvpsRepository.asEffect()),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
     Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
     Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.bind('provisioning', () => EventRosterProvisioningService.asEffect()),
-    Effect.map(({ members, events, rsvps, syncEvents, teamSettings, groups, provisioning }) =>
+    Effect.map(({ members, events, rsvps, teamSettings, groups, provisioning }) =>
       handlers
         .handle('getRsvps', ({ params: { teamId, eventId } }) =>
           Effect.Do.pipe(
@@ -221,23 +232,8 @@ export const EventRsvpApiLive = HttpApiBuilder.group(Api, 'eventRsvp', (handlers
                 displayName: Option.none(),
               }),
             ),
-            Effect.andThen(({ event }) =>
-              syncEvents.emitEventUpdated(
-                teamId,
-                event.id,
-                event.title,
-                event.description,
-                event.start_at,
-                event.end_at,
-                event.location,
-                event.event_type,
-                Option.none(),
-                Option.none(),
-                Option.none(),
-                Option.none(),
-                event.location_url,
-              ),
-            ),
+            Effect.tap(({ event }) => markPersonalMessagesDirtyBestEffort(events, event.id)),
+            Effect.asVoid,
           ),
         )
         .handle('getNonResponders', ({ params: { teamId, eventId } }) =>

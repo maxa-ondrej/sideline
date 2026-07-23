@@ -1,19 +1,6 @@
 import type { Discord, GroupModel, Team } from '@sideline/domain';
 import { Effect, Option } from 'effect';
 import { DiscordChannelMappingRepository } from '~/repositories/DiscordChannelMappingRepository.js';
-import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
-
-/**
- * Resolves the global events channel for a team.
- * Returns `team_settings.discord_events_channel_id`.
- */
-export const resolveChannel = (
-  teamId: Team.TeamId,
-): Effect.Effect<Option.Option<Discord.Snowflake>, never, TeamSettingsRepository> =>
-  TeamSettingsRepository.asEffect().pipe(
-    Effect.flatMap((settings) => settings.findByTeamId(teamId)),
-    Effect.map(Option.flatMap((s) => s.discord_events_channel_id)),
-  );
 
 export const resolveOwnerGroupChannel = (
   teamId: Team.TeamId,

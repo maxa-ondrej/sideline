@@ -52,7 +52,11 @@ export class TeamSettingsInfo extends Schema.Class<TeamSettingsInfo>('TeamSettin
   discordPersonalEventsCategoryId: Schema.OptionFromNullOr(Snowflake),
   discordPersonalEventsGroupId: Schema.OptionFromNullOr(GroupId),
   discordPersonalEventsChannelFormat: Schema.String,
-  discordEventsChannelId: Schema.OptionFromNullOr(Snowflake),
+  // Expand/contract (remove-global-events-board): this field is deleted
+  // outright in Release B. Tolerant decode (missing key or null -> none) so
+  // an old web bundle isn't broken by a missing key, and a new bundle isn't
+  // broken by a server that has already dropped the column.
+  discordEventsChannelId: Schema.OptionFromOptionalNullOr(Snowflake, { onNoneEncoding: null }),
   discordChannelCleanupOnGroupDelete: ChannelCleanupMode,
   discordChannelCleanupOnRosterDeactivate: ChannelCleanupMode,
   discordRoleFormat: Schema.String,

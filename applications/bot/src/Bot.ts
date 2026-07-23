@@ -5,7 +5,6 @@ import { commandBuilder } from '~/commands/index.js';
 import { eventHandlers } from '~/events/index.js';
 import { interactionBuilder } from '~/interactions/index.js';
 import { syncEventsFailedTotal } from '~/metrics.js';
-import { recoverDeletedMessages } from '~/rcp/event/recoverDeletedMessages.js';
 import { asRecord } from '~/rest/recordProbe.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { APP_VERSION } from '~/version.js';
@@ -167,7 +166,6 @@ export const program = Effect.Do.pipe(
           pollLoop(emailSync.processTick),
           slowPollLoop(channelBackfill.processTick),
           pollLoop(personalEvents.processTick),
-          recoverDeletedMessages,
         ],
         {
           concurrency: 'unbounded',

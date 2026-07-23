@@ -22,7 +22,12 @@ export class EventCreatedEvent extends Schema.TaggedClass<EventCreatedEvent>()('
   location_url: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   all_day: Schema.Boolean,
-  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  // Expand/contract (remove-global-events-board): Release A stops emitting
+  // this field (the server no longer syncs a global events channel), but
+  // pre-Release-A pending sync rows may still carry an explicit null. The
+  // tolerant decode (missing key or null -> none) covers both; field +
+  // this class are deleted outright in Release B.
+  discord_channel_id: Schema.OptionFromOptionalNullOr(Discord.Snowflake, { onNoneEncoding: null }),
 }) {}
 
 export class EventUpdatedEvent extends Schema.TaggedClass<EventUpdatedEvent>()('event_updated', {
@@ -39,7 +44,12 @@ export class EventUpdatedEvent extends Schema.TaggedClass<EventUpdatedEvent>()('
   location_url: Schema.OptionFromNullOr(Schema.String),
   event_type: Schema.String,
   all_day: Schema.Boolean,
-  discord_channel_id: Schema.OptionFromNullOr(Discord.Snowflake),
+  // Expand/contract (remove-global-events-board): Release A stops emitting
+  // this field (the server no longer syncs a global events channel), but
+  // pre-Release-A pending sync rows may still carry an explicit null. The
+  // tolerant decode (missing key or null -> none) covers both; field +
+  // this class are deleted outright in Release B.
+  discord_channel_id: Schema.OptionFromOptionalNullOr(Discord.Snowflake, { onNoneEncoding: null }),
 }) {}
 
 export class EventCancelledEvent extends Schema.TaggedClass<EventCancelledEvent>()(

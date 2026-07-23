@@ -37,7 +37,6 @@ import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TeamsRepository } from '~/repositories/TeamsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
-import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { EventRosterProvisioningService } from '~/services/EventRosterProvisioningService.js';
 import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 import { constructEvent } from './events.js';
@@ -116,7 +115,6 @@ const parseDateTime = (input: string): Option.Option<DateTime.Utc> => {
 const createEvent = (
   sql: SqlClient.SqlClient,
   events: ServiceMap.Service.Shape<typeof EventsRepository>,
-  syncEvents: ServiceMap.Service.Shape<typeof EventSyncEventsRepository>,
   members: ServiceMap.Service.Shape<typeof TeamMembersRepository>,
   trainingTypes: ServiceMap.Service.Shape<typeof TrainingTypesRepository>,
   _mappingRepo: ServiceMap.Service.Shape<typeof DiscordChannelMappingRepository>,
@@ -278,20 +276,6 @@ const createEvent = (
               ),
             ),
           ),
-    ),
-    Effect.bind('resolvedChannel', ({ teamId }) => resolveChannel(teamId)),
-    Effect.tap(({ teamId, event, resolvedChannel }) =>
-      syncEvents.emitEventCreated(
-        teamId,
-        event.id,
-        event.title,
-        event.description,
-        event.start_at,
-        event.end_at,
-        event.location,
-        event.event_type,
-        resolvedChannel,
-      ),
     ),
     Effect.tap(({ teamId, event }) =>
       emitTrainingClaimRequestIfApplicable({
@@ -1095,7 +1079,6 @@ export const EventsRpcLive = EventRpcGroup.EventRpcGroup.toLayer(
         createEvent(
           svc.sql,
           svc.events,
-          svc.syncEvents,
           svc.members,
           svc.trainingTypesRepo,
           svc.mappingRepo,

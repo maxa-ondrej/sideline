@@ -1,13 +1,9 @@
-// NOTE: These tests are written in TDD mode BEFORE the implementation.
-// They require:
-//   - applications/bot/src/rcp/personalEvents/handleReconcile.ts (new file)
-//   - The reconcile handler to:
-//     1. For each member: call GetAllUpcomingEventsForUser with that member's discord_id
-//     2. Render with that member's own my_response (no cross-application)
-//     3. Hash-diff: no updateMessage when hash equals stored; exactly one updateMessage when changed
-//     4. Also refresh the global shared message (GetDiscordMessageId + buildEventEmbed + updateMessage)
-//        when personal_messages_dirty_at is set (NB-A1 guard)
-// These tests WILL FAIL until the developer implements handleReconcile.
+// The reconcile handler (steps 1-3 only — the shared events board and its
+// global-message refresh step 4 were removed, remove-global-events-board
+// Release A):
+//   1. For each member: call GetAllUpcomingEventsForUser with that member's discord_id
+//   2. Render with that member's own my_response (no cross-application)
+//   3. Hash-diff: no updateMessage when hash equals stored; exactly one updateMessage when changed
 
 import { DiscordREST } from 'dfx/DiscordREST';
 import { DateTime, Effect, Layer, Option } from 'effect';
@@ -33,8 +29,6 @@ const PERSONAL_CHANNEL_A = '510000000000000021';
 const PERSONAL_CHANNEL_B = '510000000000000022';
 const PERSONAL_MSG_A = '510000000000000031';
 const PERSONAL_MSG_B = '510000000000000032';
-const GLOBAL_CHANNEL_ID = '510000000000000041';
-const GLOBAL_MSG_ID = '510000000000000051';
 
 // A minimal upcoming event stub for GetAllUpcomingEventsForUser
 const makeUpcomingEvent = (myResponse: 'yes' | 'no' | 'maybe' | null) => ({
@@ -67,8 +61,6 @@ interface ReconcileMockOptions {
   storedHashA?: string;
   /** Stored hash for member B (defaults to a stale hash) */
   storedHashB?: string;
-  /** Whether global shared message exists */
-  globalMessageExists?: boolean;
 }
 
 const makeTestLayers = (opts: ReconcileMockOptions = {}) => {
@@ -135,16 +127,6 @@ const makeTestLayers = (opts: ReconcileMockOptions = {}) => {
 
           if (method === 'PersonalEvents/UpsertPersonalEventMessage') {
             return Effect.succeed(undefined);
-          }
-
-          if (method === 'Event/GetDiscordMessageId') {
-            if (opts.globalMessageExists === false) return Effect.succeed(Option.none());
-            return Effect.succeed(
-              Option.some({
-                discord_channel_id: GLOBAL_CHANNEL_ID as any,
-                discord_message_id: GLOBAL_MSG_ID as any,
-              }),
-            );
           }
 
           if (method === 'Event/GetRsvpCounts') {
@@ -380,53 +362,6 @@ describe('handleReconcile — hash-diff: no updateMessage when rendered hash equ
 });
 
 // ---------------------------------------------------------------------------
-// Test: NB-A1 cross-surface guard — reconcile refreshes the global shared message
-// ---------------------------------------------------------------------------
-
-describe('handleReconcile — NB-A1: reconcile ALSO refreshes the global shared message', () => {
-  it('when personal_messages_dirty_at is set, reconcile calls updateMessage on the global shared message', async () => {
-    const { rpcLayer, restLayer, updateMessageCalls } = makeTestLayers({
-      globalMessageExists: true,
-    });
-
-    await run(
-      reconcileEvent({
-        event_id: EVENT_ID as any,
-        team_id: TEAM_ID as any,
-        guild_id: GUILD_ID as any,
-      }),
-      Layer.merge(rpcLayer, restLayer),
-    );
-
-    // The global channel's message must be updated
-    const globalUpdates = updateMessageCalls.filter((c) => c.channelId === GLOBAL_CHANNEL_ID);
-    expect(globalUpdates.length).toBeGreaterThanOrEqual(1);
-    expect(globalUpdates[0]?.messageId).toBe(GLOBAL_MSG_ID);
-  });
-
-  it('when no global message is stored (GetDiscordMessageId returns None), global update is skipped gracefully', async () => {
-    const { rpcLayer, restLayer, updateMessageCalls } = makeTestLayers({
-      globalMessageExists: false,
-    });
-
-    // Must not throw
-    await expect(
-      run(
-        reconcileEvent({
-          event_id: EVENT_ID as any,
-          team_id: TEAM_ID as any,
-          guild_id: GUILD_ID as any,
-        }),
-        Layer.merge(rpcLayer, restLayer),
-      ),
-    ).resolves.toBeUndefined();
-
-    const globalUpdates = updateMessageCalls.filter((c) => c.channelId === GLOBAL_CHANNEL_ID);
-    expect(globalUpdates).toHaveLength(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Test: create branch — no stored message → createMessage, no duplicate on retry
 // ---------------------------------------------------------------------------
 
@@ -463,9 +398,6 @@ describe('handleReconcile — create branch: when no stored message exists, crea
             }
             if (method === 'PersonalEvents/UpsertPersonalEventMessage') {
               return Effect.succeed(undefined);
-            }
-            if (method === 'Event/GetDiscordMessageId') {
-              return Effect.succeed(Option.none());
             }
             if (method === 'Event/GetRsvpCounts') {
               return Effect.succeed({ yesCount: 0, noCount: 0, maybeCount: 0, canRsvp: true });
@@ -554,9 +486,6 @@ describe('handleReconcile — create branch: when no stored message exists, crea
             if (method === 'PersonalEvents/UpsertPersonalEventMessage') {
               // Always fail — simulates a persistent RPC error
               return Effect.fail({ _tag: 'RpcClientError' as const, message: 'DB unavailable' });
-            }
-            if (method === 'Event/GetDiscordMessageId') {
-              return Effect.succeed(Option.none());
             }
             if (method === 'Event/GetRsvpCounts') {
               return Effect.succeed({ yesCount: 0, noCount: 0, maybeCount: 0, canRsvp: true });

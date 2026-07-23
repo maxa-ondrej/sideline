@@ -361,7 +361,6 @@ export const mockTeamSettings = {
   discordPersonalEventsCategoryId: null,
   discordPersonalEventsGroupId: null,
   discordPersonalEventsChannelFormat: 'events-{discord_id}',
-  discordEventsChannelId: null,
   discordChannelCleanupOnGroupDelete: 'delete',
   discordChannelCleanupOnRosterDeactivate: 'delete',
   discordRoleFormat: '{emoji} {name}',

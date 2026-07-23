@@ -11,10 +11,9 @@ import { DiscordREST, type DiscordRestService } from 'dfx/DiscordREST';
 import * as Ix from 'dfx/Interactions/index';
 import { Interaction, MessageComponentData, ModalSubmitData } from 'dfx/Interactions/index';
 import * as Discord from 'dfx/types';
-import { DateTime, Effect, Metric, Option, Schema } from 'effect';
+import { Effect, Metric, Option, Schema } from 'effect';
 import { guildLocale, type Locale, userLocale } from '~/locale.js';
 import { discordInteractionsTotal } from '~/metrics.js';
-import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { formatNameWithMention } from '~/rest/utils.js';
 import { interactionUserId } from '~/schemas.js';
 import { SyncRpc, type SyncRpcClient } from '~/services/SyncRpc.js';
@@ -115,6 +114,12 @@ const modalValueOption = (
   return Option.none();
 };
 
+/**
+ * Post-RSVP Discord side effects. The shared board embed refresh is gone (the
+ * board itself was removed) — personal channel messages refresh via the
+ * server-side dirty-mark instead. The only remaining Discord-side effect here
+ * is the late-RSVP notice to the configured late-RSVP channel, if any.
+ */
 export const postRsvpDiscordUpdates = (params: {
   interaction: Discord.APIInteraction;
   rpc: SyncRpcClient;
@@ -125,94 +130,46 @@ export const postRsvpDiscordUpdates = (params: {
   discordUserId: DiscordSchemas.Snowflake;
   counts: EventRpcModels.SubmitRsvpResult;
 }) => {
-  const { interaction, rpc, rest, eventId, teamId, response, discordUserId, counts } = params;
+  const { interaction, rpc, rest, eventId, response, discordUserId, counts } = params;
   const guildId = interaction.guild_id;
   if (guildId === undefined) return Effect.void;
+  if (!counts.isLateRsvp || Option.isNone(counts.lateRsvpChannelId)) return Effect.void;
+  const channelId = counts.lateRsvpChannelId.value;
+
   return Effect.all([
-    rpc['Event/GetDiscordMessageId']({ event_id: eventId }),
     rpc['Event/GetEventEmbedInfo']({ event_id: eventId }),
-    rpc['Event/GetYesAttendeesForEmbed']({
-      event_id: eventId,
-      limit: YES_EMBED_LIMIT,
-      member_group_id: Option.none(),
-    }),
     rest.getGuild(guildId),
   ] as const).pipe(
-    Effect.flatMap(([stored, embedInfo, yesAttendees, guild]) => {
+    Effect.flatMap(([embedInfo, guild]) => {
       const embedLocale = guildLocale({ guild_locale: guild.preferred_locale });
-
-      const updateEmbed = Option.match(stored, {
-        onNone: () => Effect.void,
-        onSome: (msg) =>
-          Option.match(embedInfo, {
-            onNone: () => Effect.void,
-            onSome: (info) => {
-              const isStarted = DateTime.isGreaterThanOrEqualTo(
-                DateTime.nowUnsafe(),
-                info.start_at,
-              );
-              const payload = buildEventEmbed({
-                teamId,
-                eventId,
-                title: info.title,
-                description: info.description,
-                imageUrl: info.image_url,
-                startAt: info.start_at,
-                endAt: info.end_at,
-                location: info.location,
-                locationUrl: info.location_url,
-                eventType: info.event_type,
-                counts,
-                yesAttendees,
-                locale: embedLocale,
-                isStarted,
-                allDay: info.all_day,
-              });
-              return rest.updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                embeds: payload.embeds,
-                components: payload.components,
-              });
-            },
-          }),
+      const eventTitle = Option.match(embedInfo, {
+        onNone: () => m.bot_rsvp_event_not_found({}, { locale: embedLocale }),
+        onSome: (i) => i.title,
       });
-
-      const notifyLateRsvp = counts.isLateRsvp
-        ? Option.match(counts.lateRsvpChannelId, {
-            onNone: () => Effect.void,
-            onSome: (channelId) => {
-              const eventTitle = Option.match(embedInfo, {
-                onNone: () => m.bot_rsvp_event_not_found({}, { locale: embedLocale }),
-                onSome: (i) => i.title,
-              });
-              const userDisplay = formatNameWithMention({
-                discord_id: Option.some(discordUserId),
-                name: counts.userName,
-                nickname: counts.userNickname,
-                display_name: counts.userDisplayName,
-                username: counts.userUsername,
-              });
-              return rest.createMessage(channelId, {
-                embeds: [
-                  {
-                    color: 0xe67e22,
-                    description: m.bot_late_rsvp_notification(
-                      {
-                        user: userDisplay,
-                        response: localizeRsvpResponse(response, embedLocale),
-                        event: eventTitle,
-                      },
-                      { locale: embedLocale },
-                    ),
-                  },
-                ],
-              });
+      const userDisplay = formatNameWithMention({
+        discord_id: Option.some(discordUserId),
+        name: counts.userName,
+        nickname: counts.userNickname,
+        display_name: counts.userDisplayName,
+        username: counts.userUsername,
+      });
+      return rest
+        .createMessage(channelId, {
+          embeds: [
+            {
+              color: 0xe67e22,
+              description: m.bot_late_rsvp_notification(
+                {
+                  user: userDisplay,
+                  response: localizeRsvpResponse(response, embedLocale),
+                  event: eventTitle,
+                },
+                { locale: embedLocale },
+              ),
             },
-          })
-        : Effect.void;
-
-      return Effect.all([updateEmbed, notifyLateRsvp], {
-        concurrency: 'unbounded',
-      }).pipe(Effect.asVoid);
+          ],
+        })
+        .pipe(Effect.asVoid);
     }),
     Effect.catchTag(['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'], (error) =>
       Effect.logError('Failed to handle post-RSVP Discord updates', error),

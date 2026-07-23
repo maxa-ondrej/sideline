@@ -7,10 +7,7 @@ import { recordSyncFailure } from '~/rcp/recordSyncFailure.js';
 import { POLL_BATCH_SIZE } from '~/rest/utils.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { ChannelReorderSemaphore } from './ChannelReorderSemaphore.js';
-import { handleCancelled } from './handleCancelled.js';
-import { handleChannelMoved } from './handleChannelMoved.js';
 import { handleCoachingStatus } from './handleCoachingStatus.js';
-import { handleCreated } from './handleCreated.js';
 import { handleEventRosterApprovalCancel } from './handleEventRosterApprovalCancel.js';
 import { handleEventRosterApprovalRequest } from './handleEventRosterApprovalRequest.js';
 import { handleEventRosterThreadDelete } from './handleEventRosterThreadDelete.js';
@@ -20,15 +17,19 @@ import { handleTeamsGenerated } from './handleTeamsGenerated.js';
 import { handleTrainingClaimRequest } from './handleTrainingClaimRequest.js';
 import { handleTrainingClaimUpdate } from './handleTrainingClaimUpdate.js';
 import { handleUnclaimedTrainingReminder } from './handleUnclaimedTrainingReminder.js';
-import { handleUpdated } from './handleUpdated.js';
 
 const action: (
   event: EventRpcEvents.UnprocessedEventSyncEvent,
 ) => Effect.Effect<void, unknown, SyncRpc | DiscordREST | ChannelReorderSemaphore> =
   Match.type<EventRpcEvents.UnprocessedEventSyncEvent>().pipe(
-    Match.tag('event_created', handleCreated),
-    Match.tag('event_updated', handleUpdated),
-    Match.tag('event_cancelled', handleCancelled),
+    // The global events board is removed (Release A of remove-global-events-board).
+    // These four tags stay in the union for batch-decode safety until Release B
+    // (the server may still emit pre-existing rows during the rollout skew); the
+    // bot now just no-ops and marks them processed instead of acting on them.
+    Match.tag('event_created', () => Effect.void),
+    Match.tag('event_updated', () => Effect.void),
+    Match.tag('event_cancelled', () => Effect.void),
+    Match.tag('event_channel_moved', () => Effect.void),
     Match.tag('event_started', handleStarted),
     Match.tag('rsvp_reminder', handleRsvpReminder),
     Match.tag('training_claim_request', handleTrainingClaimRequest),
@@ -39,7 +40,6 @@ const action: (
     Match.tag('event_roster_approval_cancel', handleEventRosterApprovalCancel),
     Match.tag('event_roster_thread_delete', handleEventRosterThreadDelete),
     Match.tag('teams_generated', handleTeamsGenerated),
-    Match.tag('event_channel_moved', handleChannelMoved),
     Match.exhaustive,
   );
 

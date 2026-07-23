@@ -1,4 +1,4 @@
-import type { EventRpcEvents } from '@sideline/domain';
+import type { Discord, EventRpcEvents } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
@@ -22,10 +22,19 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
       rpc['Event/GetRsvpReminderSummary']({ event_id: event.event_id }),
     ),
     Effect.bind('guild', ({ rest }) => rest.getGuild(event.guild_id).pipe(Effect.map(decodeGuild))),
-    Effect.bind('votingMessage', ({ rpc }) =>
-      rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
+    // Per-member personal channel ids, used to link each non-responder's DM to
+    // their own personal events channel instead of the (removed) shared board.
+    Effect.bind('personalChannels', ({ rpc }) =>
+      rpc['Guild/ListPersonalChannelsForEvent']({ event_id: event.event_id }).pipe(
+        Effect.catchTag('RpcClientError', (e) =>
+          Effect.logWarning(
+            `RPC error listing personal channels for event ${event.event_id}`,
+            e,
+          ).pipe(Effect.as([])),
+        ),
+      ),
     ),
-    Effect.flatMap(({ rest, summary, guild, votingMessage }) => {
+    Effect.flatMap(({ rest, summary, guild, personalChannels }) => {
       const channelId = Option.getOrUndefined(
         Option.orElse(event.discord_channel_id, () => guild.system_channel_id),
       );
@@ -85,11 +94,16 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
           Effect.asVoid,
         );
 
-      const voteLink = Option.match(votingMessage, {
-        onNone: () => `https://discord.com/channels/${event.guild_id}/${channelId}`,
-        onSome: (msg) =>
-          `https://discord.com/channels/${event.guild_id}/${msg.discord_channel_id}/${msg.discord_message_id}`,
-      });
+      // Fall back to the reminder-channel link for members without a personal channel.
+      const personalChannelByDiscordId = new Map(
+        personalChannels.map((member) => [member.discord_id, member.personal_channel_id]),
+      );
+      const linkFor = (discordId: Discord.Snowflake) => {
+        const personalChannelId = personalChannelByDiscordId.get(discordId);
+        return personalChannelId !== undefined
+          ? `https://discord.com/channels/${event.guild_id}/${personalChannelId}`
+          : `https://discord.com/channels/${event.guild_id}/${channelId}`;
+      };
 
       const dmNonResponders = pipe(
         summary.nonResponders,
@@ -103,7 +117,7 @@ export const handleRsvpReminder = (event: EventRpcEvents.RsvpReminderEvent) =>
                   {
                     title: m.bot_rsvp_reminder_title({ title: event.title }, { locale }),
                     description: m.bot_rsvp_reminder_dm(
-                      { title: event.title, when: whenText, link: voteLink },
+                      { title: event.title, when: whenText, link: linkFor(discordId) },
                       { locale },
                     ),
                     color: REMINDER_COLOR,

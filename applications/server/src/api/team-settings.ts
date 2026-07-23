@@ -4,7 +4,6 @@ import { Effect, Option } from 'effect';
 import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { requireMembership, requirePermission } from '~/api/permissions.js';
-import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import {
@@ -19,8 +18,7 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository.asEffect()),
     Effect.bind('settings', () => TeamSettingsRepository.asEffect()),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
-    Effect.map(({ members, settings, syncEvents }) =>
+    Effect.map(({ members, settings }) =>
       handlers
         .handle('getTeamSettings', ({ params: { teamId } }) =>
           Effect.Do.pipe(
@@ -97,22 +95,6 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
             ),
             Effect.tap(({ membership }) => requirePermission(membership, 'team:manage', forbidden)),
             Effect.bind('existing', () => settings.findByTeamId(teamId)),
-            Effect.let('prevEventsChannel', ({ existing }) =>
-              Option.match(existing, {
-                onNone: () => Option.none(),
-                onSome: (s) => s.discord_events_channel_id,
-              }),
-            ),
-            Effect.let('nextEventsChannel', ({ existing }) =>
-              Option.match(payload.discordEventsChannelId, {
-                onNone: () =>
-                  Option.match(existing, {
-                    onNone: () => Option.none(),
-                    onSome: (s) => s.discord_events_channel_id,
-                  }),
-                onSome: (v) => v,
-              }),
-            ),
             Effect.bind('result', ({ existing }) =>
               Option.match(existing, {
                 onNone: () =>
@@ -171,6 +153,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.discordPersonalEventsChannelFormat,
                       () => DEFAULT_PERSONAL_EVENTS_CHANNEL_FORMAT,
                     ),
+                    // Transitional: kept only so the full-row upsert doesn't NULL this column;
+                    // removed in Release B together with the column itself.
                     discordEventsChannelId: Option.flatten(payload.discordEventsChannelId),
                   }),
                 onSome: (s) =>
@@ -263,6 +247,8 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                       payload.discordPersonalEventsChannelFormat,
                       () => s.discord_personal_events_channel_format,
                     ),
+                    // Transitional: kept only so the full-row upsert doesn't NULL this column;
+                    // removed in Release B together with the column itself.
                     discordEventsChannelId: Option.match(payload.discordEventsChannelId, {
                       onNone: () => s.discord_events_channel_id,
                       onSome: (v) => v,
@@ -270,18 +256,6 @@ export const TeamSettingsApiLive = HttpApiBuilder.group(Api, 'teamSettings', (ha
                   }),
               }),
             ),
-            Effect.tap(({ prevEventsChannel, nextEventsChannel }) => {
-              if (Option.getOrNull(prevEventsChannel) !== Option.getOrNull(nextEventsChannel)) {
-                return syncEvents
-                  .emitEventChannelMoved(teamId, prevEventsChannel, nextEventsChannel)
-                  .pipe(
-                    Effect.catchCause((c) =>
-                      Effect.logWarning('failed to emit event_channel_moved', c),
-                    ),
-                  );
-              }
-              return Effect.void;
-            }),
             Effect.map(
               ({ result }) =>
                 new TeamSettingsApi.TeamSettingsInfo({
