@@ -6,13 +6,11 @@ import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { checkCoachScoping, checkGroupAccess, checkTrainingTypeOwnerGroup } from '~/api/scoping.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
-import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TeamSettingsRepository } from '~/repositories/TeamSettingsRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
-import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 
@@ -26,10 +24,9 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
     Effect.bind('events', () => EventsRepository.asEffect()),
     Effect.bind('series', () => EventSeriesRepository.asEffect()),
     Effect.bind('teamSettings', () => TeamSettingsRepository.asEffect()),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
     Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
     Effect.bind('groups', () => GroupsRepository.asEffect()),
-    Effect.map(({ members, events, series, teamSettings, syncEvents, trainingTypes, groups }) =>
+    Effect.map(({ members, events, series, teamSettings, trainingTypes, groups }) =>
       handlers
         .handle('createEventSeries', ({ params: { teamId }, payload }) =>
           Effect.Do.pipe(
@@ -139,27 +136,6 @@ export const EventSeriesApiLive = HttpApiBuilder.group(Api, 'eventSeries', (hand
                       memberGroupId: inserted.member_group_id,
                     })
                     .pipe(
-                      Effect.tap((event) =>
-                        resolveChannel(teamId).pipe(
-                          Effect.flatMap((resolved) =>
-                            syncEvents.emitEventCreated(
-                              teamId,
-                              event.id,
-                              event.title,
-                              event.description,
-                              event.start_at,
-                              event.end_at,
-                              event.location,
-                              event.event_type,
-                              resolved,
-                              Option.none(),
-                              Option.none(),
-                              Option.none(),
-                              event.location_url,
-                            ),
-                          ),
-                        ),
-                      ),
                       Effect.tap((event) =>
                         emitTrainingClaimRequestIfApplicable({
                           teamId,

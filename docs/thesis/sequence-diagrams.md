@@ -74,14 +74,13 @@ sequenceDiagram
 
 ## 2. Event Creation via Web App
 
-An authenticated team member with the `event:create` permission creates an event through the web interface. The server validates the session token, checks team membership, enforces role-based permissions, optionally resolves group scoping from the training type, inserts the event, resolves the target Discord channel, and emits an `event_created` sync event to the `event_sync_events` queue so the bot can publish an embed to Discord.
+An authenticated team member with the `event:create` permission creates an event through the web interface. The server validates the session token, checks team membership, enforces role-based permissions, optionally resolves group scoping from the training type, inserts the event, and marks the event's personal-channel messages dirty so the bot's personal-events reconcile worker posts an embed into each eligible member's own personal event channel (there is no shared/global Discord channel to post to as of the remove-global-events-board release).
 
 ```mermaid
 sequenceDiagram
     participant Browser
     participant Server as API Server
     participant DB as PostgreSQL
-    participant Queue as EventSyncEvents (DB table)
 
     Browser->>Server: POST /teams/{teamId}/events<br/>Authorization: Bearer <token><br/>Body: {title, eventType, startAt, endAt, ...}
 
@@ -117,11 +116,8 @@ sequenceDiagram
     Server->>DB: INSERT events {team_id, title, event_type, start_at, end_at, location, ...}
     DB-->>Server: Event row {id, ...}
 
-    Server->>DB: Resolve target Discord channel for event
-    DB-->>Server: discord_channel_id (Option)
-
-    Server->>Queue: INSERT event_sync_events {type='event_created', team_id, event_id, channel_id, ...}
-    Queue-->>Server: OK
+    Server->>DB: UPDATE events SET personal_messages_dirty_at = now() WHERE id = ? (best-effort)
+    DB-->>Server: OK
 
     Server-->>Browser: 201 Created — EventInfo {eventId, title, startAt, ...}
 ```
@@ -130,7 +126,7 @@ sequenceDiagram
 
 ## 3. Event Creation via Discord Bot (Slash Command + Modal)
 
-A Discord user runs a slash command (e.g., `/event create`) inside a guild. The bot responds immediately with a modal form (Discord requires a response within 3 seconds). The user fills in the modal fields. On submission the bot immediately acknowledges with an ephemeral "thinking" message (again within 3 seconds), then forks a daemon fiber that calls the server via the typed RPC protocol (`Event/CreateEvent`). The RPC handler on the server resolves the guild to a team, checks membership and permissions, inserts the event, and emits a sync event. The bot's daemon fiber then edits the original ephemeral message with the result.
+A Discord user runs a slash command (e.g., `/event create`) inside a guild. The bot responds immediately with a modal form (Discord requires a response within 3 seconds). The user fills in the modal fields. On submission the bot immediately acknowledges with an ephemeral "thinking" message (again within 3 seconds), then forks a daemon fiber that calls the server via the typed RPC protocol (`Event/CreateEvent`). The RPC handler on the server resolves the guild to a team, checks membership and permissions, inserts the event, and marks the event's personal-channel messages dirty so it appears in each eligible member's personal event channel via the reconcile worker. The bot's daemon fiber then edits the original ephemeral message with the result.
 
 ```mermaid
 sequenceDiagram
@@ -139,7 +135,6 @@ sequenceDiagram
     participant Bot as Bot Process (dfx)
     participant Server as API Server (RPC)
     participant DB as PostgreSQL
-    participant Queue as EventSyncEvents (DB table)
 
     User->>Discord: /event create [type] [training_type?]
     Discord->>Bot: Interaction payload (APPLICATION_COMMAND)
@@ -177,8 +172,8 @@ sequenceDiagram
         Server->>DB: INSERT events {team_id, title, event_type, start_at, ...}
         DB-->>Server: Event row {title, ...}
 
-        Server->>Queue: INSERT event_sync_events {type='event_created', ...}
-        Queue-->>Server: OK
+        Server->>DB: UPDATE events SET personal_messages_dirty_at = now() WHERE id = ? (best-effort)
+        DB-->>Server: OK
 
         Server-->>Bot: RPC success {title}
         Bot->>Discord: PATCH webhooks/{app_id}/{token}/messages/@original<br/>"Event '{title}' created"
@@ -189,7 +184,7 @@ sequenceDiagram
 
 ## 4. RSVP via Discord Button
 
-An event embed posted to a Discord channel contains RSVP buttons (Yes / No / Maybe). When a member clicks one, the bot immediately saves the RSVP without opening a modal and replies with an ephemeral confirmation. The confirmation includes a `[💬 Add a message]` button if no message exists, or `[💬 Edit message]` and `[🗑️ Clear message]` buttons if a message is already stored. Clicking the add/edit button opens a modal where the member can type an optional message; submitting the modal saves the message via a second `Event/SubmitRsvp` call. At each step the bot rebuilds and edits the original event embed with fresh RSVP counts.
+An event embed posted to a member's personal event channel (or shown via `/event list`) contains RSVP buttons (Yes / No / Maybe, `custom_id="upcoming-rsvp:{eventId}:{teamId}:{response}"`). When a member clicks one, the bot immediately saves the RSVP without opening a modal and replies with an ephemeral confirmation. The confirmation includes a `[💬 Add a message]` button if no message exists, or `[💬 Edit message]` and `[🗑️ Clear message]` buttons if a message is already stored. Clicking the add/edit button opens a modal where the member can type an optional message; submitting the modal saves the message via a second `Event/SubmitRsvp` call. As of the remove-global-events-board release there is no shared board embed to rebuild synchronously on click: the bot only posts a late-RSVP notification (if applicable), and the member's personal-channel message content is refreshed asynchronously by the server-side dirty-mark + personal-events reconcile worker. (The legacy `custom_id="rsvp:{teamId}:{eventId}:{response}"` button is still handled for any pre-existing shared-board message an admin hasn't deleted yet, but no new message uses it.)
 
 ```mermaid
 sequenceDiagram
@@ -199,7 +194,7 @@ sequenceDiagram
     participant Server as API Server (RPC)
     participant DB as PostgreSQL
 
-    User->>Discord: Click RSVP button (custom_id="rsvp:{teamId}:{eventId}:{response}")
+    User->>Discord: Click RSVP button (custom_id="upcoming-rsvp:{eventId}:{teamId}:{response}")
     Discord->>Bot: Interaction payload (MESSAGE_COMPONENT)
 
     Note over Bot: Must respond within 3 seconds
@@ -230,24 +225,20 @@ sequenceDiagram
         DB-->>Server: SubmitRsvpResult {yes, no, maybe, isLateRsvp, lateRsvpChannelId, message}
 
         Server-->>Bot: RPC success — SubmitRsvpResult
+        Server->>DB: UPDATE events SET personal_messages_dirty_at = now() (server-side, decoupled from this call)
 
-        Note over Bot: postRsvpDiscordUpdates (concurrent)
-        Bot->>Server: RPC Event/GetDiscordMessageId {event_id}
-        Bot->>Server: RPC Event/GetEventEmbedInfo {event_id}
-        Bot->>Server: RPC Event/GetYesAttendeesForEmbed {event_id}
-        Bot->>Discord: GET /guilds/{guild_id} (fetch preferred locale)
-        Discord-->>Bot: Guild {preferred_locale}
-
-        Note over Bot: Build embed with updated RSVP counts
-        Bot->>Discord: PATCH /channels/{channel_id}/messages/{message_id}<br/>{embeds: [...], components: [...]}
-        Discord-->>Bot: Updated message
-
+        Note over Bot: postRsvpDiscordUpdates (concurrent) — late-RSVP notification only;<br/>no shared board embed to rebuild
         opt isLateRsvp = true and lateRsvpChannelId present
+            Bot->>Server: RPC Event/GetEventEmbedInfo {event_id} (event title for the notice)
+            Bot->>Discord: GET /guilds/{guild_id} (fetch preferred locale)
+            Discord-->>Bot: Guild {preferred_locale}
             Bot->>Discord: POST /channels/{lateRsvpChannelId}/messages<br/>(orange embed — late RSVP notification)
         end
 
         Note over Bot: Determine action row buttons<br/>message present → [Edit message] [Clear message]<br/>no message → [Add a message]
         Bot->>Discord: Edit original ephemeral → "Your response (Yes/No/Maybe) has been recorded"<br/>+ action row with message management buttons
+
+        Note over DB: Asynchronously, the personal-events reconcile worker (10s poll)<br/>picks up the dirty event and edits the member's personal-channel<br/>message with the updated RSVP counts
     end
 
     opt User clicks [Add a message] or [Edit message] (custom_id="rsvp-add-msg:…")
@@ -269,7 +260,7 @@ sequenceDiagram
         DB-->>Server: SubmitRsvpResult {message: some(text), ...}
         Server-->>Bot: RPC success
 
-        Note over Bot: postRsvpDiscordUpdates — rebuild event embed
+        Note over Bot: postRsvpDiscordUpdates — late-RSVP notification only (no embed to rebuild)
         Bot->>Discord: Edit original ephemeral → "Message saved."<br/>+ [Edit message] [Clear message] buttons
     end
 
@@ -286,7 +277,7 @@ sequenceDiagram
         DB-->>Server: SubmitRsvpResult {message: none, ...}
         Server-->>Bot: RPC success
 
-        Note over Bot: postRsvpDiscordUpdates — rebuild event embed
+        Note over Bot: postRsvpDiscordUpdates — late-RSVP notification only (no embed to rebuild)
         Bot->>Discord: Edit original ephemeral → "Message cleared."<br/>+ [Add a message] button
     end
 ```
@@ -350,7 +341,7 @@ sequenceDiagram
 
 ## 6. Recurring Event Generation (Cron)
 
-The `EventHorizonCron` runs on a daily schedule (`0 3 * * *` UTC). On each tick it fetches all active event series from the database, computes the generation horizon end date (the lesser of the series end date and `now + horizonDays`), calls `generateOccurrenceDates` to enumerate matching weekdays, and inserts one event row per date (sequentially, concurrency 1). After each insert it resolves the target Discord channel (checking the per-event override, the training-type default, and the team-settings event-type default in order) and emits an `event_created` row in the `event_sync_events` queue so the bot can publish an embed to Discord. If the sync-event emission fails, the failure is logged and suppressed — event insertion is never rolled back due to a notification error. Finally the cron updates the series' `last_generated_date` to the horizon end. The cron only generates dates from where it left off (`last_generated_date + 1 day`) so it is safe to run repeatedly.
+The `EventHorizonCron` runs on a daily schedule (`0 3 * * *` UTC). On each tick it fetches all active event series from the database, computes the generation horizon end date (the lesser of the series end date and `now + horizonDays`), calls `generateOccurrenceDates` to enumerate matching weekdays, and inserts one event row per date (sequentially, concurrency 1). As of the remove-global-events-board release, event generation has no Discord side effect — there is no shared channel to resolve or post an embed to; a generated occurrence reaches members' personal event channels the same way any other event does. Finally the cron updates the series' `last_generated_date` to the horizon end. The cron only generates dates from where it left off (`last_generated_date + 1 day`) so it is safe to run repeatedly.
 
 ```mermaid
 sequenceDiagram
@@ -358,7 +349,6 @@ sequenceDiagram
     participant Cron as EventHorizonCron
     participant SeriesRepo as EventSeriesRepository
     participant EventsRepo as EventsRepository
-    participant SyncRepo as EventSyncEventsRepository
     participant DB as PostgreSQL
 
     Clock->>Cron: Trigger — 03:00 UTC daily
@@ -384,17 +374,7 @@ sequenceDiagram
                 DB-->>EventsRepo: event row {id, ...}
                 EventsRepo-->>Cron: event
 
-                Note over Cron: resolveChannel — priority order:<br/>1. event.discord_target_channel_id<br/>2. training_type.discord_channel_id<br/>3. team_settings.discord_channel_{event_type}<br/>4. owner_group discord_channel_mapping.discord_channel_id
-                Cron->>DB: resolve target Discord channel for event
-                DB-->>Cron: Option<discord_channel_id>
-
-                Cron->>SyncRepo: emitEventCreated(team_id, event_id, title,<br/>description, start_at, end_at, location,<br/>event_type, resolved_channel_id)
-                SyncRepo->>DB: INSERT event_sync_events {type='event_created', ...}
-                DB-->>SyncRepo: OK
-
-                alt Sync event emission fails (defect)
-                    Note over Cron: Log warning — suppress failure,<br/>event creation is unaffected
-                end
+                Note over Cron: As of the remove-global-events-board release, generation<br/>has no Discord side effect here — there is no shared channel to<br/>resolve or post to. The generated occurrence surfaces in members'<br/>personal event channels through the usual personal-events flow<br/>(reconcile worker / `Guild/GetAllUpcomingEventsForUser`), same as any other event.
             end
 
             Cron->>SeriesRepo: updateLastGeneratedDate(series.id, effectiveEnd)
@@ -410,7 +390,7 @@ sequenceDiagram
 
 ## 7. Event Started (Cron)
 
-The `EventStartCron` runs every minute (`* * * * *`). On each tick it first runs a best-effort, once-per-cycle self-healing sweep (`markStalePersonalMessagesDirty`) that re-marks any event which is no longer `active`/upcoming but still holds `personal_event_messages` rows and isn't already dirty — a backstop for events missed by a prior cycle's per-event mark below. It then queries for `active` events whose `start_at` timestamp is in the past, atomically transitions each to `started` status, marks the event's `personal_messages_dirty_at` (so the personal-events reconcile worker removes the finished event from members' personal channels), and emits an `event_started` row in the `event_sync_events` outbox. The bot's Event Sync worker picks up the event, edits the Discord embed to the started state (yellow, no RSVP buttons), and then reorders channel messages so the started event moves into the channel's "past" section. If the original Discord message has been deleted (error 10008), the bot recreates it and persists the new message ID. The reorder applies a cap of `MAX_CHANNEL_EVENTS = 10`: if there are more than 10 events for the channel the oldest past-events beyond the cap are deleted from Discord. Per-channel reorders are serialised by an in-process `ChannelReorderSemaphore`. On bot startup a `recoverDeletedMessages` task scans every channel with stored event messages and reruns the reorder, recreating any messages that were deleted while the bot was offline.
+The `EventStartCron` runs every minute (`* * * * *`). On each tick it first runs a best-effort, once-per-cycle self-healing sweep (`markStalePersonalMessagesDirty`) that re-marks any event which is no longer `active`/upcoming but still holds `personal_event_messages` rows and isn't already dirty — a backstop for events missed by a prior cycle's per-event mark below. It then queries for `active` events whose `start_at` timestamp is in the past, atomically transitions each to `started` status, marks the event's `personal_messages_dirty_at` (so the personal-events reconcile worker removes the finished event from members' personal channels), and emits an `event_started` row in the `event_sync_events` outbox. The bot's Event Sync worker picks up the event and runs two actions in parallel: it posts a fresh "Starting now" announcement to the team's configured reminders channel (or the guild system channel as a fallback), and — for training events — best-effort deletes the training's claim-board message. As of the remove-global-events-board release there is no shared-board embed to edit in place and no channel reorder or `recoverDeletedMessages` recovery step; those were removed along with the shared events board.
 
 ```mermaid
 sequenceDiagram
@@ -456,51 +436,20 @@ sequenceDiagram
     DB-->>Bot: [event_started event, ...]
 
     loop For each event_started event
-        Bot->>DB: RPC Event/GetDiscordMessageId {event_id}
-        DB-->>Bot: Option<{discord_channel_id, discord_message_id}>
-
-        alt No message stored
-            Note over Bot: Log warning — skip
-        else Message stored
-            Bot->>DB: RPC Event/GetRsvpCounts {event_id}
-            Bot->>DB: RPC Event/GetEventEmbedInfo {event_id}
-            Bot->>DB: RPC Event/GetYesAttendeesForEmbed {event_id}
-            Bot->>Discord: GET /guilds/{guild_id} (preferred locale)
-            Discord-->>Bot: Guild {preferred_locale}
-
-            Note over Bot: Build started embed — yellow colour,<br/>isStarted=true, components array empty (no RSVP buttons)
-            Bot->>Discord: PATCH /channels/{channel_id}/messages/{message_id}<br/>{embeds: [...], components: []}
-
-            alt Discord returns 200 OK
-                Discord-->>Bot: Updated message
-            else Discord returns 10008 (Unknown Message — deleted)
-                Bot->>Discord: POST /channels/{channel_id}/messages (recreate embed)
-                Discord-->>Bot: New message {id}
-                Bot->>DB: RPC Event/SaveDiscordMessageId {event_id, channel_id, new_message_id}
-            end
-
-            Note over Bot: reorderChannelMessages (serialised per channel via ChannelReorderSemaphore)
-            Bot->>DB: RPC Event/GetChannelEvents {channel_id}
-            DB-->>Bot: sorted entries (past oldest-first · divider · future nearest-first)
-            Note over Bot: Apply cap: drop oldest past events beyond MAX_CHANNEL_EVENTS=10
-            Bot->>Discord: DELETE cap-dropped messages (if any)
-            Note over Bot: Prefix algorithm — keep longest strictly-increasing<br/>snowflake prefix; recreate suffix (delete old → post new)
-            Bot->>Discord: PATCH kept-prefix messages (in-place edit)
-            Bot->>Discord: DELETE + POST suffix messages (recreate, concurrency: 1)
-            Bot->>DB: RPC Event/SaveDiscordMessageId for any recreated messages
+        Note over Bot: handleStarted — two actions run in parallel.<br/>As of the remove-global-events-board release there is no shared-board<br/>embed to edit or reorder; the finished event disappears from personal<br/>channels separately, via `personal_messages_dirty_at` and the<br/>personal-events reconcile worker (see Event Creation diagrams above).
+        par "Starting now" announcement
+            Bot->>DB: RPC Event/GetYesAttendeesForEmbed {event_id, member_group_id}
+            Bot->>Discord: GET /guilds/{guild_id} (preferred locale, falls back to system channel)
+            Discord-->>Bot: Guild {preferred_locale, system_channel_id}
+            Note over Bot: Build yellow "Starting now: {title}" embed;<br/>@-mentions the claimed coach (training) or member-group role (other events)
+            Bot->>Discord: POST /channels/{reminders_channel_or_system_channel}/messages
+        and Best-effort claim-message cleanup (training only)
+            Bot->>DB: RPC Event/GetClaimInfo {event_id}
+            DB-->>Bot: EventClaimInfo (thread + message IDs, if any)
+            Bot->>Discord: DELETE claim-thread message (10008 errors silently swallowed)
         end
 
         Bot->>DB: RPC Event/MarkEventProcessed {id}
-    end
-
-    Note over Bot: Startup task — recoverDeletedMessages
-    Bot->>DB: RPC Event/GetChannelsWithStoredMessages
-    DB-->>Bot: [{discord_channel_id, guild_id}, ...]
-
-    loop For each channel (concurrency: 3, reorder serialised per channel)
-        Bot->>Discord: GET /guilds/{guild_id} (preferred locale)
-        Discord-->>Bot: Guild {preferred_locale} (or default 'en' on failure)
-        Note over Bot: reorderChannelMessages — cap-drop, prefix/suffix split;<br/>recreates deleted messages and persists new IDs
     end
 ```
 

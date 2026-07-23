@@ -5,6 +5,16 @@ description: User-facing changes to Sideline.
 
 This page lists user-visible changes to Sideline. For developer-level release notes, see the GitHub repository.
 
+## 2026-07-23 — Removed the shared team events board
+
+Events no longer post to a single shared Discord channel. The **Events channel** ("Global events channel") team setting is gone — every member's own private **personal events channel** (and the web app) is now the only place events appear in Discord.
+
+- If your team hadn't set up personal event channels yet, do so now in **Team settings → Discord integration → Personal events category** so members keep seeing events in Discord. See the [Discord integration guide](/guides/discord-integration/#personal-event-channels).
+- `/event refresh` now only works inside a personal events channel.
+- RSVP reminder DMs now link each non-responder to **their own personal events channel** instead of the old shared board message; if a member has no personal channel, the link falls back to the reminders channel.
+- "Starting now" announcements, late-RSVP notices, training claims, coaching announcements, roster approval flows, the web app, the public API, and the iCal feed are all unaffected.
+- If your team had a shared events channel before this change, its old event messages are left exactly as they were — Sideline no longer updates them, but they're otherwise harmless. Feel free to delete them manually whenever you like.
+
 ## 2026-07-22 — Removed per-event-type Discord channel settings
 
 The six per-event-type channel settings (training, match, tournament, meeting, social, other) have been removed from **Team settings → Discord integration**. They had been unused for event routing since events channel — all event embeds already post to the single global **Events channel** — so removing them simplifies the settings page with no change to where events are posted.

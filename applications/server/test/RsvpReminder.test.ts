@@ -182,6 +182,9 @@ let teamSettingsStore: {
   reminders_channel_id: Option.Option<string>;
   timezone: string;
   max_missed_rsvps: number;
+  // Transitional (Release A): still threaded through the upsert full-row write so
+  // PATCH never NULLs the stored column; removed in Release B with the column.
+  discord_events_channel_id: Option.Option<string>;
 };
 
 const resetStores = () => {
@@ -196,6 +199,7 @@ const resetStores = () => {
     reminders_channel_id: Option.none(),
     timezone: 'Europe/Prague',
     max_missed_rsvps: 4,
+    discord_events_channel_id: Option.none(),
   };
 };
 
@@ -545,7 +549,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_personal_events_category_id: Option.none(),
         discord_personal_events_group_id: Option.none(),
         discord_personal_events_channel_format: 'events-{discord_id}',
-        discord_events_channel_id: Option.none(),
+        discord_events_channel_id: teamSettingsStore.discord_events_channel_id,
         discord_channel_cleanup_on_group_delete: 'delete' as const,
         discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
         discord_role_format: '{emoji} {name}',
@@ -573,7 +577,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
         discord_personal_events_category_id: Option.none(),
         discord_personal_events_group_id: Option.none(),
         discord_personal_events_channel_format: 'events-{discord_id}',
-        discord_events_channel_id: Option.none(),
+        discord_events_channel_id: teamSettingsStore.discord_events_channel_id,
         discord_channel_cleanup_on_group_delete: 'delete' as const,
         discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
         discord_role_format: '{emoji} {name}',
@@ -628,6 +632,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
     remindersChannelId?: Option.Option<string>;
     timezone?: string;
     maxMissedRsvps?: number;
+    discordEventsChannelId?: Option.Option<string>;
   }) => {
     teamSettingsStore.min_players_threshold = input.minPlayersThreshold;
     teamSettingsStore.event_horizon_days = input.eventHorizonDays;
@@ -642,6 +647,8 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
     if (input.timezone !== undefined) teamSettingsStore.timezone = input.timezone;
     if (input.maxMissedRsvps !== undefined)
       teamSettingsStore.max_missed_rsvps = input.maxMissedRsvps;
+    if (input.discordEventsChannelId !== undefined)
+      teamSettingsStore.discord_events_channel_id = input.discordEventsChannelId;
     return Effect.succeed({
       team_id: TEST_TEAM_ID,
       event_horizon_days: input.eventHorizonDays,
@@ -661,7 +668,7 @@ const MockTeamSettingsRepositoryLayer = Layer.succeed(TeamSettingsRepository, {
       discord_personal_events_category_id: Option.none(),
       discord_personal_events_group_id: Option.none(),
       discord_personal_events_channel_format: 'events-{discord_id}',
-      discord_events_channel_id: Option.none(),
+      discord_events_channel_id: teamSettingsStore.discord_events_channel_id,
       discord_channel_cleanup_on_group_delete: 'delete' as const,
       discord_channel_cleanup_on_roster_deactivate: 'delete' as const,
       discord_role_format: '{emoji} {name}',
@@ -1220,6 +1227,44 @@ describe('RSVP Reminder Features', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.remindersChannelId).toBe('123456789012345678');
+    });
+
+    it('PATCH preserves discordEventsChannelId across an unrelated field update (transitional column, removed in Release B)', async () => {
+      const setResponse = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            discordEventsChannelId: '222222222222222222',
+          }),
+        }),
+      );
+      expect(setResponse.status).toBe(200);
+      const setBody = await setResponse.json();
+      expect(setBody.discordEventsChannelId).toBe('222222222222222222');
+
+      // A subsequent PATCH touching an unrelated field must not NULL the column —
+      // the upsert is a full-row write, so the value must keep round-tripping.
+      const response = await handler(
+        new Request(SETTINGS_URL, {
+          method: 'PATCH',
+          headers: {
+            Authorization: 'Bearer admin-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            eventHorizonDays: 30,
+            timezone: 'America/New_York',
+          }),
+        }),
+      );
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.discordEventsChannelId).toBe('222222222222222222');
     });
 
     it('PATCH updates timezone', async () => {

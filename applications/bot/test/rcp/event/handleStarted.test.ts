@@ -1,10 +1,8 @@
-// NOTE: These tests are written in TDD mode BEFORE the implementation.
-// They reference the expanded EventStartedEvent (title, start_at, end_at,
-// location, event_type, member_group_id, discord_channel_id, discord_role_id,
-// claimed_by_discord_id) and the new "Starting now" post behaviour added to
-// handleStarted.
-// Tests T12.x cover Change A (coach mention) and Change B (delete-on-start).
-// They will FAIL to compile / run until the developer implements the bot task.
+// NOTE: The shared events board (and its in-place "started" embed edit +
+// recreate-on-10008 recovery) has been removed (remove-global-events-board,
+// Release A). `handleStarted` now only posts the "Starting now" message
+// (reminders channel / system-channel fallback) and deletes the training
+// claim message. Tests below cover only that remaining behavior.
 
 import type { EventRpcEvents } from '@sideline/domain';
 import { DiscordREST } from 'dfx/DiscordREST';
@@ -27,10 +25,9 @@ const GUILD_ID = '111111111111111111';
 const EVENT_ID = '00000000-0000-0000-0000-000000000001';
 const CHANNEL_ID = '222222222222222222';
 const SYSTEM_CHANNEL_ID = '333333333333333333';
-const MESSAGE_ID = '444444444444444444';
 const ROLE_ID = '555555555555555555';
 
-// New constants for Change A / Change B tests
+// Coach / claim constants
 const COACH_ID = '666666666666666666';
 const OWNERS_ROLE = '777777777777777777';
 const CLAIM_THREAD_ID = '888888888888888888';
@@ -62,9 +59,6 @@ const makeEvent = (
 // ---------------------------------------------------------------------------
 
 type SyncRpcCalls = {
-  GetDiscordMessageId: unknown[];
-  GetRsvpCounts: unknown[];
-  GetEventEmbedInfo: unknown[];
   GetYesAttendeesForEmbed: unknown[];
   GetClaimInfo: unknown[];
 };
@@ -73,47 +67,15 @@ const makeRecordingSyncRpc = (
   overrides: Partial<Record<string, (...args: any[]) => Effect.Effect<any>>> = {},
 ) => {
   const calls: SyncRpcCalls = {
-    GetDiscordMessageId: [],
-    GetRsvpCounts: [],
-    GetEventEmbedInfo: [],
     GetYesAttendeesForEmbed: [],
     GetClaimInfo: [],
   };
 
   const defaults: Record<string, (...args: any[]) => Effect.Effect<any>> = {
-    'Event/GetDiscordMessageId': (_args: any) => {
-      calls.GetDiscordMessageId.push(_args);
-      return Effect.succeed(
-        Option.some({
-          discord_channel_id: CHANNEL_ID as any,
-          discord_message_id: MESSAGE_ID as any,
-        }),
-      );
-    },
-    'Event/GetRsvpCounts': (_args: any) => {
-      calls.GetRsvpCounts.push(_args);
-      return Effect.succeed({ yesCount: 3, noCount: 1, maybeCount: 0, canRsvp: true });
-    },
-    'Event/GetEventEmbedInfo': (_args: any) => {
-      calls.GetEventEmbedInfo.push(_args);
-      return Effect.succeed(
-        Option.some({
-          title: 'Saturday Match',
-          description: Option.none(),
-          image_url: Option.none(),
-          start_at: DateTime.makeUnsafe('2026-05-01T16:00:00Z'),
-          end_at: Option.none(),
-          location: Option.none(),
-          event_type: 'match',
-        }),
-      );
-    },
     'Event/GetYesAttendeesForEmbed': (_args: any) => {
       calls.GetYesAttendeesForEmbed.push(_args);
       return Effect.succeed([]);
     },
-    'Event/GetChannelEvents': () => Effect.succeed([]),
-    'Event/GetChannelDivider': () => Effect.succeed(Option.none()),
     // Default: no stored claim info (no claim to delete)
     'Event/GetClaimInfo': (_args: any) => {
       calls.GetClaimInfo.push(_args);
@@ -146,7 +108,6 @@ const makeRecordingSyncRpc = (
 };
 
 type RestCalls = {
-  updateMessage: unknown[];
   createMessage: CreateMessageCall[];
   deleteMessage: unknown[][];
 };
@@ -154,13 +115,9 @@ type RestCalls = {
 const makeRecordingDiscordREST = (
   overrides: Partial<Record<string, (...args: any[]) => Effect.Effect<any>>> = {},
 ) => {
-  const calls: RestCalls = { updateMessage: [], createMessage: [], deleteMessage: [] };
+  const calls: RestCalls = { createMessage: [], deleteMessage: [] };
 
   const defaults: Record<string, (...args: any[]) => Effect.Effect<any>> = {
-    updateMessage: (...args: any[]) => {
-      calls.updateMessage.push(args);
-      return Effect.succeed({});
-    },
     createMessage: (...args: any[]) => {
       calls.createMessage.push(args as CreateMessageCall);
       return Effect.succeed({ id: 'new-msg-id' });
@@ -201,12 +158,9 @@ const run = (
     >,
   );
 
-// ---------------------------------------------------------------------------
-// T11.1 — in-place edit + new "Starting now" post both succeed
-// ---------------------------------------------------------------------------
-
 describe('handleStarted', () => {
-  it('performs in-place edit AND posts "Starting now" message when both channels are known', async () => {
+  // T11.1 — posts "Starting now" message to the event channel
+  it('posts "Starting now" message to the event channel', async () => {
     const { layer: rpcLayer } = makeRecordingSyncRpc();
     const { calls: restCalls, layer: restLayer } = makeRecordingDiscordREST();
 
@@ -215,37 +169,9 @@ describe('handleStarted', () => {
       Layer.merge(rpcLayer, restLayer),
     );
 
-    expect(restCalls.updateMessage).toHaveLength(1);
     expect(restCalls.createMessage).toHaveLength(1);
-    // The createMessage should target the event channel
     const [createChannelArg] = restCalls.createMessage[0] as [string, unknown];
     expect(createChannelArg).toBe(CHANNEL_ID);
-  });
-
-  // T11.2 — in-place edit failure is isolated (does not prevent "Starting now" post)
-  it('still posts "Starting now" message even if in-place edit fails', async () => {
-    const { layer: rpcLayer } = makeRecordingSyncRpc();
-    const { calls: restCalls, layer: restLayer } = makeRecordingDiscordREST({
-      updateMessage: (..._args: any[]) => Effect.die(new Error('update failed')),
-    });
-
-    await run(handleStarted(makeEvent()), Layer.merge(rpcLayer, restLayer));
-
-    // In-place edit failed but createMessage should still have been attempted
-    expect(restCalls.createMessage).toHaveLength(1);
-  });
-
-  // T11.3 — "Starting now" post failure is isolated (does not affect in-place edit)
-  it('still performs in-place edit even if "Starting now" post fails', async () => {
-    const { layer: rpcLayer } = makeRecordingSyncRpc();
-    const { calls: restCalls, layer: restLayer } = makeRecordingDiscordREST({
-      createMessage: (..._args: any[]) => Effect.die(new Error('post failed')),
-    });
-
-    await run(handleStarted(makeEvent()), Layer.merge(rpcLayer, restLayer));
-
-    // createMessage failed but updateMessage should still have been attempted
-    expect(restCalls.updateMessage).toHaveLength(1);
   });
 
   // T11.4 — role mention rendered when discord_role_id is Some
@@ -319,7 +245,7 @@ describe('handleStarted', () => {
   });
 
   // -------------------------------------------------------------------------
-  // T12.A — Change A: coach mention in "Starting now" post
+  // T12.A — coach mention in "Starting now" post
   // -------------------------------------------------------------------------
 
   // T12.A.1 — Coach assigned → content contains <@COACH_ID>, NOT <@&, NOT warning text
@@ -438,7 +364,7 @@ describe('handleStarted', () => {
   });
 
   // -------------------------------------------------------------------------
-  // T12.B — Change B: delete-on-start (safeDeleteClaim branch)
+  // T12.B — delete-on-start (safeDeleteClaim branch)
   // -------------------------------------------------------------------------
 
   // T12.B.1 — Training with claim stored → deleteMessage called once with correct ids

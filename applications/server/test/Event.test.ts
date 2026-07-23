@@ -250,7 +250,12 @@ type EventRecord = {
 
 let eventsStore: Map<Event.EventId, EventRecord>;
 
+// Tracks calls to markEventPersonalMessagesDirty (create/update/cancel each best-effort
+// mark personal channel messages dirty now that the global board emitters are gone).
+let markedPersonalMessagesDirty: Event.EventId[];
+
 const resetStores = () => {
+  markedPersonalMessagesDirty = [];
   eventsStore = new Map();
   eventsStore.set(TEST_EVENT_1, {
     id: TEST_EVENT_1,
@@ -796,7 +801,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   },
   markModified: () => Effect.void,
   markEventSeriesModified: () => Effect.void,
-  markEventPersonalMessagesDirty: () => Effect.void,
+  markEventPersonalMessagesDirty: (eventId: Event.EventId) => {
+    markedPersonalMessagesDirty.push(eventId);
+    return Effect.void;
+  },
   cancelFuture: () => Effect.void,
   cancelFutureInSeries: () => Effect.void,
   updateFutureUnmodified: () => Effect.void,
@@ -1236,6 +1244,7 @@ describe('Events API', () => {
       const body = await response.json();
       expect(body.title).toBe('New Training');
       expect(body.eventType).toBe('training');
+      expect(markedPersonalMessagesDirty).toEqual([body.eventId]);
     });
 
     it('returns 201 for captain creating event', async () => {
@@ -1354,6 +1363,7 @@ describe('Events API', () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.title).toBe('Renamed Training');
+      expect(markedPersonalMessagesDirty).toEqual([TEST_EVENT_1]);
     });
 
     it('returns 403 for player updating event', async () => {
@@ -1398,6 +1408,7 @@ describe('Events API', () => {
         }),
       );
       expect(response.status).toBe(204);
+      expect(markedPersonalMessagesDirty).toEqual([TEST_EVENT_1]);
     });
 
     it('returns 403 for player cancelling event', async () => {

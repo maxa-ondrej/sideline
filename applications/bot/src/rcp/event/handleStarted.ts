@@ -1,15 +1,14 @@
-import { Discord, type EventRpcEvents, type EventRpcModels } from '@sideline/domain';
+import type { EventRpcEvents, EventRpcModels } from '@sideline/domain';
 import * as m from '@sideline/i18n/messages';
 import { DiscordREST } from 'dfx/DiscordREST';
 import { Array, DateTime, Effect, Option, pipe, Schema } from 'effect';
 import type { Locale } from '~/locale.js';
 import { guildLocale } from '~/locale.js';
-import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
+import { YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { locationDisplay } from '~/rest/events/locationDisplay.js';
 import { formatNameWithMention, splitIntoFieldChunks } from '~/rest/utils.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
-import { reorderChannelMessages } from './reorderChannelMessages.js';
 
 const STARTED_POST_COLOR = 0xfee75c; // yellow
 
@@ -26,108 +25,7 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
   Effect.Do.pipe(
     Effect.bind('rpc', () => SyncRpc.asEffect()),
     Effect.bind('rest', () => DiscordREST.asEffect()),
-    Effect.bind('stored', ({ rpc }) =>
-      rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }),
-    ),
-    Effect.flatMap(({ rpc, rest, stored }) => {
-      // In-place edit of existing embed — guild fetch failure falls back to default locale
-      const inPlaceEdit = Option.match(stored, {
-        onNone: () =>
-          Effect.logWarning(
-            `No Discord message stored for event ${event.event_id}, skipping started`,
-          ),
-        onSome: (msg) =>
-          Effect.Do.pipe(
-            Effect.bind('locale', () =>
-              rest.getGuild(event.guild_id).pipe(
-                Effect.flatMap(parseGuild),
-                Effect.map((g) => guildLocale({ guild_locale: g.preferred_locale })),
-                Effect.catch(() => Effect.succeed<Locale>('en')),
-              ),
-            ),
-            Effect.bind('counts', () => rpc['Event/GetRsvpCounts']({ event_id: event.event_id })),
-            Effect.bind('embedInfo', () =>
-              rpc['Event/GetEventEmbedInfo']({ event_id: event.event_id }),
-            ),
-            Effect.bind('yesAttendees', () =>
-              rpc['Event/GetYesAttendeesForEmbed']({
-                event_id: event.event_id,
-                limit: YES_EMBED_LIMIT,
-                member_group_id: Option.none(),
-              }),
-            ),
-            Effect.flatMap(({ locale, counts, embedInfo, yesAttendees }) =>
-              Option.match(embedInfo, {
-                onNone: () =>
-                  Effect.logWarning(
-                    `Event ${event.event_id} not found when building started embed`,
-                  ),
-                onSome: (info) => {
-                  const payload = buildEventEmbed({
-                    teamId: event.team_id,
-                    eventId: event.event_id,
-                    title: info.title,
-                    description: info.description,
-                    imageUrl: info.image_url,
-                    startAt: info.start_at,
-                    endAt: info.end_at,
-                    location: info.location,
-                    locationUrl: info.location_url,
-                    eventType: info.event_type,
-                    counts,
-                    yesAttendees,
-                    locale,
-                    isStarted: true,
-                    allDay: info.all_day,
-                  });
-                  return rest
-                    .updateMessage(msg.discord_channel_id, msg.discord_message_id, {
-                      embeds: payload.embeds,
-                      components: payload.components,
-                    })
-                    .pipe(
-                      Effect.tap(() =>
-                        Effect.logInfo(
-                          `Marked event ${event.event_id} as started in channel ${msg.discord_channel_id}`,
-                        ),
-                      ),
-                      Effect.asVoid,
-                      Effect.catchTag('ErrorResponse', (err) =>
-                        err.data.code === 10008 // Unknown Message — message was deleted
-                          ? rest
-                              .createMessage(msg.discord_channel_id, {
-                                embeds: payload.embeds,
-                                components: payload.components,
-                              })
-                              .pipe(
-                                Effect.flatMap((newMsg) =>
-                                  Schema.decodeEffect(Discord.Snowflake)(newMsg.id),
-                                ),
-                                Effect.tap((newId) =>
-                                  rpc['Event/SaveDiscordMessageId']({
-                                    event_id: event.event_id,
-                                    discord_channel_id: msg.discord_channel_id,
-                                    discord_message_id: newId,
-                                  }),
-                                ),
-                                Effect.tap((newId) =>
-                                  Effect.logInfo(
-                                    `Recreated missing started message for event ${event.event_id} in channel ${msg.discord_channel_id}, new id ${newId}`,
-                                  ),
-                                ),
-                                Effect.asVoid,
-                              )
-                          : Effect.fail(err),
-                      ),
-                      Effect.tap(() => reorderChannelMessages(msg.discord_channel_id, locale)),
-                    );
-                },
-              }),
-            ),
-            Effect.asVoid,
-          ),
-      });
-
+    Effect.flatMap(({ rpc, rest }) => {
       // New "Starting now" post — only fetches guild when discord_channel_id is absent
       const newPost = Effect.Do.pipe(
         Effect.bind('guildOpt', () =>
@@ -252,14 +150,6 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
         }),
       );
 
-      const safeInPlaceEdit = Effect.exit(inPlaceEdit).pipe(
-        Effect.tap((exit) =>
-          exit._tag === 'Failure'
-            ? Effect.logWarning('handleStarted: in-place edit failed', exit.cause)
-            : Effect.void,
-        ),
-      );
-
       const safeNewPost = Effect.exit(newPost).pipe(
         Effect.tap((exit) =>
           exit._tag === 'Failure'
@@ -305,7 +195,7 @@ export const handleStarted = (event: EventRpcEvents.EventStartedEvent) =>
         ),
       );
 
-      return Effect.all([safeInPlaceEdit, safeNewPost, safeDeleteClaim], {
+      return Effect.all([safeNewPost, safeDeleteClaim], {
         concurrency: 'unbounded',
       }).pipe(Effect.asVoid);
     }),

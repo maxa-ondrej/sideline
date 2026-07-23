@@ -143,3 +143,99 @@ describe('EventProcessorService — coaching_status routing', () => {
     expect(markedFailed).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The shared events board is removed (remove-global-events-board, Release A).
+// 'event_created' / 'event_updated' / 'event_cancelled' / 'event_channel_moved'
+// stay in the union for batch-decode safety (pre-existing rows during rollout
+// skew), but now no-op instead of acting on the board. A mixed batch
+// containing all four must decode and drain (marked processed) without error,
+// and must never touch Discord REST.
+// ---------------------------------------------------------------------------
+
+const makeEventCreatedEvent = (id: string): EventRpcEvents.EventCreatedEvent =>
+  ({
+    _tag: 'event_created' as const,
+    id,
+    team_id: TEAM_ID as any,
+    guild_id: GUILD_ID as any,
+    event_id: EVENT_ID as any,
+    title: 'Board-removed created event',
+    description: Option.none(),
+    image_url: Option.none(),
+    start_at: DateTime.makeUnsafe('2026-06-01T14:00:00Z'),
+    end_at: Option.none(),
+    location: Option.none(),
+    location_url: Option.none(),
+    event_type: 'match',
+    all_day: false,
+    discord_channel_id: Option.none(),
+  }) as any;
+
+const makeEventUpdatedEvent = (id: string): EventRpcEvents.EventUpdatedEvent =>
+  ({
+    ...makeEventCreatedEvent(id),
+    _tag: 'event_updated' as const,
+  }) as any;
+
+const makeEventCancelledEvent = (id: string): EventRpcEvents.EventCancelledEvent =>
+  ({
+    _tag: 'event_cancelled' as const,
+    id,
+    team_id: TEAM_ID as any,
+    guild_id: GUILD_ID as any,
+    event_id: EVENT_ID as any,
+  }) as any;
+
+const makeEventChannelMovedEvent = (id: string): EventRpcEvents.EventChannelMovedEvent =>
+  ({
+    _tag: 'event_channel_moved' as const,
+    id,
+    team_id: TEAM_ID as any,
+    guild_id: GUILD_ID as any,
+    event_id: EVENT_ID as any,
+    old_channel_id: Option.some(TRAINING_CHANNEL as any),
+    new_channel_id: Option.some(TRAINING_CHANNEL as any),
+  }) as any;
+
+describe('EventProcessorService — removed-board tags are explicit no-ops', () => {
+  it('a mixed batch with the four removed-board tags decodes and drains without failure, no REST calls', async () => {
+    const restCalls: string[] = [];
+    const restLayer = Layer.succeed(
+      DiscordREST,
+      new Proxy({} as any, {
+        get: (_target: unknown, method: string) => {
+          if (typeof method !== 'string' || method === 'then' || method === 'catch') {
+            return undefined;
+          }
+          return (..._args: any[]) => {
+            restCalls.push(method);
+            return Effect.succeed({ id: 'mock-id' });
+          };
+        },
+      }),
+    );
+
+    const events: EventRpcEvents.UnprocessedEventSyncEvent[] = [
+      makeEventCreatedEvent('sync-created-1') as any,
+      makeEventUpdatedEvent('sync-updated-1') as any,
+      makeEventCancelledEvent('sync-cancelled-1') as any,
+      makeEventChannelMovedEvent('sync-moved-1') as any,
+    ];
+
+    const { markedProcessed, markedFailed, layer: rpcLayer } = makeRpc(events);
+
+    await runProcessTick(rpcLayer, restLayer);
+
+    expect(markedProcessed).toEqual(
+      expect.arrayContaining([
+        'sync-created-1',
+        'sync-updated-1',
+        'sync-cancelled-1',
+        'sync-moved-1',
+      ]),
+    );
+    expect(markedFailed).toHaveLength(0);
+    expect(restCalls).toHaveLength(0);
+  });
+});

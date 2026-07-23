@@ -1,19 +1,16 @@
 import { Array, DateTime, Effect, Option, Schedule } from 'effect';
 import { withCronMetrics } from '~/metrics.js';
 import { EventSeriesRepository } from '~/repositories/EventSeriesRepository.js';
-import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
-import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { computeHorizonEnd, generateOccurrenceDates } from '~/services/RecurrenceService.js';
 import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 
 export const eventHorizonCronEffect = Effect.Do.pipe(
   Effect.bind('seriesRepo', () => EventSeriesRepository.asEffect()),
   Effect.bind('eventsRepo', () => EventsRepository.asEffect()),
-  Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
   Effect.tap(() => Effect.logInfo('EventHorizonCron: starting generation cycle')),
   Effect.bind('allSeries', ({ seriesRepo }) => seriesRepo.getActiveForGeneration()),
-  Effect.tap(({ allSeries, seriesRepo, eventsRepo, syncEvents }) =>
+  Effect.tap(({ allSeries, seriesRepo, eventsRepo }) =>
     Effect.all(
       Array.map(allSeries, (s) => {
         const effectiveEnd = computeHorizonEnd({
@@ -59,31 +56,6 @@ export const eventHorizonCronEffect = Effect.Do.pipe(
                 memberGroupId: s.member_group_id,
               })
               .pipe(
-                Effect.tap((event) =>
-                  resolveChannel(s.team_id).pipe(
-                    Effect.flatMap((resolved) =>
-                      syncEvents.emitEventCreated(
-                        s.team_id,
-                        event.id,
-                        event.title,
-                        event.description,
-                        event.start_at,
-                        event.end_at,
-                        event.location,
-                        event.event_type,
-                        resolved,
-                        Option.none(),
-                        Option.none(),
-                        Option.none(),
-                        event.location_url,
-                      ),
-                    ),
-                    Effect.tapDefect((defect) =>
-                      Effect.logWarning('EventHorizonCron: failed to emit sync event', defect),
-                    ),
-                    Effect.catchDefect(() => Effect.void),
-                  ),
-                ),
                 Effect.tap((event) =>
                   emitTrainingClaimRequestIfApplicable({
                     teamId: s.team_id,

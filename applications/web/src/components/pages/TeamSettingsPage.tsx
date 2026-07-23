@@ -144,10 +144,6 @@ export function TeamSettingsPage({
   const [rosterCategory, setRosterCategory] = React.useState(
     Option.getOrElse(settings.discordRosterCategoryId, () => NONE_VALUE),
   );
-  // The single global events channel — per-event-type channels were removed (#541).
-  const [eventsChannel, setEventsChannel] = React.useState(
-    Option.getOrElse(settings.discordEventsChannelId, () => NONE_VALUE),
-  );
   const [personalEventsCategory, setPersonalEventsCategory] = React.useState(
     Option.getOrElse(settings.discordPersonalEventsCategoryId, () => NONE_VALUE),
   );
@@ -250,7 +246,6 @@ export function TeamSettingsPage({
     channelLateRsvp !== Option.getOrElse(settings.discordChannelLateRsvp, () => NONE_VALUE) ||
     archiveCategory !== Option.getOrElse(settings.discordArchiveCategoryId, () => NONE_VALUE) ||
     rosterCategory !== Option.getOrElse(settings.discordRosterCategoryId, () => NONE_VALUE) ||
-    eventsChannel !== Option.getOrElse(settings.discordEventsChannelId, () => NONE_VALUE) ||
     personalEventsCategory !==
       Option.getOrElse(settings.discordPersonalEventsCategoryId, () => NONE_VALUE) ||
     personalEventsGroupId !==
@@ -354,7 +349,9 @@ export function TeamSettingsPage({
             discordChannelLateRsvp: Option.some(channelToOption(channelLateRsvp)),
             discordArchiveCategoryId: Option.some(channelToOption(archiveCategory)),
             discordRosterCategoryId: Option.some(channelToOption(rosterCategory)),
-            discordEventsChannelId: Option.some(channelToOption(eventsChannel)),
+            // Not surfaced in the UI anymore (global events board removed); leaving this
+            // as None omits the key on the wire so the server keeps the existing value.
+            discordEventsChannelId: Option.none(),
             discordPersonalEventsCategoryId: Option.some(channelToOption(personalEventsCategory)),
             discordPersonalEventsGroupId: Option.some(groupIdToOption(personalEventsGroupId)),
             discordPersonalEventsChannelFormat: Option.some(personalEventsChannelFormat),
@@ -388,7 +385,6 @@ export function TeamSettingsPage({
     channelLateRsvp,
     archiveCategory,
     rosterCategory,
-    eventsChannel,
     personalEventsCategory,
     personalEventsGroupId,
     personalEventsChannelFormat,
@@ -1021,33 +1017,12 @@ export function TeamSettingsPage({
               {/* Events channels sub-section */}
               <div className='flex flex-col gap-4'>
                 <h4 className='text-sm font-semibold'>{tr('teamSettings_eventsChannelsTitle')}</h4>
-                {eventsChannel === NONE_VALUE && personalEventsCategory === NONE_VALUE && (
+                {personalEventsCategory === NONE_VALUE && (
                   <Alert variant='default'>
                     <AlertTriangle className='size-4' />
                     <AlertDescription>{tr('teamSettings_eventsNoSurfaceWarning')}</AlertDescription>
                   </Alert>
                 )}
-                <div>
-                  <label htmlFor='events-channel' className='text-sm font-medium mb-1 block'>
-                    {tr('teamSettings_eventsChannel')}
-                  </label>
-                  <p className='text-xs text-muted-foreground mb-2'>
-                    {tr('teamSettings_eventsChannelHelp')}
-                  </p>
-                  <SearchableSelect
-                    id='events-channel'
-                    value={eventsChannel}
-                    onValueChange={setEventsChannel}
-                    placeholder={tr('teamSettings_channelNone')}
-                    pinnedValues={[NONE_VALUE]}
-                    options={[
-                      { value: NONE_VALUE, label: tr('teamSettings_channelNone') },
-                      ...discordChannels
-                        .filter((ch) => ch.type === DISCORD_CHANNEL_TYPE_TEXT)
-                        .map((ch) => ({ value: ch.id, label: `# ${ch.name}` })),
-                    ]}
-                  />
-                </div>
                 <div>
                   <label htmlFor='channel-late-rsvp' className='text-sm font-medium mb-1 block'>
                     {tr('teamSettings_channelLateRsvp')}

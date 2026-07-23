@@ -850,48 +850,27 @@ export const GuildsRpcLive = Effect.Do.pipe(
                     }),
                   ),
                   Effect.flatMap((isAdmin) =>
-                    deps.teamSettings.findByTeamId(team.id).pipe(
-                      Effect.flatMap((settingsOpt) => {
-                        const globalChannel = Option.flatMap(
-                          settingsOpt,
-                          (s) => s.discord_events_channel_id,
-                        );
-                        if (Option.isSome(globalChannel) && globalChannel.value === channel_id) {
-                          return Effect.succeed(
+                    deps.personalChannels.findPersonalChannelOwner(team.id, channel_id).pipe(
+                      Effect.map(
+                        Option.match({
+                          onNone: () =>
                             identifyResult({
-                              kind: 'global',
+                              kind: 'none',
                               team_id: Option.some(team.id),
                               team_member_id: Option.none(),
                               owner_discord_id: Option.none(),
                               is_admin: isAdmin,
                             }),
-                          );
-                        }
-                        return deps.personalChannels
-                          .findPersonalChannelOwner(team.id, channel_id)
-                          .pipe(
-                            Effect.map(
-                              Option.match({
-                                onNone: () =>
-                                  identifyResult({
-                                    kind: 'none',
-                                    team_id: Option.some(team.id),
-                                    team_member_id: Option.none(),
-                                    owner_discord_id: Option.none(),
-                                    is_admin: isAdmin,
-                                  }),
-                                onSome: (owner) =>
-                                  identifyResult({
-                                    kind: 'personal',
-                                    team_id: Option.some(team.id),
-                                    team_member_id: Option.some(owner.team_member_id),
-                                    owner_discord_id: Option.some(owner.discord_id),
-                                    is_admin: isAdmin,
-                                  }),
-                              }),
-                            ),
-                          );
-                      }),
+                          onSome: (owner) =>
+                            identifyResult({
+                              kind: 'personal',
+                              team_id: Option.some(team.id),
+                              team_member_id: Option.some(owner.team_member_id),
+                              owner_discord_id: Option.some(owner.discord_id),
+                              is_admin: isAdmin,
+                            }),
+                        }),
+                      ),
                     ),
                   ),
                 ),

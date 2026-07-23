@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   Discord as DiscordSchemas,
   type Event,
@@ -10,15 +9,11 @@ import { DiscordREST } from 'dfx/DiscordREST';
 import { Array as Arr, Effect, Option, Schedule, Schema } from 'effect';
 import { guildLocale, type Locale } from '~/locale.js';
 import type { ChannelReorderSemaphore } from '~/rcp/event/ChannelReorderSemaphore.js';
-import { buildEventEmbed, YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
+import { YES_EMBED_LIMIT } from '~/rest/events/buildEventEmbed.js';
 import { buildPersonalMessage } from '~/rest/events/buildPersonalEventMessage.js';
 import { DfxGuild } from '~/schemas.js';
 import { SyncRpc } from '~/services/SyncRpc.js';
 import { reorderPersonalChannel } from './reorderPersonalChannel.js';
-
-/** Stable hash of a raw (possibly response-typed) Discord message payload. */
-const hashPayload = (payload: unknown): string =>
-  createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 
 type GuildLocaleShape = {
   readonly preferred_locale: string;
@@ -287,141 +282,6 @@ export const reconcileEvent = (event: {
           }),
         { concurrency: 1 },
       ),
-    ),
-    // 4. NB-A1: Also refresh the global shared message (hash-diff to avoid unnecessary API calls)
-    Effect.bind('globalMsg', ({ rpc }) =>
-      rpc['Event/GetDiscordMessageId']({ event_id: event.event_id }).pipe(
-        Effect.catchTag('RpcClientError', (e) =>
-          Effect.logWarning(
-            `RPC error getting discord message id for event ${event.event_id}`,
-            e,
-          ).pipe(
-            Effect.map(
-              (): Option.Option<{
-                discord_channel_id: DiscordSchemas.Snowflake;
-                discord_message_id: DiscordSchemas.Snowflake;
-              }> => Option.none(),
-            ),
-          ),
-        ),
-      ),
-    ),
-    Effect.flatMap(({ rpc, rest, globalMsg, locale }) =>
-      Option.match(globalMsg, {
-        onNone: () => Effect.void,
-        onSome: (msg) =>
-          Effect.Do.pipe(
-            Effect.bind('embedInfo', () =>
-              rpc['Event/GetEventEmbedInfo']({ event_id: event.event_id }),
-            ),
-            Effect.flatMap(({ embedInfo }) =>
-              Option.match(embedInfo, {
-                onNone: () => Effect.void,
-                onSome: (info) => {
-                  // Non-active events (started/cancelled) have their global message
-                  // owned by handleStarted/handleCancelled. Refreshing it here would
-                  // revert the started/cancelled styling (and re-add RSVP buttons).
-                  if (info.status !== 'active') {
-                    return Effect.logDebug(
-                      `Skipping global message refresh for non-active event ${event.event_id} (status ${info.status})`,
-                    );
-                  }
-                  return Effect.all({
-                    counts: rpc['Event/GetRsvpCounts']({ event_id: event.event_id }),
-                    yesAttendees: rpc['Event/GetYesAttendeesForEmbed']({
-                      event_id: event.event_id,
-                      limit: YES_EMBED_LIMIT,
-                      member_group_id: Option.none(),
-                    }),
-                  }).pipe(
-                    Effect.flatMap(({ counts, yesAttendees }) => {
-                      const embed = buildEventEmbed({
-                        teamId: String(event.team_id),
-                        eventId: String(event.event_id),
-                        title: info.title,
-                        description: info.description,
-                        imageUrl: info.image_url,
-                        startAt: info.start_at,
-                        endAt: info.end_at,
-                        location: info.location,
-                        locationUrl: info.location_url,
-                        eventType: info.event_type,
-                        counts,
-                        yesAttendees,
-                        locale,
-                        allDay: info.all_day,
-                      });
-                      const payload = {
-                        embeds: embed.embeds,
-                        components: embed.components,
-                        allowed_mentions: { parse: [] as [] },
-                      };
-
-                      // Hash-diff: fetch current stored hash from the message or compute
-                      const newHash = hashPayload({
-                        embeds: payload.embeds,
-                        components: payload.components,
-                      });
-
-                      // Check if the global message content changed by fetching it.
-                      return rest.getMessage(msg.discord_channel_id, msg.discord_message_id).pipe(
-                        Effect.flatMap((currentMsg) => {
-                          const currentHash = hashPayload({
-                            embeds: currentMsg.embeds ?? [],
-                            components: currentMsg.components ?? [],
-                          });
-                          if (currentHash === newHash) {
-                            return Effect.void;
-                          }
-                          return rest
-                            .updateMessage(msg.discord_channel_id, msg.discord_message_id, payload)
-                            .pipe(
-                              Effect.tap(() =>
-                                Effect.logInfo(
-                                  `Reconciled global message for event ${event.event_id} in channel ${msg.discord_channel_id}`,
-                                ),
-                              ),
-                              Effect.asVoid,
-                            );
-                        }),
-                        Effect.catchTag(
-                          ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'],
-                          (_e) =>
-                            // If fetching fails, fall back to always updating
-                            rest
-                              .updateMessage(
-                                msg.discord_channel_id,
-                                msg.discord_message_id,
-                                payload,
-                              )
-                              .pipe(
-                                Effect.tap(() =>
-                                  Effect.logInfo(
-                                    `Reconciled global message for event ${event.event_id} (fallback, no hash diff)`,
-                                  ),
-                                ),
-                                Effect.asVoid,
-                              ),
-                        ),
-                      );
-                    }),
-                    Effect.catchTag(
-                      ['HttpClientError', 'RatelimitedResponse', 'ErrorResponse'],
-                      (e) =>
-                        Effect.logWarning(
-                          `Failed to update global event message for event ${event.event_id}`,
-                          e,
-                        ),
-                    ),
-                  );
-                },
-              }),
-            ),
-            Effect.catchTag('RpcClientError', (e) =>
-              Effect.logWarning(`RPC error refreshing global event message ${event.event_id}`, e),
-            ),
-          ),
-      }),
     ),
     Effect.asVoid,
   );

@@ -219,6 +219,11 @@ type RsvpRecord = {
 
 let rsvpsStore: Map<string, RsvpRecord>;
 
+// Tracks calls made by the web REST RSVP path (`api/event-rsvp.ts`), which should
+// mark personal messages dirty directly and never emit the (removed) global update.
+let markedPersonalMessagesDirty: Event.EventId[];
+let emittedEventUpdated: Event.EventId[];
+
 const resetStores = () => {
   eventsStore = new Map();
   eventsStore.set(TEST_EVENT_ACTIVE, {
@@ -310,6 +315,8 @@ const resetStores = () => {
     member_group_name: Option.none(),
   });
   rsvpsStore = new Map();
+  markedPersonalMessagesDirty = [];
+  emittedEventUpdated = [];
 };
 
 const buildRosterEntry = (
@@ -471,7 +478,10 @@ const MockEventsRepositoryLayer = Layer.succeed(EventsRepository, {
   cancelFutureInSeries: () => Effect.void,
   updateFutureUnmodified: () => Effect.void,
   updateFutureUnmodifiedInSeries: () => Effect.void,
-  markEventPersonalMessagesDirty: () => Effect.void,
+  markEventPersonalMessagesDirty: (eventId: Event.EventId) => {
+    markedPersonalMessagesDirty.push(eventId);
+    return Effect.void;
+  },
 } as any);
 
 const MockEventRsvpsRepositoryLayer = Layer.succeed(EventRsvpsRepository, {
@@ -738,7 +748,10 @@ const MockChannelSyncEventsRepositoryLayer = Layer.succeed(ChannelSyncEventsRepo
 
 const MockEventSyncEventsRepositoryLayer = Layer.succeed(EventSyncEventsRepository, {
   emitEventCreated: () => Effect.void,
-  emitEventUpdated: () => Effect.void,
+  emitEventUpdated: (_teamId: Team.TeamId, eventId: Event.EventId) => {
+    emittedEventUpdated.push(eventId);
+    return Effect.void;
+  },
   emitEventCancelled: () => Effect.void,
   emitRsvpReminder: () => Effect.void,
   findUnprocessed: () => Effect.succeed([]),
@@ -1087,6 +1100,22 @@ describe('Event RSVP API', () => {
         }),
       );
       expect(response.status).toBe(204);
+    });
+
+    it('marks personal messages dirty and never emits the removed global update', async () => {
+      const response = await handler(
+        new Request(`${BASE}/${TEST_EVENT_ACTIVE}/rsvp`, {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer user-token',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ response: 'yes', message: null }),
+        }),
+      );
+      expect(response.status).toBe(204);
+      expect(markedPersonalMessagesDirty).toEqual([TEST_EVENT_ACTIVE]);
+      expect(emittedEventUpdated).toHaveLength(0);
     });
 
     it('player can submit RSVP no', async () => {

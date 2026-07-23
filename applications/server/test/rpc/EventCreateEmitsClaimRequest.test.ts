@@ -540,8 +540,8 @@ describe('Event/CreateEvent — training_claim_request emission', () => {
         Effect.sync(() => {
           expect(emittedClaimRequests).toHaveLength(0);
           expect(markedClaimRequestSent).toHaveLength(0);
-          // event_created must still have been emitted
-          expect(emittedEventCreated).toHaveLength(1);
+          // The event_created global board emitter is removed — CreateEvent no longer emits it.
+          expect(emittedEventCreated).toHaveLength(0);
         }),
       ),
       Effect.provide(buildRpcTestLayer(Option.none())),

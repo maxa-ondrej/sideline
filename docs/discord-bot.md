@@ -120,7 +120,7 @@ Eleven top-level commands are registered globally: `/carpool`, `/complete`, `/ev
 
 ### /event refresh
 
-**Description:** Re-sync the current channel's event messages. Run this inside a global events channel or a personal events channel to force an immediate re-render and reorder.
+**Description:** Re-sync the current channel's event messages. Run this inside a personal events channel to force an immediate re-render and reorder.
 
 **Czech sub-command name:** `obnovit`
 
@@ -129,7 +129,8 @@ Eleven top-level commands are registered globally: `/carpool`, `/complete`, `/ev
 **Permission required:** Visible to all members under `/event`. The subcommand carries no `default_member_permissions` gate (that is not possible for subcommands). Instead, access is gated at runtime using `Guild/IdentifyEventsChannel`, which returns `owner_discord_id` (the Discord snowflake of the personal channel's owner) and `is_admin` (whether the caller holds `team:manage`). The rules are:
 - **Own personal channel** — any member can refresh their own personal events channel.
 - **Another member's personal channel** — only Sideline admins (`team:manage`).
-- **Global events channel** — only Sideline admins (`team:manage`).
+
+**Note:** the shared "global" events board was removed in the remove-global-events-board Release A. `Guild/IdentifyEventsChannel` never returns `kind: 'global'` anymore (the literal stays in the schema only for wire compatibility), so running `/event refresh` in any channel that isn't a personal events channel falls through to the "not an events channel" reply below.
 
 **Flow:**
 
@@ -137,9 +138,8 @@ Eleven top-level commands are registered globally: `/carpool`, `/complete`, `/ev
 2. The handler (`applications/bot/src/commands/event/refresh.ts`) calls `Guild/IdentifyEventsChannel` RPC with `guild_id`, `channel_id`, and `discord_user_id` to classify the channel and retrieve `owner_discord_id` and `is_admin`.
 3. The handler acks the interaction immediately (ephemeral); the heavy work is forked to a detached fiber so the 3-second Discord window is always met.
 4. **Personal events channel** (`kind: 'personal'`): compares `owner_discord_id` to the caller's ID. If the caller is not the owner and `is_admin` is `false`, returns an ephemeral "Only team admins can refresh events channels" reply. Otherwise, calls `Guild/MarkTeamPersonalEventsDirty` to mark the team's upcoming events dirty (triggering content re-render via the reconcile loop), then calls `reorderPersonalChannel` acting with the channel owner's identity. If `MarkTeamPersonalEventsDirty` fails with an `RpcClientError` it is logged as a warning and the reorder still proceeds.
-5. **Global events channel** (`kind: 'global'`): if `is_admin` is `false`, returns the forbidden reply. Otherwise calls `reorderChannelMessages` — re-renders all event embeds in place and reorders channel messages. Channel content is rendered in the guild locale.
-6. **Neither** (`kind: 'none'`): replies ephemerally with a "not an events channel" message and does nothing else.
-7. The ephemeral reply (always visible only to the invoker) is rendered in the caller's Discord client locale.
+5. **Anything else** (`kind: 'none'`, or the never-returned `'global'`): replies ephemerally with a "not an events channel" message and does nothing else.
+6. The ephemeral reply (always visible only to the invoker) is rendered in the caller's Discord client locale.
 
 **Errors:**
 
@@ -147,9 +147,8 @@ Eleven top-level commands are registered globally: `/carpool`, `/complete`, `/ev
 |-----------|----------|
 | No `guild_id`, no `channel_id`, or user ID unavailable | Ephemeral "not an events channel" reply; no work forked |
 | Personal channel, caller is not the owner and `is_admin` is `false` | Ephemeral "Only team admins can refresh events channels" reply |
-| Global channel and `is_admin` is `false` | Ephemeral "Only team admins can refresh events channels" reply |
 | `Guild/IdentifyEventsChannel` returns `RpcClientError` | Logged as a warning; ephemeral "not an events channel" reply |
-| Channel is neither global nor personal | Ephemeral "not an events channel" reply |
+| Channel is not a personal events channel | Ephemeral "not an events channel" reply |
 
 **Source file:**
 - `applications/bot/src/commands/event/refresh.ts`
@@ -699,7 +698,7 @@ All interaction handlers are registered in `applications/bot/src/interactions/in
 
 ### RSVP Button — `rsvp:{teamId}:{eventId}:{response}`
 
-Attached to every event embed message. Clicking saves the RSVP immediately and opens an ephemeral confirmation with message management buttons.
+**Legacy/compatibility only** as of the remove-global-events-board Release A: this custom ID was attached to the shared "global" event embed message, which the bot no longer posts (see "Event Sync Worker" below). No newly-created message carries this button — event embeds in personal channels and `/event list` use the `upcoming-rsvp:` button instead (see "Upcoming RSVP Button"). The handler itself is kept so that clicks on any pre-existing global-board message left over from before the release (admins may delete these manually, see the changelog) still record the RSVP and acknowledge the click instead of erroring.
 
 **Custom ID pattern:** `rsvp:{teamId}:{eventId}:{response}` where `response` is one of `yes`, `no`, `maybe`.
 
@@ -708,7 +707,7 @@ Attached to every event embed message. Clicking saves the RSVP immediately and o
 1. Parses `teamId`, `eventId`, and `response` from the custom ID.
 2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
 3. The background fiber calls `Event/SubmitRsvp` RPC with `message: none` and `clearMessage: false`, which records the response while preserving any existing message (the SQL upsert uses `COALESCE(new_message, existing_message)`).
-4. On success, the background fiber also runs `postRsvpDiscordUpdates` to rebuild and edit the original event embed (fetching `Event/GetDiscordMessageId`, `Event/GetEventEmbedInfo`, `Event/GetYesAttendeesForEmbed`, and the guild locale). If the RSVP was late (`isLateRsvp = true`) and `lateRsvpChannelId` is present, it also posts an orange-coloured notification embed to that channel.
+4. On success, the background fiber also runs `postRsvpDiscordUpdates`. The shared board embed is gone, so this no longer edits any message; it only posts an orange-coloured notification embed to the team's configured late-RSVP channel when the RSVP was late (`isLateRsvp = true`) and `lateRsvpChannelId` is present. Any personal-channel message for this event is refreshed separately by the server-side dirty-mark + reconcile loop, not by this handler.
 5. Updates the ephemeral "thinking" message with a localised confirmation. If the RSVP was late, a polite hint is appended.
 6. The ephemeral message includes one action row of buttons based on whether the member already has a message:
    - **No existing message:** `[💬 Add a message]` (`rsvp-add-msg:…`)
@@ -754,7 +753,7 @@ Appears alongside the "Edit message" button in the ephemeral confirmation when t
 1. Parses `teamId`, `eventId`, and `response` from the custom ID.
 2. Sends an immediate ephemeral "thinking" response and forks a background fiber.
 3. The background fiber calls `Event/SubmitRsvp` RPC with `message: none` and `clearMessage: true`, which sets the stored message to NULL.
-4. Runs `postRsvpDiscordUpdates` to rebuild the event embed.
+4. Runs `postRsvpDiscordUpdates` (late-RSVP notification only — see the RSVP Button section above).
 5. Updates the ephemeral message with a localised "message cleared" confirmation and replaces the action row with only the `[💬 Add a message]` button.
 
 **Errors from `Event/SubmitRsvp`:** same as RSVP Button.
@@ -820,8 +819,8 @@ Appears on each per-user upcoming event message (produced by `/event list` and t
 
 1. Parses `eventId`, `teamId`, and `response` from the custom ID.
 2. Responds with `DEFERRED_UPDATE_MESSAGE` and forks a background fiber.
-3. The background fiber calls `Event/SubmitRsvp` RPC (same as the standard RSVP button), then runs `postRsvpDiscordUpdates` to rebuild the public event embed.
-4. After the RSVP is recorded, re-fetches the event's embed info and rebuilds the per-user upcoming embed, updating the current ephemeral message in place.
+3. The background fiber calls `Event/SubmitRsvp` RPC (same as the standard RSVP button), then runs `postRsvpDiscordUpdates` (late-RSVP notification only — the shared board embed it used to rebuild no longer exists).
+4. After the RSVP is recorded, re-fetches the event's embed info and rebuilds the per-user upcoming embed, updating the current ephemeral message in place. This is also the button rendered on each member's personal-channel event message; that message's content is separately kept in sync by the personal-events reconcile loop (server-side dirty-mark), not by this handler.
 
 **Errors:** same as RSVP Button, plus `GuildNotFound` (shows "not a member" message).
 
@@ -1727,29 +1726,17 @@ When the Channel Sync Worker calls `Channel/UpsertMapping` or `Channel/UpsertMap
 
 **Polling RPC:** `Event/GetUnprocessedEvents`
 
-**Message recovery:** whenever `reorderChannelMessages` attempts to edit an existing Discord message and receives error code 10008 (Unknown Message), it returns `EditOutcome = 'message_gone'`, which causes the item to be treated as part of the suffix that must be recreated. The recreated message is posted with `createMessage` and the new snowflake is persisted via `Event/SaveDiscordMessageId`. This recovery also runs during the startup task described below.
-
-**Concurrency guard:** every call to `reorderChannelMessages` is wrapped in `ChannelReorderSemaphore.withChannelLock(channelId)` (`applications/bot/src/rcp/event/ChannelReorderSemaphore.ts`). This in-process per-channel `Effect.Semaphore` (capacity 1) ensures that two concurrent reorders for the same channel are serialised, preventing interleaved deletes and creates from producing out-of-order messages.
-
-**Channel event cap:** at most `MAX_CHANNEL_EVENTS = 10` event messages are kept per channel. When sorting produces more than 10 entries, the oldest (earliest-past) entries beyond the cap are deleted from Discord before the prefix/suffix algorithm runs. This keeps each channel to a manageable window of recent-past plus soonest-future events.
-
-**Reorder algorithm (`reorderChannelMessages`):**
-
-1. Fetch all event entries for the channel via `Event/GetChannelEvents` and sort them with `sortEntriesForChannel`: past events oldest-first, then a divider message, then future events nearest-first (so the next upcoming event is always the bottom-most — i.e., the most visible — message).
-2. Apply the `MAX_CHANNEL_EVENTS = 10` cap: drop the excess oldest-past entries and delete their Discord messages.
-3. Compute the *longest keepable prefix* `k`: the maximum-length prefix of the sorted item list (events + optional divider) whose snowflakes are already strictly increasing left-to-right and strictly less than every snowflake in the remaining suffix. Items without a stored snowflake (`Option.none()`, used by startup recovery to force recreation) automatically terminate the prefix.
-4. **Kept prefix (indices 0 … k−1):** edit each message in-place. If an edit returns `message_gone` (10008 error), the item and all subsequent items are moved into the recreate phase.
-5. **Recreated suffix (indices effectiveK … end):** delete each old Discord message, then post a new one sequentially (concurrency: 1) so that Discord assigns monotonically increasing snowflakes, which guarantees the messages appear in the correct top-to-bottom order on the next reorder pass.
+**Note (remove-global-events-board Release A):** the shared "global" events board, its per-channel reorder pass (`reorderChannelMessages`), the divider message, and the `MAX_CHANNEL_EVENTS = 10` cap were all removed from the bot. Only the two pure sort/prefix helper functions survive, moved to `channelReorderPrefix.ts` and reused by the personal-channel reorder pass (see "Personal Events Reconcile Worker" below); there is no cap or divider for personal channels. `ChannelReorderSemaphore` (`applications/bot/src/rcp/event/ChannelReorderSemaphore.ts`) still exists and still guards personal-channel reorders per channel.
 
 **Events processed:**
 
 | Event tag | Handler file | Discord action |
 |-----------|-------------|----------------|
-| `event_created` | `handleCreated.ts` | Fetches RSVP counts (`Event/GetRsvpCounts`) and the guild's preferred locale, builds an event embed with RSVP buttons, posts it to the group's configured Discord channel (or the guild system channel as fallback), saves the resulting message ID via `Event/SaveDiscordMessageId`, then re-orders all event messages in the channel by start time |
-| `event_updated` | `handleUpdated.ts` | Looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts, rebuilds the embed, edits the existing Discord message, then re-orders channel messages |
-| `event_cancelled` | `handleCancelled.ts` | Looks up the stored Discord message, replaces the embed content with a cancelled-state embed (no RSVP buttons), edits the existing Discord message |
-| `event_started` | `handleStarted.ts` | Three actions run in parallel. (1) In-place edit: looks up the stored Discord message via `Event/GetDiscordMessageId`, fetches updated RSVP counts and embed info, rebuilds the embed without RSVP action-row buttons, and edits the existing Discord message. If Discord returns error 10008 (Unknown Message — the message was deleted), the embed is re-posted with `createMessage` and the new message ID is persisted via `Event/SaveDiscordMessageId`. After the in-place edit (or recreation) succeeds, `reorderChannelMessages` is called so the started event moves into the channel's "past" section. (2) New announcement post: posts a fresh "Starting now: {title}" message to the team's configured reminders channel (falls back to the guild system channel when no reminders channel is set). The announcement embed lists the going attendees filtered to the event's member group, and is formatted in yellow. For **training** events: if `claimed_by_discord_id` is set the message content is `<@coachDiscordId>` (user mention with `allowed_mentions.users`); if no coach was assigned (or the claimer has no linked Discord) the content pings the owners-group Discord role (`<@&ownersRole>`) together with the i18n string `bot_event_started_no_coach_warning` ("No coach claimed this training."). If neither is available, only the warning text is shown. For **non-training** events the behavior is unchanged: the member-group Discord role is @-mentioned as before. The `GetYesAttendeesForEmbed` RPC is called with `member_group_id` so only members in the event's member group (and their descendants, via `WITH RECURSIVE descendant_groups`) appear. Emitted by `EventStartCron` when an event's `start_at` time passes. (3) Best-effort claim-message deletion: for training events, calls `Event/GetClaimInfo` to find the claim message's thread channel and message IDs, then calls `rest.deleteMessage` to remove the embed from the owners claim thread. Discord 10008 errors (unknown message) are silently swallowed; other errors are logged as warnings. |
-| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the team's configured reminders channel (falls back to the owner-group's channel). No role @-mention is included in the message content — the reminder is embed-only. Non-responders and yes-attendees are filtered to the event's member group. Non-responders and yes-attendees are formatted as `**Name** (<@id>)` (dual format: bold name plus mention) when both are available; name-only when no Discord ID is linked; mention-only when only a Discord ID is known. The embed also includes a "Going" field listing current yes-attendees. Sends a direct message to each non-responder with a linked Discord account with a link to the voting message. |
+| `event_created` | *no-op* | The shared events board is removed (remove-global-events-board Release A); `handleCreated.ts` was deleted and this tag now just no-ops and marks the row processed. Kept in the union purely so rows written by an old, not-yet-updated server (or left over from before the release) drain cleanly instead of erroring; removed entirely in Release B. |
+| `event_updated` | *no-op* | Same as `event_created` above; `handleUpdated.ts` was deleted. |
+| `event_cancelled` | *no-op* | Same as `event_created` above; `handleCancelled.ts` was deleted. |
+| `event_started` | `handleStarted.ts` | Two actions run in parallel (the shared-board in-place edit that used to run here was removed along with the board itself). (1) New announcement post: posts a fresh "Starting now: {title}" message to the team's configured reminders channel (falls back to the guild system channel when no reminders channel is set). The announcement embed lists the going attendees filtered to the event's member group, and is formatted in yellow. For **training** events: if `claimed_by_discord_id` is set the message content is `<@coachDiscordId>` (user mention with `allowed_mentions.users`); if no coach was assigned (or the claimer has no linked Discord) the content pings the owners-group Discord role (`<@&ownersRole>`) together with the i18n string `bot_event_started_no_coach_warning` ("No coach claimed this training."). If neither is available, only the warning text is shown. For **non-training** events the behavior is unchanged: the member-group Discord role is @-mentioned as before. The `GetYesAttendeesForEmbed` RPC is called with `member_group_id` so only members in the event's member group (and their descendants, via `WITH RECURSIVE descendant_groups`) appear. Emitted by `EventStartCron` when an event's `start_at` time passes. (2) Best-effort claim-message deletion: for training events, calls `Event/GetClaimInfo` to find the claim message's thread channel and message IDs, then calls `rest.deleteMessage` to remove the embed from the owners claim thread. Discord 10008 errors (unknown message) are silently swallowed; other errors are logged as warnings. The finished event is also removed from members' personal channels — see the "Personal Events Reconcile Worker" below, driven by `events.personal_messages_dirty_at` rather than by this handler. |
+| `rsvp_reminder` | `handleRsvpReminder.ts` | Fetches a reminder summary via `Event/GetRsvpReminderSummary` (yes/no/maybe counts, non-responder list, yes-attendee list with Discord IDs), posts a yellow reminder embed to the team's configured reminders channel (falls back to the owner-group's channel). No role @-mention is included in the message content — the reminder is embed-only. Non-responders and yes-attendees are filtered to the event's member group. Non-responders and yes-attendees are formatted as `**Name** (<@id>)` (dual format: bold name plus mention) when both are available; name-only when no Discord ID is linked; mention-only when only a Discord ID is known. The embed also includes a "Going" field listing current yes-attendees. Sends a direct message to each non-responder with a linked Discord account. As of the remove-global-events-board Release A, the DM link points to **that member's own personal events channel** (`https://discord.com/channels/{guild_id}/{personal_channel_id}`, resolved per-member via `Guild/ListPersonalChannelsForEvent`); a member without a personal channel falls back to a link to the reminders channel (previously the link jumped to the now-removed shared board message). |
 | `training_claim_request` | `handleTrainingClaimRequest.ts` | Posts a claim-board message into a **persistent "Training claims" thread** scoped to the event's owner group. The flow is: (1) Resolve the owner group's claim thread via `Event/GetOwnerClaimThread`; if none exists, create a new PUBLIC_THREAD (type 11, 7-day auto-archive, name from i18n key `bot_claim_thread_name` = "Training claims") in the owner-group channel (`discord_target_channel_id`) and persist it via `Event/SaveOwnerClaimThread`. A compare-and-swap pattern handles concurrent requests: if two bot instances race to create the thread, only one wins the save and the loser deletes its orphan thread (best-effort) and uses the winner's ID. (2) Post the claim embed (event details, orange "Unclaimed" colour, "Claim" primary button) to the resolved thread via `rest.createMessage`. If the thread has since been deleted (Discord error 10003), the bot clears the stored ID via `Event/ClearOwnerClaimThread`, creates a fresh thread, and retries the post once. (3) Persist the thread channel ID and message ID via `Event/SaveClaimDiscordMessageId`. Unlike previous behavior, each training no longer gets its own thread; all trainings for the same owner group share one persistent thread. |
 | `coaching_status` | `handleCoachingStatus.ts` | Posts a green "today's coach is X" embed to the channel supplied in `discord_target_channel_id`. The coach is shown as a Discord @-mention when a Discord ID is available, or a plain display name otherwise. Emitted by `CoachingStatusCron` on the day of a claimed training. |
 | `training_claim_update` | `handleTrainingClaimUpdate.ts` | Edits the existing claim-board message (located via `claim_discord_channel_id` / `claim_discord_message_id`). The updated embed reflects whether the training is now claimed (green, claimer shown as `**Name** (<@discordId>)` using the same `formatNameWithMention` helper as RSVP attendee lists, Unclaim button) or unclaimed (orange, Claim button). The claimer's identity fields (`discord_id`, `name`, `nickname`, `display_name`, `username`) are resolved at SELECT time via a LEFT JOIN to `team_members → users` rather than being stored in the outbox row. If the message has been deleted (404 response), the update is silently skipped. |
@@ -1758,7 +1745,7 @@ When the Channel Sync Worker calls `Channel/UpsertMapping` or `Channel/UpsertMap
 | `event_roster_approval_cancel` | `handleEventRosterApprovalCancel.ts` | Deletes the specific approval embed message from the per-event thread. Uses `owners_thread_id` (the thread channel ID) and `discord_message_id` (the message ID) from the event payload. Discord 10008 errors (Unknown Message) are silently swallowed. Emitted when a pending approval request is cancelled — e.g. the member's RSVP changes away from "yes" or the event–roster link is removed. |
 | `event_roster_thread_delete` | `handleEventRosterThreadDelete.ts` | Deletes the entire per-event approval thread from Discord. Uses `owners_thread_id` from the event payload. Discord 10003 errors (Unknown Channel) are silently swallowed. Emitted when the event–roster link is removed and a thread previously existed. |
 | `teams_generated` | `handleTeamsGenerated.ts` | Posts a generated-teams embed to the event's `discord_target_channel_id`. Flow: (1) If `discord_target_channel_id` is `None`, logs a warning and skips. (2) Fetches the guild via `rest.getGuild` to resolve the preferred locale. (3) Builds the embed via `buildGeneratedTeamsEmbed` — lists each team with its members (display name, rating, calibrating indicator) and average rating. (4) Posts the embed to the target channel via `rest.createMessage`. Discord errors are caught and logged as warnings without rethrowing. Emitted by `POST /teams/:teamId/events/:eventId/post-teams-to-discord`. |
-| `event_channel_moved` | `handleChannelMoved.ts` | Migrates all of the team's upcoming active events from the old global events channel to the new one. Emitted by `updateTeamSettings` whenever `team_settings.discord_events_channel_id` changes. The handler carries `old_channel_id` (reusing the `discord_role_id` outbox column) and `new_channel_id` (reusing `discord_target_channel_id`). Six-step flow: (1) Resolves the guild's preferred locale via `rest.getGuild` (falls back to `'en'`). (2) Calls `Event/RepointChannelEvents` — an atomic CTE UPDATE that reassigns `discord_channel_id` and NULLs `discord_message_id` for every upcoming active event that was in the old channel, returning `(event_id, old_message_id)` pairs. This is the crash-idempotency commit point: if the handler is retried after this step, the old messages no longer exist so no double-deletion occurs. (3) Deletes every old Discord message returned in step 2 (only if `old_channel_id` is `Some`); Discord 10008 "Unknown Message" errors are silently swallowed. (4) Re-posts all unposted upcoming events into the new channel: calls `Event/GetUnpostedUpcomingByChannel` to retrieve event IDs whose `discord_message_id` is `NULL` in the new channel, then for each event builds the full embed via `Event/GetEventEmbedInfo`, `Event/GetRsvpCounts`, and `Event/GetYesAttendeesForEmbed`, posts it with `rest.createMessage`, and persists the new message ID via `Event/SaveDiscordMessageId`; events that have vanished or been cancelled between the repoint and the post are silently skipped. Only runs if `new_channel_id` is `Some`. (5) Calls `reorderChannelMessages` on the new channel to sort events correctly (concurrency-serialised via `ChannelReorderSemaphore`). (6) Calls `reorderChannelMessages` on the old channel (if `old_channel_id` is `Some`) to clean it up. |
+| `event_channel_moved` | *no-op* | Used to migrate all of the team's upcoming active events from the old "global" events channel to the new one whenever `team_settings.discord_events_channel_id` changed. The shared events board (and the "Global events channel" team setting) was removed in the remove-global-events-board Release A: `updateTeamSettings` no longer emits this event type, and `handleChannelMoved.ts` was deleted — the tag now just no-ops and marks the row processed. Kept in the union purely for wire-compat with rows written before the release; removed entirely in Release B. |
 
 **Lifecycle RPCs:**
 - `Event/MarkEventProcessed`
@@ -2014,11 +2001,9 @@ On each tick it calls `PersonalEvents/GetEventsNeedingReconcile` to get up to `P
 
 **Per-channel reorder pass (`reorderPersonalChannel`):**
 
-After all members for an event have been reconciled, any member whose channel received a new message is subject to a reorder pass. The worker calls `PersonalEvents/ListMessagesForMember` to retrieve all stored personal event messages for that member ordered by `start_at` ascending. It then runs the same `longestKeepablePrefix` / delete-and-recreate algorithm used by the global event channel (`reorderChannelMessages`), ensuring that upcoming events inside each personal channel are ordered with the soonest event nearest the input box — matching the ordering in the global events channel. The reorder is serialised per-channel via `ChannelReorderSemaphore`.
+After all members for an event have been reconciled, any member whose channel received a new message is subject to a reorder pass. The worker calls `PersonalEvents/ListMessagesForMember` to retrieve all stored personal event messages for that member ordered by `start_at` ascending. It then runs the `longestKeepablePrefix` / delete-and-recreate algorithm (`applications/bot/src/rcp/event/channelReorderPrefix.ts`), ensuring that upcoming events inside each personal channel are ordered with the soonest event nearest the input box. The reorder is serialised per-channel via `ChannelReorderSemaphore`. (Before the remove-global-events-board Release A this same helper also drove the now-removed shared events board's `reorderChannelMessages`; personal channels have no divider message and no `MAX_CHANNEL_EVENTS` cap.)
 
-**Global message refresh:** After the per-member and reorder passes, the worker also re-fetches the event's global (shared) message via `Event/GetDiscordMessageId` and its embed data via `Event/GetEventEmbedInfo`. If `EventEmbedInfo.status` is `'active'`, it rebuilds the embed (via `Event/GetRsvpCounts` and `Event/GetYesAttendeesForEmbed`), hash-diffs it against the currently posted message, and edits it in place if changed. If the status is not `'active'` (e.g. `'started'` or `'cancelled'`), this refresh is skipped entirely — those events' global-message styling is owned by `handleStarted`/`handleCancelled`, and reconciling here would revert their started/cancelled appearance (and re-add RSVP buttons).
-
-After reconciling all members for an event, calls `PersonalEvents/ClearPersonalMessagesDirty` with the original `dirty_at` timestamp (optimistic concurrency — if a newer dirty timestamp was written since the reconcile started, the clear is skipped and the event remains dirty for the next tick).
+After reconciling all members for an event, calls `PersonalEvents/ClearPersonalMessagesDirty` with the original `dirty_at` timestamp (optimistic concurrency — if a newer dirty timestamp was written since the reconcile started, the clear is skipped and the event remains dirty for the next tick). There is no separate shared/"global" message refresh step anymore — the shared board was removed in Release A and personal channels are the only Discord surface this worker maintains.
 
 **RPCs used by this worker:**
 
@@ -2031,9 +2016,6 @@ After reconciling all members for an event, calls `PersonalEvents/ClearPersonalM
 - `PersonalEvents/ListMessagesForMember`
 - `PersonalEvents/ClearPersonalMessagesDirty`
 - `Event/GetYesAttendeesForEmbed`
-- `Event/GetDiscordMessageId`
-- `Event/GetEventEmbedInfo`
-- `Event/GetRsvpCounts`
 
 **Source files:**
 - `applications/bot/src/rcp/personalEvents/ProcessorService.ts`
@@ -2043,20 +2025,6 @@ After reconciling all members for an event, calls `PersonalEvents/ClearPersonalM
 - `applications/bot/src/rcp/personalEvents/handleReconcile.ts`
 - `applications/bot/src/rcp/personalEvents/reorderPersonalChannel.ts`
 - `applications/bot/src/rest/events/buildPersonalEventMessage.ts`
-
----
-
-## Startup Tasks
-
-In addition to the poll loops, the bot runs one-off tasks at startup (after the gateway connection is established). These tasks are composed alongside the poll loops with `concurrency: 'unbounded'` in `Bot.ts`.
-
-### recoverDeletedMessages
-
-**Source file:** `applications/bot/src/rcp/event/recoverDeletedMessages.ts`
-
-On connect, the bot calls `Event/GetChannelsWithStoredMessages` to retrieve every `(discord_channel_id, guild_id)` pair for which at least one event message is currently stored in the database. For each channel it fetches the guild's preferred locale via the Discord REST API (defaults to `en` if the fetch fails), then runs `reorderChannelMessages`. Because `reorderChannelMessages` recovers from Discord 10008 errors by recreating any deleted messages (see "Message recovery" above), this single pass restores all event embeds that were removed from Discord while the bot was offline. Channels are processed with a concurrency of 3 (outer loop); per-channel reorders are still serialised by `ChannelReorderSemaphore`. Per-channel failures are logged as warnings and do not abort the remaining channels.
-
-The optional `snowflakeOverrides` parameter on `reorderChannelMessages` (a `ReadonlyMap<eventId, Option<Snowflake>>`) lets callers force specific items into the recreate suffix by passing `Option.none()` for their snowflake. This is used internally when a message is known to be missing, bypassing the prefix-algorithm's keep decision.
 
 ---
 
@@ -2086,7 +2054,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/RegisterMember` | | Register a single new member; accepts `invite_code: Option<string>` (the Discord code matched by the invite diff) and returns `Option<WelcomeMeta>` (system log channel, optional welcome detail including rendered message, group colour, inviter Discord ID). The server resolves the invite code via `invite_acceptances.discord_code` (not `team_invites.discord_code`) to look up the team, group, and inviter. |
 | `Guild/RemoveMember` | `guild_id`, `discord_id` | Deactivate a member who left the guild. Resolves the team by `guild_id` and the user by `discord_id`. No-op when the member is not found or is already inactive. Protected: the last active `team:manage` holder is never deactivated. On success, runs `deactivateMemberAndCascade` in a transaction: emits `member_removed` channel-sync events for all rosters and groups (including ancestor groups), deactivates the `team_members` row, and hard-deletes all group and roster memberships. Called from the `GUILD_MEMBER_REMOVE` gateway handler; errors are caught and logged without crashing the handler. |
 | `Guild/GetGuildsNeedingPersonalProvisioning` | `limit` → `Snowflake[]` | Returns guild IDs where personal events are enabled and at least one active member is missing a personal channel |
-| `Guild/IdentifyEventsChannel` | `guild_id`, `channel_id`, `discord_user_id` → `{ kind, team_id, team_member_id, owner_discord_id, is_admin }` | Classifies a channel as `'global'` (the team's global events channel), `'personal'` (a member's personal events channel), or `'none'`. For `'personal'` channels, `owner_discord_id` is the Discord snowflake of the channel's owner — the bot compares this to the caller to tell an own-channel refresh apart from an admin refreshing someone else's. `is_admin` is `true` if the caller holds `team:manage`. |
+| `Guild/IdentifyEventsChannel` | `guild_id`, `channel_id`, `discord_user_id` → `{ kind, team_id, team_member_id, owner_discord_id, is_admin }` | Classifies a channel as `'personal'` (a member's personal events channel) or `'none'`. For `'personal'` channels, `owner_discord_id` is the Discord snowflake of the channel's owner — the bot compares this to the caller to tell an own-channel refresh apart from an admin refreshing someone else's. `is_admin` is `true` if the caller holds `team:manage`. As of the remove-global-events-board Release A, `kind: 'global'` (the removed shared events board) is never returned; the literal stays in the schema only for wire compatibility. |
 | `Guild/GetPersonalEventsCategory` | `guild_id` → `Snowflake \| null` | Returns the team's `discord_personal_events_category_id` setting |
 | `Guild/GetMembersNeedingPersonalChannel` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_id, name, channel_format }[]` | Lists active members with no provisioned personal channel; applies the team's `discord_personal_events_group_id` restriction when set; `name` is the member's display name for the `{name}` channel-format placeholder; `channel_format` is the team's configured `discord_personal_events_channel_format` |
 | `Guild/GetPersonalChannelsToDeprovision` | `guild_id`, `limit` → `{ team_id, team_member_id, discord_channel_id }[]` | Lists members who have a personal channel but are no longer eligible. Returns the union of two sets: (a) active members outside the configured `discord_personal_events_group_id` group (empty when no group restriction is set); and (b) inactive members who still hold a personal channel (e.g. after `Guild/RemoveMember` cascade deactivation). Duplicates are de-duplicated by `team_member_id`. |
@@ -2097,7 +2065,7 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Guild/MarkTeamPersonalEventsDirty` | `team_id` | Marks all active upcoming team events dirty so the reconcile loop backfills embeds into a freshly-provisioned channel |
 | `Guild/GetPersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Reads the stored Discord channel ID for a member |
 | `Guild/DeletePersonalChannel` | `team_id`, `team_member_id` → `Snowflake \| null` | Deletes the row and returns the channel ID for cleanup |
-| `Guild/ListPersonalChannelsForEvent` | `event_id` → `{ team_member_id, discord_id, personal_channel_id }[]` | Lists all members with a personal channel for reconcile |
+| `Guild/ListPersonalChannelsForEvent` | `event_id` → `{ team_member_id, discord_id, personal_channel_id }[]` | Lists all members with a personal channel for reconcile; also used by `handleRsvpReminder` to resolve each non-responder's own personal-channel link for the reminder DM |
 | `Guild/GetPersonalChannelTargetCategory` | `team_id` → `{ category_id, is_overflow }` | Returns which Discord category to place the next personal channel into |
 | `Guild/AllocatePersonalOverflowCategory` | `team_id` → `{ sequence, exists }` | Reserves the next overflow category slot |
 | `Guild/SavePersonalOverflowCategoryId` | `team_id`, `sequence`, `discord_category_id` | Persists the Discord overflow category snowflake |
@@ -2143,6 +2111,8 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 
 ### Event group (`Event/`)
 
+As of the remove-global-events-board Release A, the bot no longer calls the shared-board/divider RPCs (`SaveDiscordMessageId`, `GetDiscordMessageId`, `GetChannelEvents`, `GetChannelDivider`, `SaveChannelDivider`, `DeleteChannelDivider`, `GetChannelsWithStoredMessages`, `RepointChannelEvents`, `GetUnpostedUpcomingByChannel`) — they are omitted from the list below even though the server still exposes them (see `docs/api.md`) for compatibility with an older, not-yet-updated bot during rollout.
+
 | Method | Purpose |
 |--------|---------|
 | `Event/GetUnprocessedEvents` | Poll for pending event outbox events |
@@ -2156,14 +2126,8 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/GetRsvpCounts` | Fetch yes/no/maybe counts for an event |
 | `Event/GetRsvpAttendees` | Fetch paginated attendee list |
 | `Event/GetRsvpReminderSummary` | Fetch counts and non-responder list for a reminder |
-| `Event/SaveDiscordMessageId` | Persist the Discord message ID after posting an event embed |
-| `Event/GetDiscordMessageId` | Look up the stored Discord message for an event |
 | `Event/GetEventEmbedInfo` | Fetch event fields needed to rebuild the embed |
-| `Event/GetYesAttendeesForEmbed` | Fetch yes-attendee display names for the embed; accepts an optional `member_group_id` to filter results to the event's member group and its descendants via `WITH RECURSIVE descendant_groups` (used by `postRsvpDiscordUpdates`, event sync, and start announcements) |
-| `Event/GetChannelEvents` | Fetch all events in a Discord channel (for reordering) |
-| `Event/GetChannelDivider` | Look up the stored divider message ID for a Discord channel |
-| `Event/SaveChannelDivider` | Persist the divider message ID for a Discord channel (upsert) |
-| `Event/DeleteChannelDivider` | Remove the divider message record for a Discord channel |
+| `Event/GetYesAttendeesForEmbed` | Fetch yes-attendee display names for the embed; accepts an optional `member_group_id` to filter results to the event's member group and its descendants via `WITH RECURSIVE descendant_groups` (used by event sync and start announcements) |
 | `Event/ClaimTraining` | Atomically claim a training for the invoking coach; returns `EventClaimInfo` or a typed error (`ClaimEventNotFound`, `ClaimNotTraining`, `ClaimEventInactive`, `ClaimNotOwnerGroupMember`, `ClaimAlreadyClaimed`) |
 | `Event/UnclaimTraining` | Release a coach's claim on a training; returns `EventClaimInfo` or a typed error (`ClaimEventNotFound`, `ClaimEventInactive`, `ClaimNotClaimer`) |
 | `Event/SaveClaimDiscordMessageId` | Persist the Discord channel and message IDs for the claim-board message after posting |
@@ -2171,7 +2135,6 @@ The bot communicates with the server using the `SyncRpcs` RPC group defined in `
 | `Event/GetOwnerClaimThread` | Look up the persistent claim-thread ID stored on the `discord_channel_mappings` row for a given `(team_id, owner_group_id)` pair; returns `Option<Snowflake>` |
 | `Event/SaveOwnerClaimThread` | Compare-and-swap write: sets `claim_thread_id` on the mapping row only when the current value is `NULL`; returns the winning thread ID (the caller's if it won, or the pre-existing one if it lost the race) |
 | `Event/ClearOwnerClaimThread` | Sets `claim_thread_id = NULL` on the mapping row for a given `(team_id, owner_group_id)`; called when the thread is found to have been deleted (Discord error 10003) so that the next claim-request recreates it |
-| `Event/GetChannelsWithStoredMessages` | Fetch all `(discord_channel_id, guild_id)` pairs for which at least one event message ID is stored; used by the `recoverDeletedMessages` startup task |
 | `Event/GetLoggableTrainingEvents` | Fetch training events for the guild with status `active` or `started` whose `start_at` is within the past 2 days; used by the `/training result` autocomplete and command handler; errors: `GuildNotFound` |
 
 ### Invite group (`Invite/`)

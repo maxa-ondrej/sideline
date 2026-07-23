@@ -462,3 +462,59 @@ describe('RsvpReminderEvent — round-trip with new fields', () => {
     expect(Option.isNone(result.discord_role_id)).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// TeamSettingsInfo — discordEventsChannelId (transitional, remove-global-events-board)
+// ---------------------------------------------------------------------------
+
+// Release A expand/contract invariant: the field is deleted outright in
+// Release B, so it must tolerantly decode both an explicit null (current
+// server emission) and a missing key (forward-compat once the column is
+// dropped), and always encode None back as an explicit null (backward-compat
+// for a web bundle that has not yet stopped reading the key).
+describe('TeamSettingsInfo discordEventsChannelId (transitional)', () => {
+  const base = {
+    teamId: '11111111-1111-1111-1111-111111111111',
+    eventHorizonDays: 30,
+    minPlayersThreshold: 5,
+    rsvpRemindersEnabled: true,
+    rsvpReminderDaysBefore: 1,
+    maxMissedRsvps: 3,
+    claimRequestDaysBefore: 1,
+    rsvpReminderTime: '18:00',
+    remindersChannelId: null,
+    timezone: 'UTC',
+    discordChannelLateRsvp: null,
+    createDiscordChannelOnGroup: false,
+    createDiscordChannelOnRoster: false,
+    discordArchiveCategoryId: null,
+    discordRosterCategoryId: null,
+    discordPersonalEventsCategoryId: null,
+    discordPersonalEventsGroupId: null,
+    discordPersonalEventsChannelFormat: '{name}',
+    discordChannelCleanupOnGroupDelete: 'archive',
+    discordChannelCleanupOnRosterDeactivate: 'archive',
+    discordRoleFormat: '{name}',
+    discordChannelFormat: '{name}',
+  };
+
+  it('decodes a missing key to None', () => {
+    const decoded = Schema.decodeUnknownSync(TeamSettingsApi.TeamSettingsInfo)(base);
+    expect(Option.isNone(decoded.discordEventsChannelId)).toBe(true);
+  });
+
+  it('decodes an explicit null to None', () => {
+    const decoded = Schema.decodeUnknownSync(TeamSettingsApi.TeamSettingsInfo)({
+      ...base,
+      discordEventsChannelId: null,
+    });
+    expect(Option.isNone(decoded.discordEventsChannelId)).toBe(true);
+  });
+
+  it('encodes None as an explicit null key, never omitted', () => {
+    const decoded = Schema.decodeUnknownSync(TeamSettingsApi.TeamSettingsInfo)(base);
+    const encoded = Schema.encodeSync(TeamSettingsApi.TeamSettingsInfo)(decoded);
+    expect(Object.hasOwn(encoded, 'discordEventsChannelId')).toBe(true);
+    expect(encoded.discordEventsChannelId).toBeNull();
+  });
+});

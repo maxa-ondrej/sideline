@@ -5,12 +5,10 @@ import { HttpApiBuilder } from 'effect/unstable/httpapi';
 import { Api } from '~/api/api.js';
 import { hasPermission, requireMembership, requirePermission } from '~/api/permissions.js';
 import { checkCoachScoping, checkGroupAccess, checkTrainingTypeOwnerGroup } from '~/api/scoping.js';
-import { EventSyncEventsRepository } from '~/repositories/EventSyncEventsRepository.js';
 import { EventsRepository } from '~/repositories/EventsRepository.js';
 import { GroupsRepository } from '~/repositories/GroupsRepository.js';
 import { TeamMembersRepository } from '~/repositories/TeamMembersRepository.js';
 import { TrainingTypesRepository } from '~/repositories/TrainingTypesRepository.js';
-import { resolveChannel } from '~/services/EventChannelResolver.js';
 import { emitTrainingClaimRequestIfApplicable } from '~/services/TrainingClaimEmitter.js';
 
 const markPersonalMessagesDirtyBestEffort = (
@@ -33,10 +31,9 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
   Effect.Do.pipe(
     Effect.bind('members', () => TeamMembersRepository.asEffect()),
     Effect.bind('events', () => EventsRepository.asEffect()),
-    Effect.bind('syncEvents', () => EventSyncEventsRepository.asEffect()),
     Effect.bind('groups', () => GroupsRepository.asEffect()),
     Effect.bind('trainingTypes', () => TrainingTypesRepository.asEffect()),
-    Effect.map(({ members, events, syncEvents, groups, trainingTypes }) =>
+    Effect.map(({ members, events, groups, trainingTypes }) =>
       handlers
         .handle('listEvents', ({ params: { teamId }, query: { all } }) =>
           Effect.Do.pipe(
@@ -150,25 +147,6 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 memberGroupId: resolvedGroups.memberGroupId,
                 allDay: payload.allDay,
               }),
-            ),
-            Effect.bind('resolvedChannel', () => resolveChannel(teamId)),
-            Effect.tap(({ event, resolvedChannel }) =>
-              syncEvents.emitEventCreated(
-                teamId,
-                event.id,
-                event.title,
-                event.description,
-                event.start_at,
-                event.end_at,
-                event.location,
-                event.event_type,
-                resolvedChannel,
-                Option.none(),
-                Option.none(),
-                event.image_url,
-                event.location_url,
-                event.all_day,
-              ),
             ),
             Effect.tap(({ event }) =>
               emitTrainingClaimRequestIfApplicable({
@@ -401,28 +379,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
                 ),
               ),
             ),
-            Effect.bind('resolvedChannelForUpdate', () => resolveChannel(teamId)),
-            Effect.tap(({ detail, resolvedChannelForUpdate }) =>
-              Effect.all([
-                syncEvents.emitEventUpdated(
-                  teamId,
-                  detail.id,
-                  detail.title,
-                  detail.description,
-                  detail.start_at,
-                  detail.end_at,
-                  detail.location,
-                  detail.event_type,
-                  resolvedChannelForUpdate,
-                  Option.none(),
-                  Option.none(),
-                  detail.image_url,
-                  detail.location_url,
-                  detail.all_day,
-                ),
-                markPersonalMessagesDirtyBestEffort(events, detail.id),
-              ]),
-            ),
+            Effect.tap(({ detail }) => markPersonalMessagesDirtyBestEffort(events, detail.id)),
             Effect.map(
               ({ detail, membership }) =>
                 new EventApi.EventDetail({
@@ -502,25 +459,7 @@ export const EventApiLive = HttpApiBuilder.group(Api, 'event', (handlers) =>
               ),
             ),
             Effect.tap(() => events.cancelEvent(eventId)),
-            Effect.tap(({ existing }) =>
-              Effect.all([
-                syncEvents.emitEventCancelled(
-                  teamId,
-                  existing.id,
-                  existing.title,
-                  existing.description,
-                  existing.start_at,
-                  existing.end_at,
-                  existing.location,
-                  existing.event_type,
-                  Option.none(),
-                  Option.none(),
-                  Option.none(),
-                  existing.location_url,
-                ),
-                markPersonalMessagesDirtyBestEffort(events, existing.id),
-              ]),
-            ),
+            Effect.tap(({ existing }) => markPersonalMessagesDirtyBestEffort(events, existing.id)),
             Effect.asVoid,
           ),
         ),
