@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.34.1
+
+### 🐛 Fixes
+- label the coming-later modal field as required, not optional (#550)
+
 ## 0.34.0
 
 ### 🚀 Features
