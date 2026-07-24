@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0
+
+### 🚀 Features
+- rename "maybe" to "coming later" with a required reason (#549)
+
 ## 0.7.0
 
 ### 🚀 Features
